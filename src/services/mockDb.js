@@ -1,6 +1,6 @@
 import { seed } from '../data/seed.js'
 
-const KEY = 'fitfinity-m1-mock-db'
+const KEY = 'fitfinity-m1-2-mock-db'
 const clone = value => JSON.parse(JSON.stringify(value))
 
 function load() {
@@ -15,13 +15,19 @@ function load() {
 let state = load()
 
 function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* test/private mode fallback */ }
+  try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* private/test fallback */ }
 }
 
 export const mockDb = {
   read() { return clone(state) },
   write(next) { state = clone(next); persist(); return clone(state) },
-  mutate(mutator) { const next = clone(state); mutator(next); state = next; persist(); return clone(state) },
+  mutate(mutator) {
+    const next = clone(state)
+    mutator(next)
+    state = next
+    persist()
+    return clone(state)
+  },
   reset() { state = clone(seed); persist(); return clone(state) },
 }
 
