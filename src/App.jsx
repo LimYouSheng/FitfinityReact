@@ -6,6 +6,8 @@ import ClientProfilePage from './features/clients/ClientProfilePage.jsx'
 import TrainersPage from './features/trainers/TrainersPage.jsx'
 import TrainerProfilePage from './features/trainers/TrainerProfilePage.jsx'
 import MessagesPage from './features/messages/MessagesPage.jsx'
+import SessionsPage from './features/sessions/SessionsPage.jsx'
+import SessionDetailsPage from './features/sessions/SessionDetailsPage.jsx'
 import MigrationPlaceholder from './features/placeholders/MigrationPlaceholder.jsx'
 import useSwipeBack from './hooks/useSwipeBack.js'
 import useZoomLock from './hooks/useZoomLock.js'
@@ -13,6 +15,9 @@ import { clientService } from './services/clientService.js'
 import { trainerService } from './services/trainerService.js'
 import { mockDb } from './services/mockDb.js'
 import { messageService } from './services/messageService.js'
+import { sessionService } from './services/sessionService.js'
+import { visibleSessionsForUser } from './app/sessionRules.js'
+import { useEditGuard } from './components/EditGuardProvider.jsx'
 
 const pathFromLocation = () =>
   location.hash.replace(/^#\/?/, '') || 'dashboard'
@@ -22,6 +27,7 @@ const cleanPath = value =>
 
 export default function App() {
   useZoomLock()
+  const { guardNavigation } = useEditGuard()
   const [db, setDb] = useState(() => mockDb.read())
 
   const [userId, setUserId] = useState(() =>
@@ -64,7 +70,7 @@ export default function App() {
     }
   }, [])
 
-  const navigate = useCallback((next, options = {}) => {
+  const navigate = useCallback((next, options = {}) => guardNavigation(() => {
     const nextPath = cleanPath(next)
     const currentDepth = history.state?.fitfinityDepth ?? 0
 
@@ -83,26 +89,34 @@ export default function App() {
     }
 
     setPath(nextPath)
-  }, [])
+  }), [guardNavigation])
 
-  const goBack = useCallback(fallback => {
+  const goBack = useCallback(fallback => guardNavigation(() => {
     const depth = history.state?.fitfinityDepth ?? 0
 
     if (depth > 0) {
       history.back()
     } else {
-      navigate(fallback, { replace: true })
+      const nextPath = cleanPath(fallback)
+      history.replaceState({ fitfinity: true, fitfinityDepth: 0, fitfinityPath: nextPath }, '', `#/${nextPath}`)
+      setPath(nextPath)
     }
-  }, [navigate])
+  }), [guardNavigation])
 
   const reload = () => setDb(mockDb.read())
 
-  const switchUser = id => {
+  const switchUser = id => guardNavigation(() => {
+    const nextPath = 'dashboard'
     setUserId(id)
-    navigate('dashboard', { replace: true })
-  }
+    history.replaceState(
+      { fitfinity: true, fitfinityDepth: history.state?.fitfinityDepth ?? 0, fitfinityPath: nextPath },
+      '',
+      `#/${nextPath}`,
+    )
+    setPath(nextPath)
+  })
 
-  const reset = () => {
+  const reset = () => guardNavigation(() => {
     mockDb.reset()
     const fresh = mockDb.read()
 
@@ -112,8 +126,10 @@ export default function App() {
       fresh.users[0].id
     )
 
-    navigate('dashboard', { replace: true })
-  }
+    const nextPath = 'dashboard'
+    history.replaceState({ fitfinity: true, fitfinityDepth: history.state?.fitfinityDepth ?? 0, fitfinityPath: nextPath }, '', `#/${nextPath}`)
+    setPath(nextPath)
+  })
 
   const clients = db.clients
   const trainers = db.trainers
@@ -140,6 +156,14 @@ export default function App() {
     [trainers, detailId, route],
   )
 
+  const selectedSession = useMemo(
+    () =>
+      route === 'sessions' && detailId
+        ? visibleSessionsForUser(user, sessions).find(item => item.id === detailId) ?? null
+        : null,
+    [detailId, route, sessions, user],
+  )
+
   const selfTrainer =
     user.role === 'trainer'
       ? trainers.find(item => item.id === user.trainerId)
@@ -150,12 +174,15 @@ export default function App() {
       ? 'clients'
       : route === 'trainers'
         ? 'trainers'
+        : route === 'sessions'
+          ? 'sessions'
         : 'dashboard'
 
   useSwipeBack({
     enabled:
       Boolean(selectedClient) ||
       Boolean(selectedTrainer) ||
+      Boolean(selectedSession) ||
       route === 'my-profile' ||
       route === 'owner-profile',
     onBack: () => goBack(backFallback),
@@ -163,6 +190,7 @@ export default function App() {
 
   const openClient = id => navigate(`clients/${id}`)
   const openTrainer = id => navigate(`trainers/${id}`)
+  const openSession = id => navigate(`sessions/${id}`)
 
   const trainerProfile = (trainer, ownerMode) => (
     <TrainerProfilePage
@@ -201,6 +229,9 @@ export default function App() {
         user={user}
         client={selectedClient}
         trainer={trainers.find(item => item.id === selectedClient.trainerId)}
+        trainers={trainers}
+        sessions={sessions}
+        onOpenSession={openSession}
         onBack={() => goBack('clients')}
         onUpdate={async patch => {
           await clientService.update(selectedClient.id, patch)
@@ -249,14 +280,82 @@ export default function App() {
     selfTrainer
   ) {
     page = trainerProfile(selfTrainer, false)
+  } else if (route === 'sessions' && selectedSession) {
+    const sessionClient = clients.find(item => item.id === selectedSession.clientId)
+    const sessionTrainer = trainers.find(item => item.id === selectedSession.trainerId)
+    page = (
+      <SessionDetailsPage
+        user={user}
+        session={selectedSession}
+        client={sessionClient}
+        trainer={sessionTrainer}
+        trainers={trainers}
+        onOpenClient={() => openClient(sessionClient.id)}
+        onOpenTrainer={() => navigate(user.role === 'owner' ? `trainers/${sessionTrainer.id}` : 'my-profile')}
+        onSavePlan={async items => {
+          await sessionService.saveExercisePlan(selectedSession.id, items)
+          reload()
+        }}
+        onAcknowledge={async acknowledgement => {
+          await sessionService.acknowledge(selectedSession.id, acknowledgement)
+          reload()
+        }}
+        onSaveOutcome={async outcome => {
+          await sessionService.saveOutcome(selectedSession.id, outcome)
+          reload()
+        }}
+        onSaveClientSummary={async summary => {
+          await sessionService.saveClientSummary(selectedSession.id, summary)
+          reload()
+        }}
+        onMarkWhatsAppSent={async () => {
+          await sessionService.markWhatsAppSent(selectedSession.id)
+          reload()
+        }}
+        onSaveDetails={async patch => {
+          await sessionService.updateDetails(selectedSession.id, patch)
+          reload()
+        }}
+        onRequestTimeChange={async patch => {
+          const result = await sessionService.requestTimeChange(selectedSession.id, user, patch)
+          reload()
+          return result
+        }}
+        onRequestTrainerChange={async trainerId => {
+          const result = await sessionService.requestTrainerChange(selectedSession.id, user, trainerId)
+          reload()
+          return result
+        }}
+      />
+    )
+  } else if (route === 'sessions') {
+    page = (
+      <SessionsPage
+        user={user}
+        sessions={sessions}
+        clients={clients}
+        trainers={trainers}
+        onOpen={openSession}
+      />
+    )
   } else if (route === 'messages') {
     page = (
       <MessagesPage
         user={user}
         messages={messages}
+        clients={clients}
+        trainers={trainers}
+        sessions={sessions}
         onMarkRead={async id => {
           await messageService.markRead(id)
           reload()
+        }}
+        onOpenRelated={({ type, id }) => {
+          if (type === 'client') navigate(`clients/${id}`, { replace: true })
+          if (type === 'session') navigate(`sessions/${id}`, { replace: true })
+          if (type === 'trainer') {
+            navigate(user.role === 'owner' ? `trainers/${id}` : 'my-profile', { replace: true })
+          }
         }}
       />
     )
@@ -278,6 +377,7 @@ export default function App() {
   const shellCanGoBack =
     Boolean(selectedClient) ||
     Boolean(selectedTrainer) ||
+    Boolean(selectedSession) ||
     route === 'my-profile' ||
     route === 'owner-profile'
 
@@ -286,6 +386,8 @@ export default function App() {
       ? 'clients'
       : route === 'trainers'
         ? 'trainers'
+        : route === 'sessions'
+          ? 'sessions'
         : 'dashboard'
 
   return (

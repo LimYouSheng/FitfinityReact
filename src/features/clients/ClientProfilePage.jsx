@@ -2,28 +2,54 @@ import { useEffect, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import ProfileAvatar from '../../components/ProfileAvatar.jsx'
+import ProfileNavigation from '../../components/ProfileNavigation.jsx'
+import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
+import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import FixedWeeklySchedule from './FixedWeeklySchedule.jsx'
+import ClientProfileTabs from './ClientProfileTabs.jsx'
 import { canEditClientCoachingNotes, canEditClientGeneral } from '../../app/permissions.js'
-import { formatDate, packageDayProgress } from '../../utils/date.js'
+import { formatDate } from '../../utils/date.js'
 
-function EditableText({ title, value, editable, multiline = false, onSave }) {
-  const [editing, setEditing] = useState(false)
+const COUNTRY_CODES = ['+65', '+60', '+62', '+63', '+66', '+84', '+86', '+91', '+44', '+61']
+const RELATIONSHIPS = ['Spouse', 'Parent', 'Sibling', 'Child', 'Partner', 'Friend', 'Guardian', 'Other']
+const GENDER_PREFERENCES = ['No gender preference', 'Female trainer preferred', 'Male trainer preferred']
+
+function displayPhone(phone) {
+  if (!phone) return '—'
+  return typeof phone === 'string' ? phone : `${phone.countryCode} ${phone.number}`.trim()
+}
+
+function displayEmergency(contact) {
+  if (!contact) return '—'
+  if (typeof contact === 'string') return contact
+  return [contact.name, contact.relationship, displayPhone(contact)].filter(Boolean).join(' · ')
+}
+
+function EditableText({ title, value, editable, multiline = false, editing, editDisabled, onBeginEdit, onEndEdit, onSave }) {
+  const confirmAction = useActionConfirmation()
   const [draft, setDraft] = useState(value)
 
   useEffect(() => setDraft(value), [value])
 
-  const save = () => {
-    onSave(draft)
-    setEditing(false)
+  const save = async () => {
+    const confirmed = await confirmAction({
+      title: `Save ${title.toLowerCase()}?`,
+      message: `This will replace the client’s current ${title.toLowerCase()}.`,
+      confirmLabel: 'Save Changes',
+    })
+    if (!confirmed) return
+    await onSave(draft)
+    onEndEdit()
   }
 
   return (
-    <Panel>
+    <Panel className={editing ? 'editing-section' : ''}>
       <div className="section-head">
         <h2>{title}</h2>
 
         {editable && (!editing ? (
-          <button type="button" className="text-action" onClick={() => setEditing(true)}>
+          <button type="button" className="text-action" disabled={editDisabled} onClick={onBeginEdit}>
             Edit
           </button>
         ) : (
@@ -33,7 +59,7 @@ function EditableText({ title, value, editable, multiline = false, onSave }) {
               className="text-action muted-action"
               onClick={() => {
                 setDraft(value)
-                setEditing(false)
+                onEndEdit()
               }}
             >
               Cancel
@@ -58,20 +84,33 @@ export default function ClientProfilePage({
   user,
   client,
   trainer,
+  trainers,
+  sessions,
+  onOpenSession,
   onBack,
   onUpdate,
   onSaveFixedWeeklySchedule,
   onDeactivate,
   onReactivate,
 }) {
-  const [editingGeneral, setEditingGeneral] = useState(false)
+  const confirmAction = useActionConfirmation()
+  const { guardNavigation, setActiveEdit } = useEditGuard()
+  const [tab, setTab] = useState('overview')
+  const [activeEditor, setActiveEditor] = useState(null)
   const [draft, setDraft] = useState(client)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
 
   useEffect(() => {
     setDraft(client)
-    setEditingGeneral(false)
+    setActiveEditor(null)
+    setTab('overview')
   }, [client])
+
+  useEffect(() => {
+    const label = ({ general: 'Client information', schedule: 'Fixed weekly schedule', health: 'Health notes', remarks: 'Client remarks' })[activeEditor] ?? null
+    setActiveEdit(label)
+    return () => setActiveEdit(null)
+  }, [activeEditor, setActiveEdit])
 
   const ownerEditable = canEditClientGeneral(user)
   const notesEditable = canEditClientCoachingNotes(user, client)
@@ -85,61 +124,63 @@ export default function ClientProfilePage({
     user.role === 'owner' ||
     assignedTrainerEditable
 
-  const progress = packageDayProgress(
-    client.package.startDate,
-    client.package.validityDays,
-  )
-
-  const saveGeneral = () => {
-    onUpdate({
+  const saveGeneral = async () => {
+    const confirmed = await confirmAction({
+      title: 'Save client information?',
+      message: 'This will update the client’s contact and personal information.',
+      confirmLabel: 'Save Changes',
+    })
+    if (!confirmed) return
+    await onUpdate({
       phone: draft.phone,
       email: draft.email,
       birthday: draft.birthday,
       gender: draft.gender,
       emergencyContact: draft.emergencyContact,
+      genderPreference: draft.genderPreference,
     })
-    setEditingGeneral(false)
+    setActiveEditor(null)
   }
 
   return (
     <>
       <div className="page-head profile-identity-card">
-        <div>
-          <span className="eyebrow">Client profile</span>
-          <h1>{client.name}</h1>
+        <div className="profile-identity-main">
+          <ProfileAvatar name={client.name} />
 
-          <div className="profile-status-line" aria-label="Client status">
-            <StatusBadge tone={client.status === 'inactive' ? 'amber' : 'green'}>
-              {client.status === 'inactive' ? 'Inactive' : 'Active'}
-            </StatusBadge>
+          <div>
+            <span className="eyebrow">Client</span>
+            <h1>{client.name}</h1>
           </div>
+        </div>
+
+        <div className="profile-card-statuses" aria-label="Client status">
+          <StatusBadge tone={client.status === 'inactive' ? 'amber' : 'green'}>
+            {client.status === 'inactive' ? 'Inactive' : 'Active'}
+          </StatusBadge>
         </div>
       </div>
 
-      <details
-        className="profile-menu"
-        onClick={event => {
-          if (
-            event.target === event.currentTarget ||
-            event.target.closest('button')
-          ) {
-            event.currentTarget.removeAttribute('open')
-          }
-        }}
+      <ProfileNavigation
+        items={[
+            ['overview', 'Overview'],
+            ['package', 'Package'],
+            ['history', 'Session History'],
+            ['upcoming', 'Upcoming Sessions'],
+            ['progress', 'Progress'],
+        ]}
+        activeKey={tab}
+        onSelect={key => guardNavigation(() => {
+          setActiveEditor(null)
+          setTab(key)
+        })}
       >
-        <summary>Profile Menu</summary>
-
-        <div className="profile-tabs">
-          <button className="active" type="button">Overview</button>
-          <button type="button" disabled>Package</button>
-          <button type="button" disabled>Session History</button>
-          <button type="button" disabled>Upcoming Sessions</button>
-          <button type="button" disabled>Progress</button>
 
           {user.role === 'owner' && client.status !== 'inactive' && (
             <button
               type="button"
               className="profile-menu-danger"
+              disabled={Boolean(activeEditor)}
               onClick={() => setDeactivateOpen(true)}
             >
               Deactivate Client
@@ -150,24 +191,33 @@ export default function ClientProfilePage({
             <button
               type="button"
               className="profile-menu-reactivate"
-              onClick={onReactivate}
+              disabled={Boolean(activeEditor)}
+              onClick={async () => {
+                const confirmed = await confirmAction({
+                  title: `Reactivate ${client.name}?`,
+                  message: 'The client will return to active client lists and can be scheduled for sessions again.',
+                  confirmLabel: 'Reactivate Client',
+                })
+                if (confirmed) await onReactivate()
+              }}
             >
               Reactivate Client
             </button>
           )}
-        </div>
-      </details>
+      </ProfileNavigation>
 
-      <div className="two-column">
-        <Panel>
+      {tab === 'overview' && <>
+      <div className="profile-overview-stack">
+        <Panel className={activeEditor === 'general' ? 'editing-section' : ''}>
           <div className="section-head">
             <h2>General Information</h2>
 
-            {ownerEditable && (!editingGeneral ? (
+            {ownerEditable && (activeEditor !== 'general' ? (
               <button
                 type="button"
                 className="text-action"
-                onClick={() => setEditingGeneral(true)}
+                disabled={Boolean(activeEditor)}
+                onClick={() => setActiveEditor('general')}
               >
                 Edit
               </button>
@@ -178,7 +228,7 @@ export default function ClientProfilePage({
                   className="text-action muted-action"
                   onClick={() => {
                     setDraft(client)
-                    setEditingGeneral(false)
+                    setActiveEditor(null)
                   }}
                 >
                   Cancel
@@ -188,18 +238,43 @@ export default function ClientProfilePage({
             ))}
           </div>
 
-          <div className="info-list">
+          <div className="info-list profile-info-grid">
+            <div className="info-row">
+              <span>Phone</span>
+              {activeEditor === 'general' ? (
+                <div className="contact-number-fields">
+                  <select
+                    aria-label="Phone country extension"
+                    value={draft.phone.countryCode}
+                    onChange={event => setDraft(current => ({
+                      ...current,
+                      phone: { ...current.phone, countryCode: event.target.value },
+                    }))}
+                  >
+                    {COUNTRY_CODES.map(code => <option key={code}>{code}</option>)}
+                  </select>
+                  <input
+                    aria-label="Phone number"
+                    inputMode="tel"
+                    value={draft.phone.number}
+                    onChange={event => setDraft(current => ({
+                      ...current,
+                      phone: { ...current.phone, number: event.target.value },
+                    }))}
+                  />
+                </div>
+              ) : <strong>{displayPhone(client.phone)}</strong>}
+            </div>
+
             {[
-              ['Phone', 'phone', 'text'],
               ['Email', 'email', 'email'],
               ['Birthday', 'birthday', 'date'],
               ['Gender', 'gender', 'text'],
-              ['Emergency contact', 'emergencyContact', 'text'],
             ].map(([label, key, type]) => (
               <div className="info-row" key={key}>
                 <span>{label}</span>
 
-                {editingGeneral
+                {activeEditor === 'general'
                   ? (
                     <input
                       aria-label={label}
@@ -217,6 +292,64 @@ export default function ClientProfilePage({
               </div>
             ))}
 
+            <div className="info-row emergency-contact-row">
+              <span>Emergency contact</span>
+              {activeEditor === 'general' ? (
+                <div className="emergency-contact-fields">
+                  <input
+                    aria-label="Emergency contact name"
+                    value={draft.emergencyContact.name}
+                    onChange={event => setDraft(current => ({
+                      ...current,
+                      emergencyContact: { ...current.emergencyContact, name: event.target.value },
+                    }))}
+                  />
+                  <select
+                    aria-label="Emergency contact relationship"
+                    value={draft.emergencyContact.relationship}
+                    onChange={event => setDraft(current => ({
+                      ...current,
+                      emergencyContact: { ...current.emergencyContact, relationship: event.target.value },
+                    }))}
+                  >
+                    {RELATIONSHIPS.map(relationship => <option key={relationship}>{relationship}</option>)}
+                  </select>
+                  <select
+                    aria-label="Emergency contact country extension"
+                    value={draft.emergencyContact.countryCode}
+                    onChange={event => setDraft(current => ({
+                      ...current,
+                      emergencyContact: { ...current.emergencyContact, countryCode: event.target.value },
+                    }))}
+                  >
+                    {COUNTRY_CODES.map(code => <option key={code}>{code}</option>)}
+                  </select>
+                  <input
+                    aria-label="Emergency contact phone number"
+                    inputMode="tel"
+                    value={draft.emergencyContact.number}
+                    onChange={event => setDraft(current => ({
+                      ...current,
+                      emergencyContact: { ...current.emergencyContact, number: event.target.value },
+                    }))}
+                  />
+                </div>
+              ) : <strong>{displayEmergency(client.emergencyContact)}</strong>}
+            </div>
+
+            <div className="info-row">
+              <span>Gender preference</span>
+              {activeEditor === 'general' ? (
+                <select
+                  aria-label="Gender preference"
+                  value={draft.genderPreference}
+                  onChange={event => setDraft(current => ({ ...current, genderPreference: event.target.value }))}
+                >
+                  {GENDER_PREFERENCES.map(preference => <option key={preference}>{preference}</option>)}
+                </select>
+              ) : <strong>{client.genderPreference}</strong>}
+            </div>
+
             <div className="info-row">
               <span>Start date</span>
               <strong>{formatDate(client.startDate)}</strong>
@@ -227,21 +360,16 @@ export default function ClientProfilePage({
               <strong>{trainer?.name ?? '—'}</strong>
             </div>
 
-            <div className="info-row">
-              <span>Package validity</span>
-              <strong>{progress} / {client.package.validityDays} days</strong>
-            </div>
-
-            <div className="info-row">
-              <span>Trainer preference</span>
-              <strong>{client.trainerPreference}</strong>
-            </div>
           </div>
         </Panel>
 
         <FixedWeeklySchedule
           slots={client.fixedWeeklySchedule}
           editable={scheduleEditable}
+          editing={activeEditor === 'schedule'}
+          editDisabled={Boolean(activeEditor)}
+          onBeginEdit={() => setActiveEditor('schedule')}
+          onEndEdit={() => setActiveEditor(null)}
           onSave={onSaveFixedWeeklySchedule}
         />
       </div>
@@ -252,6 +380,10 @@ export default function ClientProfilePage({
           value={client.healthNotes}
           editable={notesEditable}
           multiline
+          editing={activeEditor === 'health'}
+          editDisabled={Boolean(activeEditor)}
+          onBeginEdit={() => setActiveEditor('health')}
+          onEndEdit={() => setActiveEditor(null)}
           onSave={healthNotes => onUpdate({ healthNotes })}
         />
 
@@ -260,9 +392,24 @@ export default function ClientProfilePage({
           value={client.remarks}
           editable={notesEditable}
           multiline
+          editing={activeEditor === 'remarks'}
+          editDisabled={Boolean(activeEditor)}
+          onBeginEdit={() => setActiveEditor('remarks')}
+          onEndEdit={() => setActiveEditor(null)}
           onSave={remarks => onUpdate({ remarks })}
         />
       </div>
+      </>}
+
+      {tab !== 'overview' && (
+        <ClientProfileTabs
+          tab={tab}
+          client={client}
+          sessions={sessions}
+          trainers={trainers}
+          onOpenSession={onOpenSession}
+        />
+      )}
 
       <ConfirmDialog
         open={deactivateOpen}

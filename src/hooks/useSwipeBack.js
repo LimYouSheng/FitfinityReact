@@ -1,5 +1,9 @@
 import { useEffect } from 'react'
 
+const VIEWPORT_EDGE_WIDTH = 72
+const PAGE_EDGE_LEEWAY = 16
+const PAGE_EDGE_WIDTH = 72
+
 function historyToken() {
   return [
     location.hash,
@@ -65,7 +69,13 @@ export default function useSwipeBack({ enabled, onBack }) {
     let horizontalGesture = false
 
     const begin = (x, y) => {
-      if (x > 56) return
+      const pageLeft = pageElement()?.getBoundingClientRect().left ?? 0
+      const atViewportEdge = x <= VIEWPORT_EDGE_WIDTH
+      const atPageEdge =
+        x >= pageLeft - PAGE_EDGE_LEEWAY &&
+        x <= pageLeft + PAGE_EDGE_WIDTH
+
+      if (!atViewportEdge && !atPageEdge) return
 
       tracking = true
       startX = x

@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import Panel from '../../components/Panel.jsx'
 import useSwipeBack from '../../hooks/useSwipeBack.js'
+import ModalPortal from '../../components/ModalPortal.jsx'
+import PaginationControls from '../../components/PaginationControls.jsx'
+import DateFilterField from '../../components/DateFilterField.jsx'
+import usePagination from '../../hooks/usePagination.js'
+import { filterMessages } from './messageFilters.js'
+import { orderMessages } from './messageOrdering.js'
+import { relatedMessageLinks } from './messageLinks.js'
 
 function visibleTo(user, message) {
   if (message.recipientUserId === user.id) return true
@@ -27,22 +34,36 @@ function formatStamp(value) {
 export default function MessagesPage({
   user,
   messages,
+  clients = [],
+  trainers = [],
+  sessions = [],
   onMarkRead,
+  onOpenRelated,
 }) {
   const [selectedId, setSelectedId] = useState(() =>
     history.state?.fitfinityOverlay === 'message'
       ? history.state?.messageId ?? null
       : null
   )
+  const [query, setQuery] = useState('')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
 
-  const visible = useMemo(
-    () => messages
-      .filter(message => visibleTo(user, message))
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+  const userMessages = useMemo(
+    () => orderMessages(messages.filter(message => visibleTo(user, message))),
     [messages, user],
   )
+  const visible = useMemo(
+    () => filterMessages(userMessages, { query, from: fromDate, to: toDate }),
+    [fromDate, query, toDate, userMessages],
+  )
 
-  const selected = visible.find(message => message.id === selectedId) ?? null
+  const selected = userMessages.find(message => message.id === selectedId) ?? null
+  const relatedLinks = useMemo(
+    () => relatedMessageLinks(selected, { user, clients, trainers, sessions }),
+    [clients, selected, sessions, trainers, user],
+  )
+  const pagination = usePagination(visible, `${user.id}|${query}|${fromDate}|${toDate}`)
 
   useEffect(() => {
     const syncOverlay = () => {
@@ -89,6 +110,11 @@ export default function MessagesPage({
     }
   }, [])
 
+  const openRelated = link => {
+    setSelectedId(null)
+    onOpenRelated(link)
+  }
+
   useSwipeBack({
     enabled: Boolean(selected),
     onBack: closeMessage,
@@ -103,16 +129,52 @@ export default function MessagesPage({
         </div>
 
         <StatusBadge tone="blue">
-          {visible.filter(message => !message.read).length} new
+          {userMessages.filter(message => !message.read).length} new
         </StatusBadge>
       </div>
 
       <Panel>
+        <div className="message-search-controls" aria-label="Message filters">
+          <label>
+            <span className="filter-label">Search</span>
+            <input
+              aria-label="Search messages"
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              placeholder="Search message content"
+            />
+          </label>
+
+          <DateFilterField
+            label="From"
+            hint="Select start date"
+            ariaLabel="Messages from date"
+            value={fromDate}
+            max={toDate}
+            onChange={setFromDate}
+          />
+
+          <DateFilterField
+            label="To"
+            hint="Select end date"
+            ariaLabel="Messages to date"
+            value={toDate}
+            min={fromDate}
+            onChange={setToDate}
+          />
+        </div>
+
         <div className="message-title-list" aria-label="Message list">
-          {visible.map(message => (
+          <div className="message-title-head message-title-grid" aria-hidden="true">
+            <span>Message</span>
+            <span>Date &amp; time</span>
+            <span>Status</span>
+          </div>
+
+          {pagination.items.map(message => (
             <article
               key={message.id}
-              className={`message-title-row ${message.read ? 'read' : 'unread'}`}
+              className={`message-title-row message-title-grid ${message.read ? 'read' : 'unread'}`}
             >
               <button
                 type="button"
@@ -122,6 +184,10 @@ export default function MessagesPage({
               >
                 <strong>{message.title}</strong>
               </button>
+
+              <time className="message-title-time" dateTime={message.createdAt}>
+                {formatStamp(message.createdAt)}
+              </time>
 
               <button
                 type="button"
@@ -134,53 +200,78 @@ export default function MessagesPage({
             </article>
           ))}
 
-          {!visible.length && <div className="empty">No messages.</div>}
+          {!visible.length && (
+            <div className="empty">
+              {query || fromDate || toDate ? 'No messages match your search.' : 'No messages.'}
+            </div>
+          )}
         </div>
+
+        <PaginationControls {...pagination} onPage={pagination.setPage} />
       </Panel>
 
       {selected && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onPointerDown={closeMessage}
-        >
-          <section
-            className="modal-card message-detail-modal"
-            role="dialog"
-            onPointerDown={event => event.stopPropagation()}
-            aria-modal="true"
-            aria-label={selected.title}
+        <ModalPortal>
+          <div
+            className="modal-backdrop"
+            role="presentation"
+            onClick={closeMessage}
           >
-            <div className="modal-head">
-              <h2>{selected.title}</h2>
+            <section
+              className="modal-card message-detail-modal"
+              role="dialog"
+              onClick={event => event.stopPropagation()}
+              aria-modal="true"
+              aria-label={selected.title}
+            >
+              <div className="modal-head">
+                <h2>{selected.title}</h2>
 
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Close message"
-                onClick={closeMessage}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="modal-body message-detail-body">
-              <div className="message-detail-meta">
-                <span>{formatStamp(selected.createdAt)}</span>
-
-                {selected.kind === 'renewal' && (
-                  <StatusBadge tone="amber">Renewal</StatusBadge>
-                )}
-
-                {selected.status === 'pending' && (
-                  <StatusBadge tone="blue">Pending</StatusBadge>
-                )}
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Close message"
+                  onClick={closeMessage}
+                >
+                  ×
+                </button>
               </div>
 
-              <p>{selected.body}</p>
-            </div>
-          </section>
-        </div>
+              <div className="modal-body message-detail-body">
+                <div className="message-detail-meta">
+                  <span>{formatStamp(selected.createdAt)}</span>
+
+                  {selected.kind === 'renewal' && (
+                    <StatusBadge tone="amber">Renewal</StatusBadge>
+                  )}
+
+                  {selected.status === 'pending' && (
+                    <StatusBadge tone="blue">Pending</StatusBadge>
+                  )}
+                </div>
+
+                <p>{selected.body}</p>
+
+                {relatedLinks.length > 0 && (
+                  <nav className="message-related" aria-label="Related records">
+                    <span>Related records</span>
+                    <div>
+                      {relatedLinks.map(link => (
+                        <button
+                          type="button"
+                          key={`${link.type}-${link.id}`}
+                          onClick={() => openRelated(link)}
+                        >
+                          View {link.label}
+                        </button>
+                      ))}
+                    </div>
+                  </nav>
+                )}
+              </div>
+            </section>
+          </div>
+        </ModalPortal>
       )}
     </>
   )

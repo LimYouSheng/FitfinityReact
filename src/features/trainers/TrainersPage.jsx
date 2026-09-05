@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
+import PaginationControls from '../../components/PaginationControls.jsx'
 import { isActive, visibleTrainersForOwner } from '../../app/status.js'
+import usePagination from '../../hooks/usePagination.js'
 
 export default function TrainersPage({ trainers, onOpen }) {
   const [query, setQuery] = useState('')
@@ -50,11 +52,16 @@ export default function TrainersPage({ trainers, onOpen }) {
     })
   }, [base, query, statusFilter, typeFilter, genderFilter])
 
+  const pagination = usePagination(
+    visible,
+    `${query}|${statusFilter}|${typeFilter}|${genderFilter}`,
+  )
+
   return (
     <>
       <div className="page-head compact-page-head">
         <div>
-          <span className="eyebrow">Trainers</span>
+          <span className="eyebrow">Operations</span>
           <h1>All Trainers</h1>
         </div>
       </div>
@@ -134,7 +141,7 @@ export default function TrainersPage({ trainers, onOpen }) {
             <span>View</span>
           </div>
 
-          {visible.map(trainer => (
+          {pagination.items.map(trainer => (
             <div
               className={`compact-list-row trainer-compact-grid ${isActive(trainer) ? '' : 'inactive-row'}`.trim()}
               key={trainer.id}
@@ -159,6 +166,8 @@ export default function TrainersPage({ trainers, onOpen }) {
 
           {!visible.length && <div className="empty">No matching trainers.</div>}
         </div>
+
+        <PaginationControls {...pagination} onPage={pagination.setPage} />
       </Panel>
     </>
   )

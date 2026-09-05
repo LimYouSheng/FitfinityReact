@@ -1,6 +1,6 @@
 import { seed } from '../data/seed.js'
 
-const KEY = 'fitfinity-m1-2-mock-db'
+const KEY = 'fitfinity-m2-demo-db-v4'
 const clone = value => JSON.parse(JSON.stringify(value))
 
 function load() {

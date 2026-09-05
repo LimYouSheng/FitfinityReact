@@ -2,11 +2,12 @@ export const OWNER_NAV = [
   { key: 'dashboard', label: 'Dashboard', group: 'Operations' },
   { key: 'clients', label: 'Clients', group: 'Operations' },
   { key: 'trainers', label: 'Trainers', group: 'Operations' },
-  { key: 'sessions', label: 'All Sessions', group: 'Operations', disabled: true },
-
-  { key: 'messages', label: 'Messages', group: 'Messages' },
+  { key: 'sessions', label: 'All Sessions', group: 'Operations' },
 
   { key: 'remuneration', label: 'Remuneration', group: 'Remuneration', disabled: true },
+
+  { key: 'messages', label: 'Messages', group: 'System' },
+  { key: 'owner-profile', label: 'Profile', group: 'System' },
 
   { key: 'exercises', label: 'Exercise Library', group: 'Management', disabled: true },
   { key: 'content', label: 'Content Management', group: 'Management', disabled: true },
@@ -15,11 +16,12 @@ export const OWNER_NAV = [
 export const TRAINER_NAV = [
   { key: 'dashboard', label: 'Dashboard', group: 'Trainer' },
   { key: 'clients', label: 'All Clients', group: 'Trainer' },
-  { key: 'sessions', label: 'All Sessions', group: 'Trainer', disabled: true },
-
-  { key: 'messages', label: 'Messages', group: 'Messages' },
+  { key: 'sessions', label: 'All Sessions', group: 'Trainer' },
 
   { key: 'remuneration', label: 'Remuneration', group: 'Remuneration', disabled: true },
+
+  { key: 'messages', label: 'Messages', group: 'System' },
+  { key: 'my-profile', label: 'Profile', group: 'System' },
 ]
 
 export const APPROVAL_FIELDS = [

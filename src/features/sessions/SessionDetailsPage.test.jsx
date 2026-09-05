@@ -1,0 +1,117 @@
+import { StrictMode } from 'react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
+import AppShell from '../../components/AppShell.jsx'
+import { EditGuardProvider } from '../../components/EditGuardProvider.jsx'
+import SessionDetailsPage from './SessionDetailsPage.jsx'
+
+const session = {
+  id: 's1',
+  clientId: 'c1',
+  trainerId: 't1',
+  date: '2026-09-02',
+  from: '18:00',
+  to: '19:00',
+  sessionNumber: 4,
+  packageTotal: 12,
+  status: 'planned',
+  exercisePlan: [],
+}
+const client = { id: 'c1', name: 'Amanda Lim', phone: { countryCode: '+65', number: '90001122' } }
+const trainer = { id: 't1', name: 'Marcus Tan', status: 'active' }
+const trainers = [trainer, { id: 't2', name: 'Rachel Ong', status: 'active' }]
+
+function renderDetails(overrides = {}) {
+  const props = {
+    user: { id: 'u-marcus', role: 'trainer', trainerId: 't1' },
+    session,
+    client,
+    trainer,
+    trainers,
+    onOpenClient: vi.fn(),
+    onOpenTrainer: vi.fn(),
+    onSavePlan: vi.fn(),
+    onAcknowledge: vi.fn(),
+    onSaveOutcome: vi.fn(),
+    onSaveClientSummary: vi.fn(),
+    onMarkWhatsAppSent: vi.fn(),
+    onSaveDetails: vi.fn(),
+    onRequestTimeChange: vi.fn(),
+    onRequestTrainerChange: vi.fn(),
+    ...overrides,
+  }
+
+  render(
+    <StrictMode>
+      <ActionConfirmationProvider>
+        <EditGuardProvider>
+          <AppShell
+            user={props.user}
+            users={[props.user]}
+            userId={props.user.id}
+            route="sessions"
+            messages={[]}
+            onRoute={vi.fn()}
+            onUserChange={vi.fn()}
+            onReset={vi.fn()}
+          >
+            <SessionDetailsPage {...props} />
+          </AppShell>
+        </EditGuardProvider>
+      </ActionConfirmationProvider>
+    </StrictMode>,
+  )
+
+  return props
+}
+
+describe('session detail confirmations', () => {
+  it('opens the API confirmation after reviewing a time change', async () => {
+    renderDetails()
+    fireEvent.click(screen.getByRole('button', { name: 'Request Time Change' }))
+    fireEvent.change(screen.getByLabelText('Requested session date'), { target: { value: '2026-09-04' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Review Request' }))
+    expect(screen.queryByRole('dialog', { name: 'Request Time Change' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Submit time-change request?' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Request Time Change' })).toBeVisible())
+  })
+
+  it('opens the API confirmation after reviewing acknowledgement', () => {
+    renderDetails()
+    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge Session' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Completion' }))
+    expect(screen.queryByRole('dialog', { name: 'Client acknowledgement' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Complete this session?' })).toBeVisible()
+  })
+
+  it('reviews recorded videos before exporting the summary to WhatsApp', () => {
+    const onMarkWhatsAppSent = vi.fn()
+    renderDetails({
+      onMarkWhatsAppSent,
+      session: {
+        ...session,
+        exercisePlan: [{
+          id: 'e1',
+          name: 'Romanian Deadlift',
+          weight: '40 kg',
+          reps: '8',
+          rounds: '2',
+          rest: '60 sec',
+          videoAttached: true,
+        }],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export Summary' }))
+    const dialog = screen.getByRole('dialog', { name: 'Export Summary' })
+    expect(dialog).toBeVisible()
+    expect(screen.getByRole('checkbox')).toBeChecked()
+    expect(dialog).toHaveTextContent('Romanian Deadlift — 40 kg · 8 reps · 2 rounds · 1 minute rest interval')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onMarkWhatsAppSent).not.toHaveBeenCalled()
+  })
+})
+
+afterEach(cleanup)

@@ -1,5 +1,6 @@
 import { delay, mockDb } from './mockDb.js'
 import { activeTrainers, trainerSelectableForAvailability } from '../app/status.js'
+import { appendSavedEditMessage, savedFields } from './editMessage.js'
 
 function messageId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -31,6 +32,11 @@ export const trainerService = {
       const trainer = db.trainers.find(item => item.id === id)
       if (!trainer) throw new Error('Trainer not found')
       Object.assign(trainer, patch)
+      appendSavedEditMessage(db, {
+        trainerId: trainer.id,
+        title: `Trainer details saved: ${trainer.name}`,
+        body: `Updated ${savedFields(patch) || 'trainer details'}.`,
+      })
     })
     return state.trainers.find(trainer => trainer.id === id)
   },
@@ -41,6 +47,11 @@ export const trainerService = {
       const trainer = db.trainers.find(item => item.id === id)
       if (!trainer) throw new Error('Trainer not found')
       trainer.approvalNeeded = { ...approvalNeeded }
+      appendSavedEditMessage(db, {
+        trainerId: trainer.id,
+        title: `Autonomy and approvals saved: ${trainer.name}`,
+        body: 'The trainer approval settings were updated.',
+      })
     })
     return state.trainers.find(trainer => trainer.id === id)
   },
@@ -72,6 +83,9 @@ export const trainerService = {
           id: messageId('reassign'),
           createdAt: new Date().toISOString(),
           recipientTrainerId: replacement.id,
+          sessionId: session.id,
+          clientId: session.clientId,
+          trainerId: replacement.id,
           title: 'Session reassigned to you',
           body: `${client?.name ?? 'Client'} • ${session.date} • ${session.from}–${session.to}`,
           kind: 'assignment',
@@ -90,6 +104,7 @@ export const trainerService = {
         id: messageId('trainer-off'),
         createdAt: new Date().toISOString(),
         recipientRole: 'owner',
+        trainerId: trainer.id,
         title: `${trainer.name} deactivated`,
         body: `${remaining.length} remaining session${remaining.length === 1 ? '' : 's'} reassigned before account deactivation.`,
         kind: 'trainer_status',
@@ -117,6 +132,7 @@ export const trainerService = {
         id: messageId('trainer-on'),
         createdAt: new Date().toISOString(),
         recipientRole: 'owner',
+        trainerId: trainer.id,
         title: `${trainer.name} reactivated`,
         body: 'The trainer is eligible for active scheduling and availability matching again.',
         kind: 'trainer_status',

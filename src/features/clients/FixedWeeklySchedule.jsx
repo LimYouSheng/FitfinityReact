@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react'
+import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 
 function cloneSlots(slots) {
   return (slots ?? []).map(slot => ({ ...slot }))
 }
 
-export default function FixedWeeklySchedule({ slots, editable, onSave }) {
-  const [editing, setEditing] = useState(false)
+export default function FixedWeeklySchedule({
+  slots,
+  editable,
+  editing,
+  editDisabled,
+  onBeginEdit,
+  onEndEdit,
+  onSave,
+}) {
+  const confirmAction = useActionConfirmation()
   const [draft, setDraft] = useState(() => cloneSlots(slots))
   const [saving, setSaving] = useState(false)
 
@@ -15,15 +24,22 @@ export default function FixedWeeklySchedule({ slots, editable, onSave }) {
 
   const begin = () => {
     setDraft(cloneSlots(slots))
-    setEditing(true)
+    onBeginEdit()
   }
 
   const cancel = () => {
     setDraft(cloneSlots(slots))
-    setEditing(false)
+    onEndEdit()
   }
 
   const save = async () => {
+    const confirmed = await confirmAction({
+      title: 'Save fixed weekly schedule?',
+      message: 'This will update the client’s recurring training times or send the change for owner approval when required.',
+      confirmLabel: 'Save Schedule',
+    })
+    if (!confirmed) return
+
     setSaving(true)
 
     try {
@@ -33,19 +49,19 @@ export default function FixedWeeklySchedule({ slots, editable, onSave }) {
         setDraft(cloneSlots(slots))
       }
 
-      setEditing(false)
+      onEndEdit()
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <section className="panel schedule-panel">
+    <section className={`panel schedule-panel ${editing ? 'editing-section' : ''}`}>
       <div className="section-head">
         <h2>Fixed Weekly Schedule</h2>
 
         {editable && (!editing ? (
-          <button type="button" className="text-action" onClick={begin}>Edit</button>
+          <button type="button" className="text-action" disabled={editDisabled} onClick={begin}>Edit</button>
         ) : (
           <div className="inline-actions">
             <button

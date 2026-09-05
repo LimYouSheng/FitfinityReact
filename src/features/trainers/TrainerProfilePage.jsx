@@ -5,6 +5,12 @@ import ApprovalSetting from '../../components/ApprovalSetting.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
+import ProfileAvatar from '../../components/ProfileAvatar.jsx'
+import ProfileNavigation from '../../components/ProfileNavigation.jsx'
+import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
+import { useEditGuard } from '../../components/EditGuardProvider.jsx'
+import PaginationControls from '../../components/PaginationControls.jsx'
+import usePagination from '../../hooks/usePagination.js'
 import { formatDate } from '../../utils/date.js'
 
 function formatTime(value) {
@@ -49,39 +55,69 @@ export default function TrainerProfilePage({
   onDeactivate,
   onReactivate,
 }) {
+  const confirmAction = useActionConfirmation()
+  const { guardNavigation, setActiveEdit } = useEditGuard()
   const isOwner = viewer.role === 'owner'
   const [tab, setTab] = useState('overview')
-  const [editingGeneral, setEditingGeneral] = useState(false)
+  const [activeEditor, setActiveEditor] = useState(null)
   const [generalDraft, setGeneralDraft] = useState(trainer)
-  const [editingRates, setEditingRates] = useState(false)
   const [ratesDraft, setRatesDraft] = useState(trainer.rates)
-  const [editingAutonomy, setEditingAutonomy] = useState(false)
   const [autonomyDraft, setAutonomyDraft] = useState(trainer.approvalNeeded)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
   const [replacements, setReplacements] = useState({})
+  const [assignedQuery, setAssignedQuery] = useState('')
+  const [assignedType, setAssignedType] = useState('')
+  const [assignedFrequency, setAssignedFrequency] = useState('')
 
   useEffect(() => {
     setGeneralDraft(trainer)
     setRatesDraft(trainer.rates)
     setAutonomyDraft(trainer.approvalNeeded)
     setTab('overview')
+    setActiveEditor(null)
   }, [trainer])
 
+  useEffect(() => {
+    const label = ({ general: 'Trainer information', rates: 'Trainer rates', autonomy: 'Autonomy controls' })[activeEditor] ?? null
+    setActiveEdit(label)
+    return () => setActiveEdit(null)
+  }, [activeEditor, setActiveEdit])
+
   const supervised = Object.values(trainer.approvalNeeded).filter(Boolean).length
-  const assignedClients = clients.filter(client =>
-    (client.status ?? 'active') === 'active' &&
-    client.trainerId === trainer.id
-  )
+  const assignedClients = clients
+    .filter(client =>
+      (client.status ?? 'active') === 'active' &&
+      client.trainerId === trainer.id
+    )
+    .sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''))
+
+  const filteredAssignedClients = useMemo(() => {
+    const search = assignedQuery.trim().toLowerCase()
+    return assignedClients.filter(client => {
+      if (search && !client.name.toLowerCase().includes(search) && !client.email.toLowerCase().includes(search)) return false
+      if (assignedType && client.type !== assignedType) return false
+      if (assignedFrequency && String(client.package.sessionsPerWeek) !== assignedFrequency) return false
+      return true
+    })
+  }, [assignedClients, assignedFrequency, assignedQuery, assignedType])
 
   const remaining = useMemo(
     () => remainingTrainerSessions(trainer.id, sessions),
     [trainer.id, sessions]
   )
+  const assignedClientPagination = usePagination(filteredAssignedClients, `${trainer.id}|${assignedQuery}|${assignedType}|${assignedFrequency}`)
+  const remainingPagination = usePagination(remaining, `${trainer.id}|${deactivateOpen}`)
 
   const selectableReplacements = activeTrainers(trainers).filter(item => item.id !== trainer.id)
   const allAssigned = remaining.every(session => replacements[session.id])
 
   const saveGeneral = async () => {
+    const confirmed = await confirmAction({
+      title: 'Save trainer information?',
+      message: 'This will update the trainer’s contact, profile and qualification details.',
+      confirmLabel: 'Save Changes',
+    })
+    if (!confirmed) return
     await onUpdate({
       phone: generalDraft.phone,
       email: generalDraft.email,
@@ -91,92 +127,105 @@ export default function TrainerProfilePage({
       qualifications: generalDraft.qualifications,
       publicProfile: generalDraft.publicProfile,
     })
-    setEditingGeneral(false)
+    setActiveEditor(null)
   }
 
   const saveRates = async () => {
+    const confirmed = await confirmAction({
+      title: 'Save trainer rates?',
+      message: 'This will replace the trainer’s current peak and off-peak session rates.',
+      confirmLabel: 'Save Rates',
+    })
+    if (!confirmed) return
     await onUpdate({
       rates: {
         peak: Number(ratesDraft.peak),
         offPeak: Number(ratesDraft.offPeak),
       },
     })
-    setEditingRates(false)
+    setActiveEditor(null)
   }
 
   return (
     <>
       <div className="page-head profile-identity-card">
-        <div>
-          <span className="eyebrow">{isOwner ? 'Trainer profile' : 'My profile'}</span>
-          <h1>{trainer.name}</h1>
+        <div className="profile-identity-main">
+          <ProfileAvatar name={trainer.name} />
 
-          <div className="profile-status-line" aria-label="Trainer status">
-            <StatusBadge tone={trainer.status === 'inactive' ? 'amber' : 'green'}>
-              {trainer.status === 'inactive' ? 'Inactive' : 'Active'}
-            </StatusBadge>
+          <div>
+            <span className="eyebrow">Trainer</span>
+            <h1>{trainer.name}</h1>
           </div>
         </div>
 
-        <div className="page-actions">
-          <StatusBadge tone={trainer.status === 'inactive' ? 'amber' : supervised ? 'amber' : 'green'}>
+        <div className="profile-card-statuses" aria-label="Trainer status">
+          <StatusBadge className="profile-autonomy-badge" tone={trainer.status === 'inactive' ? 'amber' : supervised ? 'amber' : 'green'}>
             {trainer.status === 'inactive'
               ? 'Inactive'
               : supervised
                 ? `${supervised} approval controls`
                 : 'Fully autonomous'}
           </StatusBadge>
+
+          <StatusBadge tone={trainer.status === 'inactive' ? 'amber' : 'green'}>
+            {trainer.status === 'inactive' ? 'Inactive' : 'Active'}
+          </StatusBadge>
         </div>
       </div>
 
-      <details className="profile-menu" onClick={event => { if (event.target === event.currentTarget || event.target.closest('button')) event.currentTarget.removeAttribute('open') }}>
-        <summary>Profile Menu</summary>
-        <div className="profile-tabs">
-        {[
+      <ProfileNavigation
+        items={[
           ['overview', 'Overview'],
           ['availability', 'Availability'],
           ['clients', 'Assigned Clients'],
-          ['autonomy', 'Autonomy & Approvals'],
           ['activity', 'Monthly Activity'],
-        ].map(([key, label]) => (
-          <button key={key} type="button" className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
-            {label}
-          </button>
-        ))}
+        ]}
+        activeKey={tab}
+        onSelect={key => guardNavigation(() => {
+          setActiveEditor(null)
+          setTab(key)
+        })}
+      >
       
           {isOwner && trainer.status !== 'inactive' && (
-            <button type="button" className="profile-menu-danger" onClick={() => setDeactivateOpen(true)}>
+            <button type="button" className="profile-menu-danger" disabled={Boolean(activeEditor)} onClick={() => setDeactivateOpen(true)}>
               Deactivate Trainer
             </button>
           )}
 
           {isOwner && trainer.status === 'inactive' && (
-            <button type="button" className="profile-menu-reactivate" onClick={onReactivate}>
+            <button type="button" className="profile-menu-reactivate" disabled={Boolean(activeEditor)} onClick={async () => {
+              const confirmed = await confirmAction({
+                title: `Reactivate ${trainer.name}?`,
+                message: 'The trainer will return to active trainer lists and can be assigned to sessions again.',
+                confirmLabel: 'Reactivate Trainer',
+              })
+              if (confirmed) await onReactivate()
+            }}>
               Reactivate Trainer
             </button>
           )}
-      </div>
-      </details>
+      </ProfileNavigation>
 
       {tab === 'overview' && (
-        <div className="two-column">
-          <Panel>
+        <div className="profile-overview-stack">
+          <Panel className={activeEditor === 'general' ? 'editing-section' : ''}>
             <div className="section-head">
               <div><h2>General Information</h2></div>
-              {isOwner && (!editingGeneral ? (
-                <button type="button" className="text-action" onClick={() => setEditingGeneral(true)}>Edit</button>
+              {isOwner && (activeEditor !== 'general' ? (
+                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('general')}>Edit</button>
               ) : (
                 <div className="inline-actions">
                   <button type="button" className="text-action muted-action" onClick={() => {
                     setGeneralDraft(trainer)
-                    setEditingGeneral(false)
+                    setActiveEditor(null)
                   }}>Cancel</button>
                   <button type="button" className="text-action" onClick={saveGeneral}>Save</button>
                 </div>
               ))}
             </div>
 
-            <div className="info-list">
+            <div className="info-list profile-info-grid">
               {[
                 ['Mobile Number', 'phone', 'text'],
                 ['Email', 'email', 'email'],
@@ -187,7 +236,7 @@ export default function TrainerProfilePage({
               ].map(([label, key, type]) => (
                 <div className="info-row" key={key}>
                   <span>{label}</span>
-                  {editingGeneral
+                  {activeEditor === 'general'
                     ? <input aria-label={label} type={type} value={generalDraft[key]} onChange={event => setGeneralDraft(current => ({ ...current, [key]: event.target.value }))} />
                     : <strong>{key === 'birthday' ? formatDate(trainer[key]) : trainer[key]}</strong>}
                 </div>
@@ -195,7 +244,7 @@ export default function TrainerProfilePage({
 
               <div className="info-row">
                 <span>Public profile</span>
-                {editingGeneral
+                {activeEditor === 'general'
                   ? (
                     <select
                       aria-label="Public profile"
@@ -211,12 +260,12 @@ export default function TrainerProfilePage({
             </div>
           </Panel>
 
-          <Panel>
+          <Panel className={activeEditor === 'rates' ? 'editing-section' : ''}>
             <div className="section-head">
               <h2>Training & Rates</h2>
 
-              {isOwner && (!editingRates ? (
-                <button type="button" className="text-action" onClick={() => setEditingRates(true)}>Edit</button>
+              {isOwner && (activeEditor !== 'rates' ? (
+                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('rates')}>Edit</button>
               ) : (
                 <div className="inline-actions">
                   <button
@@ -224,7 +273,7 @@ export default function TrainerProfilePage({
                     className="text-action muted-action"
                     onClick={() => {
                       setRatesDraft(trainer.rates)
-                      setEditingRates(false)
+                      setActiveEditor(null)
                     }}
                   >
                     Cancel
@@ -236,13 +285,8 @@ export default function TrainerProfilePage({
 
             <div className="info-list">
               <div className="info-row">
-                <span>Assigned clients</span>
-                <strong>{assignedClients.length}</strong>
-              </div>
-
-              <div className="info-row">
                 <span>Peak rate</span>
-                {editingRates
+                {activeEditor === 'rates'
                   ? (
                     <input
                       aria-label="Peak rate"
@@ -261,7 +305,7 @@ export default function TrainerProfilePage({
 
               <div className="info-row">
                 <span>Off-peak rate</span>
-                {editingRates
+                {activeEditor === 'rates'
                   ? (
                     <input
                       aria-label="Off-peak rate"
@@ -279,6 +323,47 @@ export default function TrainerProfilePage({
               </div>
             </div>
           </Panel>
+
+          <Panel className={activeEditor === 'autonomy' ? 'editing-section' : ''}>
+            <div className="section-head">
+              <div>
+                <h2>Owner Approval Needed</h2>
+              </div>
+
+              {isOwner && (activeEditor !== 'autonomy' ? (
+                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('autonomy')}>Edit</button>
+              ) : (
+                <div className="inline-actions">
+                  <button type="button" className="text-action muted-action" onClick={() => {
+                    setAutonomyDraft(trainer.approvalNeeded)
+                    setActiveEditor(null)
+                  }}>Cancel</button>
+                  <button type="button" className="text-action" onClick={async () => {
+                    const confirmed = await confirmAction({
+                      title: 'Save autonomy controls?',
+                      message: 'This will change which trainer actions require owner approval.',
+                      confirmLabel: 'Save Controls',
+                    })
+                    if (!confirmed) return
+                    await onSaveAutonomy(autonomyDraft)
+                    setActiveEditor(null)
+                  }}>Save</button>
+                </div>
+              ))}
+            </div>
+
+            <div className="approval-grid">
+              {APPROVAL_FIELDS.map(([field, label]) => (
+                <ApprovalSetting
+                  key={field}
+                  label={label}
+                  checked={(activeEditor === 'autonomy' ? autonomyDraft : trainer.approvalNeeded)[field]}
+                  disabled={!isOwner || activeEditor !== 'autonomy'}
+                  onChange={checked => setAutonomyDraft(current => ({ ...current, [field]: checked }))}
+                />
+              ))}
+            </div>
+          </Panel>
         </div>
       )}
 
@@ -291,7 +376,6 @@ export default function TrainerProfilePage({
             {!isOwner && <button type="button" className="text-action" disabled>Request Change — later migration</button>}
           </div>
           <AvailabilityGrid availability={trainer.availability} />
-          {isOwner && <p className="helper">Owner view is read-only by design. Trainer availability changes will route through Messages/request approval logic when that workflow is migrated.</p>}
         </Panel>
       )}
 
@@ -301,63 +385,50 @@ export default function TrainerProfilePage({
             <div><h2>Assigned Clients</h2></div>
           </div>
 
-          <div className="quick-list">
-            {assignedClients.map(client => (
+          <div className="list-controls assigned-client-controls">
+            <input
+              aria-label="Search assigned clients"
+              value={assignedQuery}
+              onChange={event => setAssignedQuery(event.target.value)}
+              placeholder="Search name or email"
+            />
+            <select aria-label="Filter assigned clients by type" value={assignedType} onChange={event => setAssignedType(event.target.value)}>
+              <option value="">All types</option>
+              <option value="Individual">Individual</option>
+              <option value="Couple">Couple</option>
+            </select>
+            <select aria-label="Filter assigned clients by frequency" value={assignedFrequency} onChange={event => setAssignedFrequency(event.target.value)}>
+              <option value="">All frequencies</option>
+              <option value="1">Once per week</option>
+              <option value="2">Twice per week</option>
+            </select>
+          </div>
+
+          <div className="quick-list" aria-label="Assigned client list">
+            {assignedClientPagination.items.map(client => (
               <div className="quick-row" key={client.id}>
-                <div><strong>{client.name}</strong><span>{client.type} • {client.package.total} sessions</span></div>
+                <div><strong>{client.name}</strong><span>{client.type} • {client.package.total} sessions • {client.package.sessionsPerWeek === 2 ? 'Twice' : 'Once'} per week</span></div>
                 <button type="button" className="btn small" onClick={() => onOpenClient(client.id)}>View</button>
               </div>
             ))}
-            {!assignedClients.length && <div className="empty">No active assigned clients.</div>}
+            {!filteredAssignedClients.length && <div className="empty">No matching assigned clients.</div>}
           </div>
-        </Panel>
-      )}
-
-      {tab === 'autonomy' && (
-        <Panel>
-          <div className="section-head">
-            <div>
-              <h2>Owner Approval Needed</h2>
-            </div>
-
-            {isOwner && (!editingAutonomy ? (
-              <button type="button" className="text-action" onClick={() => setEditingAutonomy(true)}>Edit</button>
-            ) : (
-              <div className="inline-actions">
-                <button type="button" className="text-action muted-action" onClick={() => {
-                  setAutonomyDraft(trainer.approvalNeeded)
-                  setEditingAutonomy(false)
-                }}>Cancel</button>
-                <button type="button" className="text-action" onClick={async () => {
-                  await onSaveAutonomy(autonomyDraft)
-                  setEditingAutonomy(false)
-                }}>Save</button>
-              </div>
-            ))}
-          </div>
-
-          <div className="approval-grid">
-            {APPROVAL_FIELDS.map(([field, label]) => (
-              <ApprovalSetting
-                key={field}
-                label={label}
-                checked={(editingAutonomy ? autonomyDraft : trainer.approvalNeeded)[field]}
-                disabled={!isOwner || !editingAutonomy}
-                onChange={checked => setAutonomyDraft(current => ({ ...current, [field]: checked }))}
-              />
-            ))}
-          </div>
-
-          <p className="helper">Uncheck and save = that change is allowed directly.</p>
+          <PaginationControls {...assignedClientPagination} onPage={assignedClientPagination.setPage} />
         </Panel>
       )}
 
       {tab === 'activity' && (
-        <div className="stats-grid four">
-          <Panel><span>Completed Sessions</span><strong>{trainer.monthlyActivity.sessions}</strong></Panel>
-          <Panel><span>Training Hours</span><strong>{trainer.monthlyActivity.hours}</strong></Panel>
-          <Panel><span>Peak Sessions</span><strong>{trainer.monthlyActivity.peak}</strong></Panel>
-          <Panel><span>Off-Peak Sessions</span><strong>{trainer.monthlyActivity.offPeak}</strong></Panel>
+        <div className="trainer-monthly-activity">
+          <div className="trainer-activity-month">
+            <span>Reporting month</span>
+            <strong>{trainer.monthlyActivity.month ?? 'September 2026'}</strong>
+          </div>
+          <div className="stats-grid four">
+            <Panel><span>Completed Sessions</span><strong>{trainer.monthlyActivity.sessions}</strong></Panel>
+            <Panel><span>Training Hours</span><strong>{trainer.monthlyActivity.hours}</strong></Panel>
+            <Panel><span>Peak Sessions</span><strong>{trainer.monthlyActivity.peak}</strong></Panel>
+            <Panel><span>Off-Peak Sessions</span><strong>{trainer.monthlyActivity.offPeak}</strong></Panel>
+          </div>
         </div>
       )}
 
@@ -384,7 +455,7 @@ export default function TrainerProfilePage({
 
         {remaining.length > 0 ? (
           <div className="reassign-list">
-            {remaining.map(session => {
+            {remainingPagination.items.map(session => {
               const client = clients.find(item => item.id === session.clientId)
               return (
                 <div className="reassign-row" key={session.id}>
@@ -411,6 +482,7 @@ export default function TrainerProfilePage({
                 </div>
               )
             })}
+            <PaginationControls {...remainingPagination} onPage={remainingPagination.setPage} />
           </div>
         ) : (
           <div className="notice">No remaining sessions are tagged to this trainer.</div>

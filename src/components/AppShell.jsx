@@ -1,14 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { OWNER_NAV, TRAINER_NAV } from '../app/constants.js'
+import { useActionConfirmation } from './ActionConfirmationProvider.jsx'
+import { useEditGuard } from './EditGuardProvider.jsx'
 import RoleSwitcher from './RoleSwitcher.jsx'
 
-const initials = name => name
+const initials = name => (name ?? '')
   .split(/\s+/)
   .filter(Boolean)
   .slice(0, 2)
   .map(part => part[0])
   .join('')
   .toUpperCase()
+
+function closeProfileDropdowns(outsideTarget = null) {
+  document
+    .querySelectorAll('details.profile-menu[open]')
+    .forEach(element => {
+      const summary = element.querySelector(':scope > summary')
+      const isDropdown = summary && getComputedStyle(summary).display !== 'none'
+      if (isDropdown && (!outsideTarget || !element.contains(outsideTarget))) {
+        element.removeAttribute('open')
+      }
+    })
+}
 
 export default function AppShell({
   user,
@@ -23,6 +37,8 @@ export default function AppShell({
   onReset,
   children,
 }) {
+  const confirmAction = useActionConfirmation()
+  const { activeEdit } = useEditGuard()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef(null)
@@ -33,9 +49,7 @@ export default function AppShell({
     setDrawerOpen(false)
     setProfileOpen(false)
 
-    document
-      .querySelectorAll('details.profile-menu[open]')
-      .forEach(element => element.removeAttribute('open'))
+    closeProfileDropdowns()
   }, [route, userId])
 
   useEffect(() => {
@@ -44,13 +58,7 @@ export default function AppShell({
         setProfileOpen(false)
       }
 
-      document
-        .querySelectorAll('details.profile-menu[open]')
-        .forEach(element => {
-          if (!element.contains(event.target)) {
-            element.removeAttribute('open')
-          }
-        })
+      closeProfileDropdowns(event.target)
     }
 
     document.addEventListener('pointerdown', onPointerDown, true)
@@ -119,11 +127,16 @@ export default function AppShell({
                   type="button"
                   disabled={item.disabled}
                   title={item.disabled ? 'Scaffolded — feature migration pending' : undefined}
-                  onClick={() => onRoute(item.key)}
+                  onClick={() => {
+                    setDrawerOpen(false)
+                    onRoute(item.key)
+                  }}
                 >
                   <span className="nav-dot" aria-hidden="true" />
                   <span className="nav-text">{item.label}</span>
-                  {item.key === 'messages' && unread > 0 && <span className="nav-count">{unread}</span>}
+                  {item.key === 'messages' && unread > 0 && (
+                    <span className="nav-count" aria-label={`${unread} unread messages`}>{unread}</span>
+                  )}
                   {item.disabled && <span className="nav-soon">Soon</span>}
                 </button>
               ))}
@@ -133,7 +146,15 @@ export default function AppShell({
 
         <div className="sidebar-footer">
           <RoleSwitcher users={users} userId={userId} onChange={onUserChange} />
-          <button type="button" className="secondary-action" onClick={onReset}>
+          <button type="button" className="secondary-action" onClick={async () => {
+            const confirmed = await confirmAction({
+              title: 'Reset all demo data?',
+              message: 'This will discard every demo change and restore the original trainers, clients, sessions and messages.',
+              confirmLabel: 'Reset Demo Data',
+              danger: true,
+            })
+            if (confirmed) onReset()
+          }}>
             Reset Demo Data
           </button>
         </div>
@@ -184,10 +205,6 @@ export default function AppShell({
               </svg>
             </button>
 
-            <div className="topbar-title">
-              <strong>Fitfinity Staff</strong>
-              <span>{user.role === 'owner' ? 'Owner portal' : 'Trainer portal'}</span>
-            </div>
           </div>
 
           <div className="topbar-user">
@@ -197,8 +214,28 @@ export default function AppShell({
               aria-label="Messages"
               onClick={() => onRoute('messages')}
             >
-              Messages
-              {unread > 0 && <span>{unread}</span>}
+              <svg
+                className="message-icon"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4.5 6.5h15v11h-15z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="m5.2 7.2 6.8 5.4 6.8-5.4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {unread > 0 && <span className="message-count">{unread}</span>}
             </button>
 
             <div className="profile-menu-wrap" ref={profileRef}>
@@ -244,9 +281,20 @@ export default function AppShell({
               )}
             </div>
           </div>
+
         </header>
 
-        <main className="content">{children}</main>
+        <main
+          className={`content ${activeEdit ? 'edit-active' : ''}`.trim()}
+          onClickCapture={event => {
+            if (activeEdit && !event.target.closest('.editing-section, .modal-backdrop')) {
+              event.preventDefault()
+              event.stopPropagation()
+            }
+          }}
+        >
+          {children}
+        </main>
       </div>
     </div>
   )

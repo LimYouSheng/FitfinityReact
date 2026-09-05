@@ -1,11 +1,17 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
+import { ActionConfirmationProvider } from './components/ActionConfirmationProvider.jsx'
+import { EditGuardProvider } from './components/EditGuardProvider.jsx'
 import './styles.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <ActionConfirmationProvider>
+      <EditGuardProvider>
+        <App />
+      </EditGuardProvider>
+    </ActionConfirmationProvider>
   </StrictMode>,
 )
 

@@ -7,7 +7,7 @@ export default function DashboardPage({ user }) {
     <>
       <div className="page-head">
         <div>
-          <span className="eyebrow">Staff portal</span>
+          <span className="eyebrow">Operations</span>
           <h1>{user.role === 'owner' ? 'Owner Dashboard' : 'Trainer Dashboard'}</h1>
         </div>
       </div>

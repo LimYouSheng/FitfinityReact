@@ -1,4 +1,5 @@
 import { delay, mockDb } from './mockDb.js'
+import { appendSavedEditMessage, savedFields } from './editMessage.js'
 
 function messageId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -32,6 +33,12 @@ export const clientService = {
       const client = db.clients.find(item => item.id === id)
       if (!client) throw new Error('Client not found')
       Object.assign(client, patch)
+      appendSavedEditMessage(db, {
+        clientId: client.id,
+        trainerId: client.trainerId,
+        title: `Client details saved: ${client.name}`,
+        body: `Updated ${savedFields(patch) || 'client details'}.`,
+      })
     })
 
     return state.clients.find(client => client.id === id)
@@ -51,6 +58,13 @@ export const clientService = {
 
       if (actor.role === 'owner') {
         client.fixedWeeklySchedule = nextSlots
+        appendSavedEditMessage(db, {
+          clientId: client.id,
+          trainerId: client.trainerId,
+          title: `Fixed weekly schedule saved: ${client.name}`,
+          body: `Old: ${describeSlots(previousSlots)}\nNew: ${describeSlots(nextSlots)}`,
+          kind: 'schedule_update',
+        })
         return
       }
 
@@ -70,6 +84,8 @@ export const clientService = {
           id: messageId('schedule-request-owner'),
           createdAt: new Date().toISOString(),
           recipientRole: 'owner',
+          clientId: client.id,
+          trainerId: trainer.id,
           title: `Fixed weekly schedule change: ${client.name}`,
           body:
             `${trainer.name} requested a fixed weekly schedule change.\n` +
@@ -91,6 +107,8 @@ export const clientService = {
           id: messageId('schedule-request-trainer'),
           createdAt: new Date().toISOString(),
           recipientTrainerId: trainer.id,
+          clientId: client.id,
+          trainerId: trainer.id,
           title: `Schedule change request sent: ${client.name}`,
           body: 'Owner approval is required before the fixed weekly schedule changes.',
           kind: 'schedule_request',
@@ -103,17 +121,15 @@ export const clientService = {
 
       client.fixedWeeklySchedule = nextSlots
 
-      db.messages.push({
-        id: messageId('schedule-direct'),
-        createdAt: new Date().toISOString(),
-        recipientRole: 'owner',
+      appendSavedEditMessage(db, {
+        clientId: client.id,
+        trainerId: trainer.id,
         title: `Fixed weekly schedule updated: ${client.name}`,
         body:
           `${trainer.name} updated the fixed weekly schedule directly.\n` +
           `Old: ${describeSlots(previousSlots)}\n` +
           `New: ${describeSlots(nextSlots)}`,
         kind: 'schedule_update',
-        read: false,
       })
     })
 
@@ -147,6 +163,8 @@ export const clientService = {
         id: messageId('client-off'),
         createdAt: new Date().toISOString(),
         recipientTrainerId: client.trainerId,
+        clientId: client.id,
+        trainerId: client.trainerId,
         title: `${client.name} deactivated`,
         body: `${client.name} has been deactivated by the owner and removed from your active client list.`,
         kind: 'client_status',
@@ -157,6 +175,8 @@ export const clientService = {
         id: messageId('client-owner'),
         createdAt: new Date().toISOString(),
         recipientRole: 'owner',
+        clientId: client.id,
+        trainerId: client.trainerId,
         title: `${client.name} deactivated`,
         body: 'The inactive client remains retrievable at the bottom of All Clients and through the Status filter.',
         kind: 'client_status',
@@ -181,6 +201,8 @@ export const clientService = {
         id: messageId('client-on'),
         createdAt: new Date().toISOString(),
         recipientTrainerId: client.trainerId,
+        clientId: client.id,
+        trainerId: client.trainerId,
         title: `${client.name} reactivated`,
         body: `${client.name} is active again and has returned to your assigned client list.`,
         kind: 'client_status',
