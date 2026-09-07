@@ -6,6 +6,8 @@ export function appendSavedEditMessage(db, {
   clientId,
   trainerId,
   sessionId,
+  exerciseId,
+  packageId,
   kind = 'saved_edit',
 }) {
   db.messages ??= []
@@ -16,6 +18,8 @@ export function appendSavedEditMessage(db, {
     ...(trainerId ? { recipientTrainerId: trainerId, trainerId } : {}),
     ...(clientId ? { clientId } : {}),
     ...(sessionId ? { sessionId } : {}),
+    ...(exerciseId ? { exerciseId } : {}),
+    ...(packageId ? { packageId } : {}),
     title,
     body,
     kind,

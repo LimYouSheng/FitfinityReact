@@ -2,14 +2,20 @@ import Panel from '../../components/Panel.jsx'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-export default function DashboardPage({ user }) {
+export default function DashboardPage({ user, onAddClient, onAddTrainer }) {
   return (
     <>
-      <div className="page-head">
+      <div className="page-head dashboard-page-head">
         <div>
           <span className="eyebrow">Operations</span>
           <h1>{user.role === 'owner' ? 'Owner Dashboard' : 'Trainer Dashboard'}</h1>
         </div>
+        {user.role === 'owner' && (
+          <div className="dashboard-quick-actions">
+            <button type="button" className="onboarding-button primary" onClick={onAddClient}>Add Client</button>
+            <button type="button" className="onboarding-button primary" onClick={onAddTrainer}>Add Trainer</button>
+          </div>
+        )}
       </div>
 
       <Panel>

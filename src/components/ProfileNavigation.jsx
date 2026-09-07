@@ -9,6 +9,7 @@ function inlineMatches() {
 export default function ProfileNavigation({ items, activeKey, onSelect, children }) {
   const [inline, setInline] = useState(inlineMatches)
   const [open, setOpen] = useState(inlineMatches)
+  const activeLabel = items.find(([key]) => key === activeKey)?.[1] ?? 'Profile Menu'
 
   useEffect(() => {
     const media = window.matchMedia(INLINE_PROFILE_NAV)
@@ -34,7 +35,7 @@ export default function ProfileNavigation({ items, activeKey, onSelect, children
         if (!inline && event.target === event.currentTarget) setOpen(false)
       }}
     >
-      <summary>Profile Menu</summary>
+      <summary>{activeLabel}</summary>
 
       <div
         className="profile-tabs"
@@ -46,6 +47,7 @@ export default function ProfileNavigation({ items, activeKey, onSelect, children
           <button
             key={key}
             className={activeKey === key ? 'active' : ''}
+            aria-current={activeKey === key ? 'true' : undefined}
             type="button"
             onClick={() => onSelect(key)}
           >

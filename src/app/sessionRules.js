@@ -68,3 +68,11 @@ export function hasSessionDebit(transactions, sessionId) {
     transaction.sessionId === sessionId && transaction.type === 'session_debit'
   )
 }
+
+/** Owner requests are authoritative; trainer receipt messages never duplicate these badges. */
+export function pendingSessionChanges(messages, sessionId) {
+  const kinds = new Set(messages.filter(message => message.status === 'pending' && message.request?.sessionId === sessionId)
+    .map(message => message.request.type))
+  return [['session_time', 'Time change pending'], ['session_trainer', 'Trainer change pending']]
+    .filter(([kind]) => kinds.has(kind)).map(([kind, label]) => ({ kind, label }))
+}

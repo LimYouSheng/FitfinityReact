@@ -39,8 +39,10 @@ function EditableText({ title, value, editable, multiline = false, editing, edit
       confirmLabel: 'Save Changes',
     })
     if (!confirmed) return
-    await onSave(draft)
-    onEndEdit()
+    try {
+      await onSave(draft)
+      onEndEdit()
+    } catch { /* The action banner reports failure; keep the draft open. */ }
   }
 
   return (
@@ -131,15 +133,17 @@ export default function ClientProfilePage({
       confirmLabel: 'Save Changes',
     })
     if (!confirmed) return
-    await onUpdate({
-      phone: draft.phone,
-      email: draft.email,
-      birthday: draft.birthday,
-      gender: draft.gender,
-      emergencyContact: draft.emergencyContact,
-      genderPreference: draft.genderPreference,
-    })
-    setActiveEditor(null)
+    try {
+      await onUpdate({
+        phone: draft.phone,
+        email: draft.email,
+        birthday: draft.birthday,
+        gender: draft.gender,
+        emergencyContact: draft.emergencyContact,
+        genderPreference: draft.genderPreference,
+      })
+      setActiveEditor(null)
+    } catch { /* The action banner reports failure; keep the draft open. */ }
   }
 
   return (
@@ -198,7 +202,9 @@ export default function ClientProfilePage({
                   message: 'The client will return to active client lists and can be scheduled for sessions again.',
                   confirmLabel: 'Reactivate Client',
                 })
-                if (confirmed) await onReactivate()
+                if (confirmed) {
+                  try { await onReactivate() } catch { /* Failure is shown in the action banner. */ }
+                }
               }}
             >
               Reactivate Client
@@ -418,8 +424,10 @@ export default function ClientProfilePage({
         danger
         onCancel={() => setDeactivateOpen(false)}
         onConfirm={async () => {
-          await onDeactivate()
-          setDeactivateOpen(false)
+          try {
+            await onDeactivate()
+            setDeactivateOpen(false)
+          } catch { /* Failure is shown in the action banner; keep the dialog open. */ }
         }}
       >
         <p>

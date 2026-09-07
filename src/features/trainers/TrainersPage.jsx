@@ -4,7 +4,7 @@ import PaginationControls from '../../components/PaginationControls.jsx'
 import { isActive, visibleTrainersForOwner } from '../../app/status.js'
 import usePagination from '../../hooks/usePagination.js'
 
-export default function TrainersPage({ trainers, onOpen }) {
+export default function TrainersPage({ trainers, onOpen, onAdd }) {
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState('all')
@@ -64,6 +64,7 @@ export default function TrainersPage({ trainers, onOpen }) {
           <span className="eyebrow">Operations</span>
           <h1>All Trainers</h1>
         </div>
+        <button type="button" className="onboarding-button primary" onClick={onAdd}>Add New Trainer</button>
       </div>
 
       <Panel>
@@ -131,6 +132,8 @@ export default function TrainersPage({ trainers, onOpen }) {
             <option value="">All genders</option>
             <option value="Female">Female</option>
             <option value="Male">Male</option>
+            <option value="Other">Other</option>
+            <option value="Prefer not to say">Prefer not to say</option>
           </select>
         </div>
 

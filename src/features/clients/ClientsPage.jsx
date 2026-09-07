@@ -4,7 +4,7 @@ import PaginationControls from '../../components/PaginationControls.jsx'
 import { isActive, visibleClientsForUser } from '../../app/status.js'
 import usePagination from '../../hooks/usePagination.js'
 
-export default function ClientsPage({ user, clients, trainers, onOpen }) {
+export default function ClientsPage({ user, clients, trainers, onOpen, onAdd }) {
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState('all')
@@ -73,6 +73,12 @@ export default function ClientsPage({ user, clients, trainers, onOpen }) {
           <span className="eyebrow">Operations</span>
           <h1>All Clients</h1>
         </div>
+
+        {user.role === 'owner' && (
+          <button type="button" className="onboarding-button primary" onClick={onAdd}>
+            Add New Client
+          </button>
+        )}
       </div>
 
       <Panel>

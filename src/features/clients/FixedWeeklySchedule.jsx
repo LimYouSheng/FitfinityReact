@@ -17,12 +17,14 @@ export default function FixedWeeklySchedule({
   const confirmAction = useActionConfirmation()
   const [draft, setDraft] = useState(() => cloneSlots(slots))
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (!editing) setDraft(cloneSlots(slots))
   }, [slots, editing])
 
   const begin = () => {
+    setError('')
     setDraft(cloneSlots(slots))
     onBeginEdit()
   }
@@ -35,11 +37,12 @@ export default function FixedWeeklySchedule({
   const save = async () => {
     const confirmed = await confirmAction({
       title: 'Save fixed weekly schedule?',
-      message: 'This will update the client’s recurring training times or send the change for owner approval when required.',
+      message: 'This will update the weekly times and eligible future sessions, or send the change for owner approval when required.',
       confirmLabel: 'Save Schedule',
     })
     if (!confirmed) return
 
+    setError('')
     setSaving(true)
 
     try {
@@ -50,6 +53,8 @@ export default function FixedWeeklySchedule({
       }
 
       onEndEdit()
+    } catch (failure) {
+      setError(failure.message)
     } finally {
       setSaving(false)
     }
@@ -85,6 +90,7 @@ export default function FixedWeeklySchedule({
         ))}
       </div>
 
+      {error && <p role="alert" className="onboarding-error">{error}</p>}
       <div className="schedule-list">
         {draft.map((slot, index) => (
           <div className="schedule-row" key={slot.id}>

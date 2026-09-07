@@ -6,16 +6,18 @@ const WEEKDAY_FORMAT = new Intl.DateTimeFormat('en-SG', {
 })
 
 export function parseDateOnly(value) {
-  const [year, month, day] = value.split('-').map(Number)
+  const [year, month, day] = String(value ?? '').split('-').map(Number)
   return new Date(Date.UTC(year, month - 1, day))
 }
 
 export function formatDate(value) {
-  return DATE_FORMAT.format(parseDateOnly(value))
+  const date = parseDateOnly(value)
+  return Number.isFinite(date.getTime()) ? DATE_FORMAT.format(date) : '—'
 }
 
 export function weekday(value) {
-  return WEEKDAY_FORMAT.format(parseDateOnly(value))
+  const date = parseDateOnly(value)
+  return Number.isFinite(date.getTime()) ? WEEKDAY_FORMAT.format(date) : '—'
 }
 
 export function packageDayProgress(startDate, validityDays, today = '2026-08-31') {

@@ -6,7 +6,8 @@ const clone = value => JSON.parse(JSON.stringify(value))
 function load() {
   try {
     const stored = localStorage.getItem(KEY)
-    return stored ? JSON.parse(stored) : clone(seed)
+    const loaded = stored ? JSON.parse(stored) : clone(seed)
+    return { ...loaded, packages: loaded.packages ?? clone(seed.packages) }
   } catch {
     return clone(seed)
   }
@@ -14,21 +15,22 @@ function load() {
 
 let state = load()
 
-function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* private/test fallback */ }
+function commit(next) {
+  // Publish to memory only after storage succeeds, so failures can be retried safely.
+  localStorage.setItem(KEY, JSON.stringify(next))
+  state = next
+  return clone(state)
 }
 
 export const mockDb = {
   read() { return clone(state) },
-  write(next) { state = clone(next); persist(); return clone(state) },
+  write(next) { return commit(clone(next)) },
   mutate(mutator) {
     const next = clone(state)
     mutator(next)
-    state = next
-    persist()
-    return clone(state)
+    return commit(next)
   },
-  reset() { state = clone(seed); persist(); return clone(state) },
+  reset() { return commit(clone(seed)) },
 }
 
 export const delay = (ms = 120) => new Promise(resolve => setTimeout(resolve, ms))

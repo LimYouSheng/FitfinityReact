@@ -1,15 +1,21 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clientService } from './clientService.js'
 import { mockDb } from './mockDb.js'
 import { sessionService } from './sessionService.js'
 import { trainerService } from './trainerService.js'
 
 describe('saved edit messages', () => {
-  beforeEach(() => mockDb.reset())
+  beforeEach(() => {
+    // Keep the schedule-change fixture before its seeded future sessions.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-05T02:00:00Z'))
+    mockDb.reset()
+  })
+  afterEach(() => vi.useRealTimers())
 
   it('adds related messages for saved client details and schedules', async () => {
     await clientService.update('c1', { notes: 'Prefers morning sessions.' })
-    await clientService.saveFixedWeeklySchedule('c1', [{ day: 'Monday', from: '08:00', to: '09:00' }], { role: 'owner' })
+    await clientService.saveFixedWeeklySchedule('c1', [{ day: 'Monday', from: '08:00', to: '09:00' }], mockDb.read().users.find(user => user.role === 'owner'))
 
     const messages = mockDb.read().messages.filter(message => message.clientId === 'c1' && message.kind === 'saved_edit' || message.title.startsWith('Fixed weekly schedule saved'))
     expect(messages.some(message => message.title === 'Client details saved: Amanda Lim')).toBe(true)

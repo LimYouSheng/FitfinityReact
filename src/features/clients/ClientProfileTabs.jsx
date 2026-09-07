@@ -1,3 +1,4 @@
+import { weeklyFrequencyLabel, freeGymEligible } from '../../app/packages.js'
 import Panel from '../../components/Panel.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import usePagination from '../../hooks/usePagination.js'
@@ -15,16 +16,17 @@ function PackageTab({ client }) {
   return (
     <div className="stack-gap">
       <Panel>
-        <div className="section-head"><h2>Current Package</h2></div>
+        <div className="section-head"><div><h2>Current Package</h2>{client.package.name && <p>{client.package.name}</p>}</div></div>
         <div className="client-package-grid">
           <div><span>Total sessions</span><strong>{client.package.total}</strong></div>
           <div><span>Completed</span><strong>{client.package.used}</strong></div>
           <div><span>Remaining</span><strong>{remaining}</strong></div>
-          <div><span>Frequency</span><strong>{client.package.sessionsPerWeek === 2 ? 'Twice weekly' : 'Once weekly'}</strong></div>
+          <div><span>Frequency</span><strong>{weeklyFrequencyLabel(client.package.sessionsPerWeek, true)}</strong></div>
         </div>
         <div className="client-package-progress" aria-label={`${usage}% package used`}>
           <span style={{ width: `${usage}%` }} />
         </div>
+        <p className="helper">Free gym package: <strong>{freeGymEligible(client.package.sessionsPerWeek) ? 'Included' : 'Not included'}</strong></p>
         <p className="helper">{formatDate(client.package.startDate)} – {formatDate(client.package.endDate)} · {elapsedDays} / {client.package.validityDays} days</p>
       </Panel>
 

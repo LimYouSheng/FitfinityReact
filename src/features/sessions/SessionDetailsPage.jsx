@@ -4,7 +4,7 @@ import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
-import { sessionStatus } from '../../app/sessionRules.js'
+import { sessionStatus, pendingSessionChanges } from '../../app/sessionRules.js'
 import { formatDate, weekday } from '../../utils/date.js'
 import ExercisePlanEditor from './ExercisePlanEditor.jsx'
 import { exerciseVideoCaption } from './exerciseVideo.js'
@@ -46,9 +46,11 @@ function acknowledgementCopy(acknowledgement) {
 export default function SessionDetailsPage({
   user,
   session,
+  messages = [],
   client,
   trainer,
   trainers,
+  exerciseCatalog,
   onOpenClient,
   onOpenTrainer,
   onSavePlan,
@@ -86,7 +88,6 @@ export default function SessionDetailsPage({
   })
   const [trainerRequestId, setTrainerRequestId] = useState('')
   const [detailsError, setDetailsError] = useState('')
-  const [feedback, setFeedback] = useState('')
   const [acknowledgementMethod, setAcknowledgementMethod] = useState(null)
   const [signerName, setSignerName] = useState(client.name)
   const [note, setNote] = useState('')
@@ -165,6 +166,8 @@ export default function SessionDetailsPage({
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
     try {
       await onMarkWhatsAppSent()
+    } catch (failure) {
+      setDetailsError(failure.message || 'Could not complete this action. Try again.')
     } finally {
       setSaving(false)
     }
@@ -188,7 +191,8 @@ export default function SessionDetailsPage({
     try {
       await onSaveDetails(detailsDraft)
       setActiveEditor(null)
-      setFeedback('Session details updated.')
+    } catch (failure) {
+      setDetailsError(failure.message || 'Could not complete this action. Try again.')
     } finally {
       setSaving(false)
     }
@@ -214,11 +218,11 @@ export default function SessionDetailsPage({
     setSaving(true)
     setDetailsError('')
     try {
-      const result = await onRequestTimeChange(timeRequestDraft)
+      await onRequestTimeChange(timeRequestDraft)
       setRequestKind(null)
-      setFeedback(result.outcome === 'requested'
-        ? 'Time-change request sent for owner approval.'
-        : 'Session time updated directly under trainer autonomy.')
+    } catch (failure) {
+      setRequestKind('time')
+      setDetailsError(failure.message || 'Could not complete this action. Try again.')
     } finally {
       setSaving(false)
     }
@@ -244,11 +248,11 @@ export default function SessionDetailsPage({
     setSaving(true)
     setDetailsError('')
     try {
-      const result = await onRequestTrainerChange(trainerRequestId)
+      await onRequestTrainerChange(trainerRequestId)
       setRequestKind(null)
-      setFeedback(result.outcome === 'requested'
-        ? 'Trainer-change request sent for owner approval.'
-        : 'Trainer changed directly under trainer autonomy.')
+    } catch (failure) {
+      setRequestKind('trainer')
+      setDetailsError(failure.message || 'Could not complete this action. Try again.')
     } finally {
       setSaving(false)
     }
@@ -274,6 +278,8 @@ export default function SessionDetailsPage({
       await onAcknowledge({ method, signerName, note })
       setAcknowledgementMethod(null)
       setNote('')
+    } catch (failure) {
+      setDetailsError(failure.message || 'Could not complete this action. Try again.')
     } finally {
       setSaving(false)
     }
@@ -291,6 +297,8 @@ export default function SessionDetailsPage({
     try {
       await onSaveOutcome(outcomeDraft)
       setActiveEditor(null)
+    } catch (failure) {
+      setDetailsError(failure.message || 'Could not complete this action. Try again.')
     } finally {
       setSaving(false)
     }
@@ -308,27 +316,34 @@ export default function SessionDetailsPage({
     try {
       await onSaveClientSummary(summaryDraft)
       setActiveEditor(null)
+    } catch (failure) {
+      setDetailsError(failure.message || 'Could not complete this action. Try again.')
     } finally {
       setSaving(false)
     }
   }
 
+  const pendingChanges = pendingSessionChanges(messages, session.id)
+
   return (
     <>
-      {feedback && <div className="notice session-feedback" role="status">{feedback}</div>}
-
       <Panel className={`session-overview-panel ${isOwner ? 'owner' : 'trainer'} ${activeEditor === 'details' || requestKind ? 'editing-section' : ''}`}>
         <div className="section-head">
-          <div className="session-overview-heading">
+          <div className={`session-overview-heading ${pendingChanges.length ? 'has-pending-requests' : ''}`}>
             <h2>Session Overview</h2>
-            <div className="session-overview-statuses" aria-label="Session status summary">
-              <StatusBadge tone={status.tone}>Session · {status.label}</StatusBadge>
-              <StatusBadge tone={session.acknowledgement ? 'green' : 'amber'}>
-                Acknowledgement · {acknowledgementCopy(session.acknowledgement)}
-              </StatusBadge>
-              <StatusBadge tone={session.whatsappSentAt ? 'green' : 'amber'}>
-                WhatsApp · {session.whatsappSentAt ? 'Sent' : 'Not sent'}
-              </StatusBadge>
+            <div className={`session-status-groups ${pendingChanges.length ? 'has-pending' : ''}`}>
+              <div className="session-overview-statuses" aria-label="Session status summary">
+                <StatusBadge tone={status.tone}>Session · {status.label}</StatusBadge>
+                <StatusBadge tone={session.acknowledgement ? 'green' : 'amber'}>
+                  Acknowledgement · {acknowledgementCopy(session.acknowledgement)}
+                </StatusBadge>
+                <StatusBadge tone={session.whatsappSentAt ? 'green' : 'amber'}>
+                  WhatsApp · {session.whatsappSentAt ? 'Sent' : 'Not sent'}
+                </StatusBadge>
+              </div>
+              {pendingChanges.length > 0 && <div className="session-pending-statuses" aria-label="Pending session approvals">
+                {pendingChanges.map(change => <StatusBadge key={change.kind} tone="amber">{change.label}</StatusBadge>)}
+              </div>}
             </div>
           </div>
           <div className="session-detail-actions">
@@ -408,6 +423,7 @@ export default function SessionDetailsPage({
 
       <Panel className={`top-gap exercise-plan-panel ${activeEditor === 'exercise' ? 'editing-section' : ''}`}>
         <ExercisePlanEditor
+          catalog={exerciseCatalog}
           items={session.exercisePlan ?? []}
           sessionId={session.id}
           canEdit={canEditPlan && (!activeEditor || activeEditor === 'exercise')}

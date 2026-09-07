@@ -3,15 +3,18 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { ActionConfirmationProvider } from './components/ActionConfirmationProvider.jsx'
 import { EditGuardProvider } from './components/EditGuardProvider.jsx'
+import { NotificationProvider } from './components/NotificationProvider.jsx'
 import './styles.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ActionConfirmationProvider>
-      <EditGuardProvider>
-        <App />
-      </EditGuardProvider>
-    </ActionConfirmationProvider>
+    <NotificationProvider>
+      <ActionConfirmationProvider>
+        <EditGuardProvider>
+          <App />
+        </EditGuardProvider>
+      </ActionConfirmationProvider>
+    </NotificationProvider>
   </StrictMode>,
 )
 

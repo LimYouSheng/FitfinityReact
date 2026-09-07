@@ -61,6 +61,7 @@ export const CUSTOM_EXERCISE = '__custom__'
 
 export const exerciseLibraryNames = Object.values(EXERCISE_LIBRARY).flat()
 
-export function exerciseChoiceFor(name) {
-  return exerciseLibraryNames.includes(name) ? name : CUSTOM_EXERCISE
+export function exerciseChoiceFor(name, catalog) {
+  const names = catalog ? catalog.filter(item => item.status === 'active').map(item => item.name) : exerciseLibraryNames
+  return names.includes(name) ? name : CUSTOM_EXERCISE
 }

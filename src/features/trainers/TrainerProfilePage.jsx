@@ -1,3 +1,4 @@
+import TrainerAvailabilityEditor from './TrainerAvailabilityEditor.jsx'
 import { useEffect, useMemo, useState } from 'react'
 import { APPROVAL_FIELDS, DAYS } from '../../app/constants.js'
 import { activeTrainers, remainingTrainerSessions } from '../../app/status.js'
@@ -51,6 +52,7 @@ export default function TrainerProfilePage({
   onBack,
   onOpenClient,
   onSaveAutonomy,
+  onSaveAvailability,
   onUpdate,
   onDeactivate,
   onReactivate,
@@ -73,12 +75,13 @@ export default function TrainerProfilePage({
     setGeneralDraft(trainer)
     setRatesDraft(trainer.rates)
     setAutonomyDraft(trainer.approvalNeeded)
-    setTab('overview')
     setActiveEditor(null)
   }, [trainer])
 
+  useEffect(() => { setTab('overview') }, [trainer.id, isOwner])
+
   useEffect(() => {
-    const label = ({ general: 'Trainer information', rates: 'Trainer rates', autonomy: 'Autonomy controls' })[activeEditor] ?? null
+    const label = ({ general: 'Trainer information', rates: 'Trainer rates', autonomy: 'Autonomy controls', availability: 'Trainer availability' })[activeEditor] ?? null
     setActiveEdit(label)
     return () => setActiveEdit(null)
   }, [activeEditor, setActiveEdit])
@@ -118,16 +121,18 @@ export default function TrainerProfilePage({
       confirmLabel: 'Save Changes',
     })
     if (!confirmed) return
-    await onUpdate({
-      phone: generalDraft.phone,
-      email: generalDraft.email,
-      birthday: generalDraft.birthday,
-      gender: generalDraft.gender,
-      trainerType: generalDraft.trainerType,
-      qualifications: generalDraft.qualifications,
-      publicProfile: generalDraft.publicProfile,
-    })
-    setActiveEditor(null)
+    try {
+      await onUpdate({
+        phone: generalDraft.phone,
+        email: generalDraft.email,
+        birthday: generalDraft.birthday,
+        gender: generalDraft.gender,
+        trainerType: generalDraft.trainerType,
+        qualifications: generalDraft.qualifications,
+        publicProfile: generalDraft.publicProfile,
+      })
+      setActiveEditor(null)
+    } catch { /* The action banner reports failure; keep the draft open. */ }
   }
 
   const saveRates = async () => {
@@ -137,13 +142,15 @@ export default function TrainerProfilePage({
       confirmLabel: 'Save Rates',
     })
     if (!confirmed) return
-    await onUpdate({
-      rates: {
-        peak: Number(ratesDraft.peak),
-        offPeak: Number(ratesDraft.offPeak),
-      },
-    })
-    setActiveEditor(null)
+    try {
+      await onUpdate({
+        rates: {
+          peak: Number(ratesDraft.peak),
+          offPeak: Number(ratesDraft.offPeak),
+        },
+      })
+      setActiveEditor(null)
+    } catch { /* The action banner reports failure; keep the draft open. */ }
   }
 
   return (
@@ -177,7 +184,7 @@ export default function TrainerProfilePage({
         items={[
           ['overview', 'Overview'],
           ['availability', 'Availability'],
-          ['clients', 'Assigned Clients'],
+          ...(isOwner ? [['clients', 'Assigned Clients']] : []),
           ['activity', 'Monthly Activity'],
         ]}
         activeKey={tab}
@@ -186,7 +193,7 @@ export default function TrainerProfilePage({
           setTab(key)
         })}
       >
-      
+
           {isOwner && trainer.status !== 'inactive' && (
             <button type="button" className="profile-menu-danger" disabled={Boolean(activeEditor)} onClick={() => setDeactivateOpen(true)}>
               Deactivate Trainer
@@ -200,7 +207,9 @@ export default function TrainerProfilePage({
                 message: 'The trainer will return to active trainer lists and can be assigned to sessions again.',
                 confirmLabel: 'Reactivate Trainer',
               })
-              if (confirmed) await onReactivate()
+              if (confirmed) {
+                try { await onReactivate() } catch { /* Failure is shown in the action banner. */ }
+              }
             }}>
               Reactivate Trainer
             </button>
@@ -345,8 +354,10 @@ export default function TrainerProfilePage({
                       confirmLabel: 'Save Controls',
                     })
                     if (!confirmed) return
-                    await onSaveAutonomy(autonomyDraft)
-                    setActiveEditor(null)
+                    try {
+                      await onSaveAutonomy(autonomyDraft)
+                      setActiveEditor(null)
+                    } catch { /* The action banner reports failure; keep the draft open. */ }
                   }}>Save</button>
                 </div>
               ))}
@@ -368,18 +379,25 @@ export default function TrainerProfilePage({
       )}
 
       {tab === 'availability' && (
-        <Panel>
-          <div className="section-head">
-            <div>
+        <Panel className={activeEditor === 'availability' ? 'editing-section' : ''}>
+          {activeEditor === 'availability' ? (
+            <TrainerAvailabilityEditor availability={trainer.availability} approvalNeeded={trainer.approvalNeeded?.availability !== false}
+              onCancel={() => setActiveEditor(null)}
+              onSave={async blocks => {
+                await onSaveAvailability(blocks)
+                setActiveEditor(null)
+              }} />
+          ) : <>
+            <div className="section-head">
               <h2>Approved Availability</h2>
+              {!isOwner && viewer.trainerId === trainer.id && trainer.status === 'active' && <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setActiveEditor('availability') }}>{trainer.approvalNeeded?.availability !== false ? 'Request Change' : 'Edit'}</button>}
             </div>
-            {!isOwner && <button type="button" className="text-action" disabled>Request Change — later migration</button>}
-          </div>
-          <AvailabilityGrid availability={trainer.availability} />
+            <AvailabilityGrid availability={trainer.availability} />
+          </>}
         </Panel>
       )}
 
-      {tab === 'clients' && (
+      {isOwner && tab === 'clients' && (
         <Panel>
           <div className="section-head">
             <div><h2>Assigned Clients</h2></div>
@@ -443,9 +461,11 @@ export default function TrainerProfilePage({
           setReplacements({})
         }}
         onConfirm={async () => {
-          await onDeactivate(replacements)
-          setDeactivateOpen(false)
-          setReplacements({})
+          try {
+            await onDeactivate(replacements)
+            setDeactivateOpen(false)
+            setReplacements({})
+          } catch { /* Failure is shown in the action banner; keep the dialog open. */ }
         }}
       >
         <p>

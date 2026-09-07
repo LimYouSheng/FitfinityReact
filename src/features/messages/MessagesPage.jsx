@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import RequestStatusBadge from './RequestStatusBadge.jsx'
+import RequestReview from './RequestReview.jsx'
+import { requestTypes } from '../../services/requestService.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import Panel from '../../components/Panel.jsx'
 import useSwipeBack from '../../hooks/useSwipeBack.js'
@@ -37,7 +40,11 @@ export default function MessagesPage({
   clients = [],
   trainers = [],
   sessions = [],
+  exercises = [],
+  packages = [],
   onMarkRead,
+  onMarkUnread,
+  onResolveRequest,
   onOpenRelated,
 }) {
   const [selectedId, setSelectedId] = useState(() =>
@@ -45,6 +52,10 @@ export default function MessagesPage({
       ? history.state?.messageId ?? null
       : null
   )
+  const openingMessage = useRef(false)
+  const markingUnread = useRef(false)
+  const [unreadBusy, setUnreadBusy] = useState(false)
+  const [messageError, setMessageError] = useState('')
   const [query, setQuery] = useState('')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -60,8 +71,8 @@ export default function MessagesPage({
 
   const selected = userMessages.find(message => message.id === selectedId) ?? null
   const relatedLinks = useMemo(
-    () => relatedMessageLinks(selected, { user, clients, trainers, sessions }),
-    [clients, selected, sessions, trainers, user],
+    () => relatedMessageLinks(selected, { user, clients, trainers, sessions, exercises, packages }),
+    [clients, exercises, packages, selected, sessions, trainers, user],
   )
   const pagination = usePagination(visible, `${user.id}|${query}|${fromDate}|${toDate}`)
 
@@ -79,27 +90,34 @@ export default function MessagesPage({
   }, [])
 
   const openMessage = async message => {
-    if (!message.read) {
-      await onMarkRead(message.id)
+    if (openingMessage.current) return
+    openingMessage.current = true
+    setMessageError('')
+    try {
+      if (!message.read) {
+        await onMarkRead(message.id)
+      }
+
+      const depth = history.state?.fitfinityDepth ?? 0
+      const overlayId = `message-${message.id}-${Date.now()}`
+
+      history.pushState(
+        {
+          ...history.state,
+          fitfinity: true,
+          fitfinityDepth: depth + 1,
+          fitfinityOverlay: 'message',
+          fitfinityOverlayId: overlayId,
+          messageId: message.id,
+        },
+        '',
+        location.href,
+      )
+
+      setSelectedId(message.id)
+    } finally {
+      openingMessage.current = false
     }
-
-    const depth = history.state?.fitfinityDepth ?? 0
-    const overlayId = `message-${message.id}-${Date.now()}`
-
-    history.pushState(
-      {
-        ...history.state,
-        fitfinity: true,
-        fitfinityDepth: depth + 1,
-        fitfinityOverlay: 'message',
-        fitfinityOverlayId: overlayId,
-        messageId: message.id,
-      },
-      '',
-      location.href,
-    )
-
-    setSelectedId(message.id)
   }
 
   const closeMessage = useCallback(() => {
@@ -109,6 +127,24 @@ export default function MessagesPage({
       setSelectedId(null)
     }
   }, [])
+
+  const markSelectedUnread = async () => {
+    if (!selected || markingUnread.current) return
+    const messageId = selected.id
+    markingUnread.current = true
+    setUnreadBusy(true)
+    setMessageError('')
+    try {
+      await onMarkUnread(messageId)
+      setSelectedId(current => current === messageId ? null : current)
+      if (history.state?.fitfinityOverlay === 'message' && history.state.messageId === messageId) history.back()
+    } catch (error) {
+      setMessageError(error.message || 'Could not mark the message unread. Try again.')
+    } finally {
+      markingUnread.current = false
+      setUnreadBusy(false)
+    }
+  }
 
   const openRelated = link => {
     setSelectedId(null)
@@ -169,18 +205,19 @@ export default function MessagesPage({
             <span>Message</span>
             <span>Date &amp; time</span>
             <span>Status</span>
+            <span>Read</span>
           </div>
 
           {pagination.items.map(message => (
             <article
               key={message.id}
               className={`message-title-row message-title-grid ${message.read ? 'read' : 'unread'}`}
+              onClick={() => openMessage(message)}
             >
               <button
                 type="button"
                 className="message-title-button"
                 aria-label={`Open ${message.title}`}
-                onClick={() => openMessage(message)}
               >
                 <strong>{message.title}</strong>
               </button>
@@ -189,11 +226,14 @@ export default function MessagesPage({
                 {formatStamp(message.createdAt)}
               </time>
 
+              <div className="message-approval-status">
+                <RequestStatusBadge message={message} />
+              </div>
+
               <button
                 type="button"
                 className={`message-state-button ${message.read ? 'read' : 'unread'}`}
                 aria-label={`${message.read ? 'Read' : 'Unread'} ${message.title}`}
-                onClick={() => openMessage(message)}
               >
                 {message.read ? 'Read' : 'Unread'}
               </button>
@@ -245,12 +285,14 @@ export default function MessagesPage({
                     <StatusBadge tone="amber">Renewal</StatusBadge>
                   )}
 
-                  {selected.status === 'pending' && (
-                    <StatusBadge tone="blue">Pending</StatusBadge>
-                  )}
+                  <RequestStatusBadge message={selected} />
                 </div>
 
                 <p>{selected.body}</p>
+                {user.role === 'owner' && requestTypes.includes(selected.request?.type) && (
+                  <RequestReview key={selected.id} message={selected} trainers={trainers} sessions={sessions} onResolve={onResolveRequest} />
+                )}
+
 
                 {relatedLinks.length > 0 && (
                   <nav className="message-related" aria-label="Related records">
@@ -268,6 +310,12 @@ export default function MessagesPage({
                     </div>
                   </nav>
                 )}
+              </div>
+              <div className="modal-actions message-popup-actions">
+                {messageError && <p role="alert">{messageError}</p>}
+                <button type="button" className="secondary-button" disabled={unreadBusy} onClick={markSelectedUnread}>
+                  {unreadBusy ? 'Marking…' : 'Mark as Unread'}
+                </button>
               </div>
             </section>
           </div>

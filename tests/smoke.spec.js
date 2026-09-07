@@ -854,9 +854,15 @@ test('video is unavailable while planning and available only after a saved plan'
   await plan.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(plan.getByRole('button', { name: /video for/i }).first()).toBeVisible()
   const cameraColours = await plan.locator('.exercise-display-camera svg').evaluateAll(elements =>
-    elements.map(element => getComputedStyle(element).color)
+    elements.map(element => ({ attached: element.closest('.exercise-display-camera').classList.contains('attached'),
+      icon: getComputedStyle(element).color, control: getComputedStyle(element.closest('.exercise-display-camera')).color }))
   )
-  expect([...new Set(cameraColours)]).toEqual(['rgb(143, 152, 168)'])
+  expect(cameraColours.some(item => item.attached)).toBe(true)
+  expect(cameraColours.some(item => !item.attached)).toBe(true)
+  for (const item of cameraColours) {
+    expect(item.icon).toBe(item.attached ? 'rgb(200, 206, 255)' : 'rgb(143, 152, 168)')
+    expect(item.icon).toBe(item.control)
+  }
   await plan.getByRole('button', { name: /Manage video for/i }).first().click()
   const videoDialog = page.getByRole('dialog', { name: /Video ·/ })
   const recordInput = videoDialog.getByLabel(/Record new video for/)

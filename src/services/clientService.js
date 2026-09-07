@@ -1,5 +1,13 @@
+import { selectedPackage } from '../app/packages.js'
+import { applyWeeklySchedule, requireActiveActor, sameSlots, weeklyScheduleChanges } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
 import { appendSavedEditMessage, savedFields } from './editMessage.js'
+import {
+  buildClientRecord,
+  buildClientSessions,
+  nextClientId,
+  validateClientDraft,
+} from '../app/clientOnboarding.js'
 
 function messageId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -24,6 +32,56 @@ export const clientService = {
   async getById(id) {
     await delay()
     return mockDb.read().clients.find(client => client.id === id) ?? null
+  },
+
+  async create(draft) {
+    await delay(180)
+
+    const validationErrors = validateClientDraft(draft)
+    if (validationErrors.length) throw new Error(validationErrors[0])
+
+    let createdId = null
+    const state = mockDb.mutate(db => {
+      const trainer = db.trainers.find(item =>
+        item.id === draft.trainerId && (item.status ?? 'active') === 'active'
+      )
+      if (!trainer) throw new Error('Selected trainer is not active.')
+
+      createdId = nextClientId(db.clients)
+      const client = buildClientRecord(draft, createdId, selectedPackage(db, draft))
+      db.clients.push(client)
+      db.sessions ??= []
+      const sessions = buildClientSessions(client)
+      if (sessions.length !== client.package.total) throw new Error('The schedule must fit every session within package validity. Review the weekly schedule.')
+      db.sessions.push(...sessions)
+      db.messages ??= []
+
+      db.messages.push({
+        id: messageId('client-created-owner'),
+        createdAt: new Date().toISOString(),
+        recipientRole: 'owner',
+        clientId: client.id,
+        trainerId: trainer.id,
+        title: `New client created: ${client.name}`,
+        body: `${trainer.name} is assigned to ${client.name}. ${client.package.total} sessions were created with ${client.package.validityDays}-day validity.`,
+        kind: 'client_created',
+        read: false,
+      })
+
+      db.messages.push({
+        id: messageId('client-assigned-trainer'),
+        createdAt: new Date().toISOString(),
+        recipientTrainerId: trainer.id,
+        clientId: client.id,
+        trainerId: trainer.id,
+        title: `New client assigned: ${client.name}`,
+        body: `${client.name} has been added to your active client list.`,
+        kind: 'client_assignment',
+        read: false,
+      })
+    })
+
+    return state.clients.find(client => client.id === createdId)
   },
 
   async update(id, patch) {
@@ -53,11 +111,14 @@ export const clientService = {
       const client = db.clients.find(item => item.id === id)
       if (!client) throw new Error('Client not found')
 
+      requireActiveActor(db, actor)
       const nextSlots = copySlots(slots)
       const previousSlots = copySlots(client.fixedWeeklySchedule)
+      weeklyScheduleChanges(db, client, nextSlots)
+      if (sameSlots(previousSlots, nextSlots)) throw new Error('Change a weekly time before saving.')
 
       if (actor.role === 'owner') {
-        client.fixedWeeklySchedule = nextSlots
+        applyWeeklySchedule(db, client, nextSlots)
         appendSavedEditMessage(db, {
           clientId: client.id,
           trainerId: client.trainerId,
@@ -77,11 +138,12 @@ export const clientService = {
         throw new Error('Assigned trainer is not active.')
       }
 
-      if (trainer.approvalNeeded?.fixedWeeklySchedule) {
+      if (trainer.approvalNeeded?.fixedWeeklySchedule !== false) {
         outcome = 'requested'
 
+        const requestId = messageId('schedule-request-owner')
         db.messages.push({
-          id: messageId('schedule-request-owner'),
+          id: requestId,
           createdAt: new Date().toISOString(),
           recipientRole: 'owner',
           clientId: client.id,
@@ -105,6 +167,7 @@ export const clientService = {
 
         db.messages.push({
           id: messageId('schedule-request-trainer'),
+          requestId,
           createdAt: new Date().toISOString(),
           recipientTrainerId: trainer.id,
           clientId: client.id,
@@ -119,7 +182,7 @@ export const clientService = {
         return
       }
 
-      client.fixedWeeklySchedule = nextSlots
+      applyWeeklySchedule(db, client, nextSlots)
 
       appendSavedEditMessage(db, {
         clientId: client.id,

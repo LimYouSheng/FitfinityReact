@@ -1,16 +1,11 @@
 import { formatDate } from '../../utils/date.js'
 
-function includesName(content, name) {
-  return name && content.includes(name.toLowerCase())
-}
-
 export function relatedMessageLinks(
   message,
-  { user, clients = [], trainers = [], sessions = [] },
+  { user, clients = [], trainers = [], sessions = [], exercises = [], packages = [] },
 ) {
   if (!message) return []
 
-  const content = `${message.title ?? ''} ${message.body ?? ''}`.toLowerCase()
   const request = message.request ?? {}
   const clientIds = new Set([message.clientId, request.clientId].filter(Boolean))
   const trainerIds = new Set([
@@ -21,25 +16,6 @@ export function relatedMessageLinks(
     ...(message.trainerIds ?? []),
   ].filter(Boolean))
   const sessionIds = new Set([message.sessionId, request.sessionId].filter(Boolean))
-
-  for (const client of clients) {
-    if (includesName(content, client.name)) clientIds.add(client.id)
-  }
-
-  for (const trainer of trainers) {
-    if (includesName(content, trainer.name)) trainerIds.add(trainer.id)
-  }
-
-  for (const session of sessions) {
-    const client = clients.find(item => item.id === session.clientId)
-    if (
-      includesName(content, client?.name) &&
-      content.includes(session.date) &&
-      content.includes(session.from)
-    ) {
-      sessionIds.add(session.id)
-    }
-  }
 
   const visibleSessions = sessions.filter(session =>
     sessionIds.has(session.id) &&
@@ -73,6 +49,21 @@ export function relatedMessageLinks(
       (user.role === 'owner' || trainer.id === user.trainerId)
     )
     .forEach(trainer => links.push({ type: 'trainer', id: trainer.id, label: `Trainer · ${trainer.name}` }))
+
+  if (message.remunerationCycle && message.trainerId &&
+      (user.role === 'owner' || message.trainerId === user.trainerId)) {
+    links.unshift({ type: 'remuneration', id: `${message.remunerationCycle}/${message.trainerId}`, label: `Remuneration · ${message.remunerationCycle}` })
+  }
+
+  if (user.role === 'owner' && message.exerciseId) {
+    const exercise = exercises.find(item => item.id === message.exerciseId)
+    if (exercise) links.unshift({ type: 'exercise', id: exercise.id, label: `Exercise · ${exercise.name}` })
+  }
+
+  if (user.role === 'owner' && message.packageId) {
+    const item = packages.find(item => item.id === message.packageId)
+    if (item) links.unshift({ type: 'package', id: item.id, label: `Package · ${item.name}` })
+  }
 
   return links
 }

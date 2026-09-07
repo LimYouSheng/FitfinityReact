@@ -1,3 +1,5 @@
+import { DEFAULT_PACKAGES } from '../app/packages.js'
+
 const availability = {
   marcus: {
     Monday: [['18:00', '21:00']], Tuesday: [['18:00', '21:00']], Wednesday: [['18:00', '21:00']],
@@ -370,6 +372,7 @@ const generatedMessages = allClients.slice(0, 12).map((client, index) => ({
 }))
 
 export const seed = {
+  packages: DEFAULT_PACKAGES.map(item => ({ ...item })),
   users: [
     { id: 'u-owner', name: 'Chau', role: 'owner', status: 'active' },
     { id: 'u-marcus', name: 'Marcus Tan', role: 'trainer', trainerId: 't1', profile: 'Fully supervised', status: 'active' },

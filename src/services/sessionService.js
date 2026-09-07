@@ -97,8 +97,9 @@ export const sessionService = {
 
       if (trainer.approvalNeeded?.sessionTime) {
         outcome = 'requested'
+        const requestId = messageId('session-time-owner')
         db.messages.push({
-          id: messageId('session-time-owner'),
+          id: requestId,
           createdAt: new Date().toISOString(),
           recipientRole: 'owner',
           sessionId: session.id,
@@ -113,6 +114,7 @@ export const sessionService = {
         })
         db.messages.push({
           id: messageId('session-time-trainer'),
+          requestId,
           createdAt: new Date().toISOString(),
           recipientTrainerId: trainer.id,
           sessionId: session.id,
@@ -158,8 +160,9 @@ export const sessionService = {
 
       if (trainer.approvalNeeded?.trainerReassignment) {
         outcome = 'requested'
+        const requestId = messageId('session-trainer-owner')
         db.messages.push({
-          id: messageId('session-trainer-owner'),
+          id: requestId,
           createdAt: new Date().toISOString(),
           recipientRole: 'owner',
           sessionId: session.id,
@@ -175,11 +178,13 @@ export const sessionService = {
             sessionId,
             trainerId: trainer.id,
             previousTrainerId: trainer.id,
+            previous: scheduleSnapshot(session),
             replacementTrainerId: replacement.id,
           },
         })
         db.messages.push({
           id: messageId('session-trainer-requester'),
+          requestId,
           createdAt: new Date().toISOString(),
           recipientTrainerId: trainer.id,
           sessionId: session.id,

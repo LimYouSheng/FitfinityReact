@@ -4,12 +4,14 @@ export const OWNER_NAV = [
   { key: 'trainers', label: 'Trainers', group: 'Operations' },
   { key: 'sessions', label: 'All Sessions', group: 'Operations' },
 
-  { key: 'remuneration', label: 'Remuneration', group: 'Remuneration', disabled: true },
+  { key: 'remuneration', label: 'Remuneration', group: 'Remuneration' },
 
   { key: 'messages', label: 'Messages', group: 'System' },
   { key: 'owner-profile', label: 'Profile', group: 'System' },
 
-  { key: 'exercises', label: 'Exercise Library', group: 'Management', disabled: true },
+  { key: 'packages', label: 'Packages', group: 'Setup' },
+
+  { key: 'exercises', label: 'Exercise Library', group: 'Management' },
   { key: 'content', label: 'Content Management', group: 'Management', disabled: true },
 ]
 
@@ -18,7 +20,7 @@ export const TRAINER_NAV = [
   { key: 'clients', label: 'All Clients', group: 'Trainer' },
   { key: 'sessions', label: 'All Sessions', group: 'Trainer' },
 
-  { key: 'remuneration', label: 'Remuneration', group: 'Remuneration', disabled: true },
+  { key: 'remuneration', label: 'Remuneration', group: 'Remuneration' },
 
   { key: 'messages', label: 'Messages', group: 'System' },
   { key: 'my-profile', label: 'Profile', group: 'System' },

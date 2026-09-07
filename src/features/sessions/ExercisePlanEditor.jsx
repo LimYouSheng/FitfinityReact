@@ -28,12 +28,12 @@ const blankExercise = () => ({
   videoAttached: false,
 })
 
-const editableItems = items => items.map(item => ({
+const editableItems = (items, catalog) => items.map(item => ({
   ...item,
   reps: item.reps || DEFAULT_EXERCISE_FIELDS.reps,
   rounds: item.rounds || DEFAULT_EXERCISE_FIELDS.rounds,
   rest: item.rest || DEFAULT_EXERCISE_FIELDS.rest,
-  exerciseChoice: exerciseChoiceFor(item.name),
+  exerciseChoice: exerciseChoiceFor(item.name, catalog),
   customDetails: (item.customDetails ?? []).map((detail, index) => ({
     id: detail.id ?? `detail-${item.id}-${index + 1}`,
     value: typeof detail === 'string' ? detail : detail.value ?? '',
@@ -51,6 +51,7 @@ function CameraIcon() {
 
 export default function ExercisePlanEditor({
   items,
+  catalog,
   sessionId,
   canEdit,
   editing,
@@ -60,7 +61,7 @@ export default function ExercisePlanEditor({
   onToggleVideo,
 }) {
   const confirmAction = useActionConfirmation()
-  const [draft, setDraft] = useState(() => editableItems(items))
+  const [draft, setDraft] = useState(() => editableItems(items, catalog))
   const [pendingId, setPendingId] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -68,8 +69,8 @@ export default function ExercisePlanEditor({
   const hasBlankName = draft.some(item => !item.name.trim())
 
   useEffect(() => {
-    if (!editing) setDraft(editableItems(items))
-  }, [editing, items])
+    if (!editing) setDraft(editableItems(items, catalog))
+  }, [catalog, editing, items])
 
   const startPlan = () => {
     const first = blankExercise()
@@ -80,7 +81,7 @@ export default function ExercisePlanEditor({
   }
 
   const editPlan = () => {
-    setDraft(editableItems(items))
+    setDraft(editableItems(items, catalog))
     setPendingId(null)
     setError('')
     onBeginEdit()
@@ -141,7 +142,7 @@ export default function ExercisePlanEditor({
   }
 
   const cancelEditing = () => {
-    setDraft(editableItems(items))
+    setDraft(editableItems(items, catalog))
     setPendingId(null)
     setError('')
     onEndEdit()
@@ -264,6 +265,7 @@ export default function ExercisePlanEditor({
                   </div>
 
                   <ExerciseNamePicker
+                    catalog={catalog}
                     index={index + 1}
                     choice={item.exerciseChoice}
                     name={item.name}

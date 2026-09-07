@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CUSTOM_EXERCISE, EXERCISE_LIBRARY } from '../../app/exerciseLibrary.js'
+import { CUSTOM_EXERCISE } from '../../app/exerciseLibrary.js'
+import { DEFAULT_EXERCISES, groupedActiveExercises } from '../../app/exerciseCatalog.js'
 
-export default function ExerciseNamePicker({ index, choice, name, pending, onChoose, onCustomName }) {
+export default function ExerciseNamePicker({ catalog = DEFAULT_EXERCISES, index, choice, name, pending, onChoose, onCustomName }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [customMode, setCustomMode] = useState(false)
@@ -22,10 +23,10 @@ export default function ExerciseNamePicker({ index, choice, name, pending, onCho
 
   const filteredLibrary = useMemo(() => {
     const search = query.trim().toLowerCase()
-    return Object.entries(EXERCISE_LIBRARY)
+    return groupedActiveExercises(catalog)
       .map(([category, names]) => [category, names.filter(item => item.toLowerCase().includes(search))])
       .filter(([, names]) => names.length)
-  }, [query])
+  }, [catalog, query])
 
   const displayName = choice === CUSTOM_EXERCISE
     ? name || 'Select exercise'
