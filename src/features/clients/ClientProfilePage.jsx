@@ -1,3 +1,4 @@
+import { COUNTRY_CODES, RELATIONSHIPS, GENDER_PREFERENCES } from '../../app/contact.js'
 import { useEffect, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -10,10 +11,6 @@ import FixedWeeklySchedule from './FixedWeeklySchedule.jsx'
 import ClientProfileTabs from './ClientProfileTabs.jsx'
 import { canEditClientCoachingNotes, canEditClientGeneral } from '../../app/permissions.js'
 import { formatDate } from '../../utils/date.js'
-
-const COUNTRY_CODES = ['+65', '+60', '+62', '+63', '+66', '+84', '+86', '+91', '+44', '+61']
-const RELATIONSHIPS = ['Spouse', 'Parent', 'Sibling', 'Child', 'Partner', 'Friend', 'Guardian', 'Other']
-const GENDER_PREFERENCES = ['No gender preference', 'Female trainer preferred', 'Male trainer preferred']
 
 function displayPhone(phone) {
   if (!phone) return '—'
@@ -88,6 +85,7 @@ export default function ClientProfilePage({
   trainer,
   trainers,
   sessions,
+  today,
   onOpenSession,
   onBack,
   onUpdate,
@@ -412,6 +410,7 @@ export default function ClientProfilePage({
           tab={tab}
           client={client}
           sessions={sessions}
+          today={today}
           trainers={trainers}
           onOpenSession={onOpenSession}
         />

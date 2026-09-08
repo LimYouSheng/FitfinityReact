@@ -1,4 +1,4 @@
-import { weeklyFrequencyLabel, freeGymEligible } from '../../app/packages.js'
+import { weeklyFrequencyLabel } from '../../app/packages.js'
 import Panel from '../../components/Panel.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import usePagination from '../../hooks/usePagination.js'
@@ -6,12 +6,12 @@ import { formatDate, weekday } from '../../utils/date.js'
 import { packageDayProgress } from '../../utils/date.js'
 import StrengthProgress from './StrengthProgress.jsx'
 
-function PackageTab({ client }) {
+function PackageTab({ client, today }) {
   const remaining = Math.max(0, client.package.total - client.package.used)
   const usage = client.package.total ? Math.round((client.package.used / client.package.total) * 100) : 0
   const history = client.packageHistory ?? []
   const pagination = usePagination(history, client.id)
-  const elapsedDays = packageDayProgress(client.package.startDate, client.package.validityDays)
+  const elapsedDays = packageDayProgress(client.package.startDate, client.package.validityDays, today)
 
   return (
     <div className="stack-gap">
@@ -26,7 +26,7 @@ function PackageTab({ client }) {
         <div className="client-package-progress" aria-label={`${usage}% package used`}>
           <span style={{ width: `${usage}%` }} />
         </div>
-        <p className="helper">Free gym package: <strong>{freeGymEligible(client.package.sessionsPerWeek) ? 'Included' : 'Not included'}</strong></p>
+        <p className="helper">Free gym package: <strong>{client.package.freeGym ? 'Included' : 'Not included'}</strong></p>
         <p className="helper">{formatDate(client.package.startDate)} – {formatDate(client.package.endDate)} · {elapsedDays} / {client.package.validityDays} days</p>
       </Panel>
 
@@ -71,16 +71,16 @@ function SessionsTab({ title, sessions, trainers, emptyCopy, onOpenSession }) {
   )
 }
 
-export default function ClientProfileTabs({ tab, client, sessions, trainers, onOpenSession }) {
+export default function ClientProfileTabs({ tab, client, sessions, trainers, today, onOpenSession }) {
   const clientSessions = sessions.filter(session => session.clientId === client.id)
   const history = clientSessions
-    .filter(session => session.status === 'completed' || session.date < '2026-09-02')
+    .filter(session => session.status === 'completed' || session.date < today)
     .sort((a, b) => `${b.date}T${b.from}`.localeCompare(`${a.date}T${a.from}`))
   const upcoming = clientSessions
-    .filter(session => session.status !== 'completed' && session.date >= '2026-09-02')
+    .filter(session => session.status !== 'completed' && session.date >= today)
     .sort((a, b) => `${a.date}T${a.from}`.localeCompare(`${b.date}T${b.from}`))
 
-  if (tab === 'package') return <PackageTab client={client} />
+  if (tab === 'package') return <PackageTab client={client} today={today} />
   if (tab === 'history') return <SessionsTab title="Session History" sessions={history} trainers={trainers} emptyCopy="No completed sessions." onOpenSession={onOpenSession} />
   if (tab === 'upcoming') return <SessionsTab title="Upcoming Sessions" sessions={upcoming} trainers={trainers} emptyCopy="No upcoming sessions." onOpenSession={onOpenSession} />
   if (tab === 'progress') return <StrengthProgress client={client} />

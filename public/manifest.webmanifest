@@ -1,10 +1,10 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "Fitfinity Staff Portal",
   "short_name": "Fitfinity",
   "description": "Fitfinity owner and trainer staff portal",
-  "start_url": "/#/dashboard",
-  "scope": "/",
+  "start_url": "./#/dashboard",
+  "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "background_color": "#050509",
@@ -12,13 +12,13 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "./icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

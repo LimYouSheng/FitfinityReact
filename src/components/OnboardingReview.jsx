@@ -5,7 +5,6 @@ export default function OnboardingReview({ sections, onEdit }) {
   const id = useId()
   return (
     <div className="onboarding-review" aria-label="Form summary">
-      <p className="onboarding-hint">Review the details below. Nothing is saved until you confirm creation.</p>
       {sections.map(section => (
         <section key={section.key} className="onboarding-review-section" aria-labelledby={`${id}-${section.key}`}>
           <div className="onboarding-review-head">

@@ -3,38 +3,38 @@ import { businessNow } from './scheduleChanges.js'
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
 const iso = date => date.toISOString().slice(0, 10)
 export const remunerationBands = { peak: 'Peak', offPeak: 'Off-peak' }
-export const formatMoney = cents => new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD' }).format(cents / 100)
+export const formatMoney = (cents, policy) => new Intl.NumberFormat(policy.locale, { style: 'currency', currency: policy.currency }).format(cents / 100)
 
-export function payCycle(key) {
+export function payCycle(key, policy) {
   if (!MONTH.test(key ?? '')) throw new Error('Choose a valid pay cycle.')
   const [year, month] = key.split('-').map(Number)
-  return { key, start: iso(new Date(Date.UTC(year, month - 2, 16))), end: `${key}-15`, payout: `${key}-16` }
+  return { key, start: iso(new Date(Date.UTC(year, month - 2, policy.cycleEndDay + 1))), end: `${key}-${String(policy.cycleEndDay).padStart(2, '0')}`, payout: `${key}-${String(policy.payoutDay).padStart(2, '0')}` }
 }
 
-export function cycleForDate(date) {
+export function cycleForDate(date, policy) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) return null
   const value = new Date(`${date}T00:00:00Z`)
   if (!Number.isFinite(value.getTime()) || iso(value) !== date) return null
-  return iso(new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + (value.getUTCDate() >= 16 ? 1 : 0), 1))).slice(0, 7)
+  return iso(new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + (value.getUTCDate() > policy.cycleEndDay ? 1 : 0), 1))).slice(0, 7)
 }
 
 // Dates and times are the stored Singapore calendar date and local start time.
 // Peak windows include their start and exclude their end; the whole session
 // takes its start-time band, without splitting or prorating the session rate.
-export function sessionRateBand(session) {
-  if (!cycleForDate(session.date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(session.from ?? '')) return null
+export function sessionRateBand(session, policy) {
+  if (!cycleForDate(session.date, policy) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(session.from ?? '')) return null
   const day = new Date(`${session.date}T00:00:00Z`).getUTCDay()
-  if (day === 0 || day === 6) return 'peak'
+  if (policy.weekendDays.includes(day)) return 'peak'
   const [hour, minute] = session.from.split(':').map(Number)
   const start = hour * 60 + minute
-  return (start >= 390 && start < 510) || (start >= 1080 && start < 1230) ? 'peak' : 'offPeak'
+  return policy.peakWindows.some(([from, to]) => start >= from && start < to) ? 'peak' : 'offPeak'
 }
 
 // Keep the completed-session evidence alongside approved amounts.
 export function sessionPaySource(session) {
   return JSON.stringify([session.id, session.clientId, session.trainerId, session.date, session.from, session.to, session.status,
     session.outcome?.durationMinutes ?? null, session.acknowledgement?.method ?? null,
-    session.acknowledgement?.signerName ?? null, session.acknowledgement?.note ?? null, session.acknowledgement?.recordedAt ?? null])
+    session.acknowledgement?.signerName ?? null, session.acknowledgement?.note ?? null, session.acknowledgement?.recordedAt ?? null, session.acknowledgement?.signature ?? null])
 }
 
 export function rateCents(trainer, band) {
@@ -50,15 +50,16 @@ function acknowledgementLabel(ack) {
 }
 
 export function remunerationDraft(db, key, trainerId, now = new Date()) {
-  const cycle = payCycle(key)
+  const policy = db.settings.remuneration
+  const cycle = payCycle(key, policy)
   const trainer = db.trainers.find(item => item.id === trainerId)
   if (!trainer) throw new Error('Trainer not found.')
-  const today = businessNow(now).date
-  const rows = (db.sessions ?? []).filter(session => session.trainerId === trainerId && session.status === 'completed' && cycleForDate(session.date) === key)
+  const today = businessNow(now, db.settings.timeZone).date
+  const rows = (db.sessions ?? []).filter(session => session.trainerId === trainerId && session.status === 'completed' && cycleForDate(session.date, policy) === key)
     .sort((a, b) => `${a.date}|${a.from}|${a.id}`.localeCompare(`${b.date}|${b.from}|${b.id}`))
     .map(session => {
       const source = sessionPaySource(session)
-      const band = sessionRateBand(session)
+      const band = sessionRateBand(session, policy)
       const amount = rateCents(trainer, band)
       const acknowledged = acknowledgementLabel(session.acknowledgement)
       const duration = Number(session.outcome?.durationMinutes)
@@ -91,9 +92,10 @@ export function remunerationRecord(db, key, trainerId, now = new Date()) {
 }
 
 export function remunerationCycles(db, user, now = new Date()) {
-  const keys = new Set([cycleForDate(businessNow(now).date)])
+  const policy = db.settings.remuneration
+  const keys = new Set([cycleForDate(businessNow(now, db.settings.timeZone).date, policy)])
   for (const session of db.sessions ?? []) {
-    if (session.status === 'completed' && (user.role === 'owner' || session.trainerId === user.trainerId)) keys.add(cycleForDate(session.date))
+    if (session.status === 'completed' && (user.role === 'owner' || session.trainerId === user.trainerId)) keys.add(cycleForDate(session.date, policy))
   }
   for (const record of db.remunerationApprovals ?? []) {
     if (user.role === 'owner' || record.trainerId === user.trainerId) keys.add(record.cycle.key)

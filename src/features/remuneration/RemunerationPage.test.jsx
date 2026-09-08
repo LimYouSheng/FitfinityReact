@@ -1,3 +1,4 @@
+import { cycleTrainers, remunerationCycles, payCycle } from '../../app/remuneration.js'
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -9,7 +10,9 @@ import { payFixture } from '../../test/fixtures/remuneration.js'
 const owner = {id:'owner',role:'owner'}
 function NotifiedRemuneration(props) {
   const { runAction } = useNotifications()
-  return <RemunerationPage {...props} onApprove={(...args) => runAction(() => props.onApprove(...args), { message: 'Remuneration approved.' })} />
+  const data = props.data, policy = data.settings
+  const views = remunerationCycles(data, props.user).map(key => ({ key, cycle: payCycle(key, policy.remuneration), trainers: cycleTrainers(data, key, props.user) }))
+  return <RemunerationPage {...props} views={views} policy={policy} onApprove={(...args) => runAction(() => props.onApprove(...args), { message: 'Remuneration approved.' })} />
 }
 function show(props) {
   return render(<NotificationProvider><ActionConfirmationProvider><EditGuardProvider><NotifiedRemuneration user={owner} data={payFixture()} cycleKey="2026-09" onNavigate={()=>{}} onOpenSession={()=>{}} {...props}/></EditGuardProvider></ActionConfirmationProvider></NotificationProvider>)

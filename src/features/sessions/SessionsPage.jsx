@@ -6,7 +6,7 @@ import { formatDate, weekday } from '../../utils/date.js'
 import usePagination from '../../hooks/usePagination.js'
 import DateFilterField from '../../components/DateFilterField.jsx'
 
-export default function SessionsPage({ user, sessions, clients, trainers, onOpen }) {
+export default function SessionsPage({ user, sessions, clients, trainers, today, onOpen }) {
   const [query, setQuery] = useState('')
   const [period, setPeriod] = useState('all')
   const [statusFilter, setStatusFilter] = useState('')
@@ -19,8 +19,8 @@ export default function SessionsPage({ user, sessions, clients, trainers, onOpen
   const visible = useMemo(() => {
     const search = query.trim().toLowerCase()
 
-    return sortSessions(visibleSessionsForUser(user, sessions)).filter(session => {
-      const history = isSessionHistory(session)
+    return sortSessions(visibleSessionsForUser(user, sessions), today).filter(session => {
+      const history = isSessionHistory(session, today)
       if (period === 'upcoming' && history) return false
       if (period === 'history' && !history) return false
       if (statusFilter && session.status !== statusFilter) return false
@@ -35,7 +35,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, onOpen
 
       return true
     })
-  }, [clients, fromDate, period, query, sessions, statusFilter, toDate, trainers, user])
+  }, [clients, fromDate, period, query, sessions, statusFilter, toDate, trainers, user, today])
 
   const pagination = usePagination(
     visible,
@@ -47,7 +47,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, onOpen
       <div className="page-head compact-page-head">
         <div>
           <span className="eyebrow">Operations</span>
-          <h1>All Sessions</h1>
+          <h1>Sessions</h1>
         </div>
       </div>
 
@@ -70,7 +70,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, onOpen
               value={period}
               onChange={event => setPeriod(event.target.value)}
             >
-              <option value="all">All sessions</option>
+              <option value="all">All periods</option>
               <option value="upcoming">Upcoming</option>
               <option value="history">History</option>
             </select>

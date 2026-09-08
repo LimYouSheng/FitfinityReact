@@ -1,5 +1,5 @@
-export const MAX_EXERCISE_VIDEO_BYTES = 5 * 1024 * 1024
-export const MAX_EXERCISE_VIDEO_SECONDS = 60
+import { MAX_EXERCISE_VIDEO_BYTES, MAX_EXERCISE_VIDEO_SECONDS } from '../../app/video.js'
+export { MAX_EXERCISE_VIDEO_BYTES, MAX_EXERCISE_VIDEO_SECONDS, exerciseVideoValidation } from '../../app/video.js'
 
 const detailValue = detail => typeof detail === 'string' ? detail : detail?.value
 
@@ -28,25 +28,21 @@ export function exerciseVideoCaption(exercise) {
   return `${name}${details.length ? ` — ${details.join(' · ')}` : ''}`
 }
 
-export function exerciseVideoValidation(file, durationSeconds) {
-  if (!file || !file.type?.startsWith('video/')) return 'Choose a video file.'
-  if (file.size > MAX_EXERCISE_VIDEO_BYTES) return 'Video must be 5 MB or smaller.'
-  if (!Number.isFinite(durationSeconds)) return 'The video duration could not be read.'
-  if (durationSeconds > MAX_EXERCISE_VIDEO_SECONDS) return 'Video must be 1 minute or shorter.'
-  return null
-}
-
-export function readVideoDuration(file) {
+export function readVideoDuration(file, { signal } = {}) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new DOMException('Cancelled', 'AbortError')); return }
     const url = URL.createObjectURL(file)
     const video = document.createElement('video')
     const finish = value => {
+      signal?.removeEventListener('abort', abort)
       video.onloadedmetadata = null
       video.onerror = null
       video.removeAttribute('src')
       URL.revokeObjectURL(url)
       value instanceof Error ? reject(value) : resolve(value)
     }
+    const abort = () => finish(new DOMException('Cancelled', 'AbortError'))
+    signal?.addEventListener('abort', abort, { once: true })
 
     video.preload = 'metadata'
     video.muted = true
@@ -121,8 +117,9 @@ function drawCaptionPanel(context, captionLines, x, width, height) {
   })
 }
 
-export function compressVideoSilently(file, captionLines, onProgress = () => {}) {
+export function compressVideoSilently(file, captionLines, onProgress = () => {}, { signal } = {}) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new DOMException('Cancelled', 'AbortError')); return }
     if (!globalThis.MediaRecorder || !globalThis.HTMLCanvasElement?.prototype.captureStream) {
       reject(new Error('Video preparation is not supported in this browser.'))
       return
@@ -133,12 +130,16 @@ export function compressVideoSilently(file, captionLines, onProgress = () => {})
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d')
     let recorder
+    let stream
     let animationFrame = 0
     let settled = false
     const chunks = []
 
     const cleanUp = () => {
+      signal?.removeEventListener('abort', abort)
       window.cancelAnimationFrame(animationFrame)
+      if (recorder?.state === 'recording') recorder.stop()
+      stream?.getTracks().forEach(track => track.stop())
       video.onloadedmetadata = null
       video.onended = null
       video.onerror = null
@@ -153,6 +154,8 @@ export function compressVideoSilently(file, captionLines, onProgress = () => {})
       cleanUp()
       reject(error instanceof Error ? error : new Error('The video could not be prepared.'))
     }
+    const abort = () => fail(new DOMException('Cancelled', 'AbortError'))
+    signal?.addEventListener('abort', abort, { once: true })
 
     if (!context) {
       fail(new Error('The video canvas could not be created.'))
@@ -181,7 +184,7 @@ export function compressVideoSilently(file, captionLines, onProgress = () => {})
 
       canvas.width = 720
       canvas.height = 720
-      const stream = canvas.captureStream(24)
+      stream = canvas.captureStream(24)
       const mimeType = recorderMimeType()
       const targetBytes = 4.25 * 1024 * 1024
       const videoBitsPerSecond = Math.min(600000, Math.max(180000, Math.floor((targetBytes * 8) / duration)))

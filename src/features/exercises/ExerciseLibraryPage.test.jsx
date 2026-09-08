@@ -1,10 +1,12 @@
+import { mockPolicy } from '../../data/mockPolicy.js'
 import { useState } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
 import AppShell from '../../components/AppShell.jsx'
 import { EditGuardProvider, useEditGuard } from '../../components/EditGuardProvider.jsx'
-import { DEFAULT_EXERCISES } from '../../app/exerciseCatalog.js'
+
+import { DEFAULT_EXERCISES } from '../../data/mockExercises.js'
 import ExerciseLibraryPage from './ExerciseLibraryPage.jsx'
 
 afterEach(cleanup)
@@ -14,7 +16,7 @@ function Harness({ detailId, onSave, onOutsideClick, user = { id: 'u-owner', nam
   return <AppShell user={user} users={[user]} userId={user.id} route="exercises" messages={[]}
     onRoute={path => guardNavigation(() => setDetail(path.split('/')[1]))} onUserChange={vi.fn()} onReset={vi.fn()}>
     {onOutsideClick && <button type="button" onClick={onOutsideClick}>Outside action</button>}
-    <ExerciseLibraryPage user={user} exercises={exercises} detailId={detail}
+    <ExerciseLibraryPage categories={mockPolicy.exerciseCategories} user={user} exercises={exercises} detailId={detail}
     onNavigate={path => guardNavigation(() => setDetail(path.split('/')[1]))}
     onBack={() => guardNavigation(() => setDetail(null))}
     onSave={async options => {

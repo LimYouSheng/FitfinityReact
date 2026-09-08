@@ -1,12 +1,9 @@
 const DATABASE = 'fitfinity-m2-exercise-videos'
 const STORE = 'videos'
-const memoryStore = new Map()
-
-const keyFor = (sessionId, exerciseId) => `${sessionId}:${exerciseId}`
+const legacyKey = (sessionId, exerciseId) => `${sessionId}:${exerciseId}`
 
 function openDatabase() {
-  if (!globalThis.indexedDB) return Promise.resolve(null)
-
+  if (!globalThis.indexedDB) return Promise.reject(new Error('This browser cannot store session videos. Use a supported browser and try again.'))
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DATABASE, 1)
     request.onupgradeneeded = () => request.result.createObjectStore(STORE)
@@ -17,44 +14,45 @@ function openDatabase() {
 
 async function run(mode, operation) {
   const database = await openDatabase()
-  if (!database) return operation(null)
-
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE, mode)
-    const request = operation(transaction.objectStore(STORE))
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-    transaction.oncomplete = () => database.close()
-    transaction.onabort = () => database.close()
+    let transaction
+    try {
+      transaction = database.transaction(STORE, mode)
+      const request = operation(transaction.objectStore(STORE))
+      transaction.oncomplete = () => { database.close(); resolve(request.result) }
+      transaction.onerror = transaction.onabort = () => { database.close(); reject(transaction.error || request.error || new Error('Session video storage failed.')) }
+    } catch (error) {
+      try { transaction?.abort() } catch { /* Already inactive. */ }
+      database.close(); reject(error)
+    }
+  })
+}
+
+function bytesFor(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(new Uint8Array(reader.result))
+    reader.onerror = () => reject(reader.error || new Error('Could not read the video.'))
+    reader.onabort = () => reject(new Error('Reading the video was cancelled.'))
+    reader.readAsArrayBuffer(blob)
   })
 }
 
 export async function saveExerciseVideoBlob(sessionId, exerciseId, blob) {
-  const key = keyFor(sessionId, exerciseId)
-  memoryStore.set(key, blob)
-  try {
-    await run('readwrite', store => store ? store.put(blob, key) : undefined)
-  } catch {
-    // The in-memory copy keeps the prototype usable when private browsing blocks IndexedDB.
-  }
+  const id = `${legacyKey(sessionId, exerciseId)}:${Array.from(crypto.getRandomValues(new Uint8Array(12)), byte => byte.toString(16).padStart(2, '0')).join('')}`
+  const bytes = await bytesFor(blob)
+  await run('readwrite', store => store.put({ format: 'bytes-v1', type: blob.type, bytes }, id))
+  return id
 }
 
-export async function loadExerciseVideoBlob(sessionId, exerciseId) {
-  const key = keyFor(sessionId, exerciseId)
-  try {
-    const stored = await run('readonly', store => store ? store.get(key) : memoryStore.get(key))
-    return stored ?? memoryStore.get(key) ?? null
-  } catch {
-    return memoryStore.get(key) ?? null
-  }
+export async function loadExerciseVideoBlob(sessionId, exerciseId, id) {
+  const record = await run('readonly', store => store.get(id ?? legacyKey(sessionId, exerciseId)))
+  if (!record) return null
+  if (record instanceof Blob) return record
+  if (record.format === 'bytes-v1' && ArrayBuffer.isView(record.bytes)) return new Blob([record.bytes], { type: record.type })
+  throw new Error('The stored video could not be read. Attach it again.')
 }
 
-export async function removeExerciseVideoBlob(sessionId, exerciseId) {
-  const key = keyFor(sessionId, exerciseId)
-  memoryStore.delete(key)
-  try {
-    await run('readwrite', store => store ? store.delete(key) : undefined)
-  } catch {
-    // The persisted prototype metadata can still be removed if IndexedDB is unavailable.
-  }
+export function removeExerciseVideoBlob(sessionId, exerciseId, id) {
+  return run('readwrite', store => store.delete(id ?? legacyKey(sessionId, exerciseId)))
 }

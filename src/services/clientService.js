@@ -48,7 +48,7 @@ export const clientService = {
       if (!trainer) throw new Error('Selected trainer is not active.')
 
       createdId = nextClientId(db.clients)
-      const client = buildClientRecord(draft, createdId, selectedPackage(db, draft))
+      const client = buildClientRecord(draft, createdId, selectedPackage(db, draft), db.settings)
       db.clients.push(client)
       db.sessions ??= []
       const sessions = buildClientSessions(client)

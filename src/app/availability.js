@@ -1,8 +1,6 @@
 import { DAYS } from './constants.js'
 
 export { DAYS } from './constants.js'
-export const DEFAULT_AVAILABILITY_FROM = '18:00'
-export const DEFAULT_AVAILABILITY_TO = '19:00'
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/
 
 /** Availability windows share one validation boundary in both onboarding flows. */

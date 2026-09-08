@@ -17,7 +17,7 @@ function validateSave(db, options, actor) {
   const current = options.id ? catalog.find(item => item.id === options.id) : null
   if (options.id && !current) throw new Error('Exercise not found.')
   if (current && current.version !== options.expectedVersion) throw new Error('This exercise changed. Refresh the page before editing again.')
-  const errors = exerciseDraftErrors(options.draft, catalog, options.id)
+  const errors = exerciseDraftErrors(options.draft, catalog, options.id, db.settings.exerciseCategories)
   if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
   if (options.mediaFile) {
     if (!(options.mediaFile instanceof Blob)) throw new Error('Choose a valid media file.')
@@ -28,6 +28,7 @@ function validateSave(db, options, actor) {
 }
 
 export const exerciseLibraryService = {
+  async loadMedia(id) { return exerciseLibraryMedia.load(id) },
   getAll(actor) {
     const db = mockDb.read(), user = requireActiveActor(db, actor)
     return structuredClone(exerciseCatalog(db).filter(item => user.role === 'owner' || item.status === 'active'))

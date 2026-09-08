@@ -1,3 +1,4 @@
+import { signatureFixture } from '../test/fixtures/signature.js'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { mockDb } from './mockDb.js'
 import { sessionService } from './sessionService.js'
@@ -28,7 +29,7 @@ describe('session service', () => {
   })
 
   it('debits one package credit for a normal acknowledgement and never debits twice', async () => {
-    await sessionService.acknowledge('s1', { method: 'signature', signerName: 'Amanda Lim' })
+    await sessionService.acknowledge('s1', { method: 'signature', signerName: 'Amanda Lim', signature: signatureFixture })
     await sessionService.acknowledge('s1', { method: 'late_no_show', note: 'Converted record' })
 
     const db = mockDb.read()
@@ -53,14 +54,14 @@ describe('session service', () => {
   it('persists session outcome, client summary and repeatable WhatsApp sends', async () => {
     await sessionService.saveOutcome('s1', { durationMinutes: 55, trainerComments: 'Technique remained consistent.' })
     await sessionService.saveClientSummary('s1', 'Custom client-ready summary.')
-    await sessionService.markWhatsAppSent('s1')
-    await sessionService.markWhatsAppSent('s1')
+    await sessionService.markWhatsAppOpened('s1')
+    await sessionService.markWhatsAppOpened('s1')
 
     const session = mockDb.read().sessions.find(item => item.id === 's1')
     expect(session.outcome).toEqual({ durationMinutes: 55, trainerComments: 'Technique remained consistent.' })
     expect(session.clientSummary).toBe('Custom client-ready summary.')
-    expect(session.whatsappSentAt).toBeTruthy()
-    expect(session.whatsappSendCount).toBe(2)
+    expect(session.whatsappOpenedAt).toBeTruthy()
+    expect(session.whatsappOpenCount).toBe(2)
   })
 
   it('lets the owner update schedule and trainer details directly', async () => {

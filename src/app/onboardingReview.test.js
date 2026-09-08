@@ -1,4 +1,6 @@
-import { DEFAULT_PACKAGES } from './packages.js'
+import { mockPolicy } from '../data/mockPolicy.js'
+
+import { DEFAULT_PACKAGES } from '../data/mockPackages.js'
 import { describe, expect, it } from 'vitest'
 import { CLIENT_ONBOARDING_STEPS, clientStepErrors } from './clientOnboarding.js'
 import { TRAINER_ONBOARDING_STEPS, createTrainerDraft, trainerStepErrors } from './trainerOnboarding.js'
@@ -7,11 +9,11 @@ import { clientReviewSections, trainerReviewSections, firstIncompleteSection, re
 const person = (name = 'Amanda') => ({ name, phone: { countryCode: '+65', number: '9123 4567' },
   email: 'amanda@example.com', birthday: '', gender: 'Female', healthNotes: 'Knee notes',
   emergencyContact: { name: 'Jason', relationship: 'Spouse', countryCode: '+60', number: '123456789' } })
-const client = () => ({ type: 'Individual', people: [person(), person('Hidden draft')],
+const client = () => ({ type: 'Individual', packageDefinition: DEFAULT_PACKAGES[0], people: [person(), person('Hidden draft')],
   startDate: '2026-09-07', sessionsPerWeek: 1, genderPreference: 'Female trainer preferred', remarks: 'Shared remark',
   clientPreferences: [{ days: ['Monday'], from: '18:00', to: '19:00' }], trainerId: 't2',
   fixedWeeklySchedule: [{ day: 'Monday', from: '18:00', to: '19:00' }] })
-const trainer = () => ({ ...createTrainerDraft(), name: '  Review Trainer  ', email: ' REVIEW@EXAMPLE.COM ',
+const trainer = () => ({ ...createTrainerDraft(mockPolicy), name: '  Review Trainer  ', email: ' REVIEW@EXAMPLE.COM ',
   gender: 'Female', trainerType: 'Personal', qualifications: 'ACE',
   availabilityBlocks: [{ days: ['Monday', 'Wednesday'], from: '18:00', to: '20:00' }] })
 const rows = section => Object.fromEntries(section.groups.flatMap(group => group.rows).map(row => [row.label, row.value]))
@@ -27,7 +29,7 @@ describe('onboarding review', () => {
   })
   it('maps every single-client person field while excluding an unused second draft', () => {
     const draft = client(); const snapshot = JSON.stringify(draft)
-    const sections = clientReviewSections(draft, { name: 'Rachel' })
+    const sections = clientReviewSections(draft, { name: 'Rachel' }, mockPolicy)
     expect(sections.map(section => section.key)).toEqual(CLIENT_ONBOARDING_STEPS.map(step => step.key))
     expect(rows(sections[0])).toMatchObject({ 'Client type': 'Single', Name: 'Amanda', Phone: '+65 9123 4567',
       Email: 'amanda@example.com', Birthday: '—', Gender: 'Female', 'Emergency contact name': 'Jason',
@@ -38,7 +40,7 @@ describe('onboarding review', () => {
   it('keeps both Couple people and their health and emergency information separate', () => {
     const draft = client(); draft.type = 'Couple'
     draft.people[1] = { ...person('Mei'), healthNotes: 'Shoulder notes', phone: { countryCode: '+44', number: '1234567' } }
-    const general = clientReviewSections(draft, { name: 'Rachel' })[0]
+    const general = clientReviewSections(draft, { name: 'Rachel' }, mockPolicy)[0]
     expect(general.groups.slice(1).map(group => group.title)).toEqual(['Client 1', 'Client 2'])
     expect(general.groups[1].rows).toContainEqual({ label: 'Health / Limitation Notes', value: 'Knee notes' })
     expect(general.groups[2].rows).toContainEqual({ label: 'Health / Limitation Notes', value: 'Shoulder notes' })
@@ -48,7 +50,7 @@ describe('onboarding review', () => {
     const draft = client(); draft.sessionsPerWeek = 2; draft.packageDefinition = DEFAULT_PACKAGES[1]
     draft.clientPreferences.push({ days: ['Wednesday'], from: '19:00', to: '20:00' })
     draft.fixedWeeklySchedule.push({ day: 'Wednesday', from: '19:00', to: '20:00' })
-    const sections = clientReviewSections(draft, { name: 'Chosen Trainer' })
+    const sections = clientReviewSections(draft, { name: 'Chosen Trainer' }, mockPolicy)
     expect(rows(sections[1])).toMatchObject({ 'PT Package': '24 sessions', Validity: '180 days', 'Free gym package': 'Included',
       'Total sessions': '24', 'Weekly frequency': 'Twice per week' })
     expect(rows(sections[0]).Remarks).toBe('Shared remark')

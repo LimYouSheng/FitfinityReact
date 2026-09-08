@@ -1,16 +1,15 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import usePagination from '../../hooks/usePagination.js'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { useNotifications } from '../../components/NotificationProvider.jsx'
-import { cycleForDate, cycleTrainers, formatMoney, payCycle, remunerationCycles } from '../../app/remuneration.js'
-import { businessNow } from '../../app/scheduleChanges.js'
+import { formatMoney } from '../../app/remuneration.js'
 import { formatDate } from '../../utils/date.js'
 
 const tones = { Approved: 'green', 'Pending approval': 'amber', 'Needs review': 'red', 'In progress': 'blue' }
-const cycleLabel = key => { const cycle = payCycle(key); return `${formatDate(cycle.start)} – ${formatDate(cycle.end)}` }
+const cycleLabel = cycle => { return `${formatDate(cycle.start)} – ${formatDate(cycle.end)}` }
 function MoneyToggle({ hidden, onClick }) {
   return <button type="button" className="secondary-button remuneration-money-toggle" aria-label={hidden ? 'Show remuneration amounts' : 'Hide remuneration amounts'} aria-pressed={hidden} onClick={onClick}>
     <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />{hidden && <path d="m3 3 18 18" />}</svg>
@@ -46,7 +45,7 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
     try {
       const accepted = await confirm({
         title: 'Approve trainer remuneration?',
-        message: `Approve ${record.sessions} completed sessions for ${record.trainerName}, totalling ${formatMoney(record.amountCents)}. This stores the calculated breakdown and notifies the trainer.`,
+        message: `Approve ${record.sessions} completed sessions for ${record.trainerName}, totalling ${money(record.amountCents)}. This stores the calculated breakdown and notifies the trainer.`,
         confirmLabel: 'Approve Remuneration',
       })
       if (!accepted) return
@@ -82,13 +81,14 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
   </>
 }
 
-export default function RemunerationPage({ user, data, cycleKey, trainerId, onNavigate, onBack, onApprove, onOpenSession }) {
+export default function RemunerationPage({ user, views, policy, cycleKey, trainerId, onNavigate, onBack, onApprove, onOpenSession }) {
   const [hidden, setHidden] = useState(true)
-  const money = cents => hidden ? '••••' : formatMoney(cents)
-  const keys = remunerationCycles(data, user)
+  const money = cents => hidden ? '••••' : formatMoney(cents, policy)
+  const keys = views.map(view => view.key)
   const validKey = keys.includes(cycleKey)
-  const key = validKey ? cycleKey : cycleForDate(businessNow().date)
-  const records = useMemo(() => cycleTrainers(data, key, user), [data, key, user])
+  const key = validKey ? cycleKey : views[0]?.key
+  const view = views.find(view => view.key === key)
+  const records = view?.trainers ?? []
   const selected = trainerId ? records.find(record => record.trainerId === trainerId) : null
   const pagination = usePagination(records, `${user.id}/${key}`)
   const inaccessible = (cycleKey && !validKey) || (trainerId && !selected)
@@ -98,8 +98,8 @@ export default function RemunerationPage({ user, data, cycleKey, trainerId, onNa
       <div className="remuneration-toolbar">
         {selected ? <>
           <button className="secondary-button" type="button" onClick={onBack}>Back to Pay Cycle</button>
-          <p className="remuneration-cycle-caption">{cycleLabel(key)}</p>
-        </> : <label><span>Pay cycle</span><select aria-label="Pay cycle" value={key} onChange={event => onNavigate(`remuneration/${event.target.value}`)}>{keys.map(value => <option key={value} value={value}>{cycleLabel(value)}</option>)}</select></label>}
+          <p className="remuneration-cycle-caption">{cycleLabel(view.cycle)}</p>
+        </> : <label><span>Pay cycle</span><select aria-label="Pay cycle" value={key} onChange={event => onNavigate(`remuneration/${event.target.value}`)}>{keys.map(value => <option key={value} value={value}>{cycleLabel(views.find(view => view.key === value).cycle)}</option>)}</select></label>}
       </div>
       <Panel>{selected ? <TrainerBreakdown key={`${key}/${selected.trainerId}`} record={selected} owner={user.role === 'owner'} hidden={hidden} money={money} onApprove={onApprove} onOpenSession={onOpenSession} /> : <>
         <Totals records={records} money={money} />

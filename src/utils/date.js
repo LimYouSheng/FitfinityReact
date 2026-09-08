@@ -1,3 +1,4 @@
+import { today as currentDate } from '../app/clock.js'
 const DATE_FORMAT = new Intl.DateTimeFormat('en-SG', {
   day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC',
 })
@@ -20,7 +21,7 @@ export function weekday(value) {
   return Number.isFinite(date.getTime()) ? WEEKDAY_FORMAT.format(date) : '—'
 }
 
-export function packageDayProgress(startDate, validityDays, today = '2026-08-31') {
+export function packageDayProgress(startDate, validityDays, today = currentDate()) {
   const start = parseDateOnly(startDate)
   const now = parseDateOnly(today)
   const elapsed = Math.floor((now - start) / 86400000) + 1

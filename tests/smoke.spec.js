@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, drawClientSignature, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
 
 async function navIsOnScreen(sidebar) {
   return sidebar.evaluate(element => {
@@ -17,6 +17,8 @@ async function navIsOnScreen(sidebar) {
 }
 
 async function openNavIfNeeded(page) {
+  await expandSidebarSections(page)
+  await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
   const menu = page.getByRole('button', { name: 'Open navigation' })
   if (!(await menu.isVisible())) return
 
@@ -108,6 +110,7 @@ async function openSession(page, {
 
 async function clickProfileTab(page, name) {
   const menu = page.locator('.profile-menu')
+  await expect(menu).toBeVisible()
   if (await menu.locator('summary').isVisible()) await menu.locator('summary').click()
   const tab = menu.getByRole('button', { name, exact: true })
   await expect(tab).toBeVisible()
@@ -115,12 +118,17 @@ async function clickProfileTab(page, name) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-02T04:00:00Z'))
   await page.goto('/#/dashboard')
 })
 
-test('dashboard remains calendar only', async ({ page }) => {
+test('dashboard places renewal Messages above the calendar without statistics', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Calendar' })).toBeVisible()
   await expect(page.locator('.stats-grid')).toHaveCount(0)
+  await expect(page.getByLabel('Renewal messages')).toBeVisible()
+  const renewalBox = await page.locator('.dashboard-renewals').boundingBox()
+  const calendarBox = await page.getByRole('heading', { name: 'Calendar', exact: true }).boundingBox()
+  expect(renewalBox.y + renewalBox.height).toBeLessThan(calendarBox.y)
   await expect(page.getByText('Fitfinity Staff', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Owner portal', { exact: true })).toHaveCount(0)
 
@@ -172,7 +180,7 @@ test('trainer filters are one compact row', async ({ page }) => {
 })
 
 test('trainer client filters keep same layout', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
+  await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
   await page.waitForTimeout(350)
   await clickNav(page, 'All Clients')
@@ -218,13 +226,14 @@ test('browser back returns client detail to list', async ({ page }) => {
 test('client deactivation still removes client from trainer view', async ({ page }) => {
   await clickNav(page, 'Clients')
   await page.getByRole('button', { name: 'View Amanda Lim' }).click()
+  await expect(page.locator('.profile-menu')).toBeVisible()
   if (await page.locator('.profile-menu summary').isVisible()) {
     await page.locator('.profile-menu summary').click()
   }
   await page.getByRole('button', { name: 'Deactivate Client' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Deactivate Client' }).click()
 
-  await page.locator('.role-switcher select').selectOption('u-marcus')
+  await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
   await page.waitForTimeout(350)
   await clickNav(page, 'All Clients')
@@ -270,6 +279,7 @@ test('trainer profile keeps status in the name card and account status leaves ra
   }
 
   const menu = page.locator('.profile-menu')
+  await expect(menu).toBeVisible()
   if (await menu.locator('summary').isVisible()) await menu.locator('summary').click()
   await expect(menu.locator('.profile-tabs button').last()).toHaveText('Deactivate Trainer')
   await menu.getByRole('button', { name: 'Availability', exact: true }).click()
@@ -284,7 +294,7 @@ test('trainer profile keeps status in the name card and account status leaves ra
 })
 
 test('trainer sidebar exposes Messages and Profile under System', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
+  await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
   await page.waitForTimeout(350)
   await openNavIfNeeded(page)
@@ -318,12 +328,13 @@ test('client status is visible at the card edge and lifecycle action is last', a
   await expect(page.getByLabel('Client status')).toContainText('Active')
 
   const menu = page.locator('.profile-menu')
+  await expect(menu).toBeVisible()
   if (await menu.locator('summary').isVisible()) await menu.locator('summary').click()
   await expect(menu.locator('.profile-tabs button').last()).toHaveText('Deactivate Client')
 })
 
 test('assigned supervised trainer can edit fixed weekly schedule and submits request', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
+  await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
   await page.waitForTimeout(350)
 
@@ -350,7 +361,7 @@ test('assigned supervised trainer can edit fixed weekly schedule and submits req
   await confirmAction(page, 'Save fixed weekly schedule?', 'Save Schedule')
   await expect(schedule.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
 
-  await page.locator('.role-switcher select').selectOption('u-owner')
+  await selectDemoIdentity(page, 'u-owner')
   await expect(page.getByRole('heading', { name: 'Owner Dashboard' })).toBeVisible()
 
   await clickMessages(page)
@@ -358,6 +369,8 @@ test('assigned supervised trainer can edit fixed weekly schedule and submits req
 })
 
 test('message becomes read and loses blue border after opening', async ({ page }) => {
+  // Keep the read action later than every seeded message, on the same business day.
+  await page.clock.setFixedTime(new Date('2026-09-02T15:00:00Z'))
   await clickMessages(page)
 
   const messageFilters = page.getByLabel('Message filters')
@@ -509,6 +522,7 @@ test('clicking transparent profile-menu scrim closes dropdown', async ({ page })
   await page.getByRole('button', { name: 'View Amanda Lim' }).click()
 
   const menu = page.locator('.profile-menu')
+  await expect(menu).toBeVisible()
   if (!(await menu.locator('summary').isVisible())) return
   await menu.locator('summary').click()
   await expect(menu).toHaveAttribute('open', '')
@@ -734,7 +748,7 @@ test('message dialog is centred against the full viewport', async ({ page }) => 
 })
 
 test('owner opens session details with client trainer weekday and status', async ({ page }) => {
-  await clickNav(page, 'All Sessions')
+  await clickNav(page, 'Sessions')
   await openSession(page, { date: '02 Sept 2026', status: 'planned' })
 
   await expect(page).toHaveURL(/#\/sessions\/s1$/)
@@ -744,7 +758,7 @@ test('owner opens session details with client trainer weekday and status', async
   await expect(page.getByText('Session · Planned', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'View Client' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'View Trainer' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Acknowledge Session' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Client Signature' })).toBeVisible()
 })
 
 test('client trainer and trainer type columns share the shifted-left compact layout', async ({ page }) => {
@@ -762,8 +776,8 @@ test('client trainer and trainer type columns share the shifted-left compact lay
 })
 
 test('trainer session list includes only that trainer sessions', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
-  await clickNav(page, 'All Sessions')
+  await selectDemoIdentity(page, 'u-marcus')
+  await clickNav(page, 'Sessions')
 
   const list = page.getByLabel('Session list')
   await expect(list.getByText('Amanda Lim', { exact: true }).first()).toBeVisible()
@@ -772,11 +786,11 @@ test('trainer session list includes only that trainer sessions', async ({ page }
 })
 
 test('blank exercise blocks save and cancelling it releases Add Exercise', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
-  await clickNav(page, 'All Sessions')
+  await selectDemoIdentity(page, 'u-marcus')
+  await clickNav(page, 'Sessions')
   await openSession(page, { date: '07 Sept 2026', status: 'not_planned' })
-  const emptyPlan = page.getByRole('button', { name: 'Select to start new plan' })
-  await expect(emptyPlan).toContainText('Select to start new plan')
+  const emptyPlan = page.getByRole('button', { name: 'Start Plan' })
+  await expect(emptyPlan).toContainText('Start Plan')
   await expect(page.locator('.exercise-plan-head').getByRole('button')).toHaveCount(0)
   await emptyPlan.click()
 
@@ -804,10 +818,10 @@ test('blank exercise blocks save and cancelling it releases Add Exercise', async
 })
 
 test('exercise plan saves to display rows and overall Edit returns to editor', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
-  await clickNav(page, 'All Sessions')
+  await selectDemoIdentity(page, 'u-marcus')
+  await clickNav(page, 'Sessions')
   await openSession(page, { date: '07 Sept 2026', status: 'not_planned' })
-  await page.getByRole('button', { name: 'Select to start new plan' }).click()
+  await page.getByRole('button', { name: 'Start Plan' }).click()
   await page.getByLabel('Exercise 1 name').click()
   await page.getByRole('button', { name: 'Custom Exercise', exact: true }).click()
   await page.getByLabel('Exercise 1 custom name').fill('Romanian Deadlift')
@@ -825,8 +839,8 @@ test('exercise plan saves to display rows and overall Edit returns to editor', a
 })
 
 test('exercise dropdown starts with Custom Exercise, keeps Oracle categories and supports search', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
-  await clickNav(page, 'All Sessions')
+  await selectDemoIdentity(page, 'u-marcus')
+  await clickNav(page, 'Sessions')
   await openSession(page, { date: '02 Sept 2026', status: 'planned' })
 
   const plan = page.locator('.exercise-plan-panel')
@@ -844,8 +858,8 @@ test('exercise dropdown starts with Custom Exercise, keeps Oracle categories and
 })
 
 test('video is unavailable while planning and available only after a saved plan', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
-  await clickNav(page, 'All Sessions')
+  await selectDemoIdentity(page, 'u-marcus')
+  await clickNav(page, 'Sessions')
   await openSession(page, { date: '02 Sept 2026', status: 'planned' })
 
   const plan = page.locator('.exercise-plan-panel')
@@ -877,7 +891,7 @@ test('video is unavailable while planning and available only after a saved plan'
   await expect(videoDialog).toHaveCount(0)
   await expect(plan.locator('.exercise-display-camera.attached').first()).toBeVisible()
   await clickNav(page, 'Messages')
-  await expect(page.getByText('Exercise plan saved: Amanda Lim').first()).toBeVisible()
+  await expect(page.getByText('Exercise video saved: Amanda Lim').first()).toBeVisible()
 })
 
 test('only one section edits at a time and navigation warns before discarding it', async ({ page }) => {
@@ -901,7 +915,7 @@ test('only one section edits at a time and navigation warns before discarding it
 
   await page.locator('.sidebar nav button').evaluateAll(buttons => {
     buttons.find(button => button.textContent.trim() === 'Clients').click()
-    buttons.find(button => button.textContent.trim() === 'All Sessions').click()
+    buttons.find(button => button.textContent.trim() === 'Sessions').click()
   })
   await expect(page.getByRole('dialog', { name: 'Leave this edit?' })).toHaveCount(1)
   await confirmAction(page, 'Leave this edit?', 'Leave Without Saving')
@@ -911,7 +925,7 @@ test('only one section edits at a time and navigation warns before discarding it
 })
 
 test('owner can edit session details and add a locked blank exercise at the top', async ({ page }) => {
-  await clickNav(page, 'All Sessions')
+  await clickNav(page, 'Sessions')
   await openSession(page, { date: '02 Sept 2026', status: 'planned' })
 
   const overview = page.locator('.session-overview-panel')
@@ -973,8 +987,8 @@ test('owner can edit session details and add a locked blank exercise at the top'
 })
 
 test('trainer session details use two request actions instead of owner Edit', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
-  await clickNav(page, 'All Sessions')
+  await selectDemoIdentity(page, 'u-marcus')
+  await clickNav(page, 'Sessions')
   await openSession(page, { date: '02 Sept 2026', status: 'planned' })
 
   const overview = page.locator('.session-overview-panel')
@@ -992,40 +1006,42 @@ test('trainer session details use two request actions instead of owner Edit', as
 })
 
 test('normal acknowledgement completes session and records one debit state', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
-  await clickNav(page, 'All Sessions')
+  await selectDemoIdentity(page, 'u-marcus')
+  await clickNav(page, 'Sessions')
 
   await openSession(page, { date: '02 Sept 2026', status: 'planned' })
-  await page.getByRole('button', { name: 'Acknowledge Session' }).click()
-  let acknowledgement = page.getByRole('dialog', { name: 'Client acknowledgement' })
+  await page.getByRole('button', { name: 'Client Signature' }).click()
+  let acknowledgement = page.getByRole('dialog', { name: 'Client signature' })
   await acknowledgement.getByRole('button', { name: 'Close dialog' }).click()
   await expect(acknowledgement).toHaveCount(0)
-  await page.getByRole('button', { name: 'Acknowledge Session' }).click()
-  acknowledgement = page.getByRole('dialog', { name: 'Client acknowledgement' })
+  await page.getByRole('button', { name: 'Client Signature' }).click()
+  acknowledgement = page.getByRole('dialog', { name: 'Client signature' })
   await acknowledgement.getByLabel('Acknowledgement note').fill('Session completed as planned.')
+  await drawClientSignature(page)
   await acknowledgement.getByRole('button', { name: 'Review Completion' }).click()
   await confirmAction(page, 'Complete this session?', 'Complete Session')
 
   await expect(page.getByText('Session · Completed', { exact: true })).toBeVisible()
-  await expect(page.getByText('Acknowledgement · Acknowledged', { exact: true })).toBeVisible()
+  await expect(page.getByText('Acknowledgement · Signed', { exact: true })).toBeVisible()
 })
 
 test('late or no-show completes without signature and conversion does not show another debit', async ({ page }) => {
-  await page.locator('.role-switcher select').selectOption('u-marcus')
-  await clickNav(page, 'All Sessions')
+  await selectDemoIdentity(page, 'u-marcus')
+  await clickNav(page, 'Sessions')
 
   await openSession(page, { date: '02 Sept 2026', status: 'planned' })
-  await page.getByRole('button', { name: 'Acknowledge Session' }).click()
-  await page.getByRole('dialog', { name: 'Client acknowledgement' })
+  await page.getByRole('button', { name: 'Client Signature' }).click()
+  await drawClientSignature(page)
+  await page.getByRole('dialog', { name: 'Client signature' })
     .getByRole('button', { name: 'Review Completion' }).click()
   await confirmAction(page, 'Complete this session?', 'Complete Session')
 
-  await page.getByRole('button', { name: 'Update Acknowledgement' }).click()
-  await page.getByRole('dialog', { name: 'Client acknowledgement' })
+  await page.getByRole('button', { name: 'Update Completion' }).click()
+  await page.getByRole('dialog', { name: 'Client signature' })
     .getByRole('button', { name: 'Record late / no-show instead' }).click()
 
   const conversion = page.getByRole('dialog', { name: 'Trainer late / no-show' })
-  await expect(conversion.getByLabel('Acknowledged by')).toHaveCount(0)
+  await expect(conversion.getByLabel('Client name')).toHaveCount(0)
   await conversion.getByRole('button', { name: 'Review Completion' }).click()
   await confirmAction(page, 'Complete this session?', 'Complete Session')
 
@@ -1033,7 +1049,7 @@ test('late or no-show completes without signature and conversion does not show a
 })
 
 test('session details Back returns to the sessions list', async ({ page }) => {
-  await clickNav(page, 'All Sessions')
+  await clickNav(page, 'Sessions')
   await openSession(page, { date: '02 Sept 2026', status: 'planned' })
 
   await page.getByRole('button', { name: 'Back' }).click()
@@ -1091,7 +1107,7 @@ test('client profile navigation tabs contain package session and progress data',
   await expect(page.getByRole('heading', { name: 'Current Package' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Past Packages' })).toBeVisible()
   await expect(page.locator('.client-record-row')).toHaveCount(2)
-  await expect(page.getByText('17 / 90 days')).toBeVisible()
+  await expect(page.getByText('19 / 90 days')).toBeVisible()
   await expect(page.getByText('Once weekly')).toBeVisible()
 
   await clickProfileTab(page, 'Session History')
@@ -1201,7 +1217,7 @@ test('substantial demo lists enforce ten items per page', async ({ page }) => {
   await expect(page.getByLabel('Trainer list').locator('.compact-list-row')).toHaveCount(10)
   await expect(page.getByRole('button', { name: 'Next' })).toBeEnabled()
 
-  await clickNav(page, 'All Sessions')
+  await clickNav(page, 'Sessions')
   await expect(page.getByLabel('Session list').locator('.session-list-row')).toHaveCount(10)
   await expect(page.getByRole('button', { name: 'Next' })).toBeEnabled()
 
@@ -1210,8 +1226,8 @@ test('substantial demo lists enforce ten items per page', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Next' })).toBeEnabled()
 })
 
-test('All Sessions reuses the compact Client-list structure', async ({ page }) => {
-  await clickNav(page, 'All Sessions')
+test('Sessions reuses the compact Client-list structure', async ({ page }) => {
+  await clickNav(page, 'Sessions')
   const sessionFilters = page.locator('.session-controls')
   await expect(page.locator('.session-compact-list.compact-list')).toBeVisible()
   await expect(page.getByLabel('Session list').locator('.compact-list-row').first()).toBeVisible()
@@ -1257,8 +1273,8 @@ test('All Sessions reuses the compact Client-list structure', async ({ page }) =
   await expect(rows).toContainText(/02 Sep(?:t)? 2026/)
 })
 
-test('All Sessions removes row status and keeps one compact View column', async ({ page }) => {
-  await clickNav(page, 'All Sessions')
+test('Sessions removes row status and keeps one compact View column', async ({ page }) => {
+  await clickNav(page, 'Sessions')
   const action = page.getByLabel('Session list').locator('.session-action-cell').first()
   const view = action.getByRole('button', { name: /View session/ })
   await expect(action.locator('.status-badge')).toHaveCount(0)
@@ -1269,7 +1285,7 @@ test('All Sessions removes row status and keeps one compact View column', async 
 })
 
 test('Session Details follows the approved internal section order', async ({ page }) => {
-  await clickNav(page, 'All Sessions')
+  await clickNav(page, 'Sessions')
   await openSession(page, { date: '02 Sept 2026', status: 'planned' })
 
   await expect(page.getByRole('heading', { name: 'Session Details' })).toHaveCount(0)

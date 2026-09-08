@@ -1,4 +1,6 @@
-import { DEFAULT_PACKAGES } from '../app/packages.js'
+import { mockPolicy } from './mockPolicy.js'
+import { DEFAULT_EXERCISES } from './mockExercises.js'
+import { DEFAULT_PACKAGES } from './mockPackages.js'
 
 const availability = {
   marcus: {
@@ -276,7 +278,7 @@ const generatedCompletedSessions = allClients.flatMap((client, clientIndex) =>
         method: 'signature', signerName: client.name, note: '',
         recordedAt: `2026-08-${day}T${to}:00+08:00`,
       },
-      whatsappSentAt: `2026-08-${day}T${to}:05+08:00`,
+      whatsappOpenedAt: `2026-08-${day}T${to}:05+08:00`,
     }
   }),
 )
@@ -334,7 +336,7 @@ const featuredSessions = [
     sessionNumber: 3, packageTotal: 12, status: 'completed', exercisePlan: plannedExercises('s0'),
     outcome: { durationMinutes: 60, trainerComments: 'Load progressed with consistent technique.' },
     acknowledgement: { method: 'signature', signerName: 'Amanda Lim', note: '', recordedAt: '2026-08-29T19:03:00+08:00' },
-    whatsappSentAt: '2026-08-29T19:08:00+08:00',
+    whatsappOpenedAt: '2026-08-29T19:08:00+08:00',
   },
   {
     id: 's1', clientId: 'c1', trainerId: 't1', date: '2026-09-02', from: '18:00', to: '19:00',
@@ -372,6 +374,9 @@ const generatedMessages = allClients.slice(0, 12).map((client, index) => ({
 }))
 
 export const seed = {
+  settings: structuredClone(mockPolicy),
+  exerciseLibrary: structuredClone(DEFAULT_EXERCISES),
+  contentEntries: [],
   packages: DEFAULT_PACKAGES.map(item => ({ ...item })),
   users: [
     { id: 'u-owner', name: 'Chau', role: 'owner', status: 'active' },

@@ -1,7 +1,7 @@
-# Fitfinity Staff Portal — M3
+# Fitfinity Staff Portal — M4 readiness
 
 Canonical React/Vite frontend reconstructed from the frozen v0.57 behaviour.
-M3 covers the operational frontend through M3.9C. The next milestone is **M4 — frontend freeze and acceptance**; backend/auth starts at **M5**.
+M3 is frozen and pushed at `7d114a1` / `m3-operations-frontend`. **M4.3 prepares the verified staff demo for GitHub Pages**; final M4 freeze and physical PWA acceptance remain pending. Backend/auth starts at **M5**.
 
 ## Progress: M1 → M3
 
@@ -11,7 +11,7 @@ M3 covers the operational frontend through M3.9C. The next milestone is **M4 —
 | **M2 — Sessions** | Session lists/details, exercise planning, outcomes and package-credit rules, client summaries, profile workflows, and responsive regression coverage. Frozen at `ebcec81` / `m2-sessions-frontend`. |
 | **M3 — Operations** | Client and trainer onboarding with review/edit summaries; dashboard shortcuts; schedule approvals and Messages; remuneration; Exercise Library and local attachments; shared notification banners; Setup → Packages; navigation, accessibility, responsive layout and CSS/code-health repairs. |
 
-The verified M3.9C Mac run passed **212 unit tests in 47 files** and **357 browser tests**: 119 each on desktop Chromium, phone WebKit and tablet WebKit. The production build and final integrity/code-health gates also passed. The M3 checkpoint script reruns these gates before creating the `m3-operations-frontend` tag and pushing `main`.
+The verified M3 checkpoint Mac run passed **212 unit tests in 47 files** and **357 browser tests**: 119 each on desktop Chromium, phone WebKit and tablet WebKit. The production build and final integrity/code-health gates also passed. The checkpoint is already committed, tagged and pushed. Do not rerun its installer to start M4.
 
 ## Current rules
 
@@ -28,7 +28,7 @@ npm ci
 npm run dev -- --host
 ```
 
-Use the Local or Network URL printed by Vite. The demo identity selector and browser-local data are development features; production authentication and backend storage are not connected yet.
+Use the Local or Network URL printed by Vite. Sign in with an account from the demo dropdown and initial password `FitfinityDemo1!` (or the replacement you saved). The demo identity selector and browser-local data are development features; production authentication and backend storage are not connected yet.
 
 ## Verification and delivery rules
 
@@ -37,10 +37,11 @@ Install the browser engines once with `npx playwright install`, then keep this f
 ```bash
 unset NO_COLOR NODE_DISABLE_COLORS
 export FORCE_COLOR=1 CLICOLOR=1 CLICOLOR_FORCE=1
+export GIT_PAGER=cat PAGER=cat
 npm test
 npm run build
 CI=1 PLAYWRIGHT_FORCE_TTY=0 npm run test:e2e -- --reporter=list
-git diff --check
+git --no-pager diff --check
 ```
 
 Delivery scripts must verify the repository/base and expected source before editing; retain named green/red test output; check exact test totals, source integrity and code health; and stop on any failed, skipped or flaky test. The original 40 M2 unit scenarios and 150 M2 browser cases remain included. Keep the preview port 4173 free for the browser suite.
@@ -49,10 +50,31 @@ Edit canonical component, service and stylesheet owners in place. Remove superse
 
 Only print `=== COMPLETE — ALL GATES PASSED ===` after every required gate succeeds. Commit, tag or push only when authorized. Do not reset, stash, force-push or launch the development server automatically.
 
-## Next: M4
+## M4.3 hosting readiness
 
-M4 will reconcile the remaining frontend scope, complete phone/iPad/desktop and PWA acceptance, verify install/update/offline behaviour, and establish the canonical frontend freeze. Content Management, the owner-profile placeholder, public-site parity and session-media limitations still need explicit scope review. M3's green test count does not establish that this work is complete.
+- Fixed sidebars above 780px start fully collapsed, with independent section toggles, keyboard support and destination-section reveal after navigation. Hamburger menus keep expanded groups. Collapse preferences last for the current signed-in view and reset on account change/reload.
+- The uploaded M4.2E Mac receipt passed all gates: 257 unit tests / 54 files, build, 423 browser cases and integrity/code health. The one-time HMR export removal was expected during the hook move. M4.3 adds root and repository-path PWA coverage; its full Mac browser run and physical-device acceptance remain pending.
+- Dashboard shows the full recipient-scoped renewal follow-up count in a prominent badge, with up to three preview Messages above Weekly/Monthly calendars; the separate daily agenda and Today button remain removed. Each date has a visible View day action. Calendar previews show at most five sessions per day; +N more opens the complete scoped day in the same popup; close/native Back/Forward and session navigation retain calendar context. View All Renewals opens the shared filtered inbox.
+- Messages uses the same ProfileNavigation component and CSS as client/trainer profiles: an inline row from 700px and a selected-label dropdown below 700px, alongside search/date filters. Category routes survive reload; the dashboard uses the same list, popup, read/unread and record-link implementation.
+- Owner Profile now shows the existing account name, role and status using shared profile components. It is read-only; no new account-editing requirements are implied.
+- The production build generates a versioned, complete PWA shell cache. Updates wait until all app windows close; old-cache cleanup is limited to the current app directory's Fitfinity shell caches. Private/API responses and runtime uploads are excluded.
+- Existing M2/M3 scenarios remain. The current inventory is **264 unit tests in 54 files** and **432 browser cases: 144 per project**. New inventory is not passing evidence; use the full-gate receipt for actual results.
+- Navigation and the session list use Sessions. Instructional paragraphs are removed from Content Management, Change Password and other forms; field labels, record details, validation and concise media limits remain. Password requirements appear through notifications on focus or the requirements action, using loaded policy.
+- Calendar, mock sign-in/session expiry, password change, sign-out and staff Content Management are functional. Public website publishing and Glofox members-only access remain deferred.
+- Clients draw a signature, clear/redraw, review and save it. Late/no-show remains separate; completion debits one credit at most. Measured exercise loads update progress and CSV exports after completion.
+- Session-video metadata commits only after persistent blob storage; failed replacements preserve the previous attachment. Cloud media and physical-device capture acceptance remain later work.
+- Screens use injected asynchronous services and loaded configuration. Demo records/defaults are isolated under `src/data`; remuneration breakdowns come from the adapter. See [backend transition contract](docs/FRONTEND_SERVICE_CONTRACT.md).
 
-**M5** introduces backend/auth, followed by domain API replacement and production notification/media integration. Exercise Library attachments currently use browser-local storage; session filming remains a partial browser prototype. Cloud upload, processing and reliable cross-device media are later integration work.
+Follow [GitHub Pages deployment](docs/GITHUB_PAGES.md) after the M4.3 installer passes. The workflow runs the unit and full browser gates before publishing. The deployment directory comes from Pages metadata; local builds default to `/`. Public/Glofox work remains deferred.
 
-The earlier `docs/MIGRATION_STATUS.md` and `docs/FIRST_RUN_MAC.md` describe the initial migration slice. This README records the current milestone position and supersedes their old progress labels.
+Review [migration status](docs/MIGRATION_STATUS.md), [Mac instructions](docs/FIRST_RUN_MAC.md),
+[M4 acceptance checklist](docs/M4_ACCEPTANCE.md) and the
+[AWS production architecture contract](docs/PRODUCTION_ARCHITECTURE.md).
+
+Use a trusted HTTPS production preview for physical PWA installation/update tests.
+The HTTP LAN development URL only establishes responsive browser behaviour.
+Publish the complete generated `dist/`, including its generated worker. After an update
+is downloaded, save/cancel edits, close all Fitfinity tabs and standalone windows, then reopen.
+
+M5/M6 must preserve the portable stateless backend and low-cost AWS starting architecture
+in the handoff. Final M4 freeze requires the exact green gate plus recorded device evidence.

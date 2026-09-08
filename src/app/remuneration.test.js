@@ -1,16 +1,17 @@
+import { mockPolicy } from '../data/mockPolicy.js'
 import { describe, expect, it } from 'vitest'
 import { cycleForDate, cycleTrainers, payCycle, rateCents, remunerationDraft, remunerationRecord, sessionPaySource, sessionRateBand } from './remuneration.js'
 import { payFixture } from '../test/fixtures/remuneration.js'
 const now = new Date('2026-09-16T00:00:00Z')
 describe('monthly remuneration', () => {
   it('assigns the 15th and 16th to distinct cycles, including December rollover and leap years', () => {
-    expect(cycleForDate('2026-09-15')).toBe('2026-09')
-    expect(cycleForDate('2026-09-16')).toBe('2026-10')
-    expect(cycleForDate('2026-12-16')).toBe('2027-01')
-    expect(payCycle('2027-01')).toEqual({ key: '2027-01', start: '2026-12-16', end: '2027-01-15', payout: '2027-01-16' })
-    expect(cycleForDate('2028-02-29')).toBe('2028-03')
-    expect(cycleForDate('2026-02-29')).toBeNull()
-    expect(() => payCycle('2026-13')).toThrow()
+    expect(cycleForDate('2026-09-15', mockPolicy.remuneration)).toBe('2026-09')
+    expect(cycleForDate('2026-09-16', mockPolicy.remuneration)).toBe('2026-10')
+    expect(cycleForDate('2026-12-16', mockPolicy.remuneration)).toBe('2027-01')
+    expect(payCycle('2027-01', mockPolicy.remuneration)).toEqual({ key: '2027-01', start: '2026-12-16', end: '2027-01-15', payout: '2027-01-16' })
+    expect(cycleForDate('2028-02-29', mockPolicy.remuneration)).toBe('2028-03')
+    expect(cycleForDate('2026-02-29', mockPolicy.remuneration)).toBeNull()
+    expect(() => payCycle('2026-13', mockPolicy.remuneration)).toThrow()
   })
   it('includes only completed sessions within the cycle and calculates their rates automatically', () => {
     const db = payFixture()
@@ -60,13 +61,13 @@ describe('monthly remuneration', () => {
   })
   it('includes weekday peak starts and excludes the morning and evening end times', () => {
     const cases = { '00:00': 'offPeak', '06:29': 'offPeak', '06:30': 'peak', '08:29': 'peak', '08:30': 'offPeak', '17:59': 'offPeak', '18:00': 'peak', '20:29': 'peak', '20:30': 'offPeak', '23:59': 'offPeak' }
-    for (const [from, band] of Object.entries(cases)) expect(sessionRateBand({ date: '2026-09-04', from }), from).toBe(band)
+    for (const [from, band] of Object.entries(cases)) expect(sessionRateBand({ date: '2026-09-04', from }, mockPolicy.remuneration), from).toBe(band)
   })
   it('treats Saturday and Sunday as peak all day using the stored Singapore date', () => {
     for (const date of ['2026-09-05', '2026-09-06']) {
-      for (const from of ['00:00', '08:30', '12:00', '20:30', '23:59']) expect(sessionRateBand({ date, from }), `${date} ${from}`).toBe('peak')
+      for (const from of ['00:00', '08:30', '12:00', '20:30', '23:59']) expect(sessionRateBand({ date, from }, mockPolicy.remuneration), `${date} ${from}`).toBe('peak')
     }
-    expect(sessionRateBand({ date: '2026-09-07', from: '00:00' })).toBe('offPeak')
+    expect(sessionRateBand({ date: '2026-09-07', from: '00:00' }, mockPolicy.remuneration)).toBe('offPeak')
   })
   it('uses trainer presets and ignores superseded manual rate decisions for unapproved cycles', () => {
     const db = payFixture()
@@ -77,8 +78,8 @@ describe('monthly remuneration', () => {
     expect(remunerationDraft(db, '2026-09', 't1', now)).toMatchObject({ amountCents: 6000, reviewCount: 0 })
   })
   it('keeps malformed times and missing trainer rates unresolved instead of guessing a band or amount', () => {
-    for (const from of ['', '25:00', '6:30', '18:60']) expect(sessionRateBand({ date: '2026-09-05', from })).toBeNull()
-    expect(sessionRateBand({ date: '2026-02-30', from: '18:00' })).toBeNull()
+    for (const from of ['', '25:00', '6:30', '18:60']) expect(sessionRateBand({ date: '2026-09-05', from }, mockPolicy.remuneration)).toBeNull()
+    expect(sessionRateBand({ date: '2026-02-30', from: '18:00' }, mockPolicy.remuneration)).toBeNull()
     const db = payFixture()
     db.sessions[0].from = 'bad'
     expect(remunerationDraft(db, '2026-09', 't1', now).rows[0]).toMatchObject({ band: '', amountCents: null, issues: ['Invalid session start time'] })

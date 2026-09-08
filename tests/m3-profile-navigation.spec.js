@@ -1,7 +1,8 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, selectDemoIdentity } from './fixtures.js'
 
 async function selectSection(page, label) {
   const menu = page.locator('.profile-menu')
+  await expect(menu).toBeVisible()
   const summary = menu.locator('summary')
   const collapsedLayout = await summary.isVisible()
   if (collapsedLayout) await summary.click()
@@ -46,7 +47,7 @@ test('M3 owner trainer menu reflects each selection and retains Assigned Clients
 
 test('M3 trainer uses All Clients and the profile menu reflects the remaining sections', async ({ page }) => {
   await page.goto('/#/dashboard')
-  await page.locator('.role-switcher select').selectOption('u-marcus')
+  await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard', exact: true })).toBeVisible()
   await page.evaluate(() => { location.hash = '#/my-profile' })
   await expect(page.getByRole('heading', { name: 'Marcus Tan', exact: true })).toBeVisible()

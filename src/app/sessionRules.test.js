@@ -14,7 +14,7 @@ describe('session rules', () => {
   })
 
   it('keeps upcoming sessions first and sorts history after them', () => {
-    expect(sortSessions(sessions).map(item => item.id)).toEqual(['today', 'future', 'past'])
+    expect(sortSessions(sessions, '2026-09-02').map(item => item.id)).toEqual(['today', 'future', 'past'])
     expect(isSessionHistory(sessions[2])).toBe(true)
   })
 

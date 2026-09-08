@@ -2,7 +2,7 @@ export const OWNER_NAV = [
   { key: 'dashboard', label: 'Dashboard', group: 'Operations' },
   { key: 'clients', label: 'Clients', group: 'Operations' },
   { key: 'trainers', label: 'Trainers', group: 'Operations' },
-  { key: 'sessions', label: 'All Sessions', group: 'Operations' },
+  { key: 'sessions', label: 'Sessions', group: 'Operations' },
 
   { key: 'remuneration', label: 'Remuneration', group: 'Remuneration' },
 
@@ -12,13 +12,13 @@ export const OWNER_NAV = [
   { key: 'packages', label: 'Packages', group: 'Setup' },
 
   { key: 'exercises', label: 'Exercise Library', group: 'Management' },
-  { key: 'content', label: 'Content Management', group: 'Management', disabled: true },
+  { key: 'content', label: 'Content Management', group: 'Management' },
 ]
 
 export const TRAINER_NAV = [
   { key: 'dashboard', label: 'Dashboard', group: 'Trainer' },
   { key: 'clients', label: 'All Clients', group: 'Trainer' },
-  { key: 'sessions', label: 'All Sessions', group: 'Trainer' },
+  { key: 'sessions', label: 'Sessions', group: 'Trainer' },
 
   { key: 'remuneration', label: 'Remuneration', group: 'Remuneration' },
 

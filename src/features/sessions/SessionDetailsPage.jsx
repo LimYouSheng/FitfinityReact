@@ -1,3 +1,5 @@
+import SignaturePad, { SignaturePreview } from '../../components/SignaturePad.jsx'
+import { validSignature } from '../../app/signature.js'
 import { useEffect, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Panel from '../../components/Panel.jsx'
@@ -40,10 +42,11 @@ function automaticClientSummary(session, outcome) {
 
 function acknowledgementCopy(acknowledgement) {
   if (!acknowledgement) return 'Pending'
-  return acknowledgement.method === 'late_no_show' ? 'Late / no-show' : 'Acknowledged'
+  return acknowledgement.method === 'late_no_show' ? 'Late / no-show' : 'Signed'
 }
 
 export default function SessionDetailsPage({
+  policy,
   user,
   session,
   messages = [],
@@ -54,10 +57,13 @@ export default function SessionDetailsPage({
   onOpenClient,
   onOpenTrainer,
   onSavePlan,
+  onLoadVideo,
+  onSaveVideo,
+  onRemoveVideo,
   onAcknowledge,
   onSaveOutcome,
   onSaveClientSummary,
-  onMarkWhatsAppSent,
+  onMarkWhatsAppOpened,
   onSaveDetails,
   onRequestTimeChange,
   onRequestTrainerChange,
@@ -68,7 +74,7 @@ export default function SessionDetailsPage({
     durationMinutes: durationMinutes(session),
     trainerComments: '',
   }
-  const outcome = session.outcome ?? fallbackOutcome
+  const outcome = { ...(session.outcome ?? fallbackOutcome), exerciseResults: (session.exercisePlan ?? []).map(item => ({ id: item.id, name: item.name, loadKg: '', reps: item.reps, sets: item.rounds, ...(session.exerciseResults ?? []).find(result => result.id === item.id) })) }
   const displayedSummary = session.clientSummary || automaticClientSummary(session, outcome)
 
   const [activeEditor, setActiveEditor] = useState(null)
@@ -91,8 +97,11 @@ export default function SessionDetailsPage({
   const [acknowledgementMethod, setAcknowledgementMethod] = useState(null)
   const [signerName, setSignerName] = useState(client.name)
   const [note, setNote] = useState('')
+  const [signature, setSignature] = useState(session.acknowledgement?.signature ?? [])
+  const [signatureOpen, setSignatureOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [shareFallback, setShareFallback] = useState('')
   const [selectedVideoIds, setSelectedVideoIds] = useState([])
 
   const editLabel = activeEditor === 'details'
@@ -161,11 +170,14 @@ export default function SessionDetailsPage({
     const text = sessionSummaryWhatsAppText(client, session, displayedSummary, selectedVideos)
     const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
 
+    setShareFallback('')
+    let popup
+    try { popup = window.open('about:blank', '_blank'); if (popup) { popup.opener = null; popup.location.replace(whatsappUrl) } } catch { popup?.close(); popup = null }
+    if (!popup) { setShareFallback(whatsappUrl); return }
     setSaving(true)
     setExportOpen(false)
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
     try {
-      await onMarkWhatsAppSent()
+      await onMarkWhatsAppOpened()
     } catch (failure) {
       setDetailsError(failure.message || 'Could not complete this action. Try again.')
     } finally {
@@ -260,13 +272,15 @@ export default function SessionDetailsPage({
 
   const confirmAcknowledgement = async () => {
     const method = acknowledgementMethod
+    if (method === 'signature' && !validSignature(signature)) return
     setAcknowledgementMethod(null)
     const confirmed = await confirmAction({
       title: 'Complete this session?',
       message: method === 'late_no_show'
         ? 'This will record a late/no-show, mark the session Completed and debit one package credit without a client signature.'
-        : 'This will save the client acknowledgement, mark the session Completed and debit one package credit. Updating it later will not debit another credit.',
+        : 'This will save the client signature, mark the session Completed and debit one package credit. Updating it later will not debit another credit.',
       confirmLabel: 'Complete Session',
+      detail: method === 'signature' ? <SignaturePreview strokes={signature} label="Review client signature" /> : null,
     })
     if (!confirmed) {
       setAcknowledgementMethod(method)
@@ -275,10 +289,11 @@ export default function SessionDetailsPage({
 
     setSaving(true)
     try {
-      await onAcknowledge({ method, signerName, note })
+      await onAcknowledge({ method, signerName, note, signature })
       setAcknowledgementMethod(null)
       setNote('')
     } catch (failure) {
+      setAcknowledgementMethod(method)
       setDetailsError(failure.message || 'Could not complete this action. Try again.')
     } finally {
       setSaving(false)
@@ -337,8 +352,8 @@ export default function SessionDetailsPage({
                 <StatusBadge tone={session.acknowledgement ? 'green' : 'amber'}>
                   Acknowledgement · {acknowledgementCopy(session.acknowledgement)}
                 </StatusBadge>
-                <StatusBadge tone={session.whatsappSentAt ? 'green' : 'amber'}>
-                  WhatsApp · {session.whatsappSentAt ? 'Sent' : 'Not sent'}
+                <StatusBadge tone={session.whatsappOpenedAt ? 'green' : 'amber'}>
+                  WhatsApp · {session.whatsappOpenedAt ? 'Opened' : 'Not opened'}
                 </StatusBadge>
               </div>
               {pendingChanges.length > 0 && <div className="session-pending-statuses" aria-label="Pending session approvals">
@@ -422,7 +437,7 @@ export default function SessionDetailsPage({
       {detailsError && !requestKind && <p className="validation-copy" role="alert">{detailsError}</p>}
 
       <Panel className={`top-gap exercise-plan-panel ${activeEditor === 'exercise' ? 'editing-section' : ''}`}>
-        <ExercisePlanEditor
+        <ExercisePlanEditor defaults={policy.exerciseDefaults}
           catalog={exerciseCatalog}
           items={session.exercisePlan ?? []}
           sessionId={session.id}
@@ -431,11 +446,9 @@ export default function SessionDetailsPage({
           onBeginEdit={() => setActiveEditor('exercise')}
           onEndEdit={() => setActiveEditor(null)}
           onSave={onSavePlan}
-          onToggleVideo={async (exerciseId, attached, video) => {
-            await onSavePlan((session.exercisePlan ?? []).map(item => item.id === exerciseId
-              ? { ...item, videoAttached: attached, video: attached ? video : null }
-              : item))
-          }}
+          onLoadVideo={onLoadVideo}
+          onSaveVideo={onSaveVideo}
+          onRemoveVideo={onRemoveVideo}
         />
       </Panel>
 
@@ -462,14 +475,20 @@ export default function SessionDetailsPage({
               Trainer comments
               <textarea rows="3" value={outcomeDraft.trainerComments} onChange={event => setOutcomeDraft(current => ({ ...current, trainerComments: event.target.value }))} />
             </label>
+            <div className="recorded-results"><h3>Recorded exercise results</h3>
+              {(outcomeDraft.exerciseResults ?? []).map((result, index) => <div className="recorded-result" key={result.id}><strong>{result.name}</strong>{[['loadKg', 'Load (kg)'], ['reps', 'Reps'], ['sets', 'Sets']].map(([field, label]) => <label key={field}>{label}<input aria-label={`${label} for ${result.name}`} type="number" min={field === 'loadKg' ? '0' : '1'} step={field === 'loadKg' ? '0.1' : '1'} value={result[field]} onChange={event => setOutcomeDraft(current => ({ ...current, exerciseResults: current.exerciseResults.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: event.target.value } : row) }))} /></label>)}</div>)}
+            </div>
           </div>
         ) : (
           <dl className="session-outcome-list">
             <div><dt>Duration</dt><dd>{outcome.durationMinutes} minutes</dd></div>
             <div><dt>Trainer comments</dt><dd>{outcome.trainerComments || 'No comments yet.'}</dd></div>
+            {(session.exerciseResults ?? []).map(result => <div key={result.id}><dt>{result.name}</dt><dd>{result.loadKg} kg · {result.reps} reps · {result.sets} sets</dd></div>)}
           </dl>
         )}
       </Panel>
+
+      {session.acknowledgement?.signature && <button type="button" className="secondary-button" onClick={() => setSignatureOpen(true)}>View Client Signature</button>}
 
       <Panel className={`top-gap client-summary-panel ${activeEditor === 'summary' ? 'editing-section' : ''}`}>
         <div className="section-head">
@@ -492,7 +511,6 @@ export default function SessionDetailsPage({
           <div className="client-summary-copy">{displayedSummary}</div>
         )}
 
-        <p className="helper">Automatically generated from the exercise plan and session duration. Edit only when the wording needs adjustment before sharing.</p>
       </Panel>
 
       <div className={`session-primary-actions ${acknowledgementMethod ? 'editing-section' : ''}`}>
@@ -503,7 +521,7 @@ export default function SessionDetailsPage({
             disabled={Boolean(activeEditor || requestKind)}
             onClick={() => setAcknowledgementMethod(session.acknowledgement?.method ?? 'signature')}
           >
-            {session.acknowledgement ? 'Update Acknowledgement' : 'Acknowledge Session'}
+            {session.acknowledgement ? 'Update Completion' : 'Client Signature'}
           </button>
         )}
 
@@ -525,7 +543,7 @@ export default function SessionDetailsPage({
         onCancel={() => setExportOpen(false)}
         onConfirm={exportSummary}
       >
-        <p>Select the exercise videos to include with the client-facing summary.</p>
+        <h3>Video captions</h3>
         {recordedVideos.length ? (
           <div className="export-video-list">
             {recordedVideos.map(item => (
@@ -547,23 +565,30 @@ export default function SessionDetailsPage({
         ) : (
           <div className="notice">No exercise videos have been recorded or attached. The summary can still be exported.</div>
         )}
-        <p className="helper">WhatsApp opens with the client-facing summary and selected video captions. Automatic multi-file attachment will be connected when the production media service is available.</p>
+        {shareFallback && <p role="alert">The browser blocked the new window. <a href={shareFallback} target="_blank" rel="noreferrer">Open summary in WhatsApp</a></p>}
+        <p className="helper">Includes summary text and video captions. Video files are not attached.</p>
+      </ConfirmDialog>
+
+      <ConfirmDialog open={signatureOpen} title="Client signature" hideConfirm cancelLabel="Close" onCancel={() => setSignatureOpen(false)}>
+        {session.acknowledgement?.signature && <SignaturePreview strokes={session.acknowledgement.signature} />}
+        <p>{session.acknowledgement?.signerName}</p>
       </ConfirmDialog>
 
       <ConfirmDialog
         open={Boolean(acknowledgementMethod)}
-        title={acknowledgementMethod === 'signature' ? 'Client acknowledgement' : 'Trainer late / no-show'}
+        title={acknowledgementMethod === 'signature' ? 'Client signature' : 'Trainer late / no-show'}
         confirmLabel={saving ? 'Saving…' : 'Review Completion'}
-        confirmDisabled={saving || (acknowledgementMethod === 'signature' && !signerName.trim())}
+        confirmDisabled={saving || (acknowledgementMethod === 'signature' && (!signerName.trim() || !validSignature(signature)))}
         onCancel={() => setAcknowledgementMethod(null)}
         onConfirm={confirmAcknowledgement}
       >
         {acknowledgementMethod === 'signature' ? (
           <>
             <label className="acknowledgement-field">
-              Acknowledged by
-              <input aria-label="Acknowledged by" value={signerName} onChange={event => setSignerName(event.target.value)} />
+              Client name
+              <input aria-label="Client name" value={signerName} onChange={event => setSignerName(event.target.value)} />
             </label>
+            <SignaturePad strokes={signature} onChange={setSignature} disabled={saving} />
             <button type="button" className="secondary-button acknowledgement-method-switch" onClick={() => setAcknowledgementMethod('late_no_show')}>
               Record late / no-show instead
             </button>
@@ -572,7 +597,7 @@ export default function SessionDetailsPage({
           <>
             <p>No client signature is required. This records that the client was over 15 minutes late or did not attend.</p>
             <button type="button" className="secondary-button acknowledgement-method-switch" onClick={() => setAcknowledgementMethod('signature')}>
-              Use client acknowledgement instead
+              Use client signature instead
             </button>
           </>
         )}

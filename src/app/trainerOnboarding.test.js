@@ -1,16 +1,17 @@
+import { mockPolicy } from '../data/mockPolicy.js'
 import { describe, expect, it } from 'vitest'
 import { APPROVAL_FIELDS } from './constants.js'
 import { buildTrainerRecord, createTrainerDraft, nextTrainerId, trainerStepErrors, TRAINER_ONBOARDING_STEPS, validateTrainerDraft } from './trainerOnboarding.js'
 
 function validDraft() {
-  return { ...createTrainerDraft(), name: ' New Trainer ', email: ' NEW@Example.com ',
+  return { ...createTrainerDraft(mockPolicy), name: ' New Trainer ', email: ' NEW@Example.com ',
     gender: 'Female', trainerType: 'Personal',
     availabilityBlocks: [{ id: 'a1', days: ['Monday', 'Wednesday'], from: '18:00', to: '19:00' }] }
 }
 
 describe('trainer onboarding', () => {
   it('starts with +65, 80/55 rates and four independent supervised controls', () => {
-    const a = createTrainerDraft(), b = createTrainerDraft()
+    const a = createTrainerDraft(mockPolicy), b = createTrainerDraft(mockPolicy)
     expect(a.phone.countryCode).toBe('+65')
     expect(a.rates).toEqual({ peak: '80', offPeak: '55' })
     expect(Object.keys(a.approvalNeeded)).toEqual(APPROVAL_FIELDS.map(([key]) => key))
@@ -20,8 +21,8 @@ describe('trainer onboarding', () => {
   })
   it('validates only the current section and keeps birthday and contact notes optional', () => {
     expect(trainerStepErrors(validDraft(), 'general')).toEqual({})
-    expect(Object.keys(trainerStepErrors(createTrainerDraft(), 'general'))).toEqual(['name', 'email', 'gender', 'trainerType'])
-    expect(trainerStepErrors(createTrainerDraft(), 'rates')).toEqual({})
+    expect(Object.keys(trainerStepErrors(createTrainerDraft(mockPolicy), 'general'))).toEqual(['name', 'email', 'gender', 'trainerType'])
+    expect(trainerStepErrors(createTrainerDraft(mockPolicy), 'rates')).toEqual({})
   })
   it('rejects invalid email, phone, gender and impossible optional birthday', () => {
     expect(trainerStepErrors({ ...validDraft(), email: 'broken' }, 'general').email).toBeTruthy()

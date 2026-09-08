@@ -1,4 +1,6 @@
-import { DEFAULT_PACKAGES } from './packages.js'
+import { mockPolicy } from '../data/mockPolicy.js'
+
+import { DEFAULT_PACKAGES } from '../data/mockPackages.js'
 import { describe, expect, it } from 'vitest'
 import {
   CLIENT_ONBOARDING_STEPS,
@@ -41,7 +43,7 @@ const preferences = [
 
 describe('M3 client onboarding domain', () => {
   it('uses session-count packages with independent weekly frequency and matching validity', () => {
-    expect(packageFor('2026-09-07', 1)).toEqual({
+    expect(packageFor('2026-09-07', 1, DEFAULT_PACKAGES[0], mockPolicy.freeGymMinimumFrequency)).toEqual({
       durationWeeks: 12,
       sessionsPerWeek: 1,
       total: 12,
@@ -51,8 +53,8 @@ describe('M3 client onboarding domain', () => {
       validityDays: 90,
       endDate: '2026-12-05',
     })
-    expect(packageFor('2026-09-07', 2).total).toBe(12)
-    expect(packageFor('2026-09-07', 2, DEFAULT_PACKAGES[1])).toMatchObject({ total: 24, validityDays: 180, durationWeeks: 12, freeGym: true })
+    expect(packageFor('2026-09-07', 2, DEFAULT_PACKAGES[0], mockPolicy.freeGymMinimumFrequency).total).toBe(12)
+    expect(packageFor('2026-09-07', 2, DEFAULT_PACKAGES[1], mockPolicy.freeGymMinimumFrequency)).toMatchObject({ total: 24, validityDays: 180, durationWeeks: 12, freeGym: true })
   })
 
   it('matches active trainers only and respects trainer gender preference', () => {
@@ -91,7 +93,7 @@ describe('M3 client onboarding domain', () => {
       clientPreferences: preferences,
       fixedWeeklySchedule: buildFixedWeeklySchedule(trainers[0], preferences, 2),
       remarks: '',
-    }, 'c99', DEFAULT_PACKAGES[1])
+    }, 'c99', DEFAULT_PACKAGES[1], mockPolicy)
 
     const sessions = buildClientSessions(client)
     expect(sessions).toHaveLength(24)

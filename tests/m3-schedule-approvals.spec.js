@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, selectDemoIdentity } from './fixtures.js'
+import { addDays } from '../src/app/clientOnboarding.js'
 import { seed } from '../src/data/seed.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
 async function start(page, route = 'messages') {
@@ -6,6 +7,7 @@ async function start(page, route = 'messages') {
   const trainer = db.trainers.find(item => item.id === 't1')
   const client = db.clients.find(item => item.id === 'c1')
   client.package.startDate = '2099-01-01'
+  client.package.endDate = addDays(client.package.startDate, client.package.validityDays - 1)
   const session = { ...db.sessions.find(item=>item.clientId==='c1'), id:'weekly-future', clientId:'c1',trainerId:'t1',date:'2099-01-05',from:'18:00',to:'19:00',status:'planned' }
   db.sessions=[session]
   db.messages = [
@@ -27,6 +29,7 @@ async function decide(page,dialog,name) {
 }
 async function availabilityTab(page) {
   const menu=page.locator('.profile-menu')
+  await expect(menu).toBeVisible()
   if(await menu.locator('summary').isVisible())await menu.locator('summary').click()
   await menu.getByRole('button',{name:'Availability',exact:true}).click()
 }
@@ -71,7 +74,7 @@ test('M3 availability review shows all days and blocks and approval updates both
 })
 test('M3 trainer availability request preserves approved blocks and owner rejection preserves bookings',async({page})=>{
   await start(page,'dashboard')
-  await page.locator('.role-switcher select').selectOption('u-marcus')
+  await selectDemoIdentity(page, 'u-marcus')
   await page.goto('/#/my-profile')
   await availabilityTab(page)
   await page.getByRole('button',{name:'Request Change',exact:true}).click()
@@ -81,7 +84,7 @@ test('M3 trainer availability request preserves approved blocks and owner reject
   await page.locator('.modal-actions').getByRole('button',{name:'Send Request',exact:true}).click()
   await expect(page.locator('.notification-info').getByRole('status')).toHaveText('Availability request sent for owner approval.')
   expect((await data(page)).trainers.find(t=>t.id==='t1').availability.Sunday).toEqual([])
-  await page.locator('.role-switcher select').selectOption('u-owner')
+  await selectDemoIdentity(page, 'u-owner')
   await page.goto('/#/messages')
   const dialog=await open(page,'Availability change: Marcus Tan')
   await decide(page,dialog,'Reject Request')
@@ -105,7 +108,7 @@ test('M3 owner availability stays read-only while autonomous trainer can save di
   await availabilityTab(page)
   await expect(page.getByRole('button',{name:'Request Change',exact:true})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'Edit',exact:true})).toHaveCount(0)
-  await page.locator('.role-switcher select').selectOption('u-daniel')
+  await selectDemoIdentity(page, 'u-daniel')
   await page.goto('/#/my-profile');await availabilityTab(page)
   await page.getByRole('button',{name:'Edit',exact:true}).click()
   await page.getByRole('button',{name:'Sunday',exact:true}).click()

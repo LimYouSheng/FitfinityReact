@@ -1,19 +1,19 @@
 import { useRef, useState } from 'react'
 import AvailabilityEditor from '../../components/AvailabilityEditor.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
-import { availabilityBlockError, DEFAULT_AVAILABILITY_FROM, DEFAULT_AVAILABILITY_TO } from '../../app/availability.js'
+import { availabilityBlockError } from '../../app/availability.js'
 import { availabilityBlocks, validateAvailability } from '../../app/scheduleChanges.js'
 
-export default function TrainerAvailabilityEditor({ availability, approvalNeeded, onSave, onCancel }) {
+export default function TrainerAvailabilityEditor({ policy, availability, approvalNeeded, onSave, onCancel }) {
   const confirm = useActionConfirmation()
   const [blocks, setBlocks] = useState(() => availabilityBlocks(availability))
   const [days, setDays] = useState([])
-  const [from, setFrom] = useState(DEFAULT_AVAILABILITY_FROM)
-  const [to, setTo] = useState(DEFAULT_AVAILABILITY_TO)
+  const [from, setFrom] = useState(policy.availability.from)
+  const [to, setTo] = useState(policy.availability.to)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const locked = useRef(false)
-  const reset = () => { setBlocks([]); setDays([]); setFrom(DEFAULT_AVAILABILITY_FROM); setTo(DEFAULT_AVAILABILITY_TO); setError('') }
+  const reset = () => { setBlocks([]); setDays([]); setFrom(policy.availability.from); setTo(policy.availability.to); setError('') }
   const save = async () => {
     if (locked.current) return
     locked.current = true

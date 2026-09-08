@@ -1,64 +1,41 @@
-const CACHE = 'fitfinity-react-shell-m1-2'
-const CORE = [
-  '/',
-  '/#/dashboard',
-  '/manifest.webmanifest',
-  '/assets/images/fitfinity-logo.jpg',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-]
+const BASE = '__BASE_PATH__'
+const CACHE_PREFIX = `fitfinity-react-shell-${encodeURIComponent(BASE)}-`
+const CACHE = `${CACHE_PREFIX}__BUILD_REVISION__`
+const CORE = /* __PRECACHE__ */ []
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(CORE))
-      .then(() => self.skipWaiting())
-  )
+  // Bypass the HTTP cache so a new revision cannot precache an older index/manifest.
+  event.waitUntil(caches.open(CACHE).then(cache =>
+    cache.addAll(CORE.map(url => new Request(url, { cache: 'reload' })))
+  ))
+  // Updates wait until all existing tabs/windows close; never interrupt an open edit.
 })
 
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(keys => Promise.all(keys
+        .filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE)
+        .map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   )
 })
 
 self.addEventListener('fetch', event => {
   const request = event.request
-  if (request.method !== 'GET') return
-
   const url = new URL(request.url)
-  if (url.origin !== self.location.origin) return
-  if (url.pathname.startsWith('/api/')) return
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return
+  if (request.headers.has('range')) return
 
-  const cacheableDestination = ['document', 'script', 'style', 'image', 'font'].includes(request.destination)
-  if (!cacheableDestination) return
+  // Only this deployment's document and build assets belong to this worker.
+  const shellNavigation = request.mode === 'navigate' && [BASE, `${BASE}index.html`].includes(url.pathname) && !url.search
+  const shellAsset = !url.search && CORE.includes(url.pathname) && url.pathname !== BASE
+  if (!shellNavigation && !shellAsset) return
 
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          const copy = response.clone()
-          caches.open(CACHE).then(cache => cache.put('/', copy))
-          return response
-        })
-        .catch(() => caches.match('/'))
-    )
-    return
-  }
-
-  event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached
-
-      return fetch(request).then(response => {
-        if (response.ok) {
-          const copy = response.clone()
-          caches.open(CACHE).then(cache => cache.put(request, copy))
-        }
-        return response
-      })
-    })
-  )
+  event.respondWith(caches.open(CACHE).then(async cache => {
+    // Keep HTML and bundles on one release, even while a newer worker is waiting.
+    const cached = await cache.match(shellNavigation ? BASE : request)
+    return cached || fetch(request)
+  }))
+  // No runtime cache: API responses, credentials and uploaded media never enter this cache.
 })

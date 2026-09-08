@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockDb } from './mockDb.js'
 import { exerciseLibraryService as service } from './exerciseLibraryService.js'
 import { exerciseLibraryMedia as media } from './exerciseLibraryMedia.js'
-import { DEFAULT_EXERCISES } from '../app/exerciseCatalog.js'
+
+import { DEFAULT_EXERCISES } from '../data/mockExercises.js'
 vi.mock('./exerciseLibraryMedia.js', () => ({ exerciseLibraryMedia: { save: vi.fn(), remove: vi.fn(), load: vi.fn() } }))
 const draft = { name: 'Band Row', category: 'Upper Body', description: 'Keep elbows close.', status: 'active' }
 const photo = () => new File(['photo'], 'row.png', { type: 'image/png' })

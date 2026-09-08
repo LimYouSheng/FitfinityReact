@@ -1,4 +1,4 @@
-import { DEFAULT_PACKAGES, WEEKLY_FREQUENCIES, weeklyFrequencyLabel, freeGymEligible } from '../../app/packages.js'
+import { weeklyFrequencyLabel, freeGymEligible } from '../../app/packages.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import OnboardingReview from '../../components/OnboardingReview.jsx'
@@ -12,8 +12,6 @@ import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import {
   CLIENT_ONBOARDING_STEPS,
   DAYS,
-  DEFAULT_AVAILABILITY_FROM,
-  DEFAULT_AVAILABILITY_TO,
   GENDER_PREFERENCES,
   buildFixedWeeklySchedule,
   clientStepErrors,
@@ -21,20 +19,20 @@ import {
   matchTrainers,
 } from '../../app/clientOnboarding.js'
 
-const emptyPerson = () => ({
+const emptyPerson = policy => ({
   name: '',
-  phone: { countryCode: '+65', number: '' },
+  phone: { countryCode: policy.defaultCountryCode, number: '' },
   email: '',
   birthday: '',
   gender: '',
-  emergencyContact: { name: '', relationship: 'Spouse', countryCode: '+65', number: '' },
+  emergencyContact: { name: '', relationship: policy.defaultRelationship, countryCode: policy.defaultCountryCode, number: '' },
   healthNotes: '',
 })
 
-const emptyDraft = () => ({
+const emptyDraft = policy => ({
   type: 'Individual',
-  people: [emptyPerson(), emptyPerson()],
-  sessionsPerWeek: 1,
+  people: [emptyPerson(policy), emptyPerson(policy)],
+  sessionsPerWeek: policy.weeklyFrequencies[0],
   startDate: '',
   genderPreference: 'No gender preference',
   remarks: '',
@@ -44,17 +42,17 @@ const emptyDraft = () => ({
 
 const FORM_STEPS = [...CLIENT_ONBOARDING_STEPS, ONBOARDING_REVIEW_STEP]
 
-export default function AddClientPage({ packages = DEFAULT_PACKAGES, trainers, onCancel, onCreate, onCreated }) {
+export default function AddClientPage({ packages, policy, trainers, onCancel, onCreate, onCreated }) {
   const confirmAction = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
-  const [initialDraft] = useState(() => ({ ...emptyDraft(), packageId: packages[0]?.id ?? '' }))
+  const [initialDraft] = useState(() => ({ ...emptyDraft(policy), packageId: packages[0]?.id ?? '' }))
   const [draft, setDraft] = useState(initialDraft)
   const [stepIndex, setStepIndex] = useState(0)
   const [returningToReview, setReturningToReview] = useState(false)
   const [activePerson, setActivePerson] = useState(0)
   const [selectedDays, setSelectedDays] = useState([])
-  const [from, setFrom] = useState(DEFAULT_AVAILABILITY_FROM)
-  const [to, setTo] = useState(DEFAULT_AVAILABILITY_TO)
+  const [from, setFrom] = useState(policy.availability.from)
+  const [to, setTo] = useState(policy.availability.to)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const [created, setCreated] = useState(null)
@@ -71,7 +69,7 @@ export default function AddClientPage({ packages = DEFAULT_PACKAGES, trainers, o
   const reviewing = step.key === 'review'
   const previousStep = FORM_STEPS[stepIndex - 1]
   const nextStep = FORM_STEPS[stepIndex + 1]
-  const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft) || selectedDays.length > 0 || from !== DEFAULT_AVAILABILITY_FROM || to !== DEFAULT_AVAILABILITY_TO
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft) || selectedDays.length > 0 || from !== policy.availability.from || to !== policy.availability.to
 
   useEffect(() => {
     setActiveEdit(dirty && !created ? 'New client' : null)
@@ -142,8 +140,8 @@ export default function AddClientPage({ packages = DEFAULT_PACKAGES, trainers, o
 
   const resetAvailability = () => {
     setSelectedDays([])
-    setFrom(DEFAULT_AVAILABILITY_FROM)
-    setTo(DEFAULT_AVAILABILITY_TO)
+    setFrom(policy.availability.from)
+    setTo(policy.availability.to)
     update({ clientPreferences: [] }, true)
   }
 
@@ -183,7 +181,7 @@ export default function AddClientPage({ packages = DEFAULT_PACKAGES, trainers, o
       const displayName = (draft.type === 'Couple' ? draft.people : draft.people.slice(0, 1)).map(person => person.name.trim()).join(' & ')
       const confirmed = await confirmAction({
         title: `Create ${displayName}?`,
-        message: `${selectedTrainer.name} will be assigned. ${selectedPack.total} sessions will be created with ${selectedPack.validityDays}-day validity. ${freeGymEligible(draft.sessionsPerWeek) ? 'Free gym package included.' : ''}`,
+        message: `${selectedTrainer.name} will be assigned. ${selectedPack.total} sessions will be created with ${selectedPack.validityDays}-day validity. ${freeGymEligible(draft.sessionsPerWeek, policy.freeGymMinimumFrequency) ? 'Free gym package included.' : ''}`,
         confirmLabel: 'Create Client',
       })
       if (!confirmed) return
@@ -258,11 +256,11 @@ export default function AddClientPage({ packages = DEFAULT_PACKAGES, trainers, o
                     <select aria-label="Weekly frequency" value={draft.sessionsPerWeek} onChange={event => {
                       update({ sessionsPerWeek: Number(event.target.value) }, true)
                     }}>
-                      {WEEKLY_FREQUENCIES.map(frequency => <option key={frequency} value={frequency}>{weeklyFrequencyLabel(frequency)}</option>)}
+                      {policy.weeklyFrequencies.map(frequency => <option key={frequency} value={frequency}>{weeklyFrequencyLabel(frequency)}</option>)}
                     </select>
                   </Field>
                   <Field label="Gym membership">
-                    <input aria-label="Gym membership" readOnly value={freeGymEligible(draft.sessionsPerWeek) ? 'Included' : 'Not included'} />
+                    <input aria-label="Gym membership" readOnly value={freeGymEligible(draft.sessionsPerWeek, policy.freeGymMinimumFrequency) ? 'Included' : 'Not included'} />
                   </Field>
                 </div>
                 <Field label="Trainer preference">
@@ -307,7 +305,7 @@ export default function AddClientPage({ packages = DEFAULT_PACKAGES, trainers, o
                 )}
               </div>
             )}
-            {reviewing && <OnboardingReview sections={clientReviewSections(completeDraft, selectedTrainer)} onEdit={editReviewSection} />}
+            {reviewing && <OnboardingReview sections={clientReviewSections(completeDraft, selectedTrainer, policy)} onEdit={editReviewSection} />}
           </fieldset>
           {Object.keys(errors).length > 0 && <p className="onboarding-error" role="alert">{Object.values(errors)[0]}</p>}
           <div className="onboarding-step-actions">

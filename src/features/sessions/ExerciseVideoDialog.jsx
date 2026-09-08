@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import {
   MAX_EXERCISE_VIDEO_SECONDS,
@@ -8,16 +8,14 @@ import {
   exerciseVideoValidation,
   readVideoDuration,
 } from './exerciseVideo.js'
-import {
-  loadExerciseVideoBlob,
-  removeExerciseVideoBlob,
-  saveExerciseVideoBlob,
-} from '../../services/exerciseVideoStore.js'
+
 
 const formatDuration = seconds => `${Math.max(0, Math.ceil(seconds))} sec`
 const formatSize = bytes => `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 
-export default function ExerciseVideoDialog({ open, sessionId, exercise, onCancel, onSaved, onRemoved }) {
+export default function ExerciseVideoDialog({ open, sessionId, exercise, editable = true, onLoad, onCancel, onSaved, onRemoved }) {
+  const processing = useRef(null)
+  const committing = useRef(false)
   const [mode, setMode] = useState('choose')
   const [candidate, setCandidate] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -36,13 +34,14 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, onCance
     setCompressionProgress(0)
 
     if (exercise.videoAttached) {
-      loadExerciseVideoBlob(sessionId, exercise.id).then(blob => {
+      onLoad().then(blob => {
         if (!cancelled && blob) setPreviewUrl(URL.createObjectURL(blob))
-      })
+      }).catch(failure => { if (!cancelled) setError(failure.message || 'The stored video could not be loaded.') })
     }
 
     return () => {
       cancelled = true
+      processing.current?.abort()
     }
   }, [exercise, open, sessionId])
 
@@ -60,6 +59,9 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, onCance
     event.target.value = ''
     if (!file) return
     setError('')
+    processing.current?.abort()
+    const operation = new AbortController()
+    processing.current = operation
 
     if (!file.type?.startsWith('video/')) {
       setError('Choose a video file.')
@@ -67,13 +69,14 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, onCance
     }
 
     try {
-      const duration = await readVideoDuration(file)
+      const duration = await readVideoDuration(file, { signal: operation.signal })
       if (!Number.isFinite(duration)) throw new Error('The video duration could not be read.')
       if (duration > MAX_EXERCISE_VIDEO_SECONDS) throw new Error('Video must be 1 minute or shorter.')
 
       setMode('compressing')
       setCompressionProgress(0)
-      const compressed = await compressVideoSilently(file, captionLines, setCompressionProgress)
+      const compressed = await compressVideoSilently(file, captionLines, setCompressionProgress, { signal: operation.signal })
+      if (operation.signal.aborted) return
       const validation = exerciseVideoValidation(compressed.blob, compressed.duration)
       if (validation) throw new Error(validation)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
@@ -81,17 +84,18 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, onCance
       setPreviewUrl(URL.createObjectURL(compressed.blob))
       setMode('preview')
     } catch (videoError) {
+      if (operation.signal.aborted) return
       setMode('choose')
       setError(videoError.message || 'The video could not be prepared.')
     }
   }
 
   const saveVideo = async () => {
-    if (!candidate) return
+    if (!candidate || committing.current) return
+    committing.current = true
     setSaving(true)
     try {
-      await saveExerciseVideoBlob(sessionId, exercise.id, candidate.blob)
-      await onSaved({
+      await onSaved(candidate.blob, {
         name: candidate.name,
         type: candidate.blob.type,
         size: candidate.blob.size,
@@ -105,20 +109,23 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, onCance
     } catch (saveError) {
       setError(saveError.message || 'The video could not be saved.')
     } finally {
+      committing.current = false
       setSaving(false)
     }
   }
 
   const removeVideo = async () => {
+    if (committing.current) return
+    committing.current = true
     setSaving(true)
     try {
-      await removeExerciseVideoBlob(sessionId, exercise.id)
       await onRemoved()
       onCancel()
     } catch (removeError) {
       setError(removeError.message || 'The video could not be removed.')
       setMode('choose')
     } finally {
+      committing.current = false
       setSaving(false)
     }
   }
@@ -133,7 +140,7 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, onCance
       confirmDisabled={saving || (!removing && !candidate)}
       hideConfirm={!candidate && !removing}
       danger={removing}
-      onCancel={onCancel}
+      onCancel={() => { if (!committing.current) { processing.current?.abort(); onCancel() } }}
       onConfirm={removing ? removeVideo : saveVideo}
     >
       {removing ? (
@@ -157,7 +164,7 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, onCance
             <div className="notice">A saved video is attached. Its local preview is unavailable in this browser session.</div>
           ) : null}
 
-          {mode !== 'compressing' && !candidate && (
+          {editable && mode !== 'compressing' && !candidate && (
             <div className="exercise-video-choices">
               <label className="primary-button exercise-video-file-action">
                 Record new video
@@ -191,9 +198,9 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, onCance
           )}
 
           {error && <p className="validation-copy" role="alert">{error}</p>}
-          <p className="helper">Maximum 1 minute. Record or attach a clip; it will be converted to a silent file below 5 MB with the planned exercise details on a white panel.</p>
+          <p className="helper">Maximum 1 minute · Under 5 MB · Silent video</p>
 
-          {exercise.videoAttached && !candidate && (
+          {editable && exercise.videoAttached && !candidate && (
             <button type="button" className="text-action exercise-video-remove" onClick={() => setMode('remove')}>Remove saved video</button>
           )}
         </div>

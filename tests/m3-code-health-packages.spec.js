@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -16,6 +16,8 @@ async function confirm(page, title, action) {
   await dialog.getByRole('button', { name: action, exact: true }).click()
 }
 async function openMenu(page) {
+  await expandSidebarSections(page)
+  await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
   const toggle = page.getByRole('button', { name: 'Open navigation', exact: true })
   if (await toggle.isVisible()) await toggle.click()
 }
@@ -115,6 +117,7 @@ for (const [total, validity, frequency] of [[12, 90, 2], [24, 180, 1], [36, 270,
     expect(sessions).toHaveLength(total)
     expect(sessions.every(item => item.date <= client.package.endDate)).toBe(true)
     const menu = page.locator('.profile-menu')
+    await expect(menu).toBeVisible()
     if (await menu.locator('summary').isVisible()) await menu.locator('summary').click()
     await menu.getByRole('button', { name: 'Package', exact: true }).click()
     await expect(page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Current Package', exact: true }) })).toContainText(`Free gym package: ${frequency >= 2 ? 'Included' : 'Not included'}`)
@@ -142,7 +145,7 @@ test('M3 owner Setup is reachable from the menu and both roles have a prominent 
   }
   for (const style of actionStyles) expect(style).toEqual(actionStyles[0])
   for (const trainer of [false, true]) {
-    if (trainer) await page.locator('.role-switcher select').selectOption('u-marcus')
+    if (trainer) await selectDemoIdentity(page, 'u-marcus')
     await routeTo(page, 'remuneration')
     await expect(page.locator('.remuneration-page .page-head p')).toHaveCount(0)
     const eye = page.getByRole('button', { name: 'Show remuneration amounts', exact: true })
@@ -223,7 +226,7 @@ for (const role of ['owner', 'trainer']) {
         previousTrainerId: session.trainerId, replacementTrainerId: 't2' },
     }))
     await start(page, 'dashboard', data)
-    if (role === 'trainer') await page.locator('.role-switcher select').selectOption('u-marcus')
+    if (role === 'trainer') await selectDemoIdentity(page, 'u-marcus')
     await routeTo(page, 'sessions/s1')
     await expect(page.getByRole('heading', { name: 'Session Overview', exact: true })).toBeVisible()
     const pending = page.getByLabel('Pending session approvals')

@@ -1,3 +1,5 @@
+import { drawSignature } from '../../test/drawSignature.js'
+import { mockPolicy } from '../../data/mockPolicy.js'
 import { StrictMode } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -35,7 +37,7 @@ function renderDetails(overrides = {}) {
     onAcknowledge: vi.fn(),
     onSaveOutcome: vi.fn(),
     onSaveClientSummary: vi.fn(),
-    onMarkWhatsAppSent: vi.fn(),
+    onMarkWhatsAppOpened: vi.fn(),
     onSaveDetails: vi.fn(),
     onRequestTimeChange: vi.fn(),
     onRequestTrainerChange: vi.fn(),
@@ -56,7 +58,7 @@ function renderDetails(overrides = {}) {
             onUserChange={vi.fn()}
             onReset={vi.fn()}
           >
-            <SessionDetailsPage {...props} />
+            <SessionDetailsPage policy={mockPolicy} {...props} />
           </AppShell>
         </EditGuardProvider>
       </ActionConfirmationProvider>
@@ -80,16 +82,17 @@ describe('session detail confirmations', () => {
 
   it('opens the API confirmation after reviewing acknowledgement', () => {
     renderDetails()
-    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge Session' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Client Signature' }))
+    drawSignature(screen.getByRole('img', { name: 'Draw client signature' }))
     fireEvent.click(screen.getByRole('button', { name: 'Review Completion' }))
-    expect(screen.queryByRole('dialog', { name: 'Client acknowledgement' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Client signature' })).not.toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Complete this session?' })).toBeVisible()
   })
 
   it('reviews recorded videos before exporting the summary to WhatsApp', () => {
-    const onMarkWhatsAppSent = vi.fn()
+    const onMarkWhatsAppOpened = vi.fn()
     renderDetails({
-      onMarkWhatsAppSent,
+      onMarkWhatsAppOpened,
       session: {
         ...session,
         exercisePlan: [{
@@ -110,8 +113,30 @@ describe('session detail confirmations', () => {
     expect(screen.getByRole('checkbox')).toBeChecked()
     expect(dialog).toHaveTextContent('Romanian Deadlift — 40 kg · 8 reps · 2 rounds · 1 minute rest interval')
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(onMarkWhatsAppSent).not.toHaveBeenCalled()
+    expect(onMarkWhatsAppOpened).not.toHaveBeenCalled()
   })
 })
 
 afterEach(cleanup)
+
+it('M4 keeps a blocked WhatsApp export retryable and never marks it sent', () => {
+  const open=vi.spyOn(window,'open').mockReturnValue(null)
+  const props=renderDetails()
+  fireEvent.click(screen.getByRole('button',{name:'Export Summary'}))
+  fireEvent.click(screen.getByRole('button',{name:'Continue to WhatsApp'}))
+  expect(screen.getByRole('link',{name:'Open summary in WhatsApp'})).toHaveAttribute('href',expect.stringMatching(/^https:\/\/wa.me\//))
+  expect(props.onMarkWhatsAppOpened).not.toHaveBeenCalled()
+  open.mockRestore()
+})
+
+it('M4 records an opened WhatsApp handoff without claiming delivery',async()=>{
+  const popup={opener:{},location:{replace:vi.fn()}}
+  const open=vi.spyOn(window,'open').mockReturnValue(popup)
+  const props=renderDetails()
+  fireEvent.click(screen.getByRole('button',{name:'Export Summary'}))
+  fireEvent.click(screen.getByRole('button',{name:'Continue to WhatsApp'}))
+  await waitFor(()=>expect(props.onMarkWhatsAppOpened).toHaveBeenCalledTimes(1))
+  expect(popup.opener).toBeNull()
+  expect(popup.location.replace).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\/wa.me\//))
+  open.mockRestore()
+})

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'

@@ -12,27 +12,21 @@ const FIELDS = [
   ['rest', 'Rest', 'e.g. 60 sec'],
 ]
 
-const DEFAULT_EXERCISE_FIELDS = {
-  reps: '8',
-  rounds: '2',
-  rest: '60 sec',
-}
-
-const blankExercise = () => ({
+const blankExercise = defaults => ({
   id: `draft-${Date.now()}`,
   exerciseChoice: CUSTOM_EXERCISE,
   name: '',
   weight: '',
   customDetails: [],
-  ...DEFAULT_EXERCISE_FIELDS,
+  ...defaults,
   videoAttached: false,
 })
 
-const editableItems = (items, catalog) => items.map(item => ({
+const editableItems = (items, catalog, defaults) => items.map(item => ({
   ...item,
-  reps: item.reps || DEFAULT_EXERCISE_FIELDS.reps,
-  rounds: item.rounds || DEFAULT_EXERCISE_FIELDS.rounds,
-  rest: item.rest || DEFAULT_EXERCISE_FIELDS.rest,
+  reps: item.reps || defaults.reps,
+  rounds: item.rounds || defaults.rounds,
+  rest: item.rest || defaults.rest,
   exerciseChoice: exerciseChoiceFor(item.name, catalog),
   customDetails: (item.customDetails ?? []).map((detail, index) => ({
     id: detail.id ?? `detail-${item.id}-${index + 1}`,
@@ -51,6 +45,7 @@ function CameraIcon() {
 
 export default function ExercisePlanEditor({
   items,
+  defaults,
   catalog,
   sessionId,
   canEdit,
@@ -58,10 +53,12 @@ export default function ExercisePlanEditor({
   onBeginEdit,
   onEndEdit,
   onSave,
-  onToggleVideo,
+  onLoadVideo,
+  onSaveVideo,
+  onRemoveVideo,
 }) {
   const confirmAction = useActionConfirmation()
-  const [draft, setDraft] = useState(() => editableItems(items, catalog))
+  const [draft, setDraft] = useState(() => editableItems(items, catalog, defaults))
   const [pendingId, setPendingId] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -69,11 +66,11 @@ export default function ExercisePlanEditor({
   const hasBlankName = draft.some(item => !item.name.trim())
 
   useEffect(() => {
-    if (!editing) setDraft(editableItems(items, catalog))
-  }, [catalog, editing, items])
+    if (!editing) setDraft(editableItems(items, catalog, defaults))
+  }, [catalog, defaults, editing, items])
 
   const startPlan = () => {
-    const first = blankExercise()
+    const first = blankExercise(defaults)
     setDraft([first])
     setPendingId(first.id)
     setError('')
@@ -81,14 +78,14 @@ export default function ExercisePlanEditor({
   }
 
   const editPlan = () => {
-    setDraft(editableItems(items, catalog))
+    setDraft(editableItems(items, catalog, defaults))
     setPendingId(null)
     setError('')
     onBeginEdit()
   }
 
   const addExercise = () => {
-    const next = blankExercise()
+    const next = blankExercise(defaults)
     setDraft(current => [next, ...current])
     setPendingId(next.id)
     setError('')
@@ -142,7 +139,7 @@ export default function ExercisePlanEditor({
   }
 
   const cancelEditing = () => {
-    setDraft(editableItems(items, catalog))
+    setDraft(editableItems(items, catalog, defaults))
     setPendingId(null)
     setError('')
     onEndEdit()
@@ -206,9 +203,9 @@ export default function ExercisePlanEditor({
 
       {!editing && !items.length && (
         canEdit ? (
-          <button type="button" className="exercise-plan-empty" aria-label="Select to start new plan" onClick={startPlan}>
+          <button type="button" className="exercise-plan-empty" aria-label="Start Plan" onClick={startPlan}>
             <span className="exercise-plan-plus" aria-hidden="true">+</span>
-            <strong>Select to start new plan</strong>
+            <strong>Start Plan</strong>
           </button>
         ) : (
           <div className="exercise-plan-empty"><strong>No exercise plan yet</strong></div>
@@ -317,8 +314,10 @@ export default function ExercisePlanEditor({
         sessionId={sessionId}
         exercise={videoExercise}
         onCancel={() => setVideoExercise(null)}
-        onSaved={video => onToggleVideo(videoExercise.id, true, video)}
-        onRemoved={() => onToggleVideo(videoExercise.id, false, null)}
+        editable={canEdit}
+        onLoad={() => onLoadVideo(videoExercise.id)}
+        onSaved={(blob, metadata) => onSaveVideo(videoExercise.id, blob, metadata)}
+        onRemoved={() => onRemoveVideo(videoExercise.id)}
       />
     </>
   )

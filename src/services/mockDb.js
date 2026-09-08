@@ -7,7 +7,7 @@ function load() {
   try {
     const stored = localStorage.getItem(KEY)
     const loaded = stored ? JSON.parse(stored) : clone(seed)
-    return { ...loaded, packages: loaded.packages ?? clone(seed.packages) }
+    return { ...loaded, settings: loaded.settings ?? clone(seed.settings), exerciseLibrary: loaded.exerciseLibrary ?? clone(seed.exerciseLibrary), contentEntries: loaded.contentEntries ?? [], packages: loaded.packages ?? clone(seed.packages), sessions: (loaded.sessions ?? []).map(session => ({ ...session, whatsappOpenedAt: session.whatsappOpenedAt ?? session.whatsappSentAt, whatsappOpenCount: session.whatsappOpenCount ?? session.whatsappSendCount })) }
   } catch {
     return clone(seed)
   }
@@ -24,6 +24,7 @@ function commit(next) {
 
 export const mockDb = {
   read() { return clone(state) },
+  reload() { state = load(); return clone(state) },
   write(next) { return commit(clone(next)) },
   mutate(mutator) {
     const next = clone(state)

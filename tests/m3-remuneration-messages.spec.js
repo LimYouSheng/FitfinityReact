@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, selectDemoIdentity } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
 async function start(page, route = 'messages', extraSessions = []) {
@@ -117,7 +117,7 @@ test('M3 owner approves automatic session totals once with routed unread notific
 })
 test('M3 trainer remuneration is read-only and an arbitrary other-trainer URL reveals no breakdown', async ({page}) => {
   await start(page,'dashboard')
-  await page.locator('.role-switcher select').selectOption('u-marcus')
+  await selectDemoIdentity(page, 'u-marcus')
   await page.evaluate(()=>{location.hash='#/remuneration/2020-09'})
   await expect(page.getByRole('button',{name:'View remuneration for Marcus Tan',exact:true})).toBeVisible()
   await expect(page.getByRole('button',{name:'View remuneration for Rachel Ong',exact:true})).toHaveCount(0)

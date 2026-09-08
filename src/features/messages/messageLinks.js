@@ -2,7 +2,7 @@ import { formatDate } from '../../utils/date.js'
 
 export function relatedMessageLinks(
   message,
-  { user, clients = [], trainers = [], sessions = [], exercises = [], packages = [] },
+  { user, clients = [], trainers = [], sessions = [], exercises = [], packages = [], contentEntries = [] },
 ) {
   if (!message) return []
 
@@ -63,6 +63,11 @@ export function relatedMessageLinks(
   if (user.role === 'owner' && message.packageId) {
     const item = packages.find(item => item.id === message.packageId)
     if (item) links.unshift({ type: 'package', id: item.id, label: `Package · ${item.name}` })
+  }
+
+  if (user.role === 'owner' && message.contentId) {
+    const entry = contentEntries.find(item => item.id === message.contentId)
+    if (entry) links.unshift({ type: 'content', id: entry.id, label: `Content · ${entry.title}` })
   }
 
   return links

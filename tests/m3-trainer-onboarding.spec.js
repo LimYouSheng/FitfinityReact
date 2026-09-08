@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, selectDemoIdentity } from './fixtures.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
 const heading = (page, name) => page.getByRole('heading', { level: 2, name, exact: true })
@@ -46,6 +46,7 @@ async function saved(page, email = 'm3-trainer@example.com') {
 }
 async function tab(page, name) {
   const menu = page.locator('.profile-menu')
+  await expect(menu).toBeVisible()
   if (await menu.locator('summary').isVisible()) await menu.locator('summary').click()
   await menu.getByRole('button', { name, exact: true }).click()
 }
@@ -235,7 +236,7 @@ test('M3 a newly created trainer is immediately available in automatic client ma
   await page.getByRole('button', { name: 'Create Client', exact: true }).click()
   await page.getByRole('dialog', { name: 'Create Assigned To New Trainer?', exact: true }).getByRole('button', { name: 'Create Client', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Assigned To New Trainer', level: 1, exact: true })).toBeVisible()
-  await page.locator('.role-switcher select').selectOption(trainer.user.id)
+  await selectDemoIdentity(page, trainer.user.id)
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard', exact: true })).toBeVisible()
   await page.evaluate(() => { location.hash = '#/my-profile' })
   await expect(page.getByRole('heading', { name: 'M3 New Trainer', level: 1, exact: true })).toBeVisible()

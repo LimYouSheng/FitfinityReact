@@ -1,6 +1,6 @@
-import { DEFAULT_PACKAGES, WEEKLY_FREQUENCIES, freeGymEligible } from './packages.js'
+import { freeGymEligible } from './packages.js'
 import { DAYS } from './availability.js'
-export { DAYS, DEFAULT_AVAILABILITY_FROM, DEFAULT_AVAILABILITY_TO } from './availability.js'
+export { DAYS } from './availability.js'
 export { COUNTRY_CODES, RELATIONSHIPS, GENDER_PREFERENCES } from './contact.js'
 
 const DAY_INDEX = {
@@ -81,7 +81,7 @@ export function matchingScheduleOptions(trainer, blocks) {
 }
 
 export function buildFixedWeeklySchedule(trainer, blocks, sessionsPerWeek) {
-  const needed = WEEKLY_FREQUENCIES.includes(Number(sessionsPerWeek)) ? Number(sessionsPerWeek) : 1
+  const needed = Number.isInteger(Number(sessionsPerWeek)) && Number(sessionsPerWeek) >= 1 && Number(sessionsPerWeek) <= DAYS.length ? Number(sessionsPerWeek) : 1
   return matchingScheduleOptions(trainer, blocks)
     .slice(0, needed)
     .map((slot, index) => ({ id: `new-slot-${index + 1}`, ...slot }))
@@ -95,13 +95,13 @@ export function defaultMatchingTrainer(matches, blocks, sessionsPerWeek, previou
   return eligible?.trainer.id ?? matches[0]?.trainer.id ?? ''
 }
 
-export function packageFor(startDate, sessionsPerWeek, definition = DEFAULT_PACKAGES[0]) {
+export function packageFor(startDate, sessionsPerWeek, definition, minimumFrequency) {
   const frequency = Number(sessionsPerWeek)
   return {
     durationWeeks: Math.ceil(definition.total / frequency),
     sessionsPerWeek: frequency,
     total: definition.total,
-    freeGym: freeGymEligible(frequency),
+    freeGym: freeGymEligible(frequency, minimumFrequency),
     used: 0,
     startDate,
     validityDays: definition.validityDays,
@@ -146,7 +146,7 @@ export function clientStepErrors(draft, step) {
     else if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.startDate) || !date || !Number.isFinite(date.getTime()) || isoDate(date) !== draft.startDate) {
       errors.startDate = 'Choose a valid start date.'
     }
-    if (!WEEKLY_FREQUENCIES.includes(requiredSlots)) errors.sessionsPerWeek = 'Choose between one and seven sessions per week.'
+    if (!Number.isInteger(requiredSlots) || requiredSlots < 1 || requiredSlots > DAYS.length) errors.sessionsPerWeek = 'Choose between one and seven sessions per week.'
   }
 
   if (step === 'availability') {
@@ -173,11 +173,11 @@ export function validateClientDraft(draft) {
   return CLIENT_ONBOARDING_STEPS.flatMap(step => Object.values(clientStepErrors(draft, step.key)))
 }
 
-function normalisePerson(person) {
+function normalisePerson(person, policy) {
   return {
     name: person?.name?.trim() ?? '',
     phone: {
-      countryCode: person?.phone?.countryCode || '+65',
+      countryCode: person?.phone?.countryCode ?? policy.defaultCountryCode,
       number: person?.phone?.number?.trim() ?? '',
     },
     email: person?.email?.trim() ?? '',
@@ -185,17 +185,17 @@ function normalisePerson(person) {
     gender: person?.gender ?? '',
     emergencyContact: {
       name: person?.emergencyContact?.name?.trim() ?? '',
-      relationship: person?.emergencyContact?.relationship ?? 'Spouse',
-      countryCode: person?.emergencyContact?.countryCode || '+65',
+      relationship: person?.emergencyContact?.relationship ?? policy.defaultRelationship,
+      countryCode: person?.emergencyContact?.countryCode ?? policy.defaultCountryCode,
       number: person?.emergencyContact?.number?.trim() ?? '',
     },
-    healthNotes: person?.healthNotes?.trim() || 'No current limitations.',
+    healthNotes: person?.healthNotes?.trim() ?? '',
   }
 }
 
-export function buildClientRecord(draft, id, definition) {
+export function buildClientRecord(draft, id, definition, policy) {
   const isCouple = draft.type === 'Couple'
-  const people = (isCouple ? draft.people.slice(0, 2) : draft.people.slice(0, 1)).map(normalisePerson)
+  const people = (isCouple ? draft.people.slice(0, 2) : draft.people.slice(0, 1)).map(person => normalisePerson(person, policy))
   const primary = people[0]
   const displayName = isCouple
     ? people.map(person => person.name).filter(Boolean).join(' & ')
@@ -203,7 +203,7 @@ export function buildClientRecord(draft, id, definition) {
   const healthNotes = isCouple
     ? people.map(person => `${person.name}: ${person.healthNotes}`).join('\n')
     : primary.healthNotes
-  const packageRecord = packageFor(draft.startDate, draft.sessionsPerWeek, definition)
+  const packageRecord = packageFor(draft.startDate, draft.sessionsPerWeek, definition, policy.freeGymMinimumFrequency)
 
   return {
     id,
@@ -240,7 +240,7 @@ export function buildClientSessions(client) {
   const schedule = client.fixedWeeklySchedule ?? []
   const target = client.package?.total ?? 0
   const start = parseIsoDate(client.package?.startDate)
-  const validityDays = client.package?.validityDays ?? 90
+  const validityDays = client.package?.validityDays ?? 0
   if (!start || !schedule.length || !target) return []
 
   const candidates = []

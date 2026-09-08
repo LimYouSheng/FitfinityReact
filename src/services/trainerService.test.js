@@ -1,10 +1,11 @@
+import { mockPolicy } from '../data/mockPolicy.js'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { trainerService } from './trainerService.js'
 import { mockDb } from './mockDb.js'
 import { createTrainerDraft } from '../app/trainerOnboarding.js'
 import { matchTrainers } from '../app/clientOnboarding.js'
 
-const draft = (email = 'm3-new-trainer@example.com') => ({ ...createTrainerDraft(), name: 'M3 Trainer', email,
+const draft = (email = 'm3-new-trainer@example.com') => ({ ...createTrainerDraft(mockPolicy), name: 'M3 Trainer', email,
   gender: 'Female', trainerType: 'Personal',
   availabilityBlocks: [{ id: 'one', days: ['Sunday'], from: '10:00', to: '12:00' }] })
 const owner = () => mockDb.read().users.find(user => user.role === 'owner')

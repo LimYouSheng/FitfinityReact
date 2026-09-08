@@ -9,13 +9,13 @@ export const TRAINER_ONBOARDING_STEPS = [
   { key: 'autonomy', title: 'Owner Approval Needed' },
 ]
 
-export function createTrainerDraft() {
+export function createTrainerDraft(policy) {
   return {
-    name: '', email: '', phone: { countryCode: '+65', number: '' },
+    name: '', email: '', phone: { countryCode: policy.defaultCountryCode, number: '' },
     birthday: '', gender: '', trainerType: '', qualifications: '', publicProfile: 'Visible',
-    rates: { peak: '80', offPeak: '55' },
+    rates: { peak: String(policy.trainerRates.peak), offPeak: String(policy.trainerRates.offPeak) },
     availabilityBlocks: [],
-    approvalNeeded: Object.fromEntries(APPROVAL_FIELDS.map(([field]) => [field, true])),
+    approvalNeeded: { ...policy.approvalDefaults },
   }
 }
 

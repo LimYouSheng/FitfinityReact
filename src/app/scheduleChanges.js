@@ -1,3 +1,4 @@
+import { businessClock } from './clock.js'
 import { DAYS, availabilityBlockError, availabilityByDay } from './availability.js'
 import { parseDateOnly, weekday } from '../utils/date.js'
 
@@ -33,11 +34,7 @@ export function requireActiveActor(db, actor) {
   return stored
 }
 
-export function businessNow(now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now)
-  const value = type => parts.find(part => part.type === type).value
-  return { date: `${value('year')}-${value('month')}-${value('day')}`, time: `${value('hour')}:${value('minute')}` }
-}
+export const businessNow = businessClock
 
 export function weeklyScheduleChanges(db, client, nextSlots, now = new Date()) {
   if (!client || client.status !== 'active') throw new Error('The client is no longer active.')
@@ -51,9 +48,9 @@ export function weeklyScheduleChanges(db, client, nextSlots, now = new Date()) {
     if (days.has(slot.day) || !client.fixedWeeklySchedule.some(old => old.day === slot.day)) throw new Error('Keep the existing weekly training days.')
     days.add(slot.day)
   }
-  const clock = businessNow(now)
+  const clock = businessNow(now, db.settings?.timeZone)
   const start = client.package.startDate
-  const end = new Date(parseDateOnly(start).getTime() + ((client.package.validityDays ?? 90) - 1) * 86400000).toISOString().slice(0, 10)
+  const end = client.package.endDate ?? new Date(parseDateOnly(start).getTime() + (client.package.validityDays - 1) * 86400000).toISOString().slice(0, 10)
   const changes = db.sessions.filter(session => {
     if (session.clientId !== client.id || session.trainerId !== client.trainerId || ['completed', 'cancelled'].includes(session.status)) return false
     if (session.date < start || session.date > end || session.date < clock.date || (session.date === clock.date && session.from <= clock.time)) return false

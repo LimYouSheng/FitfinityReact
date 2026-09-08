@@ -1,75 +1,110 @@
-# First run on your Mac
+# Run and verify Fitfinity on your Mac
 
-## 1. Check Node
-Open Terminal inside this project folder and run:
+## Existing M3 checkout
+
+Use `~/Desktop/FitfinityReact`. Do not rerun historical installers, reset the tree,
+or replace the current lockfile. A delivery script verifies the exact recognised
+source before writing and preserves unknown changes by stopping.
 
 ```bash
-node -v
-npm -v
+cd ~/Desktop/FitfinityReact
+node --version
+npm --version
+git --no-pager status --short --branch
 ```
 
-Use Node 22 if possible. Current Vite 8 requires a modern Node release.
+Use a Node version supported by the installed Vite release; the current lockfile
+requires Node 20.19+ or 22.12+ (a supported newer release also works).
 
-## 2. Install dependencies
+## Fresh checkout only
+
+Dependencies are already locked. Install with `npm ci`, not an unreviewed lockfile update.
+Browser engines are a one-time setup for this Playwright version:
 
 ```bash
-npm install
+npm ci
+npx playwright install chromium webkit
 ```
 
-This creates `node_modules` and `package-lock.json`. Commit `package-lock.json` once the first install succeeds so future installs are reproducible.
+Routine mutation scripts do not install dependencies or start a development server.
 
-## 3. Open the app in your browser
+## Full gate
+
+Keep port 4173 free. The delivered script is the authoritative gate: it also checks
+exact totals, protected files, source fingerprints, imports, CSS and new-file whitespace.
+The equivalent test commands are:
 
 ```bash
+unset NO_COLOR NODE_DISABLE_COLORS
+export FORCE_COLOR=1 CLICOLOR=1 CLICOLOR_FORCE=1
+export GIT_PAGER=cat PAGER=cat
+npm test
+npm run build
+CI=1 PLAYWRIGHT_FORCE_TTY=0 npm run test:e2e -- --reporter=list
+git --no-pager diff --check
+```
+
+Current inventory: 264 unit tests in 54 files; 432 browser cases, 144 per configured
+project. The initial browser inventory only lists cases; it does not execute
+Playwright. With `set -euo pipefail`, a failing unit test stops the script before
+build or browser execution, even though output is piped through `tee`. Running
+`npm run test:e2e` manually is separate and does not run unit tests first.
+Test inventory alone is not passing evidence. `test:e2e` intentionally builds
+both the root and a repository-path release and validates their PWA files before the production-preview suite. Any failed/skipped/flaky test is NOT GREEN.
+
+## Manual development inspection
+
+```bash
+cd ~/Desktop/FitfinityReact
 npm run dev -- --host
 ```
 
-Vite prints both a Local URL and a Network URL.
+Open the printed Local URL on the Mac or Network URL on a device on the same Wi-Fi.
+This checks responsive UI. It does not prove the production PWA works.
 
-- On your Mac: open the Local URL.
-- On an iPhone/iPad connected to the same Wi-Fi: open the Network URL.
-- Keep Terminal running while testing.
-- Stop the server with Control+C.
+## Production and installed-PWA acceptance
 
-## 4. What to test first
-
-1. Owner / Chau → Clients → Amanda Lim → View.
-2. Confirm Overview order: General Information + Fixed Weekly Schedule, then Health / Limitation Notes, then Remarks.
-3. Edit General Information and refresh; mock state should persist.
-4. Owner → Trainers → Marcus Tan → Edit Autonomy & Approvals.
-5. All four boxes should initially be checked.
-6. Uncheck Session time changes → Save → Edit again; it should remain unchecked.
-7. Switch Mock identity to Marcus Tan.
-8. Clients should show only Amanda Lim.
-9. Amanda's general information is read-only, while Health / Limitation Notes and Remarks remain editable for the assigned trainer.
-10. Click Reset Demo Data to restore the seed state.
-
-## 5. Run fast tests
+Stop other Vite servers first, then:
 
 ```bash
-npm test
-npm run build
-```
-
-## 6. Install browser-test engines once
-
-```bash
-npx playwright install
-```
-
-Then run:
-
-```bash
-npm run test:e2e
-```
-
-The current Playwright configuration checks desktop Chrome, an iPhone-sized viewport, and iPad.
-
-## 7. Test the production bundle
-
-```bash
+cd ~/Desktop/FitfinityReact
 npm run build
 npm run preview -- --host
 ```
 
-Use this before accepting a migration slice. Development mode alone is not the final gate.
+`localhost` on the Mac supports service workers. A phone's ordinary HTTP LAN URL
+is not a secure context and cannot establish installed-PWA/service-worker acceptance.
+Use a trusted HTTPS test deployment for physical phone/iPad checks.
+
+Local builds default to the origin root; `FITFINITY_BASE_PATH` selects a deployment directory. The Pages workflow reads the actual directory from Pages metadata. Publish the generated `dist/` together,
+including the generated `dist/sw.js`; never publish the unexpanded `public/sw.js`
+in its place. Keep the staff portal on its own origin when adding the public website.
+
+After an update is downloaded, finish/save or cancel edits, close **all** Fitfinity
+browser tabs and standalone windows, then reopen. Reloading one tab while another
+remains open does not activate the waiting update. See [M4_ACCEPTANCE.md](M4_ACCEPTANCE.md).
+
+Demo identities, localStorage and IndexedDB are local mock behaviour. Do not use
+this frontend as an authenticated production staff system or enter real client data.
+
+## M4.3 Pages readiness installer
+
+Download the revision-specific `.sh` outside the repository and run it against the
+verified M4.2E working candidate before committing or pushing. It verifies main,
+M3 HEAD/tag, clean index and every baseline byte; applies the complete update;
+runs 264 unit tests, builds, runs all 432 browser cases and checks integrity.
+It accepts an exact M4.3 rerun after a failed gate. It does not reset/stash/stage,
+install dependencies, start a development server, commit, push or publish.
+
+```bash
+bash "$HOME/Downloads/Fitfinity_M4_3_Pages_Readiness_2026-09-08.sh" "$HOME/Desktop/FitfinityReact"
+```
+
+After every gate passes, follow [GITHUB_PAGES.md](GITHUB_PAGES.md) to enable Pages,
+push the demo checkpoint and record physical-device acceptance. Create the final
+M4 freeze only after those checks. Once committed, this M3-based installer must
+not be rerun on the new HEAD; use the normal verification commands for later checks.
+
+The demo sign-in page lists available accounts. Initial demo password:
+`FitfinityDemo1!`. Password changes persist locally; use only demo passwords.
+Local account controls are frontend integration scaffolding; M5 provides real sessions.

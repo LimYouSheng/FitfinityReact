@@ -1,3 +1,4 @@
+import { signatureFixture } from '../test/fixtures/signature.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clientService } from './clientService.js'
 import { mockDb } from './mockDb.js'
@@ -41,7 +42,7 @@ describe('saved edit messages', () => {
     await sessionService.saveExercisePlan('s1', [{ id: 'e1', name: 'Goblet Squat', weight: '8 kg', reps: '8', rounds: '2', rest: '60 sec', customDetails: [] }])
     await sessionService.saveOutcome('s1', { durationMinutes: 60, trainerComments: 'Good control.' })
     await sessionService.saveClientSummary('s1', 'Strong session.')
-    await sessionService.acknowledge('s1', { method: 'signature', signerName: 'Amanda Lim' })
+    await sessionService.acknowledge('s1', { method: 'signature', signerName: 'Amanda Lim', signature: signatureFixture })
 
     const messages = mockDb.read().messages.filter(message => message.sessionId === 's1' && message.kind === 'saved_edit')
     expect(messages.map(message => message.title)).toEqual(expect.arrayContaining([

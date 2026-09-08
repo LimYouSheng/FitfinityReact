@@ -21,9 +21,9 @@ const blockRows = blocks => (blocks ?? []).map((block, index) =>
   row(`Block ${index + 1}`, `${block.days.join(', ')} · ${block.from}–${block.to}`))
 
 /** A review is derived from the live draft, never a second saved record. */
-export function clientReviewSections(draft, trainer) {
+export function clientReviewSections(draft, trainer, policy) {
   const people = draft.people.slice(0, draft.type === 'Couple' ? 2 : 1)
-  const pack = packageFor(draft.startDate, draft.sessionsPerWeek, draft.packageDefinition)
+  const pack = packageFor(draft.startDate, draft.sessionsPerWeek, draft.packageDefinition, policy.freeGymMinimumFrequency)
   return [
     { key: 'general', title: 'General Information', groups: [
       group([row('Client type', draft.type === 'Couple' ? 'Couple' : 'Single'), row('Remarks', draft.remarks)]),

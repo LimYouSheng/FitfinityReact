@@ -9,21 +9,21 @@ import { useActionConfirmation } from '../../components/ActionConfirmationProvid
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { APPROVAL_FIELDS } from '../../app/constants.js'
 import { COUNTRY_CODES, GENDERS } from '../../app/contact.js'
-import { DAYS, DEFAULT_AVAILABILITY_FROM, DEFAULT_AVAILABILITY_TO, availabilityBlockError } from '../../app/availability.js'
+import { DAYS, availabilityBlockError } from '../../app/availability.js'
 import { TRAINER_ONBOARDING_STEPS, createTrainerDraft, trainerStepErrors } from '../../app/trainerOnboarding.js'
 
 const FORM_STEPS = [...TRAINER_ONBOARDING_STEPS, ONBOARDING_REVIEW_STEP]
 
-export default function AddTrainerPage({ trainers, onCancel, onCreate, onCreated }) {
+export default function AddTrainerPage({ policy, trainers, onCancel, onCreate, onCreated }) {
   const confirmAction = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
-  const [initialDraft] = useState(createTrainerDraft)
+  const [initialDraft] = useState(() => createTrainerDraft(policy))
   const [draft, setDraft] = useState(initialDraft)
   const [stepIndex, setStepIndex] = useState(0)
   const [returningToReview, setReturningToReview] = useState(false)
   const [selectedDays, setSelectedDays] = useState([])
-  const [from, setFrom] = useState(DEFAULT_AVAILABILITY_FROM)
-  const [to, setTo] = useState(DEFAULT_AVAILABILITY_TO)
+  const [from, setFrom] = useState(policy.availability.from)
+  const [to, setTo] = useState(policy.availability.to)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const [created, setCreated] = useState(null)
@@ -37,8 +37,8 @@ export default function AddTrainerPage({ trainers, onCancel, onCreate, onCreated
   const reviewing = step.key === 'review'
   const previous = FORM_STEPS[stepIndex - 1]
   const next = FORM_STEPS[stepIndex + 1]
-  const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft) || selectedDays.length > 0 || from !== DEFAULT_AVAILABILITY_FROM || to !== DEFAULT_AVAILABILITY_TO
-  const types = useMemo(() => [...new Set(trainers.map(trainer => trainer.trainerType).filter(Boolean))].sort(), [trainers])
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft) || selectedDays.length > 0 || from !== policy.availability.from || to !== policy.availability.to
+  const types = useMemo(() => [...new Set([...policy.trainerTypes, ...trainers.map(trainer => trainer.trainerType).filter(Boolean)])].sort(), [policy.trainerTypes, trainers])
 
   useEffect(() => {
     setActiveEdit(dirty && !created ? 'New trainer' : null)
@@ -73,8 +73,8 @@ export default function AddTrainerPage({ trainers, onCancel, onCreate, onCreated
   }
   const resetAvailability = () => {
     setSelectedDays([])
-    setFrom(DEFAULT_AVAILABILITY_FROM)
-    setTo(DEFAULT_AVAILABILITY_TO)
+    setFrom(policy.availability.from)
+    setTo(policy.availability.to)
     update({ availabilityBlocks: [] })
   }
 
@@ -192,7 +192,7 @@ export default function AddTrainerPage({ trainers, onCancel, onCreate, onCreated
             )}
             {step.key === 'autonomy' && (
               <div className="onboarding-availability">
-                <p className="onboarding-hint">Checked = owner approval needed. Unchecked = direct action allowed.</p>
+                <h3>Owner approval required</h3>
                 <div className="approval-grid">
                   {APPROVAL_FIELDS.map(([field, label]) => (
                     <ApprovalSetting key={field} label={label} checked={draft.approvalNeeded[field]}

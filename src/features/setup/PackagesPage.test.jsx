@@ -1,13 +1,15 @@
+import { mockPolicy } from '../../data/mockPolicy.js'
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
 import { EditGuardProvider } from '../../components/EditGuardProvider.jsx'
-import { DEFAULT_PACKAGES } from '../../app/packages.js'
+
+import { DEFAULT_PACKAGES } from '../../data/mockPackages.js'
 import PackagesPage from './PackagesPage.jsx'
 
 afterEach(cleanup)
-const show = props => render(<ActionConfirmationProvider><EditGuardProvider><PackagesPage packages={DEFAULT_PACKAGES} selectedId="new" onNavigate={() => {}} {...props} /></EditGuardProvider></ActionConfirmationProvider>)
+const show = props => render(<ActionConfirmationProvider><EditGuardProvider><PackagesPage validity={mockPolicy.packageValidity} packages={DEFAULT_PACKAGES} selectedId="new" onNavigate={() => {}} {...props} /></EditGuardProvider></ActionConfirmationProvider>)
 
 it('requires a name, reviews the correct validity and saves only after confirmation', async () => {
   const user = userEvent.setup(), onSave = vi.fn().mockResolvedValue({ id: 'new-package' }), onNavigate = vi.fn()

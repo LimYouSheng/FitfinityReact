@@ -35,7 +35,7 @@ export const remunerationService = {
       const record = { ...draft, status: 'Approved', approvedAt, approvedBy: owner.id }
       db.remunerationApprovals = [...(db.remunerationApprovals ?? []), record]
       const base = { trainerId, remunerationCycle: cycle, title: `Remuneration approved · ${draft.trainerName} · ${cycle}`,
-        body: `${draft.sessions} completed sessions approved at ${formatMoney(draft.amountCents)} for ${draft.cycle.start} to ${draft.cycle.end}. Open the remuneration breakdown for the approved record.`,
+        body: `${draft.sessions} completed sessions approved at ${formatMoney(draft.amountCents, db.settings)} for ${draft.cycle.start} to ${draft.cycle.end}. Open the remuneration breakdown for the approved record.`,
         kind: 'remuneration_approval', status: 'approved', createdAt: approvedAt, read: false }
       db.messages.push({ ...base, id: `remuneration-approved-${cycle}-${trainerId}-owner`, recipientRole: 'owner' },
         { ...base, id: `remuneration-approved-${cycle}-${trainerId}-trainer`, recipientTrainerId: trainerId })

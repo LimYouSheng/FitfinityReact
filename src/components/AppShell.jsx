@@ -4,6 +4,9 @@ import { useActionConfirmation } from './ActionConfirmationProvider.jsx'
 import { useEditGuard } from './EditGuardProvider.jsx'
 import RoleSwitcher from './RoleSwitcher.jsx'
 
+const DRAWER_LAYOUT = '(max-width: 780px)'
+const fixedSidebar = () => !window.matchMedia?.(DRAWER_LAYOUT).matches
+
 const initials = name => (name ?? '')
   .split(/\s+/)
   .filter(Boolean)
@@ -26,24 +29,50 @@ function closeProfileDropdowns(outsideTarget = null) {
 
 export default function AppShell({
   user,
+  demoControls = false,
   users,
   userId,
   route,
+  routePath = route,
+  accountBusy = false,
   canGoBack = false,
   onBack,
   messages,
   onRoute,
   onUserChange,
   onReset,
+  onSignOut,
   children,
 }) {
   const confirmAction = useActionConfirmation()
   const { activeEdit } = useEditGuard()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [permanentSidebar, setPermanentSidebar] = useState(fixedSidebar)
+  const [expandedGroups, setExpandedGroups] = useState({})
+  const previousLocation = useRef({ userId, routePath })
   const profileRef = useRef(null)
 
   const nav = user.role === 'owner' ? OWNER_NAV : TRAINER_NAV
+
+  useEffect(() => {
+    const media = window.matchMedia?.(DRAWER_LAYOUT)
+    if (!media) return
+    const sync = () => setPermanentSidebar(!media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
+  }, [])
+
+  useEffect(() => {
+    const previous = previousLocation.current
+    if (previous.userId !== userId) setExpandedGroups({})
+    else if (previous.routePath !== routePath) {
+      const group = nav.find(item => item.key === route)?.group
+      if (group) setExpandedGroups(current => ({ ...current, [group]: true }))
+    }
+    previousLocation.current = { userId, routePath }
+  }, [nav, route, routePath, userId])
 
   useEffect(() => {
     setDrawerOpen(false)
@@ -92,7 +121,8 @@ export default function AppShell({
   const unread = visibleMessages.filter(message => !message.read).length
 
   return (
-    <div className="portal-shell">
+    <div className="portal-shell" data-user-id={userId} aria-busy={accountBusy}>
+      {accountBusy && <div className="portal-account-progress" role="status">Switching account…</div>}
       <button
         type="button"
         className={`drawer-scrim ${drawerOpen ? 'show' : ''}`}
@@ -100,14 +130,14 @@ export default function AppShell({
         onClick={() => setDrawerOpen(false)}
       />
 
-      <aside className={`sidebar ${drawerOpen ? 'mobile-open' : ''}`}>
+      <aside className={`sidebar ${drawerOpen ? 'mobile-open' : ''}`} inert={accountBusy}>
         <button
           className="brand"
           type="button"
           onClick={() => onRoute('dashboard')}
           aria-label="Fitfinity dashboard"
         >
-          <img src="/assets/images/fitfinity-logo.jpg" alt="Fitfinity" />
+          <img src={`${import.meta.env.BASE_URL}assets/images/fitfinity-logo.jpg`} alt="Fitfinity" />
         </button>
 
         <div className="role-chip">
@@ -115,18 +145,31 @@ export default function AppShell({
         </div>
 
         <nav aria-label="Portal navigation">
-          {groups.map(group => (
-            <div className="nav-group" key={group.name}>
-              <div className="nav-group-label">{group.name}</div>
+          {groups.map(group => {
+            const collapsed = permanentSidebar && !expandedGroups[group.name]
+            const id = `portal-nav-${group.name.toLowerCase().replaceAll(' ', '-')}`
+            return <div className="nav-group" key={group.name}>
+              {permanentSidebar ? <button
+                type="button"
+                className="nav-group-label nav-group-toggle"
+                aria-label={`${group.name} section`}
+                aria-expanded={!collapsed}
+                aria-controls={id}
+                onClick={() => setExpandedGroups(current => ({ ...current, [group.name]: !current[group.name] }))}
+              >
+                <span>{group.name}</span>
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+              </button> : <div className="nav-group-label">{group.name}</div>}
 
+              <div className="nav-group-items" id={id} hidden={collapsed}>
               {group.items.map(item => (
                 <button
                   key={item.key}
                   aria-label={item.label}
-                  className={`${route === item.key ? 'active' : ''} ${item.disabled ? 'nav-disabled' : ''}`.trim()}
+                  className={`nav-link ${route === item.key ? 'active' : ''} ${item.disabled ? 'nav-disabled' : ''}`.trim()}
                   type="button"
                   disabled={item.disabled}
-                  title={item.disabled ? 'Scaffolded — feature migration pending' : undefined}
+                  title={item.disabled ? 'Not available yet' : undefined}
                   onClick={() => {
                     setDrawerOpen(false)
                     onRoute(item.key)
@@ -140,11 +183,12 @@ export default function AppShell({
                   {item.disabled && <span className="nav-soon">Soon</span>}
                 </button>
               ))}
+              </div>
             </div>
-          ))}
+          })}
         </nav>
 
-        <div className="sidebar-footer">
+        {demoControls && <div className="sidebar-footer">
           <RoleSwitcher users={users} userId={userId} onChange={onUserChange} />
           <button type="button" className="secondary-action" onClick={async () => {
             const confirmed = await confirmAction({
@@ -157,10 +201,10 @@ export default function AppShell({
           }}>
             Reset Demo Data
           </button>
-        </div>
+        </div>}
       </aside>
 
-      <div className="portal-main">
+      <div className="portal-main" inert={accountBusy}>
         <header className="topbar">
           <div className="topbar-left">
             {canGoBack && (
@@ -268,14 +312,12 @@ export default function AppShell({
                     My Profile
                   </button>
 
-                  <button type="button" role="menuitem" disabled>
+                  <button type="button" role="menuitem" onClick={() => onRoute('change-password')}>
                     Change Password
-                    <span>Soon</span>
                   </button>
 
-                  <button type="button" role="menuitem" disabled>
+                  <button type="button" role="menuitem" onClick={onSignOut}>
                     Sign Out
-                    <span>Mock mode</span>
                   </button>
                 </div>
               )}

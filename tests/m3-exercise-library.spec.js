@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
-import { DEFAULT_EXERCISES } from '../src/app/exerciseCatalog.js'
+import { DEFAULT_EXERCISES } from '../src/data/mockExercises.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
 const movement = DEFAULT_EXERCISES[0]
 async function start(page, route = 'exercises', custom = null) {
@@ -52,6 +52,7 @@ test('M3 exercise creation and editing work when the browser does not expose ran
 
 test('M3 owner exercise library retains 49 exercises, six categories, compact pages and combined filters', async ({ page }) => {
   await start(page)
+  await expandSidebarSections(page)
   await expect(page.locator('.sidebar nav').getByRole('button', { name: 'Exercise Library', exact: true })).toBeEnabled()
   await expect(page.locator('.library-row')).toHaveCount(10)
   await expect(page.getByText('49 exercises', { exact: true })).toBeVisible()
@@ -158,9 +159,7 @@ test('M3 library message opens the correct exercise summary and Back returns to 
 test('M3 trainers can select active managed exercises but cannot open owner library management', async ({ page }) => {
   const custom = [{ ...movement, id: 'added', name: 'M3 Active', category: 'Core' }, { ...movement, id: 'inactive', name: 'M3 Inactive', status: 'inactive' }, ...DEFAULT_EXERCISES]
   await start(page, 'dashboard', custom)
-  const menu = page.locator('.profile-menu')
-  if (await menu.locator('summary').isVisible()) await menu.locator('summary').click()
-  await page.locator('.role-switcher select').selectOption('u-marcus')
+  await selectDemoIdentity(page, 'u-marcus')
   await expect(page.locator('.sidebar nav').getByRole('button', { name: 'Exercise Library', exact: true })).toHaveCount(0)
   await go(page, 'exercises/new'); await expect(page.getByText('Exercise library management is available to the owner.')).toBeVisible()
   await expect(button(page, 'Create Exercise')).toHaveCount(0)

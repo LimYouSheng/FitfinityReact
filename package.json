@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:pages-test": "vite build --base=/FitfinityReact/ --outDir=dist-pages",
+    "verify:pwa": "node scripts/verify-pwa.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build && playwright test"
+    "test:e2e": "npm run build && npm run build:pages-test && npm run verify:pwa -- dist / && npm run verify:pwa -- dist-pages /FitfinityReact/ && playwright test"
   },
   "dependencies": {
     "react": "19.2.0",

@@ -1,0 +1,230 @@
+import { webcrypto } from 'node:crypto'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import App from './App.jsx'
+import { ActionConfirmationProvider } from './components/ActionConfirmationProvider.jsx'
+import { EditGuardProvider } from './components/EditGuardProvider.jsx'
+import { NotificationProvider } from './components/NotificationProvider.jsx'
+import { mockDb } from './services/mockDb.js'
+import { MOCK_SESSION_KEY } from './services/authService.js'
+import { mockAccountPassword } from './data/mockPolicy.js'
+import { drawSignature } from './test/drawSignature.js'
+import { portalServices } from './services/defaultPortalServices.js'
+import { withBusyCalendar } from './test/fixtures/calendar.js'
+
+function show(path='dashboard',signedIn=true,services) {
+  if(signedIn) localStorage.setItem(MOCK_SESSION_KEY,JSON.stringify({userId:'u-owner',expiresAt:Date.now()+3600000}))
+  window.history.replaceState(null,'',`/#/${path}`)
+  return render(<NotificationProvider><ActionConfirmationProvider><EditGuardProvider><App services={services}/></EditGuardProvider></ActionConfirmationProvider></NotificationProvider>)
+}
+const change=(name,value)=>fireEvent.change(screen.getByLabelText(name),{target:{value}})
+const click=name=>fireEvent.click(screen.getByRole('button',{name,exact:true}))
+// Query the explicit button labels/mode group without computing accessible names
+// for every session in the 42-day month. Native button and label checks remain.
+const calendarDate = day => screen.getByLabelText(`Show sessions for ${day}`, { selector: 'button', exact: true })
+const calendarMore = (day, count) => screen.getByLabelText(`Show ${count} more sessions for ${day}`, { selector: 'button', exact: true })
+const calendarMode = name => within(screen.getByLabelText('Calendar view')).getByRole('button', { name, exact: true })
+const closeCalendar = () => fireEvent.click(screen.getByLabelText('Close calendar sessions', { selector: 'button', exact: true }))
+beforeEach(()=>{localStorage.clear();mockDb.reset();vi.stubGlobal('crypto',webcrypto);window.scrollTo=vi.fn();vi.stubGlobal('matchMedia', query => ({ matches: query === '(min-width: 700px)', addEventListener() {}, removeEventListener() {} }))})
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals()})
+
+it('blocks account actions until a delayed switch commits and restores the current account after failure', async () => {
+  let release
+  const switchDemoIdentity = vi.fn().mockRejectedValueOnce(new Error('Account unavailable')).mockImplementation(async id => {
+    await new Promise(resolve => { release = resolve })
+    return portalServices.auth.switchDemoIdentity(id)
+  })
+  show('dashboard', true, { ...portalServices, auth: { ...portalServices.auth, switchDemoIdentity } })
+  await screen.findByRole('heading', { name: 'Calendar' })
+  change('Demo identity', 'u-marcus')
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Account unavailable'))
+  expect(document.querySelector('.portal-shell')).toHaveAttribute('data-user-id', 'u-owner')
+  expect(document.querySelector('.sidebar')).not.toHaveAttribute('inert')
+  change('Demo identity', 'u-marcus')
+  await screen.findByText('Switching account…')
+  expect(document.querySelector('.sidebar')).toHaveAttribute('inert')
+  expect(document.querySelector('.portal-main')).toHaveAttribute('inert')
+  expect(document.querySelector('.portal-shell')).toHaveAttribute('data-user-id', 'u-owner')
+  // Even a duplicate programmatic event cannot start another pending switch.
+  change('Demo identity', 'u-daniel')
+  expect(switchDemoIdentity).toHaveBeenCalledTimes(2)
+  await act(async () => { release() })
+  await waitFor(() => expect(document.querySelector('.portal-shell')).toHaveAttribute('data-user-id', 'u-marcus'))
+  expect(document.querySelector('.portal-shell')).toHaveAttribute('aria-busy', 'false')
+  expect(document.querySelector('.sidebar')).not.toHaveAttribute('inert')
+  expect(screen.queryByText('Switching account…')).not.toBeInTheDocument()
+})
+
+it('M4 assembled app signs in, exposes a real calendar and signs out to an account form',async()=>{
+  show('dashboard',false)
+  await screen.findByRole('heading',{name:'Sign in'})
+  change('Account','u-owner');change('Password',mockAccountPassword);click('Sign In')
+  await screen.findByRole('heading',{name:'Calendar'})
+  click('Monthly');expect(screen.getByRole('button',{name:'Monthly'})).toHaveAttribute('aria-pressed','true')
+  change('Calendar date','2032-02-29')
+  expect(document.querySelectorAll('.calendar-day')).toHaveLength(42)
+  expect(screen.queryByLabelText('Selected day sessions')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Today', exact: true })).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Monthly calendar').querySelectorAll('.calendar-event')).toHaveLength(0)
+  click('Open profile menu');fireEvent.click(screen.getByRole('menuitem',{name:'Sign Out'}))
+  await screen.findByRole('heading',{name:'Sign in'})
+  expect(screen.queryByRole('heading',{name:'Calendar'})).not.toBeInTheDocument()
+})
+it('M4 assembled content form previews safe text, saves and reopens persisted content',async()=>{
+  show('content/new');await screen.findByLabelText('Content title')
+  change('Content title','New studio details');change('Content key','studio/details');change('Content body','<script>unsafe()</script> Our studio.');change('Content status','ready')
+  click('Preview');expect(screen.getByRole('dialog',{name:'Content preview'})).toHaveTextContent('<script>unsafe()</script>')
+  expect(document.querySelector('.content-preview script')).toBeNull();click('Close Preview')
+  click('Save Content');fireEvent.click(within(screen.getByRole('dialog',{name:'Save content?'})).getByRole('button',{name:'Save Content'}))
+  await waitFor(()=>expect(mockDb.read().contentEntries).toHaveLength(1))
+  await waitFor(()=>expect(window.location.hash).toMatch(/#\/content\/content-/))
+  expect(mockDb.read().contentEntries[0]).toMatchObject({key:'studio/details',status:'ready'})
+})
+it('M4 assembled signature dialog requires drawing, supports clear and saves visible evidence',async()=>{
+  show('sessions/s1');fireEvent.click(await screen.findByRole('button',{name:'Client Signature'}))
+  const signing = within(screen.getByRole('dialog', { name: 'Client signature', exact: true }))
+  const reviewCompletion = signing.getByRole('button', { name: 'Review Completion', exact: true })
+  expect(reviewCompletion).toBeDisabled()
+  drawSignature(signing.getByRole('img',{name:'Draw client signature'}));expect(reviewCompletion).toBeEnabled()
+  fireEvent.click(signing.getByRole('button', { name: 'Clear Signature', exact: true }));expect(reviewCompletion).toBeDisabled()
+  drawSignature(signing.getByRole('img',{name:'Draw client signature'}));fireEvent.click(reviewCompletion)
+  const dialog=screen.getByRole('dialog',{name:'Complete this session?'})
+  expect(within(dialog).getByRole('img')).toBeInTheDocument()
+  fireEvent.click(within(dialog).getByRole('button',{name:'Complete Session'}))
+  fireEvent.click(await screen.findByRole('button',{name:'View Client Signature'}))
+  expect(screen.getByRole('dialog',{name:'Client signature'})).toHaveTextContent('Amanda Lim')
+  expect(mockDb.read().packageCreditTransactions.filter(item=>item.sessionId==='s1')).toHaveLength(1)
+})
+it('M4 assembled app retries initial load and uses arbitrary adapter account and policy data',async()=>{
+  const snapshot={user:null,accounts:[{id:'external-id',name:'External account'}],policy:{timeZone:'UTC'}}
+  const services={load:vi.fn().mockRejectedValueOnce(new Error('Network unavailable')).mockResolvedValue(snapshot),auth:{signIn:vi.fn()}}
+  show('dashboard',false,services)
+  await screen.findByRole('heading',{name:'Unable to load the portal'});click('Retry')
+  await screen.findByRole('heading',{name:'Sign in'})
+  expect(screen.getByRole('option',{name:'External account'})).toHaveValue('external-id')
+  expect(screen.queryByText(mockAccountPassword)).not.toBeInTheDocument()
+})
+it('M4 assembled password form keeps a failed draft and saves a verified replacement',async()=>{
+  show('change-password');await screen.findByLabelText('Current password')
+  change('Current password','wrong-password');change('New password','ReplacementPass42!');change('Confirm new password','ReplacementPass42!');click('Save Password')
+  fireEvent.click(within(screen.getByRole('dialog',{name:'Change password?'})).getByRole('button',{name:'Change Password'}))
+  await waitFor(()=>expect(screen.getAllByRole('alert').some(item=>item.textContent.includes('current password is incorrect'))).toBe(true))
+  expect(screen.getByLabelText('New password')).toHaveValue('ReplacementPass42!')
+  change('Current password',mockAccountPassword);click('Save Password')
+  fireEvent.click(within(screen.getByRole('dialog',{name:'Change password?'})).getByRole('button',{name:'Change Password'}))
+  await waitFor(()=>expect(screen.getByLabelText('New password')).toHaveValue(''))
+  expect(localStorage.getItem('fitfinity-demo-credentials-v1')).not.toContain('ReplacementPass42!')
+})
+
+it('password notifications reflect loaded requirements and block invalid drafts before saving', async () => {
+  mockDb.mutate(db => { db.settings.password = { minimumLength: 16, maximumLength: 20 } })
+  const changePassword = vi.fn()
+  show('change-password', true, { ...portalServices, auth: { ...portalServices.auth, changePassword } })
+  await screen.findByLabelText('New password')
+  expect(document.querySelector('.account-form .helper')).toBeNull()
+  fireEvent.focus(screen.getByLabelText('New password'))
+  expect(screen.getByRole('status')).toHaveTextContent('16–20 characters')
+  click('Dismiss notification'); click('Password requirements')
+  expect(screen.getByRole('status')).toHaveTextContent('differ from your current password and match the confirmation')
+  click('Save Password')
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter your current password.')
+  change('Current password', mockAccountPassword)
+  for (const draft of ['x'.repeat(15), 'x'.repeat(21)]) {
+    change('New password', draft); change('Confirm new password', draft); click('Save Password')
+    expect(screen.getByRole('alert')).toHaveTextContent('16–20 characters')
+    expect(screen.getByLabelText('New password')).toHaveValue(draft)
+  }
+  change('New password', 'x'.repeat(16)); change('Confirm new password', 'y'.repeat(16)); click('Save Password')
+  expect(screen.getByRole('alert')).toHaveTextContent('The new passwords do not match.')
+  change('Current password', 'x'.repeat(16)); change('Confirm new password', 'x'.repeat(16)); click('Save Password')
+  expect(screen.getByRole('alert')).toHaveTextContent('Choose a different new password.')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(changePassword).not.toHaveBeenCalled()
+})
+
+it('dashboard renewals share persisted read state with the routed renewal filter', async () => {
+  show(); await screen.findByRole('heading', { name: 'Calendar' })
+  const renewals = screen.getByLabelText('Renewal messages')
+  expect(renewals.querySelectorAll('.message-title-row')).toHaveLength(3)
+  expect(renewals.compareDocumentPosition(screen.getByLabelText('Weekly calendar')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  fireEvent.click(within(renewals).getByRole('button', { name: 'Open Renewal follow-up: Nadia Koh' }))
+  await screen.findByRole('dialog', { name: 'Renewal follow-up: Nadia Koh' })
+  expect(mockDb.read().messages.find(item => item.id === 'm3').read).toBe(true)
+  click('Close message')
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  click('View All Renewals')
+  expect(window.location.hash).toBe('#/messages/renewals')
+  expect(within(screen.getByRole('group', { name: 'Message categories' })).getByRole('button', { name: 'Renewals', exact: true })).toHaveAttribute('aria-current', 'true')
+  expect(screen.getByRole('button', { name: 'Read Renewal follow-up: Nadia Koh' })).toBeVisible()
+})
+
+it('calendar dates open scoped sessions in a routed dialog and session Back retains the calendar', async () => {
+  show(); await screen.findByRole('heading', { name: 'Calendar' })
+  fireEvent.click(calendarMode('Monthly')); change('Calendar date', '2026-09-02')
+  fireEvent.click(calendarDate('2026-09-02'))
+  const dialog = await screen.findByRole('dialog', { name: 'Calendar sessions' })
+  expect(window.location.hash).toBe('#/dashboard/day/2026-09-02')
+  expect(document.body.style.position).toBe('fixed')
+  const session = within(dialog).getAllByRole('button').find(button => button.textContent.includes('Amanda Lim'))
+  expect(session).toBeDefined(); fireEvent.click(session)
+  await screen.findByRole('button', { name: 'Client Signature' })
+  click('Back')
+  await screen.findByRole('heading', { name: 'Calendar' })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(calendarMode('Monthly')).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByLabelText('Calendar date')).toHaveValue('2026-09-02')
+})
+
+it('calendar empty-day dialog closes with Escape and a trainer sees only their sessions', async () => {
+  show(); await screen.findByRole('heading', { name: 'Calendar' })
+  change('Demo identity', 'u-marcus')
+  await screen.findByRole('heading', { name: 'Trainer Dashboard' })
+  change('Calendar date', '2026-09-02'); fireEvent.click(calendarDate('2026-09-02'))
+  const ownSessions = mockDb.read().sessions.filter(item => item.date === '2026-09-02' && item.trainerId === 't1')
+  const dialog = screen.getByRole('dialog', { name: 'Calendar sessions' })
+  expect(dialog.querySelectorAll('.calendar-event')).toHaveLength(ownSessions.length)
+  closeCalendar()
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  change('Calendar date', '2032-02-29'); fireEvent.click(calendarDate('2032-02-29'))
+  expect(screen.getByRole('dialog', { name: 'Calendar sessions' })).toHaveTextContent('No sessions for this day.')
+  fireEvent.keyDown(screen.getByLabelText('Close calendar sessions', { selector: 'button', exact: true }), { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(document.body.style.position).not.toBe('fixed')
+})
+
+it('both calendar previews cap each scoped day at five and overflow opens the full ordered day', async () => {
+  mockDb.write(withBusyCalendar(mockDb.read()))
+  show(); await screen.findByRole('heading', { name: 'Calendar' })
+  change('Calendar date', '2026-09-02')
+  expect(calendarMore('2026-09-02', 9)).toHaveTextContent('+9 more')
+  change('Demo identity', 'u-marcus')
+  await screen.findByRole('heading', { name: 'Trainer Dashboard' })
+  change('Calendar date', '2026-09-02')
+  for (const mode of ['Weekly', 'Monthly']) {
+    fireEvent.click(calendarMode(mode))
+    const date = calendarDate('2026-09-02')
+    expect(date).toHaveTextContent('8 sessionsView day')
+    expect(date).toHaveAttribute('aria-haspopup', 'dialog')
+    const busy = date.closest('.calendar-day')
+    expect([...busy.querySelectorAll('.calendar-event strong')].map(item => item.textContent)).toEqual(['08:00–09:00', '09:00–10:00', '10:00–11:00', '11:00–12:00', '12:00–13:00'])
+    const exact = calendarDate('2026-09-03').closest('.calendar-day')
+    expect(exact.querySelectorAll('.calendar-event')).toHaveLength(5)
+    expect(exact.querySelector('.calendar-more')).toBeNull()
+    const empty = calendarDate('2026-09-04').closest('.calendar-day')
+    expect(empty.querySelectorAll('.calendar-event')).toHaveLength(0)
+    expect(empty.querySelector('.calendar-more')).toBeNull()
+    fireEvent.click(within(busy).getByRole('button', { name: 'Show 3 more sessions for 2026-09-02' }))
+    const dialog = screen.getByRole('dialog', { name: 'Calendar sessions' })
+    expect(dialog.querySelectorAll('.calendar-event')).toHaveLength(8)
+    expect(dialog.querySelector('.calendar-event:last-child strong')).toHaveTextContent('15:00–16:00')
+    closeCalendar()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  }
+  fireEvent.click(calendarMore('2026-09-02', 3))
+  fireEvent.click(screen.getByRole('dialog', { name: 'Calendar sessions' }).querySelector('.calendar-event:last-child'))
+  await screen.findByRole('button', { name: 'Client Signature' })
+  expect(window.location.hash).toBe('#/sessions/busy-7')
+  click('Back'); await screen.findByRole('heading', { name: 'Calendar' })
+  expect(calendarMode('Monthly')).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByLabelText('Calendar date')).toHaveValue('2026-09-02')
+})

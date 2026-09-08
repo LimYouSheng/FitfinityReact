@@ -1,0 +1,101 @@
+import { test, expect, selectDemoIdentity } from './fixtures.js'
+
+async function start(page, width) {
+  if (width) await page.setViewportSize({ width, height: 1024 })
+  await page.goto('/#/dashboard')
+  await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
+}
+
+test('M4 sidebar sections collapse independently wherever navigation is permanently visible', async ({ page }) => {
+  await start(page)
+  const nav = page.getByRole('navigation', { name: 'Portal navigation' })
+  const drawer = page.getByRole('button', { name: 'Open navigation' })
+  if (await drawer.isVisible()) {
+    await drawer.click()
+    await expect(nav.locator('.nav-group-toggle')).toHaveCount(0)
+    await expect(nav.getByRole('button', { name: 'Clients', exact: true })).toBeInViewport()
+    await expect(nav.getByRole('button', { name: 'Content Management', exact: true })).toBeVisible()
+    await nav.getByRole('button', { name: 'Clients', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'All Clients' })).toBeVisible()
+    await expect(page.locator('.sidebar')).not.toHaveClass(/mobile-open/)
+    return
+  }
+  const operations = nav.getByRole('button', { name: 'Operations section' })
+  const system = nav.getByRole('button', { name: 'System section' })
+  await expect(operations).toHaveAttribute('aria-expanded', 'false')
+  await expect(system).toHaveAttribute('aria-expanded', 'false')
+  await operations.click()
+  await expect(operations).toHaveAttribute('aria-expanded', 'true')
+  await operations.click()
+  await expect(operations).toHaveAttribute('aria-expanded', 'false')
+  await expect(nav.getByRole('button', { name: 'Clients', exact: true })).toBeHidden()
+  await system.click()
+  await expect(system).toHaveAttribute('aria-expanded', 'true')
+  await system.click()
+  await expect(system).toHaveAttribute('aria-expanded', 'false')
+  await operations.click()
+  await expect(nav.getByRole('button', { name: 'Clients', exact: true })).toBeVisible()
+  await expect(system).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('heading', { name: 'Calendar' })).toBeVisible()
+})
+
+test('M4 crossing the hamburger boundary keeps links accessible and restores collapsed sidebar sections', async ({ page }) => {
+  await start(page, 781)
+  const nav = page.getByRole('navigation', { name: 'Portal navigation' })
+  await expect(page.getByRole('button', { name: 'Open navigation' })).toBeHidden()
+  await expect(nav.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
+  await expect(nav.getByRole('button', { name: 'Exercise Library', exact: true })).toBeHidden()
+  await page.setViewportSize({ width: 780, height: 1024 })
+  await page.getByRole('button', { name: 'Open navigation' }).click()
+  await expect(nav.locator('.nav-group-toggle')).toHaveCount(0)
+  await expect(nav.getByRole('button', { name: 'Exercise Library', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Close navigation', exact: true }).click({ position: { x: 760, y: 200 } })
+  await page.setViewportSize({ width: 781, height: 1024 })
+  await expect(nav.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
+  await expect(nav.getByRole('button', { name: 'Exercise Library', exact: true })).toBeHidden()
+  await nav.getByRole('button', { name: 'Management section' }).click()
+  await nav.getByRole('button', { name: 'Exercise Library', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Exercise Library', exact: true })).toBeVisible()
+})
+
+test('M4 destination navigation reveals its section and account changes start with the correct collapsed menu', async ({ page }) => {
+  await start(page, 1024)
+  const nav = page.getByRole('navigation', { name: 'Portal navigation' })
+  await expect(nav.locator('.nav-group-toggle[aria-expanded="true"]')).toHaveCount(0)
+  await page.locator('.topbar').getByRole('button', { name: 'Messages', exact: true }).click()
+  await expect(nav.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'true')
+  await expect(nav.getByRole('button', { name: 'Messages', exact: true })).toHaveClass(/active/)
+  await expect(nav.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
+  await nav.getByRole('button', { name: 'System section' }).click()
+  await selectDemoIdentity(page, 'u-marcus')
+  await expect(nav.getByRole('button', { name: 'Trainer section' })).toHaveAttribute('aria-expanded', 'false')
+  await expect(nav.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'false')
+  await expect(nav.getByRole('button', { name: 'Management section' })).toHaveCount(0)
+  await nav.getByRole('button', { name: 'Trainer section' }).click()
+  await nav.getByRole('button', { name: 'All Clients', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'All Clients' })).toBeVisible()
+})
+
+// A desktop context exercises hardware-keyboard traversal on both engines.
+// The device contexts above retain their actual touch navigation behaviour.
+test.describe('M4 sidebar hardware keyboard', () => {
+  test.use({ isMobile: false, hasTouch: false })
+  test('M4 collapsed links leave Tab order and section buttons respond to Enter and Space', async ({ page, browserName }) => {
+    await start(page, 1024)
+    const nav = page.getByRole('navigation', { name: 'Portal navigation' })
+    const operations = nav.getByRole('button', { name: 'Operations section' })
+    await operations.focus()
+    await page.keyboard.press('Enter')
+    await expect(operations).toHaveAttribute('aria-expanded', 'true')
+    await page.keyboard.press('Space')
+    await expect(operations).toHaveAttribute('aria-expanded', 'false')
+    // macOS WebKit uses Option-Tab for traversal of all controls.
+    // https://github.com/microsoft/playwright/issues/5609
+    const tab = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab'
+    await page.keyboard.press(tab)
+    await expect(nav.getByRole('button', { name: 'Remuneration section' })).toBeFocused()
+    await expect(nav.getByRole('button', { name: 'Clients', exact: true })).toBeHidden()
+    await page.keyboard.press(`Shift+${tab}`)
+    await expect(operations).toBeFocused()
+  })
+})

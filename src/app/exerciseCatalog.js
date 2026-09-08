@@ -1,17 +1,14 @@
-import { CUSTOM_EXERCISE, EXERCISE_LIBRARY } from './exerciseLibrary.js'
+import { CUSTOM_EXERCISE } from './exerciseLibrary.js'
 
-export const exerciseCategories = Object.keys(EXERCISE_LIBRARY)
-export const DEFAULT_EXERCISES = Object.entries(EXERCISE_LIBRARY).flatMap(([category, names]) => names.map(name => ({ category, name })))
-  .map((entry, index) => ({ ...entry, id: `library-${String(index + 1).padStart(3, '0')}`, description: '', status: 'active', media: null, version: 1, createdAt: '2026-08-01T00:00:00Z' }))
-export const exerciseCatalog = db => db.exerciseLibrary ?? DEFAULT_EXERCISES
+export const exerciseCatalog = db => db.exerciseLibrary ?? []
 const normalizedName = name => String(name ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
 
-export function exerciseDraftErrors(draft, catalog, id) {
+export function exerciseDraftErrors(draft, catalog, id, categories = [...new Set(catalog.map(item => item.category))]) {
   const errors = {}
   if (!draft.name?.trim()) errors.name = 'Enter the exercise name.'
   else if (draft.name.trim().length > 180) errors.name = 'Use 180 characters or fewer.'
   else if (['custom exercise', CUSTOM_EXERCISE].includes(normalizedName(draft.name)) || catalog.some(item => item.id !== id && normalizedName(item.name) === normalizedName(draft.name))) errors.name = 'This exercise name is already in use.'
-  if (!exerciseCategories.includes(draft.category)) errors.category = 'Choose a category.'
+  if (!categories.includes(draft.category)) errors.category = 'Choose a category.'
   if ((draft.description ?? '').length > 2000) errors.description = 'Use 2,000 characters or fewer.'
   if (!['active', 'inactive'].includes(draft.status)) errors.status = 'Choose an active or inactive status.'
   return errors
@@ -23,8 +20,8 @@ export function filterExerciseCatalog(catalog, { query = '', category = '', stat
     .sort((a, b) => (a.status === 'inactive') - (b.status === 'inactive') || b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
 }
 
-export function groupedActiveExercises(catalog = DEFAULT_EXERCISES) {
-  return exerciseCategories.map(category => [category, catalog.filter(item => item.status === 'active' && item.category === category).map(item => item.name)])
+export function groupedActiveExercises(catalog = []) {
+  return [...new Set(catalog.map(item => item.category))].map(category => [category, catalog.filter(item => item.status === 'active' && item.category === category).map(item => item.name)])
     .filter(([, names]) => names.length)
 }
 

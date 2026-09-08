@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_EXERCISES, exerciseCatalog, exerciseDraftErrors, exerciseMediaError, filterExerciseCatalog, groupedActiveExercises } from './exerciseCatalog.js'
-import { CUSTOM_EXERCISE, exerciseChoiceFor, exerciseLibraryNames } from './exerciseLibrary.js'
+import { exerciseCatalog, exerciseDraftErrors, exerciseMediaError, filterExerciseCatalog, groupedActiveExercises } from './exerciseCatalog.js'
+import { DEFAULT_EXERCISES } from '../data/mockExercises.js'
+import { CUSTOM_EXERCISE, exerciseChoiceFor } from './exerciseLibrary.js'
+import { exerciseLibraryNames } from '../data/mockExercises.js'
 
 const draft = { name: 'Band row', category: 'Upper Body', description: 'Seated cable alternative', status: 'active' }
 describe('managed exercise catalog', () => {
   it('retains all 49 original exercises and six groups without mutating an older database', () => {
-    const db = { sessions: [] }
+    const older = { sessions: [] }
+    const db = { ...older, exerciseLibrary: structuredClone(DEFAULT_EXERCISES) }
     expect(exerciseCatalog(db).map(item => item.name)).toEqual(exerciseLibraryNames)
     expect(new Set(exerciseCatalog(db).map(item => item.id)).size).toBe(49)
-    expect(groupedActiveExercises()).toHaveLength(6)
-    expect(db).toEqual({ sessions: [] })
+    expect(groupedActiveExercises(exerciseCatalog(db))).toHaveLength(6)
+    expect(older).toEqual({ sessions: [] })
   })
   it('rejects normalized duplicates even when inactive and reserves Custom Exercise', () => {
     const catalog = [{ ...draft, id: 'one', status: 'inactive' }]

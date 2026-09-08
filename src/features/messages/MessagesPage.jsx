@@ -1,6 +1,6 @@
 import RequestStatusBadge from './RequestStatusBadge.jsx'
 import RequestReview from './RequestReview.jsx'
-import { requestTypes } from '../../services/requestService.js'
+import { requestTypes } from '../../app/requestTypes.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import Panel from '../../components/Panel.jsx'
@@ -8,8 +8,9 @@ import useSwipeBack from '../../hooks/useSwipeBack.js'
 import ModalPortal from '../../components/ModalPortal.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import DateFilterField from '../../components/DateFilterField.jsx'
+import ProfileNavigation from '../../components/ProfileNavigation.jsx'
 import usePagination from '../../hooks/usePagination.js'
-import { filterMessages } from './messageFilters.js'
+import { filterMessages, messageCategory, MESSAGE_CATEGORIES } from './messageFilters.js'
 import { orderMessages } from './messageOrdering.js'
 import { relatedMessageLinks } from './messageLinks.js'
 
@@ -34,13 +35,31 @@ function formatStamp(value) {
   }
 }
 
-export default function MessagesPage({
+export default function MessagesPage({ category, onCategoryChange, ...props }) {
+  const [localCategory, setLocalCategory] = useState('all')
+  const unread = props.messages.filter(message => visibleTo(props.user, message) && !message.read).length
+  return <>
+    <div className="page-head">
+      <div><span className="eyebrow">Updates</span><h1>Messages</h1></div>
+      <StatusBadge tone="blue">{unread} new</StatusBadge>
+    </div>
+    <MessageInbox {...props} category={category ?? localCategory} onCategoryChange={onCategoryChange ?? setLocalCategory} />
+  </>
+}
+
+// One list, dialog, read/unread flow and history owner for both entry points.
+export function MessageInbox({
+  embedded = false,
+  category = 'all',
+  onCategoryChange,
+  onViewAll,
   user,
   messages,
   clients = [],
   trainers = [],
   sessions = [],
   exercises = [],
+  contentEntries = [],
   packages = [],
   onMarkRead,
   onMarkUnread,
@@ -65,16 +84,16 @@ export default function MessagesPage({
     [messages, user],
   )
   const visible = useMemo(
-    () => filterMessages(userMessages, { query, from: fromDate, to: toDate }),
-    [fromDate, query, toDate, userMessages],
+    () => filterMessages(userMessages, { query, from: fromDate, to: toDate, category }),
+    [category, fromDate, query, toDate, userMessages],
   )
 
   const selected = userMessages.find(message => message.id === selectedId) ?? null
   const relatedLinks = useMemo(
-    () => relatedMessageLinks(selected, { user, clients, trainers, sessions, exercises, packages }),
-    [clients, exercises, packages, selected, sessions, trainers, user],
+    () => relatedMessageLinks(selected, { user, clients, trainers, sessions, exercises, packages, contentEntries }),
+    [clients, contentEntries, exercises, packages, selected, sessions, trainers, user],
   )
-  const pagination = usePagination(visible, `${user.id}|${query}|${fromDate}|${toDate}`)
+  const pagination = usePagination(visible, `${user.id}|${category}|${query}|${fromDate}|${toDate}`)
 
   useEffect(() => {
     const syncOverlay = () => {
@@ -115,6 +134,8 @@ export default function MessagesPage({
       )
 
       setSelectedId(message.id)
+    } catch (error) {
+      setMessageError(error.message || 'Could not open the message. Try again.')
     } finally {
       openingMessage.current = false
     }
@@ -158,19 +179,19 @@ export default function MessagesPage({
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <span className="eyebrow">Updates</span>
-          <h1>Messages</h1>
-        </div>
-
-        <StatusBadge tone="blue">
-          {userMessages.filter(message => !message.read).length} new
-        </StatusBadge>
-      </div>
-
-      <Panel>
-        <div className="message-search-controls" aria-label="Message filters">
+      <Panel className={embedded ? 'dashboard-renewals' : ''}>
+        {embedded ? <div className="section-head renewal-heading">
+          <div className="renewal-total" role="status" aria-label="Total renewal follow-ups" aria-atomic="true">
+            <strong className="renewal-count">{visible.length}</strong>
+            <div><h2>Renewals</h2><span>Total follow-ups</span></div>
+          </div>
+          <button type="button" className="text-action" onClick={onViewAll}>View All Renewals</button>
+        </div> : <div role="group" aria-label="Message categories">
+          <ProfileNavigation items={MESSAGE_CATEGORIES.map(item => [item.key, item.label])}
+            activeKey={category} onSelect={onCategoryChange} />
+        </div>}
+        {!selected && messageError && <p role="alert">{messageError}</p>}
+        {!embedded && <div className="message-search-controls" aria-label="Message filters">
           <label>
             <span className="filter-label">Search</span>
             <input
@@ -198,9 +219,9 @@ export default function MessagesPage({
             min={fromDate}
             onChange={setToDate}
           />
-        </div>
+        </div>}
 
-        <div className="message-title-list" aria-label="Message list">
+        <div className="message-title-list" aria-label={embedded ? 'Renewal messages' : 'Message list'}>
           <div className="message-title-head message-title-grid" aria-hidden="true">
             <span>Message</span>
             <span>Date &amp; time</span>
@@ -208,7 +229,7 @@ export default function MessagesPage({
             <span>Read</span>
           </div>
 
-          {pagination.items.map(message => (
+          {(embedded ? visible.slice(0, 3) : pagination.items).map(message => (
             <article
               key={message.id}
               className={`message-title-row message-title-grid ${message.read ? 'read' : 'unread'}`}
@@ -242,12 +263,12 @@ export default function MessagesPage({
 
           {!visible.length && (
             <div className="empty">
-              {query || fromDate || toDate ? 'No messages match your search.' : 'No messages.'}
+              {embedded ? 'No renewal messages.' : query || fromDate || toDate || category !== 'all' ? 'No messages match these filters.' : 'No messages.'}
             </div>
           )}
         </div>
 
-        <PaginationControls {...pagination} onPage={pagination.setPage} />
+        {!embedded && <PaginationControls {...pagination} onPage={pagination.setPage} />}
       </Panel>
 
       {selected && (
@@ -281,7 +302,7 @@ export default function MessagesPage({
                 <div className="message-detail-meta">
                   <span>{formatStamp(selected.createdAt)}</span>
 
-                  {selected.kind === 'renewal' && (
+                  {messageCategory(selected) === 'renewals' && (
                     <StatusBadge tone="amber">Renewal</StatusBadge>
                   )}
 

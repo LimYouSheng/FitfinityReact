@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CUSTOM_EXERCISE } from '../../app/exerciseLibrary.js'
-import { DEFAULT_EXERCISES, groupedActiveExercises } from '../../app/exerciseCatalog.js'
+import { groupedActiveExercises } from '../../app/exerciseCatalog.js'
 
-export default function ExerciseNamePicker({ catalog = DEFAULT_EXERCISES, index, choice, name, pending, onChoose, onCustomName }) {
+export default function ExerciseNamePicker({ catalog = [], index, choice, name, pending, onChoose, onCustomName }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [customMode, setCustomMode] = useState(false)

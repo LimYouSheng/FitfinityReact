@@ -1,3 +1,4 @@
+import { mockPolicy } from '../data/mockPolicy.js'
 import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -88,7 +89,7 @@ it('keeps Assigned Clients for owners and removes both its control and content f
   media.matches = true
   const trainer = seed.trainers.find(item => item.id === 't1')
   const props = { trainer, trainers: seed.trainers, clients: seed.clients, sessions: seed.sessions }
-  const page = viewer => <Providers><TrainerProfilePage {...props} viewer={viewer} /></Providers>
+  const page = viewer => <Providers><TrainerProfilePage policy={mockPolicy} {...props} viewer={viewer} /></Providers>
   const { container, rerender } = render(page(seed.users.find(user => user.role === 'owner')))
   fireEvent.click(screen.getByRole('button', { name: 'Assigned Clients' }))
   expect(screen.getByRole('heading', { name: 'Assigned Clients' })).toBeInTheDocument()

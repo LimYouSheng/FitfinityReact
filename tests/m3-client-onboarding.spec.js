@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, selectDemoIdentity } from './fixtures.js'
 
 const DB_KEY = 'fitfinity-m2-demo-db-v4'
 const stepHeading = (page, name) => page.getByRole('heading', { level: 2, name, exact: true })
@@ -300,7 +300,7 @@ test('M3 owner dashboard Add Client quick action opens the canonical form and re
 
 test('M3 trainer has no owner dashboard quick action or trainer-creation route', async ({ page }) => {
   await page.goto('/#/dashboard')
-  await page.locator('.role-switcher select').selectOption('u-marcus')
+  await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add Client', exact: true })).toHaveCount(0)
   await page.evaluate(() => { location.hash = '#/trainers/new' })

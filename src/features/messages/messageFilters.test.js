@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterMessages } from './messageFilters.js'
+import { filterMessages, messageCategory } from './messageFilters.js'
 
 const messages = [
   { id: 'm1', title: 'Schedule update', body: 'Evening session moved.', createdAt: '2026-09-01T12:00:00+08:00' },
@@ -13,4 +13,31 @@ describe('filterMessages', () => {
     expect(filterMessages(messages, { query: 'SCHEDULE' }).map(message => message.id)).toEqual(['m1'])
     expect(filterMessages(messages, { from: '2026-09-02', to: '2026-09-03' }).map(message => message.id)).toEqual(['m2', 'm3'])
   })
+})
+
+it('classifies typed records and adapter categories without guessing from the title', () => {
+  const cases = [
+    [{ kind: 'renewal' }, 'renewals'],
+    [{ kind: 'request_decision' }, 'approvals'],
+    [{ kind: 'availability_request' }, 'approvals'],
+    [{ request: { type: 'session_time' }, sessionId: 's1' }, 'approvals'],
+    [{ kind: 'remuneration_approval', trainerId: 't1' }, 'remuneration'],
+    [{ kind: 'session_time_update' }, 'sessions'],
+    [{ kind: 'saved_edit', sessionId: 's1' }, 'sessions'],
+    [{ kind: 'client_assignment' }, 'people'],
+    [{ kind: 'trainer_created' }, 'people'],
+    [{ kind: 'content_update' }, 'updates'],
+    [{ title: 'Renewal request for session payment', kind: 'system' }, 'updates'],
+    [{ category: 'renewals', kind: 'vendor_event' }, 'renewals'],
+    [{ category: 'unknown', kind: 'vendor_event' }, 'updates'],
+  ]
+  for (const [record, expected] of cases) expect(messageCategory(record)).toBe(expected)
+})
+
+it('combines category, text and inclusive dates and retains unrecognised events in All', () => {
+  const records = messages.map((message, index) => ({ ...message, kind: index === 2 ? 'vendor_event' : 'renewal' }))
+  expect(filterMessages(records, { category: 'renewals', query: 'amanda', from: '2026-09-02', to: '2026-09-02' }).map(item => item.id)).toEqual(['m2'])
+  expect(filterMessages(records, { category: 'sessions' })).toEqual([])
+  expect(filterMessages(records, { category: 'all' })).toEqual(records)
+  expect(filterMessages(records, { category: 'updates' }).map(item => item.id)).toEqual(['m3'])
 })

@@ -1,7 +1,7 @@
+import { requestTypes } from '../app/requestTypes.js'
 import { applyWeeklySchedule, availabilityBlocks, sameAvailability, sameSlots, validateAvailability } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
 
-export const requestTypes = ['session_time', 'session_trainer', 'fixed_weekly_schedule', 'trainer_availability']
 const snapshot = session => ({ date: session.date, from: session.from, to: session.to })
 
 export const requestService = {

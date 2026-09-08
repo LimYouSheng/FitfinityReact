@@ -1,3 +1,4 @@
+import { today as currentDate } from './clock.js'
 const STATUS = {
   not_planned: { label: 'Not Planned', tone: 'amber' },
   planned: { label: 'Planned', tone: 'blue' },
@@ -13,11 +14,11 @@ export function visibleSessionsForUser(user, sessions) {
   return sessions.filter(session => session.trainerId === user.trainerId)
 }
 
-export function isSessionHistory(session, today = '2026-09-02') {
+export function isSessionHistory(session, today = currentDate()) {
   return session.status === 'completed' || session.date < today
 }
 
-export function sortSessions(sessions, today = '2026-09-02') {
+export function sortSessions(sessions, today = currentDate()) {
   return [...sessions].sort((a, b) => {
     const aHistory = isSessionHistory(a, today)
     const bHistory = isSessionHistory(b, today)
@@ -51,6 +52,7 @@ export function normalizeExercisePlan(items) {
     rest: item.rest?.trim() ?? '',
     videoAttached: Boolean(item.videoAttached),
     video: item.videoAttached && item.video ? {
+      ...(item.video.id ? { id: item.video.id } : {}),
       name: item.video.name ?? '',
       type: item.video.type ?? '',
       size: Math.max(0, Number(item.video.size) || 0),

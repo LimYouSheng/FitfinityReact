@@ -14,7 +14,7 @@ function NavigationHarness({ destinations }) {
   return (
     <>
       <button type="button" onClick={() => guardNavigation(() => destinations.push('clients'))}>Clients</button>
-      <button type="button" onClick={() => guardNavigation(() => destinations.push('sessions'))}>All Sessions</button>
+      <button type="button" onClick={() => guardNavigation(() => destinations.push('sessions'))}>Sessions</button>
     </>
   )
 }
@@ -31,7 +31,7 @@ describe('edit navigation guard', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Clients' }))
-    fireEvent.click(screen.getByRole('button', { name: 'All Sessions' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sessions' }))
 
     expect(screen.getAllByRole('dialog', { name: 'Leave this edit?' })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'Leave Without Saving' }))

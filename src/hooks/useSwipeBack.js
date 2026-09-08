@@ -148,6 +148,7 @@ export default function useSwipeBack({ enabled, onBack }) {
     }
 
     const onTouchStart = event => {
+      if (event.target.closest?.('[data-no-swipe]')) return
       const touch = event.touches?.[0]
       if (!touch) return
 
@@ -176,6 +177,7 @@ export default function useSwipeBack({ enabled, onBack }) {
     }
 
     const onPointerDown = event => {
+      if (event.target.closest?.('[data-no-swipe]')) return
       if (event.pointerType === 'mouse') return
       if (Date.now() - lastTouchStartedAt < 600) return
 

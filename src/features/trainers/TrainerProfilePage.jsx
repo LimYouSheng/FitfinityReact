@@ -44,6 +44,7 @@ function AvailabilityGrid({ availability }) {
 }
 
 export default function TrainerProfilePage({
+  policy,
   viewer,
   trainer,
   trainers,
@@ -381,7 +382,7 @@ export default function TrainerProfilePage({
       {tab === 'availability' && (
         <Panel className={activeEditor === 'availability' ? 'editing-section' : ''}>
           {activeEditor === 'availability' ? (
-            <TrainerAvailabilityEditor availability={trainer.availability} approvalNeeded={trainer.approvalNeeded?.availability !== false}
+            <TrainerAvailabilityEditor policy={policy} availability={trainer.availability} approvalNeeded={trainer.approvalNeeded?.availability !== false}
               onCancel={() => setActiveEditor(null)}
               onSave={async blocks => {
                 await onSaveAvailability(blocks)

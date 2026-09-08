@@ -1,6 +1,10 @@
+import { exerciseVideoValidation } from '../app/video.js'
+import { validSignature } from '../app/signature.js'
+import { validateExerciseResults, updateClientProgress } from '../app/progress.js'
 import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan } from '../app/sessionRules.js'
 import { delay, mockDb } from './mockDb.js'
 import { appendSavedEditMessage } from './editMessage.js'
+import { loadExerciseVideoBlob, saveExerciseVideoBlob, removeExerciseVideoBlob } from './exerciseVideoStore.js'
 
 const clone = value => JSON.parse(JSON.stringify(value))
 
@@ -61,6 +65,49 @@ function appendSessionEdit(db, session, title, body) {
 }
 
 export const sessionService = {
+  async loadVideo(sessionId, exerciseId) {
+    const session = requireSession(mockDb.read(), sessionId)
+    const exercise = session.exercisePlan?.find(item => item.id === exerciseId)
+    if (!exercise?.videoAttached) return null
+    return loadExerciseVideoBlob(sessionId, exerciseId, exercise.video?.id)
+  },
+  async saveVideo(sessionId, exerciseId, file, metadata) {
+    const session = requireEditableSession(mockDb.read(), sessionId)
+    const exercise = session.exercisePlan?.find(item => item.id === exerciseId)
+    if (!exercise) throw new Error('Exercise not found.')
+    const error = exerciseVideoValidation(file, metadata?.duration)
+    if (error) throw new Error(error)
+    if (metadata?.audioIncluded !== false) throw new Error('Prepare a silent exercise video before saving.')
+    const previous = JSON.stringify(exercise.video ?? null)
+    const mediaId = await saveExerciseVideoBlob(sessionId, exerciseId, file)
+    try {
+      mockDb.mutate(db => {
+        const currentSession = requireEditableSession(db, sessionId)
+        const current = currentSession.exercisePlan?.find(item => item.id === exerciseId)
+        if (!current || JSON.stringify(current.video ?? null) !== previous) throw new Error('The exercise video changed. Refresh and try again.')
+        current.videoAttached = true
+        current.video = { ...metadata, id: mediaId, type: file.type, size: file.size, attachedAt: new Date().toISOString() }
+        appendSessionEdit(db, currentSession, 'Exercise video saved', current.name)
+      })
+    } catch (error) {
+      await removeExerciseVideoBlob(sessionId, exerciseId, mediaId).catch(() => {})
+      throw error
+    }
+    if (exercise.videoAttached) await removeExerciseVideoBlob(sessionId, exerciseId, exercise.video?.id).catch(() => {})
+    return { id: mediaId }
+  },
+  async removeVideo(sessionId, exerciseId) {
+    let previous
+    mockDb.mutate(db => {
+      const session = requireEditableSession(db, sessionId)
+      const exercise = session.exercisePlan?.find(item => item.id === exerciseId)
+      if (!exercise) throw new Error('Exercise not found.')
+      previous = exercise.video
+      exercise.videoAttached = false; exercise.video = null
+      appendSessionEdit(db, session, 'Exercise video removed', exercise.name)
+    })
+    await removeExerciseVideoBlob(sessionId, exerciseId, previous?.id).catch(() => {})
+  },
   async updateDetails(sessionId, patch) {
     await delay()
     requireValidSchedule(patch)
@@ -270,6 +317,8 @@ export const sessionService = {
         durationMinutes: Math.max(0, Number(outcome.durationMinutes) || 0),
         trainerComments: outcome.trainerComments?.trim() ?? '',
       }
+      if (outcome.exerciseResults) session.exerciseResults = validateExerciseResults(outcome.exerciseResults)
+      updateClientProgress(db, session.clientId)
       appendSessionEdit(db, session, 'Session outcome saved', `${session.outcome.durationMinutes} minutes recorded.`)
     })
 
@@ -288,13 +337,13 @@ export const sessionService = {
     return state.sessions.find(session => session.id === sessionId)
   },
 
-  async markWhatsAppSent(sessionId) {
+  async markWhatsAppOpened(sessionId) {
     await delay(20)
 
     const state = mockDb.mutate(db => {
       const session = requireSession(db, sessionId)
-      session.whatsappSentAt = new Date().toISOString()
-      session.whatsappSendCount = (session.whatsappSendCount ?? 0) + 1
+      session.whatsappOpenedAt = new Date().toISOString()
+      session.whatsappOpenCount = (session.whatsappOpenCount ?? 0) + 1
     })
 
     return state.sessions.find(session => session.id === sessionId)
@@ -309,6 +358,8 @@ export const sessionService = {
     if (acknowledgement.method === 'signature' && !acknowledgement.signerName?.trim()) {
       throw new Error('Enter the client or representative name.')
     }
+
+    if (acknowledgement.method === 'signature' && !validSignature(acknowledgement.signature)) throw new Error('Draw the client signature before completing the session.')
 
     const state = mockDb.mutate(db => {
       const session = requireSession(db, sessionId)
@@ -334,12 +385,14 @@ export const sessionService = {
       session.status = 'completed'
       session.acknowledgement = {
         method: acknowledgement.method,
+        signature: acknowledgement.method === 'signature' ? structuredClone(acknowledgement.signature) : null,
         signerName: acknowledgement.method === 'signature'
           ? acknowledgement.signerName.trim()
           : '',
         note: acknowledgement.note?.trim() ?? '',
         recordedAt: new Date().toISOString(),
       }
+      updateClientProgress(db, session.clientId)
       appendSessionEdit(db, session, 'Session acknowledgement saved', acknowledgement.method === 'signature'
         ? `Acknowledged by ${acknowledgement.signerName.trim()}.`
         : 'Late / no-show acknowledgement recorded.')

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { exerciseLibraryMedia } from '../../services/exerciseLibraryMedia.js'
 
-export default function ExerciseLibraryMedia({ media, file }) {
+export default function ExerciseLibraryMedia({ media, file, onLoad }) {
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')
   useEffect(() => {
@@ -10,7 +9,7 @@ export default function ExerciseLibraryMedia({ media, file }) {
     if (!file && !media) return
     const load = async () => {
       try {
-        const blob = file || await exerciseLibraryMedia.load(media.id)
+        const blob = file || await onLoad(media.id)
         if (cancelled) return
         if (!blob) throw new Error('This attachment is not available in this browser.')
         createdUrl = URL.createObjectURL(blob)

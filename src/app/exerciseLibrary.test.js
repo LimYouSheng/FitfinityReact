@@ -1,5 +1,7 @@
+import { DEFAULT_EXERCISES } from '../data/mockExercises.js'
 import { describe, expect, it } from 'vitest'
-import { CUSTOM_EXERCISE, EXERCISE_LIBRARY, exerciseChoiceFor, exerciseLibraryNames } from './exerciseLibrary.js'
+import { CUSTOM_EXERCISE, exerciseChoiceFor } from './exerciseLibrary.js'
+import { EXERCISE_LIBRARY, exerciseLibraryNames } from '../data/mockExercises.js'
 
 describe('exercise library', () => {
   it('matches the categorized Oracle exercise list', () => {
@@ -12,7 +14,7 @@ describe('exercise library', () => {
       'Cardio',
     ])
     expect(exerciseLibraryNames).toHaveLength(49)
-    expect(exerciseChoiceFor('Smith chest press')).toBe('Smith chest press')
+    expect(exerciseChoiceFor('Smith chest press', DEFAULT_EXERCISES)).toBe('Smith chest press')
     expect(exerciseChoiceFor('My custom movement')).toBe(CUSTOM_EXERCISE)
   })
 })

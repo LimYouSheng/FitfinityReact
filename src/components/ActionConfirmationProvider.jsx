@@ -32,6 +32,7 @@ export function ActionConfirmationProvider({ children }) {
         onConfirm={() => finish(true)}
       >
         <p>{request?.message}</p>
+        {request?.detail}
       </ConfirmDialog>
     </ActionConfirmationContext.Provider>
   )
