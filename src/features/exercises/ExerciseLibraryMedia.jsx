@@ -24,6 +24,6 @@ export default function ExerciseLibraryMedia({ media, file, onLoad }) {
   if (!url) return <p className="muted">Loading attachment…</p>
   const type = file?.type || media.type
   return <div className="library-media-preview">
-    {type.startsWith('image/') ? <img src={url} alt="Exercise reference" /> : <video src={url} controls playsInline preload="metadata" onError={() => setError('This browser cannot preview this video format.')} />}
+    {type.startsWith('image/') ? <img src={url} alt="Exercise reference" /> : <video src={url} controls playsInline preload="none" onError={() => setError('This browser cannot preview this video format.')} />}
   </div>
 }

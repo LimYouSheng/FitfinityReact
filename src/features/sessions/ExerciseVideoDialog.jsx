@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import {
-  MAX_EXERCISE_VIDEO_SECONDS,
   compressVideoSilently,
   exerciseVideoCaption,
   exerciseVideoCaptionLines,
+  exerciseVideoFileValidation,
   exerciseVideoValidation,
   readVideoDuration,
 } from './exerciseVideo.js'
@@ -12,6 +12,9 @@ import {
 
 const formatDuration = seconds => `${Math.max(0, Math.ceil(seconds))} sec`
 const formatSize = bytes => `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+const browserCanProcessVideo = () => Boolean(
+  globalThis.MediaRecorder && globalThis.HTMLCanvasElement?.prototype?.captureStream,
+)
 
 export default function ExerciseVideoDialog({ open, sessionId, exercise, editable = true, onLoad, onCancel, onSaved, onRemoved }) {
   const processing = useRef(null)
@@ -63,16 +66,60 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
     const operation = new AbortController()
     processing.current = operation
 
-    if (!file.type?.startsWith('video/')) {
-      setError('Choose a video file.')
+    const fileError = exerciseVideoFileValidation(file)
+    if (fileError) {
+      setError(fileError)
+      return
+    }
+
+    const keepOriginalForDeferredProcessing = duration => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      setCandidate({
+        blob: file,
+        duration: Number.isFinite(duration) ? duration : null,
+        source,
+        name: file.name || `${exercise.name}.video`,
+        processed: false,
+      })
+      setPreviewUrl(URL.createObjectURL(file))
+      setMode('preview')
+    }
+
+    // Browser-side captioning/transcoding is an enhancement, not the upload
+    // boundary. WebKit builds without the required media APIs keep the
+    // original file for the backend media pipeline instead.
+    if (!browserCanProcessVideo()) {
+      keepOriginalForDeferredProcessing(null)
+      return
+    }
+
+    let metadataTimer = 0
+    let duration = null
+    try {
+      duration = await Promise.race([
+        readVideoDuration(file, { signal: operation.signal }).catch(() => null),
+        new Promise(resolve => { metadataTimer = window.setTimeout(() => resolve(null), 1500) }),
+      ])
+    } finally {
+      if (metadataTimer) window.clearTimeout(metadataTimer)
+    }
+    if (operation.signal.aborted) return
+
+    // Some WebKit/codec combinations expose the browser APIs but cannot read
+    // this file reliably. Do not block the upload boundary on local decoding.
+    if (!Number.isFinite(duration)) {
+      operation.abort()
+      keepOriginalForDeferredProcessing(null)
+      return
+    }
+
+    const sourceValidation = exerciseVideoValidation(file, duration)
+    if (sourceValidation) {
+      setError(sourceValidation)
       return
     }
 
     try {
-      const duration = await readVideoDuration(file, { signal: operation.signal })
-      if (!Number.isFinite(duration)) throw new Error('The video duration could not be read.')
-      if (duration > MAX_EXERCISE_VIDEO_SECONDS) throw new Error('Video must be 1 minute or shorter.')
-
       setMode('compressing')
       setCompressionProgress(0)
       const compressed = await compressVideoSilently(file, captionLines, setCompressionProgress, { signal: operation.signal })
@@ -80,15 +127,22 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
       const validation = exerciseVideoValidation(compressed.blob, compressed.duration)
       if (validation) throw new Error(validation)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
-      setCandidate({ blob: compressed.blob, duration: compressed.duration, source, name: file.name || `${exercise.name}.webm` })
+      setCandidate({
+        blob: compressed.blob,
+        duration: compressed.duration,
+        source,
+        name: file.name || `${exercise.name}.webm`,
+        processed: true,
+      })
       setPreviewUrl(URL.createObjectURL(compressed.blob))
       setMode('preview')
     } catch (videoError) {
       if (operation.signal.aborted) return
-      setMode('choose')
-      setError(videoError.message || 'The video could not be prepared.')
+      // The validated source can still be uploaded and processed later.
+      keepOriginalForDeferredProcessing(duration)
     }
   }
+
 
   const saveVideo = async () => {
     if (!candidate || committing.current) return
@@ -99,10 +153,11 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
         name: candidate.name,
         type: candidate.blob.type,
         size: candidate.blob.size,
-        duration: Math.ceil(candidate.duration),
+        duration: Number.isFinite(candidate.duration) ? Math.ceil(candidate.duration) : null,
         source: candidate.source,
         caption,
-        audioIncluded: false,
+        audioIncluded: candidate.processed ? false : null,
+        processingStatus: candidate.processed ? 'complete' : 'deferred',
         attachedAt: new Date().toISOString(),
       })
       onCancel()
@@ -159,7 +214,7 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
               <p>Keep this popup open. Processing takes approximately the length of the clip.</p>
             </div>
           ) : previewUrl ? (
-            <video className="exercise-video-preview" src={previewUrl} controls muted playsInline />
+            <video className="exercise-video-preview" src={previewUrl} controls muted playsInline preload="none" />
           ) : exercise.videoAttached ? (
             <div className="notice">A saved video is attached. Its local preview is unavailable in this browser session.</div>
           ) : null}
@@ -191,14 +246,14 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
           {candidate && (
             <dl className="exercise-video-meta">
               <div><dt>Source</dt><dd>{candidate.source === 'recorded' ? 'Camera recording' : candidate.name}</dd></div>
-              <div><dt>Duration</dt><dd>{formatDuration(candidate.duration)}</dd></div>
+              <div><dt>Duration</dt><dd>{Number.isFinite(candidate.duration) ? formatDuration(candidate.duration) : 'Pending'}</dd></div>
               <div><dt>Size</dt><dd>{formatSize(candidate.blob.size)}</dd></div>
-              <div><dt>Audio</dt><dd>None</dd></div>
+              <div><dt>Audio</dt><dd>{candidate.processed ? 'Removed' : 'Pending removal'}</dd></div>
             </dl>
           )}
 
           {error && <p className="validation-copy" role="alert">{error}</p>}
-          <p className="helper">Maximum 1 minute · Under 5 MB · Silent video</p>
+          <p className="helper">Maximum 1 minute · Under 5 MB · Final video is silent</p>
 
           {editable && exercise.videoAttached && !candidate && (
             <button type="button" className="text-action exercise-video-remove" onClick={() => setMode('remove')}>Remove saved video</button>

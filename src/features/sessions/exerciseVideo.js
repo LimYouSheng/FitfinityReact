@@ -1,5 +1,5 @@
 import { MAX_EXERCISE_VIDEO_BYTES, MAX_EXERCISE_VIDEO_SECONDS } from '../../app/video.js'
-export { MAX_EXERCISE_VIDEO_BYTES, MAX_EXERCISE_VIDEO_SECONDS, exerciseVideoValidation } from '../../app/video.js'
+export { MAX_EXERCISE_VIDEO_BYTES, MAX_EXERCISE_VIDEO_SECONDS, exerciseVideoFileValidation, exerciseVideoValidation } from '../../app/video.js'
 
 const detailValue = detail => typeof detail === 'string' ? detail : detail?.value
 

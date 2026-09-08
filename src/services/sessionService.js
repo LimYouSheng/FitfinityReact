@@ -1,4 +1,4 @@
-import { exerciseVideoValidation } from '../app/video.js'
+import { exerciseVideoFileValidation, exerciseVideoValidation } from '../app/video.js'
 import { validSignature } from '../app/signature.js'
 import { validateExerciseResults, updateClientProgress } from '../app/progress.js'
 import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan } from '../app/sessionRules.js'
@@ -75,9 +75,12 @@ export const sessionService = {
     const session = requireEditableSession(mockDb.read(), sessionId)
     const exercise = session.exercisePlan?.find(item => item.id === exerciseId)
     if (!exercise) throw new Error('Exercise not found.')
-    const error = exerciseVideoValidation(file, metadata?.duration)
+    const deferredProcessing = metadata?.processingStatus === 'deferred'
+    const error = deferredProcessing
+      ? exerciseVideoFileValidation(file)
+      : exerciseVideoValidation(file, metadata?.duration)
     if (error) throw new Error(error)
-    if (metadata?.audioIncluded !== false) throw new Error('Prepare a silent exercise video before saving.')
+    if (!deferredProcessing && metadata?.audioIncluded !== false) throw new Error('Prepare a silent exercise video before saving.')
     const previous = JSON.stringify(exercise.video ?? null)
     const mediaId = await saveExerciseVideoBlob(sessionId, exerciseId, file)
     try {
