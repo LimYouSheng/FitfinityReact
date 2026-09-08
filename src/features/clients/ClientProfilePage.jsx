@@ -104,7 +104,11 @@ export default function ClientProfilePage({
     setDraft(client)
     setActiveEditor(null)
     setTab('overview')
-  }, [client])
+  }, [client.id])
+
+  useEffect(() => {
+    if (!activeEditor) setDraft(client)
+  }, [activeEditor, client])
 
   useEffect(() => {
     const label = ({ general: 'Client information', schedule: 'Fixed weekly schedule', health: 'Health notes', remarks: 'Client remarks' })[activeEditor] ?? null

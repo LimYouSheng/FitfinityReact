@@ -120,7 +120,27 @@ test('M3 client edit uses the global banner and keeps the top navigation clickab
   await start(page, 'clients/c1')
   const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'General Information', exact: true }) })
   await button(panel, 'Edit').click()
-  await panel.getByLabel('Email', { exact: true }).fill('banner@example.com')
+  const email = panel.getByLabel('Email', { exact: true })
+  await email.fill('banner@example.com')
+  await page.evaluate(key => {
+    const originalGetItem = Storage.prototype.getItem
+    window.__profileRefreshReads = 0
+    window.__restoreProfileRefreshGetItem = originalGetItem
+    Storage.prototype.getItem = function (name) {
+      if (name === key) window.__profileRefreshReads += 1
+      return originalGetItem.call(this, name)
+    }
+    window.dispatchEvent(new Event('storage'))
+  }, KEY)
+  await expect.poll(() => page.evaluate(() => window.__profileRefreshReads)).toBeGreaterThan(0)
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  await expect(email).toHaveValue('banner@example.com')
+  await expect(button(panel, 'Save')).toBeVisible()
+  await page.evaluate(() => {
+    Storage.prototype.getItem = window.__restoreProfileRefreshGetItem
+    delete window.__restoreProfileRefreshGetItem
+    delete window.__profileRefreshReads
+  })
   await button(panel, 'Save').click()
   await button(page.getByRole('dialog', { name: 'Save client information?', exact: true }), 'Save Changes').click()
   await notice(page, 'success', 'Client details saved.')
