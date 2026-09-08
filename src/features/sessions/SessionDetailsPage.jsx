@@ -6,7 +6,9 @@ import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
-import { sessionStatus, pendingSessionChanges } from '../../app/sessionRules.js'
+import { sessionStatus, pendingSessionChanges, sessionActionError } from '../../app/sessionRules.js'
+import { businessClock } from '../../app/clock.js'
+import { exerciseResultsFor } from '../../app/progress.js'
 import { formatDate, weekday } from '../../utils/date.js'
 import ExercisePlanEditor from './ExercisePlanEditor.jsx'
 import { exerciseVideoCaption } from './exerciseVideo.js'
@@ -47,6 +49,7 @@ function acknowledgementCopy(acknowledgement) {
 
 export default function SessionDetailsPage({
   policy,
+  today = businessClock(new Date(), policy?.timeZone).date,
   user,
   session,
   messages = [],
@@ -74,7 +77,7 @@ export default function SessionDetailsPage({
     durationMinutes: durationMinutes(session),
     trainerComments: '',
   }
-  const outcome = { ...(session.outcome ?? fallbackOutcome), exerciseResults: (session.exercisePlan ?? []).map(item => ({ id: item.id, name: item.name, loadKg: '', reps: item.reps, sets: item.rounds, ...(session.exerciseResults ?? []).find(result => result.id === item.id) })) }
+  const outcome = { ...(session.outcome ?? fallbackOutcome), exerciseResults: exerciseResultsFor(session) }
   const displayedSummary = session.clientSummary || automaticClientSummary(session, outcome)
 
   const [activeEditor, setActiveEditor] = useState(null)
@@ -153,6 +156,12 @@ export default function SessionDetailsPage({
   const canAcknowledge = isOwner || assignedTrainer
   const replacementTrainers = trainers.filter(item => item.status !== 'inactive' && item.id !== session.trainerId)
   const recordedVideos = (session.exercisePlan ?? []).filter(item => item.videoAttached)
+  const dateError = sessionActionError(session, today)
+  const checkTrainingDate = () => {
+    const error = sessionActionError(session, businessClock(new Date(), policy?.timeZone).date)
+    if (error) setDetailsError(error)
+    return !error
+  }
   const phone = (typeof client.phone === 'string'
     ? client.phone
     : `${client.phone.countryCode}${client.phone.number}`
@@ -161,11 +170,13 @@ export default function SessionDetailsPage({
   const validSchedule = draft => Boolean(draft.date && draft.from && draft.to && draft.from < draft.to)
 
   const openExportSummary = () => {
+    if (!checkTrainingDate()) return
     setSelectedVideoIds(recordedVideos.map(item => item.id))
     setExportOpen(true)
   }
 
   const exportSummary = async () => {
+    if (!checkTrainingDate()) return
     const selectedVideos = recordedVideos.filter(item => selectedVideoIds.includes(item.id))
     const text = sessionSummaryWhatsAppText(client, session, displayedSummary, selectedVideos)
     const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
@@ -271,6 +282,7 @@ export default function SessionDetailsPage({
   }
 
   const confirmAcknowledgement = async () => {
+    if (!checkTrainingDate()) return
     const method = acknowledgementMethod
     if (method === 'signature' && !validSignature(signature)) return
     setAcknowledgementMethod(null)
@@ -278,7 +290,7 @@ export default function SessionDetailsPage({
       title: 'Complete this session?',
       message: method === 'late_no_show'
         ? 'This will record a late/no-show, mark the session Completed and debit one package credit without a client signature.'
-        : 'This will save the client signature, mark the session Completed and debit one package credit. Updating it later will not debit another credit.',
+        : 'This will save the client signature, record the completed exercise loads and debit one package credit. Saved results take priority over planned loads. Updating it later will not debit another credit.',
       confirmLabel: 'Complete Session',
       detail: method === 'signature' ? <SignaturePreview strokes={signature} label="Review client signature" /> : null,
     })
@@ -513,13 +525,15 @@ export default function SessionDetailsPage({
 
       </Panel>
 
+      {dateError && <p className="helper">Client signature and WhatsApp are available from {formatDate(session.date)}.</p>}
       <div className={`session-primary-actions ${acknowledgementMethod ? 'editing-section' : ''}`}>
         {canAcknowledge && (
           <button
             type="button"
             className="session-action-button session-acknowledge-button"
-            disabled={Boolean(activeEditor || requestKind)}
-            onClick={() => setAcknowledgementMethod(session.acknowledgement?.method ?? 'signature')}
+            disabled={Boolean(activeEditor || requestKind || dateError)}
+            title={dateError ?? undefined}
+            onClick={() => { if (checkTrainingDate()) setAcknowledgementMethod(session.acknowledgement?.method ?? 'signature') }}
           >
             {session.acknowledgement ? 'Update Completion' : 'Client Signature'}
           </button>
@@ -528,7 +542,8 @@ export default function SessionDetailsPage({
         <button
           type="button"
           className="session-action-button session-export-summary-button"
-          disabled={Boolean(activeEditor || requestKind || saving)}
+          disabled={Boolean(activeEditor || requestKind || saving || dateError)}
+          title={dateError ?? undefined}
           onClick={openExportSummary}
         >
           Export Summary
@@ -539,7 +554,7 @@ export default function SessionDetailsPage({
         open={exportOpen}
         title="Export Summary"
         confirmLabel={saving ? 'Preparing…' : 'Continue to WhatsApp'}
-        confirmDisabled={saving}
+        confirmDisabled={saving || Boolean(dateError)}
         onCancel={() => setExportOpen(false)}
         onConfirm={exportSummary}
       >

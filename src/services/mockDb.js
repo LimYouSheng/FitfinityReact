@@ -7,7 +7,7 @@ function load() {
   try {
     const stored = localStorage.getItem(KEY)
     const loaded = stored ? JSON.parse(stored) : clone(seed)
-    return { ...loaded, settings: loaded.settings ?? clone(seed.settings), exerciseLibrary: loaded.exerciseLibrary ?? clone(seed.exerciseLibrary), contentEntries: loaded.contentEntries ?? [], packages: loaded.packages ?? clone(seed.packages), sessions: (loaded.sessions ?? []).map(session => ({ ...session, whatsappOpenedAt: session.whatsappOpenedAt ?? session.whatsappSentAt, whatsappOpenCount: session.whatsappOpenCount ?? session.whatsappSendCount })) }
+    return { ...loaded, settings: { ...clone(seed.settings), ...loaded.settings }, exerciseLibrary: loaded.exerciseLibrary ?? clone(seed.exerciseLibrary), contentEntries: loaded.contentEntries ?? [], packages: loaded.packages ?? clone(seed.packages), sessions: (loaded.sessions ?? []).map(session => ({ ...session, whatsappOpenedAt: session.whatsappOpenedAt ?? session.whatsappSentAt, whatsappOpenCount: session.whatsappOpenCount ?? session.whatsappSendCount })) }
   } catch {
     return clone(seed)
   }

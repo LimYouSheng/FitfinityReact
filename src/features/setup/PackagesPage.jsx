@@ -5,14 +5,14 @@ import PaginationControls from '../../components/PaginationControls.jsx'
 import usePagination from '../../hooks/usePagination.js'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
-import { packageErrors } from '../../app/packages.js'
+import { packageErrors, packageValidityDays } from '../../app/packages.js'
 
-export default function PackagesPage({ packages, validity, selectedId, onNavigate, onSave }) {
+export default function PackagesPage({ packages, policy, selectedId, onNavigate, onSave }) {
   const current = packages.find(item => item.id === selectedId)
   const confirm = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
   const [editing, setEditing] = useState(selectedId === 'new')
-  const [draft, setDraft] = useState(() => ({ name: current?.name ?? '', total: current?.total ?? Number(Object.keys(validity)[0]) }))
+  const [draft, setDraft] = useState(() => ({ name: current?.name ?? '', total: current?.total ?? '' }))
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(null)
@@ -32,7 +32,7 @@ export default function PackagesPage({ packages, validity, selectedId, onNavigat
 
   const save = async (status = current?.status ?? 'active') => {
     if (pending.current) return
-    const nextErrors = packageErrors(draft, validity)
+    const nextErrors = packageErrors(draft, policy)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
     pending.current = true
@@ -40,10 +40,10 @@ export default function PackagesPage({ packages, validity, selectedId, onNavigat
     try {
       const action = current && status !== current.status ? (status === 'active' ? 'Reactivate Package' : 'Deactivate Package') : current ? 'Save Package' : 'Create Package'
       const accepted = await confirm({ title: `${action}?`,
-        message: `${draft.name.trim()} · ${draft.total} sessions · ${validity[draft.total]} days. Existing client packages keep their purchased terms.`,
+        message: `${draft.name.trim()} · ${draft.total} sessions · ${packageValidityDays(draft.total, policy)} days. Existing client packages keep their purchased terms.`,
         confirmLabel: action })
       if (!accepted) return
-      const result = await onSave({ id: current?.id, expectedVersion: current?.version, draft: { ...draft, status } })
+      const result = await onSave({ id: current?.id, expectedVersion: current?.version, draft: { ...draft, total: Number(draft.total), status } })
       setEditing(false)
       setSaved(result)
     } catch (error) { setErrors({ form: error.message }) }
@@ -59,7 +59,7 @@ export default function PackagesPage({ packages, validity, selectedId, onNavigat
         <form className="package-form" onSubmit={event => { event.preventDefault(); void save() }} noValidate>
           <fieldset disabled={busy} className="package-fields">
             <label className="package-required">Package name <span>Required</span><input aria-label="Package name" required maxLength={80} value={draft.name} aria-invalid={Boolean(errors.name)} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))} />{errors.name && <small>{errors.name}</small>}</label>
-            <label className="package-required">Session count <span>Required</span><select aria-label="Package session count" value={draft.total} onChange={event => setDraft(value => ({ ...value, total: Number(event.target.value) }))}>{Object.keys(validity).map(total => <option value={total} key={total}>{total} sessions</option>)}</select></label>
+            <label className="package-required">Session count <span>Required</span><input aria-label="Package session count" type="text" inputMode="numeric" pattern="[0-9]*" required value={draft.total} aria-invalid={Boolean(errors.total)} aria-describedby={errors.total ? 'package-count-error' : undefined} onChange={event => setDraft(value => ({ ...value, total: event.target.value }))} />{errors.total && <small id="package-count-error">{errors.total}</small>}</label>
           </fieldset>
           <div className="inline-actions"><button type="button" className="onboarding-button" disabled={busy} onClick={() => { if (current) { setEditing(false); setDraft({ name: current.name, total: current.total }) } else onNavigate('packages') }}>Cancel</button><button className="onboarding-button primary" type="submit" disabled={busy}>{current ? 'Save Package' : 'Create Package'}</button></div>
           {errors.form && <p className="validation-copy" role="alert">{errors.form}</p>}

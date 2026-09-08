@@ -54,7 +54,7 @@ Only print `=== COMPLETE — ALL GATES PASSED ===` after every required gate suc
 
 - Fixed sidebars above 780px start fully collapsed, with independent section toggles, keyboard support and destination-section reveal after navigation. Hamburger menus keep expanded groups. Collapse preferences last for the current signed-in view and reset on account change/reload.
 - The uploaded M4.2E Mac receipt passed all gates: 257 unit tests / 54 files, build, 423 browser cases and integrity/code health. The one-time HMR export removal was expected during the hook move. M4.3 adds root and repository-path PWA coverage; its full Mac browser run and physical-device acceptance remain pending.
-- Dashboard shows the full recipient-scoped renewal follow-up count in a prominent badge, with up to three preview Messages above Weekly/Monthly calendars; the separate daily agenda and Today button remain removed. Each date has a visible View day action. Calendar previews show at most five sessions per day; +N more opens the complete scoped day in the same popup; close/native Back/Forward and session navigation retain calendar context. View All Renewals opens the shared filtered inbox.
+- Dashboard shows the full recipient-scoped renewal follow-up count in a prominent badge, with up to three preview Messages above Weekly/Monthly calendars; the separate daily agenda and Today button remain removed. Calendar styling follows the Oracle prototype: owner Weekly/Monthly and trainer Monthly show only a session count under each date; tap the count for the full day. Trainer Weekly shows every session in a compact row grouped by day, without a preview cap. Owner day popups group sessions by trainer. Close/native Back/Forward and session navigation retain calendar context. View All Renewals opens the shared filtered inbox.
 - Messages uses the same ProfileNavigation component and CSS as client/trainer profiles: an inline row from 700px and a selected-label dropdown below 700px, alongside search/date filters. Category routes survive reload; the dashboard uses the same list, popup, read/unread and record-link implementation.
 - Owner Profile now shows the existing account name, role and status using shared profile components. It is read-only; no new account-editing requirements are implied.
 - The production build generates a versioned, complete PWA shell cache. Updates wait until all app windows close; old-cache cleanup is limited to the current app directory's Fitfinity shell caches. Private/API responses and runtime uploads are excluded.
@@ -78,3 +78,21 @@ is downloaded, save/cancel edits, close all Fitfinity tabs and standalone window
 
 M5/M6 must preserve the portable stateless backend and low-cost AWS starting architecture
 in the handoff. Final M4 freeze requires the exact green gate plus recorded device evidence.
+
+## M4 physical acceptance repairs — 8 September 2026
+
+The staff demo deployed successfully at `de257440`. Physical testing then identified
+navigation-state, progress, date-gating, custom package-count and mobile-menu issues.
+This candidate fixes the canonical owners and adds regression coverage. Required
+verification is 289 unit tests in 57 files, root and Pages PWA builds, all 471 browser
+cases and code health. Run the latest Oracle calendar installer before committing.
+See `docs/M4_ACCEPTANCE.md` for the remaining device acceptance and
+`docs/FRONTEND_SERVICE_CONTRACT.md` for policy and backend responsibilities.
+
+
+Client Progress includes owner-only **View Export/WhatsApp History**. Owner and
+assigned-trainer report actions save an action timestamp and staff identity through
+`clientService.recordProgressReportAction`; the owner reads each client's entries
+through `clientService.progressReportHistory`. CSV export and WhatsApp opening are
+recorded as actions, not delivery confirmations. General Information has no renewal
+status or renewal history controls.

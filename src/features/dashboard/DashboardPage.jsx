@@ -3,10 +3,9 @@ import ModalPortal from '../../components/ModalPortal.jsx'
 import { calendarDays, calendarSessions, shiftCalendarDate } from '../../app/calendar.js'
 import { formatDate, weekday } from '../../utils/date.js'
 
-const DAY_PREVIEW_LIMIT = 5
-
 export default function DashboardPage({ user, sessions, clients, trainers, today, state, onState, onOpenSession, onAddClient, onAddTrainer, renewals, selectedDay, onOpenDay, onCloseDay }) {
   const { mode, date } = state
+  const trainerWeek = user.role === 'trainer' && mode === 'week'
   const dates = calendarDays(date, mode)
   const records = calendarSessions(sessions, dates)
   const dayRecords = selectedDay ? calendarSessions(sessions, [selectedDay]) : []
@@ -16,11 +15,18 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
     change({ date: next })
   }
   const entries = value => records.filter(session => session.date === value)
-  const event = session => <button type="button" className="calendar-event" key={session.id} onClick={() => onOpenSession(session.id)}>
-    <strong>{session.from}–{session.to}</strong>
-    <span>{clients.find(client => client.id === session.clientId)?.name ?? 'Client unavailable'}</span>
-    {user.role === 'owner' && <small>{trainers.find(trainer => trainer.id === session.trainerId)?.name ?? 'Trainer unavailable'}</small>}
-  </button>
+  const trainerName = id => trainers.find(trainer => trainer.id === id)?.name ?? 'Trainer unavailable'
+  const dayGroups = user.role === 'owner' ? [...new Set(dayRecords.map(session => session.trainerId))].map(id => ({
+    id, name: trainerName(id), sessions: dayRecords.filter(session => session.trainerId === id),
+  })) : []
+  const event = session => {
+    const client = clients.find(client => client.id === session.clientId)?.name ?? 'Client unavailable'
+    return <button type="button" className="calendar-event" key={session.id} aria-label={`${session.from}–${session.to}, ${client}`} onClick={() => onOpenSession(session.id)}>
+      <strong>{session.from}–{session.to}</strong>
+      <span className="calendar-event-client">{client}</span>
+      <span aria-hidden="true">›</span>
+    </button>
+  }
   return (
     <>
       <div className="page-head dashboard-page-head">
@@ -53,18 +59,21 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
             <button type="button" className="secondary-button" aria-label="Next calendar period" onClick={() => move(1)}>›</button>
             <label>Date<input type="date" aria-label="Calendar date" value={date} onChange={event => { if (event.target.value) change({ date: event.target.value }) }} /></label>
           </div>
-          <div className={`calendar-grid calendar-${mode}`} aria-label={`${mode === 'week' ? 'Weekly' : 'Monthly'} calendar`}>
+          <div className={`calendar-grid calendar-${mode}${trainerWeek ? ' calendar-agenda' : ''}`} aria-label={`${mode === 'week' ? 'Weekly' : 'Monthly'} calendar`}>
             {dates.map(day => {
               const daySessions = entries(day)
-              const remaining = daySessions.length - DAY_PREVIEW_LIMIT
               return <section key={day} className={`calendar-day ${day === today ? 'calendar-today' : ''} ${day.slice(0, 7) !== date.slice(0, 7) ? 'calendar-adjacent' : ''}`}>
-                <button type="button" className="calendar-date" aria-label={`Show sessions for ${day}`} aria-haspopup="dialog" aria-current={day === today ? 'date' : undefined} onClick={() => onOpenDay(day)}>
-                  <span>{weekday(day).slice(0, 3)}</span><strong>{Number(day.slice(-2))}</strong>
-                  <small>{daySessions.length} {daySessions.length === 1 ? 'session' : 'sessions'}</small>
-                  <span className="calendar-date-action" aria-hidden="true">View <span>day </span>›</span>
-                </button>
-                <div className="calendar-day-events">{daySessions.slice(0, DAY_PREVIEW_LIMIT).map(event)}{!daySessions.length && mode === 'week' && <p className="empty">No sessions</p>}</div>
-                {remaining > 0 && <button type="button" className="calendar-more" aria-haspopup="dialog" aria-label={`Show ${remaining} more sessions for ${day}`} onClick={() => onOpenDay(day)}>+{remaining} more</button>}
+                {trainerWeek ? <>
+                  <button type="button" className="calendar-agenda-date" aria-label={`Show sessions for ${day}`} aria-haspopup="dialog" aria-current={day === today ? 'date' : undefined} onClick={() => onOpenDay(day)}>
+                    <span>{weekday(day)}, {formatDate(day)}</span><span aria-hidden="true">›</span>
+                  </button>
+                  <div className="calendar-day-events">{daySessions.map(event)}{!daySessions.length && <p className="empty">No sessions</p>}</div>
+                </> : <>
+                  <div className="calendar-day-head"><span>{weekday(day).slice(0, 3)}</span><time dateTime={day}>{Number(day.slice(-2))}</time></div>
+                  <button type="button" className="calendar-date" aria-label={`Show sessions for ${day}`} aria-describedby={`calendar-count-${day}`} aria-haspopup="dialog" aria-current={day === today ? 'date' : undefined} onClick={() => onOpenDay(day)}>
+                    <strong id={`calendar-count-${day}`}>{daySessions.length}</strong>
+                  </button>
+                </>}
               </section>
             })}
           </div>
@@ -79,7 +88,10 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
               <button type="button" className="icon-button" aria-label="Close calendar sessions" onClick={onCloseDay}>×</button>
             </div>
             <div className="modal-body calendar-day-list">
-              {dayRecords.map(event)}
+              {user.role === 'owner' ? dayGroups.map(group => <section className="calendar-trainer-group" key={group.id} aria-label={`${group.name} sessions`}>
+                <h3>{group.name}</h3>
+                {group.sessions.map(event)}
+              </section>) : dayRecords.map(event)}
               {!dayRecords.length && <p className="empty">No sessions for this day.</p>}
             </div>
           </section>

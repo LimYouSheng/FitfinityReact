@@ -1,4 +1,4 @@
-import { packageDefinitions, packageErrors } from '../app/packages.js'
+import { packageDefinitions, packageErrors, packageValidityDays } from '../app/packages.js'
 import { requireActiveActor } from '../app/scheduleChanges.js'
 import { appendSavedEditMessage } from './editMessage.js'
 import { delay, mockDb } from './mockDb.js'
@@ -9,7 +9,7 @@ export const packageService = {
     let savedId
     const state = mockDb.mutate(db => {
       if (requireActiveActor(db, actor).role !== 'owner') throw new Error('Only the owner can set up packages.')
-      const errors = packageErrors(draft, db.settings.packageValidity)
+      const errors = packageErrors(draft, db.settings)
       if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
       const definitions = structuredClone(packageDefinitions(db))
       const previous = id ? definitions.find(item => item.id === id) : null
@@ -18,7 +18,7 @@ export const packageService = {
       if (definitions.some(item => item.id !== id && item.name.toLowerCase() === name.toLowerCase())) throw new Error('A package already uses this name.')
       if (draft.status && !['active', 'inactive'].includes(draft.status)) throw new Error('Choose a valid package status.')
       savedId = id ?? `package-${Math.max(0, ...definitions.map(item => Number(item.id.match(/^package-(\d+)$/)?.[1] ?? 0))) + 1}`
-      const record = { id: savedId, name, total: Number(draft.total), validityDays: db.settings.packageValidity[Number(draft.total)],
+      const record = { id: savedId, name, total: Number(draft.total), validityDays: packageValidityDays(draft.total, db.settings),
         status: draft.status ?? previous?.status ?? 'active', version: (previous?.version ?? 0) + 1 }
       if (previous) definitions[definitions.findIndex(item => item.id === id)] = record
       else definitions.push(record)

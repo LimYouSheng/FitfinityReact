@@ -9,6 +9,8 @@ export const PORTAL_OPERATIONS = {
     "create",
     "update",
     "saveFixedWeeklySchedule",
+    "recordProgressReportAction",
+    "progressReportHistory",
     "deactivate",
     "reactivate"
   ],

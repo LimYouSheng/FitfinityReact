@@ -1,7 +1,8 @@
 import { exerciseVideoFileValidation, exerciseVideoValidation } from '../app/video.js'
 import { validSignature } from '../app/signature.js'
-import { validateExerciseResults, updateClientProgress } from '../app/progress.js'
-import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan } from '../app/sessionRules.js'
+import { validateExerciseResults, updateClientProgress, exerciseResultsFor } from '../app/progress.js'
+import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan, sessionActionError } from '../app/sessionRules.js'
+import { businessClock } from '../app/clock.js'
 import { delay, mockDb } from './mockDb.js'
 import { appendSavedEditMessage } from './editMessage.js'
 import { loadExerciseVideoBlob, saveExerciseVideoBlob, removeExerciseVideoBlob } from './exerciseVideoStore.js'
@@ -14,6 +15,11 @@ function requireSession(db, sessionId) {
   const session = db.sessions.find(item => item.id === sessionId)
   if (!session) throw new Error('Session not found.')
   return session
+}
+
+function requireTrainingDate(db, session) {
+  const error = sessionActionError(session, businessClock(new Date(), db.settings.timeZone).date)
+  if (error) throw new Error(error)
 }
 
 function previousPlan(db, session) {
@@ -345,6 +351,7 @@ export const sessionService = {
 
     const state = mockDb.mutate(db => {
       const session = requireSession(db, sessionId)
+      requireTrainingDate(db, session)
       session.whatsappOpenedAt = new Date().toISOString()
       session.whatsappOpenCount = (session.whatsappOpenCount ?? 0) + 1
     })
@@ -367,6 +374,7 @@ export const sessionService = {
     const state = mockDb.mutate(db => {
       const session = requireSession(db, sessionId)
       const client = db.clients.find(item => item.id === session.clientId)
+      requireTrainingDate(db, session)
       if (!client) throw new Error('Session client not found.')
 
       db.packageCreditTransactions ??= []
@@ -386,6 +394,9 @@ export const sessionService = {
       }
 
       session.status = 'completed'
+      if (acknowledgement.method === 'signature' && !session.exerciseResults) {
+        session.exerciseResults = validateExerciseResults(exerciseResultsFor(session))
+      }
       session.acknowledgement = {
         method: acknowledgement.method,
         signature: acknowledgement.method === 'signature' ? structuredClone(acknowledgement.signature) : null,

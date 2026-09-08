@@ -1,3 +1,4 @@
+import usePageState from '../../hooks/usePageState.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -98,7 +99,7 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
 
 function OwnerExerciseLibrary({ exercises, categories, detailId, onNavigate, onBack, onLoadMedia, onSave }) {
   const { activeEdit } = useEditGuard()
-  const [query, setQuery] = useState(''), [category, setCategory] = useState(''), [status, setStatus] = useState('active')
+  const [query, setQuery] = usePageState('ExerciseLibraryPage.query', ''), [category, setCategory] = usePageState('ExerciseLibraryPage.category', ''), [status, setStatus] = usePageState('ExerciseLibraryPage.status', 'active')
   const visible = useMemo(() => filterExerciseCatalog(exercises, { query, category, status }), [category, exercises, query, status])
   const pagination = usePagination(visible, `${query}|${category}|${status}`)
   const creating = detailId === 'new'

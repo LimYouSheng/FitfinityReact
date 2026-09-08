@@ -55,7 +55,7 @@ it('requires an active stored owner and rejects forged identities without mutati
 
 it('rejects invalid counts, duplicate names, stale updates and deactivated selections', async () => {
   const before = mockDb.read()
-  for (const draft of [{ name: '', total: 12 }, { name: 'Invalid count', total: 18 }, { name: '12 SESSIONS', total: 24 }]) {
+  for (const draft of [{ name: '', total: 12 }, { name: 'Invalid count', total: 366 }, { name: '12 SESSIONS', total: 24 }]) {
     await expect(save(draft)).rejects.toThrow()
   }
   expect(mockDb.read()).toEqual(before)

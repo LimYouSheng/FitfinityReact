@@ -10,7 +10,7 @@ function PackageTab({ client, today }) {
   const remaining = Math.max(0, client.package.total - client.package.used)
   const usage = client.package.total ? Math.round((client.package.used / client.package.total) * 100) : 0
   const history = client.packageHistory ?? []
-  const pagination = usePagination(history, client.id)
+  const pagination = usePagination(history, client.id, 'client.packageHistoryPage')
   const elapsedDays = packageDayProgress(client.package.startDate, client.package.validityDays, today)
 
   return (
@@ -48,7 +48,7 @@ function PackageTab({ client, today }) {
 }
 
 function SessionsTab({ title, sessions, trainers, emptyCopy, onOpenSession }) {
-  const pagination = usePagination(sessions, `${title}|${sessions.length}`)
+  const pagination = usePagination(sessions, title, `client.${title}.page`)
   const trainerName = id => trainers.find(item => item.id === id)?.name ?? 'Unknown trainer'
 
   return (
@@ -71,7 +71,7 @@ function SessionsTab({ title, sessions, trainers, emptyCopy, onOpenSession }) {
   )
 }
 
-export default function ClientProfileTabs({ tab, client, sessions, trainers, today, onOpenSession }) {
+export default function ClientProfileTabs({ tab, user, client, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory }) {
   const clientSessions = sessions.filter(session => session.clientId === client.id)
   const history = clientSessions
     .filter(session => session.status === 'completed' || session.date < today)
@@ -83,6 +83,6 @@ export default function ClientProfileTabs({ tab, client, sessions, trainers, tod
   if (tab === 'package') return <PackageTab client={client} today={today} />
   if (tab === 'history') return <SessionsTab title="Session History" sessions={history} trainers={trainers} emptyCopy="No completed sessions." onOpenSession={onOpenSession} />
   if (tab === 'upcoming') return <SessionsTab title="Upcoming Sessions" sessions={upcoming} trainers={trainers} emptyCopy="No upcoming sessions." onOpenSession={onOpenSession} />
-  if (tab === 'progress') return <StrengthProgress client={client} />
+  if (tab === 'progress') return <StrengthProgress client={client} user={user} timeZone={timeZone} onRecordAction={onRecordProgressReport} onLoadHistory={onLoadProgressReportHistory} />
   return null
 }

@@ -1,3 +1,4 @@
+import usePageState from '../../hooks/usePageState.js'
 import { useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -82,7 +83,7 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
 }
 
 export default function RemunerationPage({ user, views, policy, cycleKey, trainerId, onNavigate, onBack, onApprove, onOpenSession }) {
-  const [hidden, setHidden] = useState(true)
+  const [hidden, setHidden] = usePageState('RemunerationPage.hidden', true)
   const money = cents => hidden ? '••••' : formatMoney(cents, policy)
   const keys = views.map(view => view.key)
   const validKey = keys.includes(cycleKey)

@@ -17,7 +17,7 @@ async function navIsOnScreen(sidebar) {
 }
 
 async function openNavIfNeeded(page) {
-  await expandSidebarSections(page)
+  await expandSidebarSections(page, { keepOpen: true })
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
   const menu = page.getByRole('button', { name: 'Open navigation' })
   if (!(await menu.isVisible())) return
@@ -190,8 +190,8 @@ test('trainer client filters keep same layout', async ({ page }) => {
   const trainer = page.getByLabel('Filter clients by trainer')
 
   await expect(status).toBeDisabled()
-  await expect(trainer).toBeDisabled()
-  await expectSameRow([status, type, trainer])
+  await expect(trainer).toHaveCount(0)
+  await expectSameRow([status, type])
 })
 
 test('owner can edit trainer rates', async ({ page }) => {
@@ -1125,7 +1125,13 @@ test('client profile navigation tabs contain package session and progress data',
   expect(download.suggestedFilename()).toBe('amanda-lim-progress-report.csv')
   const progressShare = page.getByRole('link', { name: 'Share Progress Report via WhatsApp' })
   await expect(progressShare).toHaveAttribute('href', /wa\.me\/6591234567\?text=/)
-  await expect(page.locator('.strength-progress-cards button')).toHaveCount(6)
+  // Six imported baseline exercises plus the three exercises in Amanda's signed session.
+  await expect(page.getByLabel('Strength progress exercise').locator('option')).toHaveText([
+    'Smith back squat', 'Leg press', 'Smith chest press', 'Seated row',
+    'DB shoulder press (incline bench and flat bench)', 'Smith deadlift',
+    'Goblet Squat', 'Seated Cable Row', 'DB Chest Press',
+  ])
+  await expect(page.locator('.strength-progress-cards button')).toHaveCount(9)
   await expect(page.getByRole('img', { name: 'Smith back squat load progress chart' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Completed Sessions' })).toHaveCount(0)
 

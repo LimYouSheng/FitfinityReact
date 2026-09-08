@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { ActionConfirmationProvider } from '../components/ActionConfirmationProvider.jsx'
 import { EditGuardProvider, useEditGuard } from '../components/EditGuardProvider.jsx'
@@ -22,10 +22,11 @@ const decide = async name => {
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 }
 beforeEach(() => {
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   history.replaceState(null, '', '/#/clients')
   render(<ActionConfirmationProvider><EditGuardProvider><Harness /></EditGuardProvider></ActionConfirmationProvider>)
 })
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 it('restores the current entry before native Back confirmation, retains the draft on Cancel, then leaves once', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Client one' }))
@@ -102,4 +103,18 @@ it('synchronizes a route changed during mount before history listeners are attac
   render(<ActionConfirmationProvider><EditGuardProvider><MountNavigation /></EditGuardProvider></ActionConfirmationProvider>)
   expect(location.hash).toBe('#/sessions/s1')
   expect(output()).toHaveTextContent('sessions/s1')
+})
+
+it('retains a first-frame calendar selection before passive effects run', () => {
+  cleanup()
+  function ImmediateCalendarInput() {
+    const { pageState } = useAppNavigation('u-owner')
+    useLayoutEffect(() => {
+      pageState.setValue('calendar', { mode: 'week', date: '2026-09-02' }, {})
+    }, [])
+    return <output>{pageState.values.calendar?.date ?? 'unselected'}</output>
+  }
+  render(<ActionConfirmationProvider><EditGuardProvider><ImmediateCalendarInput /></EditGuardProvider></ActionConfirmationProvider>)
+  expect(output()).toHaveTextContent('2026-09-02')
+  expect(history.state.fitfinityPageState.calendar.date).toBe('2026-09-02')
 })

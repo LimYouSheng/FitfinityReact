@@ -71,6 +71,11 @@ export function hasSessionDebit(transactions, sessionId) {
   )
 }
 
+export function sessionActionError(session, today) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(session.date ?? '') || !/^\d{4}-\d{2}-\d{2}$/.test(today ?? '')) return 'The training date is unavailable.'
+  return session.date > today ? 'Available from the training date.' : null
+}
+
 /** Owner requests are authoritative; trainer receipt messages never duplicate these badges. */
 export function pendingSessionChanges(messages, sessionId) {
   const kinds = new Set(messages.filter(message => message.status === 'pending' && message.request?.sessionId === sessionId)

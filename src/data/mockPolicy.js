@@ -4,6 +4,8 @@ import { EXERCISE_LIBRARY } from './mockExercises.js'
 export const mockPolicy = {
   timeZone: 'Asia/Singapore', currency: 'SGD', locale: 'en-SG',
   packageValidity: { 12: 90, 24: 180, 36: 270 },
+  packageSessionCount: { minimum: 1, maximum: 365 },
+  packageValidityRule: { sessions: 12, days: 90 },
   weeklyFrequencies: [1, 2, 3, 4, 5, 6, 7], freeGymMinimumFrequency: 2,
   availability: { from: '18:00', to: '19:00' },
   defaultCountryCode: '+65', defaultRelationship: 'Spouse',

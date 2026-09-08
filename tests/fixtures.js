@@ -30,10 +30,19 @@ export async function selectDemoIdentity(page, id) {
 
 // Existing workflow scenarios explicitly expand navigation before using its links.
 // Sidebar-default scenarios do not call this helper.
-export async function expandSidebarSections(page) {
+export async function expandSidebarSections(page, { keepOpen = false } = {}) {
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
+  const menu = page.getByRole('button', { name: 'Open navigation' })
+  const openedHere = await menu.isVisible() && !(await page.locator('.sidebar').getAttribute('class')).includes('mobile-open')
+  if (openedHere) await menu.click()
   const toggles = page.locator('.sidebar .nav-group-toggle')
   for (const toggle of await toggles.all()) {
     if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click()
+  }
+  if (openedHere && !keepOpen) {
+    const sidebar = await page.locator('.sidebar').boundingBox()
+    const viewport = page.viewportSize()
+    await page.getByRole('button', { name: 'Close navigation', exact: true }).click({ position: { x: (sidebar.x + sidebar.width + viewport.width) / 2, y: viewport.height / 2 } })
+    await expect(page.locator('.sidebar')).not.toHaveClass(/mobile-open/)
   }
 }

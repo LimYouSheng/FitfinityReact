@@ -16,10 +16,10 @@ async function confirm(page, title, action) {
   await dialog.getByRole('button', { name: action, exact: true }).click()
 }
 async function openMenu(page) {
-  await expandSidebarSections(page)
+  await expandSidebarSections(page, { keepOpen: true })
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
   const toggle = page.getByRole('button', { name: 'Open navigation', exact: true })
-  if (await toggle.isVisible()) await toggle.click()
+  if (await toggle.isVisible() && !(await page.locator('.sidebar').getAttribute('class')).includes('mobile-open')) await toggle.click()
 }
 
 async function expectPackageActionSpacing(page) {
@@ -41,7 +41,7 @@ test('M3 Setup upgrades old data, preloads packages and confirms create, edit an
   }
   await page.getByRole('button', { name: 'Add Package', exact: true }).click()
   await page.getByLabel('Package name', { exact: true }).fill('Strength programme')
-  await page.getByLabel('Package session count', { exact: true }).selectOption('36')
+  await page.getByLabel('Package session count', { exact: true }).fill('36')
   await expect(page.locator('.package-setup form p')).toHaveCount(0)
   await expectPackageActionSpacing(page)
   await page.getByRole('button', { name: 'Create Package', exact: true }).click()

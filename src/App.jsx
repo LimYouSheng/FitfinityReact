@@ -20,6 +20,7 @@ import UnavailablePage from './features/placeholders/UnavailablePage.jsx'
 import OwnerProfilePage from './features/owner/OwnerProfilePage.jsx'
 import useSwipeBack from './hooks/useSwipeBack.js'
 import useAppNavigation from './hooks/useAppNavigation.js'
+import { PageState } from './hooks/usePageState.js'
 import useZoomLock from './hooks/useZoomLock.js'
 import { visibleClientsForUser } from './app/status.js'
 import { PortalDataProvider } from './components/PortalDataProvider.jsx'
@@ -54,9 +55,10 @@ function StaffPortal() {
   const { user, data: db, policy } = snapshot
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
-  const [calendarState, setCalendarState] = useState(() => ({ mode: 'week', date: today }))
   const { clientService, trainerService, sessionService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
-  const { path, navigate, goBack, replacePath } = useAppNavigation()
+  const { path, navigate, goBack, replacePath, pageState } = useAppNavigation(user.id)
+  const calendarState = pageState.values.calendar ?? { mode: 'week', date: today }
+  const setCalendarState = next => pageState.setValue('calendar', next, calendarState)
 
   const switchUser = id => guardNavigation(async () => {
     if (switchingAccount.current || id === user.id) return
@@ -154,6 +156,7 @@ function StaffPortal() {
 
   const trainerProfile = (trainer, ownerMode) => (
     <TrainerProfilePage
+      key={trainer.id}
         policy={policy}
       viewer={user}
       trainer={trainer}
@@ -242,6 +245,7 @@ function StaffPortal() {
   } else if (route === 'clients' && selectedClient) {
     page = (
       <ClientProfilePage
+        key={selectedClient.id}
         user={user}
         client={selectedClient}
         trainer={trainers.find(item => item.id === selectedClient.trainerId)}
@@ -254,6 +258,13 @@ function StaffPortal() {
           await runAction(() => clientService.update(selectedClient.id, patch), { message: 'Client details saved.' })
           await reload()
         }}
+        timeZone={policy.timeZone}
+        onRecordProgressReport={async action => {
+          const saved = await clientService.recordProgressReportAction(selectedClient.id, action)
+          await reload()
+          return saved
+        }}
+        onLoadProgressReportHistory={() => clientService.progressReportHistory(selectedClient.id)}
         onSaveFixedWeeklySchedule={async slots => {
           const result = await runAction(() => clientService.saveFixedWeeklySchedule(
             selectedClient.id,
@@ -319,6 +330,8 @@ function StaffPortal() {
     const sessionTrainer = trainers.find(item => item.id === selectedSession.trainerId)
     page = (
       <SessionDetailsPage
+        key={selectedSession.id}
+        today={today}
         policy={policy}
         user={user}
         session={selectedSession}
@@ -386,7 +399,7 @@ function StaffPortal() {
       <MessagesPage
         {...messageInboxProps}
         category={MESSAGE_CATEGORIES.some(item => item.key === detailId) ? detailId : 'all'}
-        onCategoryChange={category => navigate(category === 'all' ? 'messages' : `messages/${category}`)}
+        onCategoryChange={category => navigate(category === 'all' ? 'messages' : `messages/${category}`, { preserveView: true })}
       />
     )
   } else if (route === 'remuneration') {
@@ -397,7 +410,7 @@ function StaffPortal() {
       policy={policy}
       cycleKey={detailId}
       trainerId={parts[2]}
-      onNavigate={navigate}
+      onNavigate={(next, options) => navigate(next, { ...options, preserveView: true })}
       onBack={() => goBack(detailId ? `remuneration/${detailId}` : 'remuneration')}
       onOpenSession={openSession}
       onApprove={async (cycle, trainer, revision) => {
@@ -415,7 +428,7 @@ function StaffPortal() {
       }}
     />
   } else if (route === 'packages' && user.role === 'owner') {
-    page = <PackagesPage validity={policy.packageValidity} key={detailId ?? 'list'} packages={packageDefinitions(db)} selectedId={detailId} onNavigate={navigate}
+    page = <PackagesPage policy={policy} key={detailId ?? 'list'} packages={packageDefinitions(db)} selectedId={detailId} onNavigate={navigate}
       onSave={async options => {
         const saved = await runAction(() => packageService.save(options, user), { tone: options.draft.status === 'inactive' ? 'warning' : 'success',
           message: options.draft.status === 'inactive' ? 'Package deactivated.' : options.id ? 'Package saved.' : 'Package created.' })
@@ -437,7 +450,7 @@ function StaffPortal() {
       renewals={<MessageInbox {...messageInboxProps} embedded category="renewals" onViewAll={() => navigate('messages/renewals')} />}
       state={calendarState} onState={setCalendarState} user={user}
       sessions={visibleSessionsForUser(user, sessions)} clients={clients} trainers={trainers}
-      selectedDay={calendarDay} onOpenDay={day => navigate(`dashboard/day/${day}`)} onCloseDay={() => goBack('dashboard')}
+      selectedDay={calendarDay} onOpenDay={day => navigate(`dashboard/day/${day}`, { preserveView: true })} onCloseDay={() => goBack('dashboard')}
       today={today} onOpenSession={id => navigate(`sessions/${id}`, { replace: Boolean(calendarDay) })}
       onAddClient={openAddClient} onAddTrainer={openAddTrainer}
     />
@@ -469,7 +482,7 @@ function StaffPortal() {
             : route === 'packages' ? 'packages' : route === 'exercises' ? 'exercises' : route === 'content' ? 'content' : 'dashboard'
 
   return (
-    <AppShell
+    <PageState.Provider value={pageState}><AppShell
       accountBusy={accountBusy}
       routePath={path}
       demoControls={snapshot.capabilities?.demoControls === true}
@@ -486,6 +499,6 @@ function StaffPortal() {
       onReset={reset}
     >
       {page}
-    </AppShell>
+    </AppShell></PageState.Provider>
   )
 }

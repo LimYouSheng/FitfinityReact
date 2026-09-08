@@ -5,11 +5,20 @@ export const weeklyFrequencyLabel = (frequency, compact = false) =>
 export const packageDefinitions = data => data.packages ?? []
 export const activePackages = data => packageDefinitions(data).filter(item => item.status === 'active')
 
-export function packageErrors(draft, validity = {}) {
+export function packageValidityDays(total, policy) {
+  const configured = policy.packageValidity?.[Number(total)]
+  if (Number.isInteger(configured) && configured > 0) return configured
+  const { sessions, days } = policy.packageValidityRule ?? {}
+  if (!(sessions > 0 && days > 0)) throw new Error('Package validity settings are unavailable.')
+  return Math.ceil(Number(total) * days / sessions)
+}
+
+export function packageErrors(draft, policy) {
   const errors = {}
   if (typeof draft.name !== 'string' || !draft.name.trim()) errors.name = 'Package name is required.'
   else if (draft.name.trim().length > 80) errors.name = 'Use 80 characters or fewer.'
-  if (!Object.hasOwn(validity, Number(draft.total))) errors.total = 'Choose an available session count.'
+  const { minimum, maximum } = policy.packageSessionCount
+  if (!/^\d+$/.test(String(draft.total)) || !Number.isSafeInteger(Number(draft.total)) || Number(draft.total) < minimum || Number(draft.total) > maximum) errors.total = `Enter a whole number from ${minimum} to ${maximum}.`
   return errors
 }
 

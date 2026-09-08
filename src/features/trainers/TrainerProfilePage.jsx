@@ -1,3 +1,4 @@
+import usePageState from '../../hooks/usePageState.js'
 import TrainerAvailabilityEditor from './TrainerAvailabilityEditor.jsx'
 import { useEffect, useMemo, useState } from 'react'
 import { APPROVAL_FIELDS, DAYS } from '../../app/constants.js'
@@ -61,25 +62,31 @@ export default function TrainerProfilePage({
   const confirmAction = useActionConfirmation()
   const { guardNavigation, setActiveEdit } = useEditGuard()
   const isOwner = viewer.role === 'owner'
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = usePageState(`trainer.${trainer.id}.${viewer.role}.tab`, 'overview')
   const [activeEditor, setActiveEditor] = useState(null)
   const [generalDraft, setGeneralDraft] = useState(trainer)
   const [ratesDraft, setRatesDraft] = useState(trainer.rates)
   const [autonomyDraft, setAutonomyDraft] = useState(trainer.approvalNeeded)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
   const [replacements, setReplacements] = useState({})
-  const [assignedQuery, setAssignedQuery] = useState('')
-  const [assignedType, setAssignedType] = useState('')
-  const [assignedFrequency, setAssignedFrequency] = useState('')
+  const [assignedQuery, setAssignedQuery] = usePageState('TrainerProfilePage.assignedQuery', '')
+  const [assignedType, setAssignedType] = usePageState('TrainerProfilePage.assignedType', '')
+  const [assignedFrequency, setAssignedFrequency] = usePageState('TrainerProfilePage.assignedFrequency', '')
 
   useEffect(() => {
     setGeneralDraft(trainer)
     setRatesDraft(trainer.rates)
     setAutonomyDraft(trainer.approvalNeeded)
     setActiveEditor(null)
-  }, [trainer])
+  }, [trainer.id])
 
-  useEffect(() => { setTab('overview') }, [trainer.id, isOwner])
+  useEffect(() => {
+    if (!activeEditor) {
+      setGeneralDraft(trainer)
+      setRatesDraft(trainer.rates)
+      setAutonomyDraft(trainer.approvalNeeded)
+    }
+  }, [activeEditor, trainer])
 
   useEffect(() => {
     const label = ({ general: 'Trainer information', rates: 'Trainer rates', autonomy: 'Autonomy controls', availability: 'Trainer availability' })[activeEditor] ?? null
@@ -109,8 +116,8 @@ export default function TrainerProfilePage({
     () => remainingTrainerSessions(trainer.id, sessions),
     [trainer.id, sessions]
   )
-  const assignedClientPagination = usePagination(filteredAssignedClients, `${trainer.id}|${assignedQuery}|${assignedType}|${assignedFrequency}`)
-  const remainingPagination = usePagination(remaining, `${trainer.id}|${deactivateOpen}`)
+  const assignedClientPagination = usePagination(filteredAssignedClients, `${trainer.id}|${assignedQuery}|${assignedType}|${assignedFrequency}`, 'trainer.assignedPage')
+  const remainingPagination = usePagination(remaining, `${trainer.id}|${deactivateOpen}`, 'trainer.reassignmentPage')
 
   const selectableReplacements = activeTrainers(trainers).filter(item => item.id !== trainer.id)
   const allAssigned = remaining.every(session => replacements[session.id])

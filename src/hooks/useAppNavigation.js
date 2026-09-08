@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useEditGuard } from '../components/EditGuardProvider.jsx'
 
 const cleanPath = value => String(value || 'dashboard').replace(/^\/+|\/+$/g, '') || 'dashboard'
@@ -13,38 +13,64 @@ function readEntry(fallbackDepth = 0) {
 }
 
 /** One owner for page history, including native Back/Forward during an edit. */
-export default function useAppNavigation() {
+export default function useAppNavigation(userId = '') {
   const { activeEdit, guardNavigation } = useEditGuard()
-  const [path, setPath] = useState(locationPath)
+  const [entry, setEntry] = useState(() => readEntry())
+  const path = entry.path
   const current = useRef(null)
   const pending = useRef(null)
   const lastEvent = useRef('')
   const allowedTraversal = useRef(false)
+  const restoringScroll = useRef(false)
+  const scrollPositions = useRef(new Map())
+  const persistScroll = useRef(() => {})
   const live = useRef({ activeEdit, guardNavigation })
   live.current = { activeEdit, guardNavigation }
 
-  const write = useCallback((next, replace = false) => {
+  const write = useCallback((next, replace = false, preserveView = false) => {
+    persistScroll.current()
     const nextPath = cleanPath(next)
     const depth = (history.state?.fitfinityDepth ?? current.current?.depth ?? 0) + (replace ? 0 : 1)
-    const state = { fitfinity: true, fitfinityDepth: depth, fitfinityPath: nextPath }
+    const state = { fitfinity: true, fitfinityDepth: depth, fitfinityPath: nextPath, fitfinityUserId: userId }
+    if (preserveView && history.state?.fitfinityUserId === userId) {
+      state.fitfinityPageState = history.state.fitfinityPageState
+      state.fitfinityScroll = history.state.fitfinityScroll
+    }
     history[replace ? 'replaceState' : 'pushState'](state, '', `#/${nextPath}`)
     current.current = { path: nextPath, depth, state }
+    scrollPositions.current.delete(token(current.current))
+    restoringScroll.current = true
     lastEvent.current = token(current.current)
-    setPath(nextPath)
-  }, [])
+    setEntry(current.current)
+  }, [userId])
 
-  useEffect(() => {
+  const setValue = useCallback((key, next, initialValue) => {
+    if (pending.current) return
+    const actual = readEntry()
+    if (actual.path !== current.current?.path) return
+    const values = actual.state?.fitfinityUserId === userId ? actual.state.fitfinityPageState ?? {} : {}
+    const previous = Object.hasOwn(values, key) ? values[key] : initialValue
+    const value = typeof next === 'function' ? next(previous) : next
+    if (Object.hasOwn(values, key) && Object.is(previous, value)) return
+    const state = { ...actual.state, fitfinityUserId: userId, fitfinityPageState: { ...values, [key]: value } }
+    history.replaceState(state, '', location.href)
+    current.current = { ...actual, state }
+    setEntry(current.current)
+  }, [userId])
+
+  useLayoutEffect(() => {
     let mounted = true
     const initial = readEntry()
     initial.state ??= { fitfinity: true, fitfinityDepth: initial.depth, fitfinityPath: initial.path }
     history.replaceState(initial.state, '', location.href)
     current.current = initial
     // The hash may change between the first render and this effect (notably during startup).
-    setPath(initial.path)
+    setEntry(initial)
 
     const accept = entry => {
+      restoringScroll.current = true
       current.current = entry
-      setPath(entry.path)
+      setEntry(entry)
     }
     const restore = (origin, entry) => {
       const delta = origin.depth - entry.depth
@@ -107,6 +133,55 @@ export default function useAppNavigation() {
     }
   }, [])
 
+  useEffect(() => {
+    const previous = history.scrollRestoration
+    history.scrollRestoration = 'manual'
+    let timer
+    const capture = () => {
+      if (restoringScroll.current || pending.current || document.body.style.position === 'fixed') return
+      const actual = readEntry()
+      if (actual.path !== current.current?.path) return
+      const position = { x: window.scrollX, y: window.scrollY }
+      scrollPositions.current.set(token(actual), position)
+      return { actual, position }
+    }
+    persistScroll.current = () => {
+      clearTimeout(timer)
+      const captured = capture()
+      if (!captured) return
+      const { actual, position } = captured
+      if (actual.state?.fitfinityScroll?.x === position.x && actual.state?.fitfinityScroll?.y === position.y) return
+      const state = { ...actual.state, fitfinityUserId: userId, fitfinityScroll: position }
+      history.replaceState(state, '', location.href)
+      current.current = { ...actual, state }
+    }
+    const rememberScroll = () => {
+      capture()
+      clearTimeout(timer)
+      timer = setTimeout(() => persistScroll.current(), 500)
+    }
+    window.addEventListener('scroll', rememberScroll, { passive: true })
+    window.addEventListener('pagehide', persistScroll.current)
+    return () => {
+      clearTimeout(timer); history.scrollRestoration = previous
+      window.removeEventListener('scroll', rememberScroll)
+      window.removeEventListener('pagehide', persistScroll.current)
+      persistScroll.current = () => {}
+    }
+  }, [userId])
+
+  const entryToken = token(entry)
+  useLayoutEffect(() => {
+    restoringScroll.current = true
+    let secondFrame
+    const firstFrame = requestAnimationFrame(() => {
+      const position = scrollPositions.current.get(entryToken) ?? (entry.state?.fitfinityUserId === userId ? entry.state.fitfinityScroll : null)
+      if (document.body.style.position !== 'fixed') window.scrollTo(position?.x ?? 0, position?.y ?? 0)
+      secondFrame = requestAnimationFrame(() => { restoringScroll.current = false })
+    })
+    return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame) }
+  }, [entryToken, userId])
+
   // A message popup can add a same-page history entry without changing App's path.
   useEffect(() => {
     if (activeEdit && !pending.current) {
@@ -117,12 +192,13 @@ export default function useAppNavigation() {
 
   const navigate = useCallback((next, options = {}) => {
     if (pending.current) return Promise.resolve(false)
-    return guardNavigation(() => write(next, options.replace))
+    return guardNavigation(() => write(next, options.replace, options.preserveView))
   }, [guardNavigation, write])
 
   const goBack = useCallback(fallback => {
     if (pending.current) return Promise.resolve(false)
     return guardNavigation(() => {
+      persistScroll.current()
       if ((history.state?.fitfinityDepth ?? 0) > 0) {
         allowedTraversal.current = true
         history.back()
@@ -131,5 +207,6 @@ export default function useAppNavigation() {
   }, [guardNavigation, write])
 
   const replacePath = useCallback(next => write(next, true), [write])
-  return { path, navigate, goBack, replacePath }
+  const values = entry.state?.fitfinityUserId === userId ? entry.state.fitfinityPageState ?? {} : {}
+  return { path, navigate, goBack, replacePath, pageState: { values, setValue } }
 }

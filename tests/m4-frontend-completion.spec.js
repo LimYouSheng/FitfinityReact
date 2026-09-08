@@ -128,52 +128,115 @@ test.describe('M4 signed-out account flows',()=>{
   })
 })
 
-test('M4 calendars show five scoped previews and a visible overflow action opens every session', async ({ page }) => {
+test('M4 Oracle calendars show owner counts, every trainer weekly row and grouped complete day popups', async ({ page }) => {
   await page.addInitScript(({ key, data }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data))
   }, { key: database, data: withBusyCalendar(seed) })
   await page.goto('/#/dashboard')
-  await page.getByLabel('Calendar date').fill('2026-09-02')
-  await expect(page.getByRole('button', { name: 'Show 9 more sessions for 2026-09-02' })).toHaveText('+9 more')
-  await selectDemoIdentity(page, 'u-marcus')
-  await page.getByLabel('Calendar date').fill('2026-09-02')
-  for (const mode of ['Weekly', 'Monthly']) {
-    await page.getByRole('button', { name: mode, exact: true }).click()
-    const date = page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true })
-    const busy = page.locator('.calendar-day').filter({ has: date })
-    await expect(date.locator('.calendar-date-action')).toBeVisible()
-    await expect(date).toHaveAttribute('aria-haspopup', 'dialog')
-    await expect(date).toContainText('8 sessions')
-    expect((await date.boundingBox()).height).toBeGreaterThanOrEqual(44)
-    await expect(busy.locator('.calendar-event strong')).toHaveText(['08:00–09:00', '09:00–10:00', '10:00–11:00', '11:00–12:00', '12:00–13:00'])
-    const exact = page.locator('.calendar-day').filter({ has: page.getByRole('button', { name: 'Show sessions for 2026-09-03', exact: true }) })
-    await expect(exact.locator('.calendar-event')).toHaveCount(5)
-    await expect(exact.locator('.calendar-more')).toHaveCount(0)
-    const empty = page.locator('.calendar-day').filter({ has: page.getByRole('button', { name: 'Show sessions for 2026-09-04', exact: true }) })
-    await expect(empty.locator('.calendar-event, .calendar-more')).toHaveCount(0)
-    const more = busy.getByRole('button', { name: 'Show 3 more sessions for 2026-09-02' })
-    await expect(more).toBeVisible()
-    await expect(more).toHaveText('+3 more')
-    if (mode === 'Monthly' && page.viewportSize().width <= 780) {
-      await expect(busy.locator('.calendar-day-events')).toBeHidden()
-    } else {
-      expect((await more.boundingBox()).y).toBeGreaterThan((await busy.locator('.calendar-event').last().boundingBox()).y)
+  await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible()
+  for (const [identity, total] of [['u-owner', 14], ['u-marcus', 8]]) {
+    if (identity === 'u-marcus') await selectDemoIdentity(page, identity)
+    await page.getByLabel('Calendar date').fill('2026-09-02')
+    await page.getByLabel('Calendar date').blur()
+    await expect(page.getByLabel('Calendar date')).toHaveValue('2026-09-02')
+    for (const mode of ['Weekly', 'Monthly']) {
+      await page.getByRole('button', { name: mode, exact: true }).click()
+      const date = page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true })
+      const busy = page.locator('.calendar-day').filter({ has: date })
+      const trainerWeek = identity === 'u-marcus' && mode === 'Weekly'
+      await expect(date).toHaveAttribute('aria-haspopup', 'dialog')
+      expect((await date.boundingBox()).height).toBeGreaterThanOrEqual(44)
+      await expect(page.locator('.calendar-more')).toHaveCount(0)
+      if (trainerWeek) {
+        await expect(busy.locator('.calendar-event strong')).toHaveText(['08:00–09:00', '09:00–10:00', '10:00–11:00', '11:00–12:00', '12:00–13:00', '13:00–14:00', '14:00–15:00', '15:00–16:00'])
+        const rows = busy.locator('.calendar-event')
+        for (const row of await rows.all()) {
+          await expect(row).toBeVisible()
+          const time = await row.locator('strong').boundingBox()
+          const client = await row.locator('.calendar-event-client').boundingBox()
+          expect(Math.abs(time.y + time.height / 2 - client.y - client.height / 2)).toBeLessThanOrEqual(1)
+          expect(client.x).toBeGreaterThanOrEqual(time.x + time.width)
+        }
+        await rows.last().click()
+        await expect(page).toHaveURL(/#\/sessions\/busy-7$/)
+        await expect(page.getByRole('button', { name: 'Client Signature', exact: true })).toBeVisible()
+        await page.goBack()
+        await expect(page.getByRole('button', { name: 'Weekly', exact: true })).toHaveAttribute('aria-pressed', 'true')
+        await expect(page.getByLabel('Calendar date')).toHaveValue('2026-09-02')
+      } else {
+        await expect(date).toHaveText(String(total))
+        await expect(page.locator('.calendar-grid .calendar-event')).toHaveCount(0)
+        const layout = await page.locator('.calendar-grid').evaluate(grid => {
+          const cells = [...grid.children].slice(0, 7).map(cell => cell.getBoundingClientRect())
+          return { top: cells.map(cell => cell.top), left: cells[0].left, right: cells.at(-1).right, width: innerWidth }
+        })
+        expect(Math.max(...layout.top) - Math.min(...layout.top)).toBeLessThanOrEqual(1)
+        expect(layout.left).toBeGreaterThanOrEqual(0)
+        expect(layout.right).toBeLessThanOrEqual(layout.width)
+      }
+      const emptyDate = page.getByRole('button', { name: 'Show sessions for 2026-09-04', exact: true })
+      if (trainerWeek) await expect(page.locator('.calendar-day').filter({ has: emptyDate })).toContainText('No sessions')
+      else await expect(emptyDate).toHaveText('0')
+      const ratios = await busy.evaluate(day => {
+        const rgba = value => value.match(/[\d.]+/g).map(Number)
+        const background = element => {
+          if (!element) return [255, 255, 255]
+          const [r, g, b, a = 1] = rgba(getComputedStyle(element).backgroundColor)
+          if (a === 1) return [r, g, b]
+          const behind = background(element.parentElement)
+          return [r, g, b].map((value, index) => value * a + behind[index] * (1 - a))
+        }
+        const luminance = rgb => {
+          const channels = rgb.slice(0, 3).map(value => {
+            const channel = value / 255
+            return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+          })
+          return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+        }
+        return [...day.querySelectorAll('.calendar-date strong, .calendar-day-head, .calendar-agenda-date, .calendar-event strong, .calendar-event-client')].map(element => {
+          const foreground = luminance(rgba(getComputedStyle(element).color))
+          const surface = luminance(background(element))
+          return (Math.max(foreground, surface) + 0.05) / (Math.min(foreground, surface) + 0.05)
+        })
+      })
+      expect(Math.min(...ratios)).toBeGreaterThanOrEqual(4.5)
+      await date.click()
+      const dialog = page.getByRole('dialog', { name: 'Calendar sessions' })
+      await expect(dialog.locator('.calendar-event')).toHaveCount(total)
+      if (identity === 'u-owner') {
+        const groups = dialog.locator('.calendar-trainer-group')
+        await expect(groups).toHaveCount(2)
+        await expect(groups.nth(0).getByRole('heading')).toHaveText(seed.trainers.find(trainer => trainer.id === 't1').name)
+        await expect(groups.nth(0).locator('.calendar-event')).toHaveCount(8)
+        await expect(groups.nth(1).locator('.calendar-event')).toHaveCount(6)
+      } else {
+        await expect(dialog.locator('.calendar-trainer-group')).toHaveCount(0)
+        await expect(dialog.locator('.calendar-event').last()).toContainText('15:00–16:00')
+      }
+      await page.getByRole('button', { name: 'Close calendar sessions' }).click()
+      await expect(dialog).toHaveCount(0)
     }
-    await more.click()
-    const dialog = page.getByRole('dialog', { name: 'Calendar sessions' })
-    await expect(dialog.locator('.calendar-event')).toHaveCount(8)
-    await expect(dialog.locator('.calendar-event').last()).toContainText('15:00–16:00')
-    await page.getByRole('button', { name: 'Close calendar sessions' }).click()
-    await expect(dialog).toHaveCount(0)
   }
-  await page.getByRole('button', { name: 'Show 3 more sessions for 2026-09-02' }).click()
+  await page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true }).click()
   await page.getByRole('dialog', { name: 'Calendar sessions' }).locator('.calendar-event').last().click()
   await expect(page).toHaveURL(/#\/sessions\/busy-7$/)
   await expect(page.getByRole('button', { name: 'Client Signature', exact: true })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('button', { name: 'Monthly', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByLabel('Calendar date')).toHaveValue('2026-09-02')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
+  const original = page.viewportSize()
+  for (const width of [320, 900, original.width]) {
+    await page.setViewportSize({ ...original, width })
+    await expect(page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true })).toHaveText('8')
+    await expect(page.locator('.calendar-grid .calendar-event')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Weekly', exact: true }).click()
+    const busy = page.locator('.calendar-day').filter({ has: page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true }) })
+    await expect(busy.locator('.calendar-event')).toHaveCount(8)
+    await expect(busy.locator('.calendar-event').last()).toBeVisible()
+    await expect(page.getByLabel('Calendar date')).toHaveValue('2026-09-02')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
+    await page.getByRole('button', { name: 'Monthly', exact: true }).click()
+  }
 })
 
 test('M4 calendar date popup closes with browser Back and reopens an empty day without restoring a daily dashboard', async ({ page }) => {

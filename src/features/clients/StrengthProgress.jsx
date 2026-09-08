@@ -1,6 +1,10 @@
-import { useMemo, useState } from 'react'
+import usePageState from '../../hooks/usePageState.js'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
-import { formatDate } from '../../utils/date.js'
+import { PROGRESS_REPORT_ACTIONS } from '../../app/progress.js'
+import PaginationControls from '../../components/PaginationControls.jsx'
+import usePagination from '../../hooks/usePagination.js'
+import { formatDate, formatTimestamp } from '../../utils/date.js'
 import { progressReportCsv, progressReportFilename, progressReportWhatsAppText } from './progressReport.js'
 
 const CHART = { left: 58, right: 870, top: 30, bottom: 232 }
@@ -32,29 +36,96 @@ function chartPoints(exercise) {
   }))
 }
 
-export default function StrengthProgress({ client }) {
+export default function StrengthProgress({ client, user, timeZone, onRecordAction, onLoadHistory }) {
   const exercises = client.strengthProgress ?? []
-  const [selectedId, setSelectedId] = useState(exercises[0]?.id ?? '')
+  const [selectedId, setSelectedId] = usePageState('StrengthProgress.selectedId', exercises[0]?.id ?? '')
   const selected = exercises.find(exercise => exercise.id === selectedId) ?? exercises[0]
   const points = useMemo(() => selected ? chartPoints(selected) : [], [selected])
 
-  const exportReport = () => {
+  const owner = user?.role === 'owner'
+  const [historyOpen, setHistoryOpen] = usePageState(`client.${client.id}.reportHistoryOpen`, false)
+  const [historyState, setHistoryState] = useState({ items: [], loading: false, error: '' })
+  const [historyRevision, setHistoryRevision] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const [unsavedAction, setUnsavedAction] = useState(null)
+  const acting = useRef(false)
+  const historyPages = usePagination(historyState.items, client.id, `client.${client.id}.reportHistoryPage`)
+
+  useEffect(() => {
+    if (!owner || !historyOpen) return
+    let current = true
+    setHistoryState(previous => ({ ...previous, loading: true, error: '' }))
+    Promise.resolve().then(() => onLoadHistory()).then(items => {
+      if (current) setHistoryState({ items, loading: false, error: '' })
+    }).catch(error => {
+      if (current) setHistoryState({ items: [], loading: false, error: error.message || 'Could not load report history.' })
+    })
+    return () => { current = false }
+  }, [owner, historyOpen, client.id, onLoadHistory, historyRevision])
+
+  const saveHistory = async action => {
+    try {
+      await onRecordAction(action)
+      setUnsavedAction(null)
+      setActionError('')
+      setHistoryRevision(current => current + 1)
+    } catch {
+      setUnsavedAction(action)
+      setActionError(`${PROGRESS_REPORT_ACTIONS[action.kind]} started, but its history could not be saved.`)
+    }
+  }
+  const recordAction = async (kind, launch) => {
+    if (acting.current || unsavedAction) return
+    acting.current = true
+    setBusy(true)
+    setActionError('')
+    try {
+      const action = { id: `report-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`, kind }
+      // Launch synchronously while browser user activation is still available.
+      launch()
+      await saveHistory(action)
+    } catch (error) {
+      setActionError(error.message || 'The progress report could not be opened.')
+    } finally { acting.current = false; setBusy(false) }
+  }
+  const retryHistory = async () => {
+    if (acting.current || !unsavedAction) return
+    acting.current = true; setBusy(true)
+    try { await saveHistory(unsavedAction) }
+    finally { acting.current = false; setBusy(false) }
+  }
+  const exportReport = () => recordAction('csv_export', () => {
     const blob = new Blob([`\uFEFF${progressReportCsv(client)}`], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = url
-    link.download = progressReportFilename(client)
-    document.body.append(link)
-    link.click()
-    link.remove()
-    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    try {
+      link.href = url
+      link.download = progressReportFilename(client)
+      document.body.append(link)
+      link.click()
+    } finally {
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    }
+  })
+  const shareReport = event => {
+    event.preventDefault()
+    void recordAction('whatsapp_opened', () => {
+      let popup
+      try {
+        popup = window.open('about:blank', '_blank')
+        if (!popup) throw new Error('blocked')
+        popup.opener = null
+        popup.location.replace(whatsappReportUrl)
+      } catch {
+        popup?.close()
+        throw new Error('WhatsApp could not be opened. Allow pop-ups and try again.')
+      }
+    })
   }
 
-  if (!selected) {
-    return <Panel><div className="empty">No completed exercise loads yet.</div></Panel>
-  }
-
-  const selectedSummary = summary(selected)
+  const selectedSummary = selected ? summary(selected) : null
   const phone = (typeof client.phone === 'string'
     ? client.phone
     : `${client.phone?.countryCode ?? ''}${client.phone?.number ?? ''}`
@@ -65,6 +136,30 @@ export default function StrengthProgress({ client }) {
 
   return (
     <div className="stack-gap strength-progress" aria-label="Strength progress">
+      {owner && <Panel className="report-history-panel">
+        <button type="button" className="text-action" aria-expanded={historyOpen}
+          aria-controls="progress-report-history" onClick={() => setHistoryOpen(open => !open)}>
+          {historyOpen ? 'Hide Export/WhatsApp History' : 'View Export/WhatsApp History'}
+        </button>
+        {historyOpen && <div id="progress-report-history" className="report-history" aria-label="Export/WhatsApp history">
+          {historyState.loading ? <p role="status">Loading history…</p> : historyState.error ? <div role="alert">
+            <p>{historyState.error}</p><button type="button" className="secondary-button" onClick={() => setHistoryRevision(current => current + 1)}>Retry History</button>
+          </div> : <>
+            <div className="report-history-head" aria-hidden="true"><span>Action</span><span>Date &amp; time</span><span>Staff</span></div>
+            {historyPages.items.map(entry => <article className="report-history-row" key={entry.id}>
+              <strong>{PROGRESS_REPORT_ACTIONS[entry.kind]}</strong>
+              <time dateTime={entry.at}>{formatTimestamp(entry.at, timeZone)}</time>
+              <span>{entry.by.name}</span>
+            </article>)}
+            {!historyState.items.length && <p className="empty">No export or WhatsApp history yet.</p>}
+            <PaginationControls {...historyPages} onPage={historyPages.setPage} />
+          </>}
+        </div>}
+      </Panel>}
+      {actionError && <div className="report-action-error" role="alert"><p>{actionError}</p>
+        {unsavedAction && <button type="button" className="secondary-button" disabled={busy} onClick={retryHistory}>Retry History Save</button>}
+      </div>}
+      {!selected ? <Panel><div className="empty">No completed exercise loads yet.</div></Panel> : <>
       <Panel>
         <div className="strength-progress-head">
           <div className="strength-progress-title">
@@ -82,6 +177,7 @@ export default function StrengthProgress({ client }) {
               type="button"
               className="secondary-button strength-progress-export"
               aria-label="Export Progress Report"
+              disabled={busy || Boolean(unsavedAction)}
               onClick={exportReport}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -93,6 +189,8 @@ export default function StrengthProgress({ client }) {
               className="secondary-button strength-progress-share"
               aria-label="Share Progress Report via WhatsApp"
               href={whatsappReportUrl}
+              aria-disabled={busy || Boolean(unsavedAction)}
+              onClick={shareReport}
               target="_blank"
               rel="noreferrer"
             >
@@ -162,13 +260,14 @@ export default function StrengthProgress({ client }) {
               <g key={point.id}>
                 <circle cx={point.x} cy={point.y} r={index === points.length - 1 ? 7 : 5} className={index === points.length - 1 ? 'latest' : ''} />
                 <text x={point.x} y={point.y - 13} textAnchor="middle" className="strength-load-label">{number(point.load)}</text>
-                <text x={point.x} y="258" textAnchor="middle" className="strength-date-label">{formatDate(point.date).replace(' 2026', '')}</text>
+                <text x={point.x} y="258" textAnchor="middle" className="strength-date-label">{formatDate(point.date).replace(/ \d{4}$/, '')}</text>
               </g>
             ))}
           </svg>
         </div>
       </Panel>
 
+      </>}
     </div>
   )
 }

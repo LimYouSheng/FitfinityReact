@@ -6,20 +6,11 @@ async function start(page, width) {
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
 }
 
-test('M4 sidebar sections collapse independently wherever navigation is permanently visible', async ({ page }) => {
+test('M4 sidebar sections start collapsed and toggle independently on every layout', async ({ page }) => {
   await start(page)
   const nav = page.getByRole('navigation', { name: 'Portal navigation' })
   const drawer = page.getByRole('button', { name: 'Open navigation' })
-  if (await drawer.isVisible()) {
-    await drawer.click()
-    await expect(nav.locator('.nav-group-toggle')).toHaveCount(0)
-    await expect(nav.getByRole('button', { name: 'Clients', exact: true })).toBeInViewport()
-    await expect(nav.getByRole('button', { name: 'Content Management', exact: true })).toBeVisible()
-    await nav.getByRole('button', { name: 'Clients', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'All Clients' })).toBeVisible()
-    await expect(page.locator('.sidebar')).not.toHaveClass(/mobile-open/)
-    return
-  }
+  if (await drawer.isVisible()) await drawer.click()
   const operations = nav.getByRole('button', { name: 'Operations section' })
   const system = nav.getByRole('button', { name: 'System section' })
   await expect(operations).toHaveAttribute('aria-expanded', 'false')
@@ -47,8 +38,10 @@ test('M4 crossing the hamburger boundary keeps links accessible and restores col
   await expect(nav.getByRole('button', { name: 'Exercise Library', exact: true })).toBeHidden()
   await page.setViewportSize({ width: 780, height: 1024 })
   await page.getByRole('button', { name: 'Open navigation' }).click()
-  await expect(nav.locator('.nav-group-toggle')).toHaveCount(0)
+  await expect(nav.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
+  await nav.getByRole('button', { name: 'Management section' }).click()
   await expect(nav.getByRole('button', { name: 'Exercise Library', exact: true })).toBeVisible()
+  await nav.getByRole('button', { name: 'Management section' }).click()
   await page.getByRole('button', { name: 'Close navigation', exact: true }).click({ position: { x: 760, y: 200 } })
   await page.setViewportSize({ width: 781, height: 1024 })
   await expect(nav.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')

@@ -16,6 +16,15 @@ export function formatDate(value) {
   return Number.isFinite(date.getTime()) ? DATE_FORMAT.format(date) : '—'
 }
 
+export function formatTimestamp(value, timeZone) {
+  const date = new Date(value)
+  if (!value || !Number.isFinite(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-SG', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    timeZone, timeZoneName: 'short',
+  }).format(date)
+}
+
 export function weekday(value) {
   const date = parseDateOnly(value)
   return Number.isFinite(date.getTime()) ? WEEKDAY_FORMAT.format(date) : '—'

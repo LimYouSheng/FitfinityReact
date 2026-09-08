@@ -4,9 +4,6 @@ import { useActionConfirmation } from './ActionConfirmationProvider.jsx'
 import { useEditGuard } from './EditGuardProvider.jsx'
 import RoleSwitcher from './RoleSwitcher.jsx'
 
-const DRAWER_LAYOUT = '(max-width: 780px)'
-const fixedSidebar = () => !window.matchMedia?.(DRAWER_LAYOUT).matches
-
 const initials = name => (name ?? '')
   .split(/\s+/)
   .filter(Boolean)
@@ -48,21 +45,11 @@ export default function AppShell({
   const { activeEdit } = useEditGuard()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [permanentSidebar, setPermanentSidebar] = useState(fixedSidebar)
   const [expandedGroups, setExpandedGroups] = useState({})
   const previousLocation = useRef({ userId, routePath })
   const profileRef = useRef(null)
 
   const nav = user.role === 'owner' ? OWNER_NAV : TRAINER_NAV
-
-  useEffect(() => {
-    const media = window.matchMedia?.(DRAWER_LAYOUT)
-    if (!media) return
-    const sync = () => setPermanentSidebar(!media.matches)
-    sync()
-    media.addEventListener('change', sync)
-    return () => media.removeEventListener('change', sync)
-  }, [])
 
   useEffect(() => {
     const previous = previousLocation.current
@@ -146,10 +133,10 @@ export default function AppShell({
 
         <nav aria-label="Portal navigation">
           {groups.map(group => {
-            const collapsed = permanentSidebar && !expandedGroups[group.name]
+            const collapsed = !expandedGroups[group.name]
             const id = `portal-nav-${group.name.toLowerCase().replaceAll(' ', '-')}`
             return <div className="nav-group" key={group.name}>
-              {permanentSidebar ? <button
+              <button
                 type="button"
                 className="nav-group-label nav-group-toggle"
                 aria-label={`${group.name} section`}
@@ -159,7 +146,7 @@ export default function AppShell({
               >
                 <span>{group.name}</span>
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
-              </button> : <div className="nav-group-label">{group.name}</div>}
+              </button>
 
               <div className="nav-group-items" id={id} hidden={collapsed}>
               {group.items.map(item => (

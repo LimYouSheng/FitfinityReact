@@ -1,3 +1,4 @@
+import usePageState from '../../hooks/usePageState.js'
 import RequestStatusBadge from './RequestStatusBadge.jsx'
 import RequestReview from './RequestReview.jsx'
 import { requestTypes } from '../../app/requestTypes.js'
@@ -75,9 +76,9 @@ export function MessageInbox({
   const markingUnread = useRef(false)
   const [unreadBusy, setUnreadBusy] = useState(false)
   const [messageError, setMessageError] = useState('')
-  const [query, setQuery] = useState('')
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
+  const [query, setQuery] = usePageState('MessagesPage.query', '')
+  const [fromDate, setFromDate] = usePageState('MessagesPage.fromDate', '')
+  const [toDate, setToDate] = usePageState('MessagesPage.toDate', '')
 
   const userMessages = useMemo(
     () => orderMessages(messages.filter(message => visibleTo(user, message))),

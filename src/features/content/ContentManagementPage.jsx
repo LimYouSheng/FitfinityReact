@@ -1,3 +1,4 @@
+import usePageState from '../../hooks/usePageState.js'
 import { useEffect, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
@@ -54,8 +55,8 @@ function ContentEditor({ entry, onSave, onNavigate }) {
 }
 
 export default function ContentManagementPage({ entries, detailId, onSave, onNavigate }) {
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('')
+  const [query, setQuery] = usePageState('ContentManagementPage.query', '')
+  const [status, setStatus] = usePageState('ContentManagementPage.status', '')
   const visible = entries.filter(entry => (!status || entry.status === status) && `${entry.title} ${entry.key} ${entry.body}`.toLowerCase().includes(query.trim().toLowerCase()))
   const pagination = usePagination(visible, `${query}|${status}`)
   const entry = entries.find(item => item.id === detailId)

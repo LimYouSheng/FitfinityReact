@@ -1,3 +1,4 @@
+import usePageState from '../../hooks/usePageState.js'
 import { useMemo, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
@@ -5,11 +6,11 @@ import { isActive, visibleClientsForUser } from '../../app/status.js'
 import usePagination from '../../hooks/usePagination.js'
 
 export default function ClientsPage({ user, clients, trainers, onOpen, onAdd }) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = usePageState('ClientsPage.query', '')
   const [searchOpen, setSearchOpen] = useState(false)
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('')
-  const [trainerFilter, setTrainerFilter] = useState('')
+  const [statusFilter, setStatusFilter] = usePageState('ClientsPage.statusFilter', 'all')
+  const [typeFilter, setTypeFilter] = usePageState('ClientsPage.typeFilter', '')
+  const [trainerFilter, setTrainerFilter] = usePageState('ClientsPage.trainerFilter', '')
 
   const trainerName = id => trainers.find(trainer => trainer.id === id)?.name ?? '—'
 
@@ -82,7 +83,7 @@ export default function ClientsPage({ user, clients, trainers, onOpen, onAdd }) 
       </div>
 
       <Panel>
-        <div className="list-controls client-controls">
+        <div className={`list-controls client-controls ${user.role === 'trainer' ? 'trainer-client-controls' : ''}`.trim()}>
           <div className="search-suggest-wrap">
             <input
               aria-label="Search client"
@@ -140,20 +141,16 @@ export default function ClientsPage({ user, clients, trainers, onOpen, onAdd }) 
             <option value="Couple">Couple</option>
           </select>
 
-          <select
+          {user.role === 'owner' && <select
             aria-label="Filter clients by trainer"
-            value={user.role === 'owner' ? trainerFilter : user.trainerId}
-            disabled={user.role !== 'owner'}
+            value={trainerFilter}
             onChange={event => setTrainerFilter(event.target.value)}
           >
-            {user.role === 'owner'
-              ? <option value="">All trainers</option>
-              : <option value={user.trainerId}>{trainerName(user.trainerId)}</option>}
-
-            {user.role === 'owner' && trainerOptions.map(trainer => (
+            <option value="">All trainers</option>
+            {trainerOptions.map(trainer => (
               <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
             ))}
-          </select>
+          </select>}
         </div>
 
         <div className="compact-list" aria-label="Client list">

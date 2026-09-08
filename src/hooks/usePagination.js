@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { paginate } from '../app/pagination.js'
+import usePageState from './usePageState.js'
 
-export default function usePagination(items, resetKey = '') {
-  const [page, setPage] = useState(1)
+export default function usePagination(items, resetKey = '', stateKey = 'pagination') {
+  const [saved, setSaved] = usePageState(stateKey, () => ({ resetKey, page: 1 }))
+  const page = saved.resetKey === resetKey ? saved.page : 1
+  const setPage = next => setSaved({ resetKey, page: typeof next === 'function' ? next(page) : next })
 
-  useEffect(() => setPage(1), [resetKey])
+  useEffect(() => {
+    if (saved.resetKey !== resetKey) setSaved({ resetKey, page: 1 })
+  }, [resetKey, saved.resetKey, setSaved])
 
   const result = useMemo(() => paginate(items, page), [items, page])
 

@@ -1,3 +1,4 @@
+import usePageState from '../../hooks/usePageState.js'
 import { COUNTRY_CODES, RELATIONSHIPS, GENDER_PREFERENCES } from '../../app/contact.js'
 import { useEffect, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -89,13 +90,16 @@ export default function ClientProfilePage({
   onOpenSession,
   onBack,
   onUpdate,
+  timeZone,
+  onRecordProgressReport,
+  onLoadProgressReportHistory,
   onSaveFixedWeeklySchedule,
   onDeactivate,
   onReactivate,
 }) {
   const confirmAction = useActionConfirmation()
   const { guardNavigation, setActiveEdit } = useEditGuard()
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = usePageState(`client.${client.id}.tab`, 'overview')
   const [activeEditor, setActiveEditor] = useState(null)
   const [draft, setDraft] = useState(client)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
@@ -103,7 +107,6 @@ export default function ClientProfilePage({
   useEffect(() => {
     setDraft(client)
     setActiveEditor(null)
-    setTab('overview')
   }, [client.id])
 
   useEffect(() => {
@@ -412,6 +415,10 @@ export default function ClientProfilePage({
       {tab !== 'overview' && (
         <ClientProfileTabs
           tab={tab}
+          user={user}
+          timeZone={timeZone}
+          onRecordProgressReport={onRecordProgressReport}
+          onLoadProgressReportHistory={onLoadProgressReportHistory}
           client={client}
           sessions={sessions}
           today={today}

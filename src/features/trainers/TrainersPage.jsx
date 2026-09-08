@@ -1,3 +1,4 @@
+import usePageState from '../../hooks/usePageState.js'
 import { useMemo, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
@@ -5,11 +6,11 @@ import { isActive, visibleTrainersForOwner } from '../../app/status.js'
 import usePagination from '../../hooks/usePagination.js'
 
 export default function TrainersPage({ trainers, onOpen, onAdd }) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = usePageState('TrainersPage.query', '')
   const [searchOpen, setSearchOpen] = useState(false)
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('')
-  const [genderFilter, setGenderFilter] = useState('')
+  const [statusFilter, setStatusFilter] = usePageState('TrainersPage.statusFilter', 'all')
+  const [typeFilter, setTypeFilter] = usePageState('TrainersPage.typeFilter', '')
+  const [genderFilter, setGenderFilter] = usePageState('TrainersPage.genderFilter', '')
 
   const base = useMemo(
     () => visibleTrainersForOwner(trainers),

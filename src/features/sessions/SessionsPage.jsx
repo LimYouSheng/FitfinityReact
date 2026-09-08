@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import usePageState from '../../hooks/usePageState.js'
+import { useMemo } from 'react'
 import Panel from '../../components/Panel.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import { isSessionHistory, sortSessions, visibleSessionsForUser } from '../../app/sessionRules.js'
@@ -7,11 +8,11 @@ import usePagination from '../../hooks/usePagination.js'
 import DateFilterField from '../../components/DateFilterField.jsx'
 
 export default function SessionsPage({ user, sessions, clients, trainers, today, onOpen }) {
-  const [query, setQuery] = useState('')
-  const [period, setPeriod] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
+  const [query, setQuery] = usePageState('SessionsPage.query', '')
+  const [period, setPeriod] = usePageState('SessionsPage.period', 'all')
+  const [statusFilter, setStatusFilter] = usePageState('SessionsPage.statusFilter', '')
+  const [fromDate, setFromDate] = usePageState('SessionsPage.fromDate', '')
+  const [toDate, setToDate] = usePageState('SessionsPage.toDate', '')
 
   const clientName = id => clients.find(client => client.id === id)?.name ?? 'Unknown client'
   const trainerName = id => trainers.find(trainer => trainer.id === id)?.name ?? 'Unknown trainer'

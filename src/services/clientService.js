@@ -1,3 +1,4 @@
+import { PROGRESS_REPORT_ACTIONS } from '../app/progress.js'
 import { selectedPackage } from '../app/packages.js'
 import { applyWeeklySchedule, requireActiveActor, sameSlots, weeklyScheduleChanges } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
@@ -100,6 +101,40 @@ export const clientService = {
     })
 
     return state.clients.find(client => client.id === id)
+  },
+
+  async recordProgressReportAction(id, { id: actionId, kind }, actor) {
+    await delay(180)
+    const state = mockDb.mutate(db => {
+      const staff = requireActiveActor(db, actor)
+      const client = db.clients.find(item => item.id === id)
+      if (!client || (staff.role !== 'owner' && (client.status === 'inactive' || staff.trainerId !== client.trainerId))) throw new Error('This client is unavailable for your account.')
+      if (typeof actionId !== 'string' || !/^[a-zA-Z0-9_-]{1,120}$/.test(actionId) || !Object.hasOwn(PROGRESS_REPORT_ACTIONS, kind)) throw new Error('A valid progress report action is required.')
+      db.progressReportEvents ??= []
+      const existing = db.progressReportEvents.find(event => event.id === actionId)
+      if (existing) {
+        if (existing.clientId !== id || existing.kind !== kind || existing.by.id !== staff.id) throw new Error('This report action ID has already been used.')
+        return
+      }
+      const at = new Date().toISOString()
+      db.progressReportEvents.push({ id: actionId, clientId: id, kind, at, by: { id: staff.id, name: staff.name } })
+      appendSavedEditMessage(db, {
+        clientId: id, trainerId: client.trainerId,
+        title: `Progress report: ${client.name}`,
+        body: `${PROGRESS_REPORT_ACTIONS[kind]} · ${staff.name}`,
+      })
+    })
+    return state.progressReportEvents.find(event => event.id === actionId)
+  },
+
+  async progressReportHistory(id, actor) {
+    await delay()
+    const db = mockDb.read()
+    const staff = requireActiveActor(db, actor)
+    if (staff.role !== 'owner') throw new Error('Report history is available to the owner.')
+    if (!db.clients.some(client => client.id === id)) throw new Error('Client not found')
+    return (db.progressReportEvents ?? []).filter(event => event.clientId === id)
+      .sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id))
   },
 
   async saveFixedWeeklySchedule(id, slots, actor) {

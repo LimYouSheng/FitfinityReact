@@ -72,14 +72,17 @@ it('reveals the destination section and resets collapse state for another accoun
   expect(screen.queryByRole('button', { name: 'Management section' })).not.toBeInTheDocument()
 })
 
-it('keeps hamburger groups expanded and restores the fixed sidebar state after resizing', async () => {
+it('keeps section choices collapsed or expanded consistently across drawer and fixed layouts', async () => {
   const user = userEvent.setup()
   render(shell())
   await user.click(screen.getByRole('button', { name: 'System section' }))
   act(() => media.resize(true))
-  expect(screen.queryByRole('button', { name: / section$/ })).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Exercise Library', exact: true })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByRole('button', { name: 'Exercise Library', exact: true })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Management section' }))
   expect(screen.getByRole('button', { name: 'Content Management', exact: true })).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Management section' }))
   act(() => media.resize(false))
   expect(screen.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
