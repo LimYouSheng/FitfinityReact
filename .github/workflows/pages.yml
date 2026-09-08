@@ -14,7 +14,8 @@ concurrency:
 
 jobs:
   verify-and-build:
-    runs-on: ubuntu-latest
+    # WebKit media coverage targets Safari's macOS implementation.
+    runs-on: macos-15
     timeout-minutes: 30
     permissions:
       contents: read
