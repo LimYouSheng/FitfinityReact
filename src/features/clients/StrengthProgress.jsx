@@ -1,46 +1,20 @@
 import usePageState from '../../hooks/usePageState.js'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import { PROGRESS_REPORT_ACTIONS } from '../../app/progress.js'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import usePagination from '../../hooks/usePagination.js'
-import { formatDate, formatTimestamp } from '../../utils/date.js'
-import { progressReportCsv, progressReportFilename, progressReportWhatsAppText } from './progressReport.js'
+import { formatTimestamp } from '../../utils/date.js'
+import { downloadProgressReport, progressReportFile } from './progressReport.js'
+import ProgressReportShareDialog from './ProgressReportShareDialog.jsx'
 
-const CHART = { left: 58, right: 870, top: 30, bottom: 232 }
-
-function number(value) {
-  return Number.isInteger(value) ? String(value) : String(value).replace(/\.0$/, '')
-}
-
-function summary(exercise) {
-  const first = exercise.points[0]?.load ?? 0
-  const latest = exercise.points.at(-1)?.load ?? 0
-  return { first, latest, change: latest - first }
-}
-
-function chartPoints(exercise) {
-  const values = exercise.points.map(point => point.load)
-  const maximum = Math.max(...values, 1)
-  const minimum = Math.min(...values, 0)
-  const padding = Math.max(5, (maximum - minimum) * 0.25)
-  const low = Math.max(0, minimum - padding)
-  const high = maximum + padding
-  const width = CHART.right - CHART.left
-  const height = CHART.bottom - CHART.top
-
-  return exercise.points.map((point, index) => ({
-    ...point,
-    x: CHART.left + (exercise.points.length === 1 ? width / 2 : (index / (exercise.points.length - 1)) * width),
-    y: CHART.bottom - ((point.load - low) / (high - low || 1)) * height,
-  }))
-}
+import StrengthProgressChart from './StrengthProgressChart.jsx'
+import { progressNumber, progressSummary, progressChange } from './progressChart.js'
 
 export default function StrengthProgress({ client, user, timeZone, onRecordAction, onLoadHistory }) {
   const exercises = client.strengthProgress ?? []
   const [selectedId, setSelectedId] = usePageState('StrengthProgress.selectedId', exercises[0]?.id ?? '')
   const selected = exercises.find(exercise => exercise.id === selectedId) ?? exercises[0]
-  const points = useMemo(() => selected ? chartPoints(selected) : [], [selected])
 
   const owner = user?.role === 'owner'
   const [historyOpen, setHistoryOpen] = usePageState(`client.${client.id}.reportHistoryOpen`, false)
@@ -49,6 +23,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
   const [unsavedAction, setUnsavedAction] = useState(null)
+  const [shareClient, setShareClient] = useState(null)
   const acting = useRef(false)
   const historyPages = usePagination(historyState.items, client.id, `client.${client.id}.reportHistoryPage`)
 
@@ -72,7 +47,8 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
       setHistoryRevision(current => current + 1)
     } catch {
       setUnsavedAction(action)
-      setActionError(`${PROGRESS_REPORT_ACTIONS[action.kind]} started, but its history could not be saved.`)
+      const activity = action.kind === 'pdf_share_opened' ? 'PDF share opened' : `${PROGRESS_REPORT_ACTIONS[action.kind]} started`
+      setActionError(`${activity}, but its history could not be saved.`)
     }
   }
   const recordAction = async (kind, launch) => {
@@ -82,11 +58,13 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
     setActionError('')
     try {
       const action = { id: `report-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`, kind }
-      // Launch synchronously while browser user activation is still available.
-      launch()
+      // Invoke before awaiting so native file sharing retains user activation.
+      await launch()
       await saveHistory(action)
+      return true
     } catch (error) {
-      setActionError(error.message || 'The progress report could not be opened.')
+      if (error.name !== 'AbortError') setActionError(error.message || 'The progress report could not be opened.')
+      return false
     } finally { acting.current = false; setBusy(false) }
   }
   const retryHistory = async () => {
@@ -95,44 +73,19 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
     try { await saveHistory(unsavedAction) }
     finally { acting.current = false; setBusy(false) }
   }
-  const exportReport = () => recordAction('csv_export', () => {
-    const blob = new Blob([`\uFEFF${progressReportCsv(client)}`], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    try {
-      link.href = url
-      link.download = progressReportFilename(client)
-      document.body.append(link)
-      link.click()
-    } finally {
-      link.remove()
-      window.setTimeout(() => URL.revokeObjectURL(url), 0)
-    }
+  const exportReport = () => recordAction('pdf_export', async () => {
+    downloadProgressReport(await progressReportFile(client, { timeZone }))
   })
-  const shareReport = event => {
-    event.preventDefault()
-    void recordAction('whatsapp_opened', () => {
-      let popup
-      try {
-        popup = window.open('about:blank', '_blank')
-        if (!popup) throw new Error('blocked')
-        popup.opener = null
-        popup.location.replace(whatsappReportUrl)
-      } catch {
-        popup?.close()
-        throw new Error('WhatsApp could not be opened. Allow pop-ups and try again.')
-      }
-    })
+  const shareReport = () => {
+    if (acting.current || unsavedAction) return
+    setActionError('')
+    setShareClient(structuredClone(client))
   }
 
-  const selectedSummary = selected ? summary(selected) : null
-  const phone = (typeof client.phone === 'string'
-    ? client.phone
-    : `${client.phone?.countryCode ?? ''}${client.phone?.number ?? ''}`
-  ).replace(/\D/g, '')
-  const whatsappReportUrl = `https://wa.me/${phone}?text=${encodeURIComponent(progressReportWhatsAppText(client))}`
-  const line = points.map(point => `${point.x},${point.y}`).join(' ')
-  const area = `${CHART.left},${CHART.bottom} ${line} ${CHART.right},${CHART.bottom}`
+  const selectedSummary = selected ? progressSummary(selected) : null
+  const actionFeedback = actionError && <div className="report-action-error" role="alert"><p>{actionError}</p>
+    {unsavedAction && <button type="button" className="secondary-button" disabled={busy} onClick={retryHistory}>Retry History Save</button>}
+  </div>
 
   return (
     <div className="stack-gap strength-progress" aria-label="Strength progress">
@@ -156,9 +109,13 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
           </>}
         </div>}
       </Panel>}
-      {actionError && <div className="report-action-error" role="alert"><p>{actionError}</p>
-        {unsavedAction && <button type="button" className="secondary-button" disabled={busy} onClick={retryHistory}>Retry History Save</button>}
-      </div>}
+      {!shareClient && actionFeedback}
+      {shareClient && <ProgressReportShareDialog client={shareClient} timeZone={timeZone} busy={busy} blocked={Boolean(unsavedAction)}
+        onClose={() => setShareClient(null)}
+        onShare={file => recordAction('pdf_share_opened', () => navigator.share({ files: [file] }))}
+        onDownload={file => recordAction('pdf_export', () => downloadProgressReport(file))}>
+        {actionFeedback}
+      </ProgressReportShareDialog>}
       {!selected ? <Panel><div className="empty">No completed exercise loads yet.</div></Panel> : <>
       <Panel>
         <div className="strength-progress-head">
@@ -185,27 +142,25 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
               </svg>
               <span>Export Progress Report</span>
             </button>
-            <a
+            <button
+              type="button"
               className="secondary-button strength-progress-share"
               aria-label="Share Progress Report via WhatsApp"
-              href={whatsappReportUrl}
-              aria-disabled={busy || Boolean(unsavedAction)}
+              disabled={busy || Boolean(unsavedAction)}
               onClick={shareReport}
-              target="_blank"
-              rel="noreferrer"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M20 11.7a8 8 0 0 1-11.9 7L4 20l1.3-4A8 8 0 1 1 20 11.7Z" />
                 <path d="M8.6 8.1c.2-.4.4-.4.7-.4h.3c.2 0 .4.1.5.4l.8 1.8c.1.3.1.5-.1.7l-.6.7c-.2.2-.1.4 0 .6.7 1.3 1.7 2.3 3.1 2.9.3.1.5.1.7-.1l.8-1c.2-.2.4-.3.7-.2l1.8.8c.3.1.4.3.4.5 0 .4-.2 1.2-.6 1.6-.5.5-1.3.8-2.2.7-1.2-.2-2.8-.7-4.7-2.4-1.6-1.4-2.6-3.1-2.9-4.3-.3-1.1 0-1.8.3-2.3Z" />
               </svg>
               <span>WhatsApp</span>
-            </a>
+            </button>
           </div>
         </div>
 
         <div className="strength-progress-cards">
           {exercises.map(exercise => {
-            const exerciseSummary = summary(exercise)
+            const exerciseSummary = progressSummary(exercise)
             return (
               <button
                 type="button"
@@ -214,8 +169,8 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
                 onClick={() => setSelectedId(exercise.id)}
               >
                 <span>{exercise.shortName ?? exercise.name}</span>
-                <strong>{number(exerciseSummary.latest)} <small>kg</small></strong>
-                <em>+{number(exerciseSummary.change)} kg</em>
+                <strong>{progressNumber(exerciseSummary.latest)} <small>kg</small></strong>
+                <em>{progressChange(exerciseSummary.change)} kg</em>
               </button>
             )
           })}
@@ -226,44 +181,16 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
         <div className="strength-chart-summary">
           <div>
             <span>{selected.shortName ?? selected.name}</span>
-            <strong>{number(selectedSummary.latest)} <small>kg</small></strong>
+            <strong>{progressNumber(selectedSummary.latest)} <small>kg</small></strong>
           </div>
           <dl>
-            <div><dt>Change</dt><dd>+{number(selectedSummary.change)} kg</dd></div>
+            <div><dt>Change</dt><dd>{progressChange(selectedSummary.change)} kg</dd></div>
             <div><dt>Completed</dt><dd>{selected.points.length}</dd></div>
           </dl>
         </div>
 
         <div className="strength-chart-scroll">
-          <svg className="strength-chart" viewBox="0 0 900 280" role="img" aria-label={`${selected.name} load progress chart`}>
-            <defs>
-              <linearGradient id="strength-line" x1="0" x2="1">
-                <stop offset="0" stopColor="#ff3e9c" />
-                <stop offset="1" stopColor="#6676ff" />
-              </linearGradient>
-              <linearGradient id="strength-area" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#6676ff" stopOpacity=".25" />
-                <stop offset="1" stopColor="#6676ff" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-
-            {[0, 1, 2, 3, 4].map(index => {
-              const y = CHART.top + ((CHART.bottom - CHART.top) / 4) * index
-              return <line key={index} x1={CHART.left} x2={CHART.right} y1={y} y2={y} className="strength-grid-line" />
-            })}
-
-            <text x="18" y="142" className="strength-axis-title" transform="rotate(-90 18 142)">Load (kg)</text>
-            <polygon points={area} fill="url(#strength-area)" />
-            <polyline points={line} fill="none" stroke="url(#strength-line)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-
-            {points.map((point, index) => (
-              <g key={point.id}>
-                <circle cx={point.x} cy={point.y} r={index === points.length - 1 ? 7 : 5} className={index === points.length - 1 ? 'latest' : ''} />
-                <text x={point.x} y={point.y - 13} textAnchor="middle" className="strength-load-label">{number(point.load)}</text>
-                <text x={point.x} y="258" textAnchor="middle" className="strength-date-label">{formatDate(point.date).replace(/ \d{4}$/, '')}</text>
-              </g>
-            ))}
-          </svg>
+          <StrengthProgressChart exercise={selected} />
         </div>
       </Panel>
 

@@ -9,7 +9,7 @@ import { useNotifications } from '../../components/NotificationProvider.jsx'
 import { formatMoney } from '../../app/remuneration.js'
 import { formatDate } from '../../utils/date.js'
 
-const tones = { Approved: 'green', 'Pending approval': 'amber', 'Needs review': 'red', 'In progress': 'blue' }
+const tones = { Approved: 'green', 'Pending approval': 'amber', 'Pending review': 'red', 'In progress': 'blue' }
 const cycleLabel = cycle => { return `${formatDate(cycle.start)} – ${formatDate(cycle.end)}` }
 function MoneyToggle({ hidden, onClick }) {
   return <button type="button" className="secondary-button remuneration-money-toggle" aria-label={hidden ? 'Show remuneration amounts' : 'Hide remuneration amounts'} aria-pressed={hidden} onClick={onClick}>
@@ -61,9 +61,9 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
     <Totals records={[record]} money={money} />
     {record.changed && <p className="validation-copy" role="alert">Session records changed after approval. This page keeps the approved breakdown; the current records have {record.current.sessions} sessions. The changes need a separate owner review.</p>}
     {approved ? <p className="muted">Approved {formatDate(record.approvedAt.slice(0, 10))}.</p>
-      : !record.closed && <p className="muted">Approval opens on {formatDate(record.cycle.payout)}.</p>}
-    {!approved && record.reviewCount > 0 && <p className="validation-copy" role="alert">{record.reviewCount} session(s) need attention before approval. Check session details and the trainer’s preset rates.</p>}
-    <div className="remuneration-session-list" aria-label="Completed session breakdown">
+      : !record.closed && <p className="muted">Approval opens after {formatDate(record.cycle.end)}.</p>}
+    {!approved && record.closed && record.reviewCount > 0 && <p className="validation-copy" role="alert">{record.reviewCount} session(s) need attention before approval. Check session completion, dates and the trainer’s preset rates.</p>}
+    <div className="remuneration-session-list" aria-label="Cycle session breakdown">
       {pagination.items.map(row => <article className="remuneration-session" key={row.sessionId} data-session-id={row.sessionId}>
         <strong className="remuneration-session-client">{row.clientName}</strong>
         <time className="remuneration-session-date" dateTime={row.date}>{formatDate(row.date)}</time>
@@ -72,7 +72,7 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
           <strong className="remuneration-session-rate">{row.amountCents === null ? '—' : money(row.amountCents)}</strong>
         </div>
       </article>)}
-      {!record.rows.length && <p className="empty">No completed sessions in this cycle.</p>}
+      {!record.rows.length && <p className="empty">No sessions in this cycle.</p>}
     </div>
     <PaginationControls {...pagination} onPage={pagination.setPage} />
     {error && <p role="alert" className="validation-copy">{error}</p>}
@@ -87,7 +87,7 @@ export default function RemunerationPage({ user, views, policy, cycleKey, traine
   const money = cents => hidden ? '••••' : formatMoney(cents, policy)
   const keys = views.map(view => view.key)
   const validKey = keys.includes(cycleKey)
-  const key = validKey ? cycleKey : views[0]?.key
+  const key = validKey ? cycleKey : (views.find(view => view.isCurrent)?.key ?? views[0]?.key)
   const view = views.find(view => view.key === key)
   const records = view?.trainers ?? []
   const selected = trainerId ? records.find(record => record.trainerId === trainerId) : null
@@ -107,7 +107,7 @@ export default function RemunerationPage({ user, views, policy, cycleKey, traine
         <div className="remuneration-table" role="table" aria-label="Trainer remuneration">
           <div className="remuneration-table-head" role="row"><span role="columnheader">Name</span><span role="columnheader">Sessions</span><span role="columnheader">Remuneration</span><span role="columnheader">Status</span><span role="columnheader">View</span></div>
           {pagination.items.map(record => <div className="remuneration-trainer-row" role="row" key={record.trainerId}>
-            <strong role="cell">{record.trainerName}</strong><span role="cell" data-label="Sessions">{record.sessions}</span><span role="cell" data-label="Remuneration">{money(record.amountCents)}{record.reviewCount > 0 && <small>Partial · needs review</small>}</span><span role="cell" data-label="Status"><StatusBadge tone={record.changed ? 'red' : tones[record.status]}>{record.changed ? 'Review changes' : record.status}</StatusBadge></span><span role="cell"><button type="button" className="secondary-button" aria-label={`View remuneration for ${record.trainerName}`} onClick={() => onNavigate(`remuneration/${key}/${record.trainerId}`)}>View</button></span>
+            <strong role="cell">{record.trainerName}</strong><span role="cell" data-label="Sessions">{record.sessions}</span><span role="cell" data-label="Remuneration">{money(record.amountCents)}{record.reviewCount > 0 && <small>Partial</small>}</span><span role="cell" data-label="Status"><StatusBadge tone={tones[record.status]}>{record.status}</StatusBadge>{record.changed && <small>Review changes</small>}</span><span role="cell"><button type="button" className="secondary-button" aria-label={`View remuneration for ${record.trainerName}`} onClick={() => onNavigate(`remuneration/${key}/${record.trainerId}`)}>View</button></span>
           </div>)}
         </div>
         {!records.length && <p className="empty">No trainer remuneration in this cycle.</p>}

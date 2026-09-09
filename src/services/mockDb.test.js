@@ -32,3 +32,21 @@ it('leaves the current state untouched when a mutation or serialization fails', 
   expect(mockDb.read()).toEqual(before)
   expect(localStorage.getItem(KEY)).toBe(stored)
 })
+
+it('preserves explicit WhatsApp nulls and zero counts across reloads and migrates only absent legacy fields', () => {
+  const legacyTime = '2026-08-20T12:00:00Z'
+  mockDb.mutate(db => {
+    db.sessions = [
+      { id: 'empty', whatsappOpenedAt: null, whatsappOpenCount: 0 },
+      { id: 'current', whatsappOpenedAt: null, whatsappOpenCount: 0, whatsappSentAt: legacyTime, whatsappSendCount: 2 },
+      { id: 'legacy', whatsappSentAt: legacyTime, whatsappSendCount: 2 },
+      { id: 'absent' },
+    ]
+  })
+  const stored = mockDb.read().sessions
+  const expected = stored.map(session => session.id === 'legacy' ? { ...session, whatsappOpenedAt: legacyTime, whatsappOpenCount: 2 } : session)
+  expect(mockDb.reload().sessions).toEqual(expected)
+  mockDb.mutate(db => { db.unrelatedUpdate = true })
+  expect(mockDb.reload().sessions).toEqual(expected)
+  expect(JSON.parse(localStorage.getItem(KEY)).sessions).toEqual(expected)
+})

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import { formatTimestamp } from '../../utils/date.js'
 import {
   compressVideoSilently,
   exerciseVideoCaption,
@@ -16,7 +17,7 @@ const browserCanProcessVideo = () => Boolean(
   globalThis.MediaRecorder && globalThis.HTMLCanvasElement?.prototype?.captureStream,
 )
 
-export default function ExerciseVideoDialog({ open, sessionId, exercise, editable = true, onLoad, onCancel, onSaved, onRemoved }) {
+export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercise, editable = true, onLoad, onCancel, onSaved, onRemoved }) {
   const processing = useRef(null)
   const committing = useRef(false)
   const [mode, setMode] = useState('choose')
@@ -27,7 +28,10 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
   const [compressionProgress, setCompressionProgress] = useState(0)
 
   useEffect(() => {
-    if (!open || !exercise) return undefined
+    if (!open || !exercise) {
+      setPreviewUrl('')
+      return undefined
+    }
     let cancelled = false
     setMode('choose')
     setCandidate(null)
@@ -38,7 +42,9 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
 
     if (exercise.videoAttached) {
       onLoad().then(blob => {
-        if (!cancelled && blob) setPreviewUrl(URL.createObjectURL(blob))
+        if (cancelled) return
+        if (blob) setPreviewUrl(URL.createObjectURL(blob))
+        else setError('The saved video is no longer available.')
       }).catch(failure => { if (!cancelled) setError(failure.message || 'The stored video could not be loaded.') })
     }
 
@@ -60,7 +66,7 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
   const chooseVideoFile = async (event, source) => {
     const file = event.target.files?.[0]
     event.target.value = ''
-    if (!file) return
+    if (!file || !editable) return
     setError('')
     processing.current?.abort()
     const operation = new AbortController()
@@ -145,7 +151,7 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
 
 
   const saveVideo = async () => {
-    if (!candidate || committing.current) return
+    if (!editable || !candidate || committing.current) return
     committing.current = true
     setSaving(true)
     try {
@@ -158,7 +164,6 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
         caption,
         audioIncluded: candidate.processed ? false : null,
         processingStatus: candidate.processed ? 'complete' : 'deferred',
-        attachedAt: new Date().toISOString(),
       })
       onCancel()
     } catch (saveError) {
@@ -170,7 +175,7 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
   }
 
   const removeVideo = async () => {
-    if (committing.current) return
+    if (!editable || committing.current) return
     committing.current = true
     setSaving(true)
     try {
@@ -193,7 +198,7 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
       title={`Video · ${exercise.name}`}
       confirmLabel={removing ? (saving ? 'Removing…' : 'Remove Video') : (saving ? 'Saving…' : 'Save Video')}
       confirmDisabled={saving || (!removing && !candidate)}
-      hideConfirm={!candidate && !removing}
+      hideConfirm={!editable || (!candidate && !removing)}
       danger={removing}
       onCancel={() => { if (!committing.current) { processing.current?.abort(); onCancel() } }}
       onConfirm={removing ? removeVideo : saveVideo}
@@ -253,7 +258,10 @@ export default function ExerciseVideoDialog({ open, sessionId, exercise, editabl
           )}
 
           {error && <p className="validation-copy" role="alert">{error}</p>}
-          <p className="helper">Maximum 1 minute · Under 5 MB · Final video is silent</p>
+          {!candidate && exercise.video?.expiresAt && (
+            <p>Available until <time dateTime={exercise.video.expiresAt}>{formatTimestamp(exercise.video.expiresAt, timeZone)}</time></p>
+          )}
+          {editable && <p className="helper">Maximum 1 minute · Under 5 MB · Final video is silent</p>}
 
           {editable && exercise.videoAttached && !candidate && (
             <button type="button" className="text-action exercise-video-remove" onClick={() => setMode('remove')}>Remove saved video</button>

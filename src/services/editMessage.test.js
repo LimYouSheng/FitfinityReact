@@ -5,6 +5,8 @@ import { mockDb } from './mockDb.js'
 import { sessionService } from './sessionService.js'
 import { trainerService } from './trainerService.js'
 
+const acknowledgementActor = () => mockDb.read().users.find(user => user.role === 'owner')
+
 describe('saved edit messages', () => {
   beforeEach(() => {
     // Keep the schedule-change fixture before its seeded future sessions.
@@ -42,7 +44,7 @@ describe('saved edit messages', () => {
     await sessionService.saveExercisePlan('s1', [{ id: 'e1', name: 'Goblet Squat', weight: '8 kg', reps: '8', rounds: '2', rest: '60 sec', customDetails: [] }])
     await sessionService.saveOutcome('s1', { durationMinutes: 60, trainerComments: 'Good control.' })
     await sessionService.saveClientSummary('s1', 'Strong session.')
-    await sessionService.acknowledge('s1', { method: 'signature', signerName: 'Amanda Lim', signature: signatureFixture })
+    await sessionService.acknowledge('s1', { method: 'signature', signerName: 'Amanda Lim', signature: signatureFixture }, acknowledgementActor())
 
     const messages = mockDb.read().messages.filter(message => message.sessionId === 's1' && message.kind === 'saved_edit')
     expect(messages.map(message => message.title)).toEqual(expect.arrayContaining([

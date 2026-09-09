@@ -4,6 +4,16 @@ import { migrateRenewalMessages } from '../app/renewals.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
 const clone = value => JSON.parse(JSON.stringify(value))
 
+function normalizeSession(session) {
+  const normalized = { ...session }
+  // Migrate only absent fields. An explicit null means no handoff occurred;
+  // it must not disappear or revive an obsolete legacy timestamp on reload.
+  for (const [current, legacy] of [['whatsappOpenedAt', 'whatsappSentAt'], ['whatsappOpenCount', 'whatsappSendCount']]) {
+    if (!Object.hasOwn(normalized, current) && Object.hasOwn(session, legacy)) normalized[current] = session[legacy]
+  }
+  return normalized
+}
+
 function load() {
   let loaded
   try {
@@ -12,7 +22,7 @@ function load() {
   } catch {
     return clone(seed)
   }
-  const normalized = { ...loaded, settings: { ...clone(seed.settings), ...loaded.settings }, exerciseLibrary: loaded.exerciseLibrary ?? clone(seed.exerciseLibrary), contentEntries: loaded.contentEntries ?? [], packages: loaded.packages ?? clone(seed.packages), sessions: (loaded.sessions ?? []).map(session => ({ ...session, whatsappOpenedAt: session.whatsappOpenedAt ?? session.whatsappSentAt, whatsappOpenCount: session.whatsappOpenCount ?? session.whatsappSendCount })) }
+  const normalized = { ...loaded, settings: { ...clone(seed.settings), ...loaded.settings }, exerciseLibrary: loaded.exerciseLibrary ?? clone(seed.exerciseLibrary), contentEntries: loaded.contentEntries ?? [], packages: loaded.packages ?? clone(seed.packages), sessions: (loaded.sessions ?? []).map(normalizeSession) }
   // A legacy-data migration must persist successfully before it is published to the UI.
   if (migrateRenewalMessages(normalized)) localStorage.setItem(KEY, JSON.stringify(normalized))
   return normalized

@@ -3,9 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockDb } from './mockDb.js'
 import { sessionService } from './sessionService.js'
 
+const acknowledgementActor = () => mockDb.read().users.find(user => user.role === 'owner')
+
 describe('session service', () => {
-  beforeEach(() => mockDb.reset())
-  afterEach(() => vi.useRealTimers())
+  beforeEach(() => {
+    mockDb.reset()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-09T04:00:00Z'))
+  })
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
   it('saves a valid plan and changes Not Planned to Planned', async () => {
     await sessionService.saveExercisePlan('s2', [{
@@ -29,9 +35,22 @@ describe('session service', () => {
     expect(session.exercisePlan[0].id).not.toBe('exercise-s0-1')
   })
 
-  it('debits one package credit for a normal acknowledgement and never debits twice', async () => {
-    await sessionService.acknowledge('s1', { method: 'signature', signerName: 'Amanda Lim', signature: signatureFixture })
-    await sessionService.acknowledge('s1', { method: 'late_no_show', note: 'Converted record' })
+  it('preserves a client signature and timestamp permanently, with a write-free retry and one debit', async () => {
+    const input = { method: 'signature', signerName: 'Amanda Lim', signature: signatureFixture }
+    const actor = acknowledgementActor()
+    const original = await sessionService.acknowledge('s1', input, actor)
+    const saved = mockDb.read()
+    const persist = vi.spyOn(Storage.prototype, 'setItem')
+    vi.setSystemTime(new Date('2026-09-10T04:00:00Z'))
+    expect(await sessionService.acknowledge('s1', input, actor)).toEqual(original)
+    for (const replacement of [
+      { method: 'late_no_show', note: 'Pressed incorrectly' },
+      { ...input, signerName: 'Someone else' },
+      { ...input, note: 'Replacement note' },
+      { ...input, signature: signatureFixture.map(stroke => stroke.map(point => ({ ...point, x: point.x + 1 }))) },
+    ]) await expect(sessionService.acknowledge('s1', replacement, actor)).rejects.toThrow(/preserv|permanent|already|replac|chang|irreversible/i)
+    expect(persist).not.toHaveBeenCalled()
+    expect(mockDb.reload()).toEqual(saved)
 
     const db = mockDb.read()
     const session = db.sessions.find(item => item.id === 's1')
@@ -39,17 +58,62 @@ describe('session service', () => {
     const debits = db.packageCreditTransactions.filter(item => item.sessionId === 's1')
 
     expect(session.status).toBe('completed')
-    expect(session.acknowledgement.method).toBe('late_no_show')
+    expect(session.acknowledgement).toMatchObject({
+      ...input, recordedAt: '2026-09-09T04:00:00.000Z',
+      recordedBy: { id: actor.id, name: actor.name, role: actor.role },
+    })
+    expect(session.acknowledgementHistory).toEqual([session.acknowledgement])
     expect(client.package.used).toBe(4)
     expect(debits).toHaveLength(1)
   })
 
-  it('completes late/no-show without requiring a signature', async () => {
-    const result = await sessionService.acknowledge('s2', { method: 'late_no_show' })
+  it('completes a no-show and permits only correction to a signature with immutable timestamped evidence', async () => {
+    const actor = mockDb.read().users.find(user => user.id === 'u-marcus')
+    const input = { method: 'late_no_show', note: 'Client did not arrive' }
+    const result = await sessionService.acknowledge('s2', input, actor)
 
     expect(result.session.status).toBe('completed')
     expect(result.session.acknowledgement.signerName).toBe('')
     expect(result.transactions).toHaveLength(1)
+    const original = structuredClone(result.session.acknowledgement)
+    expect(original).toMatchObject({
+      recordedAt: '2026-09-09T04:00:00.000Z',
+      recordedBy: { id: 'u-marcus', name: 'Marcus Tan', role: 'trainer' },
+    })
+    const saved = mockDb.read()
+    const persist = vi.spyOn(Storage.prototype, 'setItem')
+    vi.setSystemTime(new Date('2026-09-09T04:10:00Z'))
+    expect(await sessionService.acknowledge('s2', input, actor)).toEqual(result)
+    await expect(sessionService.acknowledge('s2', { ...input, note: 'Erase prior note' }, actor)).rejects.toThrow()
+    expect(persist).not.toHaveBeenCalled()
+    expect(mockDb.read()).toEqual(saved)
+    const correction = { method: 'signature', signerName: 'Amanda Lim', signature: signatureFixture, note: 'Recorded no-show by mistake' }
+    persist.mockImplementationOnce(() => { throw new Error('Storage full') })
+    await expect(sessionService.acknowledge('s2', correction, actor)).rejects.toThrow('Storage full')
+    expect(mockDb.reload()).toEqual(saved)
+    const corrected = await sessionService.acknowledge('s2', correction, actor)
+    expect(corrected.session.acknowledgementHistory).toEqual([original, corrected.session.acknowledgement])
+    expect(corrected.session.acknowledgement).toMatchObject({
+      method: 'signature', recordedAt: '2026-09-09T04:10:00.000Z', recordedBy: original.recordedBy,
+    })
+    expect(corrected.transactions).toEqual(result.transactions)
+    expect(mockDb.read().clients.find(client => client.id === 'c1').package.used).toBe(4)
+    expect(mockDb.read().messages.length).toBe(saved.messages.length + 1)
+  })
+
+  it('requires an active stored owner or assigned trainer and rejects forged acknowledgement identities atomically', async () => {
+    const input = { method: 'late_no_show' }
+    const before = mockDb.read()
+    const trainer = before.users.find(user => user.id === 'u-marcus')
+    const other = before.users.find(user => user.id === 'u-aisha')
+    for (const actor of [undefined, { role: 'owner' }, { ...trainer, role: 'owner' }, { ...trainer, trainerId: other.trainerId }, other]) {
+      await expect(sessionService.acknowledge('s1', input, actor)).rejects.toThrow()
+      expect(mockDb.read()).toEqual(before)
+    }
+    mockDb.mutate(db => { db.users.find(user => user.id === trainer.id).status = 'inactive' })
+    const inactive = mockDb.read()
+    await expect(sessionService.acknowledge('s1', input, trainer)).rejects.toThrow('active')
+    expect(mockDb.read()).toEqual(inactive)
   })
 
   it('persists session outcome, client summary and repeatable WhatsApp sends', async () => {

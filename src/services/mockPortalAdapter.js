@@ -12,6 +12,7 @@ import { messageService } from './messageService.js'
 import { requestService } from './requestService.js'
 import { remunerationService } from './remunerationService.js'
 import { updateClientProgress } from '../app/progress.js'
+import { pruneExpiredExerciseVideos } from './exerciseVideoRetention.js'
 
 const domains = { contentService, clientService, trainerService, sessionService, packageService, exerciseLibraryService, messageService, requestService, remunerationService }
 
@@ -19,7 +20,9 @@ const domains = { contentService, clientService, trainerService, sessionService,
 export const mockPortalAdapter = {
   async load() {
     await delay(20)
-    const db = mockDb.reload()
+    mockDb.reload()
+    await pruneExpiredExerciseVideos()
+    const db = mockDb.read()
     const user = authService.current()
     const policy = structuredClone(db.settings ?? mockPolicy)
     const accounts = db.users.filter(item => (item.status ?? 'active') === 'active').map(({ id, name }) => ({ id, name }))
@@ -40,7 +43,7 @@ export const mockPortalAdapter = {
     if (domain === 'clientService' && ['update', 'saveFixedWeeklySchedule', 'recordProgressReportAction'].includes(method) && user.role !== 'owner' && !mockDb.read().clients.some(item => item.id === args[0] && item.trainerId === user.trainerId)) throw new Error('This client is unavailable for your account.')
     if (domain === 'sessionService' && method === 'updateDetails') owner()
     if (domain === 'remunerationService' && method === 'approve') owner()
-    const actorIndex = { contentService: { save: 1 }, packageService: { save: 1 }, exerciseLibraryService: { getAll: 0, save: 1 }, clientService: { saveFixedWeeklySchedule: 2, recordProgressReportAction: 2, progressReportHistory: 1 }, trainerService: { create: 1, saveAvailability: 2 }, sessionService: { requestTimeChange: 1, requestTrainerChange: 1 }, requestService: { resolve: 2 }, remunerationService: { list: 0, detail: 2, approve: 3 } }[domain]?.[method]
+    const actorIndex = { contentService: { save: 1 }, packageService: { save: 1 }, exerciseLibraryService: { getAll: 0, save: 1 }, clientService: { saveFixedWeeklySchedule: 2, recordProgressReportAction: 2, progressReportHistory: 1 }, trainerService: { create: 1, saveAvailability: 2 }, sessionService: { requestTimeChange: 1, requestTrainerChange: 1, acknowledge: 2 }, requestService: { resolve: 2 }, remunerationService: { list: 0, detail: 2, approve: 3 } }[domain]?.[method]
     if (actorIndex !== undefined) { args = [...args]; args[actorIndex] = user }
     if (domain === 'sessionService') {
       const session = mockDb.read().sessions.find(item => item.id === args[0])

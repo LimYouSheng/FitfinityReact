@@ -3,6 +3,9 @@ import { DEFAULT_EXERCISES } from './mockExercises.js'
 import { DEFAULT_PACKAGES } from './mockPackages.js'
 import { appendRenewalMessage } from '../app/renewals.js'
 
+// Drawn evidence for demo records only; existing stored client signatures are never synthesized.
+const demoSignature = [[{ x: 60, y: 110 }, { x: 115, y: 62 }, { x: 160, y: 135 }, { x: 245, y: 72 }]]
+
 const availability = {
   marcus: {
     Monday: [['18:00', '21:00']], Tuesday: [['18:00', '21:00']], Wednesday: [['18:00', '21:00']],
@@ -251,7 +254,7 @@ const plannedExercises = (sessionId, offset = 0) => [0, 1].map((step) => {
     rounds,
     rest,
     customDetails: step === 0 ? [{ id: `${sessionId}-detail-1`, value: 'Controlled tempo' }] : [],
-    videoAttached: step === 1,
+    videoAttached: false,
   }
 })
 
@@ -277,7 +280,7 @@ const generatedCompletedSessions = allClients.flatMap((client, clientIndex) =>
       exercisePlan: plannedExercises(id, clientIndex + sessionIndex),
       outcome: { durationMinutes: 60, trainerComments: 'Completed as planned with consistent technique.' },
       acknowledgement: {
-        method: 'signature', signerName: client.name, note: '',
+        method: 'signature', signerName: client.name, signature: structuredClone(demoSignature), note: '',
         recordedAt: `2026-08-${day}T${to}:00+08:00`,
       },
       whatsappOpenedAt: `2026-08-${day}T${to}:05+08:00`,
@@ -337,7 +340,7 @@ const featuredSessions = [
     id: 's0', clientId: 'c1', trainerId: 't1', date: '2026-08-29', from: '18:00', to: '19:00',
     sessionNumber: 3, packageTotal: 12, status: 'completed', exercisePlan: plannedExercises('s0'),
     outcome: { durationMinutes: 60, trainerComments: 'Load progressed with consistent technique.' },
-    acknowledgement: { method: 'signature', signerName: 'Amanda Lim', note: '', recordedAt: '2026-08-29T19:03:00+08:00' },
+    acknowledgement: { method: 'signature', signerName: 'Amanda Lim', signature: structuredClone(demoSignature), note: '', recordedAt: '2026-08-29T19:03:00+08:00' },
     whatsappOpenedAt: '2026-08-29T19:08:00+08:00',
   },
   {

@@ -1,6 +1,12 @@
 export const SIGNATURE_WIDTH = 600
 export const SIGNATURE_HEIGHT = 200
 
+export function hasSessionAcknowledgement(session) {
+  const ack = session.acknowledgement
+  if (!ack?.recordedAt || !Number.isFinite(new Date(ack.recordedAt).getTime())) return false
+  return ack.method === 'late_no_show' || (ack.method === 'signature' && Boolean(ack.signerName?.trim()) && validSignature(ack.signature))
+}
+
 export function validSignature(strokes) {
   if (!Array.isArray(strokes) || strokes.length > 100) return false
   let distance = 0, count = 0

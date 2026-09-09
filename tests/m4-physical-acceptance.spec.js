@@ -1,4 +1,5 @@
-import { test, expect, drawClientSignature, selectDemoIdentity } from './fixtures.js'
+import { test, expect, drawClientSignature, selectDemoIdentity, mockPdfSharing } from './fixtures.js'
+import { createHash } from 'node:crypto'
 import { seed } from '../src/data/seed.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -152,7 +153,7 @@ test('M4 package setup accepts a custom integer and blocks fractional and out-of
 })
 
 
-test('M4 owner sees timestamped export and WhatsApp history in Progress after reload', async ({ page, context }) => {
+test('M4 owner shares the same PDF as Download and sees timestamped history after reload', async ({ page }) => {
   await fixture(page)
   await page.goto('/#/clients/c1')
   await expect(page.getByText('Renewal status', { exact: true })).toHaveCount(0)
@@ -161,22 +162,32 @@ test('M4 owner sees timestamped export and WhatsApp history in Progress after re
   await page.getByRole('button', { name: 'View Export/WhatsApp History', exact: true }).click()
   const history = page.getByLabel('Export/WhatsApp history', { exact: true })
   await expect(history).toContainText('No export or WhatsApp history yet.')
+  await mockPdfSharing(page)
+  await page.getByRole('button', { name: 'Share Progress Report via WhatsApp' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Share Progress Report' })
+  const share = dialog.getByRole('button', { name: 'Share PDF', exact: true })
+  await share.waitFor({ state: 'visible' })
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export Progress Report', exact: true }).click()
-  expect((await download).suggestedFilename()).toBe('amanda-lim-progress-report.csv')
+  await dialog.getByRole('button', { name: 'Download PDF', exact: true }).click()
+  const exported = await download
+  expect(exported.suggestedFilename()).toBe('amanda-lim-progress-report.pdf')
+  const chunks = []
+  for await (const chunk of await exported.createReadStream()) chunks.push(chunk)
+  const exportHash = createHash('sha256').update(Buffer.concat(chunks)).digest('hex')
   await expect(history.locator('article')).toHaveCount(1)
   await expect(history.locator('time')).toHaveAttribute('datetime', '2026-09-02T04:00:00.000Z')
   await expect(history).toContainText('12:00')
-  await context.route('https://wa.me/**', route => route.fulfill({ contentType: 'text/html', body: '<p>WhatsApp test handoff</p>' }))
-  await expect(page.getByRole('link', { name: 'Share Progress Report via WhatsApp' })).toHaveAttribute('aria-disabled', 'false')
-  const opened = page.waitForEvent('popup')
-  await page.getByRole('link', { name: 'Share Progress Report via WhatsApp' }).click()
-  const popup = await opened
-  await popup.waitForURL(/^https:\/\/wa\.me\/6591234567\?text=/)
-  await popup.close()
+  expect(await page.evaluate(() => window.__pdfShares)).toEqual([])
+  await share.click()
+  await expect(dialog).toHaveCount(0)
+  const files = await page.evaluate(() => window.__pdfShares)
+  expect(files).toHaveLength(1)
+  expect(files[0]).toMatchObject({ name: 'amanda-lim-progress-report.pdf', type: 'application/pdf', active: true,
+    keys: ['files'], header: '%PDF-1.4\n', eof: true, images: 11, sha256: exportHash })
   await expect(history.locator('article')).toHaveCount(2)
-  await expect(history).toContainText('CSV export')
-  await expect(history).toContainText('WhatsApp opened')
+  await expect(history).toContainText('PDF export')
+  await expect(history).toContainText('PDF share opened')
+  await expect(history).not.toContainText('WhatsApp sent')
   await expect(history).toContainText('Chau')
   await page.reload()
   await expect(history.locator('article')).toHaveCount(2)
@@ -204,13 +215,19 @@ test('M4 trainer report activity is logged for the owner without exposing histor
   await expect(page.getByLabel('Export/WhatsApp history', { exact: true })).toContainText('No export or WhatsApp history yet.')
 })
 
-test('M4 blocked WhatsApp is not logged and retrying failed export history does not download again', async ({ page }) => {
+test('M4 cancelled file sharing is not logged and retrying failed export history does not download again', async ({ page }) => {
   await fixture(page)
   await page.goto('/#/clients/c1')
   await tab(page, 'Progress')
-  await page.evaluate(() => { window.open = () => null })
-  await page.getByRole('link', { name: 'Share Progress Report via WhatsApp' }).click()
-  await expect(page.getByRole('alert')).toContainText('WhatsApp could not be opened.')
+  await mockPdfSharing(page, { outcomes: ['AbortError'] })
+  await page.getByRole('button', { name: 'Share Progress Report via WhatsApp' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Share Progress Report' })
+  const share = dialog.getByRole('button', { name: 'Share PDF', exact: true })
+  await share.waitFor({ state: 'visible' })
+  await share.click()
+  await expect.poll(() => page.evaluate(() => window.__pdfShares.length)).toBe(1)
+  await expect(share).toBeEnabled()
+  await expect(page.getByRole('alert')).toHaveCount(0)
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).progressReportEvents ?? [], KEY)).toEqual([])
   await page.evaluate(key => {
     const save = Storage.prototype.setItem
@@ -224,11 +241,49 @@ test('M4 blocked WhatsApp is not logged and retrying failed export history does 
   }, KEY)
   let downloads = 0
   page.on('download', () => { downloads += 1 })
-  await page.getByRole('button', { name: 'Export Progress Report', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('CSV export started, but its history could not be saved.')
+  const download = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Download PDF', exact: true }).click()
+  await download
+  await expect(page.getByRole('alert')).toContainText('PDF export started, but its history could not be saved.')
   await page.getByRole('button', { name: 'Retry History Save', exact: true }).click()
   await expect(page.getByRole('alert')).toHaveCount(0)
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.getByRole('button', { name: 'View Export/WhatsApp History', exact: true }).click()
   await expect(page.getByLabel('Export/WhatsApp history').locator('article')).toHaveCount(1)
   expect(downloads).toBe(1)
+  expect(await page.evaluate(() => window.__pdfShares.length)).toBe(1)
+})
+
+test('M4 unsupported file sharing offers the actual PDF for manual WhatsApp attachment', async ({ page, context }) => {
+  await fixture(page)
+  await page.goto('/#/clients/c1')
+  await tab(page, 'Progress')
+  await mockPdfSharing(page, { supported: false })
+  await page.getByRole('button', { name: 'Share Progress Report via WhatsApp' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Share Progress Report' })
+  const downloadButton = dialog.getByRole('button', { name: 'Download PDF', exact: true })
+  await downloadButton.waitFor({ state: 'visible' })
+  await expect(dialog.getByRole('button', { name: 'Share PDF', exact: true })).toHaveCount(0)
+  await expect(dialog).toContainText('Download the PDF and attach it in WhatsApp.')
+  await expect(dialog.getByRole('link', { name: 'Open WhatsApp' })).toHaveAttribute('href', 'https://wa.me/6591234567')
+  const download = page.waitForEvent('download')
+  await downloadButton.click()
+  const exported = await download
+  expect(exported.suggestedFilename()).toBe('amanda-lim-progress-report.pdf')
+  const chunks = []
+  for await (const chunk of await exported.createReadStream()) chunks.push(chunk)
+  const pdf = Buffer.concat(chunks).toString('latin1')
+  expect(pdf).toMatch(/^%PDF-1\.4\n/)
+  // Nine exercises; the two longer histories each continue onto a second page.
+  expect(pdf.match(/\/Subtype \/Image/g)).toHaveLength(11)
+  expect(pdf).toMatch(/%%EOF\n$/)
+  await context.route('https://wa.me/**', route => route.fulfill({ contentType: 'text/html', body: '<p>WhatsApp test handoff</p>' }))
+  const opened = page.waitForEvent('popup')
+  await dialog.getByRole('link', { name: 'Open WhatsApp' }).click()
+  const popup = await opened
+  await popup.waitForURL('https://wa.me/6591234567')
+  await popup.close()
+  const events = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).progressReportEvents, KEY)
+  expect(events.map(event => event.kind)).toEqual(['pdf_export'])
+  expect(await page.evaluate(() => window.__pdfShares)).toEqual([])
 })

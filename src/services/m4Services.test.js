@@ -94,6 +94,9 @@ describe('M4 account and service contract', () => {
     await expect(mockPortalAdapter.invoke('trainerService','updateAutonomy',['t1',{}])).rejects.toThrow('owner')
     const other=mockDb.read().sessions.find(item=>item.trainerId!==trainer.trainerId)
     await expect(mockPortalAdapter.invoke('sessionService','saveOutcome',[other.id,{durationMinutes:55}])).rejects.toThrow('unavailable')
+    await expect(mockPortalAdapter.invoke('sessionService','acknowledge',[other.id,{method:'late_no_show'},owner()])).rejects.toThrow('unavailable')
+    const result = await mockPortalAdapter.invoke('sessionService', 'acknowledge', ['s1', { method: 'late_no_show' }, owner()])
+    expect(result.session.acknowledgement.recordedBy).toEqual({ id: trainer.id, name: trainer.name, role: trainer.role })
   })
 })
 describe('M4 persisted frontend records', () => {
@@ -114,10 +117,10 @@ describe('M4 persisted frontend records', () => {
     await contentService.save({draft:content},owner()); expect(mockDb.read().contentEntries).toHaveLength(1)
   })
   it('requires drawn evidence, saves measured progress and debits only once across retries', async () => {
-    await expect(sessionService.acknowledge('s1',{method:'signature',signerName:'Client',signature:[]})).rejects.toThrow('Draw')
+    await expect(sessionService.acknowledge('s1',{method:'signature',signerName:'Client',signature:[]}, owner())).rejects.toThrow('Draw')
     await sessionService.saveOutcome('s1',{durationMinutes:55,exerciseResults:[{id:'result',name:'Measured row',loadKg:20,reps:8,sets:3}]})
     const ack={method:'signature',signerName:'Client',signature:signatureFixture}
-    await sessionService.acknowledge('s1',ack); await sessionService.acknowledge('s1',ack)
+    await sessionService.acknowledge('s1',ack, owner()); await sessionService.acknowledge('s1',ack, owner())
     const db=mockDb.reload()
     expect(db.sessions.find(item=>item.id==='s1').acknowledgement.signature).toEqual(signatureFixture)
     expect(db.clients.find(item=>item.id==='c1').strengthProgress.find(item=>item.name==='Measured row').points).toHaveLength(1)

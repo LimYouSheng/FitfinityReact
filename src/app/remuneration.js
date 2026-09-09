@@ -32,9 +32,11 @@ export function sessionRateBand(session, policy) {
 
 // Keep the completed-session evidence alongside approved amounts.
 export function sessionPaySource(session) {
-  return JSON.stringify([session.id, session.clientId, session.trainerId, session.date, session.from, session.to, session.status,
+  const evidence = [session.id, session.clientId, session.trainerId, session.date, session.from, session.to, session.status,
     session.outcome?.durationMinutes ?? null, session.acknowledgement?.method ?? null,
-    session.acknowledgement?.signerName ?? null, session.acknowledgement?.note ?? null, session.acknowledgement?.recordedAt ?? null, session.acknowledgement?.signature ?? null])
+    session.acknowledgement?.signerName ?? null, session.acknowledgement?.note ?? null, session.acknowledgement?.recordedAt ?? null, session.acknowledgement?.signature ?? null]
+  if (session.acknowledgementHistory?.length) evidence.push(session.acknowledgementHistory)
+  return JSON.stringify(evidence)
 }
 
 export function rateCents(trainer, band) {
@@ -43,10 +45,13 @@ export function rateCents(trainer, band) {
   return Math.round(value * 100)
 }
 
-function acknowledgementLabel(ack) {
-  if (ack?.method === 'signature' && ack.signerName?.trim()) return `Signed · ${ack.signerName}`
-  if (ack?.method === 'late_no_show' && ack.recordedAt) return 'Late / no-show'
-  return 'Missing acknowledgement'
+function durationMinutes(session) {
+  const duration = session.outcome?.durationMinutes
+  if (typeof duration === 'number' && Number.isFinite(duration) && (duration > 0 || (duration === 0 && session.acknowledgement?.method === 'late_no_show'))) return duration
+  if (session.acknowledgement?.method === 'late_no_show') return 0
+  const minutes = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value ?? '') ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null
+  const start = minutes(session.from), end = minutes(session.to)
+  return start !== null && end !== null && end > start ? end - start : 0
 }
 
 export function remunerationDraft(db, key, trainerId, now = new Date()) {
@@ -55,26 +60,27 @@ export function remunerationDraft(db, key, trainerId, now = new Date()) {
   const trainer = db.trainers.find(item => item.id === trainerId)
   if (!trainer) throw new Error('Trainer not found.')
   const today = businessNow(now, db.settings.timeZone).date
-  const rows = (db.sessions ?? []).filter(session => session.trainerId === trainerId && session.status === 'completed' && cycleForDate(session.date, policy) === key)
+  const rows = (db.sessions ?? []).filter(session => session.trainerId === trainerId && session.status !== 'cancelled' && cycleForDate(session.date, policy) === key)
     .sort((a, b) => `${a.date}|${a.from}|${a.id}`.localeCompare(`${b.date}|${b.from}|${b.id}`))
     .map(session => {
       const source = sessionPaySource(session)
       const band = sessionRateBand(session, policy)
       const amount = rateCents(trainer, band)
-      const acknowledged = acknowledgementLabel(session.acknowledgement)
-      const duration = Number(session.outcome?.durationMinutes)
-      const validDuration = session.outcome?.durationMinutes != null && Number.isFinite(duration) && (duration > 0 || (duration === 0 && session.acknowledgement?.method === 'late_no_show'))
-      const issues = [!band ? 'Invalid session start time' : amount === null && 'Missing trainer rate', !validDuration && 'Missing duration', acknowledged === 'Missing acknowledgement' && acknowledged, session.date > today && 'Future completion date'].filter(Boolean)
+      // Completion is committed by the acknowledgement operation. Remuneration
+      // consumes that state without revalidating the signature or WhatsApp.
+      const completed = session.status === 'completed'
+      const billable = completed && session.date <= today
+      const issues = [!band ? 'Invalid session start time' : amount === null && 'Missing trainer rate', !completed && 'Session is not completed', completed && session.date > today && 'Future completion date'].filter(Boolean)
       const client = db.clients.find(item => item.id === session.clientId)
       return { sessionId: session.id, source, clientId: session.clientId, clientName: client?.name ?? 'Client unavailable', clientType: client?.type ?? '—', date: session.date,
-        from: session.from, to: session.to, durationMinutes: validDuration ? duration : 0, acknowledgement: acknowledged,
-        band: band ?? '', amountCents: amount, issues }
+        from: session.from, to: session.to, durationMinutes: billable ? durationMinutes(session) : 0, status: session.status, billable,
+        band: band ?? '', amountCents: billable ? amount : null, issues }
     })
   const reviewCount = rows.filter(row => row.issues.length).length
   const amountCents = rows.reduce((total, row) => total + (row.amountCents ?? 0), 0)
-  const closed = today >= cycle.payout
-  const status = !rows.length ? 'No sessions' : reviewCount ? 'Needs review' : closed ? 'Pending approval' : 'In progress'
-  const result = { cycle, trainerId, trainerName: trainer.name, rows, sessions: rows.length, minutes: rows.reduce((total, row) => total + row.durationMinutes, 0), amountCents, reviewCount, closed, status }
+  const closed = today > cycle.end
+  const status = !closed ? 'In progress' : !rows.length ? 'No sessions' : reviewCount ? 'Pending review' : 'Pending approval'
+  const result = { cycle, trainerId, trainerName: trainer.name, rows, sessions: rows.filter(row => row.billable).length, totalSessions: rows.length, minutes: rows.reduce((total, row) => total + row.durationMinutes, 0), amountCents, reviewCount, closed, status }
   // Include rates and all billable evidence so stale pages cannot silently approve new amounts.
   result.revision = JSON.stringify([key, trainerId, trainer.name, trainer.rates, rows])
   return result
@@ -95,7 +101,7 @@ export function remunerationCycles(db, user, now = new Date()) {
   const policy = db.settings.remuneration
   const keys = new Set([cycleForDate(businessNow(now, db.settings.timeZone).date, policy)])
   for (const session of db.sessions ?? []) {
-    if (session.status === 'completed' && (user.role === 'owner' || session.trainerId === user.trainerId)) keys.add(cycleForDate(session.date, policy))
+    if (session.status !== 'cancelled' && (user.role === 'owner' || session.trainerId === user.trainerId)) keys.add(cycleForDate(session.date, policy))
   }
   for (const record of db.remunerationApprovals ?? []) {
     if (user.role === 'owner' || record.trainerId === user.trainerId) keys.add(record.cycle.key)
@@ -106,6 +112,6 @@ export function remunerationCycles(db, user, now = new Date()) {
 export function cycleTrainers(db, key, user, now = new Date()) {
   return db.trainers.filter(trainer => user.role === 'owner' || trainer.id === user.trainerId)
     .map(trainer => remunerationRecord(db, key, trainer.id, now))
-    .filter(record => record.sessions || (db.trainers.find(trainer => trainer.id === record.trainerId)?.status ?? 'active') === 'active')
+    .filter(record => record.rows.length || (db.trainers.find(trainer => trainer.id === record.trainerId)?.status ?? 'active') === 'active')
     .sort((a, b) => a.trainerName.localeCompare(b.trainerName))
 }

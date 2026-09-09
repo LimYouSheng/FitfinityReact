@@ -48,7 +48,9 @@ export default function ExercisePlanEditor({
   defaults,
   catalog,
   sessionId,
+  timeZone,
   canEdit,
+  canViewVideo = canEdit,
   editing,
   onBeginEdit,
   onEndEdit,
@@ -218,11 +220,11 @@ export default function ExercisePlanEditor({
             <article className="exercise-display-row" key={item.id}>
               <div className="exercise-display-title">
                 <strong>{item.name}</strong>
-                {canEdit ? (
+                {canEdit || (canViewVideo && item.videoAttached) ? (
                   <button
                     type="button"
                     className={`exercise-display-camera ${item.videoAttached ? 'attached' : ''}`}
-                    aria-label={`Manage video for ${item.name}`}
+                    aria-label={`${canEdit ? 'Manage' : 'View'} video for ${item.name}`}
                     onClick={() => setVideoExercise(item)}
                   >
                     <CameraIcon />
@@ -312,6 +314,7 @@ export default function ExercisePlanEditor({
       <ExerciseVideoDialog
         open={Boolean(videoExercise)}
         sessionId={sessionId}
+        timeZone={timeZone}
         exercise={videoExercise}
         onCancel={() => setVideoExercise(null)}
         editable={canEdit}

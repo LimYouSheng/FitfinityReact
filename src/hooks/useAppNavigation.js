@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useEditGuard } from '../components/EditGuardProvider.jsx'
+import { PORTAL_SESSION_ENDED } from './usePortalData.js'
 
 const cleanPath = value => String(value || 'dashboard').replace(/^\/+|\/+$/g, '') || 'dashboard'
 const locationPath = () => cleanPath(location.hash.replace(/^#\/?/, ''))
@@ -18,6 +19,7 @@ export default function useAppNavigation(userId = '') {
   const [entry, setEntry] = useState(() => readEntry())
   const path = entry.path
   const current = useRef(null)
+  const mounted = useRef(false)
   const pending = useRef(null)
   const lastEvent = useRef('')
   const allowedTraversal = useRef(false)
@@ -28,6 +30,7 @@ export default function useAppNavigation(userId = '') {
   live.current = { activeEdit, guardNavigation }
 
   const write = useCallback((next, replace = false, preserveView = false) => {
+    if (!mounted.current) return
     persistScroll.current()
     const nextPath = cleanPath(next)
     const depth = (history.state?.fitfinityDepth ?? current.current?.depth ?? 0) + (replace ? 0 : 1)
@@ -45,7 +48,7 @@ export default function useAppNavigation(userId = '') {
   }, [userId])
 
   const setValue = useCallback((key, next, initialValue) => {
-    if (pending.current) return
+    if (!mounted.current || pending.current) return
     const actual = readEntry()
     if (actual.path !== current.current?.path) return
     const values = actual.state?.fitfinityUserId === userId ? actual.state.fitfinityPageState ?? {} : {}
@@ -59,7 +62,7 @@ export default function useAppNavigation(userId = '') {
   }, [userId])
 
   useLayoutEffect(() => {
-    let mounted = true
+    mounted.current = true
     const initial = readEntry()
     initial.state ??= { fitfinity: true, fitfinityDepth: initial.depth, fitfinityPath: initial.path }
     history.replaceState(initial.state, '', location.href)
@@ -79,7 +82,7 @@ export default function useAppNavigation(userId = '') {
     const ask = async transaction => {
       transaction.phase = 'prompting'
       const accepted = await live.current.guardNavigation(() => {})
-      if (!mounted || pending.current !== transaction) return
+      if (!mounted.current || pending.current !== transaction) return
       transaction.phase = accepted ? 'leaving' : 'cancelling'
       const destination = accepted ? transaction.target : transaction.origin
       const actual = readEntry()
@@ -125,11 +128,19 @@ export default function useAppNavigation(userId = '') {
     }
     window.addEventListener('popstate', sync)
     window.addEventListener('hashchange', sync)
+    const endSession = () => {
+      pending.current = null
+      allowedTraversal.current = false
+      scrollPositions.current.clear()
+      write('dashboard', true)
+    }
+    window.addEventListener(PORTAL_SESSION_ENDED, endSession)
     return () => {
-      mounted = false
+      mounted.current = false
       pending.current = null
       window.removeEventListener('popstate', sync)
       window.removeEventListener('hashchange', sync)
+      window.removeEventListener(PORTAL_SESSION_ENDED, endSession)
     }
   }, [])
 
@@ -191,13 +202,14 @@ export default function useAppNavigation(userId = '') {
   }, [activeEdit])
 
   const navigate = useCallback((next, options = {}) => {
-    if (pending.current) return Promise.resolve(false)
+    if (!mounted.current || pending.current) return Promise.resolve(false)
     return guardNavigation(() => write(next, options.replace, options.preserveView))
   }, [guardNavigation, write])
 
   const goBack = useCallback(fallback => {
-    if (pending.current) return Promise.resolve(false)
+    if (!mounted.current || pending.current) return Promise.resolve(false)
     return guardNavigation(() => {
+      if (!mounted.current) return
       persistScroll.current()
       if ((history.state?.fitfinityDepth ?? 0) > 0) {
         allowedTraversal.current = true

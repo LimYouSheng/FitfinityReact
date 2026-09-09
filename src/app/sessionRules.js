@@ -57,11 +57,13 @@ export function normalizeExercisePlan(items) {
       name: item.video.name ?? '',
       type: item.video.type ?? '',
       size: Math.max(0, Number(item.video.size) || 0),
-      duration: Math.max(0, Number(item.video.duration) || 0),
+      duration: Number.isFinite(item.video.duration) ? Math.max(0, item.video.duration) : null,
       source: item.video.source === 'recorded' ? 'recorded' : 'attached',
       caption: item.video.caption ?? '',
-      audioIncluded: false,
+      audioIncluded: typeof item.video.audioIncluded === 'boolean' ? item.video.audioIncluded : null,
+      processingStatus: item.video.processingStatus ?? 'deferred',
       attachedAt: item.video.attachedAt ?? '',
+      expiresAt: item.video.expiresAt ?? '',
     } : null,
   }))
 }

@@ -1,4 +1,6 @@
 export const PROGRESS_REPORT_ACTIONS = {
+  pdf_export: 'PDF export',
+  pdf_share_opened: 'PDF share opened',
   csv_export: 'CSV export',
   whatsapp_opened: 'WhatsApp opened',
 }

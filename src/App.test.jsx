@@ -11,6 +11,7 @@ import { mockAccountPassword } from './data/mockPolicy.js'
 import { drawSignature } from './test/drawSignature.js'
 import { portalServices } from './services/defaultPortalServices.js'
 import { withBusyCalendar } from './test/fixtures/calendar.js'
+import * as progressPdf from './features/clients/progressReportPdf.jsx'
 
 function profileTab(name) {
   const menu = document.querySelector('details.profile-menu')
@@ -231,7 +232,15 @@ it('M4 assembled signature dialog requires drawing, supports clear and saves vis
   expect(within(dialog).getByRole('img')).toBeInTheDocument()
   fireEvent.click(within(dialog).getByRole('button',{name:'Complete Session'}))
   fireEvent.click(await screen.findByRole('button',{name:'View Client Signature'}))
-  expect(screen.getByRole('dialog',{name:'Client signature'})).toHaveTextContent('Amanda Lim')
+  const preview = screen.getByRole('dialog',{name:'Client signature'})
+  expect(preview).toHaveTextContent('Amanda Lim')
+  expect(preview).toHaveTextContent('Signed on')
+  const saved = mockDb.read().sessions.find(item => item.id === 's1')
+  expect(preview.querySelector('time')).toHaveAttribute('datetime', saved.acknowledgement.recordedAt)
+  expect(saved.acknowledgementHistory).toEqual([saved.acknowledgement])
+  expect(saved.acknowledgement.recordedBy).toMatchObject({ id: 'u-owner', role: 'owner' })
+  expect(within(preview).queryByRole('button', { name: 'Clear Signature' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Update Completion' })).not.toBeInTheDocument()
   expect(mockDb.read().packageCreditTransactions.filter(item=>item.sessionId==='s1')).toHaveLength(1)
 })
 it('M4 assembled app retries loads and uses an injected account for saves, refresh and sign-out without demo controls',async()=>{
@@ -301,6 +310,27 @@ it('M4 assembled password form keeps a failed draft and saves a verified replace
   fireEvent.click(within(screen.getByRole('dialog',{name:'Change password?'})).getByRole('button',{name:'Change Password'}))
   await waitFor(()=>expect(screen.getByLabelText('New password')).toHaveValue(''))
   expect(localStorage.getItem('fitfinity-demo-credentials-v1')).not.toContain('ReplacementPass42!')
+})
+
+it('resets the route on sign-out before unmounting and returns to Dashboard after password replacement and re-login', async () => {
+  show('change-password')
+  await screen.findByLabelText('Current password')
+  change('Current password', mockAccountPassword)
+  change('New password', 'NewDemoPassword42!')
+  change('Confirm new password', 'NewDemoPassword42!')
+  click('Save Password')
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Change password?' })).getByRole('button', { name: 'Change Password' }))
+  await waitFor(() => expect(screen.getByLabelText('Current password')).toHaveValue(''))
+  click('Open profile menu'); fireEvent.click(screen.getByRole('menuitem', { name: 'Sign Out' }))
+  await screen.findByRole('heading', { name: 'Sign in' })
+  expect(location.hash).toBe('#/dashboard')
+  expect(document.querySelector('.portal-shell')).toBeNull()
+  change('Account', 'u-owner'); change('Password', mockAccountPassword); click('Sign In')
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('incorrect'))
+  change('Password', 'NewDemoPassword42!'); click('Sign In')
+  await screen.findByRole('heading', { name: 'Calendar' })
+  expect(location.hash).toBe('#/dashboard')
+  expect(screen.queryByLabelText('Current password')).not.toBeInTheDocument()
 })
 
 it('password notifications reflect loaded requirements and block invalid drafts before saving', async () => {
@@ -437,6 +467,7 @@ it('owner counts and trainer weekly rows open complete scoped days and retain Mo
 
 
 it('replaces renewal controls with owner-only progress report activity that survives refresh', async () => {
+  vi.spyOn(progressPdf, 'progressReportPdf').mockResolvedValue(new Blob(['%PDF-1.4'], { type: 'application/pdf' }))
   const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:report')
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
@@ -448,13 +479,13 @@ it('replaces renewal controls with owner-only progress report activity that surv
   click('View Export/WhatsApp History')
   await screen.findByText('No export or WhatsApp history yet.')
   click('Export Progress Report')
-  await waitFor(() => expect(document.querySelector('.report-history-row')).toHaveTextContent('CSV export'))
+  await waitFor(() => expect(document.querySelector('.report-history-row')).toHaveTextContent('PDF export'))
   expect(create).toHaveBeenCalledTimes(1)
   const saved = mockDb.read().progressReportEvents[0]
   expect(saved.by.id).toBe('u-owner')
   expect(document.querySelector(`time[datetime="${saved.at}"]`)).toBeVisible()
   await act(async () => { window.dispatchEvent(new Event('focus')) })
-  await waitFor(() => expect(document.querySelector('.report-history-row')).toHaveTextContent('CSV export'))
+  await waitFor(() => expect(document.querySelector('.report-history-row')).toHaveTextContent('PDF export'))
   change('Demo identity', 'u-marcus')
   await screen.findByRole('heading', { name: 'Trainer Dashboard' })
   await act(async () => { location.hash = '#/clients/c1' })

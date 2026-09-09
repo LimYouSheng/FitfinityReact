@@ -3,9 +3,8 @@ import { exerciseVideoCaption } from './exerciseVideo.js'
 export function sessionSummaryWhatsAppText(client, session, summary, videos = []) {
   const lines = [
     `${client.name} — Session Summary`,
-    '',
-    summary.trim(),
   ]
+  if (summary?.trim()) lines.push('', summary.trim())
 
   if (videos.length) {
     lines.push('', `Exercise videos (${videos.length})`)

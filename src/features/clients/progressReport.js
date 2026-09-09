@@ -1,50 +1,33 @@
-function csvCell(value) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`
-}
-
-export function progressReportCsv(client) {
-  const rows = [['Client', 'Exercise', 'Date', 'Sets', 'Reps', 'Load (kg)']]
-
-  for (const exercise of client.strengthProgress ?? []) {
-    for (const point of exercise.points ?? []) {
-      rows.push([
-        client.name,
-        exercise.name,
-        point.date,
-        point.sets ?? exercise.sets,
-        point.reps ?? exercise.reps,
-        point.load,
-      ])
-    }
-  }
-
-  return rows.map(row => row.map(csvCell).join(',')).join('\n')
-}
-
 export function progressReportFilename(client) {
   const clientSlug = client.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
 
-  return `${clientSlug || 'client'}-progress-report.csv`
+  return `${clientSlug || 'client'}-progress-report.pdf`
 }
 
-export function progressReportWhatsAppText(client) {
-  const lines = [`${client.name} — Progress Report`]
+export async function progressReportFile(client, options) {
+  const { progressReportPdf } = await import('./progressReportPdf.jsx')
+  const blob = await progressReportPdf(client, options)
+  return new File([blob], progressReportFilename(client), { type: 'application/pdf' })
+}
 
-  for (const exercise of client.strengthProgress ?? []) {
-    lines.push('', exercise.name)
-    for (const point of exercise.points ?? []) {
-      lines.push([
-        formatDate(point.date),
-        `${point.load} kg`,
-        `${point.sets ?? exercise.sets ?? '—'} sets`,
-        `${point.reps ?? exercise.reps ?? '—'} reps`,
-      ].join(' · '))
-    }
+export function downloadProgressReport(file) {
+  const url = URL.createObjectURL(file)
+  const link = document.createElement('a')
+  try {
+    link.href = url
+    link.download = file.name
+    document.body.append(link)
+    link.click()
+  } finally {
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
-
-  return lines.join('\n')
 }
-import { formatDate } from '../../utils/date.js'
+
+export function canShareProgressReport(file) {
+  try { return Boolean(file && navigator.share && navigator.canShare?.({ files: [file] })) }
+  catch { return false }
+}

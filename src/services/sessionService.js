@@ -1,13 +1,14 @@
-import { exerciseVideoFileValidation, exerciseVideoValidation } from '../app/video.js'
+import { exerciseVideoExpired, exerciseVideoExpiresAt, exerciseVideoFileValidation, exerciseVideoValidation } from '../app/video.js'
 import { validSignature } from '../app/signature.js'
 import { validateExerciseResults, updateClientProgress, exerciseResultsFor } from '../app/progress.js'
 import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan, sessionActionError } from '../app/sessionRules.js'
 import { businessClock } from '../app/clock.js'
 import { appendRenewalMessage } from '../app/renewals.js'
-import { sessionTimeChangeError } from '../app/scheduleChanges.js'
+import { sessionTimeChangeError, requireActiveActor } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
 import { appendSavedEditMessage } from './editMessage.js'
 import { loadExerciseVideoBlob, saveExerciseVideoBlob, removeExerciseVideoBlob } from './exerciseVideoStore.js'
+import { flushExerciseVideoDeletions, pruneExpiredExerciseVideos, queueExerciseVideoDeletion } from './exerciseVideoRetention.js'
 
 const clone = value => JSON.parse(JSON.stringify(value))
 
@@ -22,6 +23,30 @@ function requireSession(db, sessionId) {
 function requireTrainingDate(db, session) {
   const error = sessionActionError(session, businessClock(new Date(), db.settings.timeZone).date)
   if (error) throw new Error(error)
+}
+
+function requireAcknowledgementActor(db, session, actor) {
+  const staff = requireActiveActor(db, actor)
+  if (staff.role !== 'owner' && (staff.role !== 'trainer' || staff.trainerId !== session.trainerId)) throw new Error('This session is unavailable for your account.')
+  return { id: staff.id, name: staff.name, role: staff.role }
+}
+
+function acknowledgementInput(value) {
+  return {
+    method: value.method,
+    signerName: value.method === 'signature' ? value.signerName?.trim() ?? '' : '',
+    signature: value.method === 'signature' ? value.signature : null,
+    note: value.note?.trim() ?? '',
+  }
+}
+
+function acknowledgementUnchanged(previous, input) {
+  return previous && JSON.stringify(acknowledgementInput(previous)) === JSON.stringify(input)
+}
+
+function requireAcknowledgementTransition(previous, input) {
+  if (previous?.method === 'signature') throw new Error('The client signature is permanent and cannot be changed or removed.')
+  if (previous?.method === 'late_no_show' && input.method !== 'signature') throw new Error('A trainer acknowledgement can only be corrected to a client signature.')
 }
 
 function previousPlan(db, session) {
@@ -74,13 +99,24 @@ function appendSessionEdit(db, session, title, body) {
 
 export const sessionService = {
   async loadVideo(sessionId, exerciseId) {
-    const session = requireSession(mockDb.read(), sessionId)
+    const db = mockDb.read()
+    const session = requireSession(db, sessionId)
     const exercise = session.exercisePlan?.find(item => item.id === exerciseId)
     if (!exercise?.videoAttached) return null
-    return loadExerciseVideoBlob(sessionId, exerciseId, exercise.video?.id)
+    if (exerciseVideoExpired(exercise.video, new Date(), db.settings.videoRetentionDays)) {
+      await pruneExpiredExerciseVideos()
+      throw new Error('This video has expired and is no longer available.')
+    }
+    const blob = await loadExerciseVideoBlob(sessionId, exerciseId, exercise.video?.id)
+    if (exerciseVideoExpired(exercise.video, new Date(), db.settings.videoRetentionDays)) {
+      await pruneExpiredExerciseVideos()
+      throw new Error('This video has expired and is no longer available.')
+    }
+    return blob
   },
   async saveVideo(sessionId, exerciseId, file, metadata) {
-    const session = requireEditableSession(mockDb.read(), sessionId)
+    const snapshot = mockDb.read()
+    const session = requireEditableSession(snapshot, sessionId)
     const exercise = session.exercisePlan?.find(item => item.id === exerciseId)
     if (!exercise) throw new Error('Exercise not found.')
     const deferredProcessing = metadata?.processingStatus === 'deferred'
@@ -89,35 +125,38 @@ export const sessionService = {
       : exerciseVideoValidation(file, metadata?.duration)
     if (error) throw new Error(error)
     if (!deferredProcessing && metadata?.audioIncluded !== false) throw new Error('Prepare a silent exercise video before saving.')
+    const attachedAt = new Date().toISOString()
+    const expiresAt = exerciseVideoExpiresAt({ attachedAt }, snapshot.settings.videoRetentionDays)
+    if (!expiresAt) throw new Error('The video retention policy is unavailable. Refresh and try again.')
     const previous = JSON.stringify(exercise.video ?? null)
-    const mediaId = await saveExerciseVideoBlob(sessionId, exerciseId, file)
+    const mediaId = await saveExerciseVideoBlob(sessionId, exerciseId, file, { expiresAt })
     try {
       mockDb.mutate(db => {
         const currentSession = requireEditableSession(db, sessionId)
         const current = currentSession.exercisePlan?.find(item => item.id === exerciseId)
         if (!current || JSON.stringify(current.video ?? null) !== previous) throw new Error('The exercise video changed. Refresh and try again.')
+        if (current.videoAttached) queueExerciseVideoDeletion(db, sessionId, exerciseId, current.video?.id)
         current.videoAttached = true
-        current.video = { ...metadata, id: mediaId, type: file.type, size: file.size, attachedAt: new Date().toISOString() }
+        current.video = { ...metadata, id: mediaId, type: file.type, size: file.size, attachedAt, expiresAt }
         appendSessionEdit(db, currentSession, 'Exercise video saved', current.name)
       })
     } catch (error) {
       await removeExerciseVideoBlob(sessionId, exerciseId, mediaId).catch(() => {})
       throw error
     }
-    if (exercise.videoAttached) await removeExerciseVideoBlob(sessionId, exerciseId, exercise.video?.id).catch(() => {})
+    await flushExerciseVideoDeletions()
     return { id: mediaId }
   },
   async removeVideo(sessionId, exerciseId) {
-    let previous
     mockDb.mutate(db => {
       const session = requireEditableSession(db, sessionId)
       const exercise = session.exercisePlan?.find(item => item.id === exerciseId)
       if (!exercise) throw new Error('Exercise not found.')
-      previous = exercise.video
+      if (exercise.videoAttached) queueExerciseVideoDeletion(db, sessionId, exerciseId, exercise.video?.id)
       exercise.videoAttached = false; exercise.video = null
       appendSessionEdit(db, session, 'Exercise video removed', exercise.name)
     })
-    await removeExerciseVideoBlob(sessionId, exerciseId, previous?.id).catch(() => {})
+    await flushExerciseVideoDeletions()
   },
   async updateDetails(sessionId, patch) {
     await delay()
@@ -363,7 +402,7 @@ export const sessionService = {
     return state.sessions.find(session => session.id === sessionId)
   },
 
-  async acknowledge(sessionId, acknowledgement) {
+  async acknowledge(sessionId, acknowledgement, actor) {
     await delay()
 
     if (!['signature', 'late_no_show'].includes(acknowledgement.method)) {
@@ -375,8 +414,20 @@ export const sessionService = {
 
     if (acknowledgement.method === 'signature' && !validSignature(acknowledgement.signature)) throw new Error('Draw the client signature before completing the session.')
 
+    const input = acknowledgementInput(acknowledgement)
+    const current = mockDb.read()
+    const existing = requireSession(current, sessionId)
+    requireAcknowledgementActor(current, existing, actor)
+    requireTrainingDate(current, existing)
+    if (acknowledgementUnchanged(existing.acknowledgement, input)) {
+      return { session: existing, transactions: (current.packageCreditTransactions ?? []).filter(item => item.sessionId === sessionId) }
+    }
+    requireAcknowledgementTransition(existing.acknowledgement, input)
+
     const state = mockDb.mutate(db => {
       const session = requireSession(db, sessionId)
+      const recordedBy = requireAcknowledgementActor(db, session, actor)
+      requireAcknowledgementTransition(session.acknowledgement, input)
       const client = db.clients.find(item => item.id === session.clientId)
       requireTrainingDate(db, session)
       if (!client) throw new Error('Session client not found.')
@@ -402,15 +453,10 @@ export const sessionService = {
       if (acknowledgement.method === 'signature' && !session.exerciseResults) {
         session.exerciseResults = validateExerciseResults(exerciseResultsFor(session))
       }
-      session.acknowledgement = {
-        method: acknowledgement.method,
-        signature: acknowledgement.method === 'signature' ? structuredClone(acknowledgement.signature) : null,
-        signerName: acknowledgement.method === 'signature'
-          ? acknowledgement.signerName.trim()
-          : '',
-        note: acknowledgement.note?.trim() ?? '',
-        recordedAt: new Date().toISOString(),
-      }
+      const previous = session.acknowledgement
+      const entry = { ...structuredClone(input), recordedAt: new Date().toISOString(), recordedBy }
+      session.acknowledgementHistory = [...(session.acknowledgementHistory ?? (previous ? [structuredClone(previous)] : [])), entry]
+      session.acknowledgement = structuredClone(entry)
       updateClientProgress(db, session.clientId)
       appendSessionEdit(db, session, 'Session acknowledgement saved', acknowledgement.method === 'signature'
         ? `Acknowledged by ${acknowledgement.signerName.trim()}.`

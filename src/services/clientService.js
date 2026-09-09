@@ -118,6 +118,7 @@ export const clientService = {
         if (existing.clientId !== id || existing.kind !== kind || existing.by.id !== staff.id) throw new Error('This report action ID has already been used.')
         return
       }
+      if (kind === 'csv_export') throw new Error('New progress reports must be exported as PDF.')
       const at = new Date().toISOString()
       db.progressReportEvents.push({ id: actionId, clientId: id, kind, at, by: { id: staff.id, name: staff.name } })
       appendSavedEditMessage(db, {

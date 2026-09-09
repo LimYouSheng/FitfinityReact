@@ -118,3 +118,30 @@ it('retains a first-frame calendar selection before passive effects run', () => 
   expect(output()).toHaveTextContent('2026-09-02')
   expect(history.state.fitfinityPageState.calendar.date).toBe('2026-09-02')
 })
+
+it('ignores delayed navigation and page-state writes belonging to an account that has unmounted', async () => {
+  cleanup()
+  const callbacks = new Map()
+  function Account({ id }) {
+    const navigation = useAppNavigation(id)
+    useLayoutEffect(() => { callbacks.set(id, navigation) }, [id, navigation])
+    return <output>{navigation.path}</output>
+  }
+  const app = id => <ActionConfirmationProvider><EditGuardProvider><Account key={id} id={id} /></EditGuardProvider></ActionConfirmationProvider>
+  const rendered = render(app('owner'))
+  const oldAccount = callbacks.get('owner')
+  await act(async () => { oldAccount.replacePath('dashboard') })
+  rendered.rerender(app('trainer'))
+  await act(async () => { callbacks.get('trainer').replacePath('dashboard') })
+  const before = structuredClone(history.state), length = history.length
+  await act(async () => {
+    await oldAccount.navigate('clients', { replace: true })
+    oldAccount.replacePath('trainers')
+    oldAccount.pageState.setValue('calendar', { mode: 'month' })
+    await oldAccount.goBack('sessions')
+  })
+  expect(history.state).toEqual(before)
+  expect(history.length).toBe(length)
+  expect(location.hash).toBe('#/dashboard')
+  expect(output()).toHaveTextContent('dashboard')
+})

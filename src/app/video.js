@@ -1,6 +1,19 @@
 export const MAX_EXERCISE_VIDEO_BYTES = 5 * 1024 * 1024
 export const MAX_EXERCISE_VIDEO_SECONDS = 60
 
+export function exerciseVideoExpiresAt(video, retentionDays) {
+  const recordedExpiry = Date.parse(video?.expiresAt)
+  if (Number.isFinite(recordedExpiry)) return new Date(recordedExpiry).toISOString()
+  const attachedAt = Date.parse(video?.attachedAt)
+  if (!Number.isFinite(attachedAt) || !Number.isInteger(retentionDays) || retentionDays <= 0) return null
+  return new Date(attachedAt + retentionDays * 24 * 60 * 60 * 1000).toISOString()
+}
+
+export function exerciseVideoExpired(video, now, retentionDays) {
+  const expiresAt = exerciseVideoExpiresAt(video, retentionDays)
+  return !expiresAt || Date.parse(expiresAt) <= new Date(now).getTime()
+}
+
 export function exerciseVideoFileValidation(file) {
   if (!file || !file.type?.startsWith('video/')) return 'Choose a video file.'
   if (!file.size) return 'Choose a non-empty video file.'

@@ -38,10 +38,10 @@ function bytesFor(blob) {
   })
 }
 
-export async function saveExerciseVideoBlob(sessionId, exerciseId, blob) {
+export async function saveExerciseVideoBlob(sessionId, exerciseId, blob, { expiresAt } = {}) {
   const id = `${legacyKey(sessionId, exerciseId)}:${Array.from(crypto.getRandomValues(new Uint8Array(12)), byte => byte.toString(16).padStart(2, '0')).join('')}`
   const bytes = await bytesFor(blob)
-  await run('readwrite', store => store.put({ format: 'bytes-v1', type: blob.type, bytes }, id))
+  await run('readwrite', store => store.put({ format: 'bytes-v1', type: blob.type, bytes, expiresAt }, id))
   return id
 }
 
@@ -55,4 +55,21 @@ export async function loadExerciseVideoBlob(sessionId, exerciseId, id) {
 
 export function removeExerciseVideoBlob(sessionId, exerciseId, id) {
   return run('readwrite', store => store.delete(id ?? legacyKey(sessionId, exerciseId)))
+}
+
+export function pruneExerciseVideoBlobs(now, retainedExpiries) {
+  const instant = new Date(now).getTime()
+  return run('readwrite', store => {
+    const request = store.openCursor()
+    request.onsuccess = () => {
+      const cursor = request.result
+      if (!cursor) return
+      // Stored expiry also covers blobs orphaned by a failed metadata write.
+      // Old records without expiry remain only while a dated attachment references them.
+      const expiresAt = Date.parse(cursor.value?.expiresAt ?? retainedExpiries[cursor.key])
+      if (!Number.isFinite(expiresAt) || expiresAt <= instant) cursor.delete()
+      cursor.continue()
+    }
+    return request
+  })
 }

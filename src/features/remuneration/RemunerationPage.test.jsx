@@ -11,7 +11,7 @@ const owner = {id:'owner',role:'owner'}
 function NotifiedRemuneration(props) {
   const { runAction } = useNotifications()
   const data = props.data, policy = data.settings
-  const views = remunerationCycles(data, props.user).map(key => ({ key, cycle: payCycle(key, policy.remuneration), trainers: cycleTrainers(data, key, props.user) }))
+  const views = props.views ?? remunerationCycles(data, props.user, props.now).map(key => ({ key, cycle: payCycle(key, policy.remuneration), trainers: cycleTrainers(data, key, props.user, props.now) }))
   return <RemunerationPage {...props} views={views} policy={policy} onApprove={(...args) => runAction(() => props.onApprove(...args), { message: 'Remuneration approved.' })} />
 }
 function show(props) {
@@ -81,6 +81,22 @@ it('keeps the cycle selector on the list and shows only the fixed cycle in a tra
   await userEvent.click(screen.getByRole('button',{name:'Back to Pay Cycle'}))
   expect(back).toHaveBeenCalledTimes(1)
 })
+
+it('opens the service-selected current cycle despite later bookings and honors explicit cycle links', () => {
+  const data = payFixture(), now = new Date('2026-09-09T04:00:00Z')
+  const views = ['2026-12', '2026-09'].map(key => ({ key, isCurrent: key === '2026-09', cycle: payCycle(key, data.settings.remuneration), trainers: cycleTrainers(data, key, owner, now) }))
+  for (const user of [owner, { id: 'trainer', role: 'trainer', trainerId: 't1' }]) {
+    const scoped = views.map(view => ({ ...view, trainers: view.trainers.filter(record => user.role === 'owner' || record.trainerId === user.trainerId) }))
+    show({ views: scoped, user, cycleKey: undefined })
+    expect(screen.getByRole('combobox', { name: 'Pay cycle' })).toHaveValue('2026-09')
+    expect(document.querySelector('.remuneration-totals')).toHaveTextContent('Completed sessions1')
+    cleanup()
+    show({ views: scoped, user, cycleKey: '2026-12' })
+    expect(screen.getByRole('combobox', { name: 'Pay cycle' })).toHaveValue('2026-12')
+    expect(document.querySelector('.remuneration-totals')).toHaveTextContent('Completed sessions0')
+    cleanup()
+  }
+})
 it('shows only the client, date, amount and View Session in each compact row and opens that session', async () => {
   const open = vi.fn()
   const {container} = show({trainerId:'t1',onOpenSession:open})
@@ -95,4 +111,29 @@ it('shows only the client, date, amount and View Session in each compact row and
   expect(row.querySelector('.remuneration-session-rate')).toHaveTextContent('80.00')
   await userEvent.click(within(row).getByRole('button',{name:/View Session/}))
   expect(open).toHaveBeenCalledExactlyOnceWith('pay1')
+})
+it('shows In progress before cycle close and Pending review until every session is acknowledged', () => {
+  const db = payFixture()
+  db.sessions.push({ ...db.sessions[0], id: 'missed-session', status: 'planned', acknowledgement: null })
+  for (const user of [owner, { id: 'trainer', role: 'trainer', trainerId: 't1' }]) {
+    show({ data: db, user, trainerId: 't1', now: new Date('2026-09-15T15:59:59Z') })
+    expect(document.querySelector('.remuneration-section-head')).toHaveTextContent('In progress')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(document.querySelectorAll('.remuneration-session')).toHaveLength(2)
+    if (user.role === 'owner') expect(screen.getByRole('button', { name: 'Approve Remuneration', exact: true })).toBeDisabled()
+    cleanup()
+    show({ data: db, user, trainerId: 't1', now: new Date('2026-09-15T16:00:00Z') })
+    expect(document.querySelector('.remuneration-section-head')).toHaveTextContent('Pending review')
+    expect(screen.getByRole('alert')).toHaveTextContent('1 session(s) need attention')
+    if (user.role === 'owner') expect(screen.getByRole('button', { name: 'Approve Remuneration', exact: true })).toBeDisabled()
+    else expect(screen.queryByRole('button', { name: 'Approve Remuneration', exact: true })).not.toBeInTheDocument()
+    cleanup()
+  }
+  Object.assign(db.sessions[1], { status: 'completed', acknowledgement: { method: 'late_no_show', recordedAt: '2026-09-15T15:59:59Z' } })
+  delete db.sessions[0].outcome
+  delete db.sessions[1].outcome
+  show({ data: db, trainerId: 't1', now: new Date('2026-09-15T16:00:00Z') })
+  expect(document.querySelector('.remuneration-section-head')).toHaveTextContent('Pending approval')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Approve Remuneration', exact: true })).toBeEnabled()
 })

@@ -1,6 +1,6 @@
 import { delay, mockDb } from './mockDb.js'
-import { requireActiveActor } from '../app/scheduleChanges.js'
-import { formatMoney, remunerationDraft, remunerationRecord, remunerationCycles, cycleTrainers } from '../app/remuneration.js'
+import { businessNow, requireActiveActor } from '../app/scheduleChanges.js'
+import { cycleForDate, formatMoney, remunerationDraft, remunerationRecord, remunerationCycles, cycleTrainers } from '../app/remuneration.js'
 
 function ownerOnly(db, actor) {
   const owner = requireActiveActor(db, actor)
@@ -15,9 +15,10 @@ function freshDraft(db, cycle, trainerId, revision) {
 }
 
 export const remunerationService = {
-  list(actor, now) {
+  list(actor, now = new Date()) {
     const db = mockDb.read(), user = requireActiveActor(db, actor)
-    return remunerationCycles(db, user, now).map(key => ({ key, trainers: cycleTrainers(db, key, user, now) }))
+    const currentCycle = cycleForDate(businessNow(now, db.settings.timeZone).date, db.settings.remuneration)
+    return remunerationCycles(db, user, now).map(key => ({ key, isCurrent: key === currentCycle, trainers: cycleTrainers(db, key, user, now) }))
   },
   detail(cycle, trainerId, actor, now) {
     const db = mockDb.read(), user = requireActiveActor(db, actor)
@@ -29,8 +30,8 @@ export const remunerationService = {
     return mockDb.mutate(db => {
       const owner = ownerOnly(db, actor)
       const draft = freshDraft(db, cycle, trainerId, revision)
-      if (!draft.closed) throw new Error('Approve this cycle from its payout date, after all cycle dates have passed.')
-      if (!draft.sessions || draft.reviewCount) throw new Error('Correct the session details or missing trainer rates before approval.')
+      if (!draft.closed) throw new Error('Approve this cycle after all cycle dates have passed.')
+      if (!draft.sessions || draft.reviewCount) throw new Error('Complete every session and correct any invalid session details or missing trainer rates before approval.')
       const approvedAt = new Date().toISOString()
       const record = { ...draft, status: 'Approved', approvedAt, approvedBy: owner.id }
       db.remunerationApprovals = [...(db.remunerationApprovals ?? []), record]

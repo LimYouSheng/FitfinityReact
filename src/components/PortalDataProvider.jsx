@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { portalServices } from '../services/defaultPortalServices.js'
 import { businessClock } from '../app/clock.js'
-import { PortalData } from '../hooks/usePortalData.js'
+import { PortalData, PORTAL_SESSION_ENDED } from '../hooks/usePortalData.js'
 
 export function PortalDataProvider({ services = portalServices, children }) {
   const [state, setState] = useState({ snapshot: null, error: '', loading: true })
@@ -12,10 +12,16 @@ export function PortalDataProvider({ services = portalServices, children }) {
     const request = ++generation.current
     try {
       const snapshot = await services.load()
-      if (mounted.current && request === generation.current) setState({ snapshot, error: '', loading: false })
+      if (mounted.current && request === generation.current) {
+        if (!snapshot.user) window.dispatchEvent(new Event(PORTAL_SESSION_ENDED))
+        setState({ snapshot, error: '', loading: false })
+      }
       return snapshot
     } catch (error) {
-      if (mounted.current && request === generation.current) setState(current => ({ ...current, snapshot: error.code === 'SESSION_EXPIRED' && current.snapshot ? { ...current.snapshot, user: null, data: null } : current.snapshot, error: error.message || 'Unable to load the portal.', loading: false }))
+      if (mounted.current && request === generation.current) {
+        if (error.code === 'SESSION_EXPIRED') window.dispatchEvent(new Event(PORTAL_SESSION_ENDED))
+        setState(current => ({ ...current, snapshot: error.code === 'SESSION_EXPIRED' && current.snapshot ? { ...current.snapshot, user: null, data: null } : current.snapshot, error: error.message || 'Unable to load the portal.', loading: false }))
+      }
       throw error
     }
   }, [services])
@@ -35,6 +41,8 @@ export function PortalDataProvider({ services = portalServices, children }) {
   const guardedServices = useMemo(() => {
     const signOutSnapshot = () => {
       ++generation.current
+      // Let the active navigation owner retire its route before private UI unmounts.
+      window.dispatchEvent(new Event(PORTAL_SESSION_ENDED))
       setState(current => ({ ...current, snapshot: current.snapshot ? { ...current.snapshot, user: null, data: null } : null, error: '', loading: false }))
     }
     const wrap = (operation, clearSession = false) => async (...args) => {

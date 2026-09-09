@@ -1,13 +1,15 @@
-import { expect, test, selectDemoIdentity } from './fixtures.js'
+import { expect, test, selectDemoIdentity, drawClientSignature } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
+import { signatureFixture } from '../src/test/fixtures/signature.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
 async function start(page, route = 'messages', extraSessions = []) {
   const db = structuredClone(seed)
-  const base = db.sessions.find(session => session.status === 'completed')
+  const completed = db.sessions.find(session => session.status === 'completed')
+  const base = { ...completed, acknowledgement: { method: 'signature', signerName: 'Amanda Lim', signature: structuredClone(signatureFixture), recordedAt: '2020-08-21T12:00:00+08:00' }, outcome: null, whatsappOpenedAt: null }
   db.sessions = [
-    { ...base, id:'pay-peak', clientId:'c1', trainerId:'t1', date:'2020-08-20', from:'18:00', to:'19:00', outcome:{durationMinutes:60} },
-    { ...base, id:'pay-off', clientId:'c1', trainerId:'t1', date:'2020-08-21', from:'10:00', to:'11:00', outcome:{durationMinutes:60} },
-    { ...base, id:'pay-other', clientId:'c2', trainerId:'t2', date:'2020-08-21', from:'18:00', to:'19:00', outcome:{durationMinutes:60} },
+    { ...base, id:'pay-peak', clientId:'c1', trainerId:'t1', date:'2020-08-20', from:'18:00', to:'19:00' },
+    { ...base, id:'pay-off', clientId:'c1', trainerId:'t1', date:'2020-08-21', from:'10:00', to:'11:00' },
+    { ...base, id:'pay-other', clientId:'c2', trainerId:'t2', date:'2020-08-21', from:'18:00', to:'19:00' },
   ]
   db.sessions.push(...extraSessions.map(session => ({ ...db.sessions[0], ...session })))
   db.clients.push({ ...db.clients[0], id:'created-test', name:'Test' })
@@ -90,6 +92,36 @@ test('M3 remuneration cycle list has compact ordered columns and a money toggle 
   await expect(page.getByRole('table',{name:'Trainer remuneration'})).toBeVisible()
   await expect(page.getByRole('combobox',{name:'Pay cycle',exact:true})).toHaveValue('2020-09')
 })
+
+test('M4 owner and trainer open the current remuneration cycle and every total links to its sessions', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2020-09-01T04:00:00Z'))
+  await start(page, 'remuneration', [{ id: 'future-pay', date: '2020-10-20', status: 'planned', acknowledgement: null }])
+  for (const id of ['u-owner', 'u-marcus']) {
+    if (id !== 'u-owner') {
+      await selectDemoIdentity(page, id)
+      await page.goto('/#/remuneration')
+    }
+    await expect(page.getByRole('combobox', { name: 'Pay cycle', exact: true })).toHaveValue('2020-09')
+    await page.getByRole('button', { name: 'Show remuneration amounts', exact: true }).click()
+    const row = page.locator('.remuneration-trainer-row').filter({ hasText: 'Marcus Tan' })
+    await expect(row.locator('[data-label="Sessions"]')).toHaveText('2')
+    await expect(row.locator('[data-label="Remuneration"]')).toContainText('135.00')
+    await row.getByRole('button', { name: 'View remuneration for Marcus Tan', exact: true }).click()
+    await expect(page.locator('.remuneration-session')).toHaveCount(2)
+    await expect(page.locator('[data-session-id="pay-peak"] .remuneration-session-rate')).toContainText('80.00')
+    await expect(page.locator('[data-session-id="pay-off"] .remuneration-session-rate')).toContainText('55.00')
+    await page.locator('[data-session-id="pay-peak"]').getByRole('button', { name: /View Session/ }).click()
+    await expect(page.getByLabel('Session status summary')).toContainText('Completed')
+    await page.goBack()
+    await expect(page.locator('.remuneration-totals')).toContainText('135.00')
+    await page.getByRole('button', { name: 'Back to Pay Cycle', exact: true }).click()
+    await page.getByRole('combobox', { name: 'Pay cycle', exact: true }).selectOption('2020-11')
+    await expect(page.locator('.remuneration-totals')).toContainText('Completed sessions0')
+    await page.reload()
+    await expect(page.getByRole('combobox', { name: 'Pay cycle', exact: true })).toHaveValue('2020-11')
+  }
+})
+
 test('M3 owner approves automatic session totals once with routed unread notifications', async ({page}) => {
   await showBreakdown(page)
   const before = await readDb(page)
@@ -157,4 +189,40 @@ test('M3 automatic peak rates respect weekday boundaries and both weekend days',
   await page.getByRole('button',{name:'Hide remuneration amounts',exact:true}).click()
   for (const [id] of cases) await expect(page.locator(`[data-session-id="${id}"] .remuneration-session-rate`)).toHaveText('••••')
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1)
+})
+test('M4 remuneration moves from In progress to Pending review and becomes approvable with acknowledgement alone', async ({page}) => {
+  await page.clock.install({ time: new Date('2020-09-15T15:59:30Z') })
+  await start(page, 'remuneration/2020-09/t1', [{ id: 'pay-missing', status: 'planned', acknowledgement: null }])
+  await expect(page.locator('.remuneration-section-head .status-badge')).toHaveText('In progress')
+  await expect(page.getByRole('button', { name: 'Approve Remuneration', exact: true })).toBeDisabled()
+  await expect(page.locator('.remuneration-session')).toHaveCount(3)
+  await page.clock.fastForward(31000)
+  await page.reload()
+  await expect(page.locator('.remuneration-section-head .status-badge')).toHaveText('Pending review')
+  await expect(page.getByRole('button', { name: 'Approve Remuneration', exact: true })).toBeDisabled()
+  await selectDemoIdentity(page, 'u-marcus')
+  await page.evaluate(() => { location.hash = '#/remuneration/2020-09/t1' })
+  await expect(page.locator('.remuneration-section-head .status-badge')).toHaveText('Pending review')
+  await expect(page.getByRole('button', { name: 'Approve Remuneration', exact: true })).toHaveCount(0)
+  await page.locator('[data-session-id="pay-missing"]').getByRole('button', { name: /View Session/ }).click()
+  await page.getByRole('button', { name: 'Client Signature', exact: true }).click()
+  await drawClientSignature(page)
+  await page.getByRole('button', { name: 'Review Completion' }).click()
+  await page.getByRole('dialog', { name: 'Complete this session?' }).getByRole('button', { name: 'Complete Session', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'View Client Signature' })).toBeVisible()
+  const completed = (await readDb(page)).sessions.find(session => session.id === 'pay-missing')
+  expect(completed).toMatchObject({ status: 'completed', outcome: null, whatsappOpenedAt: null })
+  expect(completed.acknowledgement.signature.length).toBeGreaterThan(0)
+  await page.goBack()
+  await expect(page.locator('.remuneration-section-head .status-badge')).toHaveText('Pending approval')
+  await selectDemoIdentity(page, 'u-owner')
+  await page.evaluate(() => { location.hash = '#/remuneration/2020-09/t1' })
+  await expect(page.locator('.remuneration-section-head .status-badge')).toHaveText('Pending approval')
+  await page.getByRole('button', { name: 'Show remuneration amounts', exact: true }).click()
+  await page.getByRole('button', { name: 'Approve Remuneration', exact: true }).click()
+  const confirmation = page.getByRole('dialog', { name: 'Approve trainer remuneration?', exact: true })
+  await expect(confirmation).toContainText('215.00')
+  await confirmation.getByRole('button', { name: 'Approve Remuneration', exact: true }).click()
+  await expect(page.locator('.remuneration-section-head .status-badge')).toHaveText('Approved')
+  expect((await readDb(page)).remunerationApprovals[0]).toMatchObject({ sessions: 3, amountCents: 21500 })
 })

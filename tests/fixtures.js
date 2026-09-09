@@ -28,6 +28,26 @@ export async function selectDemoIdentity(page, id) {
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
 }
 
+// Stub only the OS share boundary; the application still renders its real PDF.
+export async function mockPdfSharing(page, { supported = true, outcomes = [] } = {}) {
+  await page.evaluate(({ supported, outcomes }) => {
+    window.__pdfShares = []
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: ({ files }) => supported && files?.length === 1 && files[0].type === 'application/pdf' })
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async data => {
+      const active = navigator.userActivation.isActive
+      const file = data.files[0], bytes = await file.arrayBuffer()
+      const content = new TextDecoder('latin1').decode(bytes)
+      const digest = await crypto.subtle.digest('SHA-256', bytes)
+      window.__pdfShares.push({ name: file.name, type: file.type, size: file.size, active,
+        keys: Object.keys(data), header: content.slice(0, 9), eof: content.endsWith('%%EOF\n'),
+        images: (content.match(/\/Subtype \/Image/g) ?? []).length,
+        sha256: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('') })
+      const outcome = outcomes.shift()
+      if (outcome) throw new DOMException(outcome, outcome)
+    } })
+  }, { supported, outcomes })
+}
+
 // Existing workflow scenarios explicitly expand navigation before using its links.
 // Sidebar-default scenarios do not call this helper.
 export async function expandSidebarSections(page, { keepOpen = false } = {}) {

@@ -10,6 +10,8 @@ import { sessionService } from './sessionService.js'
 import { clientService } from './clientService.js'
 import { packageService } from './packageService.js'
 
+const acknowledgementActor = () => mockDb.read().users.find(user => user.role === 'owner')
+
 const KEY = 'fitfinity-m2-demo-db-v4'
 const signature = { method: 'signature', signerName: 'Amanda Lim', signature: signatureFixture }
 const renewals = (db, clientId = 'c1') => db.messages.filter(message => message.kind === 'renewal' && message.clientId === clientId)
@@ -98,12 +100,13 @@ describe('last-session renewal updates', () => {
     for (const first of [signature, { method: 'late_no_show' }]) {
       mockDb.reset()
       prepare()
-      await sessionService.acknowledge('s1', first)
+      await sessionService.acknowledge('s1', first, acknowledgementActor())
       const reminder = renewals(mockDb.read())[0]
       expect(reminder.renewal).toMatchObject({ used: 10, total: 12, remaining: 2 })
-      for (const acknowledgement of [first, { method: 'late_no_show' }, signature]) {
-        await sessionService.acknowledge('s1', acknowledgement)
-      }
+      await sessionService.acknowledge('s1', first, acknowledgementActor())
+      if (first.method === 'late_no_show') await sessionService.acknowledge('s1', signature, acknowledgementActor())
+      await sessionService.acknowledge('s1', signature, acknowledgementActor())
+      await expect(sessionService.acknowledge('s1', { method: 'late_no_show' }, acknowledgementActor())).rejects.toThrow()
       const db = mockDb.reload()
       expect(amanda(db).package.used).toBe(10)
       expect(db.packageCreditTransactions.filter(transaction => transaction.sessionId === 's1')).toHaveLength(1)
@@ -115,21 +118,21 @@ describe('last-session renewal updates', () => {
     for (const used of [8, 10, 11]) {
       mockDb.reset()
       prepare(used)
-      await sessionService.acknowledge('s1', { method: 'late_no_show' })
+      await sessionService.acknowledge('s1', { method: 'late_no_show' }, acknowledgementActor())
       expect(renewals(mockDb.read())).toEqual([])
     }
     mockDb.reset()
     prepare()
-    await sessionService.acknowledge('s1', signature)
+    await sessionService.acknowledge('s1', signature, acknowledgementActor())
     const original = renewals(mockDb.read())[0]
-    await sessionService.acknowledge('s2', { method: 'late_no_show' })
+    await sessionService.acknowledge('s2', { method: 'late_no_show' }, acknowledgementActor())
     expect(amanda(mockDb.read()).package.used).toBe(11)
     expect(renewals(mockDb.read())).toEqual([original])
     mockDb.mutate(db => {
       const source = db.sessions.find(session => session.id === 's2')
       db.sessions.push({ ...source, id: 'last-package-session', status: 'not_planned', acknowledgement: null })
     })
-    await sessionService.acknowledge('last-package-session', { method: 'late_no_show' })
+    await sessionService.acknowledge('last-package-session', { method: 'late_no_show' }, acknowledgementActor())
     expect(amanda(mockDb.read()).package.used).toBe(12)
     expect(renewals(mockDb.reload())).toEqual([original])
     const expired = prepare(4)
@@ -140,12 +143,12 @@ describe('last-session renewal updates', () => {
   it('rolls back the credit, completion and renewal together on persistence failure, then permits one retry', async () => {
     const before = prepare()
     const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage full') })
-    await expect(sessionService.acknowledge('s1', signature)).rejects.toThrow('Storage full')
+    await expect(sessionService.acknowledge('s1', signature, acknowledgementActor())).rejects.toThrow('Storage full')
     expect(mockDb.read()).toEqual(before)
     expect(JSON.parse(localStorage.getItem(KEY))).toEqual(before)
     storage.mockRestore()
-    await sessionService.acknowledge('s1', signature)
-    await sessionService.acknowledge('s1', signature)
+    await sessionService.acknowledge('s1', signature, acknowledgementActor())
+    await sessionService.acknowledge('s1', signature, acknowledgementActor())
     expect(amanda(mockDb.reload()).package.used).toBe(10)
     expect(renewals(mockDb.read())).toHaveLength(1)
     expect(mockDb.read().packageCreditTransactions.filter(transaction => transaction.sessionId === 's1')).toHaveLength(1)

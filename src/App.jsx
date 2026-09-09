@@ -72,7 +72,7 @@ function StaffPortal() {
   })
   const signOut = () => guardNavigation(async () => {
     try { await runAction(() => services.auth.signOut(), null) } catch { return }
-    clear(); replacePath('dashboard'); await reload()
+    clear(); await reload()
   })
   const reset = () => guardNavigation(async () => {
     try { await runAction(() => services.reset(), null) } catch { return }

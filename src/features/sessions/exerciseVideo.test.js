@@ -6,8 +6,24 @@ import {
   exerciseVideoFileValidation,
   exerciseVideoValidation,
 } from './exerciseVideo.js'
+import { exerciseVideoExpired, exerciseVideoExpiresAt } from '../../app/video.js'
+import { normalizeExercisePlan } from '../../app/sessionRules.js'
 
 describe('exercise video rules', () => {
+  it('uses the recorded expiry, derives legacy expiry from policy, and expires exactly at the deadline', () => {
+    const video = { attachedAt: '2026-09-09T10:15:00Z', expiresAt: '2026-09-16T10:15:00Z' }
+    expect(exerciseVideoExpiresAt(video, 30)).toBe('2026-09-16T10:15:00.000Z')
+    expect(exerciseVideoExpiresAt({ attachedAt: video.attachedAt }, 7)).toBe('2026-09-16T10:15:00.000Z')
+    expect(exerciseVideoExpired(video, new Date('2026-09-16T10:14:59.999Z'), 7)).toBe(false)
+    expect(exerciseVideoExpired(video, new Date('2026-09-16T10:15:00Z'), 7)).toBe(true)
+    expect(exerciseVideoExpired({}, new Date('2026-09-09T10:15:00Z'), 7)).toBe(true)
+    expect(exerciseVideoExpiresAt({ attachedAt: 'invalid' }, 7)).toBeNull()
+    expect(exerciseVideoExpiresAt({ attachedAt: video.attachedAt }, 0)).toBeNull()
+    const [normalized] = normalizeExercisePlan([{ name: 'Row', videoAttached: true, video: {
+      ...video, duration: null, audioIncluded: null, processingStatus: 'deferred',
+    } }])
+    expect(normalized.video).toMatchObject({ ...video, duration: null, audioIncluded: null, processingStatus: 'deferred' })
+  })
   it('uses planned details as the caption and enforces the upload limits', () => {
     expect(exerciseVideoCaption({
       name: 'Romanian Deadlift',
