@@ -59,7 +59,39 @@ it('restores nested trainer assigned-client filters after returning from a clien
 })
 
 it('restores list filters after detail navigation and isolates view state when switching account', async () => {
-  show('clients')
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
+  mockDb.mutate(db => {
+    const future = db.sessions.find(session => session.id === 's2')
+    db.sessions = [
+      ...db.sessions.filter(session => ['s0', 's1', 's2'].includes(session.id)),
+      { ...future, id: 'later-time', from: '20:00', to: '21:00' },
+      { ...future, id: 'other-trainer', trainerId: 't2', date: '2026-09-08' },
+    ]
+  })
+  show('sessions')
+  await screen.findByRole('heading', { name: 'Sessions', exact: true })
+  expect(screen.getByLabelText('Filter sessions by period')).toHaveValue('upcoming')
+  let rows = screen.getByLabelText('Session list').querySelectorAll('article')
+  expect(rows).toHaveLength(4)
+  expect(rows[0]).toHaveTextContent('02 Sept 2026')
+  expect(screen.getByLabelText('Session list')).not.toHaveTextContent('29 Aug 2026')
+  change('Filter sessions by period', 'all')
+  change('Search sessions', 'Amanda')
+  rows = screen.getByLabelText('Session list').querySelectorAll('article')
+  expect(rows).toHaveLength(5)
+  expect(rows[0]).toHaveTextContent('08 Sept 2026')
+  expect(rows[1]).toHaveTextContent('20:00–21:00')
+  expect(rows[2]).toHaveTextContent('18:00–19:00')
+  expect(rows[4]).toHaveTextContent('29 Aug 2026')
+  fireEvent.click(within(rows[0]).getByRole('button', { name: /View session/ }))
+  await screen.findByRole('heading', { name: 'Session Overview' })
+  click('Back')
+  await screen.findByRole('heading', { name: 'Sessions', exact: true })
+  expect(screen.getByLabelText('Filter sessions by period')).toHaveValue('all')
+  expect(screen.getByLabelText('Search sessions')).toHaveValue('Amanda')
+  expect(screen.getByLabelText('Session list').querySelector('article')).toHaveTextContent('08 Sept 2026')
+  click('Clients')
   await screen.findByRole('heading', { name: 'All Clients' })
   change('Search client', 'Amanda')
   change('Filter clients by type', 'Individual')
@@ -76,6 +108,20 @@ it('restores list filters after detail navigation and isolates view state when s
   expect(screen.queryByLabelText('Filter clients by trainer')).not.toBeInTheDocument()
   expect(screen.getByLabelText('Search client')).toHaveValue('')
   expect(screen.getByLabelText('Filter clients by type')).toHaveValue('')
+  click('Sessions')
+  await screen.findByRole('heading', { name: 'Sessions', exact: true })
+  expect(screen.getByLabelText('Filter sessions by period')).toHaveValue('upcoming')
+  expect(screen.getByLabelText('Search sessions')).toHaveValue('')
+  expect(screen.getByLabelText('Session list').querySelectorAll('article')).toHaveLength(3)
+  change('Filter sessions by period', 'all')
+  rows = screen.getByLabelText('Session list').querySelectorAll('article')
+  expect(rows).toHaveLength(4)
+  expect(rows[0]).toHaveTextContent('07 Sept 2026')
+  expect(rows[0]).toHaveTextContent('20:00–21:00')
+  expect(rows[3]).toHaveTextContent('29 Aug 2026')
+  change('Filter sessions by period', 'history')
+  expect(screen.getByLabelText('Session list').querySelectorAll('article')).toHaveLength(1)
+  expect(screen.getByLabelText('Session list')).toHaveTextContent('29 Aug 2026')
 })
 
 function show(path='dashboard',signedIn=true,services) {
@@ -86,12 +132,19 @@ function show(path='dashboard',signedIn=true,services) {
 const change=(name,value)=>fireEvent.change(screen.getByLabelText(name),{target:{value}})
 const click=name=>fireEvent.click(screen.getByRole('button',{name,exact:true}))
 // Query the explicit button labels/mode group without computing accessible names
-// for every session in the 42-day month. Native button and label checks remain.
+// for every calendar session. Native button and label checks remain.
 const calendarDate = day => screen.getByLabelText(`Show sessions for ${day}`, { selector: 'button', exact: true })
+const calendarDay = day => document.querySelector(`.calendar-day[data-date="${day}"]`)
+const displayedCalendarDates = () => [...document.querySelectorAll('.calendar-day')].map(day => day.dataset.date)
 const calendarMode = name => within(screen.getByLabelText('Calendar view')).getByRole('button', { name, exact: true })
 const closeCalendar = () => fireEvent.click(screen.getByLabelText('Close calendar sessions', { selector: 'button', exact: true }))
+const septemberDates = Array.from({ length: 30 }, (_, index) => `2026-09-${String(index + 1).padStart(2, '0')}`)
+function fixCalendarClock() {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
+}
 beforeEach(()=>{localStorage.clear();mockDb.reset();vi.stubGlobal('crypto',webcrypto);window.scrollTo=vi.fn();vi.stubGlobal('matchMedia', query => ({ matches: query === '(min-width: 700px)', addEventListener() {}, removeEventListener() {} }))})
-afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals()})
+afterEach(()=>{cleanup();vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals()})
 
 it('blocks account actions until a delayed switch commits and restores the current account after failure', async () => {
   let release
@@ -121,16 +174,37 @@ it('blocks account actions until a delayed switch commits and restores the curre
 })
 
 it('M4 assembled app signs in, exposes a real calendar and signs out to an account form',async()=>{
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
   show('dashboard',false)
   await screen.findByRole('heading',{name:'Sign in'})
   change('Account','u-owner');change('Password',mockAccountPassword);click('Sign In')
   await screen.findByRole('heading',{name:'Calendar'})
+  expect(calendarMode('Weekly')).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.queryByLabelText('Calendar date')).not.toBeInTheDocument()
+  const initialWeek = ['2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07', '2026-09-08']
+  expect(displayedCalendarDates()).toEqual(initialWeek)
+  click('Next calendar period')
+  expect(displayedCalendarDates()).toEqual(['2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13', '2026-09-14', '2026-09-15'])
+  click('Previous calendar period')
+  expect(displayedCalendarDates()).toEqual(initialWeek)
   click('Monthly');expect(screen.getByRole('button',{name:'Monthly'})).toHaveAttribute('aria-pressed','true')
-  change('Calendar date','2032-02-29')
-  expect(document.querySelectorAll('.calendar-day')).toHaveLength(42)
+  expect(screen.queryByLabelText('Calendar date')).not.toBeInTheDocument()
+  expect(displayedCalendarDates()).toEqual(septemberDates)
+  click('Next calendar period')
+  expect(displayedCalendarDates()).toEqual(Array.from({ length: 31 }, (_, index) => `2026-10-${String(index + 1).padStart(2, '0')}`))
+  expect(document.querySelector('.calendar-toolbar > strong')).toHaveTextContent('Oct 2026')
+  click('Next calendar period')
+  expect(displayedCalendarDates()).toEqual(Array.from({ length: 30 }, (_, index) => `2026-11-${String(index + 1).padStart(2, '0')}`))
   expect(screen.queryByLabelText('Selected day sessions')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Today', exact: true })).not.toBeInTheDocument()
   expect(screen.getByLabelText('Monthly calendar').querySelectorAll('.calendar-event')).toHaveLength(0)
+  expect(screen.getByLabelText('Monthly calendar').querySelectorAll('button, .calendar-count-label, .calendar-date-action')).toHaveLength(0)
+  expect(calendarDay('2026-11-30').querySelector('time')).toHaveTextContent('30')
+  click('Previous calendar period')
+  expect(displayedCalendarDates()).toEqual(Array.from({ length: 31 }, (_, index) => `2026-10-${String(index + 1).padStart(2, '0')}`))
+  click('Previous calendar period')
+  expect(displayedCalendarDates()).toEqual(septemberDates)
   click('Open profile menu');fireEvent.click(screen.getByRole('menuitem',{name:'Sign Out'}))
   await screen.findByRole('heading',{name:'Sign in'})
   expect(screen.queryByRole('heading',{name:'Calendar'})).not.toBeInTheDocument()
@@ -160,14 +234,62 @@ it('M4 assembled signature dialog requires drawing, supports clear and saves vis
   expect(screen.getByRole('dialog',{name:'Client signature'})).toHaveTextContent('Amanda Lim')
   expect(mockDb.read().packageCreditTransactions.filter(item=>item.sessionId==='s1')).toHaveLength(1)
 })
-it('M4 assembled app retries initial load and uses arbitrary adapter account and policy data',async()=>{
-  const snapshot={user:null,accounts:[{id:'external-id',name:'External account'}],policy:{timeZone:'UTC'}}
-  const services={load:vi.fn().mockRejectedValueOnce(new Error('Network unavailable')).mockResolvedValue(snapshot),auth:{signIn:vi.fn()}}
-  show('dashboard',false,services)
+it('M4 assembled app retries loads and uses an injected account for saves, refresh and sign-out without demo controls',async()=>{
+  const owner = { id: 'external-id', name: 'External account', role: 'owner' }
+  const data = { users: [owner], clients: [], trainers: [], sessions: [], messages: [], packages: [], exerciseLibrary: [], contentEntries: [], remunerationViews: [] }
+  const snapshot = { user: null, accounts: [owner], capabilities: { demoControls: false }, policy: { timeZone: 'UTC' }, data: null }
+  const services = {
+    load: vi.fn().mockRejectedValueOnce(new Error('Network unavailable')).mockImplementation(async () => structuredClone(snapshot)),
+    auth: {
+      signIn: vi.fn(async () => { snapshot.user = owner; snapshot.data = data; return owner }),
+      signOut: vi.fn(async () => { snapshot.user = null; snapshot.data = null }),
+    },
+    contentService: {
+      save: vi.fn().mockRejectedValueOnce(new Error('Save unavailable')).mockImplementation(async ({ draft }) => {
+        const saved = { ...draft, id: 'external-content', version: 1 }
+        data.contentEntries = [saved]
+        return saved
+      }),
+    },
+  }
+  const localRecords = mockDb.read()
+  show('content/new',false,services)
   await screen.findByRole('heading',{name:'Unable to load the portal'});click('Retry')
   await screen.findByRole('heading',{name:'Sign in'})
   expect(screen.getByRole('option',{name:'External account'})).toHaveValue('external-id')
   expect(screen.queryByText(mockAccountPassword)).not.toBeInTheDocument()
+  change('Account', owner.id); change('Password', 'external-password'); click('Sign In')
+  await screen.findByLabelText('Content title')
+  expect(services.auth.signIn).toHaveBeenCalledWith({ identifier: owner.id, password: 'external-password' })
+  expect(document.querySelector('.portal-shell')).toHaveAttribute('data-user-id', owner.id)
+  expect(screen.queryByLabelText('Demo identity')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Reset Demo Data' })).not.toBeInTheDocument()
+
+  change('Content title', 'External studio'); change('Content key', 'external/studio'); change('Content body', 'Saved through the injected service.')
+  const confirmSave = () => {
+    click('Save Content')
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Save content?' })).getByRole('button', { name: 'Save Content' }))
+  }
+  confirmSave()
+  await waitFor(() => expect(screen.getAllByRole('alert').some(item => item.textContent.includes('Save unavailable'))).toBe(true))
+  expect(screen.getByLabelText('Content title')).toHaveValue('External studio')
+  expect(data.contentEntries).toEqual([])
+  const loadsBeforeSave = services.load.mock.calls.length
+  confirmSave()
+  await waitFor(() => expect(window.location.hash).toBe('#/content/external-content'))
+  await waitFor(() => expect(screen.getByLabelText('Content title')).toHaveValue('External studio'))
+  expect(services.contentService.save).toHaveBeenCalledTimes(2)
+  expect(services.contentService.save).toHaveBeenLastCalledWith({ id: undefined, expectedVersion: undefined, draft: { title: 'External studio', key: 'external/studio', body: 'Saved through the injected service.', status: 'draft' } }, owner)
+  expect(services.load.mock.calls.length).toBeGreaterThan(loadsBeforeSave)
+
+  services.load.mockRejectedValueOnce(new Error('Refresh unavailable'))
+  click('Open profile menu'); fireEvent.click(screen.getByRole('menuitem', { name: 'Sign Out' }))
+  await screen.findByRole('heading', { name: 'Sign in' })
+  expect(services.auth.signOut).toHaveBeenCalledOnce()
+  expect(document.querySelector('.portal-shell')).toBeNull()
+  expect(screen.queryByLabelText('Content title')).not.toBeInTheDocument()
+  expect(mockDb.read()).toEqual(localRecords)
+  expect(localStorage.getItem(MOCK_SESSION_KEY)).toBeNull()
 })
 it('M4 assembled password form keeps a failed draft and saves a verified replacement',async()=>{
   show('change-password');await screen.findByLabelText('Current password')
@@ -210,10 +332,11 @@ it('password notifications reflect loaded requirements and block invalid drafts 
 it('dashboard renewals share persisted read state with the routed renewal filter', async () => {
   show(); await screen.findByRole('heading', { name: 'Calendar' })
   const renewals = screen.getByLabelText('Renewal messages')
-  expect(renewals.querySelectorAll('.message-title-row')).toHaveLength(3)
+  expect(renewals.querySelectorAll('.message-title-row')).toHaveLength(1)
+  expect(renewals.querySelector('.message-title-row')).toHaveTextContent('Renewal follow-up: Nadia Koh')
   expect(renewals.compareDocumentPosition(screen.getByLabelText('Weekly calendar')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   fireEvent.click(within(renewals).getByRole('button', { name: 'Open Renewal follow-up: Nadia Koh' }))
-  await screen.findByRole('dialog', { name: 'Renewal follow-up: Nadia Koh' })
+  expect(await screen.findByRole('dialog', { name: 'Renewal follow-up: Nadia Koh' })).toHaveTextContent('10/12 sessions used · 2 sessions remaining.')
   expect(mockDb.read().messages.find(item => item.id === 'm3').read).toBe(true)
   click('Close message')
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -224,8 +347,9 @@ it('dashboard renewals share persisted read state with the routed renewal filter
 })
 
 it('calendar dates open scoped sessions in a routed dialog and session Back retains the calendar', async () => {
+  fixCalendarClock()
   show(); await screen.findByRole('heading', { name: 'Calendar' })
-  fireEvent.click(calendarMode('Monthly')); change('Calendar date', '2026-09-02')
+  fireEvent.click(calendarMode('Monthly'))
   fireEvent.click(calendarDate('2026-09-02'))
   const dialog = await screen.findByRole('dialog', { name: 'Calendar sessions' })
   expect(window.location.hash).toBe('#/dashboard/day/2026-09-02')
@@ -237,31 +361,33 @@ it('calendar dates open scoped sessions in a routed dialog and session Back reta
   await screen.findByRole('heading', { name: 'Calendar' })
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(calendarMode('Monthly')).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.getByLabelText('Calendar date')).toHaveValue('2026-09-02')
+  expect(displayedCalendarDates()).toEqual(septemberDates)
+  expect(document.querySelector('.calendar-toolbar > strong')).toHaveTextContent('Sept 2026')
 })
 
 it('calendar empty-day dialog closes with Escape and a trainer sees only their sessions', async () => {
+  fixCalendarClock()
   show(); await screen.findByRole('heading', { name: 'Calendar' })
   change('Demo identity', 'u-marcus')
   await screen.findByRole('heading', { name: 'Trainer Dashboard' })
-  change('Calendar date', '2026-09-02'); fireEvent.click(calendarDate('2026-09-02'))
+  fireEvent.click(calendarDate('2026-09-02'))
   const ownSessions = mockDb.read().sessions.filter(item => item.date === '2026-09-02' && item.trainerId === 't1')
   const dialog = screen.getByRole('dialog', { name: 'Calendar sessions' })
   expect(dialog.querySelectorAll('.calendar-event')).toHaveLength(ownSessions.length)
   closeCalendar()
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-  change('Calendar date', '2032-02-29'); fireEvent.click(calendarDate('2032-02-29'))
-  expect(screen.getByRole('dialog', { name: 'Calendar sessions' })).toHaveTextContent('No sessions for this day.')
+  await act(async () => { window.location.hash = '#/dashboard/day/2032-02-29' })
+  expect(await screen.findByRole('dialog', { name: 'Calendar sessions' })).toHaveTextContent('No sessions for this day.')
   fireEvent.keyDown(screen.getByLabelText('Close calendar sessions', { selector: 'button', exact: true }), { key: 'Escape' })
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   expect(document.body.style.position).not.toBe('fixed')
 })
 
 it('owner counts and trainer weekly rows open complete scoped days and retain Monthly state on Back', async () => {
+  fixCalendarClock()
   mockDb.write(withBusyCalendar(mockDb.read()))
   show(); await screen.findByRole('heading', { name: 'Calendar' })
-  change('Calendar date', '2026-09-02')
-  expect(calendarDate('2026-09-02')).toHaveTextContent(/^14$/)
+  expect(calendarDate('2026-09-02').querySelector('strong')).toHaveTextContent(/^14$/)
   expect(screen.getByLabelText('Weekly calendar').querySelector('.calendar-event')).toBeNull()
   fireEvent.click(calendarDate('2026-09-02'))
   expect(screen.getByRole('dialog').querySelectorAll('.calendar-trainer-group')).toHaveLength(2)
@@ -270,19 +396,28 @@ it('owner counts and trainer weekly rows open complete scoped days and retain Mo
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   change('Demo identity', 'u-marcus')
   await screen.findByRole('heading', { name: 'Trainer Dashboard' })
-  change('Calendar date', '2026-09-02')
   for (const mode of ['Weekly', 'Monthly']) {
     fireEvent.click(calendarMode(mode))
+    expect(screen.queryByLabelText('Calendar date')).not.toBeInTheDocument()
     const date = calendarDate('2026-09-02')
     expect(date).toHaveAttribute('aria-haspopup', 'dialog')
     const busy = date.closest('.calendar-day')
     if (mode === 'Weekly') expect(busy.querySelectorAll('.calendar-event')).toHaveLength(8)
     else {
-      expect(date).toHaveTextContent(/^8$/)
+      expect(date.querySelector('strong')).toHaveTextContent(/^8$/)
       expect(busy.querySelector('.calendar-event')).toBeNull()
     }
-    const empty = calendarDate('2026-09-04').closest('.calendar-day')
+    const empty = calendarDay('2026-09-04')
     expect(empty.querySelector('.calendar-event, .calendar-more')).toBeNull()
+    expect(empty.querySelector('button, [tabindex], .calendar-date-action, .calendar-count-label')).toBeNull()
+    expect(empty).not.toHaveTextContent('View day')
+    if (mode === 'Weekly') {
+      expect(empty.querySelector('.calendar-agenda-date')).toHaveTextContent('Friday, 04 Sept 2026')
+      expect(empty).toHaveTextContent('No sessions')
+    } else {
+      expect(empty.querySelector('time')).toHaveTextContent('4')
+      expect(empty).not.toHaveTextContent('No sessions')
+    }
     fireEvent.click(date)
     const dialog = screen.getByRole('dialog', { name: 'Calendar sessions' })
     expect(dialog.querySelectorAll('.calendar-event')).toHaveLength(8)
@@ -296,7 +431,8 @@ it('owner counts and trainer weekly rows open complete scoped days and retain Mo
   expect(window.location.hash).toBe('#/sessions/busy-7')
   click('Back'); await screen.findByRole('heading', { name: 'Calendar' })
   expect(calendarMode('Monthly')).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.getByLabelText('Calendar date')).toHaveValue('2026-09-02')
+  expect(displayedCalendarDates()).toEqual(septemberDates)
+  expect(document.querySelector('.calendar-toolbar > strong')).toHaveTextContent('Sept 2026')
 })
 
 

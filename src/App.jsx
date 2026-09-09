@@ -192,6 +192,7 @@ function StaffPortal() {
 
   const messageInboxProps = {
     user,
+    timeZone: policy.timeZone,
     messages,
     contentEntries: db.contentEntries,
     exercises: libraryExercises,

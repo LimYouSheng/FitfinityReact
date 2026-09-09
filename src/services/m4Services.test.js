@@ -3,7 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { authService, MOCK_SESSION_KEY } from './authService.js'
 import { mockDb } from './mockDb.js'
 import { mockAccountPassword } from '../data/mockPolicy.js'
-import { createPortalServices } from './portalService.js'
+import { createPortalServices, PORTAL_OPERATIONS } from './portalService.js'
 import { mockPortalAdapter } from './mockPortalAdapter.js'
 import { contentService } from './contentService.js'
 import { sessionService } from './sessionService.js'
@@ -48,6 +48,44 @@ describe('M4 account and service contract', () => {
     await expect(api.contentService.save({draft:content})).rejects.toThrow('Offline')
     expect(adapter.invoke).toHaveBeenCalledWith('contentService','save',[{draft:content}])
     await api.auth.signOut(); expect(adapter.session).toHaveBeenCalledWith('signOut',[])
+
+    const args = ['external-record', { expectedVersion: 7 }]
+    for (const [domain, methods] of Object.entries(PORTAL_OPERATIONS)) {
+      expect(Object.keys(api[domain])).toEqual(methods)
+      for (const method of methods) {
+        const saved = { id: 'canonical-record', domain, method }
+        adapter.invoke.mockResolvedValueOnce(saved)
+        const result = api[domain][method](...args)
+        expect(result).toBeInstanceOf(Promise)
+        await expect(result).resolves.toBe(saved)
+        expect(adapter.invoke).toHaveBeenLastCalledWith(domain, method, args)
+        const error = new Error(`${domain}.${method} unavailable`)
+        adapter.invoke.mockRejectedValueOnce(error)
+        await expect(api[domain][method](...args)).rejects.toBe(error)
+      }
+    }
+    for (const method of ['signIn', 'signOut', 'changePassword', 'switchDemoIdentity']) {
+      const saved = { method }
+      adapter.session.mockResolvedValueOnce(saved)
+      const result = api.auth[method](...args)
+      expect(result).toBeInstanceOf(Promise)
+      await expect(result).resolves.toBe(saved)
+      expect(adapter.session).toHaveBeenLastCalledWith(method, args)
+      const error = Object.assign(new Error('Account unavailable'), { code: 'SESSION_EXPIRED' })
+      adapter.session.mockRejectedValueOnce(error)
+      await expect(api.auth[method](...args)).rejects.toBe(error)
+    }
+    for (const method of ['load', 'reset']) {
+      const saved = { user: null }
+      adapter[method].mockResolvedValueOnce(saved)
+      const result = api[method]()
+      expect(result).toBeInstanceOf(Promise)
+      await expect(result).resolves.toBe(saved)
+      expect(adapter[method]).toHaveBeenLastCalledWith()
+      const error = new Error('Snapshot unavailable')
+      adapter[method].mockRejectedValueOnce(error)
+      await expect(api[method]()).rejects.toBe(error)
+    }
   })
   it('rejects trainer calls to owner actions and other trainers sessions', async () => {
     const trainer=mockDb.read().users.find(item=>item.role==='trainer')

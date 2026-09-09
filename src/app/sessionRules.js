@@ -18,15 +18,16 @@ export function isSessionHistory(session, today = currentDate()) {
   return session.status === 'completed' || session.date < today
 }
 
-export function sortSessions(sessions, today = currentDate()) {
+export function sortSessions(sessions, today = currentDate(), period = 'upcoming') {
   return [...sessions].sort((a, b) => {
     const aHistory = isSessionHistory(a, today)
     const bHistory = isSessionHistory(b, today)
 
-    if (aHistory !== bHistory) return aHistory ? 1 : -1
+    if (period !== 'all' && aHistory !== bHistory) return aHistory ? 1 : -1
 
-    const direction = aHistory ? -1 : 1
+    const direction = period === 'all' || aHistory ? -1 : 1
     return direction * `${a.date}T${a.from}`.localeCompare(`${b.date}T${b.from}`)
+      || a.id.localeCompare(b.id)
   })
 }
 

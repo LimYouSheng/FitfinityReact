@@ -9,7 +9,7 @@ import DateFilterField from '../../components/DateFilterField.jsx'
 
 export default function SessionsPage({ user, sessions, clients, trainers, today, onOpen }) {
   const [query, setQuery] = usePageState('SessionsPage.query', '')
-  const [period, setPeriod] = usePageState('SessionsPage.period', 'all')
+  const [period, setPeriod] = usePageState('SessionsPage.period', 'upcoming')
   const [statusFilter, setStatusFilter] = usePageState('SessionsPage.statusFilter', '')
   const [fromDate, setFromDate] = usePageState('SessionsPage.fromDate', '')
   const [toDate, setToDate] = usePageState('SessionsPage.toDate', '')
@@ -20,7 +20,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
   const visible = useMemo(() => {
     const search = query.trim().toLowerCase()
 
-    return sortSessions(visibleSessionsForUser(user, sessions), today).filter(session => {
+    return sortSessions(visibleSessionsForUser(user, sessions), today, period).filter(session => {
       const history = isSessionHistory(session, today)
       if (period === 'upcoming' && history) return false
       if (period === 'history' && !history) return false

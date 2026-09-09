@@ -70,14 +70,40 @@ function renderDetails(overrides = {}) {
 
 describe('session detail confirmations', () => {
   it('opens the API confirmation after reviewing a time change', async () => {
-    renderDetails()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
+    const props = renderDetails()
     fireEvent.click(screen.getByRole('button', { name: 'Request Time Change' }))
+    expect(screen.getByLabelText('Requested session date')).toHaveAttribute('min', '2026-09-02')
+    expect(screen.getByLabelText('Requested start time')).toHaveAttribute('min', '12:00')
+    fireEvent.change(screen.getByLabelText('Requested session date'), { target: { value: '2026-09-01' } })
+    expect(screen.getByRole('button', { name: 'Review Request' })).toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent('in the future')
+    fireEvent.change(screen.getByLabelText('Requested session date'), { target: { value: '2026-09-02' } })
+    fireEvent.change(screen.getByLabelText('Requested start time'), { target: { value: '12:00' } })
+    expect(screen.getByRole('button', { name: 'Review Request' })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Requested start time'), { target: { value: '12:01' } })
+    expect(screen.getByRole('button', { name: 'Review Request' })).toBeEnabled()
     fireEvent.change(screen.getByLabelText('Requested session date'), { target: { value: '2026-09-04' } })
+    expect(screen.getByLabelText('Requested start time')).not.toHaveAttribute('min')
     fireEvent.click(screen.getByRole('button', { name: 'Review Request' }))
     expect(screen.queryByRole('dialog', { name: 'Request Time Change' })).not.toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Submit time-change request?' })).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.getByRole('dialog', { name: 'Request Time Change' })).toBeVisible())
+    fireEvent.click(screen.getByRole('button', { name: 'Review Request' }))
+    vi.setSystemTime(new Date('2026-09-02T10:00:00Z'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Request' }))
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Request Time Change' })).toBeVisible())
+    expect(screen.getByRole('alert')).toHaveTextContent('before the session starts')
+    expect(props.onRequestTimeChange).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Request Time Change' })).toBeDisabled()
+    for (const status of ['completed', 'cancelled']) {
+      cleanup()
+      renderDetails({ session: { ...session, date: '2026-09-04', status } })
+      expect(screen.getByRole('button', { name: 'Request Time Change' })).toBeDisabled()
+    }
   })
 
   it('opens the API confirmation after reviewing acknowledgement', () => {
@@ -117,7 +143,7 @@ describe('session detail confirmations', () => {
   })
 })
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.useRealTimers() })
 
 it('M4 keeps a blocked WhatsApp export retryable and never marks it sent', () => {
   const open=vi.spyOn(window,'open').mockReturnValue(null)

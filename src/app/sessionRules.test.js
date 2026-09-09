@@ -13,8 +13,21 @@ describe('session rules', () => {
     expect(visibleSessionsForUser({ role: 'trainer', trainerId: 't1' }, sessions).map(item => item.id)).toEqual(['future', 'today'])
   })
 
-  it('keeps upcoming sessions first and sorts history after them', () => {
+  it('orders upcoming nearest first and All by descending date and time with stable ties', () => {
     expect(sortSessions(sessions, '2026-09-02').map(item => item.id)).toEqual(['today', 'future', 'past'])
+    const mixed = [
+      ...sessions,
+      { ...sessions[0], id: 'earlier-time', from: '08:00' },
+      { ...sessions[0], id: 'future-z' },
+      { ...sessions[0], id: 'future-a' },
+      { ...sessions[2], id: 'future-completed', date: '2026-10-01' },
+      { ...sessions[0], id: 'older-unplanned', date: '2026-08-20' },
+    ]
+    const original = mixed.map(item => item.id)
+    const expected = ['future-completed', 'future', 'future-a', 'future-z', 'earlier-time', 'today', 'past', 'older-unplanned']
+    expect(sortSessions(mixed, '2026-09-02', 'all').map(item => item.id)).toEqual(expected)
+    expect(sortSessions([...mixed].reverse(), '2026-09-02', 'all').map(item => item.id)).toEqual(expected)
+    expect(mixed.map(item => item.id)).toEqual(original)
     expect(isSessionHistory(sessions[2])).toBe(true)
   })
 

@@ -14,26 +14,13 @@ import usePagination from '../../hooks/usePagination.js'
 import { filterMessages, messageCategory, MESSAGE_CATEGORIES } from './messageFilters.js'
 import { orderMessages } from './messageOrdering.js'
 import { relatedMessageLinks } from './messageLinks.js'
+import { formatTimestamp } from '../../utils/date.js'
 
 function visibleTo(user, message) {
   if (message.recipientUserId === user.id) return true
   if (message.recipientRole === user.role) return true
   if (user.role === 'trainer' && message.recipientTrainerId === user.trainerId) return true
   return false
-}
-
-function formatStamp(value) {
-  try {
-    return new Intl.DateTimeFormat('en-SG', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(new Date(value))
-  } catch {
-    return value
-  }
 }
 
 export default function MessagesPage({ category, onCategoryChange, ...props }) {
@@ -55,6 +42,7 @@ export function MessageInbox({
   onCategoryChange,
   onViewAll,
   user,
+  timeZone,
   messages,
   clients = [],
   trainers = [],
@@ -85,8 +73,8 @@ export function MessageInbox({
     [messages, user],
   )
   const visible = useMemo(
-    () => filterMessages(userMessages, { query, from: fromDate, to: toDate, category }),
-    [category, fromDate, query, toDate, userMessages],
+    () => filterMessages(userMessages, { query, from: fromDate, to: toDate, category, timeZone }),
+    [category, fromDate, query, toDate, userMessages, timeZone],
   )
 
   const selected = userMessages.find(message => message.id === selectedId) ?? null
@@ -223,34 +211,35 @@ export function MessageInbox({
         </div>}
 
         <div className="message-title-list" aria-label={embedded ? 'Renewal messages' : 'Message list'}>
-          <div className="message-title-head message-title-grid" aria-hidden="true">
+          {!embedded && <div className="message-title-head message-title-grid" aria-hidden="true">
             <span>Message</span>
             <span>Date &amp; time</span>
             <span>Status</span>
             <span>Read</span>
-          </div>
+          </div>}
 
           {(embedded ? visible.slice(0, 3) : pagination.items).map(message => (
             <article
               key={message.id}
-              className={`message-title-row message-title-grid ${message.read ? 'read' : 'unread'}`}
+              className={`message-title-row message-title-grid ${embedded ? 'message-title-preview ' : ''}${message.read ? 'read' : 'unread'}`}
               onClick={() => openMessage(message)}
             >
               <button
                 type="button"
                 className="message-title-button"
                 aria-label={`Open ${message.title}`}
+                title={embedded ? message.title : undefined}
               >
                 <strong>{message.title}</strong>
               </button>
 
-              <time className="message-title-time" dateTime={message.createdAt}>
-                {formatStamp(message.createdAt)}
-              </time>
+              {!embedded && <time className="message-title-time" dateTime={message.createdAt}>
+                {formatTimestamp(message.createdAt, timeZone)}
+              </time>}
 
-              <div className="message-approval-status">
+              {!embedded && <div className="message-approval-status">
                 <RequestStatusBadge message={message} />
-              </div>
+              </div>}
 
               <button
                 type="button"
@@ -301,7 +290,7 @@ export function MessageInbox({
 
               <div className="modal-body message-detail-body">
                 <div className="message-detail-meta">
-                  <span>{formatStamp(selected.createdAt)}</span>
+                  <span>{formatTimestamp(selected.createdAt, timeZone)}</span>
 
                   {messageCategory(selected) === 'renewals' && (
                     <StatusBadge tone="amber">Renewal</StatusBadge>

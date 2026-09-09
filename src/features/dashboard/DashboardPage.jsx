@@ -1,12 +1,15 @@
 import Panel from '../../components/Panel.jsx'
 import ModalPortal from '../../components/ModalPortal.jsx'
+import StatusBadge from '../../components/StatusBadge.jsx'
 import { calendarDays, calendarSessions, shiftCalendarDate } from '../../app/calendar.js'
-import { formatDate, weekday } from '../../utils/date.js'
+import { sessionStatus } from '../../app/sessionRules.js'
+import { formatDate, parseDateOnly, weekday } from '../../utils/date.js'
 
 export default function DashboardPage({ user, sessions, clients, trainers, today, state, onState, onOpenSession, onAddClient, onAddTrainer, renewals, selectedDay, onOpenDay, onCloseDay }) {
   const { mode, date } = state
   const trainerWeek = user.role === 'trainer' && mode === 'week'
   const dates = calendarDays(date, mode)
+  const monthStartColumn = mode === 'month' ? (parseDateOnly(dates[0]).getUTCDay() + 6) % 7 + 1 : undefined
   const records = calendarSessions(sessions, dates)
   const dayRecords = selectedDay ? calendarSessions(sessions, [selectedDay]) : []
   const change = patch => onState({ ...state, ...patch })
@@ -21,9 +24,11 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
   })) : []
   const event = session => {
     const client = clients.find(client => client.id === session.clientId)?.name ?? 'Client unavailable'
-    return <button type="button" className="calendar-event" key={session.id} aria-label={`${session.from}–${session.to}, ${client}`} onClick={() => onOpenSession(session.id)}>
+    const status = sessionStatus(session.status)
+    return <button type="button" className="calendar-event" key={session.id} aria-label={`${session.from}–${session.to}, ${client}, ${status.label}`} onClick={() => onOpenSession(session.id)}>
       <strong>{session.from}–{session.to}</strong>
       <span className="calendar-event-client">{client}</span>
+      <StatusBadge tone={status.tone} className="calendar-event-status">{status.label}</StatusBadge>
       <span aria-hidden="true">›</span>
     </button>
   }
@@ -45,7 +50,7 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
       <div className="dashboard-sections">
         {renewals}
         <Panel>
-          <div className="section-head">
+          <div className="section-head calendar-header">
             <h2>Calendar</h2>
             <div className="calendar-modes" aria-label="Calendar view">
               <button type="button" aria-pressed={mode === 'week'} onClick={() => change({ mode: 'week' })}>Weekly</button>
@@ -57,22 +62,24 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
             <button type="button" className="secondary-button" aria-label="Previous calendar period" onClick={() => move(-1)}>‹</button>
             <strong aria-live="polite">{mode === 'month' ? formatDate(`${date.slice(0, 7)}-01`).slice(3) : `${formatDate(dates[0])} – ${formatDate(dates.at(-1))}`}</strong>
             <button type="button" className="secondary-button" aria-label="Next calendar period" onClick={() => move(1)}>›</button>
-            <label>Date<input type="date" aria-label="Calendar date" value={date} onChange={event => { if (event.target.value) change({ date: event.target.value }) }} /></label>
           </div>
           <div className={`calendar-grid calendar-${mode}${trainerWeek ? ' calendar-agenda' : ''}`} aria-label={`${mode === 'week' ? 'Weekly' : 'Monthly'} calendar`}>
-            {dates.map(day => {
+            {dates.map((day, index) => {
               const daySessions = entries(day)
-              return <section key={day} className={`calendar-day ${day === today ? 'calendar-today' : ''} ${day.slice(0, 7) !== date.slice(0, 7) ? 'calendar-adjacent' : ''}`}>
+              const agendaHeading = <span>{day === today && <span className="calendar-today-label">Today</span>}{weekday(day)}, {formatDate(day)}</span>
+              return <section key={day} data-date={day} aria-current={day === today ? 'date' : undefined} style={index === 0 && mode === 'month' ? { gridColumnStart: monthStartColumn } : undefined} className={`calendar-day ${day < today ? 'calendar-past' : ''} ${day === today ? 'calendar-today' : ''}`}>
                 {trainerWeek ? <>
-                  <button type="button" className="calendar-agenda-date" aria-label={`Show sessions for ${day}`} aria-haspopup="dialog" aria-current={day === today ? 'date' : undefined} onClick={() => onOpenDay(day)}>
-                    <span>{weekday(day)}, {formatDate(day)}</span><span aria-hidden="true">›</span>
-                  </button>
+                  {daySessions.length > 0 ? <button type="button" className="calendar-agenda-date" aria-label={`Show sessions for ${day}`} aria-haspopup="dialog" aria-current={day === today ? 'date' : undefined} onClick={() => onOpenDay(day)}>
+                    {agendaHeading}<span className="calendar-date-action" aria-hidden="true">View day ›</span>
+                  </button> : <div className="calendar-agenda-date">{agendaHeading}</div>}
                   <div className="calendar-day-events">{daySessions.map(event)}{!daySessions.length && <p className="empty">No sessions</p>}</div>
                 </> : <>
-                  <div className="calendar-day-head"><span>{weekday(day).slice(0, 3)}</span><time dateTime={day}>{Number(day.slice(-2))}</time></div>
-                  <button type="button" className="calendar-date" aria-label={`Show sessions for ${day}`} aria-describedby={`calendar-count-${day}`} aria-haspopup="dialog" aria-current={day === today ? 'date' : undefined} onClick={() => onOpenDay(day)}>
+                  <div className="calendar-day-head"><span>{day === today ? 'Today' : weekday(day).slice(0, 3)}</span><time dateTime={day}>{Number(day.slice(-2))}</time></div>
+                  {daySessions.length > 0 && <button type="button" className="calendar-date" aria-label={`Show sessions for ${day}`} aria-describedby={`calendar-count-${day} calendar-count-label-${day}`} aria-haspopup="dialog" aria-current={day === today ? 'date' : undefined} onClick={() => onOpenDay(day)}>
                     <strong id={`calendar-count-${day}`}>{daySessions.length}</strong>
-                  </button>
+                    <span className="calendar-count-label" id={`calendar-count-label-${day}`}>{daySessions.length === 1 ? 'session' : 'sessions'}</span>
+                    <small className="calendar-date-action" aria-hidden="true">View day</small>
+                  </button>}
                 </>}
               </section>
             })}

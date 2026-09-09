@@ -1,6 +1,7 @@
 import { mockPolicy } from './mockPolicy.js'
 import { DEFAULT_EXERCISES } from './mockExercises.js'
 import { DEFAULT_PACKAGES } from './mockPackages.js'
+import { appendRenewalMessage } from '../app/renewals.js'
 
 const availability = {
   marcus: {
@@ -145,7 +146,7 @@ const baseClients = [
     ],
     package: { durationWeeks: 12, sessionsPerWeek: 1, total: 12, used: 3, startDate: '2026-08-15', validityDays: 90, endDate: '2026-11-12' },
     packageHistory: packageHistoryFor('c1', 12, 1), strengthProgress: strengthProgressFor('c1'),
-    lastTrained: '2026-08-29', renewal: '9 sessions remaining',
+    lastTrained: '2026-08-29',
   },
   {
     id: 'c2', status: 'active', type: 'Couple', name: 'Daniel & Mei Wong',
@@ -156,7 +157,7 @@ const baseClients = [
     fixedWeeklySchedule: [{ id: 'slot3', day: 'Wednesday', from: '19:00', to: '20:00' }, { id: 'slot3b', day: 'Saturday', from: '10:00', to: '11:00' }],
     package: { durationWeeks: 12, sessionsPerWeek: 2, total: 24, used: 7, startDate: '2026-08-05', validityDays: 90, endDate: '2026-11-02' },
     packageHistory: packageHistoryFor('c2', 24, 2), strengthProgress: strengthProgressFor('c2'),
-    lastTrained: '2026-08-28', renewal: '17 sessions remaining',
+    lastTrained: '2026-08-28',
   },
   {
     id: 'c3', status: 'active', type: 'Individual', name: 'Nadia Koh',
@@ -166,7 +167,7 @@ const baseClients = [
     fixedWeeklySchedule: [{ id: 'slot4', day: 'Tuesday', from: '08:00', to: '09:00' }],
     package: { durationWeeks: 12, sessionsPerWeek: 1, total: 12, used: 10, startDate: '2026-07-22', validityDays: 90, endDate: '2026-10-19' },
     packageHistory: packageHistoryFor('c3', 12, 3), strengthProgress: strengthProgressFor('c3'),
-    lastTrained: '2026-08-30', renewal: 'Renewal follow-up',
+    lastTrained: '2026-08-30',
   },
   {
     id: 'c4', status: 'active', type: 'Individual', name: 'Farah Noor',
@@ -176,7 +177,7 @@ const baseClients = [
     fixedWeeklySchedule: [{ id: 'slot5', day: 'Saturday', from: '09:00', to: '10:00' }],
     package: { durationWeeks: 12, sessionsPerWeek: 1, total: 12, used: 4, startDate: '2026-08-01', validityDays: 90, endDate: '2026-10-29' },
     packageHistory: packageHistoryFor('c4', 12, 4), strengthProgress: strengthProgressFor('c4'),
-    lastTrained: '2026-08-29', renewal: '8 sessions remaining',
+    lastTrained: '2026-08-29',
   },
 ]
 
@@ -224,11 +225,12 @@ const additionalClients = additionalClientSpecs.map(([name, gender, type, traine
     packageHistory: packageHistoryFor(id, total, index + 5),
     strengthProgress: strengthProgressFor(id),
     lastTrained: `2026-08-${String(18 + (index % 12)).padStart(2, '0')}`,
-    renewal: `${total - used} sessions remaining`,
   }
 })
 
-const allClients = [...baseClients, ...additionalClients]
+const allClients = [...baseClients, ...additionalClients].map(client => ({
+  ...client, package: { ...client.package, id: `client-package-${client.id}` },
+}))
 
 const exerciseTemplates = [
   ['Goblet Squat', '16 kg', '10', '3', '60 sec'],
@@ -365,15 +367,21 @@ const generatedMessages = allClients.slice(0, 12).map((client, index) => ({
   recipientRole: 'owner',
   clientId: client.id,
   trainerId: client.trainerId,
-  title: index % 3 === 0 ? `Package review: ${client.name}` : `Session update: ${client.name}`,
-  body: index % 3 === 0
-    ? `Review ${client.name}'s package usage and upcoming schedule.`
-    : `${client.name}'s latest session record is ready for review.`,
-  kind: index % 3 === 0 ? 'renewal' : 'session',
+  title: `Session update: ${client.name}`,
+  body: `${client.name}'s latest session record is ready for review.`,
+  kind: 'session',
   read: index > 4,
 }))
 
+const initialRenewals = { settings: mockPolicy, messages: [] }
+for (const client of allClients) {
+  const message = appendRenewalMessage(initialRenewals, client, '2026-09-02T21:00:00+08:00')
+  // Preserve the original demo record's identity for saved read state and routes.
+  if (message && client.id === 'c3') message.id = 'm3'
+}
+
 export const seed = {
+  renewalMessageVersion: 1,
   settings: structuredClone(mockPolicy),
   exerciseLibrary: structuredClone(DEFAULT_EXERCISES),
   contentEntries: [],
@@ -447,10 +455,7 @@ export const seed = {
       id: 'm2', createdAt: '2026-09-01T09:10:00+08:00', recipientTrainerId: 't1', trainerId: 't1', title: 'Trainer messages ready',
       body: 'Approvals, assignments and client-status updates appear here.', kind: 'system', read: false,
     },
-    {
-      id: 'm3', createdAt: '2026-09-02T21:00:00+08:00', recipientRole: 'owner', clientId: 'c3', trainerId: 't4', title: 'Renewal follow-up: Nadia Koh',
-      body: 'Nadia Koh is approaching package renewal. Review remaining sessions and follow up when appropriate.', kind: 'renewal', read: false,
-    },
+    ...initialRenewals.messages,
     ...generatedMessages,
   ],
 }

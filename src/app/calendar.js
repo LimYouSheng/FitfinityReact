@@ -10,8 +10,9 @@ export function shiftCalendarDate(value, amount, unit = 'day') {
 
 export function calendarDays(date, mode) {
   const start = parseDateOnly(mode === 'month' ? `${date.slice(0, 7)}-01` : date)
-  start.setUTCDate(start.getUTCDate() - (start.getUTCDay() + 6) % 7)
-  const count = mode === 'month' ? 42 : 7
+  const count = mode === 'month'
+    ? new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)).getUTCDate()
+    : 7
   return Array.from({ length: count }, (_, index) => shiftCalendarDate(iso(start), index))
 }
 

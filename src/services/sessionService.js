@@ -3,6 +3,8 @@ import { validSignature } from '../app/signature.js'
 import { validateExerciseResults, updateClientProgress, exerciseResultsFor } from '../app/progress.js'
 import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan, sessionActionError } from '../app/sessionRules.js'
 import { businessClock } from '../app/clock.js'
+import { appendRenewalMessage } from '../app/renewals.js'
+import { sessionTimeChangeError } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
 import { appendSavedEditMessage } from './editMessage.js'
 import { loadExerciseVideoBlob, saveExerciseVideoBlob, removeExerciseVideoBlob } from './exerciseVideoStore.js'
@@ -150,6 +152,8 @@ export const sessionService = {
       const client = db.clients.find(item => item.id === session.clientId)
       const previous = scheduleSnapshot(session)
       const next = { date: patch.date, from: patch.from, to: patch.to }
+      const timeError = sessionTimeChangeError(session, next, businessClock(new Date(), db.settings.timeZone))
+      if (timeError) throw new Error(timeError)
 
       if (trainer.approvalNeeded?.sessionTime) {
         outcome = 'requested'
@@ -391,6 +395,7 @@ export const sessionService = {
         })
 
         client.package.used = Math.min(client.package.total, client.package.used + 1)
+        appendRenewalMessage(db, client)
       }
 
       session.status = 'completed'

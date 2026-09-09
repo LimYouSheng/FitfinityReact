@@ -1,4 +1,5 @@
 import { PROGRESS_REPORT_ACTIONS } from '../app/progress.js'
+import { appendRenewalMessage } from '../app/renewals.js'
 import { selectedPackage } from '../app/packages.js'
 import { applyWeeklySchedule, requireActiveActor, sameSlots, weeklyScheduleChanges } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
@@ -56,6 +57,7 @@ export const clientService = {
       if (sessions.length !== client.package.total) throw new Error('The schedule must fit every session within package validity. Review the weekly schedule.')
       db.sessions.push(...sessions)
       db.messages ??= []
+      appendRenewalMessage(db, client)
 
       db.messages.push({
         id: messageId('client-created-owner'),

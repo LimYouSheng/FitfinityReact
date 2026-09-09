@@ -1,10 +1,11 @@
 import { signatureFixture } from '../test/fixtures/signature.js'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockDb } from './mockDb.js'
 import { sessionService } from './sessionService.js'
 
 describe('session service', () => {
   beforeEach(() => mockDb.reset())
+  afterEach(() => vi.useRealTimers())
 
   it('saves a valid plan and changes Not Planned to Planned', async () => {
     await sessionService.saveExercisePlan('s2', [{
@@ -77,10 +78,35 @@ describe('session service', () => {
   })
 
   it('keeps supervised trainer requests pending without changing the session', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-02T09:59:00Z'))
+    const actor = { role: 'trainer', trainerId: 't1' }
+    const future = { date: '2026-09-04', from: '17:00', to: '18:00' }
+    const before = mockDb.read()
+    for (const past of [
+      { date: '2026-09-01', from: '18:00', to: '19:00' },
+      { date: '2026-09-02', from: '17:00', to: '18:00' },
+      { date: '2026-09-02', from: '17:59', to: '19:00' },
+    ]) {
+      await expect(sessionService.requestTimeChange('s1', actor, past)).rejects.toThrow('in the future')
+      expect(mockDb.read()).toEqual(before)
+    }
+    for (const status of ['completed', 'cancelled']) {
+      mockDb.mutate(db => { db.sessions.find(item => item.id === 's1').status = status })
+      const locked = mockDb.read()
+      await expect(sessionService.requestTimeChange('s1', actor, future)).rejects.toThrow(/locked|cannot request/)
+      expect(mockDb.read()).toEqual(locked)
+    }
+    mockDb.write(before)
+    vi.setSystemTime(new Date('2026-09-02T10:00:00Z'))
+    await expect(sessionService.requestTimeChange('s1', actor, future)).rejects.toThrow('before the session starts')
+    expect(mockDb.read()).toEqual(before)
+    // The same instant is still before this session in the configured UTC gym.
+    mockDb.mutate(db => { db.settings.timeZone = 'UTC' })
     const timeResult = await sessionService.requestTimeChange(
       's1',
-      { role: 'trainer', trainerId: 't1' },
-      { date: '2026-09-04', from: '17:00', to: '18:00' },
+      actor,
+      future,
     )
     const trainerResult = await sessionService.requestTrainerChange(
       's1',
@@ -98,9 +124,19 @@ describe('session service', () => {
   })
 
   it('applies autonomous trainer changes directly', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-06T16:00:00Z'))
     mockDb.mutate(db => {
       db.sessions.find(item => item.id === 's2').trainerId = 't3'
     })
+    const before = mockDb.read()
+    for (const past of [
+      { date: '2026-09-06', from: '23:00', to: '23:30' },
+      { date: '2026-09-07', from: '00:00', to: '01:00' },
+    ]) {
+      await expect(sessionService.requestTimeChange('s2', { role: 'trainer', trainerId: 't3' }, past)).rejects.toThrow('in the future')
+      expect(mockDb.read()).toEqual(before)
+    }
 
     const timeResult = await sessionService.requestTimeChange(
       's2',

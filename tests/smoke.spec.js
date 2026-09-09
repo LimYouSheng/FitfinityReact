@@ -998,11 +998,30 @@ test('trainer session details use two request actions instead of owner Edit', as
 
   await overview.getByRole('button', { name: 'Request Time Change' }).click()
   const dialog = page.getByRole('dialog', { name: 'Request Time Change' })
+  await expect(dialog.getByLabel('Requested session date')).toHaveAttribute('min', '2026-09-02')
+  await dialog.getByLabel('Requested session date').fill('2026-09-01')
+  await expect(dialog.getByRole('button', { name: 'Review Request' })).toBeDisabled()
+  await expect(dialog.getByRole('alert')).toContainText('in the future')
+  await dialog.getByLabel('Requested session date').fill('2026-09-02')
+  await dialog.getByLabel('Requested start time').fill('12:00')
+  await expect(dialog.getByRole('button', { name: 'Review Request' })).toBeDisabled()
+  await dialog.getByLabel('Requested start time').fill('18:00')
   await dialog.getByLabel('Requested session date').fill('2026-09-04')
   await dialog.getByRole('button', { name: 'Review Request' }).click()
   await confirmAction(page, 'Submit time-change request?', 'Submit Request')
   await expect(page.getByRole('status')).toContainText('owner approval')
   await expect(page.getByText(/Wednesday,/).first()).toBeVisible()
+  await overview.getByRole('button', { name: 'Request Time Change' }).click()
+  await dialog.getByLabel('Requested session date').fill('2026-09-05')
+  await dialog.getByRole('button', { name: 'Review Request' }).click()
+  await page.clock.setFixedTime(new Date('2026-09-02T10:00:00Z'))
+  await confirmAction(page, 'Submit time-change request?', 'Submit Request')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('alert')).toContainText('before the session starts')
+  await expect(dialog.getByRole('button', { name: 'Review Request' })).toBeDisabled()
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(overview.getByRole('button', { name: 'Request Time Change' })).toBeDisabled()
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('fitfinity-m2-demo-db-v4')).messages.filter(message => message.request?.type === 'session_time' && message.request.sessionId === 's1').length)).toBe(1)
 })
 
 test('normal acknowledgement completes session and records one debit state', async ({ page }) => {
@@ -1048,12 +1067,38 @@ test('late or no-show completes without signature and conversion does not show a
   await expect(page.getByText('Acknowledgement · Late / no-show', { exact: true })).toBeVisible()
 })
 
-test('session details Back returns to the sessions list', async ({ page }) => {
-  await clickNav(page, 'Sessions')
-  await openSession(page, { date: '02 Sept 2026', status: 'planned' })
-
-  await page.getByRole('button', { name: 'Back' }).click()
-  await expect(page).toHaveURL(/#\/sessions$/)
+test('Sessions defaults to Upcoming and All stays newest-first after detail Back for both roles', async ({ page }) => {
+  for (const user of ['u-owner', 'u-marcus']) {
+    if (user === 'u-marcus') await selectDemoIdentity(page, user)
+    await clickNav(page, 'Sessions')
+    const period = page.getByLabel('Filter sessions by period')
+    const search = page.getByLabel('Search sessions')
+    const rows = page.getByLabel('Session list').locator('.session-list-row')
+    await expect(period).toHaveValue('upcoming')
+    await expect(search).toHaveValue('')
+    await search.fill('Amanda')
+    await expect(rows).toHaveCount(9)
+    await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText([
+      /02 Sep(?:t)? 2026/, /07 Sep(?:t)? 2026/, /17 Sep(?:t)? 2026/,
+      /24 Sep(?:t)? 2026/, '01 Oct 2026', '08 Oct 2026', '15 Oct 2026', '22 Oct 2026', '29 Oct 2026',
+    ])
+    await period.selectOption('all')
+    await expect(rows).toHaveCount(10)
+    await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText([
+      '29 Oct 2026', '22 Oct 2026', '15 Oct 2026', '08 Oct 2026', '01 Oct 2026',
+      /24 Sep(?:t)? 2026/, /17 Sep(?:t)? 2026/, /07 Sep(?:t)? 2026/, /02 Sep(?:t)? 2026/, '29 Aug 2026',
+    ])
+    await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText(['04 Aug 2026', '02 Aug 2026'])
+    await rows.first().getByRole('button', { name: /View session/ }).click()
+    await expect(page.getByRole('heading', { name: 'Session Overview', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await expect(page).toHaveURL(/#\/sessions$/)
+    await expect(period).toHaveValue('all')
+    await expect(search).toHaveValue('Amanda')
+    await expect(page.getByLabel('List pages')).toContainText('Page 2')
+    await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText(['04 Aug 2026', '02 Aug 2026'])
+  }
 })
 
 test('client and trainer profiles use the shared pink initials avatar', async ({ page }) => {

@@ -124,7 +124,7 @@ for (const [total, validity, frequency] of [[12, 90, 2], [24, 180, 1], [36, 270,
   })
 }
 
-test('M3 owner Setup is reachable from the menu and both roles have a prominent remuneration eye without header copy', async ({ page }) => {
+test('M3 owner Setup is reachable from the menu and both roles have a compact labelled remuneration eye without header copy', async ({ page }) => {
   await start(page, 'dashboard')
   await openMenu(page)
   const nav = page.getByRole('navigation', { name: 'Portal navigation' })
@@ -150,17 +150,27 @@ test('M3 owner Setup is reachable from the menu and both roles have a prominent 
     await expect(page.locator('.remuneration-page .page-head p')).toHaveCount(0)
     const eye = page.getByRole('button', { name: 'Show remuneration amounts', exact: true })
     await expect(eye).toBeVisible()
+    await expect(eye).toHaveText('Show amounts')
+    await expect(eye).toHaveAttribute('aria-pressed', 'true')
     const size = await eye.boundingBox()
-    expect(size.height).toBeGreaterThanOrEqual(44)
-    if (page.viewportSize().width <= 720) {
+    const mobile = page.viewportSize().width <= 720
+    expect(size.height).toBe(mobile ? 34 : 36)
+    expect(size.width).toBeLessThanOrEqual(mobile ? 112 : 120)
+    expect(await eye.locator('svg').evaluate(element => getComputedStyle(element).width)).toBe(mobile ? '15px' : '17px')
+    if (mobile) {
       const header = await page.locator('.remuneration-page .page-head').boundingBox()
       expect(Math.abs(size.y - header.y)).toBeLessThanOrEqual(1)
       expect(Math.abs(size.x + size.width - header.x - header.width)).toBeLessThanOrEqual(1)
       expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
     }
-    expect(await eye.evaluate(element => getComputedStyle(element).borderTopWidth)).toBe('2px')
+    expect(await eye.evaluate(element => getComputedStyle(element).borderTopWidth)).toBe('1px')
+    expect(await eye.evaluate(element => getComputedStyle(element).fontSize)).toBe('11px')
     await eye.click()
-    await expect(page.getByRole('button', { name: 'Hide remuneration amounts', exact: true })).toBeVisible()
+    const hide = page.getByRole('button', { name: 'Hide remuneration amounts', exact: true })
+    await expect(hide).toBeVisible()
+    await expect(hide).toHaveText('Hide amounts')
+    await expect(hide).toHaveAttribute('aria-pressed', 'false')
+    expect((await hide.boundingBox()).height).toBe(size.height)
     if (trainer) {
       await expect(nav.getByRole('button', { name: 'Packages', exact: true })).toHaveCount(0)
       await routeTo(page, 'packages')

@@ -1,5 +1,5 @@
 import { requestTypes } from '../app/requestTypes.js'
-import { applyWeeklySchedule, availabilityBlocks, sameAvailability, sameSlots, validateAvailability } from '../app/scheduleChanges.js'
+import { applyWeeklySchedule, availabilityBlocks, businessNow, sameAvailability, sameSlots, sessionTimeChangeError, validateAvailability } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
 
 const snapshot = session => ({ date: session.date, from: session.from, to: session.to })
@@ -45,6 +45,8 @@ export const requestService = {
           if (!next || !/^\d{4}-\d{2}-\d{2}$/.test(next.date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(next.from) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(next.to) || next.from >= next.to) {
             throw new Error('The requested date or time is invalid.')
           }
+          const timeError = sessionTimeChangeError(session, next, businessNow(new Date(), db.settings.timeZone))
+          if (timeError) throw new Error(`${timeError} Reject this request.`)
           Object.assign(session, { date: next.date, from: next.from, to: next.to })
         } else {
           const replacement = db.trainers.find(item => item.id === request.replacementTrainerId && item.status === 'active')

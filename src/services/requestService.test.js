@@ -1,9 +1,11 @@
-import { beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { mockDb } from './mockDb.js'
 import { sessionService } from './sessionService.js'
 import { requestService } from './requestService.js'
 let owner, actor, session
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
   mockDb.reset()
   mockDb.mutate(db => {
     owner = db.users.find(item => item.role === 'owner')
@@ -12,6 +14,7 @@ beforeEach(() => {
     db.trainers.find(item => item.id === session.trainerId).approvalNeeded = { sessionTime: true, trainerReassignment: true }
   })
 })
+afterEach(() => vi.useRealTimers())
 async function pending(type = 'time') {
   if (type === 'time') await sessionService.requestTimeChange(session.id, actor, { date: '2026-12-01', from: '10:00', to: '11:00' })
   else await sessionService.requestTrainerChange(session.id, actor, mockDb.read().trainers.find(item => item.status === 'active' && item.id !== actor.trainerId).id)
@@ -51,6 +54,20 @@ it('rejects stale approval but still allows rejection', async () => {
   await expect(requestService.resolve(request.id, 'approved', owner)).rejects.toThrow('changed')
   expect(mockDb.read()).toEqual(before)
   await requestService.resolve(request.id, 'rejected', owner)
+  for (const proposedPassesFirst of [false, true]) {
+    mockDb.reset()
+    vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
+    await sessionService.requestTimeChange(session.id, actor, proposedPassesFirst
+      ? { date: '2026-09-02', from: '13:00', to: '14:00' }
+      : { date: '2026-12-01', from: '10:00', to: '11:00' })
+    const timedRequest = mockDb.read().messages.findLast(item => item.request?.sessionId === session.id)
+    vi.setSystemTime(new Date(proposedPassesFirst ? '2026-09-02T05:00:00Z' : '2026-09-02T10:00:00Z'))
+    const unchanged = mockDb.read()
+    await expect(requestService.resolve(timedRequest.id, 'approved', owner)).rejects.toThrow(proposedPassesFirst ? 'in the future' : 'before the session starts')
+    expect(mockDb.read()).toEqual(unchanged)
+    await requestService.resolve(timedRequest.id, 'rejected', owner)
+    expect(mockDb.read().sessions).toEqual(unchanged.sessions)
+  }
 })
 it('blocks completed sessions without mutation', async () => {
   const request = await pending()

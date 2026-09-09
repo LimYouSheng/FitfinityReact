@@ -12,6 +12,16 @@ describe('filterMessages', () => {
     expect(filterMessages(messages, { query: 'amanda' }).map(message => message.id)).toEqual(['m2'])
     expect(filterMessages(messages, { query: 'SCHEDULE' }).map(message => message.id)).toEqual(['m1'])
     expect(filterMessages(messages, { from: '2026-09-02', to: '2026-09-03' }).map(message => message.id)).toEqual(['m2', 'm3'])
+    const boundaries = [
+      { id: 'before', createdAt: '2026-09-08T15:59:59Z' },
+      { id: 'midnight', createdAt: '2026-09-08T16:00:00Z' },
+      { id: 'last-second', createdAt: '2026-09-09T15:59:59Z' },
+      { id: 'next-day', createdAt: '2026-09-09T16:00:00Z' },
+      { id: 'date-only', createdAt: '2026-09-09' },
+    ]
+    const day = { from: '2026-09-09', to: '2026-09-09' }
+    expect(filterMessages(boundaries, { ...day, timeZone: 'Asia/Singapore' }).map(message => message.id)).toEqual(['midnight', 'last-second', 'date-only'])
+    expect(filterMessages(boundaries, { ...day, timeZone: 'UTC' }).map(message => message.id)).toEqual(['last-second', 'next-day', 'date-only'])
   })
 })
 

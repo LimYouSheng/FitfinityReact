@@ -4,12 +4,53 @@ import { withBusyCalendar } from '../src/test/fixtures/calendar.js'
 const database='fitfinity-m2-demo-db-v4'
 const stored=page=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)),database)
 async function changeRoute(page,path) { await page.evaluate(value=>{location.hash=`#/${value}`},path) }
+const calendarDay = (page, date) => page.locator(`.calendar-day[data-date="${date}"]`)
+async function expectCalendarDates(page, dates) {
+  await expect(page.locator('.calendar-day')).toHaveCount(dates.length)
+  expect(await page.locator('.calendar-day').evaluateAll(days => days.map(day => day.dataset.date))).toEqual(dates)
+}
+async function expectCalendarHeaderLayout(page) {
+  await expect(page.getByLabel('Calendar date')).toHaveCount(0)
+  await expect(page.locator('.calendar-header input[type="date"]')).toHaveCount(0)
+  const modes = await page.getByLabel('Calendar view').boundingBox()
+  const title = await page.getByRole('heading', { name: 'Calendar', exact: true }).boundingBox()
+  const header = await page.locator('.calendar-header').boundingBox()
+  expect(modes.x).toBeGreaterThanOrEqual(title.x + title.width)
+  expect(Math.abs(modes.y + modes.height / 2 - title.y - title.height / 2)).toBeLessThanOrEqual(1)
+  expect(Math.abs(modes.x + modes.width - header.x - header.width)).toBeLessThanOrEqual(1)
+  for (const button of await page.getByLabel('Calendar view').getByRole('button').all()) {
+    expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44)
+  }
+  const toolbar = page.locator('.calendar-toolbar')
+  const previous = await toolbar.getByRole('button', { name: 'Previous calendar period' }).boundingBox()
+  const next = await toolbar.getByRole('button', { name: 'Next calendar period' }).boundingBox()
+  const heading = await toolbar.locator(':scope > strong').boundingBox()
+  expect(heading.x).toBeGreaterThanOrEqual(previous.x + previous.width)
+  expect(heading.x + heading.width).toBeLessThanOrEqual(next.x)
+  expect(previous.y).toBeGreaterThanOrEqual(modes.y + modes.height)
+  expect(next.y).toBeGreaterThanOrEqual(modes.y + modes.height)
+}
 
 test('M4 weekly and monthly calendars support periods, session navigation and retained Back state',async({page})=>{
+  await page.clock.setFixedTime(new Date('2026-12-30T04:00:00Z'))
   await page.goto('/#/dashboard')
+  await expect(page.getByRole('button', { name: 'Weekly', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByLabel('Calendar date')).toHaveCount(0)
+  const initialWeek = ['2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03', '2027-01-04', '2027-01-05']
+  await expectCalendarDates(page, initialWeek)
+  await expect(page.locator('.calendar-day-head > span')).toHaveText(['Today', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue'])
+  await expect(page.locator('.calendar-toolbar > strong')).toHaveText(/30 Dec 2026 – 05 Jan 2027/)
+  await page.getByRole('button', { name: 'Next calendar period' }).click()
+  await expectCalendarDates(page, ['2027-01-06', '2027-01-07', '2027-01-08', '2027-01-09', '2027-01-10', '2027-01-11', '2027-01-12'])
+  await page.getByRole('button', { name: 'Previous calendar period' }).click()
+  await expectCalendarDates(page, initialWeek)
   await page.getByRole('button',{name:'Monthly',exact:true}).click()
-  await page.getByLabel('Calendar date').fill('2026-09-02')
-  await expect(page.locator('.calendar-day')).toHaveCount(42)
+  await expect(page.getByLabel('Calendar date')).toHaveCount(0)
+  await expectCalendarDates(page, Array.from({ length: 31 }, (_, index) => `2026-12-${String(index + 1).padStart(2, '0')}`))
+  for (let month = 0; month < 3; month++) await page.getByRole('button', { name: 'Previous calendar period' }).click()
+  await expectCalendarDates(page, Array.from({ length: 30 }, (_, index) => `2026-09-${String(index + 1).padStart(2, '0')}`))
+  await expect(page.locator('.calendar-toolbar > strong')).toHaveText(/Sept? 2026/)
+  await expect(page.locator('.calendar-day.calendar-adjacent')).toHaveCount(0)
   await expect(page.getByLabel('Selected day sessions')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Today', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true }).click()
@@ -20,10 +61,11 @@ test('M4 weekly and monthly calendars support periods, session navigation and re
   await expect(page.getByRole('button',{name:'Client Signature',exact:true})).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('button',{name:'Monthly',exact:true})).toHaveAttribute('aria-pressed','true')
-  await expect(page.getByLabel('Calendar date')).toHaveValue('2026-09-02')
+  await expectCalendarDates(page, Array.from({ length: 30 }, (_, index) => `2026-09-${String(index + 1).padStart(2, '0')}`))
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByRole('button',{name:'Next calendar period'}).click()
-  await expect(page.getByLabel('Calendar date')).toHaveValue('2026-10-01')
+  await expectCalendarDates(page, Array.from({ length: 31 }, (_, index) => `2026-10-${String(index + 1).padStart(2, '0')}`))
+  await expect(page.locator('.calendar-toolbar > strong')).toHaveText('Oct 2026')
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false)
 })
 test('M4 client signing requires ink, clears, confirms once and reopens after refresh',async({page})=>{
@@ -129,79 +171,156 @@ test.describe('M4 signed-out account flows',()=>{
 })
 
 test('M4 Oracle calendars show owner counts, every trainer weekly row and grouped complete day popups', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-02T15:59:00Z'))
+  const data = withBusyCalendar(seed)
+  for (const session of data.sessions) session.status = ['not_planned', 'planned', 'completed'][(Number(session.from.slice(0, 2)) - 8) % 3]
+  const statusLabels = ['Not Planned', 'Planned', 'Completed', 'Not Planned', 'Planned', 'Completed', 'Not Planned', 'Planned']
+  data.sessions.push({ ...data.sessions[0], id: 'single-session', date: '2026-09-05', trainerId: 't1' })
   await page.addInitScript(({ key, data }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data))
-  }, { key: database, data: withBusyCalendar(seed) })
+  }, { key: database, data })
   await page.goto('/#/dashboard')
   await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible()
   for (const [identity, total] of [['u-owner', 14], ['u-marcus', 8]]) {
-    if (identity === 'u-marcus') await selectDemoIdentity(page, identity)
-    await page.getByLabel('Calendar date').fill('2026-09-02')
-    await page.getByLabel('Calendar date').blur()
-    await expect(page.getByLabel('Calendar date')).toHaveValue('2026-09-02')
+    if (identity === 'u-marcus') {
+      await page.clock.setFixedTime(new Date('2026-09-02T15:59:00Z'))
+      await page.reload()
+      await selectDemoIdentity(page, identity)
+    }
+    await page.getByRole('button', { name: 'Next calendar period' }).click()
+    await page.getByRole('button', { name: 'Previous calendar period' }).click()
+    // Cross Singapore midnight after navigation has retained the selected week.
+    await page.clock.setFixedTime(new Date('2026-09-02T16:01:00Z'))
+    await page.reload()
+    await expectCalendarDates(page, ['2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07', '2026-09-08'])
     for (const mode of ['Weekly', 'Monthly']) {
       await page.getByRole('button', { name: mode, exact: true }).click()
+      await expect(page.getByLabel('Calendar date')).toHaveCount(0)
+      if (mode === 'Weekly') {
+        await expectCalendarDates(page, ['2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07', '2026-09-08'])
+        if (identity === 'u-owner') await expect(page.locator('.calendar-day-head > span')).toHaveText(['Wed', 'Today', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue'])
+        else {
+          await expect(calendarDay(page, '2026-09-02').locator('.calendar-agenda-date')).toContainText(/Wednesday, 02 Sept? 2026/)
+          await expect(calendarDay(page, '2026-09-08').locator('.calendar-agenda-date')).toContainText(/Tuesday, 08 Sept? 2026/)
+        }
+      } else await expectCalendarDates(page, Array.from({ length: 30 }, (_, index) => `2026-09-${String(index + 1).padStart(2, '0')}`))
       const date = page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true })
       const busy = page.locator('.calendar-day').filter({ has: date })
       const trainerWeek = identity === 'u-marcus' && mode === 'Weekly'
       await expect(date).toHaveAttribute('aria-haspopup', 'dialog')
+      await expect(date.locator('.calendar-date-action')).toBeVisible()
+      await expect(date.locator('.calendar-date-action')).toContainText('View day')
       expect((await date.boundingBox()).height).toBeGreaterThanOrEqual(44)
       await expect(page.locator('.calendar-more')).toHaveCount(0)
       if (trainerWeek) {
         await expect(busy.locator('.calendar-event strong')).toHaveText(['08:00–09:00', '09:00–10:00', '10:00–11:00', '11:00–12:00', '12:00–13:00', '13:00–14:00', '14:00–15:00', '15:00–16:00'])
+        await expect(busy.locator('.calendar-event-status')).toHaveText(statusLabels)
         const rows = busy.locator('.calendar-event')
         for (const row of await rows.all()) {
           await expect(row).toBeVisible()
           const time = await row.locator('strong').boundingBox()
           const client = await row.locator('.calendar-event-client').boundingBox()
+          const status = row.locator('.calendar-event-status')
+          const badge = await status.boundingBox()
           expect(Math.abs(time.y + time.height / 2 - client.y - client.height / 2)).toBeLessThanOrEqual(1)
           expect(client.x).toBeGreaterThanOrEqual(time.x + time.width)
+          expect(Math.abs(time.y + time.height / 2 - badge.y - badge.height / 2)).toBeLessThanOrEqual(1)
+          expect(badge.x).toBeGreaterThanOrEqual(client.x + client.width)
+          expect(await status.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0)
+          await expect(row).toHaveAccessibleName(new RegExp(`, ${await status.innerText()}$`))
         }
         await rows.last().click()
         await expect(page).toHaveURL(/#\/sessions\/busy-7$/)
         await expect(page.getByRole('button', { name: 'Client Signature', exact: true })).toBeVisible()
         await page.goBack()
         await expect(page.getByRole('button', { name: 'Weekly', exact: true })).toHaveAttribute('aria-pressed', 'true')
-        await expect(page.getByLabel('Calendar date')).toHaveValue('2026-09-02')
+        await expectCalendarDates(page, ['2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07', '2026-09-08'])
       } else {
-        await expect(date).toHaveText(String(total))
+        await expect(date.locator('strong')).toHaveText(String(total))
+        await expect(date.locator('.calendar-count-label')).toHaveText('sessions')
+        const single = page.getByRole('button', { name: 'Show sessions for 2026-09-05', exact: true })
+        await expect(single.locator('.calendar-count-label')).toHaveText('session')
         await expect(page.locator('.calendar-grid .calendar-event')).toHaveCount(0)
         const layout = await page.locator('.calendar-grid').evaluate(grid => {
           const cells = [...grid.children].slice(0, 7).map(cell => cell.getBoundingClientRect())
-          return { top: cells.map(cell => cell.top), left: cells[0].left, right: cells.at(-1).right, width: innerWidth }
+          const bounds = grid.getBoundingClientRect()
+          return { top: cells.map(cell => cell.top), left: cells.map(cell => cell.left), right: Math.max(...cells.map(cell => cell.right)), cellWidth: cells[0].width, gridLeft: bounds.left, width: innerWidth }
         })
-        expect(Math.max(...layout.top) - Math.min(...layout.top)).toBeLessThanOrEqual(1)
-        expect(layout.left).toBeGreaterThanOrEqual(0)
+        if (mode === 'Monthly') {
+          expect(Math.max(...layout.top.slice(0, 6)) - Math.min(...layout.top.slice(0, 6))).toBeLessThanOrEqual(1)
+          expect(layout.top[6]).toBeGreaterThan(layout.top[0])
+          expect(Math.abs(layout.left[0] - layout.gridLeft - layout.cellWidth - 1)).toBeLessThanOrEqual(1)
+          expect(Math.abs(layout.left[6] - layout.gridLeft - 1)).toBeLessThanOrEqual(1)
+        } else expect(Math.max(...layout.top) - Math.min(...layout.top)).toBeLessThanOrEqual(1)
+        expect(Math.min(...layout.left)).toBeGreaterThanOrEqual(0)
         expect(layout.right).toBeLessThanOrEqual(layout.width)
       }
       const emptyDate = page.getByRole('button', { name: 'Show sessions for 2026-09-04', exact: true })
-      if (trainerWeek) await expect(page.locator('.calendar-day').filter({ has: emptyDate })).toContainText('No sessions')
-      else await expect(emptyDate).toHaveText('0')
-      const ratios = await busy.evaluate(day => {
-        const rgba = value => value.match(/[\d.]+/g).map(Number)
-        const background = element => {
-          if (!element) return [255, 255, 255]
-          const [r, g, b, a = 1] = rgba(getComputedStyle(element).backgroundColor)
-          if (a === 1) return [r, g, b]
-          const behind = background(element.parentElement)
-          return [r, g, b].map((value, index) => value * a + behind[index] * (1 - a))
-        }
-        const luminance = rgb => {
-          const channels = rgb.slice(0, 3).map(value => {
-            const channel = value / 255
-            return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+      const emptyDay = calendarDay(page, '2026-09-04')
+      await expect(emptyDate).toHaveCount(0)
+      await expect(emptyDay.locator('button, [tabindex], .calendar-date-action, .calendar-count-label')).toHaveCount(0)
+      await expect(emptyDay).not.toContainText('View day')
+      if (trainerWeek) {
+        await expect(emptyDay.locator('.calendar-agenda-date')).toContainText(/Friday, 04 Sept? 2026/)
+        await expect(emptyDay.locator('.calendar-agenda-date')).not.toHaveAttribute('aria-haspopup')
+        await expect(emptyDay).toContainText('No sessions')
+      } else {
+        await expect(emptyDay.locator('.calendar-day-head time')).toHaveText('4')
+        await expect(emptyDay).not.toContainText('No sessions')
+        if (mode === 'Monthly') expect((await emptyDay.boundingBox()).height).toBeGreaterThanOrEqual(76)
+      }
+      // Restore neutral focus/hover after session Back before measuring past-day dimming.
+      await page.getByRole('button', { name: mode, exact: true }).focus()
+      await page.mouse.move(0, 0)
+      const today = calendarDay(page, '2026-09-03')
+      const future = emptyDay
+      await expect(busy).toHaveClass(/calendar-past/)
+      await expect(date).toBeEnabled()
+      await expect(today).not.toHaveClass(/calendar-past/)
+      await expect(today).toHaveClass(/calendar-today/)
+      await expect(today).toHaveAttribute('aria-current', 'date')
+      await expect(today.getByText('Today', { exact: true })).toBeVisible()
+      expect(await today.evaluate(day => getComputedStyle(day).boxShadow)).not.toBe('none')
+      await expect(future).not.toHaveClass(/calendar-past/)
+      await expect(today).toHaveCSS('opacity', '1')
+      await expect(future).toHaveCSS('opacity', '1')
+      const pastOpacity = await busy.evaluate(day => Number(getComputedStyle(day).opacity))
+      expect(pastOpacity).toBeGreaterThan(0)
+      expect(pastOpacity).toBeLessThan(1)
+      for (const surface of [busy, today]) {
+        const ratios = await surface.evaluate(day => {
+          const rgba = value => value.match(/[\d.]+/g).map(Number)
+          const background = element => {
+            if (!element) return [255, 255, 255]
+            const [r, g, b, a = 1] = rgba(getComputedStyle(element).backgroundColor)
+            if (a === 1) return [r, g, b]
+            const behind = background(element.parentElement)
+            return [r, g, b].map((value, index) => value * a + behind[index] * (1 - a))
+          }
+          const luminance = rgb => {
+            const channels = rgb.slice(0, 3).map(value => {
+              const channel = value / 255
+              return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+            })
+            return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+          }
+          // CSS opacity composites the entire day onto the grid's background.
+          const opacity = Number(getComputedStyle(day).opacity)
+          const behind = background(day.parentElement)
+          const dim = rgb => rgb.slice(0, 3).map((value, index) => value * opacity + behind[index] * (1 - opacity))
+          return [...day.querySelectorAll('.calendar-date strong, .calendar-count-label, .calendar-date-action, .calendar-day-head, .calendar-today-label, .calendar-agenda-date, .calendar-event strong, .calendar-event-client, .calendar-event-status')].map(element => {
+            const foreground = luminance(dim(rgba(getComputedStyle(element).color)))
+            const surface = luminance(dim(background(element)))
+            return (Math.max(foreground, surface) + 0.05) / (Math.min(foreground, surface) + 0.05)
           })
-          return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
-        }
-        return [...day.querySelectorAll('.calendar-date strong, .calendar-day-head, .calendar-agenda-date, .calendar-event strong, .calendar-event-client')].map(element => {
-          const foreground = luminance(rgba(getComputedStyle(element).color))
-          const surface = luminance(background(element))
-          return (Math.max(foreground, surface) + 0.05) / (Math.min(foreground, surface) + 0.05)
         })
-      })
-      expect(Math.min(...ratios)).toBeGreaterThanOrEqual(4.5)
+        expect(Math.min(...ratios)).toBeGreaterThanOrEqual(4.5)
+      }
+      await date.focus()
+      await expect(busy).toHaveCSS('opacity', '1')
       await date.click()
       const dialog = page.getByRole('dialog', { name: 'Calendar sessions' })
+      await expect(dialog).toHaveCSS('opacity', '1')
       await expect(dialog.locator('.calendar-event')).toHaveCount(total)
       if (identity === 'u-owner') {
         const groups = dialog.locator('.calendar-trainer-group')
@@ -209,9 +328,17 @@ test('M4 Oracle calendars show owner counts, every trainer weekly row and groupe
         await expect(groups.nth(0).getByRole('heading')).toHaveText(seed.trainers.find(trainer => trainer.id === 't1').name)
         await expect(groups.nth(0).locator('.calendar-event')).toHaveCount(8)
         await expect(groups.nth(1).locator('.calendar-event')).toHaveCount(6)
+        await expect(groups.nth(0).locator('.calendar-event-status')).toHaveText(statusLabels)
+        await expect(groups.nth(1).locator('.calendar-event-status')).toHaveText(statusLabels.slice(0, 6))
       } else {
         await expect(dialog.locator('.calendar-trainer-group')).toHaveCount(0)
+        await expect(dialog.locator('.calendar-event-status')).toHaveText(statusLabels)
         await expect(dialog.locator('.calendar-event').last()).toContainText('15:00–16:00')
+      }
+      for (const row of await dialog.locator('.calendar-event').all()) {
+        const status = row.locator('.calendar-event-status')
+        await expect(status).toBeVisible()
+        await expect(row).toHaveAccessibleName(new RegExp(`, ${await status.innerText()}$`))
       }
       await page.getByRole('button', { name: 'Close calendar sessions' }).click()
       await expect(dialog).toHaveCount(0)
@@ -223,31 +350,65 @@ test('M4 Oracle calendars show owner counts, every trainer weekly row and groupe
   await expect(page.getByRole('button', { name: 'Client Signature', exact: true })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('button', { name: 'Monthly', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByLabel('Calendar date')).toHaveValue('2026-09-02')
+  await expectCalendarDates(page, Array.from({ length: 30 }, (_, index) => `2026-09-${String(index + 1).padStart(2, '0')}`))
   const original = page.viewportSize()
   for (const width of [320, 900, original.width]) {
     await page.setViewportSize({ ...original, width })
-    await expect(page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true })).toHaveText('8')
+    const todayHead = page.locator('.calendar-today .calendar-day-head')
+    await expect(todayHead.getByText('Today', { exact: true })).toBeVisible()
+    expect(await todayHead.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0)
+    await expectCalendarHeaderLayout(page)
+    const count = page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true })
+    await expect(count.locator('strong')).toHaveText('8')
+    await expect(count.locator('.calendar-count-label')).toBeVisible()
+    await expect(count.locator('.calendar-date-action')).toBeVisible()
     await expect(page.locator('.calendar-grid .calendar-event')).toHaveCount(0)
+    const emptyMonthDay = calendarDay(page, '2026-09-04')
+    await expect(emptyMonthDay.locator('button, [tabindex], .calendar-date-action, .calendar-count-label')).toHaveCount(0)
+    await expect(emptyMonthDay.locator('time')).toHaveText('4')
     await page.getByRole('button', { name: 'Weekly', exact: true }).click()
+    await expectCalendarDates(page, ['2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07', '2026-09-08'])
+    await expectCalendarHeaderLayout(page)
     const busy = page.locator('.calendar-day').filter({ has: page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true }) })
     await expect(busy.locator('.calendar-event')).toHaveCount(8)
+    await expect(busy.locator('.calendar-event-status')).toHaveText(statusLabels)
+    for (const status of await busy.locator('.calendar-event-status').all()) {
+      await expect(status).toBeVisible()
+      expect(await status.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0)
+    }
     await expect(busy.locator('.calendar-event').last()).toBeVisible()
-    await expect(page.getByLabel('Calendar date')).toHaveValue('2026-09-02')
+    const emptyWeekDay = calendarDay(page, '2026-09-04')
+    await expect(emptyWeekDay.locator('button, [tabindex], .calendar-date-action')).toHaveCount(0)
+    await expect(emptyWeekDay).toContainText('No sessions')
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
     await page.getByRole('button', { name: 'Monthly', exact: true }).click()
   }
 })
 
 test('M4 calendar date popup closes with browser Back and reopens an empty day without restoring a daily dashboard', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2032-02-29T04:00:00Z'))
   await page.goto('/#/dashboard')
   await page.getByRole('button', { name: 'Monthly', exact: true }).click()
-  await page.getByLabel('Calendar date').fill('2032-02-29')
-  await page.getByRole('button', { name: 'Show sessions for 2032-02-29', exact: true }).click()
+  await expect(page.getByLabel('Calendar date')).toHaveCount(0)
+  await expectCalendarDates(page, Array.from({ length: 29 }, (_, index) => `2032-02-${String(index + 1).padStart(2, '0')}`))
+  const emptyToday = calendarDay(page, '2032-02-29')
+  await expect(emptyToday).toHaveAttribute('aria-current', 'date')
+  await expect(emptyToday.getByText('Today', { exact: true })).toBeVisible()
+  await expect(emptyToday.locator('time')).toHaveText('29')
+  await expect(page.getByLabel('Monthly calendar').locator('button, [tabindex], .calendar-date-action, .calendar-count-label')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Weekly', exact: true }).click()
+  await expectCalendarDates(page, ['2032-02-29', '2032-03-01', '2032-03-02', '2032-03-03', '2032-03-04', '2032-03-05', '2032-03-06'])
+  await expect(page.getByLabel('Calendar date')).toHaveCount(0)
+  await expect(page.getByLabel('Weekly calendar').locator('button, [tabindex], .calendar-date-action, .calendar-count-label')).toHaveCount(0)
+  await expect(emptyToday.locator('.calendar-day-head time')).toHaveText('29')
+  await expect(emptyToday).not.toContainText('View day')
+  // A saved day URL still opens an informative dialog when that day has no records.
+  await changeRoute(page, 'dashboard/day/2032-02-29')
   await expect(page.getByRole('dialog', { name: 'Calendar sessions' })).toContainText('No sessions for this day.')
   await page.goBack()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByLabel('Calendar date')).toHaveValue('2032-02-29')
+  await expectCalendarDates(page, ['2032-02-29', '2032-03-01', '2032-03-02', '2032-03-03', '2032-03-04', '2032-03-05', '2032-03-06'])
+  await expect(page.getByRole('button', { name: 'Weekly', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.goForward()
   await expect(page.getByRole('dialog', { name: 'Calendar sessions' })).toBeVisible()
   await page.getByRole('button', { name: 'Close calendar sessions' }).click()

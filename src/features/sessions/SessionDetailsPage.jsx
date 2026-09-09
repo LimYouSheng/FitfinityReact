@@ -8,6 +8,7 @@ import { useActionConfirmation } from '../../components/ActionConfirmationProvid
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { sessionStatus, pendingSessionChanges, sessionActionError } from '../../app/sessionRules.js'
 import { businessClock } from '../../app/clock.js'
+import { sessionTimeChangeError } from '../../app/scheduleChanges.js'
 import { exerciseResultsFor } from '../../app/progress.js'
 import { formatDate, weekday } from '../../utils/date.js'
 import ExercisePlanEditor from './ExercisePlanEditor.jsx'
@@ -157,6 +158,14 @@ export default function SessionDetailsPage({
   const replacementTrainers = trainers.filter(item => item.status !== 'inactive' && item.id !== session.trainerId)
   const recordedVideos = (session.exercisePlan ?? []).filter(item => item.videoAttached)
   const dateError = sessionActionError(session, today)
+  const clock = businessClock(new Date(), policy?.timeZone)
+  const timeChangeError = sessionTimeChangeError(session, null, clock)
+  const timeRequestError = sessionTimeChangeError(session, timeRequestDraft, clock)
+  const checkTimeRequest = next => {
+    const error = sessionTimeChangeError(session, next, businessClock(new Date(), policy?.timeZone))
+    if (error) setDetailsError(error)
+    return !error
+  }
   const checkTrainingDate = () => {
     const error = sessionActionError(session, businessClock(new Date(), policy?.timeZone).date)
     if (error) setDetailsError(error)
@@ -226,6 +235,7 @@ export default function SessionDetailsPage({
       setDetailsError('Choose a valid date, start time and end time.')
       return
     }
+    if (!checkTimeRequest(timeRequestDraft)) return
 
     setRequestKind(null)
     const confirmed = await confirmAction({
@@ -234,6 +244,10 @@ export default function SessionDetailsPage({
       confirmLabel: 'Submit Request',
     })
     if (!confirmed) {
+      setRequestKind('time')
+      return
+    }
+    if (!checkTimeRequest(timeRequestDraft)) {
       setRequestKind('time')
       return
     }
@@ -392,8 +406,9 @@ export default function SessionDetailsPage({
               )
             ) : (
               <>
-                <button type="button" className="text-action" disabled={!sessionEditable || Boolean(activeEditor)} onClick={() => {
+                <button type="button" className="text-action" disabled={!sessionEditable || Boolean(activeEditor) || Boolean(timeChangeError)} title={timeChangeError || undefined} onClick={() => {
                   setDetailsError('')
+                  if (!checkTimeRequest(null)) return
                   setTimeRequestDraft({ date: session.date, from: session.from, to: session.to })
                   setRequestKind('time')
                 }}>Request Time Change</button>
@@ -627,7 +642,7 @@ export default function SessionDetailsPage({
         open={requestKind === 'time'}
         title="Request Time Change"
         confirmLabel={saving ? 'Submitting…' : 'Review Request'}
-        confirmDisabled={saving || !validSchedule(timeRequestDraft)}
+        confirmDisabled={saving || !validSchedule(timeRequestDraft) || Boolean(timeRequestError)}
         onCancel={() => {
           setRequestKind(null)
           setDetailsError('')
@@ -635,11 +650,11 @@ export default function SessionDetailsPage({
         onConfirm={submitTimeRequest}
       >
         <div className="session-request-fields">
-          <label>Date<input aria-label="Requested session date" type="date" value={timeRequestDraft.date} onChange={event => setTimeRequestDraft(current => ({ ...current, date: event.target.value }))} /></label>
-          <label>From<input aria-label="Requested start time" type="time" value={timeRequestDraft.from} onChange={event => setTimeRequestDraft(current => ({ ...current, from: event.target.value }))} /></label>
+          <label>Date<input aria-label="Requested session date" type="date" min={clock.date} value={timeRequestDraft.date} onChange={event => { setDetailsError(''); setTimeRequestDraft(current => ({ ...current, date: event.target.value })) }} /></label>
+          <label>From<input aria-label="Requested start time" type="time" min={timeRequestDraft.date === clock.date ? clock.time : undefined} value={timeRequestDraft.from} onChange={event => { setDetailsError(''); setTimeRequestDraft(current => ({ ...current, from: event.target.value })) }} /></label>
           <label>To<input aria-label="Requested end time" type="time" value={timeRequestDraft.to} onChange={event => setTimeRequestDraft(current => ({ ...current, to: event.target.value }))} /></label>
         </div>
-        {detailsError && <p className="validation-copy" role="alert">{detailsError}</p>}
+        {(detailsError || timeRequestError) && <p className="validation-copy" role="alert">{detailsError || timeRequestError}</p>}
       </ConfirmDialog>
 
       <ConfirmDialog

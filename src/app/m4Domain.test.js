@@ -8,12 +8,28 @@ import { payCycle, sessionRateBand } from './remuneration.js'
 import { signatureFixture } from '../test/fixtures/signature.js'
 
 describe('M4 data-driven domain behavior', () => {
-  it('uses the supplied business timezone across midnight and leap-day calendar boundaries', () => {
+  it('uses the business timezone and rolling weeks across leap-day and year boundaries', () => {
     expect(businessClock(new Date('2032-02-28T16:01:00Z'), 'Asia/Singapore').date).toBe('2032-02-29')
     expect(businessClock(new Date('2032-02-28T16:01:00Z'), 'UTC').date).toBe('2032-02-28')
-    expect(calendarDays('2032-02-29', 'week')).toHaveLength(7)
-    expect(calendarDays('2032-02-29', 'month')).toContain('2032-02-29')
-    expect(calendarDays('2032-02-29', 'month')).toHaveLength(42)
+    const wednesday = '2032-02-25'
+    expect(calendarDays(wednesday, 'week')).toEqual([
+      '2032-02-25', '2032-02-26', '2032-02-27', '2032-02-28', '2032-02-29', '2032-03-01', '2032-03-02',
+    ])
+    expect(calendarDays(shiftCalendarDate(wednesday, 7), 'week')).toEqual([
+      '2032-03-03', '2032-03-04', '2032-03-05', '2032-03-06', '2032-03-07', '2032-03-08', '2032-03-09',
+    ])
+    expect(calendarDays(shiftCalendarDate(wednesday, -7), 'week')).toEqual([
+      '2032-02-18', '2032-02-19', '2032-02-20', '2032-02-21', '2032-02-22', '2032-02-23', '2032-02-24',
+    ])
+    expect(calendarDays('2031-12-31', 'week')).toEqual([
+      '2031-12-31', '2032-01-01', '2032-01-02', '2032-01-03', '2032-01-04', '2032-01-05', '2032-01-06',
+    ])
+    for (const [selected, total] of [
+      ['2032-02-29', 29], ['2031-02-14', 28], ['2032-09-15', 30], ['2032-12-31', 31],
+    ]) {
+      expect(calendarDays(selected, 'month')).toEqual(Array.from({ length: total }, (_, index) =>
+        `${selected.slice(0, 7)}-${String(index + 1).padStart(2, '0')}`))
+    }
     expect(shiftCalendarDate('2032-12-31', 1, 'month')).toBe('2033-01-01')
   })
   it('selects only calendar records in the requested range and sorts same-day sessions', () => {

@@ -1,3 +1,5 @@
+import { businessClock } from '../../app/clock.js'
+
 // Stable UI categories classify adapter records, never message title text.
 export const MESSAGE_CATEGORIES = [
   { key: 'all', label: 'All' },
@@ -20,17 +22,20 @@ export function messageCategory(message) {
   return 'updates'
 }
 
-function dateKey(value) {
-  return String(value ?? '').slice(0, 10)
+function dateKey(value, timeZone) {
+  const text = String(value ?? '')
+  if (!timeZone || /^\d{4}-\d{2}-\d{2}$/.test(text)) return text.slice(0, 10)
+  const timestamp = new Date(text)
+  return Number.isFinite(timestamp.getTime()) ? businessClock(timestamp, timeZone).date : ''
 }
 
-export function filterMessages(messages, { query = '', from = '', to = '', category = 'all' } = {}) {
+export function filterMessages(messages, { query = '', from = '', to = '', category = 'all', timeZone } = {}) {
   const term = query.trim().toLowerCase()
 
   return messages.filter(message => {
     if (category !== 'all' && messageCategory(message) !== category) return false
     const content = `${message.title ?? ''} ${message.body ?? ''}`.toLowerCase()
-    const createdDate = dateKey(message.createdAt)
+    const createdDate = dateKey(message.createdAt, timeZone)
 
     if (term && !content.includes(term)) return false
     if (from && createdDate < from) return false

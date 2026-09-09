@@ -228,11 +228,10 @@ export function buildClientRecord(draft, id, definition, policy) {
       from: slot.from,
       to: slot.to,
     })),
-    package: { ...packageRecord, ...(definition ? { templateId: definition.id, name: definition.name, templateVersion: definition.version } : {}) },
+    package: { id: `client-package-${id}`, ...packageRecord, ...(definition ? { templateId: definition.id, name: definition.name, templateVersion: definition.version } : {}) },
     packageHistory: [],
     strengthProgress: [],
     lastTrained: null,
-    renewal: `${packageRecord.total} sessions remaining`,
   }
 }
 

@@ -36,6 +36,18 @@ export function requireActiveActor(db, actor) {
 
 export const businessNow = businessClock
 
+export function sessionTimeChangeError(session, next, clock) {
+  if (['completed', 'cancelled'].includes(session.status)) return 'Completed or cancelled sessions cannot request a time change.'
+  const validStart = slot => /^\d{4}-\d{2}-\d{2}$/.test(slot.date ?? '') &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(slot.from ?? '') &&
+    Number.isFinite(parseDateOnly(slot.date).getTime()) && parseDateOnly(slot.date).toISOString().slice(0, 10) === slot.date
+  const hasStarted = slot => slot.date < clock.date || (slot.date === clock.date && slot.from <= clock.time)
+  if (!validStart(session)) return 'The session date or start time is invalid.'
+  if (hasStarted(session)) return 'Time changes are only available before the session starts.'
+  if (next && !validStart(next)) return 'Choose a valid requested date and start time.'
+  return next && hasStarted(next) ? 'Choose a requested date and start time in the future.' : null
+}
+
 export function weeklyScheduleChanges(db, client, nextSlots, now = new Date()) {
   if (!client || client.status !== 'active') throw new Error('The client is no longer active.')
   const trainer = db.trainers.find(item => item.id === client.trainerId)

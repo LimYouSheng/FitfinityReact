@@ -1,10 +1,15 @@
-import { beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { pendingSessionChanges } from '../app/sessionRules.js'
 import { mockDb } from './mockDb.js'
 import { sessionService } from './sessionService.js'
 import { requestService } from './requestService.js'
 
-beforeEach(() => mockDb.reset())
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
+  mockDb.reset()
+})
+afterEach(() => vi.useRealTimers())
 it('deduplicates pending request types and ignores receipts, unrelated sessions and completed decisions', () => {
   const request = { status: 'pending', request: { type: 'session_time', sessionId: 's1' } }
   expect(pendingSessionChanges([request, request, { ...request, status: 'approved' },
