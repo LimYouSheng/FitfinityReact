@@ -53,6 +53,7 @@ export function MessageInbox({
   onMarkRead,
   onMarkUnread,
   onResolveRequest,
+  onCancelRequest,
   onOpenRelated,
 }) {
   const [selectedId, setSelectedId] = useState(() =>
@@ -61,6 +62,8 @@ export function MessageInbox({
       : null
   )
   const openingMessage = useRef(false)
+  const mounted = useRef(false)
+  const closingMessage = useRef(false)
   const markingUnread = useRef(false)
   const [unreadBusy, setUnreadBusy] = useState(false)
   const [messageError, setMessageError] = useState('')
@@ -85,7 +88,9 @@ export function MessageInbox({
   const pagination = usePagination(visible, `${user.id}|${category}|${query}|${fromDate}|${toDate}`)
 
   useEffect(() => {
+    mounted.current = true
     const syncOverlay = () => {
+      closingMessage.current = false
       if (history.state?.fitfinityOverlay === 'message') {
         setSelectedId(history.state.messageId ?? null)
       } else {
@@ -94,17 +99,21 @@ export function MessageInbox({
     }
 
     window.addEventListener('popstate', syncOverlay)
-    return () => window.removeEventListener('popstate', syncOverlay)
+    return () => { mounted.current = false; window.removeEventListener('popstate', syncOverlay) }
   }, [])
 
   const openMessage = async message => {
     if (openingMessage.current) return
     openingMessage.current = true
+    const origin = `${location.href}|${history.state?.fitfinityDepth ?? 0}`
     setMessageError('')
     try {
       if (!message.read) {
         await onMarkRead(message.id)
       }
+
+      // A delayed read receipt must not open a popup over a different page.
+      if (!mounted.current || origin !== `${location.href}|${history.state?.fitfinityDepth ?? 0}`) return
 
       const depth = history.state?.fitfinityDepth ?? 0
       const overlayId = `message-${message.id}-${Date.now()}`
@@ -132,6 +141,8 @@ export function MessageInbox({
 
   const closeMessage = useCallback(() => {
     if (history.state?.fitfinityOverlay === 'message') {
+      if (closingMessage.current) return
+      closingMessage.current = true
       history.back()
     } else {
       setSelectedId(null)
@@ -164,6 +175,8 @@ export function MessageInbox({
   useSwipeBack({
     enabled: Boolean(selected),
     onBack: closeMessage,
+    routeKey: `${user.id}/${selectedId ?? ''}`,
+    surface: '.message-detail-modal',
   })
 
   return (
@@ -300,8 +313,13 @@ export function MessageInbox({
                 </div>
 
                 <p>{selected.body}</p>
-                {user.role === 'owner' && requestTypes.includes(selected.request?.type) && (
-                  <RequestReview key={selected.id} message={selected} trainers={trainers} sessions={sessions} onResolve={onResolveRequest} />
+                {selected.cancelledAt && selected.cancelledBy && <p>
+                  Cancelled by {selected.cancelledBy.name} · <time dateTime={selected.cancelledAt}>{formatTimestamp(selected.cancelledAt, timeZone)}</time>
+                </p>}
+                {requestTypes.includes(selected.request?.type) && (user.role === 'owner' || selected.request.trainerId === user.trainerId) && (
+                  <RequestReview key={selected.id} message={selected} trainers={trainers} sessions={sessions}
+                    onResolve={user.role === 'owner' ? onResolveRequest : undefined}
+                    onCancel={user.role === 'trainer' && selected.request.trainerId === user.trainerId ? onCancelRequest : undefined} />
                 )}
 
 

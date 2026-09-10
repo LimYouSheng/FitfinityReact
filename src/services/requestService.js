@@ -1,10 +1,51 @@
+import { sessionIsInactive } from '../app/clientPackages.js'
+import { sessionDurationMinutes } from '../app/sessionRules.js'
 import { requestTypes } from '../app/requestTypes.js'
-import { applyWeeklySchedule, availabilityBlocks, businessNow, sameAvailability, sameSlots, sessionTimeChangeError, validateAvailability } from '../app/scheduleChanges.js'
+import { applyWeeklySchedule, availabilityBlocks, businessNow, requireActiveActor, sameAvailability, sameSlots, sessionTimeChangeError, validateAvailability } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
 
 const snapshot = session => ({ date: session.date, from: session.from, to: session.to })
 
+function cancellationTarget(db, messageId, actor) {
+  const staff = requireActiveActor(db, actor)
+  const trainer = db.trainers.find(item => item.id === staff.trainerId)
+  if (staff.role !== 'trainer' || trainer?.status !== 'active') throw new Error('Only an active trainer can cancel their own requests.')
+  const message = db.messages.find(item => item.id === messageId)
+  if (message?.recipientRole !== 'owner' || !requestTypes.includes(message.request?.type) || message.request.trainerId !== staff.trainerId) {
+    throw new Error('This request is unavailable for your account.')
+  }
+  if (message.status !== 'pending' && !(message.status === 'cancelled' && message.cancelledBy?.id === staff.id)) {
+    throw new Error('This request is no longer pending. Refresh Messages to see its status.')
+  }
+  return { message, staff }
+}
+
 export const requestService = {
+  async cancel(messageId, actor) {
+    await delay(120)
+    const current = cancellationTarget(mockDb.read(), messageId, actor)
+    if (current.message.status === 'cancelled') return current.message
+    const state = mockDb.mutate(db => {
+      const { message, staff } = cancellationTarget(db, messageId, actor)
+      const cancelledAt = new Date().toISOString()
+      const cancelledBy = { id: staff.id, name: staff.name, trainerId: staff.trainerId }
+      const cancellation = { status: 'cancelled', cancelledAt, cancelledBy }
+      Object.assign(message, cancellation)
+      for (const receipt of db.messages.filter(item => item.requestId === message.id)) Object.assign(receipt, cancellation)
+      const notice = {
+        ...cancellation, requestId: message.id, createdAt: cancelledAt, read: false, kind: 'request_decision',
+        sessionId: message.request.sessionId, clientId: message.clientId, trainerId: staff.trainerId,
+        title: `Request cancelled: ${message.title}`,
+        body: `${staff.name} cancelled this request. The proposed change was not applied.`,
+      }
+      db.messages.push(
+        { ...notice, id: `cancellation-${message.id}-owner`, recipientRole: 'owner' },
+        { ...notice, id: `cancellation-${message.id}-${staff.trainerId}`, recipientTrainerId: staff.trainerId },
+      )
+    })
+    return state.messages.find(item => item.id === messageId)
+  },
+
   async resolve(messageId, decision, actor) {
     await delay(120)
     if (!['approved', 'rejected'].includes(decision)) throw new Error('Choose approve or reject.')
@@ -34,7 +75,7 @@ export const requestService = {
       } else if (decision === 'approved') {
         const requester = db.trainers.find(item => item.id === request.trainerId)
         const client = db.clients.find(item => item.id === session?.clientId)
-        if (!session || ['completed', 'cancelled'].includes(session.status) || client?.status !== 'active' || requester?.status !== 'active') {
+        if (!session || ['completed', 'cancelled'].includes(session.status) || client?.status !== 'active' || sessionIsInactive(client, session) || requester?.status !== 'active') {
           throw new Error('The session, client or requesting trainer is no longer eligible. Reject this request.')
         }
         if (session.trainerId !== request.trainerId || (request.previous && Object.keys(snapshot(session)).some(key => session[key] !== request.previous[key]))) {
@@ -48,12 +89,13 @@ export const requestService = {
           const timeError = sessionTimeChangeError(session, next, businessNow(new Date(), db.settings.timeZone))
           if (timeError) throw new Error(`${timeError} Reject this request.`)
           Object.assign(session, { date: next.date, from: next.from, to: next.to })
+          if (session.outcome) session.outcome.durationMinutes = sessionDurationMinutes(session)
         } else {
           const replacement = db.trainers.find(item => item.id === request.replacementTrainerId && item.status === 'active')
           if (!replacement || replacement.id === session.trainerId) throw new Error('The replacement trainer is no longer eligible.')
           session.trainerId = replacement.id
         }
-        if (db.sessions.some(other => other.id !== session.id && !['completed', 'cancelled'].includes(other.status) && other.date === session.date && (other.trainerId === session.trainerId || other.clientId === session.clientId) && other.from < session.to && session.from < other.to)) {
+        if (db.sessions.some(other => other.id !== session.id && !sessionIsInactive(db.clients.find(item => item.id === other.clientId), other) && !['completed', 'cancelled'].includes(other.status) && other.date === session.date && (other.trainerId === session.trainerId || other.clientId === session.clientId) && other.from < session.to && session.from < other.to)) {
           throw new Error('The requested change conflicts with another session. Reject it and request another slot.')
         }
         session.detailsUpdatedAt = new Date().toISOString()

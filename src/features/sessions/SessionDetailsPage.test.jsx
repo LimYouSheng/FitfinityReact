@@ -2,7 +2,7 @@ import { drawSignature } from '../../test/drawSignature.js'
 import { signatureFixture } from '../../test/fixtures/signature.js'
 import { mockPolicy } from '../../data/mockPolicy.js'
 import { StrictMode } from 'react'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
 import AppShell from '../../components/AppShell.jsx'
@@ -69,6 +69,54 @@ function renderDetails(overrides = {}) {
   return props
 }
 
+it('keeps inactive client sessions viewable while blocking edit, signature, requests and summary export for both roles', () => {
+  for (const role of ['owner', 'trainer']) {
+    const props = renderDetails({ user: { id: `u-${role}`, role, trainerId: 't1' }, client: { ...client, status: 'inactive' } })
+    expect(screen.getByText('Client inactive', { exact: true })).toBeVisible()
+    for (const button of screen.queryAllByRole('button', { name: /^(Edit|Request Time Change|Request Trainer Change)$/ })) expect(button).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Client Signature', exact: true })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export Summary' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'View Client' }))
+    expect(props.onOpenClient).toHaveBeenCalledTimes(1)
+    expect(props.onAcknowledge).not.toHaveBeenCalled()
+    cleanup()
+  }
+})
+
+it('shows package inactivity under Package Details and locks its sessions for the owner', () => {
+  const purchased = { id: 'past', name: 'Past Strength Package', status: 'inactive', total: 24, used: 7,
+    startDate: '2026-06-01', endDate: '2026-11-27', sessionsPerWeek: 2, validityDays: 180 }
+  const current = { ...purchased, id: 'current', status: 'active', name: 'Current PT Package', total: 12, used: 3,
+    startDate: '2026-12-01', endDate: '2027-02-28', sessionsPerWeek: 1, validityDays: 90 }
+  for (const linked of [purchased, current]) {
+    renderDetails({ user: { id: 'u-owner', role: 'owner' }, session: { ...session, packageId: linked.id, packageTotal: 99 },
+      client: { ...client, package: current, packageHistory: [purchased] } })
+    const details = screen.getByLabelText('Session package details')
+    expect(details).toHaveTextContent(`${linked.name} · Session 4 / ${linked.total}`)
+    expect(details).toHaveTextContent(`${linked.used} completed · ${linked.total - linked.used} remaining`)
+    expect(details).toHaveTextContent(linked.validityDays + ' days')
+    expect(details).not.toHaveTextContent('/ 99')
+    if (linked === purchased) {
+      expect(details).toHaveTextContent('01 Jun 2026 – 27 Nov 2026')
+      expect(details).toHaveTextContent('Package inactive')
+      expect(screen.queryByRole('button', { name: 'Client Signature', exact: true })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Export Summary' })).toBeDisabled()
+    } else expect(details).toHaveTextContent('01 Dec 2026 – 28 Feb 2027')
+    cleanup()
+  }
+  renderDetails({ session: { ...session, packageId: 'unknown' }, client: { ...client, package: current } })
+  expect(screen.getByLabelText('Session package details')).toHaveTextContent('Package details unavailable')
+})
+
+it('derives outcome and generated summary duration from session times instead of a stored duration', () => {
+  renderDetails({ session: { ...session, from: '18:00', to: '19:45', outcome: { durationMinutes: 60, trainerComments: 'Preserved' } } })
+  expect(document.querySelector('.session-outcome-list')).toHaveTextContent('105 minutes')
+  expect(document.querySelector('.client-summary-copy')).toHaveTextContent('Session duration: 105 minutes')
+  fireEvent.click(within(document.querySelector('.session-outcome-panel')).getByRole('button', { name: 'Edit' }))
+  expect(screen.getByLabelText('Duration (minutes)')).toHaveValue(105)
+  expect(screen.getByLabelText('Duration (minutes)')).toHaveAttribute('readonly')
+})
+
 describe('session detail confirmations', () => {
   it('opens the API confirmation after reviewing a time change', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
@@ -105,6 +153,24 @@ describe('session detail confirmations', () => {
       renderDetails({ session: { ...session, date: '2026-09-04', status } })
       expect(screen.getByRole('button', { name: 'Request Time Change' })).toBeDisabled()
     }
+  })
+
+  it('keeps request launchers disabled until a submitted request finishes so a late completion cannot close a new draft', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
+    let finish
+    renderDetails({ onRequestTimeChange: () => new Promise(resolve => { finish = resolve }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Request Time Change' }))
+    fireEvent.change(screen.getByLabelText('Requested session date'), { target: { value: '2026-09-04' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Review Request' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Request' }))
+    await waitFor(() => expect(finish).toBeTypeOf('function'))
+    expect(screen.getByRole('button', { name: 'Request Time Change' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Request Trainer Change' })).toBeDisabled()
+    await act(async () => finish())
+    fireEvent.click(screen.getByRole('button', { name: 'Request Time Change' }))
+    expect(screen.getByRole('dialog', { name: 'Request Time Change' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Review Request' })).toBeEnabled()
   })
 
   it('requires only reviewed acknowledgement to complete even without outcome duration or WhatsApp', async () => {

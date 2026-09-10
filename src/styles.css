@@ -513,6 +513,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   gap:20px;
   margin-bottom:18px;
 }
+.page-head.directory-page-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px}
+.directory-page-head>div{min-width:0}
+.directory-page-head>.onboarding-button{justify-self:end;margin-top:4px;max-width:130px}
 .page-head h1{font-size:31px;margin:3px 0 2px;letter-spacing:-.5px}
 .page-head p,.section-head p,.body-copy{color:var(--grey);margin:4px 0;line-height:1.5}
 .eyebrow{
@@ -613,10 +616,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .calendar-modes button{min-height:44px;border:1px solid #30333c;border-radius:6px;background:#181b25;color:var(--white);padding:8px 12px}
 .calendar-modes button[aria-pressed="true"]{border-color:var(--blue);color:#fff;background:var(--blue)}
 .calendar-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0}
-.calendar-toolbar>strong{flex:1;min-width:0;text-align:center}
+.calendar-range{flex:1;min-width:0;min-height:44px;text-align:center;font:inherit;font-weight:700;color:var(--white);background:#181b25;border:1px solid #30333c;border-radius:6px;padding:8px 28px 8px 8px}
 .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid #30333c;border-left:1px solid #30333c;border-radius:8px;background:#0f1116}
 .calendar-day{min-width:0;min-height:128px;border-right:1px solid #292c34;border-bottom:1px solid #292c34;padding:9px}
-.calendar-day-head{display:flex;justify-content:space-between;gap:4px;margin-bottom:8px;font-size:10px;line-height:1.35;color:#929aaa;text-transform:uppercase;font-weight:850}
+.calendar-day-head{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;margin-bottom:8px;font-size:10px;line-height:1.35;color:#929aaa;text-transform:uppercase;font-weight:850}
 .calendar-past{opacity:.8}
 .calendar-past:focus-within{opacity:1}
 @media(hover:hover){
@@ -686,30 +689,7 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:#d
 .account-form input,.account-form select{width:100%;min-width:0}
 .portal-load-error{position:relative;padding:12px;background:#502f34;color:#fff;z-index:60}
 
-/* Tables */
-table{
-  width:100%;
-  max-width:100%;
-  border-collapse:collapse;
-  table-layout:fixed;
-  min-width:0;
-}
-th,td{
-  text-align:left;
-  padding:12px 10px;
-  border-bottom:1px solid #292d36;
-  font-size:12px;
-  min-width:0;
-  overflow-wrap:anywhere;
-  word-break:normal;
-}
-th{
-  color:#858d9c;
-  text-transform:uppercase;
-  font-size:9px;
-  letter-spacing:.55px;
-}
-td small{color:var(--grey)}
+/* Shared statuses and actions */
 .empty{text-align:center;color:var(--grey);padding:24px}
 .btn{
   border:1px solid #5968e7;
@@ -1222,7 +1202,7 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .onboarding-field input[readonly]{color:#acb5c6;background:#10131b}
 .onboarding-field-error{color:#ffafbb;font-size:10px;line-height:1.45}
 .onboarding-phone-grid{display:grid;grid-template-columns:78px minmax(0,1fr);gap:7px;min-width:0}
-.onboarding-emergency-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:8px;min-width:0}
+.onboarding-emergency-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
 .onboarding-person-tabs{display:flex;gap:7px;min-width:0}
 .onboarding-person-tabs button{min-height:34px;border:1px solid #343a46;border-radius:6px;background:#101319;color:#b7c0ce;font-size:11px;font-weight:750;padding:6px 12px}
 .onboarding-person-tabs button.active{border-color:#6677ef;background:#202a69;color:#fff}
@@ -1366,14 +1346,13 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .report-file-actions a{text-decoration:none}
 .strength-progress-head{
   display:grid;
-  grid-template-columns:minmax(180px,1fr) minmax(220px,300px) minmax(180px,1fr);
+  grid-template-columns:minmax(0,1fr) auto;
   align-items:end;
   gap:18px;
   margin-bottom:16px;
 }
 .strength-progress-head h2{margin:0}
 .strength-progress-head p{margin:5px 0 0;color:#929aa9;font-size:11px}
-.strength-progress-exercise{display:grid;gap:6px;color:#8e97a7;font-size:9px;font-weight:800;text-transform:uppercase}
 .strength-progress-actions{
   justify-self:end;
   display:flex;
@@ -1403,28 +1382,51 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   stroke-linecap:round;
   stroke-linejoin:round;
 }
-.strength-progress-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-.strength-progress-cards button{
-  min-width:0;
-  min-height:105px;
+.package-section-head{flex-wrap:wrap}
+.package-actions{display:flex;gap:8px;max-width:100%}
+.package-actions button{flex:1;min-width:0;white-space:normal;font-size:11px;padding:8px 10px}
+.package-progress-head,.package-progress-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) minmax(70px,.5fr) 56px;gap:12px;align-items:center}
+.package-progress-head{padding:8px 0;font-size:11px;color:var(--grey)}
+.package-progress-row{padding:12px 0;border-top:1px solid var(--line);font-size:12px;overflow-wrap:anywhere}
+.package-progress-row>div{display:grid;gap:5px}
+.package-progress-row>div>span{font-size:11px;color:var(--grey)}
+.session-date-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px;max-width:540px}
+.session-date-filters label{display:grid;gap:6px;min-width:0}
+.session-date-filters label>span{font-size:11px;color:var(--grey)}
+.session-date-filters input{width:100%;min-width:0}
+.strength-progress-list{min-width:0}
+.strength-progress-columns,.strength-progress-row{
   display:grid;
-  align-content:center;
-  justify-items:start;
-  gap:6px;
-  border:1px solid #303640;
-  border-radius:8px;
-  background:#0d0f14;
-  color:#fff;
-  padding:13px;
-  text-align:left;
+  grid-template-columns:minmax(0,1.7fr) minmax(0,.9fr) minmax(0,.9fr) minmax(0,.75fr) 14px;
+  gap:8px;
+  align-items:center;
+  padding:10px 6px;
+  text-align:right;
 }
-.strength-progress-cards button:hover,
-.strength-progress-cards button.selected{border-color:#6676ff;background:#171a22}
-.strength-progress-cards span{min-height:27px;color:#c2c8d3;font-size:10px;font-weight:800;line-height:1.35;overflow-wrap:anywhere}
-.strength-progress-cards strong{font-size:21px}
-.strength-progress-cards strong small,
-.strength-chart-summary strong small{color:#8f98a8;font-size:10px}
-.strength-progress-cards em{color:#7ae5b2;font-size:10px;font-style:normal;font-weight:850}
+.strength-progress-columns{font-size:9px;line-height:1.3;color:#9ba5b9;font-weight:750}
+.strength-progress-columns>span:first-child{text-align:left}
+.strength-progress-item{border-top:1px solid #303640}
+.strength-progress-row{
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#e8ebf2;
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+}
+.strength-progress-row>*{min-width:0;overflow-wrap:anywhere}
+.strength-progress-row:hover,.strength-progress-row[aria-expanded="true"]{background:#171d30}
+.strength-progress-row:focus-visible{outline:2px solid #8191ff;outline-offset:-2px}
+.strength-progress-name{text-align:left;line-height:1.4;font-size:12px}
+.strength-progress-row small,.strength-chart-summary strong small{color:#a2abbb;font-size:10px}
+.strength-progress-row em{color:#7ae5b2;font-style:normal;font-weight:750}
+.strength-progress-row em.negative{color:#ff9da5}
+.strength-progress-chevron{font-size:22px;color:#9eaaff;transition:transform .15s}
+.strength-progress-row[aria-expanded="true"] .strength-progress-chevron{transform:rotate(90deg)}
+.strength-chart-panel{padding:16px 6px 12px;min-width:0}
 .strength-chart-summary{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:8px}
 .strength-chart-summary>div{display:grid;gap:5px}
 .strength-chart-summary>div>span{color:#a2aab8;font-size:11px;font-weight:800}
@@ -1433,8 +1435,7 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .strength-chart-summary dl>div{display:grid;gap:5px}
 .strength-chart-summary dt{color:#7f8796;font-size:8px;font-weight:850;text-transform:uppercase}
 .strength-chart-summary dd{margin:0;font-size:12px;font-weight:850}
-.strength-chart-scroll{overflow-x:auto}
-.strength-chart{display:block;width:100%;min-width:650px;height:auto}
+.strength-chart{display:block;width:100%;height:auto}
 .trainer-monthly-activity{display:grid;gap:10px}
 .trainer-activity-month{
   display:flex;
@@ -1469,14 +1470,14 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   letter-spacing:.4px;
 }
 .info-row strong{font-size:12px;text-align:right}
-.contact-number-fields,
-.emergency-contact-fields{width:min(100%,360px);margin-left:auto;display:grid;gap:7px}
-.contact-number-fields{grid-template-columns:84px minmax(0,1fr)}
-.emergency-contact-fields{grid-template-columns:repeat(2,minmax(0,1fr));padding:8px 0}
-.contact-number-fields input,
-.contact-number-fields select,
-.emergency-contact-fields input,
-.emergency-contact-fields select{width:100%;min-width:0}
+.client-trainer-assignment{display:grid;justify-items:end;gap:10px;min-width:0}
+.client-trainer-assignment strong{overflow-wrap:anywhere}
+@media(min-width:700px){
+  .info-row.client-trainer-row{display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:8px}
+  .client-trainer-assignment{display:contents}
+  .client-trainer-assignment strong{grid-column:3;grid-row:1;justify-self:end;text-align:right}
+  .client-trainer-assignment button{grid-column:2;grid-row:1}
+}
 .notice{
   border:1px solid #343946;
   background:#0d0f14;
@@ -2476,7 +2477,6 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 @media(max-width:850px){
   .message-search-controls{grid-template-columns:repeat(2,minmax(0,1fr))}
   .message-search-controls>label:first-child{grid-column:1 / -1}
-  .strength-progress-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 @media(max-width:620px){
@@ -2495,7 +2495,6 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
     gap:12px 8px;
   }
   .strength-progress .strength-progress-title{grid-column:1;grid-row:1}
-  .strength-progress .strength-progress-exercise{grid-column:1 / -1;grid-row:2;width:100%}
   .strength-progress .strength-progress-actions{
     grid-column:2;
     grid-row:1;
@@ -2511,83 +2510,16 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   }
   .strength-progress-export span,
   .strength-progress-share span{display:none}
-  .strength-progress-cards{grid-template-columns:1fr}
   .strength-chart-summary{align-items:start;flex-direction:column}
   .strength-chart-summary dl{width:100%;justify-content:space-between}
 }
 
 @media(max-width:900px){
-  .strength-progress-head{grid-template-columns:minmax(0,1fr) auto}
-  .strength-progress-title{grid-column:1 / -1}
   .session-controls{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
 @media(max-width:780px){
   .exercise-video-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
-  table{
-    display:block;
-    width:100%;
-    max-width:100%;
-  }
-
-  thead{display:none}
-
-  tbody{
-    display:grid;
-    width:100%;
-    gap:10px;
-  }
-
-  tr{
-    display:block;
-    width:100%;
-    max-width:100%;
-    border:1px solid #30343e;
-    border-radius:8px;
-    background:#0d0f14;
-    overflow:hidden;
-  }
-
-  td{
-    display:grid;
-    grid-template-columns:minmax(88px,.72fr) minmax(0,1.28fr);
-    align-items:start;
-    gap:10px;
-    width:100%;
-    max-width:100%;
-    min-height:42px;
-    padding:10px 11px;
-    border-bottom:1px solid #292d36;
-    overflow-wrap:anywhere;
-  }
-
-  td:last-child{border-bottom:0}
-
-  td::before{
-    content:attr(data-label);
-    color:#858d9c;
-    font-size:9px;
-    font-weight:850;
-    letter-spacing:.45px;
-    text-transform:uppercase;
-  }
-
-  td[data-label="Actions"]{
-    grid-template-columns:1fr;
-  }
-
-  td[data-label="Actions"]::before{display:none}
-
-  td[data-label="Actions"] .btn{
-    width:100%;
-  }
-
-  td.empty{
-    display:block;
-    text-align:center;
-  }
-
-  td.empty::before{display:none}
   .calendar-day{min-height:98px;padding:2px}
   .calendar-day-head{justify-content:center;flex-wrap:wrap;column-gap:2px;row-gap:0;font-size:9px;margin-bottom:4px}
   .calendar-date{min-height:72px;padding:5px 0}
@@ -2598,7 +2530,7 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   .calendar-event{grid-template-columns:78px minmax(0,1fr) max-content 10px;gap:6px}
   .calendar-toolbar{display:grid;grid-template-columns:44px minmax(0,1fr) 44px}
   .calendar-toolbar>button{min-height:44px;padding:8px}
-  .calendar-toolbar>strong{font-size:12px;line-height:1.4;text-align:center;overflow-wrap:anywhere}
+  .calendar-range{width:100%;font-size:12px;line-height:1.4;text-align:center}
   .portal-shell{display:block}
   .portal-main{grid-column:auto}
   .notification-region{left:0;top:calc(62px + env(safe-area-inset-top, 0px))}
@@ -2709,6 +2641,12 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
     padding:10px 0;
   }
   .info-row strong{text-align:left}
+  .client-trainer-assignment{justify-items:stretch}
+  .client-trainer-assignment button{justify-self:end}
+  .package-progress-head{display:none}
+  .package-progress-row{grid-template-columns:minmax(0,1fr) 56px;gap:8px}
+  .package-progress-row>div,.package-progress-row>span{grid-column:1}
+  .package-progress-row>button{grid-column:2;grid-row:1 / 4}
   .schedule-row{grid-template-columns:90px minmax(0,1fr)}
   .availability-grid{grid-template-columns:repeat(2,1fr)}
 

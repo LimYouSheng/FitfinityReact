@@ -50,6 +50,9 @@ describe('progress report export', () => {
       expect(normalize(report)).toBe(normalize(app))
       expect(report.getAttribute('viewBox')).toBe(app.getAttribute('viewBox'))
       expect(report.getAttribute('font-family')).toBe(app.getAttribute('font-family'))
+      expect(app.querySelectorAll('circle')).toHaveLength(points.length)
+      expect(Array.from(app.querySelectorAll('g > title'), node => node.textContent)).toEqual(points.map(point => `${point.date === '2026-07-10' ? '10' : '20'} Jul 2026: ${point.load} kg`))
+      expect(app.querySelectorAll('polygon, polyline')).toHaveLength(points.length === 1 ? 0 : 2)
     }
     expect(progressChange(-5)).toBe('-5')
   })

@@ -125,5 +125,21 @@ it.each(['owner', 'trainer'])('%s calendar shows counts or every weekly session,
   expect(document.querySelectorAll('.calendar-day')).toHaveLength(31)
   expect(day('2027-02-01')).toBeNull()
   expect(props.onState).not.toHaveBeenCalled()
+  expect(screen.getByLabelText('Calendar month').querySelectorAll('option')).toHaveLength(12)
+  expect(screen.getByRole('button', { name: 'Previous calendar period' })).toBeDisabled()
+  fireEvent.change(screen.getByLabelText('Calendar month'), { target: { value: '2027-12-01' } })
+  expect(props.onState).toHaveBeenLastCalledWith({ mode: 'month', date: '2027-12-01' })
+  props.state = { mode: 'month', date: '2027-12-01' }
+  view.rerender(<DashboardPage {...props} />)
+  expect(screen.getByRole('button', { name: 'Next calendar period' })).toBeDisabled()
+  for (const [date, weeks] of [['2027-02-01', 4], ['2028-02-01', 5], ['2027-09-01', 5]]) {
+    props.state = { mode: 'week', date }; props.today = date
+    view.rerender(<DashboardPage {...props} />)
+    const select = screen.getByLabelText('Calendar week')
+    expect(select.querySelectorAll('option:not([hidden])')).toHaveLength(weeks)
+    const last = select.options[select.options.length - 1].value
+    fireEvent.change(select, { target: { value: last } })
+    expect(props.onState).toHaveBeenLastCalledWith({ mode: 'week', date: last })
+  }
   expect(screen.queryByLabelText('Calendar date')).toBeNull()
 })

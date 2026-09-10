@@ -14,6 +14,7 @@ const client = () => mockDb.read().clients.find(item => item.id === 'c1')
 const points = () => client().strengthProgress.flatMap(item => item.points).filter(point => point.sessionId === 's1')
 beforeEach(() => {
   localStorage.clear(); mockDb.reset()
+  mockDb.mutate(db => { db.sessions.find(item => item.id === 's1').date = '2026-09-02' })
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-09-01T15:59:59Z'))
 })
@@ -111,7 +112,7 @@ it('rebuilds older signed sessions in the snapshot without duplicating previousl
   const before = mockDb.read()
   for (let i = 0; i < 2; i++) {
     const snapshot = await mockPortalAdapter.load()
-    expect(snapshot.data.clients.find(item => item.id === 'c1').strengthProgress[0].points).toHaveLength(1)
+    expect(snapshot.data.clients.find(item => item.id === 'c1').strengthProgress.find(item => item.name === 'Legacy Row').points).toHaveLength(1)
   }
   expect(mockDb.read()).toEqual(before)
 })
@@ -146,7 +147,7 @@ it('records report actions with the authenticated staff and service timestamp, s
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-marcus', expiresAt: Date.now() + 3600000 }))
   const owner = mockDb.read().users.find(user => user.role === 'owner')
   const event = await mockPortalAdapter.invoke('clientService', 'recordProgressReportAction', ['c1', { id: 'report-one', kind: 'pdf_export', at: '2000-01-01', by: owner }, owner])
-  expect(event).toEqual({ id: 'report-one', clientId: 'c1', kind: 'pdf_export', at: '2026-09-01T15:59:59.000Z', by: { id: 'u-marcus', name: 'Marcus Tan' } })
+  expect(event).toEqual({ id: 'report-one', clientId: 'c1', packageId: 'client-package-c1', kind: 'pdf_export', at: '2026-09-01T15:59:59.000Z', by: { id: 'u-marcus', name: 'Marcus Tan' } })
   vi.setSystemTime(new Date('2026-09-03T04:00:00Z'))
   await clientService.recordProgressReportAction('c1', { id: 'report-two', kind: 'whatsapp_opened' }, owner)
   vi.setSystemTime(new Date('2026-09-03T04:00:01Z'))

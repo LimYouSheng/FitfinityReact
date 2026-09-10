@@ -202,7 +202,7 @@ test('M3 duplicate trainer email leaves the draft recoverable and writes nothing
   expect((await saved(page, 'corrected@example.com')).count).toBe(1)
 })
 
-test('M3 trainer Cancel uses the existing unsaved-edit guard and returns to All Trainers', async ({ page }) => {
+test('M3 trainer Cancel uses the existing unsaved-edit guard and returns to Trainers', async ({ page }) => {
   await page.goto('/#/trainers')
   await page.getByRole('button', { name: 'Add New Trainer', exact: true }).click()
   await page.getByLabel('Trainer name', { exact: true }).fill('Keep Trainer Draft')
@@ -213,12 +213,15 @@ test('M3 trainer Cancel uses the existing unsaved-edit guard and returns to All 
   await expect(page.getByLabel('Trainer name', { exact: true })).toHaveValue('Keep Trainer Draft')
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   await dialog.getByRole('button', { name: 'Leave Without Saving', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'All Trainers', level: 1, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Trainers', level: 1, exact: true })).toBeVisible()
 })
 
 test('M3 a newly created trainer is immediately available in automatic client matching and demo identity', async ({ page }) => {
   await begin(page)
-  await ready(page)
+  await next(page, 'Training & Rates')
+  await next(page, 'Trainer Availability')
+  await block(page, 'Sunday', '14:00', '15:00')
+  await next(page, 'Owner Approval Needed')
   await confirm(page, 'M3 New Trainer')
   await expect(page.getByRole('heading', { name: 'M3 New Trainer', level: 1, exact: true })).toBeVisible()
   const trainer = await saved(page)
@@ -227,7 +230,7 @@ test('M3 a newly created trainer is immediately available in automatic client ma
   await next(page, 'Package & Preferences')
   await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')
   await next(page, 'Client Availability')
-  await block(page, 'Sunday', '10:00', '11:00')
+  await block(page, 'Sunday', '14:00', '15:00')
   await next(page, 'Trainer Matching')
   await expect(page.getByRole('button', { name: 'Find Matching Trainers', exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Matched trainer', { exact: true })).toHaveValue(trainer.trainer.id)
@@ -243,7 +246,7 @@ test('M3 a newly created trainer is immediately available in automatic client ma
   await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
   await expect(page.locator('.profile-menu button').filter({ hasText: 'Assigned Clients' })).toHaveCount(0)
   await page.evaluate(() => { location.hash = '#/clients' })
-  await expect(page.getByRole('heading', { name: 'All Clients', level: 1, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clients', level: 1, exact: true })).toBeVisible()
   await expect(page.getByText('Assigned To New Trainer', { exact: true })).toBeVisible()
 })
 

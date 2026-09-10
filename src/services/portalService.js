@@ -7,8 +7,12 @@ export const PORTAL_OPERATIONS = {
     "getAll",
     "getById",
     "create",
+    "renewPackage",
+    "deactivatePackage",
+    "deletePackageSessions",
     "update",
     "saveFixedWeeklySchedule",
+    "reassignTrainer",
     "recordProgressReportAction",
     "progressReportHistory",
     "deactivate",
@@ -54,7 +58,8 @@ export const PORTAL_OPERATIONS = {
     "markUnread"
   ],
   "requestService": [
-    "resolve"
+    "resolve",
+    "cancel"
   ],
   "remunerationService": [
     "list",

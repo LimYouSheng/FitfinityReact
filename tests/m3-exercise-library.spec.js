@@ -1,4 +1,4 @@
-import { expect, test, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
+import { waitForPortal, expect, test, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 import { DEFAULT_EXERCISES } from '../src/data/mockExercises.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -9,6 +9,7 @@ async function start(page, route = 'exercises', custom = null) {
   if (custom) data.exerciseLibrary = custom
   await page.addInitScript(({ key, data }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data)) }, { key: KEY, data })
   await page.goto(`/#/${route}`)
+  await waitForPortal(page)
 }
 const readDb = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY)
 const go = (page, path) => page.evaluate(path => { location.hash = `#/${path}` }, path)

@@ -27,7 +27,7 @@ it('preloads 12/90, 24/180 and 36/270 packages and upgrades old mock data withou
   expect(reloaded.packages).toEqual(DEFAULT_PACKAGES)
   expect(reloaded.clients).toEqual(old.clients)
   expect(reloaded.sessions).toEqual(old.sessions)
-  expect(JSON.parse(localStorage.getItem(KEY))).toEqual(old)
+  expect(JSON.parse(localStorage.getItem(KEY))).toEqual(reloaded)
 })
 
 it('saves rules derived from session count and emits an unread owner-only package link', async () => {

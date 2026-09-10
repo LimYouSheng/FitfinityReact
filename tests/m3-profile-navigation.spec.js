@@ -45,7 +45,7 @@ test('M3 owner trainer menu reflects each selection and retains Assigned Clients
   }
 })
 
-test('M3 trainer uses All Clients and the profile menu reflects the remaining sections', async ({ page }) => {
+test('M3 trainer uses Clients and the profile menu reflects the remaining sections', async ({ page }) => {
   await page.goto('/#/dashboard')
   await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard', exact: true })).toBeVisible()
@@ -54,7 +54,7 @@ test('M3 trainer uses All Clients and the profile menu reflects the remaining se
   await expect(page.locator('.profile-menu button').filter({ hasText: 'Assigned Clients' })).toHaveCount(0)
   for (const label of ['Availability', 'Monthly Activity', 'Overview']) await selectSection(page, label)
   await page.evaluate(() => { location.hash = '#/clients' })
-  await expect(page.getByRole('heading', { name: 'All Clients', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible()
   await page.getByLabel('Search client', { exact: true }).fill('Amanda Lim')
   await expect(page.getByLabel('Client list').getByText('Amanda Lim', { exact: true })).toBeVisible()
   await page.getByLabel('Filter clients by type').selectOption('Individual')

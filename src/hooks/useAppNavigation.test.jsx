@@ -119,6 +119,20 @@ it('retains a first-frame calendar selection before passive effects run', () => 
   expect(history.state.fitfinityPageState.calendar.date).toBe('2026-09-02')
 })
 
+it('starts a newly authenticated account at its dashboard even if a stale save left the old account on a detail route', () => {
+  cleanup()
+  history.replaceState({ fitfinity: true, fitfinityDepth: 3, fitfinityPath: 'clients/c1', fitfinityUserId: 'u-owner', fitfinityPageState: { secret: 'old account' } }, '', '/#/clients/c1')
+  function NewAccount() {
+    const { path, pageState } = useAppNavigation('u-marcus')
+    return <output>{path}|{JSON.stringify(pageState.values)}</output>
+  }
+  render(<ActionConfirmationProvider><EditGuardProvider><NewAccount /></EditGuardProvider></ActionConfirmationProvider>)
+  expect(location.hash).toBe('#/dashboard')
+  expect(output()).toHaveTextContent('dashboard|{}')
+  expect(history.state.fitfinityUserId).toBe('u-marcus')
+  expect(history.state.fitfinityDepth).toBe(0)
+})
+
 it('ignores delayed navigation and page-state writes belonging to an account that has unmounted', async () => {
   cleanup()
   const callbacks = new Map()
@@ -144,4 +158,22 @@ it('ignores delayed navigation and page-state writes belonging to an account tha
   expect(history.length).toBe(length)
   expect(location.hash).toBe('#/dashboard')
   expect(output()).toHaveTextContent('dashboard')
+})
+
+it('ignores an old page state setter after navigation and keeps rapid Back clicks to one traversal', async () => {
+  cleanup()
+  let navigation
+  function Page() {
+    navigation = useAppNavigation('owner')
+    return <output>{navigation.path}</output>
+  }
+  render(<ActionConfirmationProvider><EditGuardProvider><Page /></EditGuardProvider></ActionConfirmationProvider>)
+  const previous = navigation.pageState
+  await act(async () => { await navigation.navigate('trainers') })
+  await act(async () => { previous.setValue('pagination', { page: 9 }) })
+  expect(history.state.fitfinityPageState).toBeUndefined()
+  await act(async () => { await navigation.navigate('sessions') })
+  await act(async () => { void navigation.goBack('dashboard'); void navigation.goBack('dashboard') })
+  await waitFor(() => expect(output()).toHaveTextContent(/^trainers$/))
+  expect(history.state.fitfinityDepth).toBe(1)
 })

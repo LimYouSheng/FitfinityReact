@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures.js'
+import { waitForPortal, expect, test } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -10,6 +10,7 @@ async function start(page, route, initial = seed) {
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(initial))
   }, { key: KEY, initial })
   await page.goto(`/#/${route}`)
+  await waitForPortal(page)
 }
 async function confirm(page, action) {
   await button(page, action).click()
@@ -120,7 +121,7 @@ test('M3 client edit uses the global banner and keeps the top navigation clickab
   await start(page, 'clients/c1')
   const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'General Information', exact: true }) })
   await button(panel, 'Edit').click()
-  const email = panel.getByLabel('Email', { exact: true })
+  const email = panel.getByLabel('Client email', { exact: true })
   await email.fill('banner@example.com')
   await page.evaluate(key => {
     const originalGetItem = Storage.prototype.getItem

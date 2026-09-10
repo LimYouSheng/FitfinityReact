@@ -37,7 +37,7 @@ export default function FixedWeeklySchedule({
   const save = async () => {
     const confirmed = await confirmAction({
       title: 'Save fixed weekly schedule?',
-      message: 'This will update the weekly times and eligible future sessions, or send the change for owner approval when required.',
+      message: 'This will update the weekly times and all upcoming sessions, or send the change for owner approval when required.',
       confirmLabel: 'Save Schedule',
     })
     if (!confirmed) return

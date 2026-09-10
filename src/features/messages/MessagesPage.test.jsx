@@ -38,6 +38,26 @@ it('coalesces repeated clicks while marking the message read into one dialog and
   expect(screen.getAllByRole('dialog',{name:message.title})).toHaveLength(1)
   expect(history.state.fitfinityDepth).toBe(1)
 })
+it.each(['unmount', 'category'])('does not open a delayed message after a %s navigation', async change => {
+  let finish
+  const view = show(() => new Promise(resolve => { finish = resolve }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open Availability request', exact: true }))
+  if (change === 'unmount') view.unmount()
+  history.pushState({ fitfinityDepth: 2 }, '', '/#/messages/renewals')
+  await act(async () => finish())
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(history.state).toEqual({ fitfinityDepth: 2 })
+})
+it('coalesces repeated popup Close clicks into one native Back', async () => {
+  show(vi.fn().mockResolvedValue(undefined))
+  fireEvent.click(screen.getByRole('button', { name: 'Open Availability request', exact: true }))
+  await screen.findByRole('dialog')
+  const back = vi.spyOn(history, 'back').mockImplementation(() => {})
+  fireEvent.click(screen.getByRole('button', { name: 'Close message', exact: true }))
+  fireEvent.click(screen.getByRole('button', { name: 'Close message', exact: true }))
+  expect(back).toHaveBeenCalledTimes(1)
+  back.mockRestore()
+})
 it('marks the selected message unread once and closes the popup after persistence succeeds', async () => {
   history.replaceState({fitfinityOverlay:'message',messageId:message.id}, '', '/')
   let finish

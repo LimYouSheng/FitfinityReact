@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
-import { canShareProgressReport, progressReportFile } from './progressReport.js'
+import { canShareProgressReport, openProgressReport, progressReportFile } from './progressReport.js'
 
-export default function ProgressReportShareDialog({ client, timeZone, busy, blocked, onShare, onDownload, onClose, children }) {
+export default function ProgressReportShareDialog({ client, timeZone, busy, blocked, onShare, onDownload, onWhatsApp, onClose, children }) {
   const [report, setReport] = useState({ file: null, error: '' })
   const [attempt, setAttempt] = useState(0)
+  const [openError, setOpenError] = useState('')
   useEffect(() => {
     let active = true
     setReport({ file: null, error: '' })
@@ -28,12 +29,17 @@ export default function ProgressReportShareDialog({ client, timeZone, busy, bloc
     {report.error && <div role="alert"><p>{report.error}</p><button type="button" className="secondary-button" onClick={() => setAttempt(value => value + 1)}>Retry PDF</button></div>}
     {report.file && <>
       <p className="report-file-name">{report.file.name}</p>
-      <p className="muted">{supported ? 'Choose WhatsApp in the share menu.' : 'Download the PDF and attach it in WhatsApp.'}</p>
+      <p className="muted">{supported ? 'Choose WhatsApp in the share menu.' : 'File sharing is unavailable in this browser. Download the PDF and attach it in WhatsApp.'}</p>
       <div className="report-file-actions">
+        <button type="button" className="secondary-button" disabled={busy} onClick={() => {
+          setOpenError('')
+          try { openProgressReport(report.file) } catch (error) { setOpenError(error.message) }
+        }}>Open PDF</button>
         <button type="button" className="secondary-button" disabled={busy || blocked} onClick={() => onDownload(report.file)}>Download PDF</button>
-        {phone && <a className="secondary-button" href={`https://wa.me/${phone}`} target="_blank" rel="noreferrer">Open WhatsApp</a>}
+        {phone && <button type="button" className="secondary-button" disabled={busy || blocked} onClick={onWhatsApp}>Open WhatsApp</button>}
       </div>
     </>}
+    {openError && <p role="alert">{openError}</p>}
     {children}
   </ConfirmDialog>
 }

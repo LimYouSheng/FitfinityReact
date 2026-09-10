@@ -42,7 +42,7 @@ describe('M4 data-driven domain behavior', () => {
   })
   it('records measured loads only and updates one progress point after corrections', () => {
     const rows = validateExerciseResults([{ id: 'a', name: 'Row', loadKg: '0', reps: '8', sets: '2' }, {id:'b',name:'Squat',loadKg:'',reps:'8',sets:'2'}])
-    const db = { clients: [{ id: 'client', strengthProgress: [] }], sessions: [{ id: 'session',clientId:'client',date:'2032-02-29',status:'planned',exerciseResults:rows }] }
+    const db = { clients: [{ id: 'client', package: { id: 'purchase', startDate: '2032-01-01', endDate: '2032-12-31' }, strengthProgress: [] }], sessions: [{ id: 'session',clientId:'client',packageId:'purchase',date:'2032-02-29',status:'planned',exerciseResults:rows }] }
     updateClientProgress(db,'client'); expect(db.clients[0].strengthProgress).toEqual([])
     db.sessions[0].status='completed'; updateClientProgress(db,'client'); updateClientProgress(db,'client')
     expect(db.clients[0].strengthProgress[0].points).toHaveLength(1)

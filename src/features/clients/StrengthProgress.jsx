@@ -1,11 +1,11 @@
 import usePageState from '../../hooks/usePageState.js'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import { PROGRESS_REPORT_ACTIONS } from '../../app/progress.js'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import usePagination from '../../hooks/usePagination.js'
 import { formatTimestamp } from '../../utils/date.js'
-import { downloadProgressReport, progressReportFile } from './progressReport.js'
+import { downloadProgressReport, openProgressWhatsApp, progressReportFile, progressShareError } from './progressReport.js'
 import ProgressReportShareDialog from './ProgressReportShareDialog.jsx'
 
 import StrengthProgressChart from './StrengthProgressChart.jsx'
@@ -13,31 +13,39 @@ import { progressNumber, progressSummary, progressChange } from './progressChart
 
 export default function StrengthProgress({ client, user, timeZone, onRecordAction, onLoadHistory }) {
   const exercises = client.strengthProgress ?? []
-  const [selectedId, setSelectedId] = usePageState('StrengthProgress.selectedId', exercises[0]?.id ?? '')
-  const selected = exercises.find(exercise => exercise.id === selectedId) ?? exercises[0]
+  const exerciseScope = `${client.id}.${client.reportPackageId ?? 'legacy'}`
+  const exercisePages = usePagination(exercises, exerciseScope, `client.${exerciseScope}.exercisePage`)
+  const [selectedId, setSelectedId] = usePageState(`StrengthProgress.${client.reportPackageId ?? 'unassigned'}.selectedId`, '')
 
   const owner = user?.role === 'owner'
   const [historyOpen, setHistoryOpen] = usePageState(`client.${client.id}.reportHistoryOpen`, false)
-  const [historyState, setHistoryState] = useState({ items: [], loading: false, error: '' })
+  const [historyState, setHistoryState] = useState({ items: [], loading: true, error: '' })
   const [historyRevision, setHistoryRevision] = useState(0)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
   const [unsavedAction, setUnsavedAction] = useState(null)
   const [shareClient, setShareClient] = useState(null)
   const acting = useRef(false)
-  const historyPages = usePagination(historyState.items, client.id, `client.${client.id}.reportHistoryPage`)
 
   useEffect(() => {
     if (!owner || !historyOpen) return
     let current = true
     setHistoryState(previous => ({ ...previous, loading: true, error: '' }))
-    Promise.resolve().then(() => onLoadHistory()).then(items => {
+    Promise.resolve().then(() => onLoadHistory(client.reportPackageId)).then(items => {
       if (current) setHistoryState({ items, loading: false, error: '' })
     }).catch(error => {
-      if (current) setHistoryState({ items: [], loading: false, error: error.message || 'Could not load report history.' })
+      if (current) setHistoryState(previous => ({ ...previous, loading: false, error: error.message || 'Could not load report history.' }))
     })
     return () => { current = false }
-  }, [owner, historyOpen, client.id, onLoadHistory, historyRevision])
+  }, [owner, historyOpen, client.id, client.reportPackageId, onLoadHistory, historyRevision])
+
+  useEffect(() => {
+    if (!owner || !historyOpen) return
+    const refresh = () => setHistoryRevision(current => current + 1)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('storage', refresh)
+    return () => { window.removeEventListener('focus', refresh); window.removeEventListener('storage', refresh) }
+  }, [owner, historyOpen])
 
   const saveHistory = async action => {
     try {
@@ -47,7 +55,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
       setHistoryRevision(current => current + 1)
     } catch {
       setUnsavedAction(action)
-      const activity = action.kind === 'pdf_share_opened' ? 'PDF share opened' : `${PROGRESS_REPORT_ACTIONS[action.kind]} started`
+      const activity = action.kind.endsWith('_opened') ? PROGRESS_REPORT_ACTIONS[action.kind] : `${PROGRESS_REPORT_ACTIONS[action.kind]} started`
       setActionError(`${activity}, but its history could not be saved.`)
     }
   }
@@ -57,13 +65,13 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
     setBusy(true)
     setActionError('')
     try {
-      const action = { id: `report-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`, kind }
+      const action = { id: `report-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`, kind, ...(Object.hasOwn(client, 'reportPackageId') ? { packageId: client.reportPackageId } : {}) }
       // Invoke before awaiting so native file sharing retains user activation.
       await launch()
       await saveHistory(action)
       return true
     } catch (error) {
-      if (error.name !== 'AbortError') setActionError(error.message || 'The progress report could not be opened.')
+      if (error.name !== 'AbortError') setActionError(kind === 'pdf_share_opened' ? progressShareError(error) : error.message || 'The progress report could not be opened.')
       return false
     } finally { acting.current = false; setBusy(false) }
   }
@@ -82,7 +90,6 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
     setShareClient(structuredClone(client))
   }
 
-  const selectedSummary = selected ? progressSummary(selected) : null
   const actionFeedback = actionError && <div className="report-action-error" role="alert"><p>{actionError}</p>
     {unsavedAction && <button type="button" className="secondary-button" disabled={busy} onClick={retryHistory}>Retry History Save</button>}
   </div>
@@ -95,40 +102,28 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
           {historyOpen ? 'Hide Export/WhatsApp History' : 'View Export/WhatsApp History'}
         </button>
         {historyOpen && <div id="progress-report-history" className="report-history" aria-label="Export/WhatsApp history">
-          {historyState.loading ? <p role="status">Loading history…</p> : historyState.error ? <div role="alert">
+          {historyState.loading && !historyState.items.length && <p role="status">Loading history…</p>}
+          {historyState.error && <div role="alert">
             <p>{historyState.error}</p><button type="button" className="secondary-button" onClick={() => setHistoryRevision(current => current + 1)}>Retry History</button>
-          </div> : <>
-            <div className="report-history-head" aria-hidden="true"><span>Action</span><span>Date &amp; time</span><span>Staff</span></div>
-            {historyPages.items.map(entry => <article className="report-history-row" key={entry.id}>
-              <strong>{PROGRESS_REPORT_ACTIONS[entry.kind]}</strong>
-              <time dateTime={entry.at}>{formatTimestamp(entry.at, timeZone)}</time>
-              <span>{entry.by.name}</span>
-            </article>)}
-            {!historyState.items.length && <p className="empty">No export or WhatsApp history yet.</p>}
-            <PaginationControls {...historyPages} onPage={historyPages.setPage} />
-          </>}
+          </div>}
+          {(!historyState.loading && !historyState.error || historyState.items.length > 0) &&
+            <ReportHistoryRows clientId={client.id} packageId={client.reportPackageId} items={historyState.items} timeZone={timeZone} />}
         </div>}
       </Panel>}
       {!shareClient && actionFeedback}
       {shareClient && <ProgressReportShareDialog client={shareClient} timeZone={timeZone} busy={busy} blocked={Boolean(unsavedAction)}
         onClose={() => setShareClient(null)}
         onShare={file => recordAction('pdf_share_opened', () => navigator.share({ files: [file] }))}
-        onDownload={file => recordAction('pdf_export', () => downloadProgressReport(file))}>
+        onDownload={file => recordAction('pdf_export', () => downloadProgressReport(file))}
+        onWhatsApp={() => recordAction('whatsapp_opened', () => openProgressWhatsApp(shareClient))}>
         {actionFeedback}
       </ProgressReportShareDialog>}
-      {!selected ? <Panel><div className="empty">No completed exercise loads yet.</div></Panel> : <>
-      <Panel>
+      {!exercises.length ? <Panel><div className="empty">No completed exercise loads yet.</div></Panel> : <Panel>
         <div className="strength-progress-head">
           <div className="strength-progress-title">
             <h2>Strength Progress</h2>
             <p>Completed exercise loads over time</p>
           </div>
-          <label className="strength-progress-exercise">
-            Exercise
-            <select aria-label="Strength progress exercise" value={selected.id} onChange={event => setSelectedId(event.target.value)}>
-              {exercises.map(exercise => <option key={exercise.id} value={exercise.id}>{exercise.name}</option>)}
-            </select>
-          </label>
           <div className="strength-progress-actions">
             <button
               type="button"
@@ -158,43 +153,59 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
           </div>
         </div>
 
-        <div className="strength-progress-cards">
-          {exercises.map(exercise => {
-            const exerciseSummary = progressSummary(exercise)
-            return (
-              <button
-                type="button"
-                key={exercise.id}
-                className={exercise.id === selected.id ? 'selected' : ''}
-                onClick={() => setSelectedId(exercise.id)}
-              >
-                <span>{exercise.shortName ?? exercise.name}</span>
-                <strong>{progressNumber(exerciseSummary.latest)} <small>kg</small></strong>
-                <em>{progressChange(exerciseSummary.change)} kg</em>
-              </button>
-            )
-          })}
-        </div>
-      </Panel>
-
-      <Panel className="strength-chart-panel">
-        <div className="strength-chart-summary">
-          <div>
-            <span>{selected.shortName ?? selected.name}</span>
-            <strong>{progressNumber(selectedSummary.latest)} <small>kg</small></strong>
+        <div className="strength-progress-list" aria-label="Exercise progress">
+          <div className="strength-progress-columns" aria-hidden="true">
+            <span>Exercise</span><span>Latest</span><span>Change</span><span>Completed</span><span />
           </div>
-          <dl>
-            <div><dt>Change</dt><dd>{progressChange(selectedSummary.change)} kg</dd></div>
-            <div><dt>Completed</dt><dd>{selected.points.length}</dd></div>
-          </dl>
+          {exercisePages.items.map(exercise => <ExerciseProgressRow key={exercise.id} exercise={exercise} expanded={exercise.id === selectedId}
+            onToggle={() => setSelectedId(current => current === exercise.id ? '' : exercise.id)} />)}
         </div>
-
-        <div className="strength-chart-scroll">
-          <StrengthProgressChart exercise={selected} />
-        </div>
-      </Panel>
-
-      </>}
+        <PaginationControls {...exercisePages} onPage={exercisePages.setPage} />
+      </Panel>}
     </div>
   )
+}
+
+function ReportHistoryRows({ clientId, packageId, items, timeZone }) {
+  const scope = `${clientId}.${packageId ?? 'legacy'}`
+  // Mount pagination only with loaded records, so an empty loading state cannot
+  // clamp a saved page or feed navigation writes back into history loading.
+  const pages = usePagination(items, scope, `client.${scope}.reportHistoryPage`)
+  return <>
+    <div className="report-history-head" aria-hidden="true"><span>Action</span><span>Date &amp; time</span><span>Staff</span></div>
+    {pages.items.map(entry => <article className="report-history-row" key={entry.id}>
+      <strong>{PROGRESS_REPORT_ACTIONS[entry.kind]}</strong>
+      <time dateTime={entry.at}>{formatTimestamp(entry.at, timeZone)}</time>
+      <span>{entry.by.name}</span>
+    </article>)}
+    {!items.length && <p className="empty">No export or WhatsApp history yet.</p>}
+    <PaginationControls {...pages} onPage={pages.setPage} />
+  </>
+}
+
+function ExerciseProgressRow({ exercise, expanded, onToggle }) {
+  const chartId = useId()
+  const summary = progressSummary(exercise)
+  return <article className="strength-progress-item">
+    <button type="button" className="strength-progress-row" aria-expanded={expanded} aria-controls={chartId}
+      aria-label={`${expanded ? 'Hide' : 'Show'} ${exercise.name} progress chart`} onClick={onToggle}>
+      <strong className="strength-progress-name">{exercise.name}</strong>
+      <span>{progressNumber(summary.latest)} <small>kg</small></span>
+      <em className={summary.change < 0 ? 'negative' : undefined}>{progressChange(summary.change)} <small>kg</small></em>
+      <span>{exercise.points.length}</span>
+      <span className="strength-progress-chevron" aria-hidden="true">›</span>
+    </button>
+    <div className="strength-chart-panel" id={chartId} hidden={!expanded}>
+      {expanded && <>
+        <div className="strength-chart-summary">
+          <div><span>{exercise.shortName ?? exercise.name}</span><strong>{progressNumber(summary.latest)} <small>kg</small></strong></div>
+          <dl>
+            <div><dt>Change</dt><dd>{progressChange(summary.change)} kg</dd></div>
+            <div><dt>Completed</dt><dd>{exercise.points.length}</dd></div>
+          </dl>
+        </div>
+        <StrengthProgressChart exercise={exercise} />
+      </>}
+    </div>
+  </article>
 }

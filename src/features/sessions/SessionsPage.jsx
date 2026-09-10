@@ -126,6 +126,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
 
                 <div className="session-client-cell">
                   <strong className="compact-primary">{clientName(session.clientId)}</strong>
+                  {clients.find(client => client.id === session.clientId)?.status === 'inactive' && <span className="inline-inactive">Client inactive</span>}
                   <span className="compact-secondary">
                     {user.role === 'owner' ? `Trainer: ${trainerName(session.trainerId)} · ` : ''}
                     Session {session.sessionNumber} / {session.packageTotal}

@@ -17,7 +17,7 @@ export const OWNER_NAV = [
 
 export const TRAINER_NAV = [
   { key: 'dashboard', label: 'Dashboard', group: 'Trainer' },
-  { key: 'clients', label: 'All Clients', group: 'Trainer' },
+  { key: 'clients', label: 'Clients', group: 'Trainer' },
   { key: 'sessions', label: 'Sessions', group: 'Trainer' },
 
   { key: 'remuneration', label: 'Remuneration', group: 'Remuneration' },

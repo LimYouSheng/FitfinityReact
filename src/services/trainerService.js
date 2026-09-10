@@ -1,8 +1,9 @@
+import { sessionIsInactive } from '../app/clientPackages.js'
 import { requireActiveActor, sameAvailability, validateAvailability } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
 import { activeTrainers, trainerSelectableForAvailability } from '../app/status.js'
 import { appendSavedEditMessage, savedFields } from './editMessage.js'
-import { buildTrainerRecord, nextTrainerId, normalizeTrainerEmail, validateTrainerDraft } from '../app/trainerOnboarding.js'
+import { buildTrainerRecord, nextTrainerId, normalizeTrainerEmail, trainerProfileDraft, trainerStepErrors, validateTrainerDraft } from '../app/trainerOnboarding.js'
 
 function messageId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -101,7 +102,27 @@ export const trainerService = {
     const state = mockDb.mutate(db => {
       const trainer = db.trainers.find(item => item.id === id)
       if (!trainer) throw new Error('Trainer not found')
-      Object.assign(trainer, patch)
+      const changes = { ...patch }
+      const generalKeys = ['name', 'phone', 'email', 'birthday', 'gender', 'trainerType', 'qualifications', 'publicProfile']
+      if (generalKeys.some(key => Object.hasOwn(changes, key))) {
+        const errors = trainerStepErrors(trainerProfileDraft({ ...trainer, ...changes }, db.settings), 'general')
+        if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
+        if (Object.hasOwn(changes, 'email')) {
+          changes.email = normalizeTrainerEmail(changes.email)
+          if (db.trainers.some(item => item.id !== id && normalizeTrainerEmail(item.email) === changes.email) || db.users.some(item => item.trainerId !== id && normalizeTrainerEmail(item.email) === changes.email)) throw new Error('This email already belongs to a trainer or staff account.')
+          for (const user of db.users.filter(item => item.trainerId === id)) user.email = changes.email
+        }
+      }
+      if (Object.hasOwn(changes, 'rates')) {
+        const errors = trainerStepErrors(changes, 'rates')
+        if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
+      }
+      if (Object.hasOwn(changes, 'name')) {
+        if (typeof changes.name !== 'string' || !changes.name.trim()) throw new Error('Enter a trainer name.')
+        changes.name = changes.name.trim()
+        for (const user of db.users.filter(item => item.trainerId === id)) user.name = changes.name
+      }
+      Object.assign(trainer, changes)
       appendSavedEditMessage(db, {
         trainerId: trainer.id,
         title: `Trainer details saved: ${trainer.name}`,
@@ -135,6 +156,7 @@ export const trainerService = {
 
       const remaining = db.sessions.filter(session =>
         session.trainerId === id &&
+        !sessionIsInactive(db.clients.find(client => client.id === session.clientId), session) &&
         !['completed', 'cancelled'].includes(session.status)
       )
 

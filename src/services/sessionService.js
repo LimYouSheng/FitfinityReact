@@ -1,7 +1,8 @@
+import { ensureClientPackageReferences, packageForRecord, requireActiveSessionClient } from '../app/clientPackages.js'
 import { exerciseVideoExpired, exerciseVideoExpiresAt, exerciseVideoFileValidation, exerciseVideoValidation } from '../app/video.js'
 import { validSignature } from '../app/signature.js'
 import { validateExerciseResults, updateClientProgress, exerciseResultsFor } from '../app/progress.js'
-import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan, sessionActionError } from '../app/sessionRules.js'
+import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan, sessionActionError, sessionDurationMinutes } from '../app/sessionRules.js'
 import { businessClock } from '../app/clock.js'
 import { appendRenewalMessage } from '../app/renewals.js'
 import { sessionTimeChangeError, requireActiveActor } from '../app/scheduleChanges.js'
@@ -62,6 +63,7 @@ function previousPlan(db, session) {
 
 function requireEditableSession(db, sessionId) {
   const session = requireSession(db, sessionId)
+  requireActiveSessionClient(db.clients.find(item => item.id === session.clientId), session)
   if (session.status === 'completed') throw new Error('Completed sessions are locked.')
   return session
 }
@@ -174,6 +176,7 @@ export const sessionService = {
         trainerId: patch.trainerId,
         detailsUpdatedAt: new Date().toISOString(),
       })
+      if (session.outcome) session.outcome.durationMinutes = sessionDurationMinutes(session)
       appendSessionEdit(db, session, 'Session details saved', `${session.date} · ${session.from}–${session.to}`)
     })
 
@@ -229,6 +232,7 @@ export const sessionService = {
       }
 
       Object.assign(session, next, { detailsUpdatedAt: new Date().toISOString() })
+      if (session.outcome) session.outcome.durationMinutes = sessionDurationMinutes(session)
       db.messages.push({
         id: messageId('session-time-direct'),
         createdAt: new Date().toISOString(),
@@ -323,7 +327,7 @@ export const sessionService = {
     if (validation) throw new Error(validation)
 
     const state = mockDb.mutate(db => {
-      const session = requireSession(db, sessionId)
+      const session = requireEditableSession(db, sessionId)
       session.exercisePlan = normalizeExercisePlan(items)
       if (session.status !== 'completed') session.status = 'planned'
       session.planUpdatedAt = new Date().toISOString()
@@ -343,7 +347,7 @@ export const sessionService = {
     await delay()
 
     const state = mockDb.mutate(db => {
-      const session = requireSession(db, sessionId)
+      const session = requireEditableSession(db, sessionId)
       const source = previousPlan(db, session)
       if (!source) throw new Error('No previous exercise plan is available.')
 
@@ -365,8 +369,9 @@ export const sessionService = {
 
     const state = mockDb.mutate(db => {
       const session = requireSession(db, sessionId)
+      requireActiveSessionClient(db.clients.find(item => item.id === session.clientId), session)
       session.outcome = {
-        durationMinutes: Math.max(0, Number(outcome.durationMinutes) || 0),
+        durationMinutes: sessionDurationMinutes(session),
         trainerComments: outcome.trainerComments?.trim() ?? '',
       }
       if (outcome.exerciseResults) session.exerciseResults = validateExerciseResults(outcome.exerciseResults)
@@ -382,6 +387,7 @@ export const sessionService = {
 
     const state = mockDb.mutate(db => {
       const session = requireSession(db, sessionId)
+      requireActiveSessionClient(db.clients.find(item => item.id === session.clientId), session)
       session.clientSummary = summary.trim()
       appendSessionEdit(db, session, 'Client-facing summary saved', 'The client-facing session summary was updated.')
     })
@@ -394,6 +400,7 @@ export const sessionService = {
 
     const state = mockDb.mutate(db => {
       const session = requireSession(db, sessionId)
+      requireActiveSessionClient(db.clients.find(item => item.id === session.clientId), session)
       requireTrainingDate(db, session)
       session.whatsappOpenedAt = new Date().toISOString()
       session.whatsappOpenCount = (session.whatsappOpenCount ?? 0) + 1
@@ -417,6 +424,7 @@ export const sessionService = {
     const input = acknowledgementInput(acknowledgement)
     const current = mockDb.read()
     const existing = requireSession(current, sessionId)
+    requireActiveSessionClient(current.clients.find(item => item.id === existing.clientId), existing)
     requireAcknowledgementActor(current, existing, actor)
     requireTrainingDate(current, existing)
     if (acknowledgementUnchanged(existing.acknowledgement, input)) {
@@ -426,11 +434,15 @@ export const sessionService = {
 
     const state = mockDb.mutate(db => {
       const session = requireSession(db, sessionId)
+      requireActiveSessionClient(db.clients.find(item => item.id === session.clientId), session)
       const recordedBy = requireAcknowledgementActor(db, session, actor)
       requireAcknowledgementTransition(session.acknowledgement, input)
       const client = db.clients.find(item => item.id === session.clientId)
       requireTrainingDate(db, session)
       if (!client) throw new Error('Session client not found.')
+      ensureClientPackageReferences(db, client)
+      const purchasedPackage = packageForRecord(client, session)
+      if (!purchasedPackage) throw new Error('This session needs a package assignment before completion.')
 
       db.packageCreditTransactions ??= []
       const alreadyDebited = hasSessionDebit(db.packageCreditTransactions, session.id)
@@ -441,12 +453,13 @@ export const sessionService = {
           type: 'session_debit',
           sessionId: session.id,
           clientId: client.id,
+          packageId: purchasedPackage.id,
           amount: -1,
           createdAt: new Date().toISOString(),
         })
 
-        client.package.used = Math.min(client.package.total, client.package.used + 1)
-        appendRenewalMessage(db, client)
+        purchasedPackage.used = Math.min(purchasedPackage.total, purchasedPackage.used + 1)
+        if (purchasedPackage.id === client.package.id) appendRenewalMessage(db, client)
       }
 
       session.status = 'completed'

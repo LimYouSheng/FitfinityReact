@@ -2,7 +2,7 @@ import { expect, test, selectDemoIdentity, expandSidebarSections } from './fixtu
 
 test('M4 owner profile uses stored account details and preserves native Back', async ({ page }) => {
   await page.goto('/#/clients')
-  await expect(page.getByRole('heading', { name: 'All Clients', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Open profile menu' }).click()
   await page.getByRole('menuitem', { name: 'My Profile', exact: true }).click()
   await expect(page).toHaveURL(/#\/owner-profile$/)
@@ -15,7 +15,7 @@ test('M4 owner profile uses stored account details and preserves native Back', a
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
   expect(overflow).toBe(false)
   await page.goBack()
-  await expect(page.getByRole('heading', { name: 'All Clients', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible()
   await page.goForward()
   await expect(page.getByRole('heading', { name: 'Account Details' })).toBeVisible()
 })

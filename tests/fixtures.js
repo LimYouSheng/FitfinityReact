@@ -10,6 +10,10 @@ export const test = base.extend({
     await use(context)
   },
 })
+export async function waitForPortal(page) {
+  await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
+}
+
 export async function drawClientSignature(page) {
   const pad=page.getByRole('img',{name:'Draw client signature'})
   await pad.scrollIntoViewIfNeeded()

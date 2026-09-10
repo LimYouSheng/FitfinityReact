@@ -1,3 +1,4 @@
+import { seed } from '../src/data/seed.js'
 import { test, expect, drawClientSignature, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
 
 async function navIsOnScreen(sidebar) {
@@ -117,8 +118,16 @@ async function clickProfileTab(page, name) {
   await tab.click()
 }
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
   await page.clock.setFixedTime(new Date('2026-09-02T04:00:00Z'))
+  // These session workflows exercise a known ad-hoc booking on the clock date.
+  const data = structuredClone(seed)
+  data.sessions.find(item => item.id === 's1').date = '2026-09-02'
+  if (['blank exercise blocks save and cancelling it releases Add Exercise', 'exercise plan saves to display rows and overall Edit returns to editor'].includes(testInfo.title)) {
+    // These two workflows explicitly require an empty plan; the demo now plans every booking.
+    Object.assign(data.sessions.find(item => item.id === 's2'), { status: 'not_planned', exercisePlan: [] })
+  }
+  await page.addInitScript(data => { if (!localStorage.getItem('fitfinity-m2-demo-db-v4')) localStorage.setItem('fitfinity-m2-demo-db-v4', JSON.stringify(data)) }, data)
   await page.goto('/#/dashboard')
 })
 
@@ -182,13 +191,13 @@ test('trainer filters are one compact row', async ({ page }) => {
 test('trainer client filters keep same layout', async ({ page }) => {
   await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
-  await clickNav(page, 'All Clients')
+  await clickNav(page, 'Clients')
 
   const status = page.getByLabel('Filter clients by status')
   const type = page.getByLabel('Filter clients by type')
   const trainer = page.getByLabel('Filter clients by trainer')
 
-  await expect(status).toBeDisabled()
+  await expect(status).toBeEnabled()
   await expect(trainer).toHaveCount(0)
   await expectSameRow([status, type])
 })
@@ -222,7 +231,7 @@ test('browser back returns client detail to list', async ({ page }) => {
   await expect(page).toHaveURL(/#\/clients$/)
 })
 
-test('client deactivation still removes client from trainer view', async ({ page }) => {
+test('client deactivation retains read-only client and session access for the trainer', async ({ page }) => {
   await clickNav(page, 'Clients')
   await page.getByRole('button', { name: 'View Amanda Lim' }).click()
   await expect(page.locator('.profile-menu')).toBeVisible()
@@ -232,12 +241,19 @@ test('client deactivation still removes client from trainer view', async ({ page
   await page.getByRole('button', { name: 'Deactivate Client' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Deactivate Client' }).click()
 
+  await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible()
   await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
-  await page.waitForTimeout(350)
-  await clickNav(page, 'All Clients')
-
-  await expect(page.getByText('Amanda Lim')).toHaveCount(0)
+  await clickNav(page, 'Clients')
+  await page.getByLabel('Filter clients by status').selectOption('inactive')
+  await page.getByRole('button', { name: 'View Amanda Lim' }).click()
+  await expect(page.getByLabel('Client status')).toContainText('Inactive')
+  await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
+  await clickProfileTab(page, 'Upcoming Sessions')
+  await page.getByLabel('Upcoming Sessions').getByRole('button', { name: 'View', exact: true }).first().click()
+  await expect(page.getByText('Client inactive', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Request Trainer Change' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Client Signature', exact: true })).toHaveCount(0)
 })
 
 test('trainer profile keeps status in the name card and account status leaves rates panel', async ({ page }) => {
@@ -337,7 +353,7 @@ test('assigned supervised trainer can edit fixed weekly schedule and submits req
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
   await page.waitForTimeout(350)
 
-  await clickNav(page, 'All Clients')
+  await clickNav(page, 'Clients')
   await page.getByRole('button', { name: 'View Amanda Lim' }).click()
 
   const schedule = page.locator('.schedule-panel')
@@ -513,7 +529,7 @@ test('topbar chevron navigates back without previous-page text', async ({ page }
   await back.click()
 
   await expect(page).toHaveURL(/#\/clients$/)
-  await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Back', exact: true })).toBeVisible()
 })
 
 test('clicking transparent profile-menu scrim closes dropdown', async ({ page }) => {
@@ -535,7 +551,7 @@ test('clicking transparent profile-menu scrim closes dropdown', async ({ page })
 
 test('detail screen exposes topbar Back without profile-local back control', async ({ page }) => {
   await clickNav(page, 'Clients')
-  await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Back', exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'View Amanda Lim' }).click()
 
@@ -587,7 +603,7 @@ test('Home is square and matches visible hamburger footprint', async ({ page }) 
 
 test('detail screen exposes Back without profile-local back controls', async ({ page }) => {
   await clickNav(page, 'Clients')
-  await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Back', exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'View Amanda Lim' }).click()
 
@@ -947,7 +963,7 @@ test('only one section edits at a time and navigation warns before discarding it
   })
   await expect(page.getByRole('dialog', { name: 'Leave this edit?' })).toHaveCount(1)
   await confirmAction(page, 'Leave this edit?', 'Leave Without Saving')
-  await expect(page.getByRole('heading', { name: 'All Clients' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible()
   await expect(page.locator('.sidebar nav button.active')).toHaveCount(1)
   await expect(page.locator('.content')).not.toHaveClass(/edit-active/)
 })
@@ -1143,17 +1159,17 @@ test('Sessions defaults to Upcoming and All stays newest-first after detail Back
     await search.fill('Amanda')
     await expect(rows).toHaveCount(9)
     await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText([
-      /02 Sep(?:t)? 2026/, /07 Sep(?:t)? 2026/, /17 Sep(?:t)? 2026/,
-      /24 Sep(?:t)? 2026/, '01 Oct 2026', '08 Oct 2026', '15 Oct 2026', '22 Oct 2026', '29 Oct 2026',
+      /02 Sep(?:t)? 2026/, /14 Sep(?:t)? 2026/, /21 Sep(?:t)? 2026/,
+      /28 Sep(?:t)? 2026/, '05 Oct 2026', '12 Oct 2026', '19 Oct 2026', '26 Oct 2026', '02 Nov 2026',
     ])
     await period.selectOption('all')
     await expect(rows).toHaveCount(10)
     await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText([
-      '29 Oct 2026', '22 Oct 2026', '15 Oct 2026', '08 Oct 2026', '01 Oct 2026',
-      /24 Sep(?:t)? 2026/, /17 Sep(?:t)? 2026/, /07 Sep(?:t)? 2026/, /02 Sep(?:t)? 2026/, '29 Aug 2026',
+      '02 Nov 2026', '26 Oct 2026', '19 Oct 2026', '12 Oct 2026', '05 Oct 2026',
+      /28 Sep(?:t)? 2026/, /21 Sep(?:t)? 2026/, /14 Sep(?:t)? 2026/, /02 Sep(?:t)? 2026/, '31 Aug 2026',
     ])
     await page.getByRole('button', { name: 'Next', exact: true }).click()
-    await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText(['04 Aug 2026', '02 Aug 2026'])
+    await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText(['24 Aug 2026', '17 Aug 2026'])
     await rows.first().getByRole('button', { name: /View session/ }).click()
     await expect(page.getByRole('heading', { name: 'Session Overview', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Back', exact: true }).click()
@@ -1161,7 +1177,7 @@ test('Sessions defaults to Upcoming and All stays newest-first after detail Back
     await expect(period).toHaveValue('all')
     await expect(search).toHaveValue('Amanda')
     await expect(page.getByLabel('List pages')).toContainText('Page 2')
-    await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText(['04 Aug 2026', '02 Aug 2026'])
+    await expect(rows.locator('.session-date-cell .compact-primary')).toHaveText(['24 Aug 2026', '17 Aug 2026'])
   }
 })
 
@@ -1216,17 +1232,18 @@ test('client profile navigation tabs contain package session and progress data',
   await expect(page.getByRole('heading', { name: 'Current Package' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Past Packages' })).toBeVisible()
   await expect(page.locator('.client-record-row')).toHaveCount(2)
-  await expect(page.getByText('19 / 90 days')).toBeVisible()
+  await expect(page.getByText('17 / 90 days')).toBeVisible()
   await expect(page.getByText('Once weekly')).toBeVisible()
 
   await clickProfileTab(page, 'Session History')
-  await expect(page.getByLabel('Session History').locator('.client-record-row')).toHaveCount(3)
+  await expect(page.getByLabel('Session History', { exact: true }).locator('.client-record-row')).toHaveCount(3)
 
   await clickProfileTab(page, 'Upcoming Sessions')
-  await expect(page.getByLabel('Upcoming Sessions').locator('.client-record-row')).toHaveCount(9)
-  await expect(page.getByLabel('Upcoming Sessions')).toContainText('Session 12 / 12')
+  await expect(page.getByLabel('Upcoming Sessions', { exact: true }).locator('.client-record-row')).toHaveCount(9)
+  await expect(page.getByLabel('Upcoming Sessions', { exact: true })).toContainText('Session 12 / 12')
 
   await clickProfileTab(page, 'Progress')
+  await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Strength Progress' })).toBeVisible()
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export Progress Report' }).click()
@@ -1237,18 +1254,37 @@ test('client profile navigation tabs contain package session and progress data',
   for await (const chunk of reportStream) reportChunks.push(chunk)
   const reportPdf = Buffer.concat(reportChunks).toString('latin1')
   expect(reportPdf).toMatch(/^%PDF-1\.4\n/)
-  expect(reportPdf).toContain('/Count 9 /Kids')
-  expect(reportPdf.match(/\/Subtype \/Image/g)).toHaveLength(9)
+  expect(reportPdf).toContain('/Count 6 /Kids')
+  expect(reportPdf.match(/\/Subtype \/Image/g)).toHaveLength(6)
   expect(reportPdf).toMatch(/%%EOF\n$/)
   await expect(page.getByRole('button', { name: 'Share Progress Report via WhatsApp' })).toBeEnabled()
-  // Six imported baseline exercises plus the three exercises in Amanda's signed session.
-  await expect(page.getByLabel('Strength progress exercise').locator('option')).toHaveText([
-    'Smith back squat', 'Leg press', 'Smith chest press', 'Seated row',
-    'DB shoulder press (incline bench and flat bench)', 'Smith deadlift',
-    'Goblet Squat', 'Seated Cable Row', 'DB Chest Press',
+  // Every completed session has the same six exercises; future plans add no report points.
+  await expect(page.locator('.strength-progress-name')).toHaveText([
+    'Goblet Squat', 'Seated Cable Row', 'DB Chest Press', 'Romanian Deadlift', 'Lat Pulldown', 'Walking Lunge',
   ])
-  await expect(page.locator('.strength-progress-cards button')).toHaveCount(9)
-  await expect(page.getByRole('img', { name: 'Smith back squat load progress chart' })).toBeVisible()
+  const exerciseRows = page.locator('.strength-progress-row')
+  await expect(exerciseRows).toHaveCount(6)
+  const loads = [[14, 15, 16], [22, 23, 24], [8, 9, 10], [28, 29, 30], [26, 27, 28], [6, 7, 8]]
+  for (let index = 0; index < loads.length; index += 1) {
+    await exerciseRows.nth(index).click()
+    await expect(page.locator('.strength-chart g > title')).toHaveText(loads[index].map((load, point) => `${['17', '24', '31'][point]} Aug 2026: ${load} kg`))
+    await expect(exerciseRows.nth(index).locator(':scope > span').nth(1)).toHaveText('3')
+    await exerciseRows.nth(index).click()
+  }
+  await expect(page.getByLabel('Strength progress exercise')).toHaveCount(0)
+  await expect(page.locator('.strength-progress .strength-chart')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Show Goblet Squat progress chart', exact: true }).click()
+  await expect(page.getByRole('img', { name: 'Goblet Squat load progress chart' })).toBeVisible()
+  await page.getByRole('button', { name: 'Show Seated Cable Row progress chart', exact: true }).click()
+  await expect(page.getByRole('img', { name: 'Goblet Squat load progress chart' })).toHaveCount(0)
+  const chart = page.getByRole('img', { name: 'Seated Cable Row load progress chart' })
+  await expect(chart).toBeVisible()
+  const chartBox = await chart.boundingBox(), rowBox = await exerciseRows.nth(1).boundingBox()
+  expect(chartBox.width).toBeLessThanOrEqual(rowBox.width)
+  expect(chartBox.y).toBeGreaterThan(rowBox.y + rowBox.height)
+  await page.getByRole('button', { name: 'Hide Seated Cable Row progress chart', exact: true }).click()
+  await expect(page.locator('.strength-progress .strength-chart')).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
   await expect(page.getByRole('heading', { name: 'Completed Sessions' })).toHaveCount(0)
 
   if (page.viewportSize().width <= 620) {
@@ -1258,13 +1294,50 @@ test('client profile navigation tabs contain package session and progress data',
     expect(exportBox.x).toBeGreaterThan(titleBox.x)
   }
 
-  if (page.viewportSize().width > 900) {
-    const progressHead = await page.locator('.strength-progress-head').boundingBox()
-    const exerciseFilter = await page.getByLabel('Strength progress exercise').boundingBox()
-    const headCentre = progressHead.x + progressHead.width / 2
-    const filterCentre = exerciseFilter.x + exerciseFilter.width / 2
-    expect(Math.abs(headCentre - filterCentre)).toBeLessThanOrEqual(2)
+  const aligned = await exerciseRows.first().evaluate(row => {
+    const headings = row.closest('.strength-progress-list').querySelector('.strength-progress-columns').children
+    return [...row.children].map((cell, index) => Math.abs(cell.getBoundingClientRect().right - headings[index].getBoundingClientRect().right))
+  })
+  for (const distance of aligned) expect(distance).toBeLessThanOrEqual(1)
+
+  // Reset uses the current business date for every client, then preserves the
+  // saved timeline on reload. This exercises the actual injected reset service.
+  await page.clock.setFixedTime(new Date('2026-09-10T04:00:00Z'))
+  await openNavIfNeeded(page)
+  await page.getByRole('button', { name: 'Reset Demo Data', exact: true }).click()
+  await confirmAction(page, 'Reset all demo data?', 'Reset Demo Data')
+  await expect(page.getByRole('heading', { name: 'Owner Dashboard', exact: true })).toBeVisible()
+  const fresh = await page.evaluate(() => JSON.parse(localStorage.getItem('fitfinity-m2-demo-db-v4')))
+  expect(fresh.demoReferenceDate).toBe('2026-09-10')
+  for (const client of fresh.clients) {
+    const sessions = fresh.sessions.filter(session => session.clientId === client.id)
+    const completed = sessions.filter(session => session.status === 'completed')
+    expect(sessions.filter(session => session.date < fresh.demoReferenceDate)).toEqual(completed)
+    expect(completed).toHaveLength(client.package.used)
+    expect(client.strengthProgress).toHaveLength(6)
+    for (const exercise of client.strengthProgress) {
+      expect(exercise.points.map(point => point.sessionId).sort()).toEqual(completed.map(session => session.id).sort())
+      for (const point of exercise.points) {
+        const session = completed.find(item => item.id === point.sessionId)
+        expect(point.date).toBe(session.date)
+        expect(point.packageId).toBe(session.packageId)
+        expect(point.load).toBe(parseFloat(session.exercisePlan.find(row => row.name === exercise.name).weight))
+      }
+    }
   }
+  await page.goto('/#/clients/c1')
+  await clickProfileTab(page, 'Session History')
+  await expect(page.getByLabel('Session History', { exact: true }).locator('article')).toHaveCount(3)
+  await expect(page.getByLabel('Session History summary', { exact: true })).toHaveCount(0)
+  await clickProfileTab(page, 'Progress')
+  await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
+  await expect(page.getByLabel('Package progress summary', { exact: true })).toHaveText('Completed: 3 · With exercise records: 3')
+  await page.clock.setFixedTime(new Date('2026-09-11T04:00:00Z'))
+  await page.reload()
+  await expect(page.getByLabel('Package progress summary', { exact: true })).toHaveText('Completed: 3 · With exercise records: 3')
+  const retained = await page.evaluate(() => JSON.parse(localStorage.getItem('fitfinity-m2-demo-db-v4')))
+  expect(retained.sessions).toEqual(fresh.sessions)
+  expect(retained.clients.map(client => client.strengthProgress)).toEqual(fresh.clients.map(client => client.strengthProgress))
 })
 
 test('client contact editing uses structured phone and emergency fields', async ({ page }) => {
@@ -1281,8 +1354,8 @@ test('client contact editing uses structured phone and emergency fields', async 
     const rowTops = await general.locator('.profile-info-grid .info-row').evaluateAll(elements =>
       elements.map(element => Math.round(element.getBoundingClientRect().top))
     )
-    expect(rowTops).toHaveLength(8)
-    for (let index = 0; index < rowTops.length; index += 2) {
+    expect(rowTops).toHaveLength(9)
+    for (let index = 0; index + 1 < rowTops.length; index += 2) {
       expect(Math.abs(rowTops[index] - rowTops[index + 1])).toBeLessThanOrEqual(2)
     }
     expect(rowTops[2]).toBeGreaterThan(rowTops[0])
@@ -1295,16 +1368,23 @@ test('client contact editing uses structured phone and emergency fields', async 
   }
   await general.getByRole('button', { name: 'Edit', exact: true }).click()
 
-  const phoneCode = general.getByLabel('Phone country extension')
-  const phoneNumber = general.getByLabel('Phone number', { exact: true })
+  const phoneCode = general.getByLabel('Client phone country code')
+  const phoneNumber = general.getByLabel('Client phone number', { exact: true })
   await expectSameRow([phoneCode, phoneNumber])
-  await expect(general.getByLabel('Emergency contact relationship')).toBeVisible()
+  await expect(general.getByLabel('Client emergency contact relationship')).toBeVisible()
   await expectSameRow([
-    general.getByLabel('Emergency contact country extension'),
-    general.getByLabel('Emergency contact phone number'),
+    general.getByLabel('Client emergency contact country code'),
+    general.getByLabel('Client emergency contact phone number'),
   ])
   const genderPreference = general.getByLabel('Gender preference')
   await expect(genderPreference).toBeVisible()
+  const labelStyles = await general.locator('.onboarding-label').evaluateAll(labels => labels.map(label => {
+    const style = getComputedStyle(label)
+    return [style.fontSize, style.fontWeight, style.color]
+  }))
+  expect(new Set(labelStyles.map(style => JSON.stringify(style))).size).toBe(1)
+  expect(labelStyles[0][0]).toBe('11px')
+  await expect(genderPreference.locator('..').locator('.onboarding-label')).toHaveText('Gender preference')
   await genderPreference.selectOption('Female trainer preferred')
   await general.getByRole('button', { name: 'Save', exact: true }).click()
   await confirmAction(page, 'Save client information?', 'Save Changes')
@@ -1391,8 +1471,8 @@ test('Sessions reuses the compact Client-list structure', async ({ page }) => {
   await expect(sessionFilters.getByText('Select start date', { exact: true })).toHaveCount(0)
   await expect(sessionFilters.getByText('Select end date', { exact: true })).toHaveCount(0)
   const rows = page.getByLabel('Session list').locator('.session-list-row')
-  await expect(rows).toHaveCount(1)
-  await expect(rows).toContainText(/02 Sep(?:t)? 2026/)
+  await expect(rows).toHaveCount(7)
+  for (const row of await rows.all()) await expect(row).toContainText(/02 Sep(?:t)? 2026/)
 })
 
 test('Sessions removes row status and keeps one compact View column', async ({ page }) => {

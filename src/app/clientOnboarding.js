@@ -1,5 +1,6 @@
 import { freeGymEligible } from './packages.js'
 import { DAYS } from './availability.js'
+import { GENDERS, phoneDraft } from './contact.js'
 export { DAYS } from './availability.js'
 export { COUNTRY_CODES, RELATIONSHIPS, GENDER_PREFERENCES } from './contact.js'
 
@@ -134,6 +135,7 @@ export function clientStepErrors(draft, step) {
     if (!['Individual', 'Couple'].includes(draft.type)) errors.type = 'Choose a client type.'
     const count = draft.type === 'Couple' ? 2 : 1
     for (let index = 0; index < count; index += 1) {
+      if (people[index]?.gender && !GENDERS.includes(people[index].gender)) errors[`people.${index}.gender`] = 'Choose a gender.'
       if (!people[index]?.name?.trim()) {
         errors[`people.${index}.name`] = `${count === 2 ? `Client ${index + 1}` : 'Client'} name is required.`
       }
@@ -145,6 +147,8 @@ export function clientStepErrors(draft, step) {
     if (!draft.startDate) errors.startDate = 'Start date is required.'
     else if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.startDate) || !date || !Number.isFinite(date.getTime()) || isoDate(date) !== draft.startDate) {
       errors.startDate = 'Choose a valid start date.'
+    } else if (draft.minimumStartDate && draft.startDate < draft.minimumStartDate) {
+      errors.startDate = `Choose ${draft.minimumStartDate} or later, after the existing packages end.`
     }
     if (!Number.isInteger(requiredSlots) || requiredSlots < 1 || requiredSlots > DAYS.length) errors.sessionsPerWeek = 'Choose between one and seven sessions per week.'
   }
@@ -193,7 +197,7 @@ function normalisePerson(person, policy) {
   }
 }
 
-export function buildClientRecord(draft, id, definition, policy) {
+export function clientPersonalDetails(draft, policy) {
   const isCouple = draft.type === 'Couple'
   const people = (isCouple ? draft.people.slice(0, 2) : draft.people.slice(0, 1)).map(person => normalisePerson(person, policy))
   const primary = people[0]
@@ -203,23 +207,31 @@ export function buildClientRecord(draft, id, definition, policy) {
   const healthNotes = isCouple
     ? people.map(person => `${person.name}: ${person.healthNotes}`).join('\n')
     : primary.healthNotes
+  return { name: displayName, phone: clone(primary.phone), email: primary.email, birthday: primary.birthday,
+    gender: isCouple ? 'Couple' : primary.gender, emergencyContact: clone(primary.emergencyContact), people, healthNotes }
+}
+
+export function clientProfileDraft(client, policy) {
+  const primary = normalisePerson({ ...client, phone: phoneDraft(client.phone, policy.defaultCountryCode),
+    gender: client.type === 'Couple' ? '' : client.gender }, policy)
+  const people = client.type === 'Couple'
+    ? (client.people?.length === 2 ? client.people.map(person => normalisePerson(person, policy)) : [primary, normalisePerson({}, policy)])
+    : [primary]
+  return { ...client, people }
+}
+
+export function buildClientRecord(draft, id, definition, policy) {
+  const isCouple = draft.type === 'Couple'
   const packageRecord = packageFor(draft.startDate, draft.sessionsPerWeek, definition, policy.freeGymMinimumFrequency)
 
   return {
     id,
     status: 'active',
     type: isCouple ? 'Couple' : 'Individual',
-    name: displayName,
-    phone: clone(primary.phone),
-    email: primary.email,
-    birthday: primary.birthday,
-    gender: isCouple ? 'Couple' : primary.gender,
-    emergencyContact: clone(primary.emergencyContact),
+    ...clientPersonalDetails(draft, policy),
     startDate: draft.startDate,
     trainerId: draft.trainerId,
     genderPreference: draft.genderPreference || 'No gender preference',
-    people,
-    healthNotes,
     remarks: draft.remarks?.trim() ?? '',
     clientPreferences: clone(draft.clientPreferences ?? []),
     fixedWeeklySchedule: (draft.fixedWeeklySchedule ?? []).map((slot, index) => ({
@@ -248,7 +260,7 @@ export function buildClientSessions(client) {
     date.setUTCDate(start.getUTCDate() + offset)
     schedule.forEach(slot => {
       if (date.getUTCDay() === DAY_INDEX[slot.day]) {
-        candidates.push({ date: isoDate(date), from: slot.from, to: slot.to })
+        candidates.push({ date: isoDate(date), from: slot.from, to: slot.to, weeklySlotId: slot.id })
       }
     })
   }
@@ -257,7 +269,9 @@ export function buildClientSessions(client) {
     .sort((a, b) => `${a.date}T${a.from}`.localeCompare(`${b.date}T${b.from}`))
     .slice(0, target)
     .map((slot, index) => ({
-      id: `m3-${client.id}-session-${index + 1}`,
+      id: `${client.package.id}-session-${index + 1}`,
+      packageId: client.package.id,
+      weeklySlotId: slot.weeklySlotId,
       clientId: client.id,
       trainerId: client.trainerId,
       date: slot.date,

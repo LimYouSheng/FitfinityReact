@@ -1,3 +1,5 @@
+import { sessionIsInactive } from './clientPackages.js'
+import { sessionDurationMinutes } from './sessionRules.js'
 import { businessNow } from './scheduleChanges.js'
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
@@ -45,22 +47,13 @@ export function rateCents(trainer, band) {
   return Math.round(value * 100)
 }
 
-function durationMinutes(session) {
-  const duration = session.outcome?.durationMinutes
-  if (typeof duration === 'number' && Number.isFinite(duration) && (duration > 0 || (duration === 0 && session.acknowledgement?.method === 'late_no_show'))) return duration
-  if (session.acknowledgement?.method === 'late_no_show') return 0
-  const minutes = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value ?? '') ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null
-  const start = minutes(session.from), end = minutes(session.to)
-  return start !== null && end !== null && end > start ? end - start : 0
-}
-
 export function remunerationDraft(db, key, trainerId, now = new Date()) {
   const policy = db.settings.remuneration
   const cycle = payCycle(key, policy)
   const trainer = db.trainers.find(item => item.id === trainerId)
   if (!trainer) throw new Error('Trainer not found.')
   const today = businessNow(now, db.settings.timeZone).date
-  const rows = (db.sessions ?? []).filter(session => session.trainerId === trainerId && session.status !== 'cancelled' && cycleForDate(session.date, policy) === key)
+  const rows = (db.sessions ?? []).filter(session => session.trainerId === trainerId && session.status !== 'cancelled' && (session.status === 'completed' || !sessionIsInactive(db.clients.find(client => client.id === session.clientId), session)) && cycleForDate(session.date, policy) === key)
     .sort((a, b) => `${a.date}|${a.from}|${a.id}`.localeCompare(`${b.date}|${b.from}|${b.id}`))
     .map(session => {
       const source = sessionPaySource(session)
@@ -73,7 +66,7 @@ export function remunerationDraft(db, key, trainerId, now = new Date()) {
       const issues = [!band ? 'Invalid session start time' : amount === null && 'Missing trainer rate', !completed && 'Session is not completed', completed && session.date > today && 'Future completion date'].filter(Boolean)
       const client = db.clients.find(item => item.id === session.clientId)
       return { sessionId: session.id, source, clientId: session.clientId, clientName: client?.name ?? 'Client unavailable', clientType: client?.type ?? '—', date: session.date,
-        from: session.from, to: session.to, durationMinutes: billable ? durationMinutes(session) : 0, status: session.status, billable,
+        from: session.from, to: session.to, durationMinutes: billable && session.acknowledgement?.method !== 'late_no_show' ? sessionDurationMinutes(session) : 0, status: session.status, billable,
         band: band ?? '', amountCents: billable ? amount : null, issues }
     })
   const reviewCount = rows.filter(row => row.issues.length).length

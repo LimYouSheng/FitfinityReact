@@ -79,11 +79,11 @@ it('supervised weekly change leaves client and every session unchanged until app
   const request=pending('fixed_weekly_schedule')
   expect(mockDb.read().messages.find(item=>item.requestId===request.id)).toMatchObject({status:'pending'})
 })
-it('weekly approval changes only eligible future sessions, keeping plans, ids and credits', async () => {
+it('weekly approval changes every upcoming booking including custom times and replacement trainers, keeping plans, IDs and credits', async () => {
   await clientService.saveFixedWeeklySchedule('c1',nextSlots,trainer);const before=mockDb.read()
   await requestService.resolve(pending('fixed_weekly_schedule').id,'approved',owner)
   const db=mockDb.read()
-  expect(db.sessions).toEqual(before.sessions.map(session=>session.id==='future'?{...session,from:'19:00',to:'20:00'}:session))
+  expect(db.sessions).toEqual(before.sessions.map(session=>['future','ad-hoc','expired','replacement'].includes(session.id)?{...session,from:'19:00',to:'20:00',outcome:{...session.outcome,durationMinutes:60}}:session))
   expect(db.clients.find(item=>item.id==='c1').fixedWeeklySchedule).toEqual(nextSlots)
   expect(db.packageCreditTransactions).toEqual(before.packageCreditTransactions)
 })
@@ -127,4 +127,36 @@ it('setting availability to unavailable does not move or cancel booked sessions'
   await requestService.resolve(pending('trainer_availability').id,'approved',owner)
   expect(Object.values(mockDb.read().trainers.find(item=>item.id==='t1').availability).flat()).toEqual([])
   expect(mockDb.read().sessions).toEqual(before.sessions)
+})
+
+it('updates off-weekday legacy bookings and explicit slot bookings across packages, and derives their duration', async () => {
+  mockDb.mutate(db => {
+    const client = db.clients.find(item => item.id === 'c1')
+    const future = db.sessions.find(item => item.id === 'future')
+    future.date = '2026-09-10'; future.outcome = { durationMinutes: 999, trainerComments: 'Keep notes' }
+    db.sessions.find(item => item.id === 'ad-hoc').packageId = client.packageHistory[0].id
+    db.sessions.find(item => item.id === 'replacement').weeklySlotId = client.fixedWeeklySchedule[0].id
+  })
+  const before = mockDb.read()
+  await clientService.saveFixedWeeklySchedule('c1', nextSlots.map(slot => ({ ...slot, to: '19:45' })), owner)
+  const after = mockDb.reload()
+  for (const id of ['future', 'ad-hoc', 'expired', 'replacement']) {
+    const updated = after.sessions.find(item => item.id === id), original = before.sessions.find(item => item.id === id)
+    expect(updated).toEqual({ ...original, from: '19:00', to: '19:45', outcome: { ...original.outcome, durationMinutes: 45 } })
+  }
+})
+
+it('keeps past and started sessions and inactive-package sessions unchanged and rejects a new time that has passed today', async () => {
+  mockDb.mutate(db => {
+    const source = db.sessions[0], client = db.clients.find(item => item.id === 'c1')
+    client.packageHistory[0].status = 'inactive'
+    db.sessions.push({ ...source, id: 'inactive-package', packageId: client.packageHistory[0].id })
+    db.sessions.push({ ...source, id: 'started', date: '2026-09-05', from: '09:00', to: '10:00' })
+    db.sessions.push({ ...source, id: 'later-today', date: '2026-09-05', from: '11:00', to: '12:00' })
+  })
+  const before = mockDb.read()
+  await expect(clientService.saveFixedWeeklySchedule('c1', nextSlots.map(slot => ({ ...slot, from: '08:00', to: '09:00' })), owner)).rejects.toThrow('passed today')
+  expect(mockDb.read()).toEqual(before)
+  await clientService.saveFixedWeeklySchedule('c1', nextSlots, owner)
+  for (const id of ['inactive-package', 'started', 'past', 'completed']) expect(mockDb.read().sessions.find(item => item.id === id)).toEqual(before.sessions.find(item => item.id === id))
 })

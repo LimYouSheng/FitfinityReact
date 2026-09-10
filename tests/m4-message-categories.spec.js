@@ -160,7 +160,16 @@ test('M4 Message category navigation matches client and trainer navigation throu
   await expect(menu.locator('summary')).toHaveText('Renewals')
   await expect(menu).not.toHaveAttribute('open')
   await menu.locator('summary').click()
-  await page.mouse.click(690, 1000)
+  await expect(menu).toHaveAttribute('open', '')
+  // Use the page's content area, excluding a desktop scrollbar gutter. Verify
+  // the hit target so this checks the scrim rather than a no-op browser click.
+  const outside = await menu.evaluate(element => {
+    const x = Math.floor(document.documentElement.clientWidth / 2)
+    const y = Math.min(document.documentElement.clientHeight, innerHeight) - 24
+    return { x, y, hitsScrim: document.elementFromPoint(x, y) === element }
+  })
+  expect(outside.hitsScrim).toBe(true)
+  await page.mouse.click(outside.x, outside.y)
   await expect(menu).not.toHaveAttribute('open')
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
 })

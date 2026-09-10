@@ -84,6 +84,7 @@ test('M3 trainer availability request preserves approved blocks and owner reject
   await page.locator('.modal-actions').getByRole('button',{name:'Send Request',exact:true}).click()
   await expect(page.locator('.notification-info').getByRole('status')).toHaveText('Availability request sent for owner approval.')
   expect((await data(page)).trainers.find(t=>t.id==='t1').availability.Sunday).toEqual([])
+  await expect(page.getByRole('button', { name: 'Request Change', exact: true })).toBeVisible()
   await selectDemoIdentity(page, 'u-owner')
   await page.goto('/#/messages')
   const dialog=await open(page,'Availability change: Marcus Tan')
@@ -105,6 +106,7 @@ test('M3 weekly approval updates matching future sessions and keeps credits unch
 })
 test('M3 owner availability stays read-only while autonomous trainer can save directly',async({page})=>{
   await start(page,'trainers/t3')
+  const existingSunday = (await data(page)).trainers.find(t => t.id === 't3').availability.Sunday
   await availabilityTab(page)
   await expect(page.getByRole('button',{name:'Request Change',exact:true})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'Edit',exact:true})).toHaveCount(0)
@@ -116,7 +118,7 @@ test('M3 owner availability stays read-only while autonomous trainer can save di
   await page.getByRole('button',{name:'Save',exact:true}).click()
   await page.locator('.modal-actions').getByRole('button',{name:'Save Availability',exact:true}).click()
   await expect(page.locator('.notification-success').getByRole('status')).toHaveText('Availability saved.')
-  expect((await data(page)).trainers.find(t=>t.id==='t3').availability.Sunday).toEqual([['18:00','19:00']])
+  expect((await data(page)).trainers.find(t=>t.id==='t3').availability.Sunday).toEqual([...existingSunday, ['18:00','19:00']])
 })
 
 

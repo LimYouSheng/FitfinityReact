@@ -1,5 +1,5 @@
 import { APPROVAL_FIELDS } from './constants.js'
-import { COUNTRY_CODES, GENDERS } from './contact.js'
+import { COUNTRY_CODES, GENDERS, phoneDraft, phoneText } from './contact.js'
 import { availabilityBlockError, availabilityByDay } from './availability.js'
 
 export const TRAINER_ONBOARDING_STEPS = [
@@ -83,13 +83,16 @@ export function nextTrainerId(trainers, users = []) {
   return `t${next}`
 }
 
+export function trainerProfileDraft(trainer, policy) {
+  return { ...trainer, phone: phoneDraft(trainer.phone, policy.defaultCountryCode) }
+}
+
 export function buildTrainerRecord(draft, id) {
   // Existing trainer profiles use a display phone string. Keep that contract;
   // capture country code and number separately in the form without a second source of truth.
-  const number = text(draft.phone.number)
   return {
     id, status: 'active', name: text(draft.name), email: normalizeTrainerEmail(draft.email),
-    phone: number ? `${draft.phone.countryCode} ${number}` : '',
+    phone: phoneText(draft.phone),
     birthday: draft.birthday || '', gender: draft.gender, trainerType: text(draft.trainerType),
     qualifications: text(draft.qualifications), publicProfile: draft.publicProfile,
     rates: { peak: Number(draft.rates.peak), offPeak: Number(draft.rates.offPeak) },

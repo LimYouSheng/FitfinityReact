@@ -60,10 +60,10 @@ export default function TrainersPage({ trainers, onOpen, onAdd }) {
 
   return (
     <>
-      <div className="page-head compact-page-head">
+      <div className="page-head directory-page-head">
         <div>
           <span className="eyebrow">Operations</span>
-          <h1>All Trainers</h1>
+          <h1>Trainers</h1>
         </div>
         <button type="button" className="onboarding-button primary" onClick={onAdd}>Add New Trainer</button>
       </div>

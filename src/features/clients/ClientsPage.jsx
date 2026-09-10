@@ -5,7 +5,7 @@ import PaginationControls from '../../components/PaginationControls.jsx'
 import { isActive, visibleClientsForUser } from '../../app/status.js'
 import usePagination from '../../hooks/usePagination.js'
 
-export default function ClientsPage({ user, clients, trainers, onOpen, onAdd }) {
+export default function ClientsPage({ user, clients, trainers, sessions = [], onOpen, onAdd }) {
   const [query, setQuery] = usePageState('ClientsPage.query', '')
   const [searchOpen, setSearchOpen] = useState(false)
   const [statusFilter, setStatusFilter] = usePageState('ClientsPage.statusFilter', 'all')
@@ -15,8 +15,8 @@ export default function ClientsPage({ user, clients, trainers, onOpen, onAdd }) 
   const trainerName = id => trainers.find(trainer => trainer.id === id)?.name ?? '—'
 
   const base = useMemo(
-    () => visibleClientsForUser(user, clients),
-    [clients, user]
+    () => visibleClientsForUser(user, clients, sessions),
+    [clients, user, sessions]
   )
 
   const trainerOptions = useMemo(() => {
@@ -40,8 +40,8 @@ export default function ClientsPage({ user, clients, trainers, onOpen, onAdd }) 
       .slice(0, 6)
   }, [base, query, trainers])
 
-  const effectiveStatus = user.role === 'owner' ? statusFilter : 'active'
-  const effectiveTrainer = user.role === 'owner' ? trainerFilter : user.trainerId
+  const effectiveStatus = statusFilter
+  const effectiveTrainer = user.role === 'owner' ? trainerFilter : ''
 
   const visible = useMemo(() => {
     const value = query.trim().toLowerCase()
@@ -69,10 +69,10 @@ export default function ClientsPage({ user, clients, trainers, onOpen, onAdd }) 
 
   return (
     <>
-      <div className="page-head compact-page-head">
+      <div className="page-head directory-page-head">
         <div>
           <span className="eyebrow">Operations</span>
-          <h1>All Clients</h1>
+          <h1>Clients</h1>
         </div>
 
         {user.role === 'owner' && (
@@ -122,13 +122,12 @@ export default function ClientsPage({ user, clients, trainers, onOpen, onAdd }) 
 
           <select
             aria-label="Filter clients by status"
-            value={user.role === 'owner' ? statusFilter : 'active'}
-            disabled={user.role !== 'owner'}
+            value={statusFilter}
             onChange={event => setStatusFilter(event.target.value)}
           >
-            {user.role === 'owner' && <option value="all">All status</option>}
+            <option value="all">All status</option>
             <option value="active">Active</option>
-            {user.role === 'owner' && <option value="inactive">Inactive</option>}
+            <option value="inactive">Inactive</option>
           </select>
 
           <select

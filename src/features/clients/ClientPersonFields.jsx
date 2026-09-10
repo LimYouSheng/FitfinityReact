@@ -1,7 +1,7 @@
 import Field from '../../components/OnboardingField.jsx'
-import { COUNTRY_CODES, RELATIONSHIPS } from '../../app/clientOnboarding.js'
+import { COUNTRY_CODES, RELATIONSHIPS, GENDERS } from '../../app/contact.js'
 
-export default function ClientPersonFields({ person, labelPrefix, nameError, onChange }) {
+export default function ClientPersonFields({ person, labelPrefix, nameError, genderError, onChange }) {
   const patch = next => onChange({ ...person, ...next })
 
   return (
@@ -36,13 +36,10 @@ export default function ClientPersonFields({ person, labelPrefix, nameError, onC
         <input aria-label={`${labelPrefix} birthday`} type="date" value={person.birthday} onChange={event => patch({ birthday: event.target.value })} />
       </Field>
 
-      <Field label="Gender">
+      <Field label="Gender" error={genderError}>
         <select aria-label={`${labelPrefix} gender`} value={person.gender} onChange={event => patch({ gender: event.target.value })}>
           <option value="">Select gender</option>
-          <option>Female</option>
-          <option>Male</option>
-          <option>Other</option>
-          <option>Prefer not to say</option>
+          {GENDERS.map(gender => <option key={gender}>{gender}</option>)}
         </select>
       </Field>
 

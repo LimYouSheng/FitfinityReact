@@ -69,17 +69,16 @@ it('requires visible amounts and confirmation before approving a closed reviewed
   expect(document.querySelector('.remuneration-page [role="status"]')).toBeNull()
 })
 it('keeps the cycle selector on the list and shows only the fixed cycle in a trainer breakdown', async () => {
-  const navigate = vi.fn(), back = vi.fn()
+  const navigate = vi.fn()
   show({onNavigate:navigate})
   expect(screen.getByRole('combobox',{name:'Pay cycle'})).toBeVisible()
   expect(document.querySelector('.page-head p')).toBeNull()
   expect(screen.getByRole('button',{name:'Show remuneration amounts'})).toHaveClass('remuneration-money-toggle')
   cleanup()
-  show({trainerId:'t1',onBack:back})
+  show({trainerId:'t1'})
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   expect(screen.getByText('16 Aug 2026 – 15 Sept 2026')).toBeVisible()
-  await userEvent.click(screen.getByRole('button',{name:'Back to Pay Cycle'}))
-  expect(back).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('button',{name:'Back to Pay Cycle'})).not.toBeInTheDocument()
 })
 
 it('opens the service-selected current cycle despite later bookings and honors explicit cycle links', () => {

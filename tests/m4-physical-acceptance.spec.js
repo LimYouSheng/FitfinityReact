@@ -12,6 +12,8 @@ async function tab(page, name) {
 }
 async function fixture(page, customize = () => {}) {
   const data = structuredClone(seed)
+  // Explicit ad-hoc date for the existing midnight/signature acceptance cases.
+  data.sessions.find(item => item.id === 's1').date = '2026-09-02'
   const source = data.sessions.find(item => item.id === 's0')
   data.sessions.push(...Array.from({ length: 22 }, (_, index) => ({ ...source, id: `physical-history-${index}`, date: '2026-08-01', clientId: 'c1', status: 'completed', sessionNumber: index + 1 })))
   data.contentEntries = [{ id: 'physical-content', title: 'Studio hours', key: 'studio-hours', body: 'Opening hours', status: 'ready', version: 1 }]
@@ -122,10 +124,11 @@ test('M4 signed completion updates the progress chart from saved plan loads and 
   await expect(page.getByLabel('Session status summary')).toContainText('Completed')
   await page.getByRole('button', { name: 'View Client', exact: true }).click()
   await tab(page, 'Progress')
-  await page.getByLabel('Strength progress exercise').selectOption({ label: 'Physical Test Row' })
+  await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
+  await page.getByRole('button', { name: 'Show Physical Test Row progress chart', exact: true }).click()
   await expect(page.locator('.strength-chart-summary')).toContainText('27.5')
   await page.reload()
-  await expect(page.getByLabel('Strength progress exercise')).toHaveValue('progress-physical-row')
+  await expect(page.getByRole('button', { name: 'Hide Physical Test Row progress chart', exact: true })).toHaveAttribute('aria-expanded', 'true')
   await expect(page.locator('.strength-chart-summary')).toContainText('27.5')
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).packageCreditTransactions.filter(item => item.sessionId === 's1').length, KEY)).toBe(1)
 })
@@ -159,6 +162,7 @@ test('M4 owner shares the same PDF as Download and sees timestamped history afte
   await expect(page.getByText('Renewal status', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Renewal History', { exact: true })).toHaveCount(0)
   await tab(page, 'Progress')
+  await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
   await page.getByRole('button', { name: 'View Export/WhatsApp History', exact: true }).click()
   const history = page.getByLabel('Export/WhatsApp history', { exact: true })
   await expect(history).toContainText('No export or WhatsApp history yet.')
@@ -167,9 +171,12 @@ test('M4 owner shares the same PDF as Download and sees timestamped history afte
   const dialog = page.getByRole('dialog', { name: 'Share Progress Report' })
   const share = dialog.getByRole('button', { name: 'Share PDF', exact: true })
   await share.waitFor({ state: 'visible' })
+  const downloadButton = dialog.getByRole('button', { name: 'Download PDF', exact: true })
   const download = page.waitForEvent('download')
-  await dialog.getByRole('button', { name: 'Download PDF', exact: true }).click()
+  await downloadButton.click()
   const exported = await download
+  // The download event precedes the asynchronous audit save.
+  await expect(downloadButton).toBeEnabled()
   expect(exported.suggestedFilename()).toBe('amanda-lim-progress-report.pdf')
   const chunks = []
   for await (const chunk of await exported.createReadStream()) chunks.push(chunk)
@@ -183,7 +190,7 @@ test('M4 owner shares the same PDF as Download and sees timestamped history afte
   const files = await page.evaluate(() => window.__pdfShares)
   expect(files).toHaveLength(1)
   expect(files[0]).toMatchObject({ name: 'amanda-lim-progress-report.pdf', type: 'application/pdf', active: true,
-    keys: ['files'], header: '%PDF-1.4\n', eof: true, images: 11, sha256: exportHash })
+    keys: ['files'], header: '%PDF-1.4\n', eof: true, images: 12, sha256: exportHash })
   await expect(history.locator('article')).toHaveCount(2)
   await expect(history).toContainText('PDF export')
   await expect(history).toContainText('PDF share opened')
@@ -199,6 +206,7 @@ test('M4 trainer report activity is logged for the owner without exposing histor
   await selectDemoIdentity(page, 'u-marcus')
   await page.goto('/#/clients/c1')
   await tab(page, 'Progress')
+  await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
   await expect(page.getByRole('button', { name: 'View Export/WhatsApp History', exact: true })).toHaveCount(0)
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export Progress Report', exact: true }).click()
@@ -207,10 +215,12 @@ test('M4 trainer report activity is logged for the owner without exposing histor
   await selectDemoIdentity(page, 'u-owner')
   await page.goto('/#/clients/c1')
   await tab(page, 'Progress')
+  await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
   await page.getByRole('button', { name: 'View Export/WhatsApp History', exact: true }).click()
   await expect(page.getByLabel('Export/WhatsApp history', { exact: true })).toContainText('Marcus Tan')
   await page.goto('/#/clients/c2')
   await tab(page, 'Progress')
+  await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
   await page.getByRole('button', { name: 'View Export/WhatsApp History', exact: true }).click()
   await expect(page.getByLabel('Export/WhatsApp history', { exact: true })).toContainText('No export or WhatsApp history yet.')
 })
@@ -219,6 +229,7 @@ test('M4 cancelled file sharing is not logged and retrying failed export history
   await fixture(page)
   await page.goto('/#/clients/c1')
   await tab(page, 'Progress')
+  await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
   await mockPdfSharing(page, { outcomes: ['AbortError'] })
   await page.getByRole('button', { name: 'Share Progress Report via WhatsApp' }).click()
   const dialog = page.getByRole('dialog', { name: 'Share Progress Report' })
@@ -258,6 +269,7 @@ test('M4 unsupported file sharing offers the actual PDF for manual WhatsApp atta
   await fixture(page)
   await page.goto('/#/clients/c1')
   await tab(page, 'Progress')
+  await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
   await mockPdfSharing(page, { supported: false })
   await page.getByRole('button', { name: 'Share Progress Report via WhatsApp' }).click()
   const dialog = page.getByRole('dialog', { name: 'Share Progress Report' })
@@ -265,25 +277,28 @@ test('M4 unsupported file sharing offers the actual PDF for manual WhatsApp atta
   await downloadButton.waitFor({ state: 'visible' })
   await expect(dialog.getByRole('button', { name: 'Share PDF', exact: true })).toHaveCount(0)
   await expect(dialog).toContainText('Download the PDF and attach it in WhatsApp.')
-  await expect(dialog.getByRole('link', { name: 'Open WhatsApp' })).toHaveAttribute('href', 'https://wa.me/6591234567')
+  await expect(dialog.getByRole('button', { name: 'Open WhatsApp' })).toBeEnabled()
   const download = page.waitForEvent('download')
   await downloadButton.click()
   const exported = await download
+  // The download event precedes the asynchronous audit save.
+  await expect(downloadButton).toBeEnabled()
   expect(exported.suggestedFilename()).toBe('amanda-lim-progress-report.pdf')
   const chunks = []
   for await (const chunk of await exported.createReadStream()) chunks.push(chunk)
   const pdf = Buffer.concat(chunks).toString('latin1')
   expect(pdf).toMatch(/^%PDF-1\.4\n/)
-  // Nine exercises; the two longer histories each continue onto a second page.
-  expect(pdf.match(/\/Subtype \/Image/g)).toHaveLength(11)
+  // Six repeated exercises, each with 25 records including the 22 history fixtures: two pages each.
+  expect(pdf.match(/\/Subtype \/Image/g)).toHaveLength(12)
   expect(pdf).toMatch(/%%EOF\n$/)
   await context.route('https://wa.me/**', route => route.fulfill({ contentType: 'text/html', body: '<p>WhatsApp test handoff</p>' }))
   const opened = page.waitForEvent('popup')
-  await dialog.getByRole('link', { name: 'Open WhatsApp' }).click()
+  await dialog.getByRole('button', { name: 'Open WhatsApp' }).click()
   const popup = await opened
   await popup.waitForURL('https://wa.me/6591234567')
   await popup.close()
+  await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)).progressReportEvents.map(event => event.kind), KEY)).toEqual(['pdf_export', 'whatsapp_opened'])
   const events = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).progressReportEvents, KEY)
-  expect(events.map(event => event.kind)).toEqual(['pdf_export'])
+  expect(events[1]).toMatchObject({ clientId: 'c1', packageId: 'client-package-c1', by: { id: 'u-owner', name: 'Chau' } })
   expect(await page.evaluate(() => window.__pdfShares)).toEqual([])
 })

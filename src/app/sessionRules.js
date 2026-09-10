@@ -9,6 +9,13 @@ export function sessionStatus(status) {
   return STATUS[status] ?? { label: 'Not Planned', tone: 'amber' }
 }
 
+export function sessionDurationMinutes(session) {
+  const minutes = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value ?? '')
+    ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null
+  const start = minutes(session.from), end = minutes(session.to)
+  return start !== null && end !== null && end > start ? end - start : 0
+}
+
 export function visibleSessionsForUser(user, sessions) {
   if (user.role === 'owner') return [...sessions]
   return sessions.filter(session => session.trainerId === user.trainerId)

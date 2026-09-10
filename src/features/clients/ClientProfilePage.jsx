@@ -1,6 +1,8 @@
+import ClientGeneralFields from './ClientGeneralFields.jsx'
+import { clientProfileDraft, clientStepErrors } from '../../app/clientOnboarding.js'
+import ReassignTrainerDialog from './ReassignTrainerDialog.jsx'
 import usePageState from '../../hooks/usePageState.js'
-import { COUNTRY_CODES, RELATIONSHIPS, GENDER_PREFERENCES } from '../../app/contact.js'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
@@ -88,38 +90,53 @@ export default function ClientProfilePage({
   sessions,
   today,
   onOpenSession,
+  progressRoute = false,
+  progressPackageId,
+  onOpenProgressPackage,
+  onSelectProfileTab,
   onBack,
   onUpdate,
   timeZone,
   onRecordProgressReport,
   onLoadProgressReportHistory,
   onSaveFixedWeeklySchedule,
+  onReassignTrainer,
   onDeactivate,
   onReactivate,
+  packages,
+  policy,
+  onRenewPackage,
+  onDeactivatePackage,
+  onDeletePackageSessions,
+  packageCreditTransactions,
 }) {
   const confirmAction = useActionConfirmation()
   const { guardNavigation, setActiveEdit } = useEditGuard()
-  const [tab, setTab] = usePageState(`client.${client.id}.tab`, 'overview')
+  const [savedTab, setTab] = usePageState(`client.${client.id}.tab`, 'overview')
+  const tab = progressRoute ? 'progress' : savedTab
   const [activeEditor, setActiveEditor] = useState(null)
-  const [draft, setDraft] = useState(client)
+  const [draft, setDraft] = useState(() => clientProfileDraft(client, policy))
+  const [activePerson, setActivePerson] = useState(0)
+  const [generalErrors, setGeneralErrors] = useState({})
+  const generalFields = useRef(null)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
 
   useEffect(() => {
-    setDraft(client)
+    setDraft(clientProfileDraft(client, policy))
     setActiveEditor(null)
-  }, [client.id])
+  }, [client.id, client.status])
 
   useEffect(() => {
-    if (!activeEditor) setDraft(client)
+    if (!activeEditor) setDraft(clientProfileDraft(client, policy))
   }, [activeEditor, client])
 
   useEffect(() => {
-    const label = ({ general: 'Client information', schedule: 'Fixed weekly schedule', health: 'Health notes', remarks: 'Client remarks' })[activeEditor] ?? null
+    const label = ({ general: 'Client information', trainer: 'Trainer reassignment', schedule: 'Fixed weekly schedule', health: 'Health notes', remarks: 'Client remarks' })[activeEditor] ?? null
     setActiveEdit(label)
     return () => setActiveEdit(null)
   }, [activeEditor, setActiveEdit])
 
-  const ownerEditable = canEditClientGeneral(user)
+  const ownerEditable = canEditClientGeneral(user, client)
   const notesEditable = canEditClientCoachingNotes(user, client)
 
   const assignedTrainerEditable =
@@ -128,10 +145,15 @@ export default function ClientProfilePage({
     client.status !== 'inactive'
 
   const scheduleEditable =
-    user.role === 'owner' ||
-    assignedTrainerEditable
+    client.status !== 'inactive' && (user.role === 'owner' || assignedTrainerEditable)
 
   const saveGeneral = async () => {
+    const errors = clientStepErrors(draft, 'general')
+    if (Object.keys(errors).length) {
+      setGeneralErrors(errors)
+      setActivePerson(Number(Object.keys(errors)[0].split('.')[1]) || 0)
+      return
+    }
     const confirmed = await confirmAction({
       title: 'Save client information?',
       message: 'This will update the client’s contact and personal information.',
@@ -140,16 +162,17 @@ export default function ClientProfilePage({
     if (!confirmed) return
     try {
       await onUpdate({
-        phone: draft.phone,
-        email: draft.email,
-        birthday: draft.birthday,
-        gender: draft.gender,
-        emergencyContact: draft.emergencyContact,
+        people: draft.people,
+        remarks: draft.remarks,
         genderPreference: draft.genderPreference,
       })
       setActiveEditor(null)
-    } catch { /* The action banner reports failure; keep the draft open. */ }
+    } catch (error) { setGeneralErrors({ save: error.message || 'Client information could not be saved.' }) }
   }
+
+  useEffect(() => {
+    if (Object.keys(generalErrors).length) generalFields.current?.querySelector('[aria-invalid="true"]')?.focus()
+  }, [generalErrors, activePerson])
 
   return (
     <>
@@ -182,6 +205,7 @@ export default function ClientProfilePage({
         onSelect={key => guardNavigation(() => {
           setActiveEditor(null)
           setTab(key)
+          onSelectProfileTab?.(key)
         })}
       >
 
@@ -204,7 +228,7 @@ export default function ClientProfilePage({
               onClick={async () => {
                 const confirmed = await confirmAction({
                   title: `Reactivate ${client.name}?`,
-                  message: 'The client will return to active client lists and can be scheduled for sessions again.',
+                  message: 'Packages disabled with this client and their retained sessions will become active again. Separately deactivated packages stay inactive; deleted sessions cannot be restored.',
                   confirmLabel: 'Reactivate Client',
                 })
                 if (confirmed) {
@@ -217,6 +241,9 @@ export default function ClientProfilePage({
           )}
       </ProfileNavigation>
 
+      {activeEditor === 'trainer' && ownerEditable && <ReassignTrainerDialog client={client} trainers={trainers} sessions={sessions}
+        packageCreditTransactions={packageCreditTransactions} timeZone={timeZone} onSave={onReassignTrainer} onClose={() => setActiveEditor(null)} />}
+
       {tab === 'overview' && <>
       <div className="profile-overview-stack">
         <Panel className={activeEditor === 'general' ? 'editing-section' : ''}>
@@ -228,7 +255,7 @@ export default function ClientProfilePage({
                 type="button"
                 className="text-action"
                 disabled={Boolean(activeEditor)}
-                onClick={() => setActiveEditor('general')}
+                onClick={() => { setGeneralErrors({}); setActivePerson(0); setActiveEditor('general') }}
               >
                 Edit
               </button>
@@ -238,7 +265,7 @@ export default function ClientProfilePage({
                   type="button"
                   className="text-action muted-action"
                   onClick={() => {
-                    setDraft(client)
+                    setDraft(clientProfileDraft(client, policy))
                     setActiveEditor(null)
                   }}
                 >
@@ -249,129 +276,33 @@ export default function ClientProfilePage({
             ))}
           </div>
 
-          <div className="info-list profile-info-grid">
-            <div className="info-row">
-              <span>Phone</span>
-              {activeEditor === 'general' ? (
-                <div className="contact-number-fields">
-                  <select
-                    aria-label="Phone country extension"
-                    value={draft.phone.countryCode}
-                    onChange={event => setDraft(current => ({
-                      ...current,
-                      phone: { ...current.phone, countryCode: event.target.value },
-                    }))}
-                  >
-                    {COUNTRY_CODES.map(code => <option key={code}>{code}</option>)}
-                  </select>
-                  <input
-                    aria-label="Phone number"
-                    inputMode="tel"
-                    value={draft.phone.number}
-                    onChange={event => setDraft(current => ({
-                      ...current,
-                      phone: { ...current.phone, number: event.target.value },
-                    }))}
-                  />
-                </div>
-              ) : <strong>{displayPhone(client.phone)}</strong>}
-            </div>
-
-            {[
-              ['Email', 'email', 'email'],
-              ['Birthday', 'birthday', 'date'],
-              ['Gender', 'gender', 'text'],
-            ].map(([label, key, type]) => (
-              <div className="info-row" key={key}>
-                <span>{label}</span>
-
-                {activeEditor === 'general'
-                  ? (
-                    <input
-                      aria-label={label}
-                      type={type}
-                      value={draft[key]}
-                      onChange={event =>
-                        setDraft(current => ({
-                          ...current,
-                          [key]: event.target.value,
-                        }))
-                      }
-                    />
-                  )
-                  : <strong>{key === 'birthday' ? formatDate(client[key]) : client[key]}</strong>}
-              </div>
+          {activeEditor === 'general' ? <div ref={generalFields}>
+            {client.type === 'Couple' && client.people?.length !== 2 && <p className="helper">This older couple profile has one combined record. Review both clients’ names and details before saving.</p>}
+            <ClientGeneralFields editing draft={draft} errors={generalErrors} activePerson={activePerson} setActivePerson={setActivePerson}
+              onChange={patch => { setDraft(current => ({ ...current, ...patch })); setGeneralErrors({}) }} />
+            {generalErrors.save && <p role="alert">{generalErrors.save}</p>}
+          </div> : <div className="info-list profile-info-grid">
+            <div className="info-row"><span>Name</span><strong>{client.name}</strong></div>
+            <div className="info-row"><span>Phone</span><strong>{displayPhone(client.phone)}</strong></div>
+            {[['Email', 'email'], ['Birthday', 'birthday'], ['Gender', 'gender']].map(([label, key]) => (
+              <div className="info-row" key={key}><span>{label}</span><strong>{key === 'birthday' ? formatDate(client[key]) : client[key]}</strong></div>
             ))}
-
-            <div className="info-row emergency-contact-row">
-              <span>Emergency contact</span>
-              {activeEditor === 'general' ? (
-                <div className="emergency-contact-fields">
-                  <input
-                    aria-label="Emergency contact name"
-                    value={draft.emergencyContact.name}
-                    onChange={event => setDraft(current => ({
-                      ...current,
-                      emergencyContact: { ...current.emergencyContact, name: event.target.value },
-                    }))}
-                  />
-                  <select
-                    aria-label="Emergency contact relationship"
-                    value={draft.emergencyContact.relationship}
-                    onChange={event => setDraft(current => ({
-                      ...current,
-                      emergencyContact: { ...current.emergencyContact, relationship: event.target.value },
-                    }))}
-                  >
-                    {RELATIONSHIPS.map(relationship => <option key={relationship}>{relationship}</option>)}
-                  </select>
-                  <select
-                    aria-label="Emergency contact country extension"
-                    value={draft.emergencyContact.countryCode}
-                    onChange={event => setDraft(current => ({
-                      ...current,
-                      emergencyContact: { ...current.emergencyContact, countryCode: event.target.value },
-                    }))}
-                  >
-                    {COUNTRY_CODES.map(code => <option key={code}>{code}</option>)}
-                  </select>
-                  <input
-                    aria-label="Emergency contact phone number"
-                    inputMode="tel"
-                    value={draft.emergencyContact.number}
-                    onChange={event => setDraft(current => ({
-                      ...current,
-                      emergencyContact: { ...current.emergencyContact, number: event.target.value },
-                    }))}
-                  />
-                </div>
-              ) : <strong>{displayEmergency(client.emergencyContact)}</strong>}
-            </div>
-
-            <div className="info-row">
-              <span>Gender preference</span>
-              {activeEditor === 'general' ? (
-                <select
-                  aria-label="Gender preference"
-                  value={draft.genderPreference}
-                  onChange={event => setDraft(current => ({ ...current, genderPreference: event.target.value }))}
-                >
-                  {GENDER_PREFERENCES.map(preference => <option key={preference}>{preference}</option>)}
-                </select>
-              ) : <strong>{client.genderPreference}</strong>}
-            </div>
+            <div className="info-row emergency-contact-row"><span>Emergency contact</span><strong>{displayEmergency(client.emergencyContact)}</strong></div>
+            <div className="info-row"><span>Gender preference</span><strong>{client.genderPreference}</strong></div>
 
             <div className="info-row">
               <span>Start date</span>
               <strong>{formatDate(client.startDate)}</strong>
             </div>
 
-            <div className="info-row">
+            <div className="info-row client-trainer-row">
               <span>Trainer</span>
-              <strong>{trainer?.name ?? '—'}</strong>
+              <div className="client-trainer-assignment"><strong>{trainer?.name ?? '—'}</strong>
+                {ownerEditable && <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('trainer')}>Reassign Trainer</button>}
+              </div>
             </div>
 
-          </div>
+          </div>}
         </Panel>
 
         <FixedWeeklySchedule
@@ -414,6 +345,14 @@ export default function ClientProfilePage({
 
       {tab !== 'overview' && (
         <ClientProfileTabs
+          progressPackageId={progressPackageId}
+          onOpenProgressPackage={onOpenProgressPackage}
+          packages={packages}
+          policy={policy}
+          onRenewPackage={onRenewPackage}
+          onDeactivatePackage={onDeactivatePackage}
+          onDeletePackageSessions={onDeletePackageSessions}
+          packageCreditTransactions={packageCreditTransactions}
           tab={tab}
           user={user}
           timeZone={timeZone}
@@ -441,8 +380,8 @@ export default function ClientProfilePage({
         }}
       >
         <p>
-          The client will become inactive, move to the bottom of All Clients,
-          and disappear from the assigned trainer's active client view.
+          The client will become inactive, move to the bottom of Clients,
+          and remain visible to the assigned trainer. All packages are deactivated. Client information and sessions become read-only.
         </p>
       </ConfirmDialog>
     </>

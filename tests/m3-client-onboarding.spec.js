@@ -1,4 +1,4 @@
-import { expect, test, selectDemoIdentity } from './fixtures.js'
+import { waitForPortal, expect, test, selectDemoIdentity } from './fixtures.js'
 
 const DB_KEY = 'fitfinity-m2-demo-db-v4'
 const stepHeading = (page, name) => page.getByRole('heading', { level: 2, name, exact: true })
@@ -62,6 +62,7 @@ async function noHorizontalOverflow(page) {
 
 test('M3 Add Client shows only the current section, labels required fields and validates Continue', async ({ page }) => {
   await page.goto('/#/clients/new')
+  await waitForPortal(page)
   const before = await page.evaluate(key => localStorage.getItem(key), DB_KEY)
   await expect(stepHeading(page, 'General Information')).toBeVisible()
   await expect(page.locator('.client-onboarding .panel')).toHaveCount(1)
@@ -259,7 +260,7 @@ test('M3 cancel uses the existing unsaved-edit guard without losing the draft wh
   await expect(page.getByLabel('Client name', { exact: true })).toHaveValue('Keep My Draft')
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   await dialog.getByRole('button', { name: 'Leave Without Saving', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'All Clients', level: 1, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clients', level: 1, exact: true })).toBeVisible()
 })
 
 test('M3 automatic matching shows the dropdown and a recoverable no-results state without another button', async ({ page }) => {
@@ -313,6 +314,7 @@ const returnToClientReview = page => page.getByRole('button', { name: 'Return to
 
 test('M3 client summary displays all entered information and section-specific Edit links before saving', async ({ page }) => {
   await page.goto('/#/clients/new')
+  await waitForPortal(page)
   const before = await page.evaluate(key => localStorage.getItem(key), DB_KEY)
   await page.getByLabel('Client name', { exact: true }).fill('Summary Client')
   await page.getByLabel('Client phone number', { exact: true }).fill('9123 4567')

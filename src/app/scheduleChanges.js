@@ -1,6 +1,8 @@
+import { packageForRecord, sessionIsInactive } from './clientPackages.js'
 import { businessClock } from './clock.js'
 import { DAYS, availabilityBlockError, availabilityByDay } from './availability.js'
 import { parseDateOnly, weekday } from '../utils/date.js'
+import { sessionDurationMinutes } from './sessionRules.js'
 
 export function availabilityBlocks(availability = {}) {
   return DAYS.flatMap(day => (availability[day] ?? []).map(([from, to], index) => ({ id: `${day}-${index}`, days: [day], from, to })))
@@ -61,14 +63,20 @@ export function weeklyScheduleChanges(db, client, nextSlots, now = new Date()) {
     days.add(slot.day)
   }
   const clock = businessNow(now, db.settings?.timeZone)
-  const start = client.package.startDate
-  const end = client.package.endDate ?? new Date(parseDateOnly(start).getTime() + (client.package.validityDays - 1) * 86400000).toISOString().slice(0, 10)
   const changes = db.sessions.filter(session => {
-    if (session.clientId !== client.id || session.trainerId !== client.trainerId || ['completed', 'cancelled'].includes(session.status)) return false
-    if (session.date < start || session.date > end || session.date < clock.date || (session.date === clock.date && session.from <= clock.time)) return false
-    return client.fixedWeeklySchedule.some(slot => slot.day === weekday(session.date) && slot.from === session.from && slot.to === session.to)
+    if (session.clientId !== client.id || sessionIsInactive(client, session) || ['completed', 'cancelled'].includes(session.status)) return false
+    const purchased = packageForRecord(client, session)
+    if ((client.additionalPackages ?? []).some(item => item.id === purchased?.id)) return false
+    return session.date > clock.date || (session.date === clock.date && session.from > clock.time)
   }).map(session => {
-    const slot = nextSlots.find(item => item.day === weekday(session.date))
+    // The editor changes times, not booking dates. New bookings carry their slot
+    // identity; legacy bookings can use their weekday or the sole weekly slot.
+    const identified = session.weeklySlotId && nextSlots.find(item => item.id === session.weeklySlotId)
+    const matchingDay = nextSlots.find(item => item.day === weekday(session.date))
+    const previousTime = client.fixedWeeklySchedule.filter(item => item.from === session.from && item.to === session.to)
+    const matchedPrevious = previousTime.length === 1 && nextSlots.find(item => item.day === previousTime[0].day)
+    const slot = identified || matchingDay || (nextSlots.length === 1 ? nextSlots[0] : matchedPrevious)
+    if (!slot) throw new Error(`The session on ${session.date} has no matching weekly slot. Review its date before changing the weekly schedule.`)
     return { ...session, from: slot.from, to: slot.to }
   }).filter(session => {
     const previous = db.sessions.find(item => item.id === session.id)
@@ -78,7 +86,7 @@ export function weeklyScheduleChanges(db, client, nextSlots, now = new Date()) {
   const changedById = new Map(changes.map(session => [session.id, session]))
   const candidate = db.sessions.map(session => changedById.get(session.id) ?? session)
   for (const session of changes) {
-    if (candidate.some(other => other.id !== session.id && !['completed', 'cancelled'].includes(other.status) && other.date === session.date && (other.trainerId === session.trainerId || other.clientId === session.clientId) && other.from < session.to && session.from < other.to)) {
+    if (candidate.some(other => other.id !== session.id && !['completed', 'cancelled'].includes(other.status) && !sessionIsInactive(db.clients.find(item => item.id === other.clientId), other) && other.date === session.date && (other.trainerId === session.trainerId || other.clientId === session.clientId) && other.from < session.to && session.from < other.to)) {
       throw new Error(`The weekly change conflicts with another session on ${session.date}. Choose another time.`)
     }
   }
@@ -87,7 +95,12 @@ export function weeklyScheduleChanges(db, client, nextSlots, now = new Date()) {
 
 export function applyWeeklySchedule(db, client, slots) {
   const changes = weeklyScheduleChanges(db, client, slots)
-  for (const changed of changes) Object.assign(db.sessions.find(session => session.id === changed.id), { from: changed.from, to: changed.to })
+  for (const changed of changes) {
+    const session = db.sessions.find(item => item.id === changed.id)
+    Object.assign(session, { from: changed.from, to: changed.to })
+    if (session.outcome) session.outcome.durationMinutes = sessionDurationMinutes(session)
+  }
   client.fixedWeeklySchedule = slots.map(slot => ({ ...slot }))
+  client.package.fixedWeeklySchedule = structuredClone(client.fixedWeeklySchedule)
   return changes.length
 }

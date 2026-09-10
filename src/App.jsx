@@ -1,7 +1,7 @@
 import ContentManagementPage from './features/content/ContentManagementPage.jsx'
 import PackagesPage from './features/setup/PackagesPage.jsx'
 import { packageDefinitions, activePackages } from './app/packages.js'
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import AppShell from './components/AppShell.jsx'
 import DashboardPage from './features/dashboard/DashboardPage.jsx'
 import ClientsPage from './features/clients/ClientsPage.jsx'
@@ -56,7 +56,7 @@ function StaffPortal() {
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
   const { clientService, trainerService, sessionService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
-  const { path, navigate, goBack, replacePath, pageState } = useAppNavigation(user.id)
+  const { path, navigate, goBack, replacePath, canGoBack, pageState } = useAppNavigation(user.id)
   const calendarState = pageState.values.calendar ?? { mode: 'week', date: today }
   const setCalendarState = next => pageState.setValue('calendar', next, calendarState)
 
@@ -96,7 +96,7 @@ function StaffPortal() {
   const selectedClient = useMemo(
     () =>
       route === 'clients' && detailId && !creatingClient
-        ? visibleClientsForUser(user, clients).find(item => item.id === detailId) ?? null
+        ? visibleClientsForUser(user, clients, sessions).find(item => item.id === detailId) ?? null
         : null,
     [clients, creatingClient, detailId, route, user],
   )
@@ -108,6 +108,10 @@ function StaffPortal() {
         : null,
     [trainers, detailId, route],
   )
+
+  const progressClientId = selectedClient?.id
+  const loadProgressReportHistory = useCallback(packageId =>
+    clientService.progressReportHistory(progressClientId, undefined, packageId), [clientService, progressClientId])
 
   const selectedSession = useMemo(
     () =>
@@ -122,31 +126,12 @@ function StaffPortal() {
       ? trainers.find(item => item.id === user.trainerId)
       : null
 
-  const backFallback =
-    route === 'clients'
-      ? 'clients'
-      : route === 'trainers'
-        ? 'trainers'
-        : route === 'sessions'
-          ? 'sessions'
-          : route === 'remuneration'
-            ? (parts[2] ? `remuneration/${detailId}` : 'remuneration')
-            : route === 'packages' ? 'packages' : route === 'exercises' ? 'exercises' : route === 'content' ? 'content' : 'dashboard'
-
-  useSwipeBack({
-    enabled:
-      creatingClient ||
-      creatingTrainer ||
-      Boolean(selectedClient) ||
-      Boolean(selectedTrainer) ||
-      Boolean(selectedSession) ||
-      Boolean(calendarDay) ||
-      route === 'my-profile' ||
-      route === 'change-password' ||
-      route === 'owner-profile' ||
-      (['remuneration', 'exercises', 'packages', 'content'].includes(route) && Boolean(detailId)),
-    onBack: () => goBack(backFallback),
-  })
+  const backFallback = parts.length > 1
+    ? (route === 'clients' && parts[2] === 'progress' ? `clients/${detailId}${parts[3] ? '/progress' : ''}` : route === 'remuneration' && parts[2] ? `remuneration/${detailId}` : route)
+    : 'dashboard'
+  const back = () => goBack(backFallback)
+  useSwipeBack({ enabled: canGoBack, onBack: back, routeKey: `${user.id}/${path}`,
+    surface: calendarDay ? '.calendar-day-dialog' : '.portal-main' })
 
   const openClient = id => navigate(`clients/${id}`)
   const openAddClient = () => navigate('clients/new')
@@ -207,6 +192,10 @@ function StaffPortal() {
       })
       await reload()
     },
+    onCancelRequest: async id => {
+      await runAction(() => requestService.cancel(id), { message: 'Request cancelled.' })
+      await reload()
+    },
     onMarkRead: async id => {
       await runAction(() => messageService.markRead(id), null)
       await reload()
@@ -247,6 +236,30 @@ function StaffPortal() {
     page = (
       <ClientProfilePage
         key={selectedClient.id}
+        progressRoute={parts[2] === 'progress'}
+        progressPackageId={parts[2] === 'progress' ? parts[3] : undefined}
+        onOpenProgressPackage={id => navigate(`clients/${selectedClient.id}/progress/${id}`, { preserveView: true })}
+        onSelectProfileTab={tab => {
+          if (parts[2] === 'progress') navigate(`clients/${selectedClient.id}${tab === 'progress' ? '/progress' : ''}`, { replace: true, preserveView: true })
+        }}
+        packages={activePackages(db)}
+        policy={policy}
+        packageCreditTransactions={db.packageCreditTransactions}
+        onDeletePackageSessions={async options => {
+          const updated = await runAction(() => clientService.deletePackageSessions(selectedClient.id, options), { tone: 'warning', message: 'Upcoming package sessions deleted.' })
+          await reload()
+          return updated
+        }}
+        onDeactivatePackage={async options => {
+          const updated = await runAction(() => clientService.deactivatePackage(selectedClient.id, options), { tone: 'warning', message: 'Package deactivated.' })
+          await reload()
+          return updated
+        }}
+        onRenewPackage={async draft => {
+          const renewed = await runAction(() => clientService.renewPackage(selectedClient.id, draft), { message: 'Package added.' })
+          await reload()
+          return renewed
+        }}
         user={user}
         client={selectedClient}
         trainer={trainers.find(item => item.id === selectedClient.trainerId)}
@@ -265,7 +278,12 @@ function StaffPortal() {
           await reload()
           return saved
         }}
-        onLoadProgressReportHistory={() => clientService.progressReportHistory(selectedClient.id)}
+        onLoadProgressReportHistory={loadProgressReportHistory}
+        onReassignTrainer={async draft => {
+          const result = await runAction(() => clientService.reassignTrainer(selectedClient.id, draft), { message: 'Trainer permanently reassigned.' })
+          await reload()
+          return result
+        }}
         onSaveFixedWeeklySchedule={async slots => {
           const result = await runAction(() => clientService.saveFixedWeeklySchedule(
             selectedClient.id,
@@ -291,6 +309,7 @@ function StaffPortal() {
   } else if (route === 'clients') {
     page = (
       <ClientsPage
+        sessions={sessions}
         user={user}
         clients={clients}
         trainers={trainers}
@@ -412,7 +431,6 @@ function StaffPortal() {
       cycleKey={detailId}
       trainerId={parts[2]}
       onNavigate={(next, options) => navigate(next, { ...options, preserveView: true })}
-      onBack={() => goBack(detailId ? `remuneration/${detailId}` : 'remuneration')}
       onOpenSession={openSession}
       onApprove={async (cycle, trainer, revision) => {
         await runAction(() => remunerationService.approve(cycle, trainer, revision, user), { message: 'Remuneration approved.' })
@@ -429,7 +447,7 @@ function StaffPortal() {
       }}
     />
   } else if (route === 'packages' && user.role === 'owner') {
-    page = <PackagesPage policy={policy} key={detailId ?? 'list'} packages={packageDefinitions(db)} selectedId={detailId} onNavigate={navigate}
+    page = <PackagesPage policy={policy} key={detailId ?? 'list'} packages={packageDefinitions(db)} selectedId={detailId} onNavigate={navigate} onBack={() => goBack('packages')}
       onSave={async options => {
         const saved = await runAction(() => packageService.save(options, user), { tone: options.draft.status === 'inactive' ? 'warning' : 'success',
           message: options.draft.status === 'inactive' ? 'Package deactivated.' : options.id ? 'Package saved.' : 'Package created.' })
@@ -445,7 +463,7 @@ function StaffPortal() {
   } else if (route === 'owner-profile') {
     page = <UnavailablePage message="This profile is available to the owner." />
   } else if (route === 'content' && user.role === 'owner') {
-    page = <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onSave={async options => { const result = await runAction(() => services.contentService.save(options, user), { message: 'Content saved.' }); await reload(); return result }} />
+    page = <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options, user), { message: 'Content saved.' }); await reload(); return result }} />
   } else if (route === 'dashboard') {
     page = <DashboardPage
       renewals={<MessageInbox {...messageInboxProps} embedded category="renewals" onViewAll={() => navigate('messages/renewals')} />}
@@ -459,29 +477,6 @@ function StaffPortal() {
     page = <UnavailablePage />
   }
 
-  const shellCanGoBack =
-    creatingClient ||
-    creatingTrainer ||
-    Boolean(selectedClient) ||
-    Boolean(selectedTrainer) ||
-    Boolean(selectedSession) ||
-    Boolean(calendarDay) ||
-    route === 'my-profile' ||
-      route === 'change-password' ||
-    route === 'owner-profile' ||
-    (['remuneration', 'exercises', 'packages', 'content'].includes(route) && Boolean(detailId))
-
-  const shellBackFallback =
-    route === 'clients'
-      ? 'clients'
-      : route === 'trainers'
-        ? 'trainers'
-        : route === 'sessions'
-          ? 'sessions'
-          : route === 'remuneration'
-            ? (parts[2] ? `remuneration/${detailId}` : 'remuneration')
-            : route === 'packages' ? 'packages' : route === 'exercises' ? 'exercises' : route === 'content' ? 'content' : 'dashboard'
-
   return (
     <PageState.Provider value={pageState}><AppShell
       accountBusy={accountBusy}
@@ -491,8 +486,8 @@ function StaffPortal() {
       users={db.users}
       userId={user.id}
       route={route}
-      canGoBack={shellCanGoBack}
-      onBack={() => goBack(shellBackFallback)}
+      canGoBack={canGoBack}
+      onBack={back}
       messages={messages}
       onRoute={navigate}
       onSignOut={signOut}

@@ -1,3 +1,4 @@
+import { clientAssignedToTrainer, sessionIsInactive } from './clientPackages.js'
 export function isActive(record) {
   return (record?.status ?? 'active') === 'active'
 }
@@ -24,7 +25,7 @@ export function trainerSelectableForAvailability(trainer) {
   return isActive(trainer)
 }
 
-export function visibleClientsForUser(user, clients) {
+export function visibleClientsForUser(user, clients, sessions = []) {
   const chronological = records => [...records].sort((a, b) => {
     const aInactive = isActive(a) ? 0 : 1
     const bInactive = isActive(b) ? 0 : 1
@@ -37,8 +38,7 @@ export function visibleClientsForUser(user, clients) {
 
   return chronological(
     clients.filter(client =>
-      isActive(client) &&
-      client.trainerId === user.trainerId
+      clientAssignedToTrainer(client, user.trainerId, sessions)
     )
   )
 }
@@ -47,10 +47,11 @@ export function visibleTrainersForOwner(trainers) {
   return sortActiveFirst(trainers)
 }
 
-export function remainingTrainerSessions(trainerId, sessions) {
+export function remainingTrainerSessions(trainerId, sessions, clients = []) {
   return sessions
     .filter(session =>
       session.trainerId === trainerId &&
+      !sessionIsInactive(clients.find(client => client.id === session.clientId), session) &&
       !['completed', 'cancelled'].includes(session.status)
     )
     .sort((a, b) => `${a.date}T${a.from}`.localeCompare(`${b.date}T${b.from}`))

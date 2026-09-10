@@ -13,7 +13,7 @@ const EXERCISE_EDIT_LABEL = 'Exercise library entry'
 const draftFor = (exercise, categories) => ({ name: exercise?.name ?? '', category: exercise?.category ?? categories[0] ?? '', description: exercise?.description ?? '', status: exercise?.status ?? 'active' })
 const mediaLabel = media => media ? media.type.startsWith('image/') ? 'Photo' : 'Video' : '—'
 
-function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia, onSave, onNavigate }) {
+function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia, onSave, onNavigate, onBack }) {
   const confirm = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
   const [editing, setEditing] = useState(creating)
@@ -88,7 +88,7 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
         </div>
         <ExerciseLibraryMedia onLoad={onLoadMedia} file={file} media={removeMedia ? null : exercise?.media} />
         <div className="library-form-actions"><button className="secondary-button" type="button" onClick={() => {
-          if (creating) onNavigate('exercises')
+          if (creating) onBack()
           else { setEditing(false); setFile(null); setMediaError(''); setRemoveMedia(false); setErrors({}); setError('') }
         }}>Cancel</button><button className="primary-button" type="submit" disabled={!creating && !dirty}>{busy ? 'Saving…' : creating ? 'Create Exercise' : 'Save Exercise'}</button></div>
       </fieldset>
@@ -108,7 +108,7 @@ function OwnerExerciseLibrary({ exercises, categories, detailId, onNavigate, onB
     <div className="page-head"><div><span className="eyebrow">Operations</span><h1>{creating ? 'Add Exercise' : 'Exercise Library'}</h1></div>{detailId
       ? <button type="button" className="secondary-button" onClick={onBack}>Back to Exercise Library</button>
       : <button type="button" className="primary-button" onClick={() => onNavigate('exercises/new')}>Add Exercise</button>}</div>
-    {detailId ? creating || selected ? <ExerciseDetail key={detailId} exercise={selected} exercises={exercises} categories={categories} creating={creating} onLoadMedia={onLoadMedia} onSave={onSave} onNavigate={onNavigate} /> : <Panel><p>Exercise not found.</p></Panel>
+    {detailId ? creating || selected ? <ExerciseDetail key={detailId} exercise={selected} exercises={exercises} categories={categories} creating={creating} onLoadMedia={onLoadMedia} onSave={onSave} onNavigate={onNavigate} onBack={onBack} /> : <Panel><p>Exercise not found.</p></Panel>
       : <Panel>
         <div className="library-filters"><input type="search" aria-label="Search exercises" placeholder="Search exercises" value={query} onChange={event => setQuery(event.target.value)} /><select aria-label="Exercise category" value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(item => <option key={item}>{item}</option>)}</select><select aria-label="Exercise status" value={status} onChange={event => setStatus(event.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option><option value="">All statuses</option></select></div>
         <p className="library-count">{visible.length} exercises</p>

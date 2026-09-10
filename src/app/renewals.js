@@ -3,7 +3,7 @@ const packageIdFor = client => client.package.id ?? `legacy-package-${client.id}
 export function appendRenewalMessage(db, client, createdAt = new Date().toISOString()) {
   const purchased = client.package
   const threshold = db.settings.renewal.remainingSessions
-  if (client.status === 'inactive' || !purchased || !Number.isInteger(purchased.total) || !Number.isInteger(purchased.used)
+  if (client.status === 'inactive' || purchased?.status === 'inactive' || !purchased || !Number.isInteger(purchased.total) || !Number.isInteger(purchased.used)
     || purchased.total < 1 || purchased.used < 0 || purchased.used > purchased.total
     || !Number.isInteger(threshold) || threshold < 1) return null
 

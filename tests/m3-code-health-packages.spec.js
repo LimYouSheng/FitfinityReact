@@ -1,4 +1,4 @@
-import { expect, test, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
+import { waitForPortal, expect, test, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -7,6 +7,7 @@ async function start(page, route = 'packages', data = seed) {
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data))
   }, { key: KEY, data })
   await page.goto(`/#/${route}`)
+  await waitForPortal(page)
 }
 const database = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY)
 const routeTo = (page, route) => page.evaluate(route => { location.hash = `#/${route}` }, route)
@@ -36,6 +37,11 @@ async function expectPackageActionSpacing(page) {
 test('M3 Setup upgrades old data, preloads packages and confirms create, edit and deactivation with routed Messages', async ({ page }) => {
   const old = structuredClone(seed); delete old.packages; old.clients[0].name = 'Preserved client'
   await start(page, 'packages', old)
+  const migrated = await database(page)
+  expect(migrated.clients[0]).toMatchObject({ id: old.clients[0].id, name: 'Preserved client', phone: old.clients[0].phone })
+  expect(migrated.sessions).toHaveLength(old.sessions.length)
+  for (const [index, session] of old.sessions.entries()) expect(migrated.sessions[index]).toMatchObject(session)
+  expect(migrated.packages).toEqual(seed.packages)
   for (const text of ['12 sessions · 90 days', '24 sessions · 180 days', '36 sessions · 270 days']) {
     await expect(page.getByLabel('Package list').getByText(text, { exact: true })).toBeVisible()
   }
@@ -45,7 +51,7 @@ test('M3 Setup upgrades old data, preloads packages and confirms create, edit an
   await expect(page.locator('.package-setup form p')).toHaveCount(0)
   await expectPackageActionSpacing(page)
   await page.getByRole('button', { name: 'Create Package', exact: true }).click()
-  expect((await database(page)).packages).toBeUndefined()
+  expect(await database(page)).toEqual(migrated)
   await confirm(page, 'Create Package?', 'Create Package')
   await expect(page.getByRole('heading', { name: 'Package details', exact: true })).toBeVisible()
   await expect(page.locator('.notification-success')).toContainText('Package created.')
@@ -62,8 +68,8 @@ test('M3 Setup upgrades old data, preloads packages and confirms create, edit an
   await expect(page.locator('.package-setup .status-badge')).toHaveText('Inactive')
   await expect(page.locator('.notification-warning')).toContainText('Package deactivated.')
   const after = await database(page)
-  expect(after.clients).toEqual(old.clients)
-  expect(after.sessions).toEqual(old.sessions)
+  expect(after.clients).toEqual(migrated.clients)
+  expect(after.sessions).toEqual(migrated.sessions)
   await routeTo(page, 'messages')
   await page.getByRole('button', { name: 'Open Package updated: Strength programme revised', exact: true }).first().click()
   const dialog = page.getByRole('dialog', { name: 'Package updated: Strength programme revised', exact: true })

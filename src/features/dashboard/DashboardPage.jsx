@@ -1,21 +1,27 @@
 import Panel from '../../components/Panel.jsx'
 import ModalPortal from '../../components/ModalPortal.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
-import { calendarDays, calendarSessions, shiftCalendarDate } from '../../app/calendar.js'
+import { calendarDays, calendarPeriods, calendarSessions, shiftCalendarDate } from '../../app/calendar.js'
 import { sessionStatus } from '../../app/sessionRules.js'
 import { formatDate, parseDateOnly, weekday } from '../../utils/date.js'
 
 export default function DashboardPage({ user, sessions, clients, trainers, today, state, onState, onOpenSession, onAddClient, onAddTrainer, renewals, selectedDay, onOpenDay, onCloseDay }) {
-  const { mode, date } = state
+  const { mode } = state
+  const date = state.date.slice(0, 4) === today.slice(0, 4) ? state.date : today
   const trainerWeek = user.role === 'trainer' && mode === 'week'
   const dates = calendarDays(date, mode)
   const monthStartColumn = mode === 'month' ? (parseDateOnly(dates[0]).getUTCDay() + 6) % 7 + 1 : undefined
   const records = calendarSessions(sessions, dates)
   const dayRecords = selectedDay ? calendarSessions(sessions, [selectedDay]) : []
-  const change = patch => onState({ ...state, ...patch })
+  const periods = calendarPeriods(date, mode, today)
+  const periodValue = mode === 'month' ? `${date.slice(0, 7)}-01` : date
+  const rangeLabel = mode === 'month' ? formatDate(periodValue).slice(3) : `${formatDate(dates[0])} – ${formatDate(dates.at(-1))}`
+  const change = patch => onState({ ...state, date, ...patch })
+  const shifted = amount => shiftCalendarDate(date, mode === 'month' ? amount : amount * 7, mode === 'month' ? 'month' : 'day')
+  const allowed = value => value.slice(0, 4) === today.slice(0, 4)
   const move = amount => {
-    const next = shiftCalendarDate(date, mode === 'month' ? amount : amount * 7, mode === 'month' ? 'month' : 'day')
-    change({ date: next })
+    const next = shifted(amount)
+    if (allowed(next)) change({ date: next })
   }
   const entries = value => records.filter(session => session.date === value)
   const trainerName = id => trainers.find(trainer => trainer.id === id)?.name ?? 'Trainer unavailable'
@@ -23,11 +29,12 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
     id, name: trainerName(id), sessions: dayRecords.filter(session => session.trainerId === id),
   })) : []
   const event = session => {
-    const client = clients.find(client => client.id === session.clientId)?.name ?? 'Client unavailable'
+    const clientRecord = clients.find(client => client.id === session.clientId)
+    const client = clientRecord?.name ?? 'Client unavailable'
     const status = sessionStatus(session.status)
     return <button type="button" className="calendar-event" key={session.id} aria-label={`${session.from}–${session.to}, ${client}, ${status.label}`} onClick={() => onOpenSession(session.id)}>
       <strong>{session.from}–{session.to}</strong>
-      <span className="calendar-event-client">{client}</span>
+      <span className="calendar-event-client">{client}{clientRecord?.status === 'inactive' && <small className="inline-inactive">Client inactive</small>}</span>
       <StatusBadge tone={status.tone} className="calendar-event-status">{status.label}</StatusBadge>
       <span aria-hidden="true">›</span>
     </button>
@@ -59,9 +66,12 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
           </div>
 
           <div className="calendar-toolbar">
-            <button type="button" className="secondary-button" aria-label="Previous calendar period" onClick={() => move(-1)}>‹</button>
-            <strong aria-live="polite">{mode === 'month' ? formatDate(`${date.slice(0, 7)}-01`).slice(3) : `${formatDate(dates[0])} – ${formatDate(dates.at(-1))}`}</strong>
-            <button type="button" className="secondary-button" aria-label="Next calendar period" onClick={() => move(1)}>›</button>
+            <button type="button" className="secondary-button" aria-label="Previous calendar period" disabled={!allowed(shifted(-1))} onClick={() => move(-1)}>‹</button>
+            <select className="calendar-range" aria-label={mode === 'month' ? 'Calendar month' : 'Calendar week'} value={periodValue} onChange={event => change({ date: event.target.value })}>
+              {!periods.some(period => period.value === periodValue) && <option hidden value={periodValue}>{rangeLabel}</option>}
+              {periods.map(period => <option key={period.value} value={period.value}>{period.label}</option>)}
+            </select>
+            <button type="button" className="secondary-button" aria-label="Next calendar period" disabled={!allowed(shifted(1))} onClick={() => move(1)}>›</button>
           </div>
           <div className={`calendar-grid calendar-${mode}${trainerWeek ? ' calendar-agenda' : ''}`} aria-label={`${mode === 'week' ? 'Weekly' : 'Monthly'} calendar`}>
             {dates.map((day, index) => {

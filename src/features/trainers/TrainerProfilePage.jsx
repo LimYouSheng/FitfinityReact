@@ -1,6 +1,10 @@
+import TrainerGeneralFields from './TrainerGeneralFields.jsx'
+import { trainerProfileDraft, trainerStepErrors } from '../../app/trainerOnboarding.js'
+import { phoneText } from '../../app/contact.js'
+import { clientAssignedToTrainer } from '../../app/clientPackages.js'
 import usePageState from '../../hooks/usePageState.js'
 import TrainerAvailabilityEditor from './TrainerAvailabilityEditor.jsx'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { APPROVAL_FIELDS, DAYS } from '../../app/constants.js'
 import { activeTrainers, remainingTrainerSessions } from '../../app/status.js'
 import ApprovalSetting from '../../components/ApprovalSetting.jsx'
@@ -64,8 +68,11 @@ export default function TrainerProfilePage({
   const isOwner = viewer.role === 'owner'
   const [tab, setTab] = usePageState(`trainer.${trainer.id}.${viewer.role}.tab`, 'overview')
   const [activeEditor, setActiveEditor] = useState(null)
-  const [generalDraft, setGeneralDraft] = useState(trainer)
+  const [generalDraft, setGeneralDraft] = useState(() => trainerProfileDraft(trainer, policy))
+  const [generalErrors, setGeneralErrors] = useState({})
+  const generalFields = useRef(null)
   const [ratesDraft, setRatesDraft] = useState(trainer.rates)
+  const [ratesErrors, setRatesErrors] = useState({})
   const [autonomyDraft, setAutonomyDraft] = useState(trainer.approvalNeeded)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
   const [replacements, setReplacements] = useState({})
@@ -74,7 +81,7 @@ export default function TrainerProfilePage({
   const [assignedFrequency, setAssignedFrequency] = usePageState('TrainerProfilePage.assignedFrequency', '')
 
   useEffect(() => {
-    setGeneralDraft(trainer)
+    setGeneralDraft(trainerProfileDraft(trainer, policy))
     setRatesDraft(trainer.rates)
     setAutonomyDraft(trainer.approvalNeeded)
     setActiveEditor(null)
@@ -82,7 +89,7 @@ export default function TrainerProfilePage({
 
   useEffect(() => {
     if (!activeEditor) {
-      setGeneralDraft(trainer)
+      setGeneralDraft(trainerProfileDraft(trainer, policy))
       setRatesDraft(trainer.rates)
       setAutonomyDraft(trainer.approvalNeeded)
     }
@@ -97,10 +104,9 @@ export default function TrainerProfilePage({
   const supervised = Object.values(trainer.approvalNeeded).filter(Boolean).length
   const assignedClients = clients
     .filter(client =>
-      (client.status ?? 'active') === 'active' &&
-      client.trainerId === trainer.id
+      clientAssignedToTrainer(client, trainer.id, sessions)
     )
-    .sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''))
+    .sort((a, b) => Number(a.status === 'inactive') - Number(b.status === 'inactive') || (b.startDate ?? '').localeCompare(a.startDate ?? ''))
 
   const filteredAssignedClients = useMemo(() => {
     const search = assignedQuery.trim().toLowerCase()
@@ -113,8 +119,8 @@ export default function TrainerProfilePage({
   }, [assignedClients, assignedFrequency, assignedQuery, assignedType])
 
   const remaining = useMemo(
-    () => remainingTrainerSessions(trainer.id, sessions),
-    [trainer.id, sessions]
+    () => remainingTrainerSessions(trainer.id, sessions, clients),
+    [trainer.id, sessions, clients]
   )
   const assignedClientPagination = usePagination(filteredAssignedClients, `${trainer.id}|${assignedQuery}|${assignedType}|${assignedFrequency}`, 'trainer.assignedPage')
   const remainingPagination = usePagination(remaining, `${trainer.id}|${deactivateOpen}`, 'trainer.reassignmentPage')
@@ -123,6 +129,8 @@ export default function TrainerProfilePage({
   const allAssigned = remaining.every(session => replacements[session.id])
 
   const saveGeneral = async () => {
+    const errors = trainerStepErrors(generalDraft, 'general')
+    if (Object.keys(errors).length) { setGeneralErrors(errors); return }
     const confirmed = await confirmAction({
       title: 'Save trainer information?',
       message: 'This will update the trainer’s contact, profile and qualification details.',
@@ -131,7 +139,8 @@ export default function TrainerProfilePage({
     if (!confirmed) return
     try {
       await onUpdate({
-        phone: generalDraft.phone,
+        name: generalDraft.name,
+        phone: phoneText(generalDraft.phone),
         email: generalDraft.email,
         birthday: generalDraft.birthday,
         gender: generalDraft.gender,
@@ -140,10 +149,17 @@ export default function TrainerProfilePage({
         publicProfile: generalDraft.publicProfile,
       })
       setActiveEditor(null)
-    } catch { /* The action banner reports failure; keep the draft open. */ }
+    } catch (error) { setGeneralErrors({ save: error.message || 'Trainer information could not be saved.' }) }
   }
 
+  useEffect(() => {
+    if (Object.keys(generalErrors).length) generalFields.current?.querySelector('[aria-invalid="true"]')?.focus()
+  }, [generalErrors])
+
   const saveRates = async () => {
+    const errors = trainerStepErrors({ rates: ratesDraft }, 'rates')
+    if (Object.keys(errors).length) { setRatesErrors(errors); return }
+    setRatesErrors({})
     const confirmed = await confirmAction({
       title: 'Save trainer rates?',
       message: 'This will replace the trainer’s current peak and off-peak session rates.',
@@ -230,11 +246,11 @@ export default function TrainerProfilePage({
             <div className="section-head">
               <div><h2>General Information</h2></div>
               {isOwner && (activeEditor !== 'general' ? (
-                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('general')}>Edit</button>
+                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setGeneralErrors({}); setActiveEditor('general') }}>Edit</button>
               ) : (
                 <div className="inline-actions">
                   <button type="button" className="text-action muted-action" onClick={() => {
-                    setGeneralDraft(trainer)
+                    setGeneralDraft(trainerProfileDraft(trainer, policy))
                     setActiveEditor(null)
                   }}>Cancel</button>
                   <button type="button" className="text-action" onClick={saveGeneral}>Save</button>
@@ -242,39 +258,19 @@ export default function TrainerProfilePage({
               ))}
             </div>
 
-            <div className="info-list profile-info-grid">
+            {activeEditor === 'general' ? <div ref={generalFields}>
+              <TrainerGeneralFields draft={generalDraft} errors={generalErrors} policy={policy} trainers={trainers}
+                onChange={patch => { setGeneralDraft(current => ({ ...current, ...patch })); setGeneralErrors({}) }} />
+              {generalErrors.save && <p role="alert">{generalErrors.save}</p>}
+            </div> : <div className="info-list profile-info-grid">
               {[
-                ['Mobile Number', 'phone', 'text'],
-                ['Email', 'email', 'email'],
-                ['Birthday', 'birthday', 'date'],
-                ['Gender', 'gender', 'text'],
-                ['Trainer type', 'trainerType', 'text'],
-                ['Qualifications', 'qualifications', 'text'],
-              ].map(([label, key, type]) => (
-                <div className="info-row" key={key}>
-                  <span>{label}</span>
-                  {activeEditor === 'general'
-                    ? <input aria-label={label} type={type} value={generalDraft[key]} onChange={event => setGeneralDraft(current => ({ ...current, [key]: event.target.value }))} />
-                    : <strong>{key === 'birthday' ? formatDate(trainer[key]) : trainer[key]}</strong>}
-                </div>
-              ))}
+                ['Trainer name', 'name'], ['Mobile Number', 'phone'], ['Email', 'email'], ['Birthday', 'birthday'],
+                ['Gender', 'gender'], ['Trainer type', 'trainerType'], ['Qualifications', 'qualifications'], ['Public profile', 'publicProfile'],
+              ].map(([label, key]) => <div className="info-row" key={key}><span>{label}</span>
+                <strong>{key === 'birthday' ? formatDate(trainer[key]) : trainer[key]}</strong>
+              </div>)}
+            </div>}
 
-              <div className="info-row">
-                <span>Public profile</span>
-                {activeEditor === 'general'
-                  ? (
-                    <select
-                      aria-label="Public profile"
-                      value={generalDraft.publicProfile}
-                      onChange={event => setGeneralDraft(current => ({ ...current, publicProfile: event.target.value }))}
-                    >
-                      <option>Visible</option>
-                      <option>Hidden</option>
-                    </select>
-                  )
-                  : <strong>{trainer.publicProfile}</strong>}
-              </div>
-            </div>
           </Panel>
 
           <Panel className={activeEditor === 'rates' ? 'editing-section' : ''}>
@@ -282,7 +278,7 @@ export default function TrainerProfilePage({
               <h2>Training & Rates</h2>
 
               {isOwner && (activeEditor !== 'rates' ? (
-                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('rates')}>Edit</button>
+                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setRatesErrors({}); setActiveEditor('rates') }}>Edit</button>
               ) : (
                 <div className="inline-actions">
                   <button
@@ -307,9 +303,10 @@ export default function TrainerProfilePage({
                   ? (
                     <input
                       aria-label="Peak rate"
+                      aria-invalid={Boolean(ratesErrors.peak)}
                       type="number"
                       min="0"
-                      step="1"
+                      step="0.01"
                       value={ratesDraft.peak}
                       onChange={event => setRatesDraft(current => ({
                         ...current,
@@ -326,9 +323,10 @@ export default function TrainerProfilePage({
                   ? (
                     <input
                       aria-label="Off-peak rate"
+                      aria-invalid={Boolean(ratesErrors.offPeak)}
                       type="number"
                       min="0"
-                      step="1"
+                      step="0.01"
                       value={ratesDraft.offPeak}
                       onChange={event => setRatesDraft(current => ({
                         ...current,
@@ -339,6 +337,7 @@ export default function TrainerProfilePage({
                   : <strong>${trainer.rates.offPeak} / session</strong>}
               </div>
             </div>
+            {activeEditor === 'rates' && Object.values(ratesErrors).map(error => <p role="alert" key={error}>{error}</p>)}
           </Panel>
 
           <Panel className={activeEditor === 'autonomy' ? 'editing-section' : ''}>
@@ -433,7 +432,7 @@ export default function TrainerProfilePage({
           <div className="quick-list" aria-label="Assigned client list">
             {assignedClientPagination.items.map(client => (
               <div className="quick-row" key={client.id}>
-                <div><strong>{client.name}</strong><span>{client.type} • {client.package.total} sessions • {client.package.sessionsPerWeek === 2 ? 'Twice' : 'Once'} per week</span></div>
+                <div><strong>{client.name}</strong>{client.status === 'inactive' && <span className="inline-inactive">Client inactive</span>}<span>{client.type} • {client.package.total} sessions • {client.package.sessionsPerWeek === 2 ? 'Twice' : 'Once'} per week</span></div>
                 <button type="button" className="btn small" onClick={() => onOpenClient(client.id)}>View</button>
               </div>
             ))}

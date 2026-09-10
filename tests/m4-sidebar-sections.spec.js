@@ -65,8 +65,8 @@ test('M4 destination navigation reveals its section and account changes start wi
   await expect(nav.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'false')
   await expect(nav.getByRole('button', { name: 'Management section' })).toHaveCount(0)
   await nav.getByRole('button', { name: 'Trainer section' }).click()
-  await nav.getByRole('button', { name: 'All Clients', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'All Clients' })).toBeVisible()
+  await nav.getByRole('button', { name: 'Clients', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible()
 })
 
 // A desktop context exercises hardware-keyboard traversal on both engines.

@@ -1,3 +1,5 @@
+import { packageForRecord } from '../../app/clientPackages.js'
+import { weeklyFrequencyLabel } from '../../app/packages.js'
 import SignaturePad, { SignaturePreview } from '../../components/SignaturePad.jsx'
 import { validSignature, hasSessionAcknowledgement } from '../../app/signature.js'
 import { useEffect, useState } from 'react'
@@ -6,7 +8,7 @@ import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
-import { sessionStatus, pendingSessionChanges, sessionActionError } from '../../app/sessionRules.js'
+import { sessionStatus, pendingSessionChanges, sessionActionError, sessionDurationMinutes } from '../../app/sessionRules.js'
 import { businessClock } from '../../app/clock.js'
 import { sessionTimeChangeError } from '../../app/scheduleChanges.js'
 import { exerciseResultsFor } from '../../app/progress.js'
@@ -14,12 +16,6 @@ import { formatDate, formatTimestamp, weekday } from '../../utils/date.js'
 import ExercisePlanEditor from './ExercisePlanEditor.jsx'
 import { exerciseVideoCaption } from './exerciseVideo.js'
 import { sessionSummaryWhatsAppText } from './sessionExport.js'
-
-function durationMinutes(session) {
-  const [fromHour, fromMinute] = session.from.split(':').map(Number)
-  const [toHour, toMinute] = session.to.split(':').map(Number)
-  return Math.max(0, (toHour * 60 + toMinute) - (fromHour * 60 + fromMinute))
-}
 
 function automaticClientSummary(session, outcome) {
   const items = session.exercisePlan ?? []
@@ -70,10 +66,10 @@ export default function SessionDetailsPage({
   const confirmAction = useActionConfirmation()
   const { setActiveEdit } = useEditGuard()
   const fallbackOutcome = {
-    durationMinutes: durationMinutes(session),
+    durationMinutes: sessionDurationMinutes(session),
     trainerComments: '',
   }
-  const outcome = { ...(session.outcome ?? fallbackOutcome), exerciseResults: exerciseResultsFor(session) }
+  const outcome = { ...(session.outcome ?? fallbackOutcome), durationMinutes: sessionDurationMinutes(session), exerciseResults: exerciseResultsFor(session) }
   const displayedSummary = session.clientSummary || automaticClientSummary(session, outcome)
 
   const [activeEditor, setActiveEditor] = useState(null)
@@ -130,7 +126,7 @@ export default function SessionDetailsPage({
       setOutcomeDraft(outcome)
       setSummaryDraft(displayedSummary)
     }
-  }, [activeEditor, displayedSummary, session.id, session.outcome])
+  }, [activeEditor, displayedSummary, session.id, session.outcome, session.from, session.to])
 
   useEffect(() => {
     setDetailsDraft({
@@ -144,14 +140,23 @@ export default function SessionDetailsPage({
     setDetailsError('')
   }, [session.date, session.from, session.id, session.to, session.trainerId])
 
+  useEffect(() => {
+    if (client.status !== 'inactive' && packageForRecord(client, session)?.status !== 'inactive') return
+    setActiveEditor(null); setRequestKind(null); setAcknowledgementMethod(null); setExportOpen(false)
+  }, [client.status, client.package, client.packageHistory, session.packageId])
+
   const status = sessionStatus(session.status)
   const isOwner = user.role === 'owner'
   const assignedTrainer = user.role === 'trainer' && user.trainerId === session.trainerId
-  const sessionEditable = session.status !== 'completed'
+  const clientInactive = client.status === 'inactive'
+  const purchased = packageForRecord(client, session)
+  const packageInactive = purchased?.status === 'inactive'
+  const recordInactive = clientInactive || packageInactive
+  const sessionEditable = !recordInactive && !['completed', 'cancelled'].includes(session.status)
   const canEditPlan = (isOwner || assignedTrainer) && sessionEditable
-  const canEditNotes = isOwner || assignedTrainer
+  const canEditNotes = !recordInactive && (isOwner || assignedTrainer)
   const signed = session.acknowledgement?.method === 'signature'
-  const canAcknowledge = (isOwner || assignedTrainer) && !signed
+  const canAcknowledge = !recordInactive && (isOwner || assignedTrainer) && !signed
   const acknowledgementHistory = session.acknowledgementHistory?.length ? session.acknowledgementHistory : session.acknowledgement ? [session.acknowledgement] : []
   const replacementTrainers = trainers.filter(item => item.status !== 'inactive' && item.id !== session.trainerId)
   const recordedVideos = (session.exercisePlan ?? []).filter(item => item.videoAttached)
@@ -179,7 +184,7 @@ export default function SessionDetailsPage({
   const validSchedule = draft => Boolean(draft.date && draft.from && draft.to && draft.from < draft.to)
 
   const openExportSummary = () => {
-    if (!checkTrainingDate()) return
+    if (recordInactive || !checkTrainingDate()) return
     setSelectedVideoIds(recordedVideos.map(item => item.id))
     setIncludeClientSummary(true)
     setShareFallback('')
@@ -297,7 +302,7 @@ export default function SessionDetailsPage({
   }
 
   const confirmAcknowledgement = async () => {
-    if (!checkTrainingDate()) return
+    if (recordInactive || !checkTrainingDate()) return
     const method = acknowledgementMethod
     if (method === 'signature' && !validSignature(signature)) return
     setAcknowledgementMethod(null)
@@ -406,13 +411,13 @@ export default function SessionDetailsPage({
               )
             ) : (
               <>
-                <button type="button" className="text-action" disabled={!sessionEditable || Boolean(activeEditor) || Boolean(timeChangeError)} title={timeChangeError || undefined} onClick={() => {
+                <button type="button" className="text-action" disabled={saving || !sessionEditable || Boolean(activeEditor) || Boolean(timeChangeError)} title={timeChangeError || undefined} onClick={() => {
                   setDetailsError('')
                   if (!checkTimeRequest(null)) return
                   setTimeRequestDraft({ date: session.date, from: session.from, to: session.to })
                   setRequestKind('time')
                 }}>Request Time Change</button>
-                <button type="button" className="text-action" disabled={!sessionEditable || Boolean(activeEditor)} onClick={() => {
+                <button type="button" className="text-action" disabled={saving || !sessionEditable || Boolean(activeEditor)} onClick={() => {
                   setDetailsError('')
                   setTrainerRequestId('')
                   setRequestKind('trainer')
@@ -427,6 +432,7 @@ export default function SessionDetailsPage({
             <span className="session-fact-label">Client</span>
             <div className="session-overview-value">
               <strong>{client.name}</strong>
+              {clientInactive && <StatusBadge tone="amber">Client inactive</StatusBadge>}
               {activeEditor !== 'details' && <button type="button" className="text-action" aria-label="View Client" onClick={onOpenClient}>View</button>}
             </div>
           </div>
@@ -454,9 +460,15 @@ export default function SessionDetailsPage({
             ) : <strong>{weekday(session.date)}, {formatDate(session.date)} · {session.from}–{session.to}</strong>}
           </div>
 
-          <div className="session-overview-item">
+          <div className="session-overview-item" aria-label="Session package details">
             <span className="session-fact-label">Package details</span>
-            <strong>{client.type} · Session {session.sessionNumber} / {session.packageTotal}</strong>
+            {purchased ? <>
+              <strong>{purchased.name ?? `${purchased.total} Sessions`} · Session {session.sessionNumber} / {purchased.total}</strong>
+              <span>{formatDate(purchased.startDate)} – {formatDate(purchased.endDate)}</span>
+              <span>{purchased.used} completed · {Math.max(0, purchased.total - purchased.used)} remaining</span>
+              {purchased.sessionsPerWeek && <span>{weeklyFrequencyLabel(purchased.sessionsPerWeek, true)} · {purchased.validityDays} days</span>}
+            </> : <strong>Package details unavailable</strong>}
+            {packageInactive && <StatusBadge tone="amber">Package inactive</StatusBadge>}
           </div>
         </div>
       </Panel>
@@ -498,7 +510,7 @@ export default function SessionDetailsPage({
           <div className="session-outcome-editor">
             <label>
               Duration (minutes)
-              <input type="number" min="0" value={outcomeDraft.durationMinutes} onChange={event => setOutcomeDraft(current => ({ ...current, durationMinutes: event.target.value }))} />
+              <input type="number" readOnly value={sessionDurationMinutes(session)} />
             </label>
             <label>
               Trainer comments
@@ -573,7 +585,7 @@ export default function SessionDetailsPage({
         <button
           type="button"
           className="session-action-button session-export-summary-button"
-          disabled={Boolean(activeEditor || requestKind || saving || dateError)}
+          disabled={Boolean(recordInactive || activeEditor || requestKind || saving || dateError)}
           title={dateError ?? undefined}
           onClick={openExportSummary}
         >

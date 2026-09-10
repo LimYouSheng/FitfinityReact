@@ -3,7 +3,9 @@ import { seed } from '../src/data/seed.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
 async function request(page, type = 'session_time') {
   await page.clock.setFixedTime(new Date('2026-09-02T04:00:00Z'))
-  await page.addInitScript(({key, data}) => { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data)) }, {key:KEY, data:seed})
+  const data = structuredClone(seed)
+  data.sessions.find(item => item.id === 's1').date = '2026-09-02'
+  await page.addInitScript(({key, data}) => { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data)) }, {key:KEY, data})
   await page.goto('/#/dashboard')
   await expect(page.getByRole('heading', { name:'Owner Dashboard' })).toBeVisible()
   await page.evaluate(({key,type}) => {

@@ -13,6 +13,20 @@ const owner = () => mockDb.read().users.find(user => user.role === 'owner')
 beforeEach(() => mockDb.reset())
 
 describe('trainer creation service', () => {
+  it('applies creation validation to profile edits, synchronizes staff identity and preserves sessions and decimal rates on reload', async () => {
+    const before = mockDb.read(), trainer = before.trainers[0]
+    for (const patch of [{ gender: 'invalid' }, { phone: '+65 abc' }, { rates: { peak: '', offPeak: 55 } }, { rates: { peak: 80.251, offPeak: 55 } }, { email: before.trainers[1].email }]) {
+      await expect(trainerService.update(trainer.id, patch)).rejects.toThrow()
+      expect(mockDb.read()).toEqual(before)
+    }
+    await trainerService.update(trainer.id, { name: 'Marcus Lee', email: ' MARCUS.UPDATED@EXAMPLE.COM ', phone: '+60 123456789', gender: 'Male', qualifications: 'Updated certification\nFirst aid', rates: { peak: 80.25, offPeak: 55.50 } })
+    const after = mockDb.reload(), updated = after.trainers.find(item => item.id === trainer.id)
+    expect(updated).toMatchObject({ name: 'Marcus Lee', email: 'marcus.updated@example.com', phone: '+60 123456789', rates: { peak: 80.25, offPeak: 55.50 } })
+    expect(after.users.find(item => item.trainerId === trainer.id)).toMatchObject({ name: updated.name, email: updated.email })
+    expect(updated.availability).toEqual(trainer.availability)
+    expect(after.clients).toEqual(before.clients)
+    expect(after.sessions).toEqual(before.sessions)
+  })
   it('atomically creates the profile, demo identity and independently unread routed messages', async () => {
     const result = await trainerService.create(draft(), owner())
     const state = mockDb.read()

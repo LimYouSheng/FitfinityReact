@@ -1,3 +1,5 @@
+import { cleanClientProgressRecords, packageForRecord } from './clientPackages.js'
+
 export const PROGRESS_REPORT_ACTIONS = {
   pdf_export: 'PDF export',
   pdf_share_opened: 'PDF share opened',
@@ -29,22 +31,37 @@ export function exerciseResultsFor(session) {
   })
 }
 
-export function updateClientProgress(db, clientId) {
-  const client = db.clients.find(item => item.id === clientId)
-  if (!client) return
-  client.progressBaseline ??= structuredClone(client.strengthProgress ?? []).map(exercise => ({
-    ...exercise, points: exercise.points.filter(point => !point.sessionId),
-  }))
-  const exercises = structuredClone(client.progressBaseline)
-  for (const session of db.sessions.filter(item => item.clientId === clientId && item.status === 'completed')) {
-    if (session.acknowledgement?.method === 'late_no_show') continue
+export function clientProgressExercises(client, sessions) {
+  const exercises = []
+  for (const session of sessions.filter(item => item.clientId === client.id && item.status === 'completed')) {
+    const purchased = packageForRecord(client, session)
+    if (session.acknowledgement?.method === 'late_no_show' || !purchased) continue
     const results = session.exerciseResults ?? (session.acknowledgement?.method === 'signature' ? validateExerciseResults(exerciseResultsFor(session)) : [])
     for (const result of results) {
       let exercise = exercises.find(item => item.name.toLowerCase() === result.name.toLowerCase())
       if (!exercise) { exercise = { id: `progress-${result.id}`, name: result.name, points: [] }; exercises.push(exercise) }
-      exercise.points.push({ id: `result-${session.id}-${result.id}`, sessionId: session.id, date: session.date, load: result.loadKg, reps: result.reps, sets: result.sets })
+      exercise.points.push({ id: `result-${session.id}-${result.id}`, sessionId: session.id, packageId: purchased.id, date: session.date, load: result.loadKg, reps: result.reps, sets: result.sets })
     }
   }
   for (const exercise of exercises) exercise.points.sort((a, b) => `${a.date}|${a.id}`.localeCompare(`${b.date}|${b.id}`))
-  client.strengthProgress = exercises.filter(exercise => exercise.points.length)
+  return exercises.filter(exercise => exercise.points.length)
+}
+
+export function updateClientProgress(db, clientId) {
+  const client = db.clients.find(item => item.id === clientId)
+  if (!client) return
+  cleanClientProgressRecords(db, client)
+  // Session evidence owns reports; the stored aggregate is only a derived cache.
+  delete client.progressBaseline
+  client.strengthProgress = clientProgressExercises(client, db.sessions)
+}
+
+// Count sessions, not debited credits or exercise rows. Pending/no-show records
+// remain visible in history without claiming a measured workout occurred.
+export function progressSessionSummary(client, sessions, packageId) {
+  const completed = sessions.filter(session => session.clientId === client.id && session.status === 'completed' &&
+    (packageId === undefined || packageForRecord(client, session)?.id === packageId))
+  const recorded = new Set((client.strengthProgress ?? []).flatMap(exercise => exercise.points
+    .filter(point => packageId === undefined || point.packageId === packageId).map(point => point.sessionId)))
+  return { completed: completed.length, recorded: completed.filter(session => session.acknowledgement?.method !== 'late_no_show' && recorded.has(session.id)).length }
 }

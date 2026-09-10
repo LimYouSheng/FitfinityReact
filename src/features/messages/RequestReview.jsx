@@ -3,7 +3,7 @@ import { formatDate, weekday } from '../../utils/date.js'
 import { useRef, useState } from 'react'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 
-export default function RequestReview({ message, trainers, sessions, onResolve }) {
+export default function RequestReview({ message, trainers, sessions, onResolve, onCancel }) {
   const confirm = useActionConfirmation()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -21,8 +21,12 @@ export default function RequestReview({ message, trainers, sessions, onResolve }
     setError('')
     try {
       const approved = decision === 'approved'
-      if (await confirm({ title: approved ? 'Approve request?' : 'Reject request?', confirmLabel: approved ? 'Approve Request' : 'Reject Request', message: approved ? 'Apply the reviewed change and notify the affected trainer(s)?' : 'Reject the proposed change and notify the requesting trainer?' })) {
-        await onResolve(message.id, decision)
+      const cancelled = decision === 'cancelled'
+      if (await confirm({ title: cancelled ? 'Cancel this request?' : approved ? 'Approve request?' : 'Reject request?',
+        confirmLabel: cancelled ? 'Cancel Request' : approved ? 'Approve Request' : 'Reject Request',
+        message: cancelled ? 'Cancel this pending request and notify the owner? Other requests are unchanged.' : approved ? 'Apply the reviewed change and notify the affected trainer(s)?' : 'Reject the proposed change and notify the requesting trainer?' })) {
+        if (cancelled) await onCancel(message.requestId ?? message.id)
+        else await onResolve(message.id, decision)
       }
     } catch (failure) { setError(failure.message) }
     finally { locked.current = false; setBusy(false) }
@@ -56,9 +60,12 @@ export default function RequestReview({ message, trainers, sessions, onResolve }
       {isAvailability && <p className="request-effect">Availability controls future matching. Existing booked sessions keep their dates and times.</p>}
       {isWeekly && <p className="request-effect">Approval updates future sessions in the current package that still follow the previous weekly times. Completed, cancelled and individually rescheduled sessions remain unchanged.</p>}
       {error && <p role="alert" className="onboarding-error">{error}</p>}
-      {message.status === 'pending' && <div className="request-decision-actions">
-        <button type="button" className="onboarding-button request-reject" disabled={busy} onClick={() => decide('rejected')}>Reject Request</button>
-        <button type="button" className="onboarding-button request-approve" disabled={busy} onClick={() => decide('approved')}>Approve Request</button>
+      {message.status === 'pending' && (onResolve || onCancel) && <div className="request-decision-actions">
+        {onCancel && <button type="button" className="onboarding-button request-reject" disabled={busy} onClick={() => decide('cancelled')}>Cancel Request</button>}
+        {onResolve && <>
+          <button type="button" className="onboarding-button request-reject" disabled={busy} onClick={() => decide('rejected')}>Reject Request</button>
+          <button type="button" className="onboarding-button request-approve" disabled={busy} onClick={() => decide('approved')}>Approve Request</button>
+        </>}
       </div>}
     </section>
   )

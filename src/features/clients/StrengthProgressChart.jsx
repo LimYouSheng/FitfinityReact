@@ -30,8 +30,10 @@ export default function StrengthProgressChart({ exercise, ...placement }) {
       return <line key={index} x1={CHART.left} x2={CHART.right} y1={y} y2={y} stroke="#292f39" strokeWidth="1" />
     })}
     <text x="18" y="142" fill="#747d8d" fontSize="9" transform="rotate(-90 18 142)">Load (kg)</text>
-    <polygon points={area} fill={`url(#${areaId})`} />
-    <polyline points={line} fill="none" stroke={`url(#${lineId})`} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+    {points.length > 1 && <>
+      <polygon points={area} fill={`url(#${areaId})`} />
+      <polyline points={line} fill="none" stroke={`url(#${lineId})`} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+    </>}
     {points.map((point, index) => {
       const latest = index === points.length - 1
       return <g key={point.id}>

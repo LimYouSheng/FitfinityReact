@@ -8,6 +8,8 @@ import { mockPortalAdapter } from './mockPortalAdapter.js'
 import { contentService } from './contentService.js'
 import { sessionService } from './sessionService.js'
 import { signatureFixture } from '../test/fixtures/signature.js'
+import { clientService } from './clientService.js'
+import { clientProfileDraft } from '../app/clientOnboarding.js'
 
 const owner = () => mockDb.read().users.find(item => item.role === 'owner')
 const content = {title:'About the studio',key:'about',body:'Our studio details',status:'draft'}
@@ -100,6 +102,48 @@ describe('M4 account and service contract', () => {
   })
 })
 describe('M4 persisted frontend records', () => {
+  it('saves individual profile contacts through the adapter with synchronized person fields and unchanged session evidence', async () => {
+    await authService.signIn({ identifier: owner().id, password: mockAccountPassword })
+    const before = mockDb.read(), original = before.clients[0]
+    const person = clientProfileDraft(original, before.settings).people[0]
+    const people = [{ ...person, name: 'Amanda Lee', gender: 'Prefer not to say', phone: { countryCode: '+60', number: '123456789' } }]
+    await mockPortalAdapter.invoke('clientService', 'update', [original.id, { people }])
+    const after = mockDb.reload(), client = after.clients[0]
+    expect(client).toMatchObject({ name: 'Amanda Lee', gender: 'Prefer not to say', phone: people[0].phone, people })
+    expect(client.package).toEqual(original.package)
+    expect(client.packageHistory).toEqual(original.packageHistory)
+    expect(client.strengthProgress).toEqual(original.strengthProgress)
+    expect(after.sessions).toEqual(before.sessions)
+    expect(after.packageCreditTransactions).toEqual(before.packageCreditTransactions)
+    await clientService.update(client.id, { healthNotes: 'Updated coaching notes' })
+    expect(mockDb.reload().clients[0].people[0].healthNotes).toBe('Updated coaching notes')
+    const trainer = mockDb.read().users.find(item => item.trainerId === client.trainerId)
+    await authService.switchDemoIdentity(trainer.id)
+    const saved = mockDb.read()
+    await expect(mockPortalAdapter.invoke('clientService', 'update', [client.id, { people }])).rejects.toThrow('owner')
+    expect(mockDb.read()).toEqual(saved)
+  })
+  it('keeps couple people distinct, preserves independent coaching notes and rejects invalid or incomplete profile changes atomically', async () => {
+    const before = mockDb.read(), client = before.clients.find(item => item.type === 'Couple')
+    const legacy = clientProfileDraft(client, before.settings)
+    expect(legacy.people.map(person => person.name)).toEqual([client.name, ''])
+    await expect(clientService.update(client.id, { people: legacy.people })).rejects.toThrow()
+    await expect(clientService.update(client.id, { people: [] })).rejects.toThrow('Review each')
+    expect(mockDb.read()).toEqual(before)
+    const people = legacy.people.map((person, index) => ({ ...person, name: index ? 'Mei Wong' : 'Daniel Wong', gender: index ? 'Female' : 'Male', healthNotes: index ? 'Shoulder mobility' : 'Knee mobility' }))
+    await clientService.update(client.id, { people })
+    await clientService.update(client.id, { healthNotes: 'Updated shared coaching notes' })
+    const saved = mockDb.read()
+    await expect(clientService.update(client.id, { people: people.map(person => ({ ...person, gender: 'invalid' })) })).rejects.toThrow('gender')
+    expect(mockDb.read()).toEqual(saved)
+    people[1].email = 'mei.updated@example.com'
+    await clientService.update(client.id, { people })
+    const after = mockDb.reload(), result = after.clients.find(item => item.id === client.id)
+    expect(result).toMatchObject({ name: 'Daniel Wong & Mei Wong', gender: 'Couple', email: people[0].email, people, healthNotes: 'Updated shared coaching notes' })
+    expect(result.package).toEqual(client.package)
+    expect(after.sessions).toEqual(before.sessions)
+    expect(after.packageCreditTransactions).toEqual(before.packageCreditTransactions)
+  })
   it('creates, reloads, edits and archives content with version and duplicate-key protection', async () => {
     const created=await contentService.save({draft:content},owner())
     expect(mockDb.reload().contentEntries[0]).toEqual(created)

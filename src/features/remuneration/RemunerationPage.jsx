@@ -32,7 +32,7 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const operationPending = useRef(false)
-  const pagination = usePagination(record.rows, `${record.cycle.key}/${record.trainerId}`)
+  const pagination = usePagination(record.rows, `${record.cycle.key}/${record.trainerId}`, 'remuneration.sessionPage')
   const approved = record.status === 'Approved'
 
   const approve = async () => {
@@ -82,7 +82,7 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
   </>
 }
 
-export default function RemunerationPage({ user, views, policy, cycleKey, trainerId, onNavigate, onBack, onApprove, onOpenSession }) {
+export default function RemunerationPage({ user, views, policy, cycleKey, trainerId, onNavigate, onApprove, onOpenSession }) {
   const [hidden, setHidden] = usePageState('RemunerationPage.hidden', true)
   const money = cents => hidden ? '••••' : formatMoney(cents, policy)
   const keys = views.map(view => view.key)
@@ -91,16 +91,14 @@ export default function RemunerationPage({ user, views, policy, cycleKey, traine
   const view = views.find(view => view.key === key)
   const records = view?.trainers ?? []
   const selected = trainerId ? records.find(record => record.trainerId === trainerId) : null
-  const pagination = usePagination(records, `${user.id}/${key}`)
+  const pagination = usePagination(records, `${user.id}/${key}`, 'remuneration.trainerPage')
   const inaccessible = (cycleKey && !validKey) || (trainerId && !selected)
   return <div className="remuneration-page">
     <div className="page-head"><div><span className="eyebrow">Monthly pay cycles</span><h1>Remuneration</h1></div><MoneyToggle hidden={hidden} onClick={() => setHidden(value => !value)} /></div>
     {inaccessible ? <Panel><p>This remuneration record is unavailable for your account.</p><button className="secondary-button" onClick={() => onNavigate('remuneration')}>Back to Remuneration</button></Panel> : <>
       <div className="remuneration-toolbar">
-        {selected ? <>
-          <button className="secondary-button" type="button" onClick={onBack}>Back to Pay Cycle</button>
-          <p className="remuneration-cycle-caption">{cycleLabel(view.cycle)}</p>
-        </> : <label><span>Pay cycle</span><select aria-label="Pay cycle" value={key} onChange={event => onNavigate(`remuneration/${event.target.value}`)}>{keys.map(value => <option key={value} value={value}>{cycleLabel(views.find(view => view.key === value).cycle)}</option>)}</select></label>}
+        {selected ? <p className="remuneration-cycle-caption">{cycleLabel(view.cycle)}</p>
+          : <label><span>Pay cycle</span><select aria-label="Pay cycle" value={key} onChange={event => onNavigate(`remuneration/${event.target.value}`)}>{keys.map(value => <option key={value} value={value}>{cycleLabel(views.find(view => view.key === value).cycle)}</option>)}</select></label>}
       </div>
       <Panel>{selected ? <TrainerBreakdown key={`${key}/${selected.trainerId}`} record={selected} owner={user.role === 'owner'} hidden={hidden} money={money} onApprove={onApprove} onOpenSession={onOpenSession} /> : <>
         <Totals records={records} money={money} />

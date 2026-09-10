@@ -20,7 +20,7 @@ function prepare(used = 9, total = 12) {
   return mockDb.mutate(db => {
     Object.assign(amanda(db).package, { id: 'amanda-current-package', used, total })
     db.messages = db.messages.filter(message => message.kind !== 'renewal' || message.clientId !== 'c1')
-    for (const id of ['s1', 's2']) db.sessions.find(session => session.id === id).date = '2026-09-01'
+    for (const id of ['s1', 's2']) Object.assign(db.sessions.find(session => session.id === id), { date: '2026-09-01', packageId: amanda(db).package.id })
   })
 }
 

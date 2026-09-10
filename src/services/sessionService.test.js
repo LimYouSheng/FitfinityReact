@@ -8,12 +8,14 @@ const acknowledgementActor = () => mockDb.read().users.find(user => user.role ==
 describe('session service', () => {
   beforeEach(() => {
     mockDb.reset()
+  mockDb.mutate(db => { db.sessions.find(item => item.id === 's1').date = '2026-09-02'; db.sessions.find(item => item.id === 's2').date = '2026-09-07' })
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-09-09T04:00:00Z'))
   })
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
   it('saves a valid plan and changes Not Planned to Planned', async () => {
+    mockDb.mutate(db => { Object.assign(db.sessions.find(item => item.id === 's2'), { status: 'not_planned', exercisePlan: [] }) })
     await sessionService.saveExercisePlan('s2', [{
       id: 'draft-1', name: 'Romanian Deadlift', weight: '24 kg', customDetails: [], reps: '8', rounds: '3', rest: '75 sec',
       videoAttached: true,
@@ -30,7 +32,7 @@ describe('session service', () => {
     await sessionService.copyPreviousPlan('s1')
     const session = mockDb.read().sessions.find(item => item.id === 's1')
 
-    expect(session.exercisePlan.map(item => item.name)).toEqual(['Goblet Squat', 'Seated Cable Row'])
+    expect(session.exercisePlan.map(item => item.name)).toEqual(['Goblet Squat', 'Seated Cable Row', 'DB Chest Press', 'Romanian Deadlift', 'Lat Pulldown', 'Walking Lunge'])
     expect(session.copiedFromSessionId).toBe('s0')
     expect(session.exercisePlan[0].id).not.toBe('exercise-s0-1')
   })
@@ -123,7 +125,7 @@ describe('session service', () => {
     await sessionService.markWhatsAppOpened('s1')
 
     const session = mockDb.read().sessions.find(item => item.id === 's1')
-    expect(session.outcome).toEqual({ durationMinutes: 55, trainerComments: 'Technique remained consistent.' })
+    expect(session.outcome).toEqual({ durationMinutes: 60, trainerComments: 'Technique remained consistent.' })
     expect(session.clientSummary).toBe('Custom client-ready summary.')
     expect(session.whatsappOpenedAt).toBeTruthy()
     expect(session.whatsappOpenCount).toBe(2)

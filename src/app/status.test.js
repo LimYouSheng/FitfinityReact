@@ -17,7 +17,7 @@ describe('active/inactive foundation', () => {
     expect(trainerSelectableForAvailability(trainers[1])).toBe(false)
   })
 
-  it('removes inactive clients from trainer active-client view', () => {
+  it('retains assigned inactive clients below active clients and excludes other trainers clients', () => {
     const user = { role: 'trainer', trainerId: 't1' }
     const clients = [
       { id: 'c1', name: 'A', trainerId: 't1', status: 'active' },
@@ -25,7 +25,7 @@ describe('active/inactive foundation', () => {
       { id: 'c3', name: 'C', trainerId: 't2', status: 'active' },
     ]
 
-    expect(visibleClientsForUser(user, clients).map(item => item.id)).toEqual(['c1'])
+    expect(visibleClientsForUser(user, clients).map(item => item.id)).toEqual(['c1', 'c2'])
   })
 
   it('flushes inactive records to the bottom', () => {

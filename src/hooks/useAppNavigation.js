@@ -16,7 +16,11 @@ function readEntry(fallbackDepth = 0) {
 /** One owner for page history, including native Back/Forward during an edit. */
 export default function useAppNavigation(userId = '') {
   const { activeEdit, guardNavigation } = useEditGuard()
-  const [entry, setEntry] = useState(() => readEntry())
+  const [entry, setEntry] = useState(() => {
+    const initial = readEntry()
+    return initial.state?.fitfinityUserId != null && initial.state.fitfinityUserId !== userId
+      ? { ...initial, path: 'dashboard' } : initial
+  })
   const path = entry.path
   const current = useRef(null)
   const mounted = useRef(false)
@@ -50,7 +54,7 @@ export default function useAppNavigation(userId = '') {
   const setValue = useCallback((key, next, initialValue) => {
     if (!mounted.current || pending.current) return
     const actual = readEntry()
-    if (actual.path !== current.current?.path) return
+    if (actual.path !== current.current?.path || actual.path !== path) return
     const values = actual.state?.fitfinityUserId === userId ? actual.state.fitfinityPageState ?? {} : {}
     const previous = Object.hasOwn(values, key) ? values[key] : initialValue
     const value = typeof next === 'function' ? next(previous) : next
@@ -59,12 +63,19 @@ export default function useAppNavigation(userId = '') {
     history.replaceState(state, '', location.href)
     current.current = { ...actual, state }
     setEntry(current.current)
-  }, [userId])
+  }, [userId, path])
 
   useLayoutEffect(() => {
     mounted.current = true
     const initial = readEntry()
+    if (initial.state?.fitfinityUserId != null && initial.state.fitfinityUserId !== userId) {
+      initial.path = 'dashboard'
+      history.replaceState(null, '', '#/dashboard')
+      initial.depth = 0
+      initial.state = null
+    }
     initial.state ??= { fitfinity: true, fitfinityDepth: initial.depth, fitfinityPath: initial.path }
+    initial.state.fitfinityUserId = userId
     history.replaceState(initial.state, '', location.href)
     current.current = initial
     // The hash may change between the first render and this effect (notably during startup).
@@ -96,7 +107,7 @@ export default function useAppNavigation(userId = '') {
     const sync = () => {
       const entry = readEntry((current.current?.depth ?? 0) + 1)
       if (!entry.state) {
-        entry.state = { fitfinity: true, fitfinityDepth: entry.depth, fitfinityPath: entry.path }
+        entry.state = { fitfinity: true, fitfinityDepth: entry.depth, fitfinityPath: entry.path, fitfinityUserId: userId }
         history.replaceState(entry.state, '', location.href)
       }
       const key = token(entry)
@@ -202,12 +213,13 @@ export default function useAppNavigation(userId = '') {
   }, [activeEdit])
 
   const navigate = useCallback((next, options = {}) => {
-    if (!mounted.current || pending.current) return Promise.resolve(false)
+    if (!mounted.current || pending.current || allowedTraversal.current) return Promise.resolve(false)
+    if (cleanPath(next) === current.current?.path && !history.state?.fitfinityOverlay) return Promise.resolve(false)
     return guardNavigation(() => write(next, options.replace, options.preserveView))
   }, [guardNavigation, write])
 
   const goBack = useCallback(fallback => {
-    if (!mounted.current || pending.current) return Promise.resolve(false)
+    if (!mounted.current || pending.current || allowedTraversal.current) return Promise.resolve(false)
     return guardNavigation(() => {
       if (!mounted.current) return
       persistScroll.current()
@@ -220,5 +232,5 @@ export default function useAppNavigation(userId = '') {
 
   const replacePath = useCallback(next => write(next, true), [write])
   const values = entry.state?.fitfinityUserId === userId ? entry.state.fitfinityPageState ?? {} : {}
-  return { path, navigate, goBack, replacePath, pageState: { values, setValue } }
+  return { path, navigate, goBack, replacePath, canGoBack: entry.depth > 0 || path !== 'dashboard', pageState: { values, setValue } }
 }

@@ -1,4 +1,4 @@
-import { expect, test, selectDemoIdentity, drawClientSignature } from './fixtures.js'
+import { waitForPortal, expect, test, selectDemoIdentity, drawClientSignature } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 import { signatureFixture } from '../src/test/fixtures/signature.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -12,6 +12,7 @@ async function start(page, route = 'messages', extraSessions = []) {
     { ...base, id:'pay-other', clientId:'c2', trainerId:'t2', date:'2020-08-21', from:'18:00', to:'19:00' },
   ]
   db.sessions.push(...extraSessions.map(session => ({ ...db.sessions[0], ...session })))
+  for (const session of db.sessions) session.packageId = `client-package-${session.clientId}`
   db.clients.push({ ...db.clients[0], id:'created-test', name:'Test' })
   db.messages = [
     { id:'general', recipientRole:'owner', title:'General update', body:'The latest announcement is available.', createdAt:'2026-09-05T10:00:00Z', read:false },
@@ -20,6 +21,7 @@ async function start(page, route = 'messages', extraSessions = []) {
   delete db.remunerationEntries; delete db.remunerationApprovals
   await page.addInitScript(({key,data})=>{if(!localStorage.getItem(key)) localStorage.setItem(key,JSON.stringify(data))},{key:KEY,data:db})
   await page.goto(`/#/${route}`)
+  await waitForPortal(page)
 }
 const readDb = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY)
 async function openMessage(page, title) {
@@ -88,7 +90,7 @@ test('M3 remuneration cycle list has compact ordered columns and a money toggle 
   expect(dimensions.size).toBeGreaterThanOrEqual(17)
   expect(dimensions.weight).toBeGreaterThanOrEqual(700)
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1)
-  await page.getByRole('button',{name:'Back to Pay Cycle',exact:true}).click()
+  await page.getByRole('button',{name:'Back',exact:true}).click()
   await expect(page.getByRole('table',{name:'Trainer remuneration'})).toBeVisible()
   await expect(page.getByRole('combobox',{name:'Pay cycle',exact:true})).toHaveValue('2020-09')
 })
@@ -114,7 +116,7 @@ test('M4 owner and trainer open the current remuneration cycle and every total l
     await expect(page.getByLabel('Session status summary')).toContainText('Completed')
     await page.goBack()
     await expect(page.locator('.remuneration-totals')).toContainText('135.00')
-    await page.getByRole('button', { name: 'Back to Pay Cycle', exact: true }).click()
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
     await page.getByRole('combobox', { name: 'Pay cycle', exact: true }).selectOption('2020-11')
     await expect(page.locator('.remuneration-totals')).toContainText('Completed sessions0')
     await page.reload()

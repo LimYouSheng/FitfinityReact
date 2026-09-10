@@ -127,7 +127,7 @@ for (const mountBase of ['/', '/FitfinityReact/']) {
       expect(await networkUnavailable(reopened, release)).toBe(true)
       await expect(reopened.locator('.topbar')).toHaveCSS('position', 'sticky')
       await reopened.getByRole('button', { name: 'Back', exact: true }).click()
-      await expect(reopened.getByRole('heading', { name: 'All Clients', exact: true })).toBeVisible()
+      await expect(reopened.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible()
       expect(await reopened.evaluate(() => localStorage.getItem('m4-preserved-record'))).toBe('retained')
       expect(await cacheKeys(reopened, release.cache)).toEqual(keys)
       await reopened.close()
