@@ -17,12 +17,11 @@ export default function PackageProgress({ client, sessions = [], user, packageId
     const purchased = packages.find(item => item.id === packageId)
     if (!purchased) return <Panel><p className="empty">This package is unavailable.</p></Panel>
     const scopedClient = { ...reportClient, reportPackageId: packageId, strengthProgress: progressForPackage(reportClient, packageId) }
-    const summary = progressSessionSummary(reportClient, sessions, packageId)
     return <div className="stack-gap">
-      <div className="section-head"><div><h2>{kind(purchased)} · {purchased.name ?? `${purchased.total} Sessions`}</h2>
-        <p>{formatDate(purchased.startDate)} – {formatDate(purchased.endDate)}{purchased.status === 'inactive' ? ' · Inactive' : ''}</p>
-        <p aria-label="Package progress summary">Completed: {summary.completed} · With exercise records: {summary.recorded}</p>
-      </div></div>
+      <div className="section-head package-progress-title">
+        <h2>{kind(purchased)} · {purchased.name ?? `${purchased.total} Sessions`}</h2>
+        <p aria-label="Package progress dates"><time dateTime={purchased.startDate}>{formatDate(purchased.startDate)}</time> – <time dateTime={purchased.endDate}>{formatDate(purchased.endDate)}</time>{purchased.status === 'inactive' ? ' · Inactive' : ''}</p>
+      </div>
       <StrengthProgress key={packageId} client={scopedClient} user={user} {...props} />
     </div>
   }

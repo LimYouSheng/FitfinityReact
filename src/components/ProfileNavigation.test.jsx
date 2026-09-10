@@ -61,6 +61,21 @@ it('uses the committed selection for its label and current item across mobile an
   act(() => media.resize(false))
   expect(menu).not.toHaveAttribute('open')
   expect(summary).toHaveTextContent('Session History')
+  // A fast scrim click must close before any queued native toggle is delivered.
+  fireEvent.click(summary)
+  expect(menu).toHaveAttribute('open')
+  fireEvent.click(menu)
+  expect(menu).not.toHaveAttribute('open')
+  fireEvent(menu, new Event('toggle'))
+  expect(menu).not.toHaveAttribute('open')
+  summary.focus()
+  expect(summary).toHaveFocus()
+  // user-event does not emulate native summary keyboard activation. Check its
+  // zero-detail activation click here; the browser case presses Enter/Space.
+  fireEvent.click(summary, { detail: 0 })
+  expect(menu).toHaveAttribute('open')
+  fireEvent.click(summary, { detail: 0 })
+  expect(menu).not.toHaveAttribute('open')
 })
 
 function GuardedNavigation() {

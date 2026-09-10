@@ -171,6 +171,11 @@ test('M4 Message category navigation matches client and trainer navigation throu
   expect(outside.hitsScrim).toBe(true)
   await page.mouse.click(outside.x, outside.y)
   await expect(menu).not.toHaveAttribute('open')
+  await menu.locator('summary').focus()
+  await page.keyboard.press('Enter')
+  await expect(menu).toHaveAttribute('open', '')
+  await page.keyboard.press('Space')
+  await expect(menu).not.toHaveAttribute('open')
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
 })
 

@@ -28,14 +28,16 @@ export default function ProfileNavigation({ items, activeKey, onSelect, children
     <details
       className="profile-menu"
       open={inline || open}
-      onToggle={event => {
-        if (!inline) setOpen(event.currentTarget.open)
-      }}
       onClick={event => {
         if (!inline && event.target === event.currentTarget) setOpen(false)
       }}
     >
-      <summary>{activeLabel}</summary>
+      <summary onClick={event => {
+        // Keep one owner for open state; the native toggle event is asynchronous
+        // and can arrive after a fast outside click has already closed the menu.
+        event.preventDefault()
+        if (!inline) setOpen(current => !current)
+      }}>{activeLabel}</summary>
 
       <div
         className="profile-tabs"
