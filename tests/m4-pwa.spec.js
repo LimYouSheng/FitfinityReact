@@ -133,7 +133,7 @@ for (const mountBase of ['/', '/FitfinityReact/']) {
       await reopened.close()
     })
 
-    test('M4 an update waits through an open edit and cleans only old shell caches after all tabs close', async ({ page, context, release }) => {
+    test('M4 an update waits through an open edit and cleans only old shell caches after all tabs close', async ({ page, context, release, browserName }) => {
       await controlled(page, release)
       const second = await context.newPage()
       await controlled(second, release)
@@ -147,7 +147,14 @@ for (const mountBase of ['/', '/FitfinityReact/']) {
       await information.getByRole('button', { name: 'Edit', exact: true }).click()
       await expect(information.getByRole('button', { name: 'Save', exact: true })).toBeVisible()
       release.state.version = 2
-      await page.evaluate(async () => { await (await navigator.serviceWorker.ready).update() })
+      // Chromium exposes workers independently of pages. Subscribe before updating
+      // so the replacement can be observed after every controlled tab has closed.
+      const [nextWorker] = await Promise.all([
+        browserName === 'chromium'
+          ? context.waitForEvent('serviceworker', { predicate: worker => worker.url() === `${release.url}sw.js` })
+          : Promise.resolve(null),
+        page.evaluate(async () => { await (await navigator.serviceWorker.ready).update() }),
+      ])
       await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true)
       await expect(information.getByRole('button', { name: 'Save', exact: true })).toBeVisible()
       expect(await page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining([release.cache, release.nextCache, 'unrelated-feature-cache']))
@@ -155,6 +162,25 @@ for (const mountBase of ['/', '/FitfinityReact/']) {
       await page.close()
       expect(await second.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true)
       await second.close()
+      if (nextWorker) {
+        // Page.close() is not an activation receipt. Reopening immediately can give
+        // the old worker a new client and keep the replacement waiting. Observe
+        // real activation/cleanup without opening a client or forcing activation.
+        await expect.poll(() => nextWorker.evaluate(async previousCache => {
+          const keys = await caches.keys()
+          return {
+            active: self.registration.active?.state,
+            waiting: self.registration.waiting?.state ?? null,
+            cacheKeys: keys,
+            oldCachePresent: keys.includes(previousCache),
+          }
+        }, release.cache)).toEqual({
+          active: 'activated',
+          waiting: null,
+          cacheKeys: expect.arrayContaining([release.nextCache, 'unrelated-feature-cache', 'fitfinity-react-shell-%2Fanother-app%2F-old']),
+          oldCachePresent: false,
+        })
+      }
       const reopened = await context.newPage()
       await controlled(reopened, release)
       await expect.poll(() => reopened.evaluate(() => caches.keys())).toEqual(expect.arrayContaining([release.nextCache, 'unrelated-feature-cache', 'fitfinity-react-shell-%2Fanother-app%2F-old']))

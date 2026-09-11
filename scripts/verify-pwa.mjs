@@ -26,6 +26,7 @@ export function verifyPwaBuild(directory, base) {
   for (const key of ['id', 'scope']) assert.equal(new URL(manifest[key], manifestURL).href, `${origin}${base}`, `Manifest ${key} escapes the app directory`)
   assert.equal(new URL(manifest.start_url, manifestURL).href, `${origin}${base}#/dashboard`)
   assert.equal(manifest.display, 'standalone')
+  assert.equal(manifest.orientation, 'portrait')
   const checkAsset = value => {
     const url = new URL(value, `${origin}${base}`)
     assert.equal(url.origin, origin, `Unexpected external build asset: ${value}`)
