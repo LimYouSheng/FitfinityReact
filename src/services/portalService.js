@@ -1,3 +1,5 @@
+import { browserReportService } from './reportService.js'
+
 // Stable async contract. An API adapter supplies load/session/invoke/reset.
 export const PORTAL_OPERATIONS = {
   "contentService": [
@@ -68,8 +70,8 @@ export const PORTAL_OPERATIONS = {
   ]
 }
 
-export function createPortalServices(adapter) {
-  const services = { load: async () => adapter.load(), reset: async () => adapter.reset() }
+export function createPortalServices(adapter, reportService = browserReportService) {
+  const services = { reportService, load: async () => adapter.load(), reset: async () => adapter.reset() }
   for (const [domain, implementation] of Object.entries(PORTAL_OPERATIONS)) {
     services[domain] = Object.fromEntries(implementation.map(method => [method, async (...args) => adapter.invoke(domain, method, args)]))
   }

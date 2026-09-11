@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import useSwipeBack from './useSwipeBack.js'
+import useZoomLock from './useZoomLock.js'
 
 function Harness({ onBack, routeKey = 'clients/c1', modal = false }) {
+  useZoomLock()
   useSwipeBack({ enabled: true, onBack, routeKey })
   useSwipeBack({ enabled: modal, onBack: () => onBack('modal'), routeKey, surface: '.message-detail-modal' })
   return <><main className="portal-main"><div data-testid="content">Client</div><input /></main>
@@ -11,9 +13,11 @@ function Harness({ onBack, routeKey = 'clients/c1', modal = false }) {
 const surface = () => document.querySelector('.portal-main')
 const touch = (type, x, y = 180, target = surface(), count = 1) => {
   const point = { identifier: 7, clientX: x, clientY: y }
-  fireEvent(target, Object.assign(new Event(type, { bubbles: true, cancelable: true }), {
+  const event = Object.assign(new Event(type, { bubbles: true, cancelable: true }), {
     touches: type === 'touchend' ? [] : Array(count).fill(point), changedTouches: [point],
-  }))
+  })
+  fireEvent(target, event)
+  return event
 }
 const swipe = target => { touch('touchstart', 10, 180, target); touch('touchmove', 160, 186, target); touch('touchend', 180, 190, target) }
 const settle = () => act(() => vi.advanceTimersByTime(500))
@@ -73,6 +77,24 @@ it('gives an open popup sole ownership of a swipe without moving the background 
 
 it('leaves vertical scrolling, fields, short drags, multitouch and open drawers alone', () => {
   const back = vi.fn(); render(<Harness onBack={back} />)
+  // Exercise the installed zoom lock and swipe hook together. A slight downward
+  // start must not cancel native scrolling or a subsequent upward movement.
+  expect(touch('touchstart', 160, 180).defaultPrevented).toBe(false)
+  expect(touch('touchmove', 160, 185).defaultPrevented).toBe(false)
+  expect(touch('touchmove', 160, 100).defaultPrevented).toBe(false)
+  touch('touchend', 160, 100); settle()
+  touch('touchstart', 10, 180)
+  expect(touch('touchmove', 12, 240).defaultPrevented).toBe(false)
+  touch('touchend', 12, 240); settle()
+  const wheel = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 100 })
+  fireEvent(surface(), wheel)
+  expect(wheel.defaultPrevented).toBe(false)
+  const zoom = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 100, ctrlKey: true })
+  fireEvent(surface(), zoom)
+  expect(zoom.defaultPrevented).toBe(true)
+  expect(touch('touchstart', 160, 180, surface(), 2).defaultPrevented).toBe(true)
+  expect(touch('touchmove', 170, 200, surface(), 2).defaultPrevented).toBe(true)
+  touch('touchend', 170, 200); settle()
   touch('touchstart', 10); touch('touchmove', 30, 240); touch('touchend', 180, 260); settle()
   swipe(document.querySelector('input')); settle()
   touch('touchstart', 10); touch('touchmove', 30); touch('touchend', 40); settle()

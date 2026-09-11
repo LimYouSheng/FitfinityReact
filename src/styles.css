@@ -572,6 +572,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 }
 .primary-button{border:1px solid #7282ff;background:#4254dd;color:#fff}
 .secondary-button{border:1px solid #3b404a;background:#15171d;color:#d3d7e0}
+.secondary-button.small{min-height:0;padding:7px 10px}
 .danger-button{border:1px solid #a74a5e;background:#35151d;color:#ffadbd}
 .validation-copy{color:#ff9aaa;font-size:11px;font-weight:750}
 
@@ -691,16 +692,6 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:#d
 
 /* Shared statuses and actions */
 .empty{text-align:center;color:var(--grey);padding:24px}
-.btn{
-  border:1px solid #5968e7;
-  background:#3949c9;
-  color:#fff;
-  border-radius:6px;
-  padding:9px 14px;
-  font-weight:850;
-}
-.btn.small{padding:7px 10px;font-size:11px}
-
 .status-badge{
   display:inline-flex;
   align-items:center;
@@ -804,7 +795,7 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:#d
 .session-overview-value{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
 .session-overview-value strong{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
 .session-overview-value select{min-width:0;flex:1 1 auto}
-.session-overview-value .text-action{flex:0 0 auto}
+.session-overview-value .secondary-button{flex:0 0 auto}
 
 .session-schedule-fields,
 .session-request-fields{
@@ -1087,6 +1078,8 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:#d
 .exercise-edit-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
 .exercise-edit-actions button{min-height:36px}
 
+.session-package-summary{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.session-package-summary>span{color:var(--grey)}
 .session-outcome-list{display:grid;margin:0}
 .session-outcome-list>div{
   display:grid;
@@ -1335,15 +1328,14 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .client-record-row>div{display:grid;gap:4px;min-width:0}
 .client-record-row strong{font-size:12px;line-height:1.35;overflow-wrap:anywhere}
 .client-record-row span{color:#969eac;font-size:10px;line-height:1.35}
+.client-record-row>.client-session-actions{display:flex;align-items:center;gap:7px;flex:0 0 auto}
 .report-history{margin-top:16px}
 .report-history-head,.report-history-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr);gap:12px;align-items:center}
 .report-history-head{padding:8px 0;color:var(--grey);font-size:11px}
 .report-history-row{padding:12px 0;border-top:1px solid var(--line);font-size:12px;overflow-wrap:anywhere}
 .report-history-row time{color:var(--grey)}
 .report-action-error{padding:12px;border:1px solid #8a6828;border-radius:12px}
-.report-file-name{overflow-wrap:anywhere;font-weight:700}
 .report-file-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
-.report-file-actions a{text-decoration:none}
 .strength-progress-head{
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;
@@ -1386,14 +1378,15 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .package-actions{display:flex;gap:8px;max-width:100%}
 .package-actions button{flex:1;min-width:0;white-space:normal;font-size:11px;padding:8px 10px}
 .package-progress-title{justify-content:flex-start;align-items:baseline;flex-wrap:wrap}
-.package-progress-head,.package-progress-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) minmax(70px,.5fr) 56px;gap:12px;align-items:center}
-.package-progress-head{padding:8px 0;font-size:11px;color:var(--grey)}
-.package-progress-row{padding:12px 0;border-top:1px solid var(--line);font-size:12px;overflow-wrap:anywhere}
-.package-progress-row>div{display:grid;gap:5px}
-.package-progress-row>div>span{font-size:11px;color:var(--grey)}
+.package-progress-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 70px 58px;gap:12px;align-items:center;min-width:0}
+.package-progress-grid>div{display:flex;align-items:center;gap:6px;min-width:0}
+.package-progress-grid strong{font-size:12px}
+.package-progress-grid>span,.package-progress-grid>div>span{font-size:11px;color:var(--grey)}
+.package-progress-grid>:not(button){min-width:0;overflow-wrap:anywhere}
 .session-date-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px;max-width:540px}
 .session-date-filters label{display:grid;gap:6px;min-width:0}
 .session-date-filters label>span{font-size:11px;color:var(--grey)}
+.session-date-filters small{font-size:10px;color:var(--grey)}
 .session-date-filters input{width:100%;min-width:0}
 .strength-progress-list{min-width:0}
 .strength-progress-columns,.strength-progress-row{
@@ -1560,19 +1553,6 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 }
 .availability-empty{font-size:9px;color:#646c7b}
 
-.quick-list{display:grid;gap:8px}
-.quick-row{
-  border:1px solid #30343e;
-  border-radius:8px;
-  background:#0d0f14;
-  padding:11px 12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-}
-.quick-row>div{display:grid;gap:3px}
-.quick-row span{font-size:10px;color:var(--grey)}
 
 /* Modals */
 .modal-backdrop{
@@ -2302,37 +2282,34 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .remuneration-page .remuneration-money-toggle:hover{background:#3147aa;border-color:#a6b1ff}
 .remuneration-money-toggle svg{width:17px;height:17px;flex:0 0 17px}
 .remuneration-toolbar,.remuneration-section-head,.remuneration-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.remuneration-toolbar label{display:grid;gap:6px;min-width:0;max-width:100%;font-size:11px;color:#aab2c3}
-.remuneration-toolbar select{width:100%;min-width:0;background:#0c0e13;border:1px solid #3d4351;border-radius:7px;padding:9px;color:#f1f3fa;font:inherit}
-.remuneration-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
-.remuneration-totals>div{display:grid;gap:8px;padding:14px;border:1px solid #303746;border-radius:8px;background:#10131c;min-width:0}
-.remuneration-totals span{font-size:11px;color:#a6afc1}
-.remuneration-totals strong{font-size:24px;overflow-wrap:anywhere}
-.remuneration-table-head,.remuneration-trainer-row{display:grid;grid-template-columns:minmax(100px,1.3fr) minmax(55px,.5fr) minmax(100px,1fr) minmax(110px,1fr) 58px;gap:10px;align-items:center;padding:12px 8px}
-.remuneration-table-head{color:#9ba5b9;font-size:10px;text-transform:uppercase}
-.remuneration-trainer-row{border-top:1px solid #303746;font-size:12px}
-.remuneration-trainer-row>*{min-width:0;overflow-wrap:anywhere}
+.remuneration-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto auto;column-gap:12px;row-gap:8px;margin-bottom:18px}
+.remuneration-totals>div{display:grid;grid-row:span 2;grid-template-rows:subgrid;justify-items:start;align-items:start;padding:14px;border:1px solid #303746;border-radius:8px;background:#10131c;min-width:0}
+.remuneration-totals span{font-size:11px;line-height:1.4;color:#a6afc1}
+.remuneration-totals strong{font-size:24px;line-height:1.2;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.remuneration-cycle-grid,.remuneration-trainer-grid,.remuneration-session-grid{display:grid;align-items:center;gap:10px;min-width:0}
+.remuneration-cycle-grid{grid-template-columns:minmax(0,2fr) minmax(0,.65fr) minmax(0,1fr) 58px}
+.remuneration-trainer-grid{grid-template-columns:minmax(0,1.3fr) minmax(0,.55fr) minmax(0,1fr) minmax(0,1.2fr) 58px}
+.remuneration-session-grid{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,.8fr) 58px}
+.remuneration-cycle-grid>*,.remuneration-trainer-grid>*,.remuneration-session-grid>*{min-width:0;overflow-wrap:anywhere}
+.remuneration-page .compact-list-row{font-size:12px;line-height:1.3}
+.remuneration-page .compact-list-head{letter-spacing:0;text-transform:none}
+.remuneration-page .compact-list .status-badge{font-size:9px;padding:3px 5px;white-space:normal;text-align:center}
+.remuneration-cycle-name{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .remuneration-trainer-row small{display:block;color:#e7bf72;font-size:10px;margin-top:4px}
 .remuneration-section-head{justify-content:space-between}
 .remuneration-section-head h2{margin:0;font-size:22px}
 .remuneration-cycle-caption{margin:0;font-size:12px;color:#a6afc1}
-.remuneration-session-list{display:grid}
-.remuneration-session{display:grid;grid-template-columns:minmax(0,1fr) auto 96px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #333b4b}
-.remuneration-session:first-child{border-top:1px solid #333b4b}
-.remuneration-session-client{font-size:12px;line-height:1.35;min-width:0;overflow-wrap:anywhere}
-.remuneration-session-date{font-size:11px;color:#a6afc1;white-space:nowrap}
-.remuneration-session-action{display:grid;justify-items:center;gap:3px;min-width:0}
-.remuneration-session-action .secondary-button{width:100%;min-height:28px;padding:4px 6px;font-size:10px;white-space:nowrap}
-.remuneration-session-rate{font-size:18px;font-weight:900;line-height:1.15;font-variant-numeric:tabular-nums;white-space:nowrap}
+.remuneration-session-client{font-size:12px;line-height:1.35}
+.remuneration-session-date{font-size:11px;color:#a6afc1}
+.remuneration-session-rate{font-size:12px;font-weight:800;line-height:1.3;font-variant-numeric:tabular-nums}
 .remuneration-actions{margin-top:16px;margin-bottom:0}
 @media(max-width:720px){
-  .remuneration-table-head{display:none}
-  .remuneration-trainer-row{grid-template-columns:repeat(2,minmax(0,1fr));padding:14px 0;gap:12px}
-  .remuneration-trainer-row>strong{grid-column:1/-1}
-  .remuneration-trainer-row [data-label]::before{content:attr(data-label);display:block;font-size:10px;color:#a6afc1;margin-bottom:5px}
-  .remuneration-trainer-row>span:last-child{grid-column:2;justify-self:end}
-  .remuneration-session{grid-template-columns:minmax(0,1fr) auto 86px;gap:8px}
-  .remuneration-session-rate{font-size:17px}
+  .remuneration-cycle-grid,.remuneration-trainer-grid,.remuneration-session-grid{gap:5px}
+  .remuneration-cycle-grid{grid-template-columns:minmax(0,1.7fr) minmax(0,.6fr) minmax(0,.9fr) 50px}
+  .remuneration-trainer-grid{grid-template-columns:minmax(0,1.1fr) minmax(0,.5fr) minmax(0,.9fr) minmax(0,1.1fr) 50px}
+  .remuneration-session-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,.75fr) 50px}
+  .remuneration-page .compact-list-row,.remuneration-session-client,.remuneration-session-rate{font-size:11px}
+  .remuneration-session-date{font-size:10px}
   .remuneration-totals{gap:6px}
   .remuneration-totals>div{padding:10px 8px}
   .remuneration-totals strong{font-size:18px}
@@ -2402,17 +2379,7 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   text-transform:uppercase;
 }
 .message-related>div{display:flex;flex-wrap:wrap;gap:7px}
-.message-related button{
-  min-height:34px;
-  border:1px solid #4d5ecc;
-  border-radius:6px;
-  background:#171c43;
-  color:#c9ceff;
-  padding:7px 9px;
-  font-size:10px;
-  font-weight:800;
-}
-.message-related button:hover{border-color:#7483e8;background:#20285b}
+
 
 /* Responsive */
 @media(max-width:1100px){
@@ -2644,10 +2611,11 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   .info-row strong{text-align:left}
   .client-trainer-assignment{justify-items:stretch}
   .client-trainer-assignment button{justify-self:end}
-  .package-progress-head{display:none}
-  .package-progress-row{grid-template-columns:minmax(0,1fr) 56px;gap:8px}
-  .package-progress-row>div,.package-progress-row>span{grid-column:1}
-  .package-progress-row>button{grid-column:2;grid-row:1 / 4}
+  .package-progress-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 38px 48px;gap:5px}
+  .package-progress-grid>div{gap:4px}
+  .package-progress-grid strong{font-size:11px}
+  .package-progress-grid>span,.package-progress-grid>div>span{font-size:9px}
+  .package-progress-grid .compact-view{width:48px;min-width:48px}
   .schedule-row{grid-template-columns:90px minmax(0,1fr)}
   .availability-grid{grid-template-columns:repeat(2,1fr)}
 

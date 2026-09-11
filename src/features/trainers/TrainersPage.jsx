@@ -159,7 +159,7 @@ export default function TrainersPage({ trainers, onOpen, onAdd }) {
 
               <button
                 type="button"
-                className="btn small compact-view"
+                className="secondary-button small compact-view"
                 onClick={() => onOpen(trainer.id)}
                 aria-label={`View ${trainer.name}`}
               >

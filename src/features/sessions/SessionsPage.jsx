@@ -136,7 +136,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
                 <div className="session-action-cell">
                   <button
                     type="button"
-                    className="btn small compact-view session-view-button"
+                    className="secondary-button small compact-view session-view-button"
                     aria-label={`View session for ${clientName(session.clientId)} on ${formatDate(session.date)}`}
                     onClick={() => onOpen(session.id)}
                   >

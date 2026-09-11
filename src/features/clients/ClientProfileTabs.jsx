@@ -119,7 +119,7 @@ function PackageTab({ client, user, trainers, sessions, packages, policy, today,
   )
 }
 
-function SessionsTab({ title, client, sessions, trainers, emptyCopy, onOpenSession }) {
+function SessionsTab({ title, history = false, client, sessions, trainers, emptyCopy, onOpenSession }) {
   const scope = `client.${client.id}.${title}`
   const [fromDate, setFromDate] = usePageState(`${scope}.from`, '')
   const [toDate, setToDate] = usePageState(`${scope}.to`, '')
@@ -131,21 +131,25 @@ function SessionsTab({ title, client, sessions, trainers, emptyCopy, onOpenSessi
     <Panel>
       <div className="section-head"><h2>{title}</h2></div>
       <div className="session-date-filters" aria-label={`${title} date filters`}>
-        <label><span>From</span><input type="date" aria-label={`${title} from`} value={fromDate} max={toDate || undefined} onChange={event => setFromDate(event.target.value)} /></label>
-        <label><span>To</span><input type="date" aria-label={`${title} to`} value={toDate} min={fromDate || undefined} onChange={event => setToDate(event.target.value)} /></label>
+        <label><span>From</span><small>Choose start date</small><input type="date" aria-label={`${title} from`} value={fromDate} max={toDate || undefined} onChange={event => setFromDate(event.target.value)} /></label>
+        <label><span>To</span><small>Choose end date</small><input type="date" aria-label={`${title} to`} value={toDate} min={fromDate || undefined} onChange={event => setToDate(event.target.value)} /></label>
       </div>
       <div className="client-record-list" aria-label={title}>
-        {pagination.items.map(session => (
-          <article className="client-record-row" key={session.id}>
+        {pagination.items.map(session => {
+          const status = session.status === 'cancelled' ? { label: 'Cancelled', tone: 'red' }
+            : history && session.status !== 'completed' ? { label: 'Not completed', tone: 'amber' } : sessionStatus(session.status)
+          return <article className="client-record-row" key={session.id}>
             <div>
               <strong>{weekday(session.date)}, {formatDate(session.date)} · {session.from}–{session.to}</strong>
               <span>{trainerName(session.trainerId)} · Session {session.sessionNumber} / {packageForRecord(client, session)?.total ?? '—'}</span>
-              <span>{session.status === 'cancelled' ? 'Cancelled' : sessionStatus(session.status).label}{session.acknowledgement?.method === 'late_no_show' ? ' · Late/no-show' : ''}
-                {packageForRecord(client, session) && ` · Package started ${formatDate(packageForRecord(client, session).startDate)}`}</span>
+              {session.acknowledgement?.method === 'late_no_show' && <span>Late/no-show</span>}
             </div>
-            <button type="button" className="btn small" onClick={() => onOpenSession(session.id)}>View</button>
+            <div className="client-session-actions">
+              <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+              <button type="button" className="secondary-button small" onClick={() => onOpenSession(session.id)}>View</button>
+            </div>
           </article>
-        ))}
+        })}
         {!filtered.length && <div className="empty">{fromDate || toDate ? 'No sessions in this date range.' : emptyCopy}</div>}
       </div>
       <PaginationControls {...pagination} onPage={pagination.setPage} />
@@ -163,7 +167,7 @@ export default function ClientProfileTabs({ progressPackageId, onOpenProgressPac
     .sort((a, b) => `${a.date}T${a.from}`.localeCompare(`${b.date}T${b.from}`))
 
   if (tab === 'package') return <PackageTab client={client} today={today} user={user} trainers={trainers} sessions={clientSessions} packages={packages} policy={policy} onRenewPackage={onRenewPackage} onDeactivatePackage={onDeactivatePackage} onDeletePackageSessions={onDeletePackageSessions} packageCreditTransactions={packageCreditTransactions} />
-  if (tab === 'history') return <SessionsTab title="Session History" client={client} sessions={history} trainers={trainers} emptyCopy="No completed sessions." onOpenSession={onOpenSession} />
+  if (tab === 'history') return <SessionsTab title="Session History" history client={client} sessions={history} trainers={trainers} emptyCopy="No session history." onOpenSession={onOpenSession} />
   if (tab === 'upcoming') return <SessionsTab title="Upcoming Sessions" client={client} sessions={upcoming} trainers={trainers} emptyCopy="No upcoming sessions." onOpenSession={onOpenSession} />
   if (tab === 'progress') return <PackageProgress packageId={progressPackageId} onOpenPackage={onOpenProgressPackage} client={client} sessions={sessions} user={user} timeZone={timeZone} onRecordAction={onRecordProgressReport} onLoadHistory={onLoadProgressReportHistory} />
   return null

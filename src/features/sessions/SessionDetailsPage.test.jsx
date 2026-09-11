@@ -1,13 +1,23 @@
+import { browserReportService } from '../../services/reportService.js'
 import { drawSignature } from '../../test/drawSignature.js'
 import { signatureFixture } from '../../test/fixtures/signature.js'
 import { mockPolicy } from '../../data/mockPolicy.js'
 import { StrictMode } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
 import AppShell from '../../components/AppShell.jsx'
 import { EditGuardProvider } from '../../components/EditGuardProvider.jsx'
 import SessionDetailsPage from './SessionDetailsPage.jsx'
+
+beforeEach(() => {
+  vi.spyOn(browserReportService, 'sessionFile').mockResolvedValue(new File(['%PDF-1.4'], 'amanda-session-4-summary.pdf', { type: 'application/pdf' }))
+})
+async function shareButton() {
+  const button = screen.getByRole('button', { name: 'Share PDF', exact: true })
+  await waitFor(() => expect(button).toBeEnabled())
+  return button
+}
 
 const session = {
   id: 's1',
@@ -93,8 +103,11 @@ it('shows package inactivity under Package Details and locks its sessions for th
       client: { ...client, package: current, packageHistory: [purchased] } })
     const details = screen.getByLabelText('Session package details')
     expect(details).toHaveTextContent(`${linked.name} · Session 4 / ${linked.total}`)
-    expect(details).toHaveTextContent(`${linked.used} completed · ${linked.total - linked.used} remaining`)
-    expect(details).toHaveTextContent(linked.validityDays + ' days')
+    expect(details).not.toHaveTextContent(/completed|remaining|weekly|days/)
+    const dates = details.querySelectorAll('time')
+    expect(dates[0]).toHaveAttribute('datetime', linked.startDate)
+    expect(dates[1]).toHaveAttribute('datetime', linked.endDate)
+    expect(dates[0].closest('.session-package-summary')).toContainElement(details.querySelector('strong'))
     expect(details).not.toHaveTextContent('/ 99')
     if (linked === purchased) {
       expect(details).toHaveTextContent('01 Jun 2026 – 27 Nov 2026')
@@ -219,7 +232,7 @@ describe('session detail confirmations', () => {
     expect(within(preview).queryByRole('button', { name: 'Review Completion' })).not.toBeInTheDocument()
   })
 
-  it('reviews recorded videos before exporting the summary to WhatsApp', () => {
+  it('reviews recorded video captions before sharing the summary PDF', async () => {
     const onMarkWhatsAppOpened = vi.fn()
     renderDetails({
       onMarkWhatsAppOpened,
@@ -243,12 +256,13 @@ describe('session detail confirmations', () => {
     expect(screen.getByRole('checkbox', { name: 'Include video for Romanian Deadlift' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Include Client-Facing Summary' })).toBeChecked()
     expect(dialog).toHaveTextContent('Romanian Deadlift — 40 kg · 8 reps · 2 rounds · 1 minute rest interval')
+    await shareButton()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(onMarkWhatsAppOpened).not.toHaveBeenCalled()
   })
 })
 
-afterEach(() => { cleanup(); vi.useRealTimers() })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
 
 it('shows planning and acknowledgement before completion, then only Completed and optional WhatsApp status', () => {
   for (const status of ['not_planned', 'planned']) {
@@ -268,9 +282,8 @@ it('shows planning and acknowledgement before completion, then only Completed an
   }
 })
 
-it('exports exactly the selected summary and videos, blocks an empty selection and clears an outdated blocked link', () => {
-  const popup = { opener: window, location: { replace: vi.fn() } }
-  const open = vi.spyOn(window, 'open').mockReturnValue(null)
+it('exports exactly the selected summary and captions, blocks an empty selection and clears outdated share feedback', async () => {
+  const share = vi.spyOn(browserReportService, 'share').mockRejectedValueOnce(new Error('Sharing unavailable')).mockResolvedValue()
   const props = renderDetails({ session: { ...session, clientSummary: 'Private client-facing summary.', exercisePlan: [
     { id: 'one', name: 'Selected Squat', videoAttached: true }, { id: 'two', name: 'Omitted Row', videoAttached: true },
   ] } })
@@ -280,42 +293,50 @@ it('exports exactly the selected summary and videos, blocks an empty selection a
   expect(dialog.querySelector('.helper, .notice')).toBeNull()
   fireEvent.click(screen.getByRole('checkbox', { name: 'Include video for Omitted Row' }))
   fireEvent.click(screen.getByRole('checkbox', { name: 'Include Client-Facing Summary' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to WhatsApp' }))
-  const blocked = screen.getByRole('link', { name: 'Open summary in WhatsApp' })
-  const text = new URL(blocked.href).searchParams.get('text')
-  expect(text).toContain('Selected Squat')
-  expect(text).not.toMatch(/Private client-facing summary|Omitted Row/)
+  fireEvent.click(await shareButton())
+  await screen.findByText('Sharing unavailable')
+  expect(browserReportService.sessionFile.mock.lastCall[0]).toMatchObject({ summary: '', videos: [{ id: 'one' }] })
+  expect(browserReportService.sessionFile.mock.lastCall[0].videos).toHaveLength(1)
   expect(props.onMarkWhatsAppOpened).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('checkbox', { name: 'Include video for Selected Squat' }))
-  expect(screen.queryByRole('link', { name: 'Open summary in WhatsApp' })).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Continue to WhatsApp' })).toBeDisabled()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Share PDF' })).toBeDisabled()
   fireEvent.click(screen.getByRole('checkbox', { name: 'Include Client-Facing Summary' }))
-  open.mockReturnValue(popup)
-  fireEvent.click(screen.getByRole('button', { name: 'Continue to WhatsApp' }))
-  const summaryText = new URL(popup.location.replace.mock.calls[0][0]).searchParams.get('text')
-  expect(summaryText).toContain('Private client-facing summary.')
-  expect(summaryText).not.toMatch(/Selected Squat|Omitted Row|Exercise videos/)
-  open.mockRestore()
+  fireEvent.click(await shareButton())
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(browserReportService.sessionFile.mock.lastCall[0]).toMatchObject({ summary: 'Private client-facing summary.', videos: [] })
+  expect(share).toHaveBeenCalledTimes(2)
 })
 
-it('M4 keeps a blocked WhatsApp export retryable and never marks it sent', () => {
-  const open=vi.spyOn(window,'open').mockReturnValue(null)
-  const props=renderDetails()
-  fireEvent.click(screen.getByRole('button',{name:'Export Summary'}))
-  fireEvent.click(screen.getByRole('button',{name:'Continue to WhatsApp'}))
-  expect(screen.getByRole('link',{name:'Open summary in WhatsApp'})).toHaveAttribute('href',expect.stringMatching(/^https:\/\/wa.me\//))
+it('M4 keeps a blocked PDF share retryable with a download fallback and never marks WhatsApp sent', async () => {
+  vi.spyOn(browserReportService, 'share').mockRejectedValue(new DOMException('Blocked', 'NotAllowedError'))
+  const download = vi.spyOn(browserReportService, 'download').mockImplementation(() => {})
+  const props = renderDetails()
+  fireEvent.click(screen.getByRole('button', { name: 'Export Summary' }))
+  const button = await shareButton()
+  fireEvent.click(button)
+  await screen.findByText('Your browser blocked file sharing. Try Open PDF or Download PDF.')
+  expect(button).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
+  expect(download.mock.calls[0][0]).toBe(browserReportService.share.mock.calls[0][0])
   expect(props.onMarkWhatsAppOpened).not.toHaveBeenCalled()
-  open.mockRestore()
+  expect(props.onAcknowledge).not.toHaveBeenCalled()
 })
 
-it('M4 records an opened WhatsApp handoff without claiming delivery',async()=>{
-  const popup={opener:{},location:{replace:vi.fn()}}
-  const open=vi.spyOn(window,'open').mockReturnValue(popup)
-  const props=renderDetails()
-  fireEvent.click(screen.getByRole('button',{name:'Export Summary'}))
-  fireEvent.click(screen.getByRole('button',{name:'Continue to WhatsApp'}))
-  await waitFor(()=>expect(props.onMarkWhatsAppOpened).toHaveBeenCalledTimes(1))
-  expect(popup.opener).toBeNull()
-  expect(popup.location.replace).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\/wa.me\//))
-  open.mockRestore()
+it('M4 shares the prepared session PDF on retry after cancellation without claiming a WhatsApp handoff', async () => {
+  const share = vi.spyOn(browserReportService, 'share').mockRejectedValueOnce(new DOMException('Cancelled', 'AbortError')).mockResolvedValue()
+  const props = renderDetails()
+  fireEvent.click(screen.getByRole('button', { name: 'Export Summary' }))
+  const button = await shareButton()
+  fireEvent.click(button)
+  await waitFor(() => expect(button).toBeEnabled())
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  fireEvent.click(button)
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(share).toHaveBeenCalledTimes(2)
+  expect(share.mock.calls[0][0]).toMatchObject({ type: 'application/pdf', size: 8 })
+  expect(share.mock.calls[1][0]).toBe(share.mock.calls[0][0])
+  expect(browserReportService.sessionFile).toHaveBeenCalledTimes(1)
+  expect(props.onMarkWhatsAppOpened).not.toHaveBeenCalled()
+  expect(props.onAcknowledge).not.toHaveBeenCalled()
 })

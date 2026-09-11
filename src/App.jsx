@@ -127,7 +127,7 @@ function StaffPortal() {
       : null
 
   const backFallback = parts.length > 1
-    ? (route === 'clients' && parts[2] === 'progress' ? `clients/${detailId}${parts[3] ? '/progress' : ''}` : route === 'remuneration' && parts[2] ? `remuneration/${detailId}` : route)
+    ? (route === 'clients' && parts[2] === 'progress' ? `clients/${detailId}${parts[3] ? '/progress' : ''}` : route === 'remuneration' && parts[2] && user.role === 'owner' ? `remuneration/${detailId}` : route)
     : 'dashboard'
   const back = () => goBack(backFallback)
   useSwipeBack({ enabled: canGoBack, onBack: back, routeKey: `${user.id}/${path}`,
@@ -379,10 +379,6 @@ function StaffPortal() {
         }}
         onSaveClientSummary={async summary => {
           await runAction(() => sessionService.saveClientSummary(selectedSession.id, summary), { message: 'Client summary saved.' })
-          await reload()
-        }}
-        onMarkWhatsAppOpened={async () => {
-          await runAction(() => sessionService.markWhatsAppOpened(selectedSession.id), { tone: 'info', message: 'Summary opened in WhatsApp.' })
           await reload()
         }}
         onSaveDetails={async patch => {

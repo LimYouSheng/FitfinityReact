@@ -172,7 +172,7 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
               <span className="compact-secondary">{trainerName(client.trainerId)}</span>
 
               <button
-                className="btn small compact-view"
+                className="secondary-button small compact-view"
                 type="button"
                 onClick={() => onOpen(client.id)}
                 aria-label={`View ${client.name}`}

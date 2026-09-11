@@ -35,10 +35,15 @@ it('marks the current gym pay cycle independently of future bookings and respect
   const before = mockDb.read()
   for (const actor of [owner, trainer]) {
     const beforeCutoff = remunerationService.list(actor, new Date('2026-09-15T15:59:59Z'))
-    expect(beforeCutoff[0].key).toBe('2027-01')
+    expect(beforeCutoff.map(view => view.key)).toEqual(['2026-09'])
     expect(beforeCutoff.filter(view => view.isCurrent).map(view => view.key)).toEqual(['2026-09'])
     const afterCutoff = remunerationService.list(actor, new Date('2026-09-15T16:00:00Z'))
     expect(afterCutoff.filter(view => view.isCurrent).map(view => view.key)).toEqual(['2026-10'])
+    expect(afterCutoff.map(view => view.key)).toEqual(['2026-10', '2026-09'])
+    const yearEnd = remunerationService.list(actor, new Date('2026-12-15T15:59:59Z'))
+    expect(yearEnd.map(view => view.key)).toEqual(['2026-12', '2026-09'])
+    const newCycle = remunerationService.list(actor, new Date('2026-12-15T16:00:00Z'))
+    expect(newCycle[0]).toMatchObject({ key: '2027-01', isCurrent: true })
   }
   expect(mockDb.read()).toEqual(before)
 })

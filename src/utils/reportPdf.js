@@ -37,3 +37,34 @@ export function reportPdfDocument(pages, title) {
   append(`trailer\n<< /Size ${infoId + 1} /Root 1 0 R /Info ${infoId} 0 R >>\nstartxref\n${xref}\n%%EOF\n`)
   return new Blob(chunks, { type: 'application/pdf' })
 }
+
+async function rasterizePage(page) {
+  const url = URL.createObjectURL(new Blob([page.svg], { type: 'image/svg+xml;charset=utf-8' }))
+  const image = new Image()
+  const canvas = document.createElement('canvas')
+  try {
+    await new Promise((resolve, reject) => {
+      image.onload = resolve
+      image.onerror = () => reject(new Error('The progress chart could not be rendered. Please try exporting again.'))
+      image.src = url
+    })
+    canvas.width = page.width * 2; canvas.height = page.height * 2
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Your browser could not create the progress report. Please try another browser.')
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95))
+    if (!blob || blob.type !== 'image/jpeg') throw new Error('Your browser could not encode the progress report. Please try another browser.')
+    return { width: canvas.width, height: canvas.height, bytes: new Uint8Array(await blob.arrayBuffer()) }
+  } finally {
+    URL.revokeObjectURL(url)
+    image.onload = null; image.onerror = null
+    canvas.width = 0; canvas.height = 0
+  }
+}
+
+export async function renderReportPdf(pages, title) {
+  await document.fonts?.ready
+  const images = []
+  for (const page of pages) images.push(await rasterizePage(page))
+  return reportPdfDocument(images, title)
+}

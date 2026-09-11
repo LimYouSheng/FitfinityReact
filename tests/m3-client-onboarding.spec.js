@@ -172,6 +172,27 @@ test('M3 current section scrolls without CSS overrides on desktop and mobile Web
   await expect.poll(() => page.evaluate(() => document.scrollingElement.scrollHeight - innerHeight)).toBeGreaterThan(0)
   await expect(page.locator('body')).not.toHaveCSS('position', 'fixed')
 
+  if (browserName === 'chromium') {
+    // Exercise native touch scrolling in Chrome's narrow phone emulation too;
+    // programmatic scrollTo and mouse-wheel input bypass touch cancellation.
+    const input = await page.context().newCDPSession(page)
+    try {
+      await page.setViewportSize({ width: 390, height: 480 })
+      await input.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 })
+      await page.evaluate(() => scrollTo(0, 0))
+      await input.send('Input.synthesizeScrollGesture', { x: 368, y: 360, yDistance: -240, gestureSourceType: 'touch' })
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+      const lowerPosition = await page.evaluate(() => window.scrollY)
+      await input.send('Input.synthesizeScrollGesture', { x: 368, y: 140, yDistance: 160, gestureSourceType: 'touch' })
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(lowerPosition)
+    } finally {
+      await input.send('Emulation.setTouchEmulationEnabled', { enabled: false })
+      await input.detach()
+      await page.setViewportSize({ width: originalViewport.width, height: 480 })
+      await page.evaluate(() => scrollTo(0, 0))
+    }
+  }
+
   if (browserName === 'webkit' && isMobile) {
     // Mobile WebKit has no mouse-wheel command. Exercise document scrolling
     // without modifying styles; physical finger-swipe feel remains manual QA.

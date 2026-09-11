@@ -1,4 +1,4 @@
-import { test, expect, drawClientSignature, selectDemoIdentity } from './fixtures.js'
+import { test, expect, drawClientSignature, selectDemoIdentity, mockPdfSharing } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 import { withBusyCalendar } from '../src/test/fixtures/calendar.js'
 const database='fitfinity-m2-demo-db-v4'
@@ -137,17 +137,25 @@ test('M4 signed-in trainers cannot resolve another client or session through a d
   await expect(page.getByRole('heading',{name:'Page unavailable'})).toBeVisible()
   await expect(page.getByRole('button',{name:'Add Content'})).toHaveCount(0)
 })
-test('M4 blocked WhatsApp popup exposes a retry link without reporting delivery',async({page})=>{
+test('M4 Export Summary shares a real selected PDF and retains download fallback when native sharing is blocked', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-09-07T04:00:00Z'))
   await page.addInitScript(data => { const key = 'fitfinity-m2-demo-db-v4'; if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data)) }, seed)
   await page.goto('/#/sessions/s1')
-  await page.evaluate(()=>{window.open=()=>null})
-  await page.getByRole('button',{name:'Export Summary',exact:true}).click()
-  const dialog=page.getByRole('dialog',{name:'Export Summary'})
-  await dialog.getByRole('button',{name:'Continue to WhatsApp'}).click()
-  await expect(page.getByRole('link',{name:'Open summary in WhatsApp'})).toHaveAttribute('href',/^https:\/\/wa.me\//)
-  const data=await stored(page)
-  expect(data?.sessions.find(item=>item.id==='s1').whatsappOpenedAt).toBeFalsy()
+  await mockPdfSharing(page, { outcomes: ['NotAllowedError'] })
+  await page.getByRole('button', { name: 'Export Summary', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Export Summary' })
+  await dialog.getByRole('button', { name: 'Share PDF', exact: true }).click()
+  await expect(dialog.getByRole('alert')).toContainText('Your browser blocked file sharing')
+  await expect(dialog.getByRole('button', { name: 'Download PDF', exact: true })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Share PDF', exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  const shares = await page.evaluate(() => window.__pdfShares)
+  expect(shares).toHaveLength(2)
+  expect(shares[0]).toMatchObject({ type: 'application/pdf', active: true, keys: ['files'], header: '%PDF-1.4\n', eof: true })
+  expect(shares[0].images).toBeGreaterThan(0)
+  expect(shares[1].sha256).toBe(shares[0].sha256)
+  const data = await stored(page)
+  expect(data.sessions.find(item => item.id === 's1').whatsappOpenedAt).toBeFalsy()
 })
 
 test.describe('M4 signed-out account flows',()=>{

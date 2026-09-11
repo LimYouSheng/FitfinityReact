@@ -187,7 +187,7 @@ export function MessageInbox({
             <strong className="renewal-count">{visible.length}</strong>
             <div><h2>Renewals</h2><span>Total follow-ups</span></div>
           </div>
-          <button type="button" className="text-action" onClick={onViewAll}>View All Renewals</button>
+          <button type="button" className="secondary-button small" onClick={onViewAll}>View All Renewals</button>
         </div> : <div role="group" aria-label="Message categories">
           <ProfileNavigation items={MESSAGE_CATEGORIES.map(item => [item.key, item.label])}
             activeKey={category} onSelect={onCategoryChange} />
@@ -331,6 +331,7 @@ export function MessageInbox({
                         <button
                           type="button"
                           key={`${link.type}-${link.id}`}
+                          className="secondary-button small"
                           onClick={() => openRelated(link)}
                         >
                           View {link.label}

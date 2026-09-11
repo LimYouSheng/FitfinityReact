@@ -120,7 +120,7 @@ it('exports and shares only the selected package through the same PDF renderer w
       onOpenPackage={setPackageId} onRecordAction={save} onLoadHistory={history} /></>
   }
   render(<Report />)
-  expect(screen.queryByRole('button', { name: 'Export Progress Report' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Download Progress Report PDF' })).not.toBeInTheDocument()
   expect(document.querySelector('[data-package-id="new"]')).toHaveTextContent('5 / 12')
   fireEvent.click(within(screen.getByLabelText('Progress packages')).getAllByRole('button', { name: 'View' })[0])
   expect(screen.getByRole('button', { name: 'Show Row progress chart' })).toHaveTextContent('25 kg')
@@ -135,17 +135,20 @@ it('exports and shares only the selected package through the same PDF renderer w
   fireEvent.click(within(screen.getByLabelText('Progress packages')).getAllByRole('button', { name: 'View' })[1])
   expect(screen.getByRole('button', { name: 'Show Row progress chart' })).toHaveTextContent('15 kg')
   expect(screen.queryByLabelText('Package progress summary')).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Export Progress Report' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Download Progress Report PDF' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('button', { name: 'Download Progress Report PDF' }))
   await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
-  expect(progressReportPdf.mock.calls[0][0].strengthProgress[0].points).toEqual([{ id: 'result-a-row', sessionId: 'a', packageId: 'old', date: '2026-03-01', load: 15, reps: 10, sets: 3 }])
+  expect(progressReportPdf.mock.calls.at(-1)[0].strengthProgress[0].points).toEqual([{ id: 'result-a-row', sessionId: 'a', packageId: 'old', date: '2026-03-01', load: 15, reps: 10, sets: 3 }])
   expect(save.mock.calls[0][0]).toMatchObject({ packageId: 'old', kind: 'pdf_export' })
   fireEvent.click(screen.getByRole('button', { name: 'View Export/WhatsApp History' }))
   await waitFor(() => expect(history).toHaveBeenCalledWith('old'))
-  fireEvent.click(screen.getByRole('button', { name: 'Share Progress Report via WhatsApp' }))
-  fireEvent.click(await screen.findByRole('button', { name: 'Share PDF' }))
+  const shareButton = screen.getByRole('button', { name: 'Share Progress Report PDF' })
+  await waitFor(() => expect(shareButton).toBeEnabled())
+  fireEvent.click(shareButton)
   await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(share).toHaveBeenCalledTimes(1)
-  expect(progressReportPdf.mock.calls[1][0].strengthProgress).toEqual(progressReportPdf.mock.calls[0][0].strengthProgress)
+  expect(share.mock.calls[0][0].files[0]).toMatchObject({ type: 'application/pdf' })
   expect(save.mock.calls[1][0]).toMatchObject({ packageId: 'old', kind: 'pdf_share_opened' })
 })
 
@@ -160,6 +163,11 @@ it('paginates current and past packages for both roles, excludes queued purchase
     sessions={history} policy={seed.settings} today="2026-09-09" />, { wrapper })
   fireEvent.click(screen.getByRole('button', { name: 'Session History', exact: true }))
   expect(within(screen.getByLabelText('Session History')).getAllByRole('article')).toHaveLength(5)
+  expect(screen.getByLabelText('Session History')).not.toHaveTextContent('Package started')
+  for (const row of within(screen.getByLabelText('Session History')).getAllByRole('article')) {
+    const view = within(row).getByRole('button', { name: 'View', exact: true })
+    expect(['Completed', 'Not completed']).toContain(view.previousElementSibling.textContent)
+  }
   expect(screen.queryByLabelText('Session History summary')).not.toBeInTheDocument()
   cleanup()
   render(<PackageProgress client={amanda} sessions={history} user={owner} packageId={amanda.package.id} />)
@@ -190,7 +198,7 @@ it('paginates current and past packages for both roles, excludes queued purchase
     expect(onOpen).toHaveBeenCalledWith('past-0')
     view.rerender(<PackageProgress client={source} user={user} packageId="removed" />)
     expect(screen.getByText('This package is unavailable.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Export Progress Report' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Download Progress Report PDF' })).not.toBeInTheDocument()
     cleanup()
   }
 })
@@ -200,7 +208,7 @@ it('filters and paginates client history and upcoming sessions independently wit
   const sessions = ['history', 'upcoming'].flatMap(kind => Array.from({ length: 22 }, (_, index) => ({
     id: `${kind}-${index}`, clientId: client.id, trainerId: client.trainerId, packageId: client.package.id,
     date: `2026-${kind === 'history' ? '08' : '10'}-${String(index + 1).padStart(2, '0')}`, from: '18:00', to: '19:00',
-    sessionNumber: index + 1, packageTotal: 24, status: kind === 'history' ? 'completed' : 'planned',
+    sessionNumber: index + 1, packageTotal: 24, status: kind === 'history' ? (index % 2 ? 'completed' : 'planned') : (index % 2 ? 'planned' : 'not_planned'),
   })))
   render(<ClientProfilePage client={client} user={owner} trainer={seed.trainers[0]} trainers={seed.trainers}
     sessions={sessions} policy={seed.settings} today="2026-09-09" />, { wrapper })
@@ -209,12 +217,26 @@ it('filters and paginates client history and upcoming sessions independently wit
   fireEvent.change(screen.getByLabelText('Session History to'), { target: { value: '2026-08-18' } })
   expect(within(screen.getByLabelText('Session History')).getAllByRole('article')).toHaveLength(10)
   expect(screen.getByLabelText('Session History')).toHaveTextContent('18 Aug 2026')
+  expect(within(screen.getByLabelText('Session History')).getAllByText('Completed', { exact: true })).toHaveLength(5)
+  expect(within(screen.getByLabelText('Session History')).getAllByText('Not completed', { exact: true })).toHaveLength(5)
+  expect(screen.getByLabelText('Session History')).not.toHaveTextContent('Package started')
+  for (const row of within(screen.getByLabelText('Session History')).getAllByRole('article')) {
+    const view = within(row).getByRole('button', { name: 'View', exact: true })
+    expect(['Completed', 'Not completed']).toContain(view.previousElementSibling.textContent)
+  }
   expect(screen.queryByLabelText('Session History summary')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Next' }))
   expect(within(screen.getByLabelText('Session History')).getAllByRole('article')).toHaveLength(4)
   expect(screen.getByLabelText('Session History')).toHaveTextContent('05 Aug 2026')
   fireEvent.click(screen.getByRole('button', { name: 'Upcoming Sessions', exact: true }))
   expect(screen.getByLabelText('Upcoming Sessions from')).toHaveValue('')
+  expect(within(screen.getByLabelText('Upcoming Sessions')).getAllByText('Planned', { exact: true })).toHaveLength(5)
+  expect(within(screen.getByLabelText('Upcoming Sessions')).getAllByText('Not Planned', { exact: true })).toHaveLength(5)
+  expect(screen.getByLabelText('Upcoming Sessions')).not.toHaveTextContent('Package started')
+  for (const row of within(screen.getByLabelText('Upcoming Sessions')).getAllByRole('article')) {
+    const view = within(row).getByRole('button', { name: 'View', exact: true })
+    expect(['Planned', 'Not Planned']).toContain(view.previousElementSibling.textContent)
+  }
   expect(within(screen.getByLabelText('Upcoming Sessions')).getAllByRole('article')).toHaveLength(10)
   fireEvent.change(screen.getByLabelText('Upcoming Sessions from'), { target: { value: '2026-10-12' } })
   fireEvent.change(screen.getByLabelText('Upcoming Sessions to'), { target: { value: '2026-10-12' } })

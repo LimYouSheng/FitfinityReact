@@ -54,7 +54,7 @@ export function PortalDataProvider({ services = portalServices, children }) {
         throw error
       }
     }
-    return Object.fromEntries(Object.entries(services).map(([key, value]) => [key, typeof value === 'function' ? wrap(value) : Object.fromEntries(Object.entries(value).map(([method, operation]) => [method, wrap(operation, key === 'auth' && method === 'signOut')]))]))
+    return Object.fromEntries(Object.entries(services).map(([key, value]) => [key, key === 'reportService' ? value : typeof value === 'function' ? wrap(value) : Object.fromEntries(Object.entries(value).map(([method, operation]) => [method, wrap(operation, key === 'auth' && method === 'signOut')]))]))
   }, [services])
   const today = businessClock(clock, state.snapshot?.policy.timeZone).date
   return <PortalData.Provider value={{ ...state, services: guardedServices, refresh, today }}>{children}</PortalData.Provider>

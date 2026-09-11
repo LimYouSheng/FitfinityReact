@@ -665,6 +665,21 @@ test('viewport and CSS suppress zoom and pull refresh gestures', async ({ page }
 
   expect(guards.touchAction).toBe('pan-y')
   expect(guards.overscrollY).toBe('none')
+  const cancelled = await page.locator('.portal-main').evaluate(target => {
+    const emit = (type, y, count = 1) => {
+      const point = { identifier: 31, clientX: innerWidth / 2, clientY: y }
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.assign(event, { touches: type === 'touchend' ? [] : Array(count).fill(point), changedTouches: [point] })
+      target.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    const start = emit('touchstart', 180), down = emit('touchmove', 185), up = emit('touchmove', 100)
+    emit('touchend', 100)
+    const pinchStart = emit('touchstart', 180, 2), pinchMove = emit('touchmove', 200, 2)
+    emit('touchend', 200)
+    return { start, down, up, pinchStart, pinchMove }
+  })
+  expect(cancelled).toEqual({ start: false, down: false, up: false, pinchStart: true, pinchMove: true })
 })
 
 test('sidebar unread badge content is centred in a compact bubble', async ({ page }) => {
@@ -1246,7 +1261,7 @@ test('client profile navigation tabs contain package session and progress data',
   await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Strength Progress' })).toBeVisible()
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export Progress Report' }).click()
+  await page.getByRole('button', { name: 'Download Progress Report PDF' }).click()
   const download = await downloadPromise
   expect(download.suggestedFilename()).toBe('amanda-lim-progress-report.pdf')
   const reportStream = await download.createReadStream()
@@ -1257,7 +1272,7 @@ test('client profile navigation tabs contain package session and progress data',
   expect(reportPdf).toContain('/Count 6 /Kids')
   expect(reportPdf.match(/\/Subtype \/Image/g)).toHaveLength(6)
   expect(reportPdf).toMatch(/%%EOF\n$/)
-  await expect(page.getByRole('button', { name: 'Share Progress Report via WhatsApp' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Share Progress Report PDF' })).toBeEnabled()
   // Every completed session has the same six exercises; future plans add no report points.
   await expect(page.locator('.strength-progress-name')).toHaveText([
     'Goblet Squat', 'Seated Cable Row', 'DB Chest Press', 'Romanian Deadlift', 'Lat Pulldown', 'Walking Lunge',
@@ -1288,7 +1303,7 @@ test('client profile navigation tabs contain package session and progress data',
   await expect(page.getByRole('heading', { name: 'Completed Sessions' })).toHaveCount(0)
 
   if (page.viewportSize().width <= 620) {
-    const exportBox = await page.getByRole('button', { name: 'Export Progress Report' }).boundingBox()
+    const exportBox = await page.getByRole('button', { name: 'Download Progress Report PDF' }).boundingBox()
     const titleBox = await page.getByRole('heading', { name: 'Strength Progress' }).boundingBox()
     expect(Math.abs(exportBox.width - exportBox.height)).toBeLessThanOrEqual(1)
     expect(exportBox.x).toBeGreaterThan(titleBox.x)
@@ -1417,7 +1432,7 @@ test('trainer assigned clients provide search and package filters', async ({ pag
     page.getByLabel('Filter assigned clients by type'),
     page.getByLabel('Filter assigned clients by frequency'),
   ])
-  expect(await page.getByLabel('Assigned client list').locator('.quick-row').count()).toBeLessThanOrEqual(10)
+  expect(await page.getByLabel('Assigned client list').locator('.compact-list-row').count()).toBeLessThanOrEqual(10)
   await search.fill('Amanda')
   await expect(page.getByText('Amanda Lim', { exact: true })).toBeVisible()
 })
@@ -1517,7 +1532,7 @@ test('Session Details follows the approved internal section order', async ({ pag
   await expect(exportSummary).toBeVisible()
   await exportSummary.click()
   const exportDialog = page.getByRole('dialog', { name: 'Export Summary' })
-  await expect(exportDialog.getByRole('button', { name: 'Continue to WhatsApp' })).toBeVisible()
+  await expect(exportDialog.getByRole('button', { name: 'Share PDF' })).toBeVisible()
   await expect(exportDialog.locator('legend')).toHaveText(['Selected Videos', 'Select Client Facing Summary'])
   await expect(exportDialog.getByRole('group', { name: 'Selected Videos' }).getByRole('checkbox')).toHaveCount(0)
   await expect(exportDialog.getByRole('checkbox', { name: 'Include Client-Facing Summary' })).toBeChecked()

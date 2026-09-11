@@ -1,9 +1,9 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { progressReportFilename } from './progressReport.js'
+import { reportFilename } from '../../services/reportService.js'
 import { progressReportPages } from './progressReportPdf.jsx'
-import { reportPdfDocument } from './reportPdfDocument.js'
+import { reportPdfDocument } from '../../utils/reportPdf.js'
 import StrengthProgressChart from './StrengthProgressChart.jsx'
 import { progressChange } from './progressChart.js'
 
@@ -28,7 +28,7 @@ describe('progress report export', () => {
       id: 'row', name: 'Cable row', points: [{ id: 'r1', date: '2026-08-10', load: 35, reps: 12, sets: 4 }],
     }] }
     const pages = progressReportPages(input, options)
-    expect(progressReportFilename(client)).toBe('amanda-lim-progress-report.pdf')
+    expect(reportFilename(client.name, 'progress-report')).toBe('amanda-lim-progress-report.pdf')
     expect(pages).toHaveLength(2)
     const texts = pages.map(page => parse(page.svg).documentElement.textContent)
     expect(texts[0]).toContain('Smith back squat')

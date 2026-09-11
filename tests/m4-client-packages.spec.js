@@ -185,6 +185,11 @@ test('M4 Progress package drill-in preserves independent package, exercise and a
   await tab(page, 'Progress')
   const packages = page.getByLabel('Progress packages', { exact: true })
   await expect(packages.locator('article')).toHaveCount(10)
+  for (const row of await packages.locator('article').all()) {
+    const bounds = await row.evaluate(node => [...node.children].map(cell => cell.getBoundingClientRect()))
+    const overlap = Math.min(...bounds.map(b => b.bottom)) - Math.max(...bounds.map(b => b.top))
+    expect(overlap).toBeGreaterThan(0)
+  }
   await expect(page.getByRole('heading', { name: 'Strength Progress', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(packages.locator('article')).toHaveCount(3)
@@ -220,14 +225,34 @@ test('M4 client session date ranges and trainer assigned-client pagination survi
     data.clients = [client, ...Array.from({ length: 12 }, (_, index) => ({ ...structuredClone(client), id: `assigned-${index}`, name: `Assigned ${index + 1}`, email: `assigned-${index}@example.com` }))]
     data.sessions = ['history', 'upcoming'].flatMap(kind => Array.from({ length: 22 }, (_, index) => ({ ...sample,
       id: `${kind}-${index}`, date: `2026-${kind === 'history' ? '08' : '10'}-${String(index + 1).padStart(2, '0')}`,
-      status: kind === 'history' ? 'completed' : 'planned', acknowledgement: kind === 'history' ? sample.acknowledgement : null,
+      status: kind === 'history' ? (index % 2 ? 'completed' : 'planned') : (index % 2 ? 'planned' : 'not_planned'),
+      acknowledgement: kind === 'history' && index % 2 ? sample.acknowledgement : null,
+      exercisePlan: kind === 'upcoming' && !(index % 2) ? [] : sample.exercisePlan,
     })))
   })
   await page.goto('/#/clients/c1')
   for (const [title, month] of [['Session History', '08'], ['Upcoming Sessions', '10']]) {
     await tab(page, title)
     const list = page.getByLabel(title, { exact: true })
+    await expect(page.getByText('Choose start date', { exact: true })).toBeVisible()
+    await expect(page.getByText('Choose end date', { exact: true })).toBeVisible()
     await expect(list.locator('article')).toHaveCount(10)
+    await expect(list.locator('.status-badge').filter({ hasText: title === 'Session History' ? /^Completed$/ : /^Planned$/ })).toHaveCount(5)
+    await expect(list.locator('.status-badge').filter({ hasText: title === 'Session History' ? /^Not completed$/ : /^Not Planned$/ })).toHaveCount(5)
+    await expect(list).not.toContainText('Package started')
+    for (const row of await list.locator('article').all()) {
+      const layout = await row.evaluate(node => {
+        const status = node.querySelector('.status-badge'), view = node.querySelector('button')
+        const a = status.getBoundingClientRect(), b = view.getBoundingClientRect(), style = getComputedStyle(view)
+        return { adjacent: status.nextElementSibling === view, statusRight: a.right, viewLeft: b.left,
+          overlap: Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top),
+          background: style.backgroundColor, border: style.borderTopColor, color: style.color }
+      })
+      expect(layout.adjacent).toBe(true)
+      expect(layout.statusRight).toBeLessThanOrEqual(layout.viewLeft)
+      expect(layout.overlap).toBeGreaterThan(0)
+      expect(layout).toMatchObject({ background: 'rgb(21, 23, 29)', border: 'rgb(59, 64, 74)', color: 'rgb(211, 215, 224)' })
+    }
     await page.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(page.getByText('Page 2 of 3', { exact: true })).toBeVisible()
     await page.getByLabel(`${title} from`, { exact: true }).fill(`2026-${month}-05`)
@@ -240,6 +265,11 @@ test('M4 client session date ranges and trainer assigned-client pagination survi
     await expect(list).toContainText(`${title === 'Session History' ? '05 Aug' : '16 Oct'} 2026`)
     await list.getByRole('button', { name: 'View', exact: true }).first().click()
     await expect(page.getByRole('heading', { name: 'Session Overview' })).toBeVisible()
+    for (const label of ['View Client', 'View Trainer']) {
+      const view = page.getByRole('button', { name: label, exact: true })
+      await expect(view).toHaveCSS('background-color', 'rgb(21, 23, 29)')
+      await expect(view).toHaveCSS('color', 'rgb(211, 215, 224)')
+    }
     await page.getByRole('button', { name: 'Back', exact: true }).click()
     await expect(list.locator('article')).toHaveCount(2)
     await page.reload()
@@ -252,17 +282,20 @@ test('M4 client session date ranges and trainer assigned-client pagination survi
   await page.goto('/#/trainers/t1')
   await tab(page, 'Assigned Clients')
   const assigned = page.getByLabel('Assigned client list', { exact: true })
-  await expect(assigned.locator('.quick-row')).toHaveCount(10)
+  await expect(assigned.locator('.compact-list-row')).toHaveCount(10)
+  await expect(assigned).toHaveClass('compact-list')
+  await expect(assigned.getByRole('button', { name: /^View / }).first()).toHaveCSS('background-color', 'rgb(21, 23, 29)')
+  expect(await assigned.locator('.compact-list-row').first().evaluate(row => getComputedStyle(row).display)).toBe('grid')
   await page.getByRole('button', { name: 'Next', exact: true }).click()
-  await expect(assigned.locator('.quick-row')).toHaveCount(3)
-  await assigned.getByRole('button', { name: 'View', exact: true }).first().click()
+  await expect(assigned.locator('.compact-list-row')).toHaveCount(3)
+  await assigned.getByRole('button', { name: /^View / }).first().click()
   await expect(page).toHaveURL(/\/clients\/assigned-/)
   await page.getByRole('button', { name: 'Back', exact: true }).click()
-  await expect(assigned.locator('.quick-row')).toHaveCount(3)
+  await expect(assigned.locator('.compact-list-row')).toHaveCount(3)
   await page.reload()
-  await expect(assigned.locator('.quick-row')).toHaveCount(3)
+  await expect(assigned.locator('.compact-list-row')).toHaveCount(3)
   await page.getByLabel('Search assigned clients', { exact: true }).fill('Amanda')
-  await expect(assigned.locator('.quick-row')).toHaveCount(1)
+  await expect(assigned.locator('.compact-list-row')).toHaveCount(1)
   await expect(assigned).toContainText('Amanda Lim')
   await expect(page.getByRole('navigation', { name: 'List pages', exact: true })).toHaveCount(0)
 })
@@ -316,11 +349,12 @@ test('M4 package progress excludes older purchases from both visible loads and P
   await expect(page).toHaveURL(/\/progress\/c1-package-2026-1$/)
   await expect(row).toContainText('200 kg')
   await mockPdfSharing(page)
-  await page.getByRole('button', { name: 'Share Progress Report via WhatsApp' }).click()
-  await page.getByRole('dialog', { name: 'Share Progress Report' }).getByRole('button', { name: 'Share PDF', exact: true }).click()
+  await page.getByRole('button', { name: 'Share Progress Report PDF' }).click()
+  await expect(page.getByRole('dialog', { name: 'Share Progress Report' })).toHaveCount(0)
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  const event = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).progressReportEvents.at(-1), KEY)
-  expect(event).toMatchObject({ clientId: 'c1', packageId: 'c1-package-2026-1', kind: 'pdf_share_opened' })
+  // No app dialog closes on completion now; wait for the persisted share audit.
+  await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)).progressReportEvents?.at(-1), KEY))
+    .toMatchObject({ clientId: 'c1', packageId: 'c1-package-2026-1', kind: 'pdf_share_opened' })
   expect((await page.evaluate(() => window.__pdfShares))[0]).toMatchObject({ type: 'application/pdf', images: 1, active: true })
 })
 
@@ -330,21 +364,21 @@ test('M4 browser PDF fallback opens the generated PDF and reports blocked window
   await tab(page, 'Progress')
   await page.getByLabel('Progress packages', { exact: true }).locator('article').first().getByRole('button', { name: 'View', exact: true }).click()
   await mockPdfSharing(page, { supported: false })
-  await page.getByRole('button', { name: 'Share Progress Report via WhatsApp' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Share Progress Report' })
-  const open = dialog.getByRole('button', { name: 'Open PDF', exact: true })
+  await page.getByRole('button', { name: 'Share Progress Report PDF' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  const open = page.getByRole('button', { name: 'Open PDF', exact: true })
   await expect(open).toBeVisible()
   // Stub the OS window boundary; capture the real generated PDF behind its URL.
   await page.evaluate(() => { window.open = url => { window.__openedReport = { url, active: navigator.userActivation.isActive }; return null } })
   await open.click()
-  await expect(dialog.getByRole('alert')).toContainText('PDF window was blocked')
+  await expect(page.getByRole('alert')).toContainText('PDF window was blocked')
   const opened = await page.evaluate(async () => {
     const response = await fetch(window.__openedReport.url), blob = await response.blob()
     return { active: window.__openedReport.active, type: blob.type, header: (await blob.text()).slice(0, 9) }
   })
   expect(opened).toEqual({ active: true, type: 'application/pdf', header: '%PDF-1.4\n' })
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).progressReportEvents ?? [], KEY)).toEqual([])
-  await expect(dialog.getByRole('button', { name: 'Download PDF', exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Download Progress Report PDF', exact: true })).toBeEnabled()
 })
 
 test('M4 package deactivation defaults to retention, freezes its session and allows later deletion', async ({ page }) => {

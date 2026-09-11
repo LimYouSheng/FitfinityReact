@@ -1,28 +1,11 @@
+import { wrapText } from '../../utils/reportText.js'
 import { renderToStaticMarkup } from 'react-dom/server'
 import StrengthProgressChart from './StrengthProgressChart.jsx'
 import { PROGRESS_FONT, progressNumber, progressSummary, progressChange } from './progressChart.js'
 import { formatDate, formatTimestamp } from '../../utils/date.js'
-import { reportPdfDocument } from './reportPdfDocument.js'
+import { renderReportPdf } from '../../utils/reportPdf.js'
 
 const PAGE = { width: 1000, height: 1414, margin: 48, rowHeight: 34 }
-
-// Break at words where possible, including long names without spaces. Array.from
-// keeps surrogate pairs intact, and React escapes all names before SVG rendering.
-function wrapText(value, limit) {
-  const width = text => Array.from(text).reduce((sum, letter) => sum + (/[^\u0000-\u024f]/u.test(letter) ? 2 : /[MW@]/.test(letter) ? 1.5 : 1), 0)
-  const lines = []
-  let line = ''
-  for (const word of String(value).split(/\s+/)) {
-    if (line && width(`${line} ${word}`) > limit) { lines.push(line); line = '' }
-    if (line) line += ' '
-    for (const letter of Array.from(word)) {
-      if (line && width(line + letter) > limit) { lines.push(line); line = '' }
-      line += letter
-    }
-  }
-  if (line) lines.push(line)
-  return lines.length ? lines : ['']
-}
 
 export function progressReportPages(client, { at = new Date().toISOString(), timeZone } = {}) {
   const pages = []
@@ -77,35 +60,6 @@ function ReportPage({ exercise, clientLines, nameLines, chartTop, tableTop, offs
   </svg>
 }
 
-async function rasterizePage(page) {
-  const url = URL.createObjectURL(new Blob([page.svg], { type: 'image/svg+xml;charset=utf-8' }))
-  const image = new Image()
-  const canvas = document.createElement('canvas')
-  try {
-    await new Promise((resolve, reject) => {
-      image.onload = resolve
-      image.onerror = () => reject(new Error('The progress chart could not be rendered. Please try exporting again.'))
-      image.src = url
-    })
-    canvas.width = page.width * 2; canvas.height = page.height * 2
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('Your browser could not create the progress report. Please try another browser.')
-    context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95))
-    if (!blob || blob.type !== 'image/jpeg') throw new Error('Your browser could not encode the progress report. Please try another browser.')
-    return { width: canvas.width, height: canvas.height, bytes: new Uint8Array(await blob.arrayBuffer()) }
-  } finally {
-    URL.revokeObjectURL(url)
-    image.onload = null; image.onerror = null
-    canvas.width = 0; canvas.height = 0
-  }
-}
-
 export async function progressReportPdf(client, options) {
-  await document.fonts?.ready
-  const pages = []
-  // Serial rasterization releases each canvas before creating the next, keeping
-  // mobile memory bounded even when a client has many exercises or results.
-  for (const page of progressReportPages(client, options)) pages.push(await rasterizePage(page))
-  return reportPdfDocument(pages, `${client.name} - Progress Report`)
+  return renderReportPdf(progressReportPages(client, options), `${client.name} - Progress Report`)
 }

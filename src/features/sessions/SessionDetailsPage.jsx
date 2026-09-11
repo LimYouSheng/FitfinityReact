@@ -1,5 +1,4 @@
 import { packageForRecord } from '../../app/clientPackages.js'
-import { weeklyFrequencyLabel } from '../../app/packages.js'
 import SignaturePad, { SignaturePreview } from '../../components/SignaturePad.jsx'
 import { validSignature, hasSessionAcknowledgement } from '../../app/signature.js'
 import { useEffect, useState } from 'react'
@@ -15,7 +14,9 @@ import { exerciseResultsFor } from '../../app/progress.js'
 import { formatDate, formatTimestamp, weekday } from '../../utils/date.js'
 import ExercisePlanEditor from './ExercisePlanEditor.jsx'
 import { exerciseVideoCaption } from './exerciseVideo.js'
-import { sessionSummaryWhatsAppText } from './sessionExport.js'
+import useReportService from '../../hooks/useReportService.js'
+import usePreparedReport from '../../hooks/usePreparedReport.js'
+import { reportShareError } from '../../services/reportService.js'
 
 function automaticClientSummary(session, outcome) {
   const items = session.exercisePlan ?? []
@@ -58,7 +59,6 @@ export default function SessionDetailsPage({
   onAcknowledge,
   onSaveOutcome,
   onSaveClientSummary,
-  onMarkWhatsAppOpened,
   onSaveDetails,
   onRequestTimeChange,
   onRequestTrainerChange,
@@ -96,7 +96,7 @@ export default function SessionDetailsPage({
   const [signatureOpen, setSignatureOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
-  const [shareFallback, setShareFallback] = useState('')
+  const [shareError, setShareError] = useState('')
   const [selectedVideoIds, setSelectedVideoIds] = useState([])
   const [includeClientSummary, setIncludeClientSummary] = useState(true)
 
@@ -162,6 +162,8 @@ export default function SessionDetailsPage({
   const recordedVideos = (session.exercisePlan ?? []).filter(item => item.videoAttached)
   const selectedVideos = recordedVideos.filter(item => selectedVideoIds.includes(item.id))
   const hasExportSelection = selectedVideos.length > 0 || (includeClientSummary && Boolean(displayedSummary.trim()))
+  const reportService = useReportService()
+  const report = usePreparedReport(reportService.sessionFile, { client, session, summary: includeClientSummary ? displayedSummary : '', videos: selectedVideos }, exportOpen && hasExportSelection)
   const dateError = sessionActionError(session, today)
   const clock = businessClock(new Date(), policy?.timeZone)
   const timeChangeError = sessionTimeChangeError(session, null, clock)
@@ -176,39 +178,27 @@ export default function SessionDetailsPage({
     if (error) setDetailsError(error)
     return !error
   }
-  const phone = (typeof client.phone === 'string'
-    ? client.phone
-    : `${client.phone.countryCode}${client.phone.number}`
-  ).replace(/\D/g, '')
-
   const validSchedule = draft => Boolean(draft.date && draft.from && draft.to && draft.from < draft.to)
 
   const openExportSummary = () => {
     if (recordInactive || !checkTrainingDate()) return
     setSelectedVideoIds(recordedVideos.map(item => item.id))
     setIncludeClientSummary(true)
-    setShareFallback('')
+    setShareError('')
     setExportOpen(true)
   }
 
   const exportSummary = async () => {
-    if (!checkTrainingDate() || !hasExportSelection) return
-    const text = sessionSummaryWhatsAppText(client, session, includeClientSummary ? displayedSummary : '', selectedVideos)
-    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
-
-    setShareFallback('')
-    let popup
-    try { popup = window.open('about:blank', '_blank'); if (popup) { popup.opener = null; popup.location.replace(whatsappUrl) } } catch { popup?.close(); popup = null }
-    if (!popup) { setShareFallback(whatsappUrl); return }
+    if (saving || !checkTrainingDate() || !hasExportSelection || !report.file) return
+    setShareError('')
     setSaving(true)
-    setExportOpen(false)
     try {
-      await onMarkWhatsAppOpened()
-    } catch (failure) {
-      setDetailsError(failure.message || 'Could not complete this action. Try again.')
-    } finally {
-      setSaving(false)
-    }
+      // Already prepared: invoke the device share from the explicit click.
+      await reportService.share(report.file)
+      setExportOpen(false)
+    } catch (error) {
+      if (error.name !== 'AbortError') setShareError(reportShareError(error))
+    } finally { setSaving(false) }
   }
 
   const saveDetails = async () => {
@@ -433,7 +423,7 @@ export default function SessionDetailsPage({
             <div className="session-overview-value">
               <strong>{client.name}</strong>
               {clientInactive && <StatusBadge tone="amber">Client inactive</StatusBadge>}
-              {activeEditor !== 'details' && <button type="button" className="text-action" aria-label="View Client" onClick={onOpenClient}>View</button>}
+              {activeEditor !== 'details' && <button type="button" className="secondary-button small" aria-label="View Client" onClick={onOpenClient}>View</button>}
             </div>
           </div>
 
@@ -445,7 +435,7 @@ export default function SessionDetailsPage({
                   {trainers.filter(item => item.status !== 'inactive').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </select>
               ) : <strong>{trainer.name}</strong>}
-              {activeEditor !== 'details' && <button type="button" className="text-action" aria-label="View Trainer" onClick={onOpenTrainer}>View</button>}
+              {activeEditor !== 'details' && <button type="button" className="secondary-button small" aria-label="View Trainer" onClick={onOpenTrainer}>View</button>}
             </div>
           </div>
 
@@ -462,12 +452,10 @@ export default function SessionDetailsPage({
 
           <div className="session-overview-item" aria-label="Session package details">
             <span className="session-fact-label">Package details</span>
-            {purchased ? <>
+            {purchased ? <div className="session-package-summary">
               <strong>{purchased.name ?? `${purchased.total} Sessions`} · Session {session.sessionNumber} / {purchased.total}</strong>
-              <span>{formatDate(purchased.startDate)} – {formatDate(purchased.endDate)}</span>
-              <span>{purchased.used} completed · {Math.max(0, purchased.total - purchased.used)} remaining</span>
-              {purchased.sessionsPerWeek && <span>{weeklyFrequencyLabel(purchased.sessionsPerWeek, true)} · {purchased.validityDays} days</span>}
-            </> : <strong>Package details unavailable</strong>}
+              <span> · <time dateTime={purchased.startDate}>{formatDate(purchased.startDate)}</time> – <time dateTime={purchased.endDate}>{formatDate(purchased.endDate)}</time></span>
+            </div> : <strong>Package details unavailable</strong>}
             {packageInactive && <StatusBadge tone="amber">Package inactive</StatusBadge>}
           </div>
         </div>
@@ -555,7 +543,7 @@ export default function SessionDetailsPage({
       <Panel className="top-gap session-acknowledgement-panel">
         <div className="section-head">
           <h2>Acknowledgement</h2>
-          {signed && <button type="button" className="text-action" onClick={() => setSignatureOpen(true)}>View Client Signature</button>}
+          {signed && <button type="button" className="secondary-button small" onClick={() => setSignatureOpen(true)}>View Client Signature</button>}
         </div>
         {acknowledgementHistory.length ? <ol className="acknowledgement-history" aria-label="Acknowledgement history">
           {acknowledgementHistory.map((entry, index) => <li key={`${entry.recordedAt}-${index}`}>
@@ -596,12 +584,12 @@ export default function SessionDetailsPage({
       <ConfirmDialog
         open={exportOpen}
         title="Export Summary"
-        confirmLabel={saving ? 'Preparing…' : 'Continue to WhatsApp'}
-        confirmDisabled={saving || Boolean(dateError) || !hasExportSelection}
-        onCancel={() => setExportOpen(false)}
+        confirmLabel={saving ? 'Sharing…' : 'Share PDF'}
+        confirmDisabled={saving || Boolean(dateError) || !hasExportSelection || !report.file}
+        onCancel={() => { if (!saving) setExportOpen(false) }}
         onConfirm={exportSummary}
       >
-        <fieldset className="export-summary-section">
+        <fieldset className="export-summary-section" disabled={saving}>
         <legend>Selected Videos</legend>
         {recordedVideos.length ? (
           <div className="export-video-list">
@@ -611,7 +599,7 @@ export default function SessionDetailsPage({
                   type="checkbox"
                   aria-label={`Include video for ${item.name}`}
                   checked={selectedVideoIds.includes(item.id)}
-                  onChange={() => { setShareFallback(''); setSelectedVideoIds(current => current.includes(item.id)
+                  onChange={() => { setShareError(''); setSelectedVideoIds(current => current.includes(item.id)
                     ? current.filter(id => id !== item.id)
                     : [...current, item.id]) }}
                 />
@@ -626,16 +614,22 @@ export default function SessionDetailsPage({
           <p className="empty">No videos</p>
         )}
         </fieldset>
-        <fieldset className="export-summary-section">
+        <fieldset className="export-summary-section" disabled={saving}>
           <legend>Select Client Facing Summary</legend>
           <label className="export-summary-option">
             <input type="checkbox" aria-label="Include Client-Facing Summary" checked={includeClientSummary}
-              onChange={event => { setIncludeClientSummary(event.target.checked); setShareFallback('') }} />
+              onChange={event => { setIncludeClientSummary(event.target.checked); setShareError('') }} />
             <span>Client-Facing Summary</span>
           </label>
           {includeClientSummary && <div className="client-summary-copy">{displayedSummary}</div>}
         </fieldset>
-        {shareFallback && <p role="alert">The browser blocked the new window. <a href={shareFallback} target="_blank" rel="noreferrer">Open summary in WhatsApp</a></p>}
+        {report.preparing && <p role="status">Preparing PDF…</p>}
+        {report.error && <div role="alert"><p>{report.error}</p><button type="button" className="secondary-button" onClick={report.retry}>Retry PDF</button></div>}
+        {shareError && <p role="alert">{shareError}</p>}
+        {report.file && <div className="report-file-actions"><button type="button" className="secondary-button" disabled={saving} onClick={() => {
+          try { reportService.download(report.file); setShareError('') }
+          catch (error) { setShareError(error.message) }
+        }}>Download PDF</button></div>}
       </ConfirmDialog>
 
       <ConfirmDialog open={signatureOpen} title="Client signature" hideConfirm cancelLabel="Close" onCancel={() => setSignatureOpen(false)}>

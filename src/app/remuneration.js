@@ -92,14 +92,16 @@ export function remunerationRecord(db, key, trainerId, now = new Date()) {
 
 export function remunerationCycles(db, user, now = new Date()) {
   const policy = db.settings.remuneration
-  const keys = new Set([cycleForDate(businessNow(now, db.settings.timeZone).date, policy)])
+  const current = cycleForDate(businessNow(now, db.settings.timeZone).date, policy)
+  const keys = new Set([current])
   for (const session of db.sessions ?? []) {
     if (session.status !== 'cancelled' && (user.role === 'owner' || session.trainerId === user.trainerId)) keys.add(cycleForDate(session.date, policy))
   }
   for (const record of db.remunerationApprovals ?? []) {
     if (user.role === 'owner' || record.trainerId === user.trainerId) keys.add(record.cycle.key)
   }
-  return [...keys].filter(key => MONTH.test(key ?? '')).sort().reverse()
+  // Future bookings remain scheduled, but their pay cycles are not open yet.
+  return [...keys].filter(key => MONTH.test(key ?? '') && key <= current).sort().reverse()
 }
 
 export function cycleTrainers(db, key, user, now = new Date()) {

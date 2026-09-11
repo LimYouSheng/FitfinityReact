@@ -5,8 +5,9 @@ import { PROGRESS_REPORT_ACTIONS } from '../../app/progress.js'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import usePagination from '../../hooks/usePagination.js'
 import { formatTimestamp } from '../../utils/date.js'
-import { downloadProgressReport, openProgressWhatsApp, progressReportFile, progressShareError } from './progressReport.js'
-import ProgressReportShareDialog from './ProgressReportShareDialog.jsx'
+import { reportShareError } from '../../services/reportService.js'
+import useReportService from '../../hooks/useReportService.js'
+import usePreparedReport from '../../hooks/usePreparedReport.js'
 
 import StrengthProgressChart from './StrengthProgressChart.jsx'
 import { progressNumber, progressSummary, progressChange } from './progressChart.js'
@@ -24,7 +25,9 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
   const [unsavedAction, setUnsavedAction] = useState(null)
-  const [shareClient, setShareClient] = useState(null)
+  const reportService = useReportService()
+  const report = usePreparedReport(reportService.progressFile, { client, timeZone }, exercises.length > 0)
+  const [shareFallback, setShareFallback] = useState(false)
   const acting = useRef(false)
 
   useEffect(() => {
@@ -71,7 +74,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
       await saveHistory(action)
       return true
     } catch (error) {
-      if (error.name !== 'AbortError') setActionError(kind === 'pdf_share_opened' ? progressShareError(error) : error.message || 'The progress report could not be opened.')
+      if (error.name !== 'AbortError') setActionError(kind === 'pdf_share_opened' ? reportShareError(error) : error.message || 'The progress report could not be opened.')
       return false
     } finally { acting.current = false; setBusy(false) }
   }
@@ -81,13 +84,15 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
     try { await saveHistory(unsavedAction) }
     finally { acting.current = false; setBusy(false) }
   }
-  const exportReport = () => recordAction('pdf_export', async () => {
-    downloadProgressReport(await progressReportFile(client, { timeZone }))
-  })
+  const exportReport = () => recordAction('pdf_export', () => reportService.download(report.file))
   const shareReport = () => {
-    if (acting.current || unsavedAction) return
-    setActionError('')
-    setShareClient(structuredClone(client))
+    if (acting.current || unsavedAction || !report.file) return
+    setShareFallback(!reportService.canShare(report.file))
+    return recordAction('pdf_share_opened', () => reportService.share(report.file))
+  }
+  const openReport = () => {
+    try { reportService.open(report.file); setActionError('') }
+    catch (error) { setActionError(error.message) }
   }
 
   const actionFeedback = actionError && <div className="report-action-error" role="alert"><p>{actionError}</p>
@@ -97,7 +102,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
   return (
     <div className="stack-gap strength-progress" aria-label="Strength progress">
       {owner && <Panel className="report-history-panel">
-        <button type="button" className="text-action" aria-expanded={historyOpen}
+        <button type="button" className="secondary-button small" aria-expanded={historyOpen}
           aria-controls="progress-report-history" onClick={() => setHistoryOpen(open => !open)}>
           {historyOpen ? 'Hide Export/WhatsApp History' : 'View Export/WhatsApp History'}
         </button>
@@ -110,14 +115,10 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
             <ReportHistoryRows clientId={client.id} packageId={client.reportPackageId} items={historyState.items} timeZone={timeZone} />}
         </div>}
       </Panel>}
-      {!shareClient && actionFeedback}
-      {shareClient && <ProgressReportShareDialog client={shareClient} timeZone={timeZone} busy={busy} blocked={Boolean(unsavedAction)}
-        onClose={() => setShareClient(null)}
-        onShare={file => recordAction('pdf_share_opened', () => navigator.share({ files: [file] }))}
-        onDownload={file => recordAction('pdf_export', () => downloadProgressReport(file))}
-        onWhatsApp={() => recordAction('whatsapp_opened', () => openProgressWhatsApp(shareClient))}>
-        {actionFeedback}
-      </ProgressReportShareDialog>}
+      {actionFeedback}
+      {report.preparing && <p role="status">Preparing PDF…</p>}
+      {report.error && <div role="alert"><p>{report.error}</p><button type="button" className="secondary-button" onClick={report.retry}>Retry PDF</button></div>}
+      {shareFallback && report.file && <div className="report-file-actions"><button type="button" className="secondary-button" disabled={busy || Boolean(unsavedAction)} onClick={openReport}>Open PDF</button></div>}
       {!exercises.length ? <Panel><div className="empty">No completed exercise loads yet.</div></Panel> : <Panel>
         <div className="strength-progress-head">
           <div className="strength-progress-title">
@@ -128,27 +129,26 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
             <button
               type="button"
               className="secondary-button strength-progress-export"
-              aria-label="Export Progress Report"
-              disabled={busy || Boolean(unsavedAction)}
+              aria-label="Download Progress Report PDF"
+              disabled={busy || Boolean(unsavedAction) || !report.file}
               onClick={exportReport}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 4v10m0 0 4-4m-4 4-4-4M5 17.5V20h14v-2.5" />
               </svg>
-              <span>Export Progress Report</span>
+              <span>Download PDF</span>
             </button>
             <button
               type="button"
               className="secondary-button strength-progress-share"
-              aria-label="Share Progress Report via WhatsApp"
-              disabled={busy || Boolean(unsavedAction)}
+              aria-label="Share Progress Report PDF"
+              disabled={busy || Boolean(unsavedAction) || !report.file}
               onClick={shareReport}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20 11.7a8 8 0 0 1-11.9 7L4 20l1.3-4A8 8 0 1 1 20 11.7Z" />
-                <path d="M8.6 8.1c.2-.4.4-.4.7-.4h.3c.2 0 .4.1.5.4l.8 1.8c.1.3.1.5-.1.7l-.6.7c-.2.2-.1.4 0 .6.7 1.3 1.7 2.3 3.1 2.9.3.1.5.1.7-.1l.8-1c.2-.2.4-.3.7-.2l1.8.8c.3.1.4.3.4.5 0 .4-.2 1.2-.6 1.6-.5.5-1.3.8-2.2.7-1.2-.2-2.8-.7-4.7-2.4-1.6-1.4-2.6-3.1-2.9-4.3-.3-1.1 0-1.8.3-2.3Z" />
+                <path d="M12 16V3m0 0-4 4m4-4 4 4M7 10H4v11h16V10h-3" />
               </svg>
-              <span>WhatsApp</span>
+              <span>Share PDF</span>
             </button>
           </div>
         </div>

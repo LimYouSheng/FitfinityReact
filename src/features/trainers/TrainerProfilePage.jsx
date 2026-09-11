@@ -429,11 +429,13 @@ export default function TrainerProfilePage({
             </select>
           </div>
 
-          <div className="quick-list" aria-label="Assigned client list">
+          <div className="compact-list" aria-label="Assigned client list">
+            <div className="compact-list-head client-compact-grid"><span>Client</span><span>Package</span><span>View</span></div>
             {assignedClientPagination.items.map(client => (
-              <div className="quick-row" key={client.id}>
-                <div><strong>{client.name}</strong>{client.status === 'inactive' && <span className="inline-inactive">Client inactive</span>}<span>{client.type} • {client.package.total} sessions • {client.package.sessionsPerWeek === 2 ? 'Twice' : 'Once'} per week</span></div>
-                <button type="button" className="btn small" onClick={() => onOpenClient(client.id)}>View</button>
+              <div className={`compact-list-row client-compact-grid ${client.status === 'inactive' ? 'inactive-row' : ''}`} key={client.id}>
+                <div className="compact-name-wrap"><strong className="compact-primary">{client.name}</strong>{client.status === 'inactive' && <span className="inline-inactive">Client inactive</span>}</div>
+                <span className="compact-secondary">{client.type} · {client.package.total} sessions · {client.package.sessionsPerWeek === 2 ? 'Twice' : 'Once'} weekly</span>
+                <button type="button" className="secondary-button small compact-view" aria-label={`View ${client.name}`} onClick={() => onOpenClient(client.id)}>View</button>
               </div>
             ))}
             {!filteredAssignedClients.length && <div className="empty">No matching assigned clients.</div>}

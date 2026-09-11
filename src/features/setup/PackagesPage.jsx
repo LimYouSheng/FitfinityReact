@@ -70,7 +70,7 @@ export default function PackagesPage({ packages, policy, selectedId, onNavigate,
         <div className="inline-actions"><button className="onboarding-button" onClick={() => { setSaved(null); setDraft({ name: current.name, total: current.total }); setEditing(true) }}>Edit Package</button><button className="onboarding-button" disabled={busy} onClick={() => void save(current.status === 'active' ? 'inactive' : 'active')}>{current.status === 'active' ? 'Deactivate Package' : 'Reactivate Package'}</button></div>
         {errors.form && <p className="validation-copy" role="alert">{errors.form}</p>}
       </Panel> : <Panel><div className="package-list" aria-label="Package list">{pagination.items.map(item => <div className="package-row" key={item.id}>
-        <div><strong>{item.name}</strong><span>{item.total} sessions · {item.validityDays} days</span></div><StatusBadge tone={item.status === 'active' ? 'green' : 'amber'}>{item.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge><button className="onboarding-button" aria-label={`View package ${item.name}`} onClick={() => onNavigate(`packages/${item.id}`)}>View</button>
+        <div><strong>{item.name}</strong><span>{item.total} sessions · {item.validityDays} days</span></div><StatusBadge tone={item.status === 'active' ? 'green' : 'amber'}>{item.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge><button className="secondary-button small" aria-label={`View package ${item.name}`} onClick={() => onNavigate(`packages/${item.id}`)}>View</button>
       </div>)}</div><PaginationControls {...pagination} onPage={pagination.setPage} /></Panel>}
   </div>
 }

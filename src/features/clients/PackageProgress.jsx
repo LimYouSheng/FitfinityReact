@@ -27,13 +27,13 @@ export default function PackageProgress({ client, sessions = [], user, packageId
   }
   return <Panel>
     <div className="section-head"><h2>Progress Packages</h2></div>
-    <div className="package-progress-list" aria-label="Progress packages">
-      <div className="package-progress-head" aria-hidden="true"><span>Package</span><span>Dates</span><span>Completed</span><span /></div>
-      {pages.items.map(purchased => <article className="package-progress-row" key={purchased.id} data-package-id={purchased.id}>
+    <div className="compact-list package-progress-list" aria-label="Progress packages">
+      <div className="compact-list-head package-progress-grid" aria-hidden="true"><span>Package</span><span>Dates</span><span>Completed</span><span /></div>
+      {pages.items.map(purchased => <article className="compact-list-row package-progress-grid" key={purchased.id} data-package-id={purchased.id}>
         <div><strong>{purchased.name ?? `${purchased.total} Sessions`}</strong><span>{kind(purchased)}{purchased.status === 'inactive' ? ' · Inactive' : ''}</span></div>
         <span>{formatDate(purchased.startDate)} – {formatDate(purchased.endDate)}</span>
         <span>{progressSessionSummary(client, sessions, purchased.id).completed} / {purchased.total}</span>
-        <button type="button" className="btn small" onClick={() => onOpenPackage(purchased.id)}>View</button>
+        <button type="button" className="secondary-button small compact-view" onClick={() => onOpenPackage(purchased.id)}>View</button>
       </article>)}
       {!packages.length && <p className="empty">No packages yet.</p>}
     </div>
