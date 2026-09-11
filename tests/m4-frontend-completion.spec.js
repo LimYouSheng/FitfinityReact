@@ -1,4 +1,4 @@
-import { test, expect, drawClientSignature, selectDemoIdentity, mockPdfSharing } from './fixtures.js'
+import { mockPhysicalOrientation, test, expect, drawClientSignature, selectDemoIdentity, mockPdfSharing } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 import { withBusyCalendar } from '../src/test/fixtures/calendar.js'
 const database='fitfinity-m2-demo-db-v4'
@@ -203,7 +203,8 @@ test.describe('M4 signed-out account flows',()=>{
   })
 })
 
-test('M4 Oracle calendars show owner counts, every trainer weekly row and grouped complete day popups', async ({ page }) => {
+test('M4 Oracle calendars show owner counts, every trainer weekly row and grouped complete day popups', async ({ page, isMobile }) => {
+  if (isMobile) await mockPhysicalOrientation(page)
   await page.clock.setFixedTime(new Date('2026-09-02T15:59:00Z'))
   const data = withBusyCalendar(seed)
   for (const session of data.sessions) session.status = ['not_planned', 'planned', 'completed'][(Number(session.from.slice(0, 2)) - 8) % 3]

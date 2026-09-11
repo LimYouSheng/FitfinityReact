@@ -148,7 +148,7 @@ export default function ClientProfilePage({
     client.status !== 'inactive' && (user.role === 'owner' || assignedTrainerEditable)
 
   const saveGeneral = async () => {
-    const errors = clientStepErrors(draft, 'general')
+    const errors = clientStepErrors(draft, 'general', { requireComplete: false })
     if (Object.keys(errors).length) {
       setGeneralErrors(errors)
       setActivePerson(Number(Object.keys(errors)[0].split('.')[1]) || 0)

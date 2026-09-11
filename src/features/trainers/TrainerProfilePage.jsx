@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField.jsx'
 import TrainerGeneralFields from './TrainerGeneralFields.jsx'
 import { trainerProfileDraft, trainerStepErrors } from '../../app/trainerOnboarding.js'
 import { phoneText } from '../../app/contact.js'
@@ -129,7 +130,7 @@ export default function TrainerProfilePage({
   const allAssigned = remaining.every(session => replacements[session.id])
 
   const saveGeneral = async () => {
-    const errors = trainerStepErrors(generalDraft, 'general')
+    const errors = trainerStepErrors(generalDraft, 'general', { requireComplete: false })
     if (Object.keys(errors).length) { setGeneralErrors(errors); return }
     const confirmed = await confirmAction({
       title: 'Save trainer information?',
@@ -417,16 +418,16 @@ export default function TrainerProfilePage({
               onChange={event => setAssignedQuery(event.target.value)}
               placeholder="Search name or email"
             />
-            <select aria-label="Filter assigned clients by type" value={assignedType} onChange={event => setAssignedType(event.target.value)}>
+            <SelectField aria-label="Filter assigned clients by type" value={assignedType} onChange={event => setAssignedType(event.target.value)}>
               <option value="">All types</option>
               <option value="Individual">Individual</option>
               <option value="Couple">Couple</option>
-            </select>
-            <select aria-label="Filter assigned clients by frequency" value={assignedFrequency} onChange={event => setAssignedFrequency(event.target.value)}>
+            </SelectField>
+            <SelectField aria-label="Filter assigned clients by frequency" value={assignedFrequency} onChange={event => setAssignedFrequency(event.target.value)}>
               <option value="">All frequencies</option>
               <option value="1">Once per week</option>
               <option value="2">Twice per week</option>
-            </select>
+            </SelectField>
           </div>
 
           <div className="compact-list" aria-label="Assigned client list">
@@ -494,7 +495,7 @@ export default function TrainerProfilePage({
                   </div>
                   <label>
                     <span>Reassign to</span>
-                    <select
+                    <SelectField
                       aria-label={`Reassign ${client?.name ?? session.id}`}
                       value={replacements[session.id] ?? ''}
                       onChange={event => setReplacements(current => ({
@@ -506,7 +507,7 @@ export default function TrainerProfilePage({
                       {selectableReplacements.map(item => (
                         <option key={item.id} value={item.id}>{item.name}</option>
                       ))}
-                    </select>
+                    </SelectField>
                   </label>
                 </div>
               )

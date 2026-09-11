@@ -31,6 +31,12 @@ async function selectCategory(page, label) {
 
 test('M4 shared profile navigation filters Messages by category with dates, search and pagination reset', async ({ page }) => {
   await start(page)
+  const title = page.getByRole('heading', { name: 'Messages', exact: true })
+  const badge = title.locator('..').locator('.status-badge')
+  await expect(badge).toHaveText('13 new')
+  const [a, b] = await Promise.all([title.boundingBox(), badge.boundingBox()])
+  expect(a.x + a.width).toBeLessThanOrEqual(b.x)
+  expect(Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)).toBeGreaterThan(0)
   const categories = page.getByRole('group', { name: 'Message categories' })
   await selectCategory(page, 'Renewals')
   await expect(categories.locator('.profile-tabs button')).toHaveCount(7)

@@ -28,8 +28,7 @@ export default function MessagesPage({ category, onCategoryChange, ...props }) {
   const unread = props.messages.filter(message => visibleTo(props.user, message) && !message.read).length
   return <>
     <div className="page-head">
-      <div><span className="eyebrow">Updates</span><h1>Messages</h1></div>
-      <StatusBadge tone="blue">{unread} new</StatusBadge>
+      <div><span className="eyebrow">Updates</span><div className="heading-with-status"><h1>Messages</h1><StatusBadge tone="blue">{unread} new</StatusBadge></div></div>
     </div>
     <MessageInbox {...props} category={category ?? localCategory} onCategoryChange={onCategoryChange ?? setLocalCategory} />
   </>

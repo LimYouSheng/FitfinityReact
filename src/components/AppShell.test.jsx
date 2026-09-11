@@ -27,7 +27,7 @@ function shell(overrides = {}) {
   ><h1>Current page</h1></AppShell></EditGuardProvider></ActionConfirmationProvider>
 }
 
-it('starts collapsed and toggles sections independently by keyboard without exposing hidden links', async () => {
+it('starts collapsed and opens only one section by keyboard without exposing hidden links', async () => {
   const user = userEvent.setup()
   const onRoute = vi.fn()
   render(shell({ onRoute }))
@@ -50,6 +50,11 @@ it('starts collapsed and toggles sections independently by keyboard without expo
   operations.focus(); await user.keyboard(' ')
   expect(screen.getByRole('button', { name: 'Clients', exact: true })).toBeVisible()
   expect(system).toHaveAttribute('aria-expanded', 'false')
+  system.focus(); await user.keyboard('{Enter}')
+  expect(system).toHaveAttribute('aria-expanded', 'true')
+  expect(operations).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByRole('button', { name: 'Clients', exact: true })).not.toBeInTheDocument()
+  expect(document.querySelectorAll('.nav-group-toggle[aria-expanded="true"]')).toHaveLength(1)
   expect(onRoute).not.toHaveBeenCalled()
   expect(screen.getByRole('heading', { name: 'Current page' })).toBeVisible()
 })
@@ -57,8 +62,10 @@ it('starts collapsed and toggles sections independently by keyboard without expo
 it('reveals the destination section and resets collapse state for another account', async () => {
   const user = userEvent.setup()
   const { rerender } = render(shell())
+  await user.click(screen.getByRole('button', { name: 'Operations section' }))
   rerender(shell({ route: 'messages', routePath: 'messages/example' }))
   expect(screen.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('button', { name: 'Operations section' })).toHaveAttribute('aria-expanded', 'false')
   expect(within(screen.getByRole('navigation', { name: 'Portal navigation' })).getByRole('button', { name: 'Messages', exact: true })).toHaveClass('active')
   expect(screen.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
   await user.click(screen.getByRole('button', { name: 'System section' }))
@@ -82,9 +89,10 @@ it('keeps section choices collapsed or expanded consistently across drawer and f
   expect(screen.queryByRole('button', { name: 'Exercise Library', exact: true })).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Management section' }))
   expect(screen.getByRole('button', { name: 'Content Management', exact: true })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'false')
   await user.click(screen.getByRole('button', { name: 'Management section' }))
   act(() => media.resize(false))
-  expect(screen.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByRole('button', { name: 'Exercise Library', exact: true })).not.toBeInTheDocument()
 })

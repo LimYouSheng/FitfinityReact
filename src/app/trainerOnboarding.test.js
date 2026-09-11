@@ -5,7 +5,7 @@ import { buildTrainerRecord, createTrainerDraft, nextTrainerId, trainerStepError
 
 function validDraft() {
   return { ...createTrainerDraft(mockPolicy), name: ' New Trainer ', email: ' NEW@Example.com ',
-    gender: 'Female', trainerType: 'Personal',
+    gender: 'Female', trainerType: 'Personal', phone: { countryCode: '+65', number: '91234567' }, birthday: '1990-01-02',
     availabilityBlocks: [{ id: 'a1', days: ['Monday', 'Wednesday'], from: '18:00', to: '19:00' }] }
 }
 
@@ -19,12 +19,12 @@ describe('trainer onboarding', () => {
     a.approvalNeeded.availability = false
     expect(b.approvalNeeded.availability).toBe(true)
   })
-  it('validates only the current section and keeps birthday and contact notes optional', () => {
+  it('requires complete general information while qualifications remain optional', () => {
     expect(trainerStepErrors(validDraft(), 'general')).toEqual({})
-    expect(Object.keys(trainerStepErrors(createTrainerDraft(mockPolicy), 'general'))).toEqual(['name', 'email', 'gender', 'trainerType'])
+    expect(Object.keys(trainerStepErrors(createTrainerDraft(mockPolicy), 'general'))).toEqual(['name', 'email', 'gender', 'trainerType', 'phoneNumber', 'birthday'])
     expect(trainerStepErrors(createTrainerDraft(mockPolicy), 'rates')).toEqual({})
   })
-  it('rejects invalid email, phone, gender and impossible optional birthday', () => {
+  it('rejects invalid email, phone, gender and impossible birthday', () => {
     expect(trainerStepErrors({ ...validDraft(), email: 'broken' }, 'general').email).toBeTruthy()
     expect(trainerStepErrors({ ...validDraft(), birthday: '2026-02-30' }, 'general').birthday).toBeTruthy()
     expect(trainerStepErrors({ ...validDraft(), phone: { countryCode: '+65', number: 'xx' } }, 'general').phoneNumber).toBeTruthy()
@@ -56,7 +56,7 @@ describe('trainer onboarding', () => {
     const draft = validDraft()
     draft.phone = { countryCode: '+60', number: '123456789' }
     const record = buildTrainerRecord(draft, 't99')
-    expect(record).toMatchObject({ id: 't99', status: 'active', name: 'New Trainer', email: 'new@example.com', phone: '+60 123456789', birthday: '', rates: { peak: 80, offPeak: 55 }, monthlyActivity: { sessions: 0, hours: 0, peak: 0, offPeak: 0 } })
+    expect(record).toMatchObject({ id: 't99', status: 'active', name: 'New Trainer', email: 'new@example.com', phone: '+60 123456789', birthday: '1990-01-02', rates: { peak: 80, offPeak: 55 }, monthlyActivity: { sessions: 0, hours: 0, peak: 0, offPeak: 0 } })
     expect(record.availability.Wednesday).toEqual([['18:00', '19:00']])
     draft.availabilityBlocks[0].from = '17:00'
     expect(record.availability.Monday).toEqual([['18:00', '19:00']])

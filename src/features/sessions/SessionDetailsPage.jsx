@@ -1,3 +1,5 @@
+import DateField from '../../components/DateField.jsx'
+import SelectField from '../../components/SelectField.jsx'
 import { packageForRecord } from '../../app/clientPackages.js'
 import SignaturePad, { SignaturePreview } from '../../components/SignaturePad.jsx'
 import { validSignature, hasSessionAcknowledgement } from '../../app/signature.js'
@@ -431,9 +433,9 @@ export default function SessionDetailsPage({
             <span className="session-fact-label">Trainer</span>
             <div className="session-overview-value">
               {activeEditor === 'details' ? (
-                <select aria-label="Session trainer" value={detailsDraft.trainerId} onChange={event => setDetailsDraft(current => ({ ...current, trainerId: event.target.value }))}>
+                <SelectField aria-label="Session trainer" value={detailsDraft.trainerId} onChange={event => setDetailsDraft(current => ({ ...current, trainerId: event.target.value }))}>
                   {trainers.filter(item => item.status !== 'inactive').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </select>
+                </SelectField>
               ) : <strong>{trainer.name}</strong>}
               {activeEditor !== 'details' && <button type="button" className="secondary-button small" aria-label="View Trainer" onClick={onOpenTrainer}>View</button>}
             </div>
@@ -443,7 +445,7 @@ export default function SessionDetailsPage({
             <span className="session-fact-label">Date & time</span>
             {activeEditor === 'details' ? (
               <div className="session-schedule-fields">
-                <label>Date<input aria-label="Session date" type="date" value={detailsDraft.date} onChange={event => setDetailsDraft(current => ({ ...current, date: event.target.value }))} /></label>
+                <label>Date<DateField aria-label="Session date"  value={detailsDraft.date} onChange={event => setDetailsDraft(current => ({ ...current, date: event.target.value }))} /></label>
                 <label>From<input aria-label="Session start time" type="time" value={detailsDraft.from} onChange={event => setDetailsDraft(current => ({ ...current, from: event.target.value }))} /></label>
                 <label>To<input aria-label="Session end time" type="time" value={detailsDraft.to} onChange={event => setDetailsDraft(current => ({ ...current, to: event.target.value }))} /></label>
               </div>
@@ -684,7 +686,7 @@ export default function SessionDetailsPage({
         onConfirm={submitTimeRequest}
       >
         <div className="session-request-fields">
-          <label>Date<input aria-label="Requested session date" type="date" min={clock.date} value={timeRequestDraft.date} onChange={event => { setDetailsError(''); setTimeRequestDraft(current => ({ ...current, date: event.target.value })) }} /></label>
+          <label>Date<DateField aria-label="Requested session date"  min={clock.date} value={timeRequestDraft.date} onChange={event => { setDetailsError(''); setTimeRequestDraft(current => ({ ...current, date: event.target.value })) }} /></label>
           <label>From<input aria-label="Requested start time" type="time" min={timeRequestDraft.date === clock.date ? clock.time : undefined} value={timeRequestDraft.from} onChange={event => { setDetailsError(''); setTimeRequestDraft(current => ({ ...current, from: event.target.value })) }} /></label>
           <label>To<input aria-label="Requested end time" type="time" value={timeRequestDraft.to} onChange={event => setTimeRequestDraft(current => ({ ...current, to: event.target.value }))} /></label>
         </div>
@@ -704,10 +706,10 @@ export default function SessionDetailsPage({
       >
         <label className="session-request-trainer">
           Replacement trainer
-          <select aria-label="Requested replacement trainer" value={trainerRequestId} onChange={event => setTrainerRequestId(event.target.value)}>
+          <SelectField aria-label="Requested replacement trainer" value={trainerRequestId} onChange={event => setTrainerRequestId(event.target.value)}>
             <option value="">Choose trainer</option>
             {replacementTrainers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
+          </SelectField>
         </label>
         {detailsError && <p className="validation-copy" role="alert">{detailsError}</p>}
       </ConfirmDialog>

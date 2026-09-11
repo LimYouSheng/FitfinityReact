@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField.jsx'
 import ClientPackageFields from './ClientPackageFields.jsx'
 import { freeGymEligible } from '../../app/packages.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -242,11 +243,11 @@ export default function ClientOnboardingForm({ packages, policy, trainers, onCan
             {step.key === 'matching' && (
               <div className="onboarding-matching">
                 <Field label="Matched trainer" required error={errors.trainerId}>
-                  <select aria-label="Matched trainer" value={selectedTrainer?.id ?? ''}
+                  <SelectField aria-label="Matched trainer" value={selectedTrainer?.id ?? ''}
                     disabled={!visibleMatches.length} onChange={event => update({ trainerId: event.target.value, fixedWeeklySchedule: undefined })}>
                     <option value="">{visibleMatches.length ? 'Choose a trainer' : 'No matching trainers'}</option>
                     {visibleMatches.map(result => <option key={result.trainer.id} value={result.trainer.id}>{result.trainer.name}</option>)}
-                  </select>
+                  </SelectField>
                 </Field>
                 {!visibleMatches.length && <p className="onboarding-hint" role="status">No active trainer matches these days and times. Go back to adjust the availability or preference.</p>}
                 {visibleMatches.length > 0 && (

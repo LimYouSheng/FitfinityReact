@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField.jsx'
 import { useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Field from '../../components/OnboardingField.jsx'
@@ -37,9 +38,9 @@ export default function ReassignTrainerDialog({ client, trainers, sessions, pack
     confirmDisabled={saving || !selected || Boolean(selected.availabilityError)} onConfirm={save} onCancel={() => { if (!saving) guardNavigation(onClose) }}>
     <div className="stack-gap">
       <p>Current trainer: <strong>{previous?.name ?? 'Unknown trainer'}</strong></p>
-      <Field label="New trainer" required><select aria-label="New trainer" value={trainerId} disabled={saving} onChange={event => setTrainerId(event.target.value)}>
+      <Field label="New trainer" required><SelectField aria-label="New trainer" value={trainerId} disabled={saving} onChange={event => setTrainerId(event.target.value)}>
         <option value="">Choose trainer</option>{choices.map(trainer => <option key={trainer.id} value={trainer.id} disabled={Boolean(trainer.availabilityError)}>{trainer.name}{trainer.availabilityError ? ' — Unavailable' : ''}</option>)}
-      </select></Field>
+      </SelectField></Field>
       {!choices.length && <p>No other active trainers.</p>}
       {choices.length > 0 && !choices.some(trainer => !trainer.availabilityError) && <p>No trainer matches the saved schedules and preferences.</p>}
       {choices.filter(trainer => trainer.availabilityError).map(trainer => <p className="helper" key={trainer.id}>{trainer.name}: {trainer.availabilityError}</p>)}

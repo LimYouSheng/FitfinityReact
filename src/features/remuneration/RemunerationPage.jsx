@@ -57,7 +57,7 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
   }
 
   return <>
-    <div className="remuneration-section-head"><h2>{record.trainerName}</h2><StatusBadge tone={tones[record.status]}>{record.status}</StatusBadge></div>
+    <div className="remuneration-section-head"><h2>{record.trainerName}</h2><StatusBadge className="remuneration-status" tone={tones[record.status]}>{record.status}</StatusBadge></div>
     <Totals records={[record]} money={money} />
     {record.changed && <p className="validation-copy" role="alert">Session records changed after approval. This page keeps the approved breakdown; the current records have {record.current.sessions} sessions. The changes need a separate owner review.</p>}
     {approved && <p className="muted">Approved {formatDate(record.approvedAt.slice(0, 10))}.</p>}
@@ -86,10 +86,10 @@ function PayCycleList({ views, user, money, onNavigate }) {
     <div className="compact-list" aria-label="Pay cycles">
       <div className="compact-list-head remuneration-cycle-grid" aria-hidden="true"><span>Pay cycle</span><span>Completed</span><span>Remuneration</span><span>View</span></div>
       {pagination.items.map(view => <article className="compact-list-row remuneration-cycle-grid" key={view.key} data-cycle-key={view.key}>
-        <div className="remuneration-cycle-name"><strong>{cycleLabel(view.cycle)}</strong>{view.isCurrent && <StatusBadge tone="blue">Current</StatusBadge>}</div>
+        <strong>{cycleLabel(view.cycle)}</strong>
         <span>{view.trainers.reduce((total, record) => total + record.sessions, 0)}</span>
         <span>{money(view.trainers.reduce((total, record) => total + record.amountCents, 0))}</span>
-        <button type="button" className="secondary-button compact-view" aria-label={`View pay cycle ${view.key}`} onClick={() => onNavigate(`remuneration/${view.key}`)}>View</button>
+        <div className="remuneration-cycle-actions">{view.isCurrent && <StatusBadge tone="blue">Current</StatusBadge>}<button type="button" className="secondary-button compact-view" aria-label={`View pay cycle ${view.key}`} onClick={() => onNavigate(`remuneration/${view.key}`)}>View</button></div>
       </article>)}
       {!views.length && <p className="empty">No pay cycles available.</p>}
     </div>
@@ -105,7 +105,7 @@ function TrainerList({ view, user, money, onNavigate }) {
     <div className="compact-list remuneration-table" role="table" aria-label="Trainer remuneration">
       <div className="compact-list-head remuneration-trainer-grid" role="row"><span role="columnheader">Name</span><span role="columnheader">Sessions</span><span role="columnheader">Remuneration</span><span role="columnheader">Status</span><span role="columnheader">View</span></div>
       {pagination.items.map(record => <div className="compact-list-row remuneration-trainer-grid remuneration-trainer-row" role="row" key={record.trainerId}>
-        <strong role="cell">{record.trainerName}</strong><span role="cell" data-label="Sessions">{record.sessions}</span><span role="cell" data-label="Remuneration">{money(record.amountCents)}{record.reviewCount > 0 && <small>Partial</small>}</span><span role="cell" data-label="Status"><StatusBadge tone={tones[record.status]}>{record.status}</StatusBadge>{record.changed && <small>Review changes</small>}</span><span role="cell"><button type="button" className="secondary-button compact-view" aria-label={`View remuneration for ${record.trainerName}`} onClick={() => onNavigate(`remuneration/${view.key}/${record.trainerId}`)}>View</button></span>
+        <strong role="cell">{record.trainerName}</strong><span role="cell" data-label="Sessions">{record.sessions}</span><span role="cell" data-label="Remuneration">{money(record.amountCents)}{record.reviewCount > 0 && <small>Partial</small>}</span><span role="cell" data-label="Status"><StatusBadge className="remuneration-status" tone={tones[record.status]}>{record.status}</StatusBadge>{record.changed && <small>Review changes</small>}</span><span role="cell"><button type="button" className="secondary-button compact-view" aria-label={`View remuneration for ${record.trainerName}`} onClick={() => onNavigate(`remuneration/${view.key}/${record.trainerId}`)}>View</button></span>
       </div>)}
     </div>
     {!records.length && <p className="empty">No trainer remuneration in this cycle.</p>}

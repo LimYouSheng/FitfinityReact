@@ -10,7 +10,7 @@ const KEY = 'fitfinity-m2-demo-db-v4'
 const owner = () => mockDb.read().users.find(user => user.role === 'owner')
 const save = (draft, options = {}) => packageService.save({ draft, ...options }, owner())
 const clientDraft = (definition, frequency) => ({
-  type: 'Individual', people: [{ name: 'Package client' }], startDate: '2026-09-07',
+  type: 'Individual', people: [{ name: 'Package client', phone: { countryCode: '+65', number: '91234567' }, email: 'client@example.com', birthday: '1990-01-02', gender: 'Female', emergencyContact: { name: 'Emergency Contact', relationship: 'Spouse', countryCode: '+65', number: '98765432' } }], startDate: '2026-09-07',
   trainerId: 't1', sessionsPerWeek: frequency, packageId: definition.id, packageVersion: definition.version,
   clientPreferences: [{ days: ['Monday', 'Wednesday', 'Friday'], from: '18:00', to: '19:00' }],
   fixedWeeklySchedule: ['Monday', 'Wednesday', 'Friday'].slice(0, frequency).map(day => ({ day, from: '18:00', to: '19:00' })),

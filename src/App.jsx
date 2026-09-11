@@ -3,6 +3,7 @@ import PackagesPage from './features/setup/PackagesPage.jsx'
 import { packageDefinitions, activePackages } from './app/packages.js'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import AppShell from './components/AppShell.jsx'
+import PortraitOrientation from './components/PortraitOrientation.jsx'
 import DashboardPage from './features/dashboard/DashboardPage.jsx'
 import ClientsPage from './features/clients/ClientsPage.jsx'
 import AddClientPage from './features/clients/AddClientPage.jsx'
@@ -33,7 +34,7 @@ import { useNotifications } from './components/NotificationProvider.jsx'
 import { exerciseNotification, planNotification, scheduleNotification } from './app/actionNotifications.js'
 
 export default function App({ services }) {
-  return <PortalDataProvider services={services}><PortalRoot /></PortalDataProvider>
+  return <PortalDataProvider services={services}><PortraitOrientation /><PortalRoot /></PortalDataProvider>
 }
 
 function PortalRoot() {

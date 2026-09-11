@@ -105,7 +105,7 @@ export const trainerService = {
       const changes = { ...patch }
       const generalKeys = ['name', 'phone', 'email', 'birthday', 'gender', 'trainerType', 'qualifications', 'publicProfile']
       if (generalKeys.some(key => Object.hasOwn(changes, key))) {
-        const errors = trainerStepErrors(trainerProfileDraft({ ...trainer, ...changes }, db.settings), 'general')
+        const errors = trainerStepErrors(trainerProfileDraft({ ...trainer, ...changes }, db.settings), 'general', { requireComplete: false })
         if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
         if (Object.hasOwn(changes, 'email')) {
           changes.email = normalizeTrainerEmail(changes.email)

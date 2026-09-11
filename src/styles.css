@@ -14,6 +14,9 @@
 }
 
 *{box-sizing:border-box}
+.portrait-orientation{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:24px;background:var(--near);color:var(--white);text-align:center}
+.portrait-orientation h1{font-size:24px;line-height:1.25;margin:0 0 12px}
+.portrait-orientation p{font-size:14px;color:var(--grey);margin:0}
 html{
   background:var(--near);
   width:100%;
@@ -517,6 +520,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .directory-page-head>div{min-width:0}
 .directory-page-head>.onboarding-button{justify-self:end;margin-top:4px;max-width:130px}
 .page-head h1{font-size:31px;margin:3px 0 2px;letter-spacing:-.5px}
+.heading-with-status{display:flex;align-items:center;gap:10px;min-width:0}
 .page-head p,.section-head p,.body-copy{color:var(--grey);margin:4px 0;line-height:1.5}
 .eyebrow{
   color:var(--pink);
@@ -617,7 +621,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .calendar-modes button{min-height:44px;border:1px solid #30333c;border-radius:6px;background:#181b25;color:var(--white);padding:8px 12px}
 .calendar-modes button[aria-pressed="true"]{border-color:var(--blue);color:#fff;background:var(--blue)}
 .calendar-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0}
-.calendar-range{flex:1;min-width:0;min-height:44px;text-align:center;font:inherit;font-weight:700;color:var(--white);background:#181b25;border:1px solid #30333c;border-radius:6px;padding:8px 28px 8px 8px}
+.calendar-toolbar>.select-field{flex:1;min-width:0}
+.calendar-range{min-width:0;min-height:44px;text-align:center;font:inherit;font-weight:700;color:var(--white);background:#181b25;border:1px solid #30333c;border-radius:6px;padding:8px 28px 8px 8px}
 .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid #30333c;border-left:1px solid #30333c;border-radius:8px;background:#0f1116}
 .calendar-day{min-width:0;min-height:128px;border-right:1px solid #292c34;border-bottom:1px solid #292c34;padding:9px}
 .calendar-day-head{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;margin-bottom:8px;font-size:10px;line-height:1.35;color:#929aaa;text-transform:uppercase;font-weight:850}
@@ -794,7 +799,7 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:#d
 .session-overview-item>strong{font-size:13px;line-height:1.4;overflow-wrap:anywhere}
 .session-overview-value{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
 .session-overview-value strong{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
-.session-overview-value select{min-width:0;flex:1 1 auto}
+.session-overview-value>.select-field{min-width:0;flex:1 1 auto}
 .session-overview-value .secondary-button{flex:0 0 auto}
 
 .session-schedule-fields,
@@ -815,7 +820,7 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:#d
   font-weight:800;
 }
 
-.session-request-trainer select{width:100%}
+.session-request-trainer .select-field{width:100%}
 
 .exercise-plan-empty{
   width:100%;
@@ -1189,8 +1194,8 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:#d
 fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .onboarding-required{color:#ff8cb5;font-size:9px;font-weight:700}
 .onboarding-field input,.onboarding-field select,.onboarding-field textarea{width:100%;min-width:0;max-width:100%;font-size:13px;line-height:1.4}
-.onboarding-field.required>input,.onboarding-field.required>select{border-color:#96506e}
-.onboarding-field.has-error>input,.onboarding-field.has-error>select{border-color:#ee8093}
+.onboarding-field :is(input,select,textarea):is([required],[aria-required="true"]){border-color:#96506e}
+.onboarding-field :is(input,select,textarea)[aria-invalid="true"]{border-color:#ee8093}
 .onboarding-field textarea{min-height:78px;resize:vertical}
 .onboarding-field input[readonly]{color:#acb5c6;background:#10131b}
 .onboarding-field-error{color:#ffafbb;font-size:10px;line-height:1.45}
@@ -1222,8 +1227,8 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .onboarding-schedule-preview b{font-size:11px}
 .onboarding-hint{margin:0;color:#a0aabb;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
 .onboarding-error{margin:12px 0 0;color:#ffafbb;font-size:11px;line-height:1.5}
-.onboarding-step-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:16px;padding-top:13px;border-top:1px solid #2b313c}
-.onboarding-step-actions>button:last-child{margin-left:auto}
+.onboarding-step-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;gap:8px;margin-top:16px;padding-top:13px;border-top:1px solid #2b313c}
+.onboarding-step-actions>button:last-child{grid-column:2;justify-self:end}
 
 /* Final onboarding review */
 .onboarding-review{display:grid;gap:12px;min-width:0}
@@ -1374,9 +1379,14 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   stroke-linecap:round;
   stroke-linejoin:round;
 }
-.package-section-head{flex-wrap:wrap}
+.package-section-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start}
+.package-section-head>div{min-width:0}
 .package-actions{display:flex;gap:8px;max-width:100%}
 .package-actions button{flex:1;min-width:0;white-space:normal;font-size:11px;padding:8px 10px}
+@media(max-width:620px){
+  .package-section-head{grid-template-columns:minmax(0,1fr) minmax(0,130px)}
+  .package-actions{flex-direction:column}
+}
 .package-progress-title{justify-content:flex-start;align-items:baseline;flex-wrap:wrap}
 .package-progress-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 70px 58px;gap:12px;align-items:center;min-width:0}
 .package-progress-grid>div{display:flex;align-items:center;gap:6px;min-width:0}
@@ -1384,10 +1394,6 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .package-progress-grid>span,.package-progress-grid>div>span{font-size:11px;color:var(--grey)}
 .package-progress-grid>:not(button){min-width:0;overflow-wrap:anywhere}
 .session-date-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px;max-width:540px}
-.session-date-filters label{display:grid;gap:6px;min-width:0}
-.session-date-filters label>span{font-size:11px;color:var(--grey)}
-.session-date-filters small{font-size:10px;color:var(--grey)}
-.session-date-filters input{width:100%;min-width:0}
 .strength-progress-list{min-width:0}
 .strength-progress-columns,.strength-progress-row{
   display:grid;
@@ -1890,6 +1896,33 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   margin-bottom:14px;
 }
 
+/* Shared field menus follow the Messages category menu's compact dark surface. */
+.select-field{position:relative;display:inline-grid;min-width:0;max-width:100%;vertical-align:middle}
+.select-field>select{appearance:none;-webkit-appearance:none;width:100%;min-width:0;max-width:100%;min-height:40px;padding:9px 30px 9px 11px;border:1px solid #343a47;border-radius:8px;background:#101319;color:#fff;font-size:13px;line-height:1.4;cursor:pointer}
+.select-field-chevron{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:#8d96a7;font-size:15px;line-height:1}
+.field-popover{position:fixed;z-index:1200;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;border:1px solid #343a47;border-radius:8px;background:#11141a;color:#c6ccd7;box-shadow:0 18px 44px rgba(0,0,0,.48)}
+.field-popover>[role="option"]{display:block;width:100%;min-height:40px;border:0;border-top:1px solid #292e39;border-radius:0;background:transparent;color:#c6ccd7;padding:9px 11px;font-size:13px;line-height:1.4;text-align:left;white-space:normal;overflow-wrap:anywhere;cursor:pointer}
+.field-popover>[role="option"]:first-child{border-top:0}
+.field-popover>[role="option"]:hover,.field-popover>.is-highlighted{background:#181d27;color:#fff}
+.field-popover>[role="option"][aria-selected="true"]{background:#1a2453;color:#fff}
+.field-popover>[role="option"]:disabled{opacity:.45;cursor:default}
+.onboarding-field>.select-field,.onboarding-field>.date-field,.onboarding-field>.suggestion-field,.library-field>.select-field,.account-form .select-field,.content-form .select-field{width:100%}
+.suggestion-field{position:relative;display:block;min-width:0;max-width:100%}
+.date-field{position:relative;display:block;min-width:0;max-width:100%}
+.date-field>input{width:100%;min-width:0;cursor:pointer}
+.date-calendar{padding:12px}
+.date-calendar-heading{display:grid;grid-template-columns:28px minmax(0,1fr) 85px 28px;align-items:center;gap:4px;margin-bottom:10px}
+.date-calendar-heading>button,.date-calendar-actions>button{border:1px solid #343a47;border-radius:6px;background:#101319;color:#c6ccd7;min-height:34px;cursor:pointer}
+.date-calendar-heading .select-field>select{font-size:12px;min-height:34px;padding:6px 20px 6px 7px}
+.date-calendar-heading .select-field-chevron{right:6px}
+.date-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;text-align:center}
+.date-calendar-grid>span{color:#8d96a7;font-size:11px;padding:3px}
+.date-calendar-grid>button{min-width:0;min-height:33px;border:1px solid transparent;border-radius:5px;background:transparent;color:#dce2ec;font-size:13px;cursor:pointer}
+.date-calendar-grid>button:hover,.date-calendar-grid>button[aria-pressed="true"]{background:#1a2453;border-color:#5968e7;color:#fff}
+.date-calendar-grid>button:disabled{opacity:.28;cursor:default;background:transparent;border-color:transparent}
+.date-calendar-actions{display:flex;justify-content:space-between;gap:10px;margin-top:10px}
+.date-calendar-actions>button{padding:5px 12px;font-size:12px}
+
 .profile-menu summary{
   width:100%;
   min-height:42px;
@@ -2027,11 +2060,12 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   display:block;
   min-width:0;
   height:var(--filter-control-height);
-  overflow:hidden;
+  overflow:visible;
   border:1px solid #3a3f4b;
   border-radius:7px;
   background:#0a0c10;
 }
+.date-filter-control>.date-field{height:100%}
 .date-filter-control:focus-within{
   outline:2px solid #7282ff;
   outline-offset:2px;
@@ -2253,7 +2287,6 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
   .library-grid .library-media-cell{display:none}
   .library-row{font-size:11px}
   .library-row .status-badge{font-size:9px;padding:4px 6px}
-  .exercise-library-page .page-head{align-items:flex-start;flex-wrap:wrap}
 }
 
 /* Owner setup: package definitions. */
@@ -2287,14 +2320,15 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .remuneration-totals span{font-size:11px;line-height:1.4;color:#a6afc1}
 .remuneration-totals strong{font-size:24px;line-height:1.2;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .remuneration-cycle-grid,.remuneration-trainer-grid,.remuneration-session-grid{display:grid;align-items:center;gap:10px;min-width:0}
-.remuneration-cycle-grid{grid-template-columns:minmax(0,2fr) minmax(0,.65fr) minmax(0,1fr) 58px}
+.remuneration-cycle-grid{grid-template-columns:minmax(0,2fr) minmax(0,.65fr) minmax(0,1fr) 120px}
 .remuneration-trainer-grid{grid-template-columns:minmax(0,1.3fr) minmax(0,.55fr) minmax(0,1fr) minmax(0,1.2fr) 58px}
 .remuneration-session-grid{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,.8fr) 58px}
 .remuneration-cycle-grid>*,.remuneration-trainer-grid>*,.remuneration-session-grid>*{min-width:0;overflow-wrap:anywhere}
 .remuneration-page .compact-list-row{font-size:12px;line-height:1.3}
 .remuneration-page .compact-list-head{letter-spacing:0;text-transform:none}
 .remuneration-page .compact-list .status-badge{font-size:9px;padding:3px 5px;white-space:normal;text-align:center}
-.remuneration-cycle-name{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.remuneration-cycle-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.remuneration-status{width:112px;max-width:100%;min-height:30px;justify-content:center;line-height:1.2;text-align:center;white-space:normal}
 .remuneration-trainer-row small{display:block;color:#e7bf72;font-size:10px;margin-top:4px}
 .remuneration-section-head{justify-content:space-between}
 .remuneration-section-head h2{margin:0;font-size:22px}
@@ -2305,7 +2339,7 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .remuneration-actions{margin-top:16px;margin-bottom:0}
 @media(max-width:720px){
   .remuneration-cycle-grid,.remuneration-trainer-grid,.remuneration-session-grid{gap:5px}
-  .remuneration-cycle-grid{grid-template-columns:minmax(0,1.7fr) minmax(0,.6fr) minmax(0,.9fr) 50px}
+  .remuneration-cycle-grid{grid-template-columns:minmax(0,1.7fr) minmax(0,.6fr) minmax(0,.9fr) 110px}
   .remuneration-trainer-grid{grid-template-columns:minmax(0,1.1fr) minmax(0,.5fr) minmax(0,.9fr) minmax(0,1.1fr) 50px}
   .remuneration-session-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,.75fr) 50px}
   .remuneration-page .compact-list-row,.remuneration-session-client,.remuneration-session-rate{font-size:11px}

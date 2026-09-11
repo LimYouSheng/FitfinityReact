@@ -70,7 +70,7 @@ describe('last-session renewal updates', () => {
     for (const total of [1, 2]) {
       const definition = await packageService.save({ draft: { name: `Small ${total} package`, total: String(total) } }, owner)
       const created = await clientService.create({
-        type: 'Individual', people: [{ name: `Small ${total} client` }], startDate: '2026-09-07', trainerId: 't1',
+        type: 'Individual', people: [{ name: `Small ${total} client`, phone: { countryCode: '+65', number: '91234567' }, email: 'client@example.com', birthday: '1990-01-02', gender: 'Female', emergencyContact: { name: 'Emergency Contact', relationship: 'Spouse', countryCode: '+65', number: '98765432' } }], startDate: '2026-09-07', trainerId: 't1',
         sessionsPerWeek: 1, packageId: definition.id, packageVersion: definition.version,
         clientPreferences: [{ days: ['Monday'], from: '18:00', to: '19:00' }],
         fixedWeeklySchedule: [{ day: 'Monday', from: '18:00', to: '19:00' }],

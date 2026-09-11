@@ -45,7 +45,7 @@ export default function AppShell({
   const { activeEdit } = useEditGuard()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState({})
+  const [expandedGroup, setExpandedGroup] = useState(null)
   const previousLocation = useRef({ userId, routePath })
   const profileRef = useRef(null)
 
@@ -53,10 +53,10 @@ export default function AppShell({
 
   useEffect(() => {
     const previous = previousLocation.current
-    if (previous.userId !== userId) setExpandedGroups({})
+    if (previous.userId !== userId) setExpandedGroup(null)
     else if (previous.routePath !== routePath) {
       const group = nav.find(item => item.key === route)?.group
-      if (group) setExpandedGroups(current => ({ ...current, [group]: true }))
+      if (group) setExpandedGroup(group)
     }
     previousLocation.current = { userId, routePath }
   }, [nav, route, routePath, userId])
@@ -133,7 +133,7 @@ export default function AppShell({
 
         <nav aria-label="Portal navigation">
           {groups.map(group => {
-            const collapsed = !expandedGroups[group.name]
+            const collapsed = expandedGroup !== group.name
             const id = `portal-nav-${group.name.toLowerCase().replaceAll(' ', '-')}`
             return <div className="nav-group" key={group.name}>
               <button
@@ -142,7 +142,7 @@ export default function AppShell({
                 aria-label={`${group.name} section`}
                 aria-expanded={!collapsed}
                 aria-controls={id}
-                onClick={() => setExpandedGroups(current => ({ ...current, [group.name]: !current[group.name] }))}
+                onClick={() => setExpandedGroup(current => current === group.name ? null : group.name)}
               >
                 <span>{group.name}</span>
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>

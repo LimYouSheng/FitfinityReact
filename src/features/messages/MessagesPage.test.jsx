@@ -13,6 +13,9 @@ it('opens the message from time, approval status, row space and either keyboard-
   for(const target of ['time','status','row','read','title']){
     const markRead=vi.fn().mockResolvedValue(undefined),user=userEvent.setup()
     const {container}=show(markRead)
+    const heading = screen.getByRole('heading', { name: 'Messages', exact: true })
+    expect(heading.nextElementSibling).toHaveTextContent('1 new')
+    expect(heading.parentElement).toHaveClass('heading-with-status')
     if(target==='time')await user.click(container.querySelector('time'))
     if(target==='status')await user.click(screen.getByText('Pending',{exact:true}))
     if(target==='row')await user.click(container.querySelector('article'))

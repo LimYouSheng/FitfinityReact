@@ -1,6 +1,6 @@
 import { freeGymEligible } from './packages.js'
 import { DAYS } from './availability.js'
-import { GENDERS, phoneDraft } from './contact.js'
+import { GENDERS, COUNTRY_CODES, RELATIONSHIPS, phoneDraft, validPhoneNumber } from './contact.js'
 export { DAYS } from './availability.js'
 export { COUNTRY_CODES, RELATIONSHIPS, GENDER_PREFERENCES } from './contact.js'
 
@@ -126,7 +126,7 @@ export const CLIENT_ONBOARDING_STEPS = [
 ]
 
 /** Step and final validation share the same rules; Continue never writes records. */
-export function clientStepErrors(draft, step) {
+export function clientStepErrors(draft, step, { requireComplete = true } = {}) {
   const errors = {}
   const people = draft.people ?? []
   const requiredSlots = Number(draft.sessionsPerWeek)
@@ -135,9 +135,27 @@ export function clientStepErrors(draft, step) {
     if (!['Individual', 'Couple'].includes(draft.type)) errors.type = 'Choose a client type.'
     const count = draft.type === 'Couple' ? 2 : 1
     for (let index = 0; index < count; index += 1) {
-      if (people[index]?.gender && !GENDERS.includes(people[index].gender)) errors[`people.${index}.gender`] = 'Choose a gender.'
       if (!people[index]?.name?.trim()) {
         errors[`people.${index}.name`] = `${count === 2 ? `Client ${index + 1}` : 'Client'} name is required.`
+      }
+      if ((requireComplete || people[index]?.gender) && !GENDERS.includes(people[index]?.gender)) errors[`people.${index}.gender`] = 'Choose a gender.'
+      if (requireComplete) {
+        const person = people[index] ?? {}
+        const key = field => `people.${index}.${field}`
+        if (!COUNTRY_CODES.includes(person.phone?.countryCode)) errors[key('phoneCountryCode')] = 'Choose a phone country code.'
+        if (!person.phone?.number?.trim()) errors[key('phoneNumber')] = 'Phone number is required.'
+        else if (!validPhoneNumber(person.phone)) errors[key('phoneNumber')] = 'Enter a valid phone number.'
+        if (!person.email?.trim()) errors[key('email')] = 'Email is required.'
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email.trim())) errors[key('email')] = 'Enter a valid email address.'
+        const birthday = parseIsoDate(person.birthday)
+        if (!person.birthday) errors[key('birthday')] = 'Birthday is required.'
+        else if (!/^\d{4}-\d{2}-\d{2}$/.test(person.birthday) || !birthday || !Number.isFinite(birthday.getTime()) || isoDate(birthday) !== person.birthday) errors[key('birthday')] = 'Choose a valid birthday.'
+        const emergency = person.emergencyContact ?? {}
+        if (!emergency.name?.trim()) errors[key('emergencyName')] = 'Emergency contact name is required.'
+        if (!RELATIONSHIPS.includes(emergency.relationship)) errors[key('emergencyRelationship')] = 'Choose an emergency contact relationship.'
+        if (!COUNTRY_CODES.includes(emergency.countryCode)) errors[key('emergencyCountryCode')] = 'Choose an emergency contact country code.'
+        if (!emergency.number?.trim()) errors[key('emergencyNumber')] = 'Emergency contact phone number is required.'
+        else if (!validPhoneNumber(emergency)) errors[key('emergencyNumber')] = 'Enter a valid emergency contact phone number.'
       }
     }
   }

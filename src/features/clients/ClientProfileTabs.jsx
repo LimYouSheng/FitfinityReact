@@ -11,6 +11,7 @@ import PackageProgress from './PackageProgress.jsx'
 import RenewPackageDialog from './RenewPackageDialog.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
+import DateFilterField from '../../components/DateFilterField.jsx'
 import { businessClock } from '../../app/clock.js'
 import { deletablePackageSessions, pastClientPackages, packageForRecord } from '../../app/clientPackages.js'
 
@@ -131,8 +132,8 @@ function SessionsTab({ title, history = false, client, sessions, trainers, empty
     <Panel>
       <div className="section-head"><h2>{title}</h2></div>
       <div className="session-date-filters" aria-label={`${title} date filters`}>
-        <label><span>From</span><small>Choose start date</small><input type="date" aria-label={`${title} from`} value={fromDate} max={toDate || undefined} onChange={event => setFromDate(event.target.value)} /></label>
-        <label><span>To</span><small>Choose end date</small><input type="date" aria-label={`${title} to`} value={toDate} min={fromDate || undefined} onChange={event => setToDate(event.target.value)} /></label>
+        <DateFilterField label="From" hint="Select start date" ariaLabel={`${title} from`} value={fromDate} max={toDate} onChange={setFromDate} />
+        <DateFilterField label="To" hint="Select end date" ariaLabel={`${title} to`} value={toDate} min={fromDate} onChange={setToDate} />
       </div>
       <div className="client-record-list" aria-label={title}>
         {pagination.items.map(session => {

@@ -1,5 +1,5 @@
 import { APPROVAL_FIELDS } from './constants.js'
-import { COUNTRY_CODES, GENDERS, phoneDraft, phoneText } from './contact.js'
+import { COUNTRY_CODES, GENDERS, phoneDraft, phoneText, validPhoneNumber } from './contact.js'
 import { availabilityBlockError, availabilityByDay } from './availability.js'
 
 export const TRAINER_ONBOARDING_STEPS = [
@@ -34,7 +34,7 @@ function validRate(value) {
 }
 
 /** Continue and the service write enforce the same fields, without writing mid-flow. */
-export function trainerStepErrors(draft, step) {
+export function trainerStepErrors(draft, step, { requireComplete = true } = {}) {
   const errors = {}
   if (step === 'general') {
     if (!text(draft.name)) errors.name = 'Trainer name is required.'
@@ -45,11 +45,10 @@ export function trainerStepErrors(draft, step) {
     if (!text(draft.trainerType)) errors.trainerType = 'Trainer type is required.'
     if (!COUNTRY_CODES.includes(draft.phone?.countryCode)) errors.phoneCountryCode = 'Choose a phone country code.'
     const number = text(draft.phone?.number)
-    if (number && (!/^[\d\s()-]+$/.test(number) || number.replace(/\D/g, '').length < 6 ||
-      (draft.phone.countryCode.replace(/\D/g, '') + number.replace(/\D/g, '')).length > 15)) {
-      errors.phoneNumber = 'Enter a valid phone number, or leave it blank.'
-    }
-    if (draft.birthday && !validDate(draft.birthday)) errors.birthday = 'Choose a valid birthday.'
+    if (requireComplete && !number) errors.phoneNumber = 'Phone number is required.'
+    else if (number && !validPhoneNumber(draft.phone)) errors.phoneNumber = 'Enter a valid phone number.'
+    if (requireComplete && !draft.birthday) errors.birthday = 'Birthday is required.'
+    else if (draft.birthday && !validDate(draft.birthday)) errors.birthday = 'Choose a valid birthday.'
     if (!['Visible', 'Hidden'].includes(draft.publicProfile)) errors.publicProfile = 'Choose the public profile visibility.'
   }
   if (step === 'rates') {

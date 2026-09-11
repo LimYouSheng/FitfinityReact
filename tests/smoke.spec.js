@@ -1,5 +1,5 @@
 import { seed } from '../src/data/seed.js'
-import { test, expect, drawClientSignature, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
+import { test, expect, drawClientSignature, selectDemoIdentity, expandSidebarSection } from './fixtures.js'
 
 async function navIsOnScreen(sidebar) {
   return sidebar.evaluate(element => {
@@ -17,8 +17,8 @@ async function navIsOnScreen(sidebar) {
   })
 }
 
-async function openNavIfNeeded(page) {
-  await expandSidebarSections(page, { keepOpen: true })
+async function openNavIfNeeded(page, label = 'Messages') {
+  await expandSidebarSection(page, label, { keepOpen: true })
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
   const menu = page.getByRole('button', { name: 'Open navigation' })
   if (!(await menu.isVisible())) return
@@ -37,7 +37,7 @@ async function openNavIfNeeded(page) {
 }
 
 async function clickNav(page, name) {
-  await openNavIfNeeded(page)
+  await openNavIfNeeded(page, name)
 
   const item = page.locator('.sidebar nav').getByRole('button', {
     name,
@@ -55,7 +55,7 @@ async function clickNav(page, name) {
     }
 
     if (!(await itemIsOnScreen())) {
-      await openNavIfNeeded(page)
+      await openNavIfNeeded(page, name)
       await item.scrollIntoViewIfNeeded()
     }
     await expect.poll(itemIsOnScreen, { timeout: 5000 }).toBe(true)
@@ -1411,7 +1411,7 @@ test('client contact editing uses structured phone and emergency fields', async 
   }))
   expect(new Set(labelStyles.map(style => JSON.stringify(style))).size).toBe(1)
   expect(labelStyles[0][0]).toBe('11px')
-  await expect(genderPreference.locator('..').locator('.onboarding-label')).toHaveText('Gender preference')
+  await expect(genderPreference.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " onboarding-field ")][1]').locator('.onboarding-label')).toHaveText('Gender preference')
   await genderPreference.selectOption('Female trainer preferred')
   await general.getByRole('button', { name: 'Save', exact: true }).click()
   await confirmAction(page, 'Save client information?', 'Save Changes')

@@ -105,8 +105,11 @@ describe('M3 client onboarding domain', () => {
 
 
 describe('M3 sequential client validation', () => {
+  const person = (name = 'New Client') => ({ name, phone: { countryCode: '+65', number: '91234567' },
+    email: 'client@example.com', birthday: '1990-01-02', gender: 'Female', healthNotes: '',
+    emergencyContact: { name: 'Emergency Contact', relationship: 'Spouse', countryCode: '+65', number: '98765432' } })
   const draft = () => ({
-    type: 'Individual', people: [{ name: 'New Client' }, { name: '' }],
+    type: 'Individual', people: [person(), person('')],
     startDate: '2026-09-07', sessionsPerWeek: 1,
     clientPreferences: preferences, trainerId: 't1',
     fixedWeeklySchedule: buildFixedWeeklySchedule(trainers[0], preferences, 1),
@@ -118,16 +121,31 @@ describe('M3 sequential client validation', () => {
     ])
   })
 
-  it('validates only the current section and leaves optional contacts and birthday optional', () => {
-    expect(clientStepErrors({ type: 'Individual', people: [{ name: 'Client' }] }, 'general')).toEqual({})
-    expect(clientStepErrors({ type: 'Individual', people: [{ name: '  ' }] }, 'general')).toEqual({ 'people.0.name': 'Client name is required.' })
+  it('requires every personal field while health notes and remarks remain optional', () => {
+    expect(clientStepErrors({ ...draft(), remarks: '' }, 'general')).toEqual({})
+    expect(clientStepErrors({ ...draft(), people: [person('  ')] }, 'general')).toEqual({ 'people.0.name': 'Client name is required.' })
+    for (const [field, blank, error] of [
+      ['phone', { countryCode: '+65', number: '' }, 'phoneNumber'],
+      ['phone', { countryCode: '', number: '91234567' }, 'phoneCountryCode'],
+      ['email', ' ', 'email'], ['birthday', '', 'birthday'], ['gender', '', 'gender'],
+    ]) expect(clientStepErrors({ ...draft(), people: [{ ...person(), [field]: blank }] }, 'general')[`people.0.${error}`]).toBeTruthy()
+    for (const [field, error] of [['name', 'emergencyName'], ['relationship', 'emergencyRelationship'], ['countryCode', 'emergencyCountryCode'], ['number', 'emergencyNumber']]) {
+      const value = person(); value.emergencyContact[field] = ''
+      expect(clientStepErrors({ ...draft(), people: [value] }, 'general')[`people.0.${error}`]).toBeTruthy()
+    }
+    for (const [field, value] of [['email', 'invalid'], ['birthday', '2026-02-30']]) {
+      expect(clientStepErrors({ ...draft(), people: [{ ...person(), [field]: value }] }, 'general')[`people.0.${field}`]).toBeTruthy()
+    }
+    expect(clientStepErrors({ type: 'Individual', people: [{ name: 'Existing Client' }] }, 'general', { requireComplete: false })).toEqual({})
   })
 
-  it('requires both couple names without creating another account or demanding optional fields', () => {
+  it('requires complete information for both couple members without requiring health notes', () => {
     const value = { ...draft(), type: 'Couple' }
     expect(clientStepErrors(value, 'general')).toEqual({ 'people.1.name': 'Client 2 name is required.' })
     value.people[1].name = 'Second Client'
     expect(clientStepErrors(value, 'general')).toEqual({})
+    value.people[1].phone.number = ''
+    expect(clientStepErrors(value, 'general')).toEqual({ 'people.1.phoneNumber': 'Phone number is required.' })
   })
 
   it('blocks missing or impossible start dates and unsupported weekly frequency', () => {

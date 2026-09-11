@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField.jsx'
 import Panel from '../../components/Panel.jsx'
 import ModalPortal from '../../components/ModalPortal.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -67,10 +68,10 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
 
           <div className="calendar-toolbar">
             <button type="button" className="secondary-button" aria-label="Previous calendar period" disabled={!allowed(shifted(-1))} onClick={() => move(-1)}>‹</button>
-            <select className="calendar-range" aria-label={mode === 'month' ? 'Calendar month' : 'Calendar week'} value={periodValue} onChange={event => change({ date: event.target.value })}>
+            <SelectField className="calendar-range" aria-label={mode === 'month' ? 'Calendar month' : 'Calendar week'} value={periodValue} onChange={event => change({ date: event.target.value })}>
               {!periods.some(period => period.value === periodValue) && <option hidden value={periodValue}>{rangeLabel}</option>}
               {periods.map(period => <option key={period.value} value={period.value}>{period.label}</option>)}
-            </select>
+            </SelectField>
             <button type="button" className="secondary-button" aria-label="Next calendar period" disabled={!allowed(shifted(1))} onClick={() => move(1)}>›</button>
           </div>
           <div className={`calendar-grid calendar-${mode}${trainerWeek ? ' calendar-agenda' : ''}`} aria-label={`${mode === 'week' ? 'Weekly' : 'Monthly'} calendar`}>

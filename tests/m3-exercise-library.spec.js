@@ -1,4 +1,4 @@
-import { waitForPortal, expect, test, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
+import { waitForPortal, expect, test, selectDemoIdentity, expandSidebarSection } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 import { DEFAULT_EXERCISES } from '../src/data/mockExercises.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -53,7 +53,7 @@ test('M3 exercise creation and editing work when the browser does not expose ran
 
 test('M3 owner exercise library retains 49 exercises, six categories, compact pages and combined filters', async ({ page }) => {
   await start(page)
-  await expandSidebarSections(page)
+  await expandSidebarSection(page, 'Exercise Library')
   await expect(page.locator('.sidebar nav').getByRole('button', { name: 'Exercise Library', exact: true })).toBeEnabled()
   await expect(page.locator('.library-row')).toHaveCount(10)
   await expect(page.getByText('49 exercises', { exact: true })).toBeVisible()

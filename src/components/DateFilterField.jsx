@@ -1,3 +1,4 @@
+import DateField from './DateField.jsx'
 import { formatDate } from '../utils/date.js'
 
 export default function DateFilterField({
@@ -21,9 +22,9 @@ export default function DateFilterField({
             <path d="M6 3.5v3M18 3.5v3M4.5 9h15M5 5.5h14a1 1 0 0 1 1 1V20H4V6.5a1 1 0 0 1 1-1Z" />
           </svg>
         </span>
-        <input
+        <DateField
           aria-label={ariaLabel}
-          type="date"
+
           value={value}
           min={min || undefined}
           max={max || undefined}

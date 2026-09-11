@@ -103,6 +103,7 @@ it('lists the current cycle first, paginates history and excludes future booking
     expect(list.querySelectorAll('article')).toHaveLength(10)
     expect(list.querySelector('article')).toHaveAttribute('data-cycle-key', '2026-09')
     expect(list.querySelector('article')).toHaveTextContent('Current')
+    expect(within(list).getByText('Current').nextElementSibling).toBe(within(list).getByRole('button', { name: 'View pay cycle 2026-09' }))
     expect(screen.queryByRole('button', { name: 'View pay cycle 2027-01' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Next', exact: true }))
     expect(list.querySelectorAll('article')).toHaveLength(3)
@@ -156,6 +157,7 @@ it('shows In progress before cycle close and Pending review until every session 
   delete db.sessions[1].outcome
   show({ data: db, trainerId: 't1', now: new Date('2026-09-15T16:00:00Z') })
   expect(document.querySelector('.remuneration-section-head')).toHaveTextContent('Pending approval')
+  expect(document.querySelector('.remuneration-section-head .status-badge')).toHaveClass('remuneration-status')
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Approve Remuneration', exact: true })).toBeEnabled()
 })

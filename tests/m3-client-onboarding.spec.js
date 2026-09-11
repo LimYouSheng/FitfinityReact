@@ -1,13 +1,24 @@
-import { waitForPortal, expect, test, selectDemoIdentity } from './fixtures.js'
+import { mockPhysicalOrientation, expectRequiredFieldHighlights, fillClientRequiredFields, waitForPortal, expect, test, selectDemoIdentity } from './fixtures.js'
 
 const DB_KEY = 'fitfinity-m2-demo-db-v4'
 const stepHeading = (page, name) => page.getByRole('heading', { level: 2, name, exact: true })
-const continueTo = (page, name) => page.getByRole('button', { name: `Continue to ${name}`, exact: true }).click()
+const continueTo = async (page, name) => {
+  await page.getByRole('button', { name: `Continue to ${name}`, exact: true }).click()
+  const actions = page.locator('.onboarding-step-actions')
+  const backButton = actions.getByRole('button', { name: /^Back to / })
+  if (await backButton.count()) {
+    const back = await backButton.boundingBox()
+    const next = await actions.locator('button[type="submit"]').boundingBox()
+    expect(back.x + back.width).toBeLessThanOrEqual(next.x)
+    expect(Math.abs(back.y + back.height - next.y - next.height)).toBeLessThanOrEqual(2)
+  }
+}
 const backTo = (page, name) => page.getByRole('button', { name: `Back to ${name}`, exact: true }).click()
 
 async function beginClient(page, name = 'M3 Created Client', frequency = '1', remarks = '') {
   await page.goto('/#/clients/new')
   await page.getByLabel('Client name', { exact: true }).fill(name)
+  await fillClientRequiredFields(page)
   await page.getByLabel('Remarks', { exact: true }).fill(remarks)
   await continueTo(page, 'Package & Preferences')
   await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')
@@ -70,12 +81,19 @@ test('M3 Add Client shows only the current section, labels required fields and v
   await expect(page.getByLabel('Matched trainer', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Create Client', exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Client name', { exact: true })).toHaveAttribute('aria-required', 'true')
-  await expect(page.getByLabel('Client birthday', { exact: true })).not.toHaveAttribute('required')
+  await expect(page.getByLabel('Client birthday', { exact: true })).toHaveAttribute('aria-required', 'true')
+  await expectRequiredFieldHighlights(page, 11)
+  for (const label of ['Client health or limitation notes', 'Remarks']) {
+    await expect(page.getByLabel(label, { exact: true })).not.toHaveAttribute('required')
+    await expect(page.getByLabel(label, { exact: true })).toHaveCSS('border-top-color', 'rgb(58, 63, 75)')
+  }
 
   await continueTo(page, 'Package & Preferences')
   await expect(stepHeading(page, 'General Information')).toBeVisible()
   await expect(page.getByLabel('Client name', { exact: true })).toHaveAttribute('aria-invalid', 'true')
+  await expectRequiredFieldHighlights(page, 11)
   await page.getByLabel('Client name', { exact: true }).fill('Sequential Client')
+  await fillClientRequiredFields(page)
   await continueTo(page, 'Package & Preferences')
   await expect(page.getByLabel('Client name', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Start date', { exact: true })).toHaveAttribute('aria-required', 'true')
@@ -125,7 +143,7 @@ test('M3 owner creates a once-weekly 12-session / 90-day client through the serv
   await beginClient(page)
   await finishMatching(page)
   await createClient(page, 'M3 Created Client')
-  await expect(page.locator('.info-row').filter({ has: page.getByText('Birthday', { exact: true }) }).locator('strong')).toHaveText('—')
+  await expect(page.locator('.info-row').filter({ has: page.getByText('Birthday', { exact: true }) }).locator('strong')).toHaveText('02 Jan 1990')
   expect(runtimeErrors).toEqual([])
   const saved = await savedClient(page, 'M3 Created Client')
   expect(saved.count).toBe(1)
@@ -138,7 +156,8 @@ test('M3 owner creates a once-weekly 12-session / 90-day client through the serv
   await expect(page.getByRole('heading', { name: 'M3 Created Client', level: 1 })).toBeVisible()
 })
 
-test('M3 Add Client keeps Client name clear of Client type and uses compact action buttons', async ({ page }) => {
+test('M3 Add Client keeps Client name clear of Client type and uses compact action buttons', async ({ page, isMobile }) => {
+  if (isMobile) await mockPhysicalOrientation(page)
   await page.goto('/#/clients/new')
   const type = await page.getByLabel('Client type', { exact: true }).boundingBox()
   const label = await page.getByText('Client name', { exact: true }).boundingBox()
@@ -148,6 +167,39 @@ test('M3 Add Client keeps Client name clear of Client type and uses compact acti
   expect(input.y).toBeGreaterThan(label.y + label.height)
   await noHorizontalOverflow(page)
   await page.getByLabel('Client name', { exact: true }).fill('Size Test')
+  await fillClientRequiredFields(page)
+  await page.getByLabel('Client gender', { exact: true }).click()
+  const choices = page.getByRole('listbox', { name: 'Client gender', exact: true })
+  await expect(choices).toBeVisible()
+  const menuBox = await choices.boundingBox()
+  expect(menuBox.height).toBeLessThan(page.viewportSize().height * .65)
+  expect(menuBox.x).toBeGreaterThanOrEqual(0)
+  expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(page.viewportSize().width)
+  await choices.getByRole('option', { name: 'Female', exact: true }).click()
+  await expect(choices).toHaveCount(0)
+  const birthday = page.getByLabel('Client birthday', { exact: true })
+  await expect(birthday).toHaveAttribute('type', 'text')
+  await birthday.click()
+  const calendar = page.getByRole('dialog', { name: 'Client birthday calendar', exact: true })
+  await expect(calendar).toBeVisible()
+  const calendarBox = await calendar.boundingBox()
+  expect(calendarBox.width).toBeLessThanOrEqual(310)
+  expect(calendarBox.x).toBeGreaterThanOrEqual(0)
+  expect(calendarBox.x + calendarBox.width).toBeLessThanOrEqual(page.viewportSize().width)
+  await calendar.getByLabel('Calendar picker month', { exact: true }).click()
+  await calendar.getByRole('listbox', { name: 'Calendar picker month' }).getByRole('option', { name: 'February', exact: true }).click()
+  await calendar.getByRole('button', { name: '03 Feb 1990', exact: true }).click()
+  await expect(birthday).toHaveValue('1990-02-03')
+  await expect(calendar).toHaveCount(0)
+  if (isMobile) {
+    await page.evaluate(() => { screen.orientation.type = 'landscape-primary'; screen.orientation.dispatchEvent(new Event('change')) })
+    await expect(page.getByRole('dialog', { name: 'Please rotate your device' })).toBeVisible()
+    await expect(page.locator('#root')).toHaveAttribute('inert', '')
+    await page.evaluate(() => { screen.orientation.type = 'portrait-primary'; screen.orientation.dispatchEvent(new Event('change')) })
+    await expect(page.getByRole('dialog', { name: 'Please rotate your device' })).toHaveCount(0)
+    await expect(page.getByLabel('Client name', { exact: true })).toHaveValue('Size Test')
+    await expect(birthday).toHaveValue('1990-02-03')
+  }
   await continueTo(page, 'Package & Preferences')
   await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')
   await continueTo(page, 'Client Availability')
@@ -162,6 +214,7 @@ test('M3 Add Client keeps Client name clear of Client type and uses compact acti
 })
 
 test('M3 current section scrolls without CSS overrides on desktop and mobile WebKit', async ({ page, browserName, isMobile }) => {
+  if (isMobile) await mockPhysicalOrientation(page)
   const originalViewport = page.viewportSize()
   await page.setViewportSize({ width: originalViewport.width, height: 480 })
   await page.goto('/#/clients/new')
@@ -213,11 +266,15 @@ test('M3 Couple requires both names and creates one account with two people and 
   await page.goto('/#/clients/new')
   await page.getByLabel('Client type', { exact: true }).selectOption('Couple')
   await page.getByLabel('Client 1 name', { exact: true }).fill('Alpha Test')
+  await expectRequiredFieldHighlights(page, 11)
+  await fillClientRequiredFields(page, 'Client 1')
   await page.getByLabel('Client 1 health or limitation notes', { exact: true }).fill('Alpha health notes')
   await continueTo(page, 'Package & Preferences')
   await expect(stepHeading(page, 'General Information')).toBeVisible()
   await expect(page.getByLabel('Client 2 name', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   await page.getByLabel('Client 2 name', { exact: true }).fill('Beta Test')
+  await expectRequiredFieldHighlights(page, 11)
+  await fillClientRequiredFields(page, 'Client 2')
   await page.getByLabel('Client 2 health or limitation notes', { exact: true }).fill('Beta health notes')
   await page.getByLabel('Remarks', { exact: true }).fill('Shared couple remark')
   await page.getByRole('button', { name: 'Client 1', exact: true }).click()
@@ -274,6 +331,7 @@ test('M3 final confirmation can be cancelled without creating records and then r
 test('M3 cancel uses the existing unsaved-edit guard without losing the draft when staying', async ({ page }) => {
   await page.goto('/#/clients/new')
   await page.getByLabel('Client name', { exact: true }).fill('Keep My Draft')
+  await fillClientRequiredFields(page)
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Leave this edit?', exact: true })
   await expect(dialog).toBeVisible()
@@ -338,6 +396,7 @@ test('M3 client summary displays all entered information and section-specific Ed
   await waitForPortal(page)
   const before = await page.evaluate(key => localStorage.getItem(key), DB_KEY)
   await page.getByLabel('Client name', { exact: true }).fill('Summary Client')
+  await fillClientRequiredFields(page)
   await page.getByLabel('Client phone number', { exact: true }).fill('9123 4567')
   await page.getByLabel('Client email', { exact: true }).fill('summary@example.com')
   await page.getByLabel('Client birthday', { exact: true }).fill('1994-04-12')
@@ -421,9 +480,11 @@ test('M3 Couple summary shows both people and preserves person-specific edits th
   await page.goto('/#/clients/new')
   await page.getByLabel('Client type', { exact: true }).selectOption('Couple')
   await page.getByLabel('Client 1 name', { exact: true }).fill('Review Alpha')
+  await fillClientRequiredFields(page, 'Client 1')
   await page.getByLabel('Client 1 health or limitation notes', { exact: true }).fill('Alpha notes')
   await page.getByRole('button', { name: 'Client 2', exact: true }).click()
   await page.getByLabel('Client 2 name', { exact: true }).fill('Review Beta')
+  await fillClientRequiredFields(page, 'Client 2')
   await page.getByLabel('Client 2 health or limitation notes', { exact: true }).fill('Beta notes')
   await continueTo(page, 'Package & Preferences')
   await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')

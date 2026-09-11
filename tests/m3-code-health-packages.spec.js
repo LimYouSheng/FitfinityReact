@@ -1,4 +1,4 @@
-import { waitForPortal, expect, test, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
+import { fillClientRequiredFields, waitForPortal, expect, test, selectDemoIdentity, expandSidebarSection } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -17,7 +17,7 @@ async function confirm(page, title, action) {
   await dialog.getByRole('button', { name: action, exact: true }).click()
 }
 async function openMenu(page) {
-  await expandSidebarSections(page, { keepOpen: true })
+  await expandSidebarSection(page, 'Packages', { keepOpen: true })
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
   const toggle = page.getByRole('button', { name: 'Open navigation', exact: true })
   if (await toggle.isVisible() && !(await page.locator('.sidebar').getAttribute('class')).includes('mobile-open')) await toggle.click()
@@ -83,6 +83,7 @@ for (const [total, validity, frequency] of [[12, 90, 2], [24, 180, 1], [36, 270,
     const name = `Package ${total} client`
     await start(page, 'clients/new')
     await page.getByLabel('Client name', { exact: true }).fill(name)
+    await fillClientRequiredFields(page)
     await page.getByRole('button', { name: 'Continue to Package & Preferences', exact: true }).click()
     await page.getByLabel('PT Package', { exact: true }).selectOption(`package-${total}`)
     await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')

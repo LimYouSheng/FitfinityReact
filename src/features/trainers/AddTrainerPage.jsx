@@ -133,7 +133,7 @@ export default function AddTrainerPage({ policy, trainers, onCancel, onCreate, o
           <fieldset className="onboarding-step-body" disabled={saving}>
             <legend className="visually-hidden">{step.title}</legend>
             {step.key === 'general' && (
-              <TrainerGeneralFields draft={draft} errors={errors} policy={policy} trainers={trainers} onChange={update} />
+              <TrainerGeneralFields requireComplete draft={draft} errors={errors} policy={policy} trainers={trainers} onChange={update} />
             )}
             {step.key === 'rates' && (
               <div className="onboarding-grid">

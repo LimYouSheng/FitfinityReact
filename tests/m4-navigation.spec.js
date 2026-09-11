@@ -1,4 +1,4 @@
-import { test, expect, expandSidebarSections, selectDemoIdentity } from './fixtures.js'
+import { test, expect, expandSidebarSection, selectDemoIdentity } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 import { OWNER_NAV, TRAINER_NAV } from '../src/app/constants.js'
 import { withNavigationHistory } from '../src/test/fixtures/navigation.js'
@@ -14,7 +14,7 @@ async function start(page, route = 'dashboard', historyFixture = false) {
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
 }
 async function nav(page, label) {
-  await expandSidebarSections(page, { keepOpen: true })
+  await expandSidebarSection(page, label, { keepOpen: true })
   await page.getByRole('navigation', { name: 'Portal navigation' }).getByRole('button', { name: label, exact: true }).click()
   await expect(page.locator('.sidebar')).not.toHaveClass(/mobile-open/)
 }
@@ -172,6 +172,13 @@ for (const [route, label, add] of [
   test(`M4 ${route} creation Cancel restores its list without a history loop`, async ({ page }) => {
     await start(page)
     await nav(page, label)
+    if (route === 'packages' || route === 'exercises') {
+      const heading = await page.getByRole('heading', { name: label, exact: true }).boundingBox()
+      const button = await page.getByRole('button', { name: add, exact: true }).boundingBox()
+      expect(button.x).toBeGreaterThanOrEqual(heading.x + heading.width)
+      expect(Math.min(button.y + button.height, heading.y + heading.height) - Math.max(button.y, heading.y)).toBeGreaterThan(0)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+    }
     await page.getByRole('button', { name: add, exact: true }).click()
     await at(page, `${route}/new`)
     await page.getByRole('button', { name: 'Cancel', exact: true }).click()

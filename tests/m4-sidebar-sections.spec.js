@@ -6,7 +6,7 @@ async function start(page, width) {
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
 }
 
-test('M4 sidebar sections start collapsed and toggle independently on every layout', async ({ page }) => {
+test('M4 sidebar sections start collapsed and allow only one expanded category on every layout', async ({ page }) => {
   await start(page)
   const nav = page.getByRole('navigation', { name: 'Portal navigation' })
   const drawer = page.getByRole('button', { name: 'Open navigation' })
@@ -27,6 +27,11 @@ test('M4 sidebar sections start collapsed and toggle independently on every layo
   await operations.click()
   await expect(nav.getByRole('button', { name: 'Clients', exact: true })).toBeVisible()
   await expect(system).toHaveAttribute('aria-expanded', 'false')
+  await system.click()
+  await expect(system).toHaveAttribute('aria-expanded', 'true')
+  await expect(operations).toHaveAttribute('aria-expanded', 'false')
+  await expect(nav.getByRole('button', { name: 'Clients', exact: true })).toBeHidden()
+  await expect(nav.locator('.nav-group-toggle[aria-expanded="true"]')).toHaveCount(1)
   await expect(page.getByRole('heading', { name: 'Calendar' })).toBeVisible()
 })
 
@@ -55,9 +60,12 @@ test('M4 destination navigation reveals its section and account changes start wi
   await start(page, 1024)
   const nav = page.getByRole('navigation', { name: 'Portal navigation' })
   await expect(nav.locator('.nav-group-toggle[aria-expanded="true"]')).toHaveCount(0)
+  await nav.getByRole('button', { name: 'Operations section' }).click()
   await page.locator('.topbar').getByRole('button', { name: 'Messages', exact: true }).click()
   await expect(nav.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'true')
   await expect(nav.getByRole('button', { name: 'Messages', exact: true })).toHaveClass(/active/)
+  await expect(nav.getByRole('button', { name: 'Operations section' })).toHaveAttribute('aria-expanded', 'false')
+  await expect(nav.locator('.nav-group-toggle[aria-expanded="true"]')).toHaveCount(1)
   await expect(nav.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
   await nav.getByRole('button', { name: 'System section' }).click()
   await selectDemoIdentity(page, 'u-marcus')

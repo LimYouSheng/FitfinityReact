@@ -51,7 +51,7 @@ export default function PackagesPage({ packages, policy, selectedId, onNavigate,
   }
 
   return <div className="package-setup">
-    <div className="page-head"><div><span className="eyebrow">Setup</span><h1>{selectedId === 'new' ? 'New Package' : current?.name ?? 'Packages'}</h1></div>
+    <div className={selectedId ? 'page-head' : 'page-head directory-page-head'}><div><span className="eyebrow">Setup</span><h1>{selectedId === 'new' ? 'New Package' : current?.name ?? 'Packages'}</h1></div>
       {!selectedId && <button className="onboarding-button primary" onClick={() => onNavigate('packages/new')}>Add Package</button>}
     </div>
     {selectedId && selectedId !== 'new' && !current ? <Panel><p>Package unavailable.</p></Panel>

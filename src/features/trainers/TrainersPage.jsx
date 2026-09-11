@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField.jsx'
 import usePageState from '../../hooks/usePageState.js'
 import { useMemo, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -106,7 +107,7 @@ export default function TrainersPage({ trainers, onOpen, onAdd }) {
             )}
           </div>
 
-          <select
+          <SelectField
             aria-label="Filter trainers by status"
             value={statusFilter}
             onChange={event => setStatusFilter(event.target.value)}
@@ -114,18 +115,18 @@ export default function TrainersPage({ trainers, onOpen, onAdd }) {
             <option value="all">All status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </select>
+          </SelectField>
 
-          <select
+          <SelectField
             aria-label="Filter trainers by type"
             value={typeFilter}
             onChange={event => setTypeFilter(event.target.value)}
           >
             <option value="">All types</option>
             {types.map(type => <option key={type} value={type}>{type}</option>)}
-          </select>
+          </SelectField>
 
-          <select
+          <SelectField
             aria-label="Filter trainers by gender"
             value={genderFilter}
             onChange={event => setGenderFilter(event.target.value)}
@@ -135,7 +136,7 @@ export default function TrainersPage({ trainers, onOpen, onAdd }) {
             <option value="Male">Male</option>
             <option value="Other">Other</option>
             <option value="Prefer not to say">Prefer not to say</option>
-          </select>
+          </SelectField>
         </div>
 
         <div className="compact-list" aria-label="Trainer list">

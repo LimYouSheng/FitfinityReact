@@ -52,21 +52,51 @@ export async function mockPdfSharing(page, { supported = true, outcomes = [] } =
   }, { supported, outcomes })
 }
 
-// Existing workflow scenarios explicitly expand navigation before using its links.
+// Existing workflow scenarios expand the destination category before using its link.
 // Sidebar-default scenarios do not call this helper.
-export async function expandSidebarSections(page, { keepOpen = false } = {}) {
+export async function expandSidebarSection(page, label, { keepOpen = false } = {}) {
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
   const menu = page.getByRole('button', { name: 'Open navigation' })
   const openedHere = await menu.isVisible() && !(await page.locator('.sidebar').getAttribute('class')).includes('mobile-open')
   if (openedHere) await menu.click()
-  const toggles = page.locator('.sidebar .nav-group-toggle')
-  for (const toggle of await toggles.all()) {
-    if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click()
-  }
+  const group = page.locator('.sidebar .nav-group').filter({ has: page.getByRole('button', { name: label, exact: true, includeHidden: true }) })
+  const toggle = group.locator('.nav-group-toggle')
+  await expect(toggle).toHaveCount(1)
+  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
   if (openedHere && !keepOpen) {
     const sidebar = await page.locator('.sidebar').boundingBox()
     const viewport = page.viewportSize()
     await page.getByRole('button', { name: 'Close navigation', exact: true }).click({ position: { x: (sidebar.x + sidebar.width + viewport.width) / 2, y: viewport.height / 2 } })
     await expect(page.locator('.sidebar')).not.toHaveClass(/mobile-open/)
+  }
+}
+
+// Valid personal details for successful creation scenarios under the required-field contract.
+export async function fillClientRequiredFields(page, prefix = 'Client') {
+  await page.getByLabel(`${prefix} phone number`, { exact: true }).fill('91234567')
+  await page.getByLabel(`${prefix} email`, { exact: true }).fill(`${prefix.toLowerCase().replace(/ /g, '-')}@example.com`)
+  await page.getByLabel(`${prefix} birthday`, { exact: true }).fill('1990-01-02')
+  await page.getByLabel(`${prefix} gender`, { exact: true }).selectOption('Female')
+  await page.getByLabel(`${prefix} emergency contact name`, { exact: true }).fill('Emergency Contact')
+  await page.getByLabel(`${prefix} emergency contact phone number`, { exact: true }).fill('98765432')
+}
+
+
+// Layout tests resize the browser viewport independently of a phone's physical rotation.
+// Dedicated orientation coverage changes this stub and dispatches its change event.
+export async function mockPhysicalOrientation(page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(screen, 'orientation', { configurable: true, value: Object.assign(new EventTarget(), { type: 'portrait-primary' }) })
+  })
+}
+
+export async function expectRequiredFieldHighlights(page, count) {
+  const fields = page.locator('.onboarding-step-body :is(input,select,textarea)[aria-required="true"]')
+  await expect(fields).toHaveCount(count)
+  for (const field of await fields.all()) {
+    await expect(field).toHaveAttribute('required', '')
+    const invalid = await field.getAttribute('aria-invalid') === 'true'
+    await expect(field).toHaveCSS('border-top-color', invalid ? 'rgb(238, 128, 147)' : 'rgb(150, 80, 110)')
   }
 }

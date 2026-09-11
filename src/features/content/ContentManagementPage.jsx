@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField.jsx'
 import usePageState from '../../hooks/usePageState.js'
 import { useEffect, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -45,7 +46,7 @@ function ContentEditor({ entry, onSave, onNavigate, onBack }) {
         <label>Title<input aria-label="Content title" value={draft.title} maxLength={180} onChange={event => patch('title', event.target.value)} />{errors.title && <small role="alert">{errors.title}</small>}</label>
         <label>Content key<input aria-label="Content key" value={draft.key} maxLength={120} onChange={event => patch('key', event.target.value)} />{errors.key && <small role="alert">{errors.key}</small>}</label>
         <label>Content<textarea aria-label="Content body" rows={10} maxLength={20000} value={draft.body} onChange={event => patch('body', event.target.value)} />{errors.body && <small role="alert">{errors.body}</small>}</label>
-        <label>Status<select aria-label="Content status" value={draft.status} onChange={event => patch('status', event.target.value)}>{Object.entries(statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+        <label>Status<SelectField aria-label="Content status" value={draft.status} onChange={event => patch('status', event.target.value)}>{Object.entries(statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</SelectField></label>
       </fieldset>
       {error && <p className="validation-copy" role="alert">{error}</p>}
       <div className="inline-actions"><button type="button" className="secondary-button" disabled={busy} onClick={onBack}>Cancel</button><button type="button" className="secondary-button" disabled={busy} onClick={() => setPreview(true)}>Preview</button><button type="submit" className="primary-button" disabled={busy || !dirty}>Save Content</button></div>
@@ -62,7 +63,7 @@ export default function ContentManagementPage({ entries, detailId, onSave, onNav
   const entry = entries.find(item => item.id === detailId)
   return <><div className="page-head"><h1>Content Management</h1>{!detailId && <button type="button" className="primary-button" onClick={() => onNavigate('content/new')}>Add Content</button>}</div>
     {detailId ? detailId === 'new' || entry ? <ContentEditor key={detailId} entry={entry} onSave={onSave} onNavigate={onNavigate} onBack={onBack} /> : <Panel><p>This content entry is unavailable.</p><button type="button" onClick={onBack}>Back to Content</button></Panel> : <Panel>
-      <div className="content-filters"><input type="search" aria-label="Search content" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search content" /><select aria-label="Filter content status" value={status} onChange={event => setStatus(event.target.value)}><option value="">All statuses</option>{Object.entries(statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
+      <div className="content-filters"><input type="search" aria-label="Search content" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search content" /><SelectField aria-label="Filter content status" value={status} onChange={event => setStatus(event.target.value)}><option value="">All statuses</option>{Object.entries(statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</SelectField></div>
       <div className="content-list">{pagination.items.map(item => <article key={item.id}><div><strong>{item.title}</strong><small>{item.key} · {statuses[item.status]}</small></div><button type="button" className="secondary-button" aria-label={`Edit ${item.title}`} onClick={() => onNavigate(`content/${item.id}`)}>Edit</button></article>)}{!visible.length && <p className="empty">No matching content.</p>}</div>
       <PaginationControls {...pagination} onPage={pagination.setPage} />
     </Panel>}

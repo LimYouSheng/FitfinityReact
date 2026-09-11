@@ -7,13 +7,13 @@ import { TRAINER_ONBOARDING_STEPS, createTrainerDraft, trainerStepErrors } from 
 import { clientReviewSections, trainerReviewSections, firstIncompleteSection, reviewValue, reviewPhone } from './onboardingReview.js'
 
 const person = (name = 'Amanda') => ({ name, phone: { countryCode: '+65', number: '9123 4567' },
-  email: 'amanda@example.com', birthday: '', gender: 'Female', healthNotes: 'Knee notes',
+  email: 'amanda@example.com', birthday: '1990-01-02', gender: 'Female', healthNotes: 'Knee notes',
   emergencyContact: { name: 'Jason', relationship: 'Spouse', countryCode: '+60', number: '123456789' } })
 const client = () => ({ type: 'Individual', packageDefinition: DEFAULT_PACKAGES[0], people: [person(), person('Hidden draft')],
   startDate: '2026-09-07', sessionsPerWeek: 1, genderPreference: 'Female trainer preferred', remarks: 'Shared remark',
   clientPreferences: [{ days: ['Monday'], from: '18:00', to: '19:00' }], trainerId: 't2',
   fixedWeeklySchedule: [{ day: 'Monday', from: '18:00', to: '19:00' }] })
-const trainer = () => ({ ...createTrainerDraft(mockPolicy), name: '  Review Trainer  ', email: ' REVIEW@EXAMPLE.COM ',
+const trainer = () => ({ ...createTrainerDraft(mockPolicy), phone: { countryCode: '+65', number: '91234567' }, birthday: '1990-01-02', name: '  Review Trainer  ', email: ' REVIEW@EXAMPLE.COM ',
   gender: 'Female', trainerType: 'Personal', qualifications: 'ACE',
   availabilityBlocks: [{ days: ['Monday', 'Wednesday'], from: '18:00', to: '20:00' }] })
 const rows = section => Object.fromEntries(section.groups.flatMap(group => group.rows).map(row => [row.label, row.value]))
@@ -32,7 +32,7 @@ describe('onboarding review', () => {
     const sections = clientReviewSections(draft, { name: 'Rachel' }, mockPolicy)
     expect(sections.map(section => section.key)).toEqual(CLIENT_ONBOARDING_STEPS.map(step => step.key))
     expect(rows(sections[0])).toMatchObject({ 'Client type': 'Single', Name: 'Amanda', Phone: '+65 9123 4567',
-      Email: 'amanda@example.com', Birthday: '—', Gender: 'Female', 'Emergency contact name': 'Jason',
+      Email: 'amanda@example.com', Birthday: '02 Jan 1990', Gender: 'Female', 'Emergency contact name': 'Jason',
       'Emergency contact relationship': 'Spouse', 'Emergency contact phone': '+60 123456789', 'Health / Limitation Notes': 'Knee notes' })
     expect(JSON.stringify(sections)).not.toContain('Hidden draft')
     expect(JSON.stringify(draft)).toBe(snapshot)
@@ -65,7 +65,7 @@ describe('onboarding review', () => {
     const sections = trainerReviewSections(draft)
     expect(sections.map(section => section.key)).toEqual(TRAINER_ONBOARDING_STEPS.map(step => step.key))
     expect(rows(sections[0])).toMatchObject({ 'Trainer name': 'Review Trainer', Email: 'review@example.com',
-      Phone: '—', Birthday: '—', Gender: 'Female', 'Trainer type': 'Personal', Qualifications: 'ACE', 'Public profile': 'Visible' })
+      Phone: '+65 91234567', Birthday: '02 Jan 1990', Gender: 'Female', 'Trainer type': 'Personal', Qualifications: 'ACE', 'Public profile': 'Visible' })
     expect(rows(sections[1])).toEqual({ 'Peak session rate': 'S$85.50 / session', 'Off-peak session rate': 'S$0.00 / session' })
     expect(rows(sections[3])['Session time changes']).toBe('Direct action allowed')
     expect(rows(sections[3])['Availability changes']).toBe('Owner approval needed')

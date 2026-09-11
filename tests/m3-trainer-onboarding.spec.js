@@ -1,14 +1,26 @@
-import { expect, test, selectDemoIdentity } from './fixtures.js'
+import { expectRequiredFieldHighlights, fillClientRequiredFields, expect, test, selectDemoIdentity } from './fixtures.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
 const heading = (page, name) => page.getByRole('heading', { level: 2, name, exact: true })
-const next = (page, name) => page.getByRole('button', { name: `Continue to ${name}`, exact: true }).click()
+const next = async (page, name) => {
+  await page.getByRole('button', { name: `Continue to ${name}`, exact: true }).click()
+  const actions = page.locator('.onboarding-step-actions')
+  const backButton = actions.getByRole('button', { name: /^Back to / })
+  if (await backButton.count()) {
+    const back = await backButton.boundingBox()
+    const next = await actions.locator('button[type="submit"]').boundingBox()
+    expect(back.x + back.width).toBeLessThanOrEqual(next.x)
+    expect(Math.abs(back.y + back.height - next.y - next.height)).toBeLessThanOrEqual(2)
+  }
+}
 const back = (page, name) => page.getByRole('button', { name: `Back to ${name}`, exact: true }).click()
 
 async function begin(page, name = 'M3 New Trainer', email = 'm3-trainer@example.com') {
   await page.goto('/#/trainers/new')
   await page.getByLabel('Trainer name', { exact: true }).fill(name)
   await page.getByLabel('Trainer email', { exact: true }).fill(email)
+  await page.getByLabel('Trainer phone number', { exact: true }).fill('91234567')
+  await page.getByLabel('Trainer birthday', { exact: true }).fill('1990-01-02')
   await page.getByLabel('Trainer gender', { exact: true }).selectOption('Female')
   await page.getByLabel('Trainer type', { exact: true }).fill('Personal')
 }
@@ -62,10 +74,16 @@ test('M3 Add Trainer shows one validated section, required fields and default ra
   await expect(page.getByLabel('Peak session rate', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Trainer phone country code', { exact: true })).toHaveValue('+65')
   await expect(page.getByLabel('Trainer name', { exact: true })).toHaveAttribute('aria-required', 'true')
-  await expect(page.getByLabel('Trainer birthday', { exact: true })).not.toHaveAttribute('required')
+  await expect(page.getByLabel('Trainer birthday', { exact: true })).toHaveAttribute('aria-required', 'true')
+  await expectRequiredFieldHighlights(page, 7)
+  await expect(page.getByLabel('Trainer public profile', { exact: true })).not.toHaveAttribute('required')
+  await expect(page.getByLabel('Trainer public profile', { exact: true })).toHaveCSS('border-top-color', 'rgb(52, 58, 71)')
+  await expect(page.getByLabel('Trainer qualifications', { exact: true })).not.toHaveAttribute('required')
+  await expect(page.getByLabel('Trainer qualifications', { exact: true })).toHaveCSS('border-top-color', 'rgb(58, 63, 75)')
   await next(page, 'Training & Rates')
   await expect(heading(page, 'General Information')).toBeVisible()
   await expect(page.getByLabel('Trainer name', { exact: true })).toHaveAttribute('aria-invalid', 'true')
+  await expectRequiredFieldHighlights(page, 7)
   await page.getByLabel('Trainer name', { exact: true }).fill('Validation Trainer')
   await page.getByLabel('Trainer email', { exact: true }).fill('invalid')
   await page.getByLabel('Trainer gender', { exact: true }).selectOption('Female')
@@ -73,6 +91,12 @@ test('M3 Add Trainer shows one validated section, required fields and default ra
   await next(page, 'Training & Rates')
   await expect(page.getByLabel('Trainer email', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   await page.getByLabel('Trainer email', { exact: true }).fill('validation@example.com')
+  await next(page, 'Training & Rates')
+  await expect(heading(page, 'General Information')).toBeVisible()
+  await expect(page.getByLabel('Trainer phone number', { exact: true })).toHaveAttribute('aria-invalid', 'true')
+  await expect(page.getByLabel('Trainer birthday', { exact: true })).toHaveAttribute('aria-invalid', 'true')
+  await page.getByLabel('Trainer phone number', { exact: true }).fill('91234567')
+  await page.getByLabel('Trainer birthday', { exact: true }).fill('1990-01-02')
   await next(page, 'Training & Rates')
   await expect(page.getByLabel('Trainer name', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Peak session rate', { exact: true })).toHaveValue('80')
@@ -106,7 +130,7 @@ test('M3 owner creates a trainer with rates, phone, availability, controls, iden
   await expect(page.getByRole('dialog', { name: 'Leave this edit?', exact: true })).toHaveCount(0)
   const result = await saved(page)
   expect(result.count).toBe(1)
-  expect(result.trainer).toMatchObject({ phone: '+60 123456789', birthday: '', rates: { peak: 85.5, offPeak: 60 }, status: 'active' })
+  expect(result.trainer).toMatchObject({ phone: '+60 123456789', birthday: '1990-01-02', rates: { peak: 85.5, offPeak: 60 }, status: 'active' })
   expect(result.trainer.availability.Sunday).toEqual([['10:00', '12:00']])
   expect(result.trainer.approvalNeeded.sessionTime).toBe(false)
   expect(result.user).toMatchObject({ role: 'trainer', status: 'active', trainerId: result.trainer.id })
@@ -227,6 +251,7 @@ test('M3 a newly created trainer is immediately available in automatic client ma
   const trainer = await saved(page)
   await page.goto('/#/clients/new')
   await page.getByLabel('Client name', { exact: true }).fill('Assigned To New Trainer')
+  await fillClientRequiredFields(page)
   await next(page, 'Package & Preferences')
   await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')
   await next(page, 'Client Availability')

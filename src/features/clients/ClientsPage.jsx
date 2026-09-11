@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField.jsx'
 import usePageState from '../../hooks/usePageState.js'
 import { useMemo, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -120,7 +121,7 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
             )}
           </div>
 
-          <select
+          <SelectField
             aria-label="Filter clients by status"
             value={statusFilter}
             onChange={event => setStatusFilter(event.target.value)}
@@ -128,9 +129,9 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
             <option value="all">All status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </select>
+          </SelectField>
 
-          <select
+          <SelectField
             aria-label="Filter clients by type"
             value={typeFilter}
             onChange={event => setTypeFilter(event.target.value)}
@@ -138,9 +139,9 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
             <option value="">All types</option>
             <option value="Individual">Individual</option>
             <option value="Couple">Couple</option>
-          </select>
+          </SelectField>
 
-          {user.role === 'owner' && <select
+          {user.role === 'owner' && <SelectField
             aria-label="Filter clients by trainer"
             value={trainerFilter}
             onChange={event => setTrainerFilter(event.target.value)}
@@ -149,7 +150,7 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
             {trainerOptions.map(trainer => (
               <option key={trainer.id} value={trainer.id}>{trainer.name}</option>
             ))}
-          </select>}
+          </SelectField>}
         </div>
 
         <div className="compact-list" aria-label="Client list">

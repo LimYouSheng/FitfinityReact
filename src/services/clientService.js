@@ -200,7 +200,7 @@ export const clientService = {
       if (Object.hasOwn(changes, 'people')) {
         const draft = { ...client, ...changes, type: client.type }
         if (!Array.isArray(draft.people) || draft.people.length !== (client.type === 'Couple' ? 2 : 1)) throw new Error('Review each client’s personal details.')
-        const errors = clientStepErrors(draft, 'general')
+        const errors = clientStepErrors(draft, 'general', { requireComplete: false })
         if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
         changes = { ...changes, ...clientPersonalDetails(draft, db.settings) }
         // Coaching notes can be updated independently. A contact-only edit must
@@ -209,7 +209,7 @@ export const clientService = {
         if (client.type === 'Couple' && changes.people.every((person, index) => person.healthNotes === previousPeople[index].healthNotes)) changes.healthNotes = client.healthNotes
       } else if (client.type === 'Individual' && ['name', 'phone', 'email', 'birthday', 'gender', 'emergencyContact', 'healthNotes'].some(key => Object.hasOwn(changes, key))) {
         const draft = clientProfileDraft({ ...client, ...changes }, db.settings)
-        const errors = clientStepErrors(draft, 'general')
+        const errors = clientStepErrors(draft, 'general', { requireComplete: false })
         if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
         changes = { ...changes, ...clientPersonalDetails(draft, db.settings) }
       }

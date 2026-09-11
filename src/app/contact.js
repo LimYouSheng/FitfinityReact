@@ -10,6 +10,12 @@ export function phoneDraft(value, defaultCountryCode) {
   return { countryCode: code ?? defaultCountryCode, number: code ? phone.slice(code.length).trim() : phone }
 }
 
+export function validPhoneNumber(phone) {
+  const number = typeof phone?.number === 'string' ? phone.number.trim() : ''
+  return /^[\d\s()-]+$/.test(number) && number.replace(/\D/g, '').length >= 6 &&
+    (String(phone?.countryCode ?? '').replace(/\D/g, '') + number.replace(/\D/g, '')).length <= 15
+}
+
 export function phoneText(phone) {
   const number = typeof phone?.number === 'string' ? phone.number.trim() : ''
   return number ? `${phone.countryCode} ${number}` : ''

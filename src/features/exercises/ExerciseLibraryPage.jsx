@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField.jsx'
 import usePageState from '../../hooks/usePageState.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -74,7 +75,7 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
     <form className="library-form" noValidate onSubmit={event => { event.preventDefault(); persist(draft) }}>
       <fieldset disabled={busy}>
         <div className={`library-field is-required ${errors.name ? 'is-invalid' : ''}`}><label htmlFor="library-name">Exercise name <span aria-hidden="true">*</span></label><input id="library-name" required maxLength={180} value={draft.name} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'library-name-error' : undefined} onChange={event => patch({ name: event.target.value })} />{errors.name && <small id="library-name-error">{errors.name}</small>}</div>
-        <div className={`library-field is-required ${errors.category ? 'is-invalid' : ''}`}><label htmlFor="library-category">Category <span aria-hidden="true">*</span></label><select id="library-category" required value={draft.category} aria-invalid={Boolean(errors.category)} onChange={event => patch({ category: event.target.value })}>{categories.map(category => <option key={category}>{category}</option>)}</select>{errors.category && <small>{errors.category}</small>}</div>
+        <div className={`library-field is-required ${errors.category ? 'is-invalid' : ''}`}><label htmlFor="library-category">Category <span aria-hidden="true">*</span></label><SelectField id="library-category" required value={draft.category} aria-invalid={Boolean(errors.category)} onChange={event => patch({ category: event.target.value })}>{categories.map(category => <option key={category}>{category}</option>)}</SelectField>{errors.category && <small>{errors.category}</small>}</div>
         <div className="library-field"><label htmlFor="library-description">Description</label><textarea id="library-description" rows={3} maxLength={2000} value={draft.description} onChange={event => patch({ description: event.target.value })} />{errors.description && <small>{errors.description}</small>}</div>
         <div className="library-field"><label htmlFor="library-file">Photo / video</label><input id="library-file" ref={fileInput} type="file" accept={EXERCISE_MEDIA_TYPES.join(',')} onChange={event => {
           const selected = event.target.files?.[0]
@@ -105,12 +106,12 @@ function OwnerExerciseLibrary({ exercises, categories, detailId, onNavigate, onB
   const creating = detailId === 'new'
   const selected = exercises.find(item => item.id === detailId)
   return <div className={`exercise-library-page${activeEdit === EXERCISE_EDIT_LABEL ? ' editing-section' : ''}`}>
-    <div className="page-head"><div><span className="eyebrow">Operations</span><h1>{creating ? 'Add Exercise' : 'Exercise Library'}</h1></div>{detailId
+    <div className={detailId ? 'page-head' : 'page-head directory-page-head'}><div><span className="eyebrow">Operations</span><h1>{creating ? 'Add Exercise' : 'Exercise Library'}</h1></div>{detailId
       ? <button type="button" className="secondary-button" onClick={onBack}>Back to Exercise Library</button>
-      : <button type="button" className="primary-button" onClick={() => onNavigate('exercises/new')}>Add Exercise</button>}</div>
+      : <button type="button" className="onboarding-button primary" onClick={() => onNavigate('exercises/new')}>Add Exercise</button>}</div>
     {detailId ? creating || selected ? <ExerciseDetail key={detailId} exercise={selected} exercises={exercises} categories={categories} creating={creating} onLoadMedia={onLoadMedia} onSave={onSave} onNavigate={onNavigate} onBack={onBack} /> : <Panel><p>Exercise not found.</p></Panel>
       : <Panel>
-        <div className="library-filters"><input type="search" aria-label="Search exercises" placeholder="Search exercises" value={query} onChange={event => setQuery(event.target.value)} /><select aria-label="Exercise category" value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(item => <option key={item}>{item}</option>)}</select><select aria-label="Exercise status" value={status} onChange={event => setStatus(event.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option><option value="">All statuses</option></select></div>
+        <div className="library-filters"><input type="search" aria-label="Search exercises" placeholder="Search exercises" value={query} onChange={event => setQuery(event.target.value)} /><SelectField aria-label="Exercise category" value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(item => <option key={item}>{item}</option>)}</SelectField><SelectField aria-label="Exercise status" value={status} onChange={event => setStatus(event.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option><option value="">All statuses</option></SelectField></div>
         <p className="library-count">{visible.length} exercises</p>
         <div className="library-table" role="table" aria-label="Exercise library">
           <div className="library-grid library-table-head" role="row"><span role="columnheader">Exercise</span><span role="columnheader">Category</span><span className="library-media-cell" role="columnheader">Media</span><span role="columnheader">Status</span><span role="columnheader">View</span></div>

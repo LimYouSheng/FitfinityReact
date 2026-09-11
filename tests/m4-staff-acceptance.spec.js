@@ -1,4 +1,4 @@
-import { expect, test, selectDemoIdentity, expandSidebarSections } from './fixtures.js'
+import { expect, test, selectDemoIdentity, expandSidebarSection } from './fixtures.js'
 
 test('M4 owner profile uses stored account details and preserves native Back', async ({ page }) => {
   await page.goto('/#/clients')
@@ -23,7 +23,7 @@ test('M4 owner profile uses stored account details and preserves native Back', a
 test('M4 content is available, unknown routes are explicit and owner profile is scoped', async ({ page }) => {
   await page.goto('/#/content')
   await expect(page.getByRole('heading', { name: 'Content Management', exact: true })).toBeVisible()
-  await expandSidebarSections(page)
+  await expandSidebarSection(page, 'Content Management')
   await expect(page.locator('.sidebar').getByRole('button', { name: 'Content Management', exact: true })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Add Content', exact: true })).toBeVisible()
   await page.evaluate(() => { location.hash = '#/unknown-page' })

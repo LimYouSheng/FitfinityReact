@@ -6,7 +6,7 @@ import { createTrainerDraft } from '../app/trainerOnboarding.js'
 import { matchTrainers } from '../app/clientOnboarding.js'
 
 const draft = (email = 'm3-new-trainer@example.com') => ({ ...createTrainerDraft(mockPolicy), name: 'M3 Trainer', email,
-  gender: 'Female', trainerType: 'Personal',
+  gender: 'Female', trainerType: 'Personal', phone: { countryCode: '+65', number: '91234567' }, birthday: '1990-01-02',
   availabilityBlocks: [{ id: 'one', days: ['Sunday'], from: '10:00', to: '12:00' }] })
 const owner = () => mockDb.read().users.find(user => user.role === 'owner')
 

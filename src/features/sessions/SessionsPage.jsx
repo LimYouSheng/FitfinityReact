@@ -1,3 +1,4 @@
+import SelectField from '../../components/SelectField.jsx'
 import usePageState from '../../hooks/usePageState.js'
 import { useMemo } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -66,7 +67,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
 
           <label className="filter-field">
             <span className="filter-label">Period</span>
-            <select
+            <SelectField
               aria-label="Filter sessions by period"
               value={period}
               onChange={event => setPeriod(event.target.value)}
@@ -74,12 +75,12 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
               <option value="all">All periods</option>
               <option value="upcoming">Upcoming</option>
               <option value="history">History</option>
-            </select>
+            </SelectField>
           </label>
 
           <label className="filter-field">
             <span className="filter-label">Status</span>
-            <select
+            <SelectField
               aria-label="Filter sessions by status"
               value={statusFilter}
               onChange={event => setStatusFilter(event.target.value)}
@@ -88,7 +89,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
               <option value="not_planned">Not Planned</option>
               <option value="planned">Planned</option>
               <option value="completed">Completed</option>
-            </select>
+            </SelectField>
           </label>
 
           <DateFilterField
