@@ -1,5 +1,13 @@
 # Portal service contracts
 
+## Accepted demo pipeline and release-based field interaction — 2 October 2026
+
+Main `056d66cb6d4c76b59597f0986a08e9af552d889a` passed verification and GitHub Pages deployment in run `36991077259` attempt 2. This is the demo frontend. The AWS image job was skipped; real OIDC proof, current-image acceptance, first Owner/live authentication and full application deployment remain pending.
+
+The bounded mobile UI candidate moves shared field menus to completed click/tap activation and shares the existing fixed-body page lock between the hamburger drawer and modal layers. Editable suggestions remain available on typing; select values, change events, keyboard selection, form validation and all service contracts remain. Closing the trainer-deactivation dialog without confirmation must not change trainer status or session assignments.
+
+Candidate gates are **780 units / 84 files and 723 browser cases**, plus unchanged 416 backend/PostgreSQL, 408 infrastructure, 33 quality and 20 health-tooling. Source includes eleven new unit cases and two browser scenarios; full candidate CI/device acceptance remains pending. No API schema, authentication/session, dependency, migration or AWS activation changes are included.
+
 ## Protected workflow and navigation fixture repair — 2 October 2026
 
 PR #1 merged at 13:31:42 Singapore into main `44a4a9cfce22662aaf9372565ac264a02721cfe1`. PR and strict frontend/backend checks are now required, including for administrators; zero reviewer approvals preserve the solo-owner workflow. Main CI `36969337682` is not accepted: 716/717 browser cases passed, with one previous-cycle trainer-history swipe failure after native Forward; backend and 767 unit cases passed. Deployment was skipped.

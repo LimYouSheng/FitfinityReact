@@ -51,7 +51,7 @@ export default function SelectField({ children, onChange, ...props }) {
   return <span className="select-field">
     <select {...props} ref={ref} onChange={onChange} aria-expanded={open} aria-controls={open ? id : undefined}
       aria-activedescendant={open && active >= 0 ? `${id}-${active}` : undefined}
-      onPointerDown={openMenu} onMouseDown={event => event.preventDefault()} onClick={openMenu} onKeyDown={keyboard}>
+      onPointerDown={event => event.preventDefault()} onMouseDown={event => event.preventDefault()} onClick={openMenu} onKeyDown={keyboard}>
       {children}
     </select>
     <span className="select-field-chevron" aria-hidden="true">⌄</span>

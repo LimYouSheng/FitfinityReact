@@ -94,6 +94,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   flex-direction:column;
   overflow-y:auto;
   overflow-x:hidden;
+  overscroll-behavior:contain;
 }
 .brand{
   border:0;
@@ -2628,6 +2629,7 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
     z-index:40;
     border:0;
     background:rgba(0,0,0,.62);
+    touch-action:none;
   }
   .drawer-scrim.show{display:block}
 

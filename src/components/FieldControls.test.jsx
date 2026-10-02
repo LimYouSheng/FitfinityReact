@@ -12,6 +12,8 @@ import { EditGuardProvider, useEditGuard } from './EditGuardProvider.jsx'
 import ModalPortal from './ModalPortal.jsx'
 import { seed } from '../data/seed.js'
 import userEvent from '@testing-library/user-event'
+import ClientsPage from '../features/clients/ClientsPage.jsx'
+import TrainersPage from '../features/trainers/TrainersPage.jsx'
 
 beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }))
@@ -45,6 +47,8 @@ it('opens the app option menu, cancels the native picker, chooses with pointer/k
   const user = userEvent.setup()
   const control = screen.getByRole('combobox', { name: 'Filter' })
   expect(fireEvent.pointerDown(control)).toBe(false)
+  expect(screen.queryByRole('listbox')).toBeNull()
+  await user.click(control)
   const menu = screen.getByRole('listbox', { name: 'Filter' })
   expect(within(menu).queryByRole('option', { name: 'Retired' })).toBeNull()
   await user.click(within(menu).getByRole('option', { name: 'Two' }))
@@ -54,10 +58,10 @@ it('opens the app option menu, cancels the native picker, chooses with pointer/k
   fireEvent.keyDown(control, { key: 'Home' })
   fireEvent.keyDown(control, { key: 'Enter' })
   expect(control).toHaveValue('one')
-  fireEvent.pointerDown(control)
+  await user.click(control)
   fireEvent.pointerDown(screen.getByText('Outside'))
   expect(screen.queryByRole('listbox')).toBeNull()
-  fireEvent.pointerDown(control)
+  await user.click(control)
   fireEvent.keyDown(document, { key: 'Escape' })
   expect(screen.queryByRole('listbox')).toBeNull()
   expect(control).toHaveFocus()
@@ -111,6 +115,8 @@ it('uses a compact calendar with ISO values, date limits, clearing and no native
   const control = screen.getByLabelText('Start date')
   expect(control).toHaveAttribute('type', 'text')
   expect(fireEvent.pointerDown(control)).toBe(false)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await user.click(control)
   const calendar = screen.getByRole('dialog', { name: 'Start date calendar' })
   expect(within(calendar).getByRole('button', { name: '09 Sept 2026' })).toBeDisabled()
   await user.click(within(calendar).getByRole('button', { name: '12 Sept 2026' }))
@@ -150,6 +156,54 @@ it('uses a compact calendar with ISO values, date limits, clearing and no native
   await user.click(screen.getByRole('button', { name: '12 Sept 2026' }))
   expect(within(modal).getByLabelText('Start date')).toHaveValue('2026-09-12')
   expect(screen.getAllByRole('dialog')).toHaveLength(1)
+})
+
+it.each(['select', 'date', 'suggestion'])('opens a popup %s after a completed tap, leaving a scroll gesture alone', async kind => {
+  const changed = vi.fn()
+  const controls = {
+    select: <SelectField aria-label="Choice" value="one" onChange={changed}><option value="one">One</option><option value="two">Two</option></SelectField>,
+    date: <DateField aria-label="Choice" value="2026-10-02" onChange={changed} />,
+    suggestion: <SuggestionField aria-label="Choice" value="" options={['One', 'Two']} onChange={changed} />,
+  }
+  renderFields(controls[kind], { modal: true })
+  const user = userEvent.setup()
+  const control = screen.getByLabelText('Choice')
+  const expanded = () => expect(control).toHaveAttribute('aria-expanded', 'false')
+  fireEvent.pointerDown(control, { pointerId: 1, pointerType: 'touch', clientX: 100, clientY: 240 })
+  // Editable suggestions can receive focus while a finger is still down.
+  if (kind === 'suggestion') fireEvent.focus(control)
+  expanded()
+  expect(fireEvent.pointerMove(control, { pointerId: 1, pointerType: 'touch', clientX: 100, clientY: 100 })).toBe(true)
+  fireEvent.pointerCancel(control, { pointerId: 1, pointerType: 'touch' })
+  fireEvent.scroll(control.closest('[role="dialog"]'))
+  expanded()
+  expect(changed).not.toHaveBeenCalled()
+  await user.pointer({ keys: '[TouchA>]', target: control })
+  expanded()
+  await user.pointer({ keys: '[/TouchA]', target: control })
+  expect(control).toHaveAttribute('aria-expanded', 'true')
+  expect(document.body.style.position).toBe('fixed')
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expanded()
+  expect(screen.getByRole('dialog', { name: 'Edit information' })).toBeInTheDocument()
+})
+
+it.each(['client', 'trainer'])('reopens %s search suggestions on click or typing, without opening on press focus', async kind => {
+  const owner = seed.users.find(user => user.role === 'owner')
+  render(kind === 'client' ? <ClientsPage user={owner} clients={seed.clients} trainers={seed.trainers} />
+    : <TrainersPage trainers={seed.trainers} />)
+  const user = userEvent.setup()
+  const search = screen.getByLabelText(`Search ${kind}`)
+  await user.type(search, kind === 'client' ? 'Amanda' : 'Marcus')
+  const menu = screen.getByRole('listbox')
+  await user.click(within(menu).getAllByRole('option')[0])
+  expect(screen.queryByRole('listbox')).toBeNull()
+  fireEvent.pointerDown(search, { pointerType: 'touch' })
+  fireEvent.focus(search)
+  expect(screen.queryByRole('listbox')).toBeNull()
+  fireEvent.pointerCancel(search, { pointerType: 'touch' })
+  await user.click(search)
+  expect(screen.getByRole('listbox')).toBeVisible()
 })
 
 it('requests the installed portrait lock and preserves mounted draft input through unsupported rotation', async () => {
