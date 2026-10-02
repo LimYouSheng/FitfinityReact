@@ -1,0 +1,54 @@
+name: Build and scan the verified AWS image candidate
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fitfinity-aws-test
+  cancel-in-progress: false
+
+jobs:
+  image:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: aws-test
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Require the exact image publication role
+        env:
+          IMAGE_ROLE: ${{ vars.AWS_IMAGE_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/main'
+          test "$IMAGE_ROLE" = 'arn:aws:iam::418638389566:role/fitfinity-test-github-image'
+      - name: Obtain temporary image publication credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_IMAGE_ROLE_ARN }}
+          role-session-name: fitfinity-image-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ap-southeast-1
+          allowed-account-ids: '418638389566'
+          unset-current-credentials: true
+      - name: Build, publish and scan the verified image
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 backend/infrastructure/deploy.py image-candidate --actions --receipt "$RUNNER_TEMP/fitfinity-image-candidate.json" 2>&1 | tee "$RUNNER_TEMP/fitfinity-image-candidate.log"
+      - name: Retain candidate evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-image-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/fitfinity-image-candidate.json
+            ${{ runner.temp }}/fitfinity-image-candidate.log
+          if-no-files-found: error

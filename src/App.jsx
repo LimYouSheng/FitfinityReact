@@ -1,22 +1,24 @@
+import CreateAdminDialog, { AdminCreationRecovery } from './features/staff/CreateAdminDialog.jsx'
+import { managesOperations, canViewRemuneration } from './app/permissions.js'
 import ContentManagementPage from './features/content/ContentManagementPage.jsx'
 import PackagesPage from './features/setup/PackagesPage.jsx'
 import { packageDefinitions, activePackages } from './app/packages.js'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import AppShell from './components/AppShell.jsx'
 import PortraitOrientation from './components/PortraitOrientation.jsx'
 import DashboardPage from './features/dashboard/DashboardPage.jsx'
 import ClientsPage from './features/clients/ClientsPage.jsx'
 import AddClientPage from './features/clients/AddClientPage.jsx'
-import ClientProfilePage from './features/clients/ClientProfilePage.jsx'
+import ClientProfileRoute from './features/clients/ClientProfileRoute.jsx'
 import TrainersPage from './features/trainers/TrainersPage.jsx'
 import AddTrainerPage from './features/trainers/AddTrainerPage.jsx'
-import TrainerProfilePage from './features/trainers/TrainerProfilePage.jsx'
+import TrainerProfileRoute from './features/trainers/TrainerProfileRoute.jsx'
 import ExerciseLibraryPage from './features/exercises/ExerciseLibraryPage.jsx'
 import MessagesPage, { MessageInbox } from './features/messages/MessagesPage.jsx'
 import { MESSAGE_CATEGORIES } from './features/messages/messageFilters.js'
 import RemunerationPage from './features/remuneration/RemunerationPage.jsx'
 import SessionsPage from './features/sessions/SessionsPage.jsx'
-import SessionDetailsPage from './features/sessions/SessionDetailsPage.jsx'
+import SessionDetailsRoute from './features/sessions/SessionDetailsRoute.jsx'
 import UnavailablePage from './features/placeholders/UnavailablePage.jsx'
 import OwnerProfilePage from './features/owner/OwnerProfilePage.jsx'
 import useSwipeBack from './hooks/useSwipeBack.js'
@@ -27,37 +29,63 @@ import { visibleClientsForUser } from './app/status.js'
 import { PortalDataProvider } from './components/PortalDataProvider.jsx'
 import usePortalData from './hooks/usePortalData.js'
 import SignInPage from './features/account/SignInPage.jsx'
+import StaffAccountPage from './features/account/StaffAccountPage.jsx'
 import ChangePasswordPage from './features/account/ChangePasswordPage.jsx'
 import { visibleSessionsForUser } from './app/sessionRules.js'
 import { useEditGuard } from './components/EditGuardProvider.jsx'
 import { useNotifications } from './components/NotificationProvider.jsx'
-import { exerciseNotification, planNotification, scheduleNotification } from './app/actionNotifications.js'
+import { exerciseNotification } from './app/actionNotifications.js'
 
 export default function App({ services }) {
   return <PortalDataProvider services={services}><PortraitOrientation /><PortalRoot /></PortalDataProvider>
 }
 
 function PortalRoot() {
-  const { snapshot, error, loading, refresh, services } = usePortalData()
+  const { snapshot, loading, refresh, services, adminCreation } = usePortalData()
   if (loading) return <main className="account-entry"><p role="status">Loading staff portal…</p></main>
-  if (!snapshot) return <main className="account-entry"><h1>Unable to load the portal</h1><p role="alert">{error}</p><button className="primary-button" onClick={() => void refresh().catch(() => {})}>Retry</button></main>
-  if (!snapshot.user) return <SignInPage accounts={snapshot.accounts} demoPassword={snapshot.demoPassword} onSignIn={async credentials => { await services.auth.signIn(credentials); await refresh() }} />
-  return <>{error && <div className="portal-load-error" role="alert">{error} <button onClick={() => void refresh().catch(() => {})}>Retry loading</button></div>}<StaffPortal key={snapshot.user.id} /></>
+  const workspaceUserId = snapshot?.user?.id ?? adminCreation?.ownerId
+  if (workspaceUserId) return <PortalWorkspace key={workspaceUserId} userId={workspaceUserId} />
+  if (!snapshot) return <PortalUnavailable />
+  const realAuth = snapshot.capabilities?.realAuthentication
+  if (!snapshot.user) return <SignInPage accounts={snapshot.accounts} demoPassword={snapshot.demoPassword} policy={snapshot.policy.password} authNotice={snapshot.authNotice}
+    onSignIn={async credentials => { const result = await services.auth.signIn(credentials); if (!realAuth) await refresh(); return result }}
+    onChallenge={realAuth ? services.auth.challenge : undefined} onForgotPassword={realAuth ? services.auth.forgotPassword : undefined}
+    onResetPassword={realAuth ? services.auth.resetPassword : undefined} onAuthenticated={refresh} />
+  return null
 }
 
-function StaffPortal() {
+function PortalUnavailable() {
+  const { error, refresh, adminCreation } = usePortalData()
+  return <main className="account-entry"><h1>Unable to load the portal</h1><p role="alert">{error}</p>{adminCreation && <AdminCreationRecovery creation={adminCreation} />}<button className="primary-button" onClick={() => void refresh().catch(() => {})}>Retry</button></main>
+}
+
+function PortalWorkspace({ userId }) {
+  const { snapshot, error, refresh, adminCreation } = usePortalData()
+  // One history owner survives directory outages without retaining private data.
+  const navigation = useAppNavigation(userId)
+  const creatingAdmin = navigation.path === 'owner-profile/create-admin'
+  useEffect(() => {
+    if (!creatingAdmin) adminCreation?.reset()
+  }, [creatingAdmin, adminCreation])
+  if (!snapshot) return <PortalUnavailable />
+  return <>{error && <div className="portal-load-error" role="alert">{error} <button onClick={() => void refresh().catch(() => {})}>Retry loading</button></div>}<StaffPortal navigation={navigation} /></>
+}
+
+function StaffPortal({ navigation }) {
   useZoomLock()
   const { guardNavigation } = useEditGuard()
   const { runAction, notify, clear } = useNotifications()
-  const { snapshot, refresh: refreshData, services, today } = usePortalData()
+  const { snapshot, refresh: refreshData, services, today, adminCreation } = usePortalData()
   // A committed save stays successful even if its follow-up refresh fails.
   // The provider keeps a retry banner; do not invite duplicate writes.
   const reload = () => refreshData().catch(() => null)
   const { user, data: db, policy } = snapshot
+  const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
+  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(managesOperations(user) ? ['trainers', 'packages', ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
-  const { clientService, trainerService, sessionService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
-  const { path, navigate, goBack, replacePath, canGoBack, pageState } = useAppNavigation(user.id)
+  const { clientService, trainerService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
+  const { path, navigate, goBack, replacePath, canGoBack, pageState } = navigation
   const calendarState = pageState.values.calendar ?? { mode: 'week', date: today }
   const setCalendarState = next => pageState.setValue('calendar', next, calendarState)
 
@@ -66,7 +94,7 @@ function StaffPortal() {
     switchingAccount.current = true
     setAccountBusy(true)
     try {
-      await runAction(() => services.auth.switchDemoIdentity(id), null)
+      await runAction(() => services.auth.switchDemoIdentity({ userId: id }), null)
       clear(); replacePath('dashboard'); await reload()
     } catch { /* The shared notification reports the failed account change. */ }
     finally { switchingAccount.current = false; setAccountBusy(false) }
@@ -84,13 +112,14 @@ function StaffPortal() {
 
   const clients = db.clients
   const trainers = db.trainers
-  const sessions = db.sessions ?? []
+  const sessions = useMemo(() => db.sessions ?? [], [db.sessions])
   const messages = db.messages ?? []
 
   const parts = path.split('/').filter(Boolean)
   const route = parts[0] || 'dashboard'
   const detailId = parts[1] ?? null
   const calendarDay = route === 'dashboard' && detailId === 'day' && /^\d{4}-\d{2}-\d{2}$/.test(parts[2] ?? '') ? parts[2] : null
+  const creatingAdmin = route === 'owner-profile' && detailId === 'create-admin' && user.role === 'owner'
   const creatingClient = route === 'clients' && detailId === 'new'
   const creatingTrainer = route === 'trainers' && detailId === 'new'
 
@@ -99,7 +128,7 @@ function StaffPortal() {
       route === 'clients' && detailId && !creatingClient
         ? visibleClientsForUser(user, clients, sessions).find(item => item.id === detailId) ?? null
         : null,
-    [clients, creatingClient, detailId, route, user],
+    [clients, sessions, creatingClient, detailId, route, user],
   )
 
   const selectedTrainer = useMemo(
@@ -109,10 +138,6 @@ function StaffPortal() {
         : null,
     [trainers, detailId, route],
   )
-
-  const progressClientId = selectedClient?.id
-  const loadProgressReportHistory = useCallback(packageId =>
-    clientService.progressReportHistory(progressClientId, undefined, packageId), [clientService, progressClientId])
 
   const selectedSession = useMemo(
     () =>
@@ -128,53 +153,17 @@ function StaffPortal() {
       : null
 
   const backFallback = parts.length > 1
-    ? (route === 'clients' && parts[2] === 'progress' ? `clients/${detailId}${parts[3] ? '/progress' : ''}` : route === 'remuneration' && parts[2] && user.role === 'owner' ? `remuneration/${detailId}` : route)
+    ? (route === 'clients' && parts[2] === 'progress' ? `clients/${detailId}${parts[3] ? '/progress' : ''}` : route === 'remuneration' && parts[2] && managesOperations(user) ? `remuneration/${detailId}` : route)
     : 'dashboard'
   const back = () => goBack(backFallback)
   useSwipeBack({ enabled: canGoBack, onBack: back, routeKey: `${user.id}/${path}`,
-    surface: calendarDay ? '.calendar-day-dialog' : '.portal-main' })
+    surface: creatingAdmin ? '.create-admin-dialog' : calendarDay ? '.calendar-day-dialog' : '.portal-main' })
 
   const openClient = id => navigate(`clients/${id}`)
   const openAddClient = () => navigate('clients/new')
   const openTrainer = id => navigate(`trainers/${id}`)
   const openAddTrainer = () => navigate('trainers/new')
   const openSession = id => navigate(`sessions/${id}`)
-
-  const trainerProfile = (trainer, ownerMode) => (
-    <TrainerProfilePage
-      key={trainer.id}
-        policy={policy}
-      viewer={user}
-      trainer={trainer}
-      trainers={trainers}
-      clients={clients}
-      sessions={sessions}
-      onBack={() => goBack(ownerMode ? 'trainers' : 'dashboard')}
-      onOpenClient={openClient}
-      onSaveAvailability={async blocks => {
-        const result = await runAction(() => trainerService.saveAvailability(trainer.id, blocks, user), result => scheduleNotification('Availability', result))
-        await reload()
-        return result
-      }}
-      onSaveAutonomy={async settings => {
-        await runAction(() => trainerService.updateAutonomy(trainer.id, settings), { message: 'Approval settings saved.' })
-        await reload()
-      }}
-      onUpdate={async patch => {
-        await runAction(() => trainerService.update(trainer.id, patch), { message: 'Trainer details saved.' })
-        await reload()
-      }}
-      onDeactivate={ownerMode ? async replacements => {
-        await runAction(() => trainerService.deactivate(trainer.id, replacements), { tone: 'warning', message: 'Trainer deactivated.' })
-        await reload()
-        navigate('trainers', { replace: true })
-      } : undefined}
-      onReactivate={ownerMode ? async () => {
-        await runAction(() => trainerService.reactivate(trainer.id), { message: 'Trainer reactivated.' })
-        await reload()
-      } : undefined}
-    />
-  )
 
   const messageInboxProps = {
     user,
@@ -187,22 +176,22 @@ function StaffPortal() {
     trainers,
     sessions,
     onResolveRequest: async (id, decision) => {
-      await runAction(() => requestService.resolve(id, decision, user), {
+      await runAction(() => requestService.resolve({ id, decision }), {
         tone: decision === 'approved' ? 'success' : 'warning',
         message: decision === 'approved' ? 'Request approved.' : 'Request rejected.',
       })
       await reload()
     },
     onCancelRequest: async id => {
-      await runAction(() => requestService.cancel(id), { message: 'Request cancelled.' })
+      await runAction(() => requestService.cancel({ id }), { message: 'Request cancelled.' })
       await reload()
     },
     onMarkRead: async id => {
-      await runAction(() => messageService.markRead(id), null)
+      await runAction(() => messageService.markRead({ id }), null)
       await reload()
     },
     onMarkUnread: async id => {
-      await runAction(() => messageService.markUnread(id), { tone: 'info', message: 'Message marked as unread.' })
+      await runAction(() => messageService.markUnread({ id }), { tone: 'info', message: 'Message marked as unread.' })
       await reload()
     },
     onOpenRelated: ({ type, id }) => {
@@ -212,21 +201,26 @@ function StaffPortal() {
       if (type === 'remuneration') navigate(`remuneration/${id}`, { replace: true })
       if (type === 'client') navigate(`clients/${id}`, { replace: true })
       if (type === 'session') navigate(`sessions/${id}`, { replace: true })
-      if (type === 'trainer') navigate(user.role === 'owner' ? `trainers/${id}` : 'my-profile', { replace: true })
+      if (type === 'trainer') navigate(managesOperations(user) ? `trainers/${id}` : 'my-profile', { replace: true })
     },
   }
 
   let page
 
-  if (creatingClient && user.role === 'owner') {
+  if (directoryOnly && (!enabledRoutes.includes(route) || creatingClient || creatingTrainer || (route === 'packages' && detailId === 'new') || (route === 'clients' && parts[2]))) {
+    page = <UnavailablePage message="This workflow is not available yet." />
+  } else if (creatingClient && managesOperations(user)) {
     page = (
       <AddClientPage
+        user={user}
+        clients={clients}
+        sessions={sessions}
         policy={policy}
         packages={activePackages(db)}
         trainers={trainers}
         onCancel={() => goBack('clients')}
         onCreate={async draft => {
-          const created = await runAction(() => clientService.create(draft), { message: 'Client created.' })
+          const created = await runAction(() => clientService.create({ draft }), { message: 'Client created.' })
           await reload()
           return created
         }}
@@ -235,75 +229,8 @@ function StaffPortal() {
     )
   } else if (route === 'clients' && selectedClient) {
     page = (
-      <ClientProfilePage
-        key={selectedClient.id}
-        progressRoute={parts[2] === 'progress'}
-        progressPackageId={parts[2] === 'progress' ? parts[3] : undefined}
-        onOpenProgressPackage={id => navigate(`clients/${selectedClient.id}/progress/${id}`, { preserveView: true })}
-        onSelectProfileTab={tab => {
-          if (parts[2] === 'progress') navigate(`clients/${selectedClient.id}${tab === 'progress' ? '/progress' : ''}`, { replace: true, preserveView: true })
-        }}
-        packages={activePackages(db)}
-        policy={policy}
-        packageCreditTransactions={db.packageCreditTransactions}
-        onDeletePackageSessions={async options => {
-          const updated = await runAction(() => clientService.deletePackageSessions(selectedClient.id, options), { tone: 'warning', message: 'Upcoming package sessions deleted.' })
-          await reload()
-          return updated
-        }}
-        onDeactivatePackage={async options => {
-          const updated = await runAction(() => clientService.deactivatePackage(selectedClient.id, options), { tone: 'warning', message: 'Package deactivated.' })
-          await reload()
-          return updated
-        }}
-        onRenewPackage={async draft => {
-          const renewed = await runAction(() => clientService.renewPackage(selectedClient.id, draft), { message: 'Package added.' })
-          await reload()
-          return renewed
-        }}
-        user={user}
-        client={selectedClient}
-        trainer={trainers.find(item => item.id === selectedClient.trainerId)}
-        trainers={trainers}
-        sessions={visibleSessionsForUser(user, sessions)}
-        today={today}
-        onOpenSession={openSession}
-        onBack={() => goBack('clients')}
-        onUpdate={async patch => {
-          await runAction(() => clientService.update(selectedClient.id, patch), { message: 'Client details saved.' })
-          await reload()
-        }}
-        timeZone={policy.timeZone}
-        onRecordProgressReport={async action => {
-          const saved = await clientService.recordProgressReportAction(selectedClient.id, action)
-          await reload()
-          return saved
-        }}
-        onLoadProgressReportHistory={loadProgressReportHistory}
-        onReassignTrainer={async draft => {
-          const result = await runAction(() => clientService.reassignTrainer(selectedClient.id, draft), { message: 'Trainer permanently reassigned.' })
-          await reload()
-          return result
-        }}
-        onSaveFixedWeeklySchedule={async slots => {
-          const result = await runAction(() => clientService.saveFixedWeeklySchedule(
-            selectedClient.id,
-            slots,
-            user,
-          ), result => scheduleNotification('Fixed weekly schedule', result))
-          await reload()
-          return result
-        }}
-        onDeactivate={async () => {
-          await runAction(() => clientService.deactivate(selectedClient.id), { tone: 'warning', message: 'Client deactivated.' })
-          await reload()
-          navigate('clients', { replace: true })
-        }}
-        onReactivate={async () => {
-          await runAction(() => clientService.reactivate(selectedClient.id), { message: 'Client reactivated.' })
-          await reload()
-        }}
-      />
+      <ClientProfileRoute key={selectedClient.id} selectedClient={selectedClient}
+        parts={parts} navigate={navigate} goBack={goBack} openSession={openSession} />
     )
   } else if (route === 'clients' && detailId) {
     page = <UnavailablePage message="This client is unavailable for your account." />
@@ -315,17 +242,18 @@ function StaffPortal() {
         clients={clients}
         trainers={trainers}
         onOpen={openClient}
-        onAdd={openAddClient}
+        onAdd={directoryOnly ? undefined : openAddClient}
       />
     )
-  } else if (creatingTrainer && user.role === 'owner') {
+  } else if (creatingTrainer && managesOperations(user)) {
     page = (
       <AddTrainerPage
+        viewer={user}
         policy={policy}
         trainers={trainers}
         onCancel={() => goBack('trainers')}
         onCreate={async draft => {
-          const created = await runAction(() => trainerService.create(draft, user), { message: 'Trainer created.' })
+          const created = await runAction(() => trainerService.create({ draft }), { message: 'Trainer created.' })
           await reload()
           return created
         }}
@@ -334,70 +262,21 @@ function StaffPortal() {
     )
   } else if (
     route === 'trainers' &&
-    user.role === 'owner' &&
+    managesOperations(user) &&
     selectedTrainer
   ) {
-    page = trainerProfile(selectedTrainer, true)
-  } else if (route === 'trainers' && user.role === 'owner') {
-    page = <TrainersPage trainers={trainers} onOpen={openTrainer} onAdd={openAddTrainer} />
+    page = <TrainerProfileRoute key={selectedTrainer.id} trainer={selectedTrainer} ownerMode navigate={navigate} goBack={goBack} openClient={openClient} />
+  } else if (route === 'trainers' && managesOperations(user)) {
+    page = <TrainersPage trainers={trainers} onOpen={openTrainer} onAdd={directoryOnly ? undefined : openAddTrainer} />
   } else if (
     route === 'my-profile' &&
     user.role === 'trainer' &&
     selfTrainer
   ) {
-    page = trainerProfile(selfTrainer, false)
+    page = <TrainerProfileRoute key={selfTrainer.id} trainer={selfTrainer} ownerMode={false} navigate={navigate} goBack={goBack} openClient={openClient} />
   } else if (route === 'sessions' && selectedSession) {
-    const sessionClient = clients.find(item => item.id === selectedSession.clientId)
-    const sessionTrainer = trainers.find(item => item.id === selectedSession.trainerId)
-    page = (
-      <SessionDetailsPage
-        key={selectedSession.id}
-        today={today}
-        policy={policy}
-        user={user}
-        session={selectedSession}
-        messages={messages}
-        exerciseCatalog={libraryExercises}
-        client={sessionClient}
-        trainer={sessionTrainer}
-        trainers={trainers}
-        onOpenClient={() => openClient(sessionClient.id)}
-        onOpenTrainer={() => navigate(user.role === 'owner' ? `trainers/${sessionTrainer.id}` : 'my-profile')}
-        onLoadVideo={exerciseId => sessionService.loadVideo(selectedSession.id, exerciseId)}
-        onSaveVideo={async (exerciseId, blob, metadata) => { const result = await runAction(() => sessionService.saveVideo(selectedSession.id, exerciseId, blob, metadata), { message: 'Exercise video saved.' }); await reload(); return result }}
-        onRemoveVideo={async exerciseId => { await runAction(() => sessionService.removeVideo(selectedSession.id, exerciseId), { tone: 'warning', message: 'Exercise video removed.' }); await reload() }}
-        onSavePlan={async items => {
-          await runAction(() => sessionService.saveExercisePlan(selectedSession.id, items), planNotification(selectedSession.exercisePlan ?? [], items))
-          await reload()
-        }}
-        onAcknowledge={async acknowledgement => {
-          await runAction(() => sessionService.acknowledge(selectedSession.id, acknowledgement), { message: 'Session acknowledgement saved.' })
-          await reload()
-        }}
-        onSaveOutcome={async outcome => {
-          await runAction(() => sessionService.saveOutcome(selectedSession.id, outcome), { message: 'Session outcome saved.' })
-          await reload()
-        }}
-        onSaveClientSummary={async summary => {
-          await runAction(() => sessionService.saveClientSummary(selectedSession.id, summary), { message: 'Client summary saved.' })
-          await reload()
-        }}
-        onSaveDetails={async patch => {
-          await runAction(() => sessionService.updateDetails(selectedSession.id, patch), { message: 'Session details saved.' })
-          await reload()
-        }}
-        onRequestTimeChange={async patch => {
-          const result = await runAction(() => sessionService.requestTimeChange(selectedSession.id, user, patch), result => scheduleNotification('Session time', result))
-          await reload()
-          return result
-        }}
-        onRequestTrainerChange={async trainerId => {
-          const result = await runAction(() => sessionService.requestTrainerChange(selectedSession.id, user, trainerId), result => scheduleNotification('Trainer change', result))
-          await reload()
-          return result
-        }}
-      />
-    )
+    page = <SessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession}
+      navigate={navigate} openClient={openClient} />
   } else if (route === 'sessions' && detailId) {
     page = <UnavailablePage message="This session is unavailable for your account." />
   } else if (route === 'sessions') {
@@ -415,10 +294,12 @@ function StaffPortal() {
     page = (
       <MessagesPage
         {...messageInboxProps}
-        category={MESSAGE_CATEGORIES.some(item => item.key === detailId) ? detailId : 'all'}
+        category={MESSAGE_CATEGORIES.some(item => item.key === detailId && (item.key !== 'remuneration' || canViewRemuneration(user))) ? detailId : 'all'}
         onCategoryChange={category => navigate(category === 'all' ? 'messages' : `messages/${category}`, { preserveView: true })}
       />
     )
+  } else if (route === 'remuneration' && !canViewRemuneration(user)) {
+    page = <UnavailablePage message="Remuneration is unavailable for this account." />
   } else if (route === 'remuneration') {
     page = <RemunerationPage
       key={user.id}
@@ -430,23 +311,23 @@ function StaffPortal() {
       onNavigate={(next, options) => navigate(next, { ...options, preserveView: true })}
       onOpenSession={openSession}
       onApprove={async (cycle, trainer, revision) => {
-        await runAction(() => remunerationService.approve(cycle, trainer, revision, user), { message: 'Remuneration approved.' })
+        await runAction(() => remunerationService.approve({ cycle, trainerId: trainer, revision }), { message: 'Remuneration approved.' })
         await reload()
       }}
     />
   } else if (route === 'exercises') {
     page = <ExerciseLibraryPage categories={policy.exerciseCategories} key={user.id} user={user} exercises={libraryExercises} detailId={detailId}
-      onNavigate={navigate} onBack={() => goBack('exercises')} onLoadMedia={exerciseLibraryService.loadMedia}
+      onNavigate={navigate} onBack={() => goBack('exercises')} onLoadMedia={id => exerciseLibraryService.loadMedia({ id })}
       onSave={async options => {
-        const saved = await runAction(() => exerciseLibraryService.save(options, user), saved => exerciseNotification(libraryExercises.find(item => item.id === options.id), saved))
+        const saved = await runAction(() => exerciseLibraryService.save(options), saved => exerciseNotification(libraryExercises.find(item => item.id === options.id), saved))
         await reload()
         return saved
       }}
     />
-  } else if (route === 'packages' && user.role === 'owner') {
-    page = <PackagesPage policy={policy} key={detailId ?? 'list'} packages={packageDefinitions(db)} selectedId={detailId} onNavigate={navigate} onBack={() => goBack('packages')}
+  } else if (route === 'packages' && managesOperations(user)) {
+    page = <PackagesPage readOnly={directoryOnly} policy={policy} key={detailId ?? 'list'} packages={packageDefinitions(db)} selectedId={detailId} onNavigate={navigate} onBack={() => goBack('packages')}
       onSave={async options => {
-        const saved = await runAction(() => packageService.save(options, user), { tone: options.draft.status === 'inactive' ? 'warning' : 'success',
+        const saved = await runAction(() => packageService.save(options), { tone: options.draft.status === 'inactive' ? 'warning' : 'success',
           message: options.draft.status === 'inactive' ? 'Package deactivated.' : options.id ? 'Package saved.' : 'Package created.' })
         await reload()
         return saved
@@ -454,13 +335,15 @@ function StaffPortal() {
   } else if (route === 'packages') {
     page = <div className="page-head"><div><h1>Packages</h1><p>Package setup is available to the owner.</p></div></div>
   } else if (route === 'change-password') {
-    page = <ChangePasswordPage policy={policy.password} onBack={() => goBack('dashboard')} onSave={async draft => { await runAction(() => services.auth.changePassword(draft), { message: 'Password changed.' }) }} />
+    page = <ChangePasswordPage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} policy={policy.password} onBack={() => goBack('dashboard')} onSave={async draft => { await runAction(() => services.auth.changePassword(draft), { message: 'Password changed.' }) }} />
   } else if (route === 'owner-profile' && user.role === 'owner') {
     page = <OwnerProfilePage user={user} />
   } else if (route === 'owner-profile') {
     page = <UnavailablePage message="This profile is available to the owner." />
-  } else if (route === 'content' && user.role === 'owner') {
-    page = <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options, user), { message: 'Content saved.' }); await reload(); return result }} />
+  } else if (route === 'content' && managesOperations(user)) {
+    page = <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
+  } else if (route === 'account' || (directoryOnly && route === 'dashboard')) {
+    page = <StaffAccountPage user={user} profile={route === 'account'} readOnly={directoryOnly} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
   } else if (route === 'dashboard') {
     page = <DashboardPage
       renewals={<MessageInbox {...messageInboxProps} embedded category="renewals" onViewAll={() => navigate('messages/renewals')} />}
@@ -477,6 +360,7 @@ function StaffPortal() {
   return (
     <PageState.Provider value={pageState}><AppShell
       accountBusy={accountBusy}
+      enabledRoutes={enabledRoutes}
       routePath={path}
       demoControls={snapshot.capabilities?.demoControls === true}
       user={user}
@@ -492,6 +376,12 @@ function StaffPortal() {
       onReset={reset}
     >
       {page}
+      {creatingAdmin && adminCreation && <CreateAdminDialog today={today} creation={adminCreation} realAuthentication={snapshot.capabilities?.realAuthentication === true}
+        onClose={() => goBack('owner-profile')} onCreate={async (body, key) => {
+          const created = await services.staffService.createAdmin({ body, requestKey: key })
+          await reload()
+          return created
+        }} />}
     </AppShell></PageState.Provider>
   )
 }

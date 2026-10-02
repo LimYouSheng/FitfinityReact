@@ -1,0 +1,53 @@
+name: Verify existing AWS test infrastructure
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fitfinity-aws-test
+  cancel-in-progress: false
+
+jobs:
+  offline:
+    uses: ./.github/workflows/infrastructure.yml
+  audit:
+    needs: offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: aws-test
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Require the reviewed branch and verification role
+        env:
+          VERIFY_ROLE: ${{ vars.AWS_VERIFY_ROLE_ARN }}
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/main'
+          test "$VERIFY_ROLE" = 'arn:aws:iam::418638389566:role/fitfinity-test-github-verify'
+      - name: Obtain temporary AWS verification credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_VERIFY_ROLE_ARN }}
+          role-session-name: fitfinity-verify-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ap-southeast-1
+          allowed-account-ids: '418638389566'
+          unset-current-credentials: true
+      - name: Verify existing resources without changes or secret retrieval
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 backend/infrastructure/deploy.py verify --actions --receipt "$RUNNER_TEMP/fitfinity-aws-verification.json" 2>&1 | tee "$RUNNER_TEMP/fitfinity-aws-verification.log"
+      - name: Retain the live verification receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-aws-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/fitfinity-aws-verification.json
+            ${{ runner.temp }}/fitfinity-aws-verification.log
+          if-no-files-found: warn

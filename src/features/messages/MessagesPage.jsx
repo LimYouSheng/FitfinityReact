@@ -1,3 +1,6 @@
+import { messageVisibleTo } from '../../app/messageInbox.js'
+import { canViewRemuneration } from '../../app/permissions.js'
+import { managesOperations } from '../../app/permissions.js'
 import usePageState from '../../hooks/usePageState.js'
 import RequestStatusBadge from './RequestStatusBadge.jsx'
 import RequestReview from './RequestReview.jsx'
@@ -16,16 +19,9 @@ import { orderMessages } from './messageOrdering.js'
 import { relatedMessageLinks } from './messageLinks.js'
 import { formatTimestamp } from '../../utils/date.js'
 
-function visibleTo(user, message) {
-  if (message.recipientUserId === user.id) return true
-  if (message.recipientRole === user.role) return true
-  if (user.role === 'trainer' && message.recipientTrainerId === user.trainerId) return true
-  return false
-}
-
 export default function MessagesPage({ category, onCategoryChange, ...props }) {
   const [localCategory, setLocalCategory] = useState('all')
-  const unread = props.messages.filter(message => visibleTo(props.user, message) && !message.read).length
+  const unread = props.messages.filter(message => messageVisibleTo(props.user, message) && !message.read).length
   return <>
     <div className="page-head">
       <div><span className="eyebrow">Updates</span><div className="heading-with-status"><h1>Messages</h1><StatusBadge tone="blue">{unread} new</StatusBadge></div></div>
@@ -71,7 +67,7 @@ export function MessageInbox({
   const [toDate, setToDate] = usePageState('MessagesPage.toDate', '')
 
   const userMessages = useMemo(
-    () => orderMessages(messages.filter(message => visibleTo(user, message))),
+    () => orderMessages(messages.filter(message => messageVisibleTo(user, message))),
     [messages, user],
   )
   const visible = useMemo(
@@ -188,7 +184,7 @@ export function MessageInbox({
           </div>
           <button type="button" className="secondary-button small" onClick={onViewAll}>View All Renewals</button>
         </div> : <div role="group" aria-label="Message categories">
-          <ProfileNavigation items={MESSAGE_CATEGORIES.map(item => [item.key, item.label])}
+          <ProfileNavigation items={MESSAGE_CATEGORIES.filter(item => item.key !== 'remuneration' || canViewRemuneration(user)).map(item => [item.key, item.label])}
             activeKey={category} onSelect={onCategoryChange} />
         </div>}
         {!selected && messageError && <p role="alert">{messageError}</p>}
@@ -315,9 +311,9 @@ export function MessageInbox({
                 {selected.cancelledAt && selected.cancelledBy && <p>
                   Cancelled by {selected.cancelledBy.name} · <time dateTime={selected.cancelledAt}>{formatTimestamp(selected.cancelledAt, timeZone)}</time>
                 </p>}
-                {requestTypes.includes(selected.request?.type) && (user.role === 'owner' || selected.request.trainerId === user.trainerId) && (
+                {requestTypes.includes(selected.request?.type) && (managesOperations(user) || selected.request.trainerId === user.trainerId) && (
                   <RequestReview key={selected.id} message={selected} trainers={trainers} sessions={sessions}
-                    onResolve={user.role === 'owner' ? onResolveRequest : undefined}
+                    onResolve={managesOperations(user) ? onResolveRequest : undefined}
                     onCancel={user.role === 'trainer' && selected.request.trainerId === user.trainerId ? onCancelRequest : undefined} />
                 )}
 

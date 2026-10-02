@@ -62,7 +62,7 @@ test('M4 shared profile navigation filters Messages by category with dates, sear
   await expect(page.getByLabel('Message list').locator('article')).toHaveCount(10)
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
   const records = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).messages, database)
-  expect(records.every(message => !message.read)).toBe(true)
+  expect(records.every(message => Object.keys(message.readBy).length === 0)).toBe(true)
 })
 
 test('M4 dashboard renewal preview opens shared details and keeps read state in the linked category after reload', async ({ page }) => {
@@ -186,7 +186,7 @@ test('M4 Message category navigation matches client and trainer navigation throu
 })
 
 
-test('M4 completing the tenth session creates one renewal reminder with persistent read state and trainer scope', async ({ page }) => {
+test('M4 completing the tenth session creates one renewal reminder with independent recipient read state and trainer scope', async ({ page }) => {
   const data = structuredClone(seed)
   data.clients.find(client => client.id === 'c1').package.used = 9
   data.sessions.find(session => session.id === 's1').date = '2026-09-01'
@@ -214,17 +214,26 @@ test('M4 completing the tenth session creates one renewal reminder with persiste
   await dialog.getByRole('button', { name: 'Close message', exact: true }).click()
   await expect(dialog).toHaveCount(0)
   const [readReminder] = await reminders()
-  expect(readReminder).toMatchObject({ read: true, renewal: { type: 'last_sessions', used: 10, total: 12, remaining: 2 } })
-  expect(readReminder.readAt).toBeTruthy()
+  expect(readReminder).toMatchObject({ readBy: { 'u-owner': { readAt: expect.any(String) } }, renewal: { type: 'last_sessions', used: 10, total: 12, remaining: 2 } })
+  expect(readReminder.readBy['u-owner'].readAt).toBeTruthy()
   await page.reload()
   await expect(preview.getByRole('button', { name: `Read ${title}`, exact: true })).toBeVisible()
   expect(await reminders()).toEqual([readReminder])
   await selectDemoIdentity(page, 'u-marcus')
   await expect(preview.locator('article')).toHaveCount(1)
-  await expect(preview.getByRole('button', { name: `Read ${title}`, exact: true })).toBeVisible()
+  await expect(preview.getByRole('button', { name: `Unread ${title}`, exact: true })).toBeVisible()
   await expect(preview.getByRole('button', { name: 'Open Renewal follow-up: Nadia Koh', exact: true })).toHaveCount(0)
   await page.reload()
-  await expect(preview.getByRole('button', { name: `Read ${title}`, exact: true })).toBeVisible()
+  await expect(preview.getByRole('button', { name: `Unread ${title}`, exact: true })).toBeVisible()
+  await preview.getByRole('button', { name: `Open ${title}`, exact: true }).click()
+  await expect(dialog.getByRole('button', { name: 'Mark as Unread', exact: true })).toBeVisible()
+  await expect.poll(async () => (await reminders())[0].readBy).toEqual({
+    'u-owner': readReminder.readBy['u-owner'], 'u-marcus': { readAt: expect.any(String) },
+  })
+  await dialog.getByRole('button', { name: 'Mark as Unread', exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(preview.getByRole('button', { name: `Unread ${title}`, exact: true })).toBeVisible()
+  expect(await reminders()).toEqual([readReminder])
   await selectDemoIdentity(page, 'u-aisha')
   await expect(preview.getByRole('button', { name: `Open ${title}`, exact: true })).toHaveCount(0)
   await selectDemoIdentity(page, 'u-owner')

@@ -9,7 +9,7 @@ test('M4 owner profile uses stored account details and preserves native Back', a
   await expect(page.getByRole('heading', { name: 'Chau', exact: true })).toBeVisible()
   await expect(page.getByLabel('Account status')).toHaveText('Active')
   const account = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Account Details' }) })
-  await expect(account).toContainText('Owner / Site Admin')
+  await expect(account.locator('.info-row').filter({ has: page.getByText('Role', { exact: true }) }).locator('strong')).toHaveText('Owner')
   await expect(account.getByRole('button')).toHaveCount(0)
   await expect(page.getByText('Next migration slice')).toHaveCount(0)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)

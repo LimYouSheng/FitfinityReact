@@ -109,9 +109,10 @@ it('retains a first-frame calendar selection before passive effects run', () => 
   cleanup()
   function ImmediateCalendarInput() {
     const { pageState } = useAppNavigation('u-owner')
+    const setValue = pageState.setValue
     useLayoutEffect(() => {
-      pageState.setValue('calendar', { mode: 'week', date: '2026-09-02' }, {})
-    }, [])
+      setValue('calendar', { mode: 'week', date: '2026-09-02' }, {})
+    }, [setValue])
     return <output>{pageState.values.calendar?.date ?? 'unselected'}</output>
   }
   render(<ActionConfirmationProvider><EditGuardProvider><ImmediateCalendarInput /></EditGuardProvider></ActionConfirmationProvider>)

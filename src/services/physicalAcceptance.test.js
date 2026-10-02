@@ -24,16 +24,16 @@ it('rejects future signature, no-show and WhatsApp calls without changing sessio
   const before = mockDb.read()
   await expect(sessionService.acknowledge('s1', signature, acknowledgementActor())).rejects.toThrow('training date')
   await expect(sessionService.acknowledge('s1', { method: 'late_no_show' }, acknowledgementActor())).rejects.toThrow('training date')
-  await expect(sessionService.markWhatsAppOpened('s1')).rejects.toThrow('training date')
+  await expect(sessionService.markWhatsAppOpened('s1', mockDb.read().users.find(user => user.role === 'owner'))).rejects.toThrow('training date')
   expect(mockDb.read()).toEqual(before)
 })
 
 it('unlocks on the gym calendar date, using its timezone independently of the session start time', async () => {
   vi.setSystemTime(new Date('2026-09-01T16:00:00Z'))
   mockDb.mutate(db => { db.settings.timeZone = 'UTC' })
-  await expect(sessionService.markWhatsAppOpened('s1')).rejects.toThrow('training date')
+  await expect(sessionService.markWhatsAppOpened('s1', mockDb.read().users.find(user => user.role === 'owner'))).rejects.toThrow('training date')
   mockDb.mutate(db => { db.settings.timeZone = 'Asia/Singapore' })
-  await sessionService.markWhatsAppOpened('s1')
+  await sessionService.markWhatsAppOpened('s1', mockDb.read().users.find(user => user.role === 'owner'))
   await sessionService.acknowledge('s1', signature, acknowledgementActor())
   expect(mockDb.read().sessions.find(item => item.id === 's1')).toMatchObject({ status: 'completed', whatsappOpenCount: 1 })
 })
@@ -43,13 +43,13 @@ it('updates progress from a signed numeric plan, remains idempotent and corrects
   await sessionService.saveExercisePlan('s1', [
     { id: 'squat', name: 'Test Squat', weight: '27.5 kg', reps: '8', rounds: '3' },
     { id: 'unknown', name: 'Test Carry', weight: 'light', reps: '8', rounds: '3' },
-  ])
+  ], mockDb.read().users.find(user => user.role === 'owner'))
   await sessionService.acknowledge('s1', signature, acknowledgementActor())
   await sessionService.acknowledge('s1', signature, acknowledgementActor())
   mockDb.reload()
   expect(points()).toHaveLength(1)
   expect(points()[0]).toMatchObject({ load: 27.5, reps: 8, sets: 3 })
-  await sessionService.saveOutcome('s1', { durationMinutes: 55, exerciseResults: [{ id: 'squat', name: 'Test Squat', loadKg: 30, reps: 6, sets: 2 }] })
+  await sessionService.saveOutcome('s1', { durationMinutes: 55, exerciseResults: [{ id: 'squat', name: 'Test Squat', loadKg: 30, reps: 6, sets: 2 }] }, mockDb.read().users.find(user => user.role === 'owner'))
   expect(points()).toHaveLength(1)
   expect(points()[0]).toMatchObject({ load: 30, reps: 6, sets: 2 })
   expect(mockDb.read().packageCreditTransactions.filter(item => item.sessionId === 's1')).toHaveLength(1)
@@ -57,8 +57,8 @@ it('updates progress from a signed numeric plan, remains idempotent and corrects
 
 it('uses recorded results before planned loads when correcting a no-show and preserves its single debit', async () => {
   vi.setSystemTime(new Date('2026-09-02T02:00:00Z'))
-  await sessionService.saveExercisePlan('s1', [{ id: 'row', name: 'Test Row', weight: '50 kg', reps: '8', rounds: '3' }])
-  await sessionService.saveOutcome('s1', { durationMinutes: 55, exerciseResults: [{ id: 'row', name: 'Test Row', loadKg: 35, reps: 8, sets: 2 }] })
+  await sessionService.saveExercisePlan('s1', [{ id: 'row', name: 'Test Row', weight: '50 kg', reps: '8', rounds: '3' }], mockDb.read().users.find(user => user.role === 'owner'))
+  await sessionService.saveOutcome('s1', { durationMinutes: 55, exerciseResults: [{ id: 'row', name: 'Test Row', loadKg: 35, reps: 8, sets: 2 }] }, mockDb.read().users.find(user => user.role === 'owner'))
   await sessionService.acknowledge('s1', { method: 'late_no_show' }, acknowledgementActor())
   expect(points()).toEqual([])
   await sessionService.acknowledge('s1', signature, acknowledgementActor())
@@ -81,7 +81,7 @@ it('refreshes session-linked remuneration for both roles after no-show completio
   const before = await mockPortalAdapter.load(), used = client().package.used
   expect(current(before).key).toBe('2026-09')
   expect(pay(before)).toMatchObject({ sessions: 0, totalSessions: 2, amountCents: 0, status: 'In progress' })
-  const complete = acknowledgement => mockPortalAdapter.invoke('sessionService', 'acknowledge', ['s1', acknowledgement])
+  const complete = acknowledgement => mockPortalAdapter.invoke({ service: 'sessionService', operation: 'acknowledge', input: { sessionId: 's1', acknowledgement } })
   await complete({ method: 'late_no_show' })
   const completed = await mockPortalAdapter.load()
   expect(pay(completed)).toMatchObject({ sessions: 1, totalSessions: 2, amountCents: 8000, minutes: 0 })
@@ -93,7 +93,7 @@ it('refreshes session-linked remuneration for both roles after no-show completio
   expect(corrected.data.sessions.find(session => session.id === 's1')).toMatchObject({ status: 'completed', outcome: null, whatsappOpenedAt: null })
   expect(corrected.data.packageCreditTransactions.filter(item => item.sessionId === 's1')).toHaveLength(1)
   expect(client().package.used).toBe(used + 1)
-  await mockPortalAdapter.session('switchDemoIdentity', ['u-marcus'])
+  await mockPortalAdapter.session({ operation: 'switchDemoIdentity', input: { userId: 'u-marcus' } })
   const trainerView = await mockPortalAdapter.load()
   expect(current(trainerView).trainers).toHaveLength(1)
   expect(pay(trainerView)).toEqual(pay(corrected))
@@ -120,14 +120,15 @@ it('rebuilds older signed sessions in the snapshot without duplicating previousl
 it('accepts arbitrary whole session counts and keeps each created client package and schedule consistent', async () => {
   const owner = mockDb.read().users.find(user => user.role === 'owner')
   for (const total of [1, 18, 365]) {
+    mockDb.reset() // Independent package-size examples use a free calendar period.
     const definition = await packageService.save({ draft: { name: `Custom ${total}`, total: String(total) } }, owner)
     expect(definition).toMatchObject({ total, validityDays: Math.ceil(total * 90 / 12) })
     const created = await clientService.create({
-      type: 'Individual', people: [{ name: `Custom ${total} client`, phone: { countryCode: '+65', number: '91234567' }, email: 'client@example.com', birthday: '1990-01-02', gender: 'Female', emergencyContact: { name: 'Emergency Contact', relationship: 'Spouse', countryCode: '+65', number: '98765432' } }], startDate: '2026-09-07', trainerId: 't1',
+      type: 'Individual', people: [{ name: `Custom ${total} client`, phone: { countryCode: '+65', number: '91234567' }, email: 'client@example.com', birthday: '1990-01-02', gender: 'Female', emergencyContact: { name: 'Emergency Contact', relationship: 'Spouse', countryCode: '+65', number: '98765432' } }], startDate: '2027-06-07', trainerId: 't1',
       sessionsPerWeek: 1, packageId: definition.id, packageVersion: definition.version,
       clientPreferences: [{ days: ['Monday'], from: '18:00', to: '19:00' }],
       fixedWeeklySchedule: [{ day: 'Monday', from: '18:00', to: '19:00' }],
-    })
+    }, mockDb.read().users.find(user => user.role === 'owner'))
     const sessions = mockDb.read().sessions.filter(item => item.clientId === created.id)
     expect(sessions).toHaveLength(total)
     expect(sessions.every(item => item.date <= created.package.endDate)).toBe(true)
@@ -146,7 +147,7 @@ it('rejects blank, fractional, signed, exponential and out-of-range package coun
 it('records report actions with the authenticated staff and service timestamp, scoped to the client', async () => {
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-marcus', expiresAt: Date.now() + 3600000 }))
   const owner = mockDb.read().users.find(user => user.role === 'owner')
-  const event = await mockPortalAdapter.invoke('clientService', 'recordProgressReportAction', ['c1', { id: 'report-one', kind: 'pdf_export', at: '2000-01-01', by: owner }, owner])
+  const event = await mockPortalAdapter.invoke({ service: 'clientService', operation: 'recordProgressReportAction', input: { id: 'c1', action: { id: 'report-one', kind: 'pdf_export', at: '2000-01-01', by: owner } } })
   expect(event).toEqual({ id: 'report-one', clientId: 'c1', packageId: 'client-package-c1', kind: 'pdf_export', at: '2026-09-01T15:59:59.000Z', by: { id: 'u-marcus', name: 'Marcus Tan' } })
   vi.setSystemTime(new Date('2026-09-03T04:00:00Z'))
   await clientService.recordProgressReportAction('c1', { id: 'report-two', kind: 'whatsapp_opened' }, owner)
@@ -200,10 +201,10 @@ it('exposes report history only through the owner operation and ignores a forged
   const owner = mockDb.read().users.find(user => user.role === 'owner')
   await clientService.recordProgressReportAction('c1', { id: 'report-private', kind: 'pdf_export' }, owner)
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-marcus', expiresAt: Date.now() + 3600000 }))
-  await expect(mockPortalAdapter.invoke('clientService', 'progressReportHistory', ['c1', owner])).rejects.toThrow('owner')
+  await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'progressReportHistory', input: { id: 'c1' } })).rejects.toThrow('owner')
   expect((await mockPortalAdapter.load()).data).not.toHaveProperty('progressReportEvents')
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-owner', expiresAt: Date.now() + 3600000 }))
-  expect(await mockPortalAdapter.invoke('clientService', 'progressReportHistory', ['c1'])).toHaveLength(1)
+  expect(await mockPortalAdapter.invoke({ service: 'clientService', operation: 'progressReportHistory', input: { id: 'c1' } })).toHaveLength(1)
 })
 
 it('does not invent report activity from legacy renewal records or expose another client history', async () => {

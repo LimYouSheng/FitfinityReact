@@ -10,7 +10,7 @@ const KEY = 'fitfinity-m2-demo-db-v4'
 const owner = () => mockDb.read().users.find(user => user.role === 'owner')
 const save = (draft, options = {}) => packageService.save({ draft, ...options }, owner())
 const clientDraft = (definition, frequency) => ({
-  type: 'Individual', people: [{ name: 'Package client', phone: { countryCode: '+65', number: '91234567' }, email: 'client@example.com', birthday: '1990-01-02', gender: 'Female', emergencyContact: { name: 'Emergency Contact', relationship: 'Spouse', countryCode: '+65', number: '98765432' } }], startDate: '2026-09-07',
+  type: 'Individual', people: [{ name: 'Package client', phone: { countryCode: '+65', number: '91234567' }, email: 'client@example.com', birthday: '1990-01-02', gender: 'Female', emergencyContact: { name: 'Emergency Contact', relationship: 'Spouse', countryCode: '+65', number: '98765432' } }], startDate: '2027-06-07',
   trainerId: 't1', sessionsPerWeek: frequency, packageId: definition.id, packageVersion: definition.version,
   clientPreferences: [{ days: ['Monday', 'Wednesday', 'Friday'], from: '18:00', to: '19:00' }],
   fixedWeeklySchedule: ['Monday', 'Wednesday', 'Friday'].slice(0, frequency).map(day => ({ day, from: '18:00', to: '19:00' })),
@@ -35,7 +35,7 @@ it('saves rules derived from session count and emits an unread owner-only packag
   expect(result).toMatchObject({ name: 'Strength package', total: 36, validityDays: 270, status: 'active', version: 1 })
   expect(result).not.toHaveProperty('sessionsPerWeek')
   const db = mockDb.read(), message = db.messages.at(-1)
-  expect(message).toMatchObject({ packageId: result.id, read: false, recipientRole: 'owner' })
+  expect(message).toMatchObject({ packageId: result.id, readBy: {}, recipientRole: 'owner' })
   expect(relatedMessageLinks(message, { user: owner(), packages: db.packages })).toEqual([{ type: 'package', id: result.id, label: 'Package · Strength package' }])
   expect(relatedMessageLinks(message, { user: { role: 'trainer' }, packages: db.packages })).toEqual([])
 })
@@ -71,7 +71,8 @@ it('rejects invalid counts, duplicate names, stale updates and deactivated selec
 it('creates every session independently of cadence and grants free gym from twice weekly upwards', async () => {
   for (const definition of DEFAULT_PACKAGES) {
     for (const frequency of [1, 2, 3]) {
-      const client = await clientService.create(clientDraft(definition, frequency))
+      mockDb.reset() // Each cadence is an independent purchase fixture, not a double booking.
+      const client = await clientService.create(clientDraft(definition, frequency), mockDb.read().users.find(user => user.role === 'owner'))
       expect(client.package).toMatchObject({ total: definition.total, validityDays: definition.validityDays,
         durationWeeks: Math.ceil(definition.total / frequency), sessionsPerWeek: frequency, freeGym: frequency >= 2,
         templateId: definition.id, templateVersion: definition.version })
@@ -84,14 +85,14 @@ it('creates every session independently of cadence and grants free gym from twic
 
 it('preserves purchased package snapshots and sessions when a definition is edited or deactivated', async () => {
   const item = DEFAULT_PACKAGES[1]
-  const client = await clientService.create(clientDraft(item, 1))
+  const client = await clientService.create(clientDraft(item, 1), mockDb.read().users.find(user => user.role === 'owner'))
   const before = mockDb.read()
   await save({ name: 'Updated definition', total: 36, status: 'inactive' }, { id: item.id, expectedVersion: item.version })
   const after = mockDb.read()
   expect(after.clients).toEqual(before.clients)
   expect(after.sessions).toEqual(before.sessions)
   expect(after.clients.find(value => value.id === client.id).package).toMatchObject({ name: item.name, total: 24, validityDays: 180 })
-  await expect(clientService.create(clientDraft(item, 1))).rejects.toThrow('active PT package')
+  await expect(clientService.create(clientDraft(item, 1), mockDb.read().users.find(user => user.role === 'owner'))).rejects.toThrow('active PT package')
   expect(mockDb.read()).toEqual(after)
 })
 

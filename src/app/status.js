@@ -1,3 +1,4 @@
+import { managesOperations } from './permissions.js'
 import { clientAssignedToTrainer, sessionIsInactive } from './clientPackages.js'
 export function isActive(record) {
   return (record?.status ?? 'active') === 'active'
@@ -34,7 +35,7 @@ export function visibleClientsForUser(user, clients, sessions = []) {
     return String(a.name ?? '').localeCompare(String(b.name ?? ''))
   })
 
-  if (user.role === 'owner') return chronological(clients)
+  if (managesOperations(user)) return chronological(clients)
 
   return chronological(
     clients.filter(client =>

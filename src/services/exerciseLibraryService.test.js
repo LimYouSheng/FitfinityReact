@@ -44,7 +44,7 @@ describe('exercise library service boundary', () => {
     expect(media.save).toHaveBeenCalledOnce()
     expect(after.sessions).toEqual(before.sessions)
     expect(after.messages).toHaveLength(before.messages.length + 1)
-    expect(after.messages.at(-1)).toMatchObject({ exerciseId: saved.id, recipientRole: 'owner', read: false })
+    expect(after.messages.at(-1)).toMatchObject({ exerciseId: saved.id, recipientRole: 'owner', readBy: {} })
     expect(after.messages.at(-1)).not.toHaveProperty('clientId')
     expect(after.messages.at(-1)).not.toHaveProperty('recipientTrainerId')
     expect(service.getAll(trainer).some(item => item.id === saved.id)).toBe(true)

@@ -203,13 +203,17 @@ test('M4 Progress package drill-in preserves independent package, exercise and a
   await expect(exercises.locator('.strength-progress-item')).toHaveCount(10)
   await exercises.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(exercises.locator('.strength-progress-item')).toHaveCount(2)
+  // Chart navigation remains available while the multi-page PDF prepares.
   await exercises.getByRole('button', { name: 'Show Measured exercise 11 progress chart', exact: true }).click()
+  await expect(exercises.getByRole('button', { name: 'Hide Measured exercise 11 progress chart', exact: true })).toHaveAttribute('aria-expanded', 'true')
   await page.getByRole('button', { name: 'View Export/WhatsApp History', exact: true }).click()
   const history = page.getByLabel('Export/WhatsApp history', { exact: true })
   await expect(history.locator('article')).toHaveCount(10)
   await history.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(history.locator('article')).toHaveCount(2)
   await expect(exercises).toContainText('Page 2 of 2')
+  await expect(exercises.getByRole('button', { name: 'Hide Measured exercise 11 progress chart', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Download Progress Report PDF', exact: true })).toBeEnabled()
   await page.reload()
   await expect(history.locator('article')).toHaveCount(2)
   await expect(history).toContainText('Page 2 of 2')
@@ -702,3 +706,53 @@ test('M4 permanent reassignment is hidden from trainers and inactive client prof
   await expect(page.getByRole('heading', { name: 'Amanda Lim', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reassign Trainer', exact: true })).toHaveCount(0)
 })
+
+for (const role of ['owner', 'admin']) {
+  test(`Reactivation ${role} resolves every conflicting session date and preserves the original booking terms`, async ({ page }) => {
+    await start(page, data => {
+      data.users.push({ id: 'reactivation-admin', name: 'Reactivation Admin', role: 'admin', status: 'active', email: 'reactivation@example.test' })
+      const client = data.clients.find(item => item.id === 'c1'), other = data.clients.find(item => item.id === 'c2')
+      client.status = 'inactive'
+      client.deactivatedAt = '2026-09-08T00:00:00Z'
+      Object.assign(client.package, { status: 'inactive', deactivationReason: 'client', deactivatedAt: client.deactivatedAt })
+      data.packageCreditTransactions = []
+      data.sessions = [
+        { id: 'restore-a', clientId: client.id, packageId: client.package.id, trainerId: 't1', sessionNumber: 1, packageTotal: 12,
+          date: '2026-09-10', from: '10:00', to: '11:00', status: 'not_planned', exercisePlan: [] },
+        { id: 'restore-b', clientId: client.id, packageId: client.package.id, trainerId: 't1', sessionNumber: 2, packageTotal: 12,
+          date: '2026-09-10', from: '12:00', to: '13:00', status: 'not_planned', exercisePlan: [] },
+        { id: 'occupied', clientId: other.id, packageId: other.package.id, trainerId: 't1', sessionNumber: 1, packageTotal: 12,
+          date: '2026-09-10', from: '10:00', to: '13:00', status: 'planned', exercisePlan: [] },
+      ]
+    })
+    if (role === 'admin') await selectDemoIdentity(page, 'reactivation-admin')
+    await page.goto('/#/clients/c1')
+    const before = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY)
+    await tab(page, 'Reactivate Client')
+    const dialog = page.getByRole('dialog', { name: 'Reactivate Amanda Lim?' })
+    const save = dialog.getByRole('button', { name: 'Reactivate Client', exact: true })
+    await expect(dialog.getByRole('textbox')).toHaveCount(2)
+    await expect(save).toBeDisabled()
+    await dialog.getByRole('textbox', { name: /Session 1/ }).fill('2026-09-11')
+    await expect(save).toBeDisabled()
+    await dialog.getByRole('textbox', { name: /Session 2/ }).fill('2026-02-31')
+    await expect(save).toBeDisabled()
+    await dialog.getByRole('textbox', { name: /Session 2/ }).fill('2026-09-11')
+    await expect(save).toBeEnabled()
+    await expect(dialog).toContainText('All retained sessions are conflict-free.')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+    await save.click()
+    await expect(dialog).toHaveCount(0)
+    await page.reload()
+    const after = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY)
+    expect(after.clients.find(item => item.id === 'c1').status).toBe('active')
+    expect(after.clients.find(item => item.id === 'c1').package.status).toBe('active')
+    for (const original of before.sessions.filter(item => item.clientId === 'c1')) {
+      const restored = after.sessions.find(item => item.id === original.id)
+      expect(restored).toMatchObject({ date: '2026-09-11', trainerId: original.trainerId, from: original.from, to: original.to, packageId: original.packageId })
+      expect(restored.reactivationDateHistory).toHaveLength(1)
+    }
+    expect(after.sessions.find(item => item.id === 'occupied')).toEqual(before.sessions.find(item => item.id === 'occupied'))
+    expect(after.packageCreditTransactions).toEqual(before.packageCreditTransactions)
+  })
+}

@@ -1,4 +1,4 @@
-import { expect, test, selectDemoIdentity } from './fixtures.js'
+import { expect, test, selectDemoIdentity, waitForPortal } from './fixtures.js'
 import { addDays } from '../src/app/clientOnboarding.js'
 import { seed } from '../src/data/seed.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -18,6 +18,7 @@ async function start(page, route = 'messages') {
   ]
   await page.addInitScript(({key,data})=>{if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify(data))},{key:KEY,data:db})
   await page.goto(`/#/${route}`)
+  await waitForPortal(page)
 }
 async function open(page,title) {
   await page.getByRole('button',{name:`Open ${title}`,exact:true}).click()

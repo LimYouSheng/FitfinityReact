@@ -1,0 +1,238 @@
+{
+  "operator_revision": "2026-09-25-read-only-db-diagnostic",
+  "account": "418638389566",
+  "region": "ap-southeast-1",
+  "image_digest": "sha256:efa53edd08c54786bb7e04cc2509b6ace31ff903d1a2c473f203548b2e4d6d12",
+  "database_access_verified": false,
+  "temporary_cleanup_complete": false,
+  "app_deployed": false,
+  "migrations_applied": false,
+  "owner_created": false,
+  "auth_secret_created": false,
+  "cloud_writes": [
+    {
+      "service": "cloudformation",
+      "operation": "update-stack"
+    },
+    {
+      "service": "lambda",
+      "operation": "invoke"
+    },
+    {
+      "service": "lambda",
+      "operation": "invoke"
+    },
+    {
+      "service": "lambda",
+      "operation": "invoke"
+    }
+  ],
+  "diagnostic_only": false,
+  "database_diagnostic_only": true,
+  "recovery_only": false,
+  "plan": {
+    "accountId": "418638389566",
+    "accountPlanType": "FREE",
+    "accountPlanStatus": "ACTIVE",
+    "accountPlanRemainingCredits": {
+      "amount": 137.28,
+      "unit": "USD"
+    },
+    "accountPlanExpirationDate": "2027-03-22T05:57:29.311000+00:00"
+  },
+  "database_configuration": {
+    "EngineVersion": "17.11",
+    "AllocatedStorage": 20,
+    "DBInstanceClass": "db.t4g.micro",
+    "PubliclyAccessible": false,
+    "StorageEncrypted": true
+  },
+  "scan": {
+    "completed": "2026-09-25T01:46:07+08:00",
+    "findings": {
+      "CVE-2026-95818": [
+        "LOW",
+        "glibc",
+        "2.41-12+deb13u4"
+      ],
+      "CVE-2026-85091": [
+        "HIGH",
+        "zlib",
+        "1.3.dfsg+really1.3.1-1"
+      ],
+      "CVE-2026-86805": [
+        "MEDIUM",
+        "glibc",
+        "2.41-12+deb13u4"
+      ],
+      "CVE-2026-82560": [
+        "HIGH",
+        "perl",
+        "5.40.1-6+deb13u1"
+      ]
+    },
+    "exception": "FITFINITY-TEST-2026-09-25-ZLIB",
+    "expires": "2026-09-29T15:59:00+00:00"
+  },
+  "prices": {
+    "database_compute": {
+      "sku": "BQ5T85JXP99J9D2J",
+      "usd": "0.0250000000",
+      "unit": "Hrs",
+      "description": "$ 0.025 per RDS db.t4g.micro Single-AZ instance hour (or partial hour) running PostgreSQL",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "database_storage": {
+      "sku": "FXXDJWB23UZKQHCN",
+      "usd": "0.1380000000",
+      "unit": "GB-Mo",
+      "description": "$0.138 per GB-month of provisioned GP3 storage running PostgreSQL",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "nat_compute": {
+      "sku": "KVDBNHWN4332K9WE",
+      "usd": "0.0106000000",
+      "unit": "Hrs",
+      "description": "$0.0106 per On Demand Linux t4g.micro Instance Hour",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "nat_storage": {
+      "sku": "X8SY8CJFS8WV7VQN",
+      "usd": "0.0960000000",
+      "unit": "GB-Mo",
+      "description": "$0.096 per GB-month of General Purpose (gp3) provisioned storage - Asia Pacific (Singapore)",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "ipv4": {
+      "sku": "C8D8VMQRDHMB9KRU",
+      "usd": "0.0050000000",
+      "unit": "Hrs",
+      "description": "$0.005 per In-use public IPv4 address per hour",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "secret": {
+      "sku": "J5PMSXRJZ3HNHFEV",
+      "usd": "0.4000000000",
+      "unit": "Secrets",
+      "description": "$0.40 per Secret",
+      "effective": "2025-07-01T00:00:00Z"
+    }
+  },
+  "monthly_base_usd": {
+    "existing": "33.5660000000",
+    "two_database_secrets": "0.8000000000",
+    "after_this_step": "34.3660000000",
+    "later_auth_secret": "0.4000000000",
+    "hours": 730,
+    "db_gib": 20,
+    "nat_gib": 8
+  },
+  "database_secret_arns": {
+    "app": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+    "migration": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/migration-HRPtjy"
+  },
+  "bootstrap_configuration_bytes": {
+    "Setup": {
+      "image_config": 2031,
+      "environment": 464,
+      "limit_each": 4096,
+      "modeled_update_request": 2867,
+      "provider_allowance": 1024,
+      "update_request_limit": 5120
+    },
+    "Application": {
+      "image_config": 2031,
+      "environment": 329,
+      "limit_each": 4096,
+      "modeled_update_request": 2736,
+      "provider_allowance": 1024,
+      "update_request_limit": 5120
+    }
+  },
+  "reviewed_probe_update": {
+    "stack_id": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-db-bootstrap/4f92faf0-b890-11f1-8866-066e2b180577",
+    "previous_template_sha256": "42dedd7436d7aa4efe9613f1331993cdca90b1ba65647d3620cfec7efab6c2e3",
+    "previous_stack_status": "UPDATE_COMPLETE",
+    "scope": "only the two bootstrap source SHA-256 pins in existing loader commands",
+    "rollback_enabled": false
+  },
+  "preview_update_rollback_enabled": false,
+  "bootstrap_source_sha256": "b7d58125c23c7e54ad927b72da02535fa1f9b95e491333c8e675edde41398fa2",
+  "bootstrap_loader_sha256": "5aeb21653ab891d1a71c78dd75cf03594853d765ce0d9fa215db69526107cdfb",
+  "persistent_template_sha256": "5d2bc8c1964589e67f0e93245ab6abd7c5c411718999d835d710bf3c4057cbbc",
+  "probe_update_requested": true,
+  "stacks": {
+    "fitfinity-test-db-bootstrap": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-db-bootstrap/4f92faf0-b890-11f1-8866-066e2b180577"
+  },
+  "provisioning_stack_status": "UPDATE_COMPLETE",
+  "runtime_preflight": {
+    "setup": {
+      "ok": true,
+      "nonce": "138745571e1549df803e7661f067f15b",
+      "mode": "setup",
+      "preflight_only": true,
+      "runtime_identity": {
+        "uid": 993,
+        "euid": 993,
+        "gid": 990,
+        "egid": 990
+      },
+      "ca_sha256": "3c696020a3b7c6721085d182211c28024ab01873ade35dcc7eeebb89c20ee979"
+    },
+    "app-probe": {
+      "ok": true,
+      "nonce": "7e7c621fd1734cc4ac6d6d99e2e7a41e",
+      "mode": "app-probe",
+      "preflight_only": true,
+      "runtime_identity": {
+        "uid": 993,
+        "euid": 993,
+        "gid": 990,
+        "egid": 990
+      },
+      "ca_sha256": "3c696020a3b7c6721085d182211c28024ab01873ade35dcc7eeebb89c20ee979"
+    }
+  },
+  "runtime_preflight_verified": true,
+  "database_diagnostic": {
+    "database_diagnostic_only": true,
+    "read_only": true,
+    "rolled_back": true,
+    "all_checks_passed": false,
+    "checks": {
+      "connection_identity_tls": {
+        "ok": true,
+        "result": {
+          "sslmode": "verify-full",
+          "tls": "TLSv1.3",
+          "server_version_num": 170011
+        }
+      },
+      "force_ssl_sql_setting": {
+        "ok": true,
+        "result": {
+          "present_in_sql": false,
+          "enabled": false
+        }
+      },
+      "original_tls_query": {
+        "ok": false,
+        "error_type": "UndefinedObject",
+        "sqlstate": "42704"
+      },
+      "unmigrated_schema": {
+        "ok": true,
+        "result": null
+      },
+      "fitfinity_app_role": {
+        "ok": true,
+        "result": false
+      },
+      "fitfinity_migrator_role": {
+        "ok": true,
+        "result": false
+      }
+    }
+  },
+  "checked_at": "2026-09-25T10:19:20.265192+00:00"
+}

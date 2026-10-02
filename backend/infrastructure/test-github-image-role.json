@@ -1,0 +1,110 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "GitHub OIDC image publication only. Exact test ECR repository; no application rollout or infrastructure changes.",
+  "Parameters": {
+    "GitHubSubject": {
+      "Type": "String",
+      "AllowedPattern": "repo:LimYouSheng(@[0-9]+)?/FitfinityReact(@[0-9]+)?:environment:aws-test",
+      "Description": "Exact actual GitHub OIDC subject, including immutable IDs when enabled. Do not guess it."
+    }
+  },
+  "Resources": {
+    "ImageRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "fitfinity-test-github-image",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+                }
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": {
+                    "Ref": "GitHubSubject"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "PublishCurrentTestImage",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:GetAuthorizationToken",
+                    "ecr:GetRegistryScanningConfiguration"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:DescribeRepositories",
+                    "ecr:ListTagsForResource",
+                    "ecr:BatchGetImage",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:UploadLayerPart",
+                    "ecr:CompleteLayerUpload",
+                    "ecr:PutImage",
+                    "ecr:StartImageScan",
+                    "ecr:DescribeImageScanFindings"
+                  ],
+                  "Resource": "arn:aws:ecr:ap-southeast-1:418638389566:repository/fitfinity-test-api",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "github-image"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "RoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ImageRole",
+          "Arn"
+        ]
+      }
+    }
+  }
+}

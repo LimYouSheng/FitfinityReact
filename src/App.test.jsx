@@ -20,29 +20,57 @@ function profileTab(name) {
 }
 
 it('restores client history tab and page through a session, Back, Forward and a data refresh', async () => {
+  // Exercise real routing, services and persistence without artificial demo
+  // transport latency. Native history traversal remains asynchronous.
+  vi.spyOn(await import('./services/mockDb.js'), 'delay').mockResolvedValue()
   mockDb.mutate(db => {
     const source = db.sessions.find(item => item.id === 's0')
     db.sessions = Array.from({ length: 22 }, (_, index) => ({ ...source, id: `history-${index}`, clientId: 'c1', status: 'completed', date: '2026-08-01', sessionNumber: index + 1 }))
   })
-  show('clients/c1')
-  await screen.findByRole('heading', { name: 'Amanda Lim' })
-  profileTab('Session History')
-  click('Next')
-  const list = screen.getByLabelText('Session History')
+  await act(async () => { show('clients/c1') })
+  const content = () => within(document.querySelector('main.content'))
+  const identity = () => within(document.querySelector('main.content .profile-identity-card'))
+  // Observe the actual destination before asking for its accessible heading;
+  // querying a missing role on the old page repeatedly builds large diagnostics.
+  const clientHistory = async () => {
+    await waitFor(() => {
+      expect(location.hash).toBe('#/clients/c1')
+      expect(document.querySelector('main.content [aria-label="Session History"]')).toBeInTheDocument()
+    })
+    const list = content().getByLabelText('Session History')
+    expect(within(list.closest('section')).getByRole('heading', { name: 'Session History' })).toBeVisible()
+    return list
+  }
+  const sessionOverview = async () => {
+    await waitFor(() => {
+      expect(location.hash).toBe('#/sessions/history-10')
+      expect(document.querySelector('main.content .session-overview-panel')).toBeInTheDocument()
+    })
+    expect(within(document.querySelector('main.content .session-overview-panel')).getByRole('heading', { name: 'Session Overview' })).toBeVisible()
+  }
+  await waitFor(() => expect(document.querySelector('main.content .profile-identity-card h1')).toHaveTextContent('Amanda Lim'))
+  expect(identity().getByRole('heading', { name: 'Amanda Lim' })).toBeVisible()
+  await act(async () => { profileTab('Session History') })
+  await act(async () => { click('Next') })
+  const list = await clientHistory()
   const first = list.firstElementChild.textContent
-  fireEvent.click(within(list).getAllByRole('button', { name: 'View' })[0])
-  await screen.findByRole('heading', { name: 'Session Overview' })
-  click('Back')
-  await screen.findByRole('heading', { name: 'Session History' })
-  expect(screen.getByLabelText('List pages')).toHaveTextContent('Page 2 of 3')
-  expect(screen.getByLabelText('Session History').firstElementChild).toHaveTextContent(first)
+  await act(async () => { fireEvent.click(within(list.firstElementChild).getByRole('button', { name: 'View', exact: true })) })
+  await sessionOverview()
+  await act(async () => { click('Back') })
+  const restored = await clientHistory()
+  expect(content().getByLabelText('List pages')).toHaveTextContent('Page 2 of 3')
+  expect(restored.firstElementChild).toHaveTextContent(first)
+  mockDb.mutate(db => { db.clients.find(client => client.id === 'c1').name = 'Amanda Refreshed' })
   await act(async () => { window.dispatchEvent(new Event('focus')) })
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'Session History' })).toBeVisible())
+  // Wait for evidence of the new snapshot, not the heading already on screen.
+  await waitFor(() => expect(document.querySelector('main.content .profile-identity-card h1')).toHaveTextContent('Amanda Refreshed'))
+  expect(identity().getByRole('heading', { name: 'Amanda Refreshed' })).toBeVisible()
+  expect((await clientHistory()).firstElementChild).toHaveTextContent(first)
   await act(async () => { history.forward() })
-  await screen.findByRole('heading', { name: 'Session Overview' })
+  await sessionOverview()
   await act(async () => { history.back() })
-  await screen.findByRole('heading', { name: 'Session History' })
-  expect(screen.getByLabelText('List pages')).toHaveTextContent('Page 2 of 3')
+  expect((await clientHistory()).firstElementChild).toHaveTextContent(first)
+  expect(content().getByLabelText('List pages')).toHaveTextContent('Page 2 of 3')
 })
 
 it('restores nested trainer assigned-client filters after returning from a client profile', async () => {
@@ -144,7 +172,13 @@ function show(path='dashboard',signedIn=true,services) {
   return render(<NotificationProvider><ActionConfirmationProvider><EditGuardProvider><App services={services}/></EditGuardProvider></ActionConfirmationProvider></NotificationProvider>)
 }
 const change=(name,value)=>fireEvent.change(screen.getByLabelText(name),{target:{value}})
-const click=name=>fireEvent.click(screen.getByRole('button',{name,exact:true}))
+const click = name => {
+  // Preserve role/name/visibility checks while avoiding unrelated form/calendar controls.
+  const scope = ['Back', 'Home', 'Open profile menu'].includes(name)
+    ? within(document.querySelector('.topbar'))
+    : ['Next', 'Previous'].includes(name) ? within(screen.getByLabelText('List pages')) : screen
+  fireEvent.click(scope.getByRole('button', { name, exact: true }))
+}
 // Query the explicit button labels/mode group without computing accessible names
 // for every calendar session. Native button and label checks remain.
 const calendarDate = day => screen.getByLabelText(`Show sessions for ${day}`, { selector: 'button', exact: true })
@@ -188,41 +222,47 @@ it('blocks account actions until a delayed switch commits and restores the curre
 })
 
 it('M4 assembled app signs in, exposes a real calendar and signs out to an account form',async()=>{
+  vi.spyOn(await import('./services/mockDb.js'), 'delay').mockResolvedValue()
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
-  show('dashboard',false)
+  await act(async () => { show('dashboard',false) })
   await screen.findByRole('heading',{name:'Sign in'})
-  change('Account','u-owner');change('Password',mockAccountPassword);click('Sign In')
-  await screen.findByRole('heading',{name:'Calendar'})
+  change('Account','u-owner');change('Password',mockAccountPassword)
+  await act(async () => { click('Sign In') })
+  // Calendar controls have a small owning region. Preserve accessible role/name
+  // checks without rescanning every session button on each month transition.
+  const period = name => fireEvent.click(within(document.querySelector('.calendar-toolbar')).getByRole('button', { name, exact: true }))
+  expect(within(document.querySelector('.calendar-header')).getByRole('heading', { name: 'Calendar' })).toBeVisible()
   expect(calendarMode('Weekly')).toHaveAttribute('aria-pressed', 'true')
   expect(screen.queryByLabelText('Calendar date')).not.toBeInTheDocument()
   const initialWeek = ['2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07', '2026-09-08']
   expect(displayedCalendarDates()).toEqual(initialWeek)
-  click('Next calendar period')
+  period('Next calendar period')
   expect(displayedCalendarDates()).toEqual(['2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13', '2026-09-14', '2026-09-15'])
-  click('Previous calendar period')
+  period('Previous calendar period')
   expect(displayedCalendarDates()).toEqual(initialWeek)
-  click('Monthly');expect(screen.getByRole('button',{name:'Monthly'})).toHaveAttribute('aria-pressed','true')
+  fireEvent.click(calendarMode('Monthly'));expect(calendarMode('Monthly')).toHaveAttribute('aria-pressed','true')
   expect(screen.queryByLabelText('Calendar date')).not.toBeInTheDocument()
   expect(displayedCalendarDates()).toEqual(septemberDates)
-  click('Next calendar period')
+  period('Next calendar period')
   expect(displayedCalendarDates()).toEqual(Array.from({ length: 31 }, (_, index) => `2026-10-${String(index + 1).padStart(2, '0')}`))
   expect(document.querySelector('.calendar-range option:checked')).toHaveTextContent('Oct 2026')
-  click('Next calendar period')
+  period('Next calendar period')
   expect(displayedCalendarDates()).toEqual(Array.from({ length: 30 }, (_, index) => `2026-11-${String(index + 1).padStart(2, '0')}`))
   expect(screen.queryByLabelText('Selected day sessions')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Today', exact: true })).not.toBeInTheDocument()
   expect(screen.getByLabelText('Monthly calendar').querySelectorAll('.calendar-event')).toHaveLength(0)
-  click('Next calendar period')
+  period('Next calendar period')
   expect(displayedCalendarDates()).toEqual(Array.from({ length: 31 }, (_, index) => `2026-12-${String(index + 1).padStart(2, '0')}`))
   expect(screen.getByLabelText('Monthly calendar').querySelectorAll('button, .calendar-count-label, .calendar-date-action')).toHaveLength(0)
-  click('Previous calendar period')
+  period('Previous calendar period')
   expect(calendarDay('2026-11-30').querySelector('time')).toHaveTextContent('30')
-  click('Previous calendar period')
+  period('Previous calendar period')
   expect(displayedCalendarDates()).toEqual(Array.from({ length: 31 }, (_, index) => `2026-10-${String(index + 1).padStart(2, '0')}`))
-  click('Previous calendar period')
+  period('Previous calendar period')
   expect(displayedCalendarDates()).toEqual(septemberDates)
-  click('Open profile menu');fireEvent.click(screen.getByRole('menuitem',{name:'Sign Out'}))
+  click('Open profile menu')
+  await act(async () => { fireEvent.click(screen.getByRole('menuitem',{name:'Sign Out'})) })
   await screen.findByRole('heading',{name:'Sign in'})
   expect(screen.queryByRole('heading',{name:'Calendar'})).not.toBeInTheDocument()
 })
@@ -307,7 +347,7 @@ it('M4 assembled app retries loads and uses an injected account for saves, refre
   await waitFor(() => expect(window.location.hash).toBe('#/content/external-content'))
   await waitFor(() => expect(screen.getByLabelText('Content title')).toHaveValue('External studio'))
   expect(services.contentService.save).toHaveBeenCalledTimes(2)
-  expect(services.contentService.save).toHaveBeenLastCalledWith({ id: undefined, expectedVersion: undefined, draft: { title: 'External studio', key: 'external/studio', body: 'Saved through the injected service.', status: 'draft' } }, owner)
+  expect(services.contentService.save).toHaveBeenLastCalledWith({ id: undefined, expectedVersion: undefined, draft: { title: 'External studio', key: 'external/studio', body: 'Saved through the injected service.', status: 'draft' } })
   expect(services.load.mock.calls.length).toBeGreaterThan(loadsBeforeSave)
 
   services.load.mockRejectedValueOnce(new Error('Refresh unavailable'))
@@ -386,7 +426,7 @@ it('dashboard renewals share persisted read state with the routed renewal filter
   expect(renewals.compareDocumentPosition(screen.getByLabelText('Weekly calendar')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   fireEvent.click(within(renewals).getByRole('button', { name: 'Open Renewal follow-up: Nadia Koh' }))
   expect(await screen.findByRole('dialog', { name: 'Renewal follow-up: Nadia Koh' })).toHaveTextContent('10/12 sessions used · 2 sessions remaining.')
-  expect(mockDb.read().messages.find(item => item.id === 'm3').read).toBe(true)
+  expect(mockDb.read().messages.find(item => item.id === 'm3').readBy['u-owner'].readAt).toEqual(expect.any(String))
   click('Close message')
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   click('View All Renewals')
@@ -433,18 +473,38 @@ it('calendar empty-day dialog closes with Escape and a trainer sees only their s
 })
 
 it('owner counts and trainer weekly rows open complete scoped days and retain Monthly state on Back', async () => {
+  // Exercise real calendar scoping, account switching and history without demo latency.
+  vi.spyOn(await import('./services/mockDb.js'), 'delay').mockResolvedValue()
   fixCalendarClock()
   mockDb.write(withBusyCalendar(mockDb.read()))
-  show(); await screen.findByRole('heading', { name: 'Calendar' })
+  const calendarReady = async () => {
+    await waitFor(() => {
+      expect(location.hash).toBe('#/dashboard')
+      expect(document.querySelector('main.content .calendar-header')).toBeInTheDocument()
+      expect(document.querySelector('.calendar-day-dialog')).not.toBeInTheDocument()
+    })
+    expect(within(document.querySelector('main.content .calendar-header')).getByRole('heading', { name: 'Calendar' })).toBeVisible()
+  }
+  const closeDay = async () => {
+    await act(async () => { closeCalendar() })
+    await calendarReady()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  }
+  await act(async () => { show() })
+  await calendarReady()
   expect(calendarDate('2026-09-02').querySelector('strong')).toHaveTextContent(/^14$/)
   expect(screen.getByLabelText('Weekly calendar').querySelector('.calendar-event')).toBeNull()
-  fireEvent.click(calendarDate('2026-09-02'))
+  await act(async () => { fireEvent.click(calendarDate('2026-09-02')) })
   expect(screen.getByRole('dialog').querySelectorAll('.calendar-trainer-group')).toHaveLength(2)
   expect(screen.getByRole('dialog').querySelectorAll('.calendar-event')).toHaveLength(14)
-  closeCalendar()
-  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-  change('Demo identity', 'u-marcus')
-  await screen.findByRole('heading', { name: 'Trainer Dashboard' })
+  await closeDay()
+  await act(async () => { change('Demo identity', 'u-marcus') })
+  await waitFor(() => {
+    expect(document.querySelector('.portal-shell')).toHaveAttribute('data-user-id', 'u-marcus')
+    expect(document.querySelector('.portal-shell')).toHaveAttribute('aria-busy', 'false')
+    expect(document.querySelector('main.content .page-head h1')).toHaveTextContent('Trainer Dashboard')
+  })
+  expect(within(document.querySelector('main.content .page-head')).getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
   for (const mode of ['Weekly', 'Monthly']) {
     fireEvent.click(calendarMode(mode))
     expect(screen.queryByLabelText('Calendar date')).not.toBeInTheDocument()
@@ -467,18 +527,19 @@ it('owner counts and trainer weekly rows open complete scoped days and retain Mo
       expect(empty.querySelector('time')).toHaveTextContent('4')
       expect(empty).not.toHaveTextContent('No sessions')
     }
-    fireEvent.click(date)
+    await act(async () => { fireEvent.click(date) })
     const dialog = screen.getByRole('dialog', { name: 'Calendar sessions' })
     expect(dialog.querySelectorAll('.calendar-event')).toHaveLength(8)
     expect(dialog.querySelector('.calendar-event:last-child strong')).toHaveTextContent('15:00–16:00')
-    closeCalendar()
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await closeDay()
   }
-  fireEvent.click(calendarDate('2026-09-02'))
-  fireEvent.click(screen.getByRole('dialog', { name: 'Calendar sessions' }).querySelector('.calendar-event:last-child'))
-  await screen.findByRole('button', { name: 'Client Signature' })
+  await act(async () => { fireEvent.click(calendarDate('2026-09-02')) })
+  await act(async () => { fireEvent.click(screen.getByRole('dialog', { name: 'Calendar sessions' }).querySelector('.calendar-event:last-child')) })
+  await waitFor(() => expect(document.querySelector('main.content .session-overview-panel')).toBeInTheDocument())
+  expect(within(document.querySelector('main.content')).getByRole('button', { name: 'Client Signature' })).toBeVisible()
   expect(window.location.hash).toBe('#/sessions/busy-7')
-  click('Back'); await screen.findByRole('heading', { name: 'Calendar' })
+  await act(async () => { click('Back') })
+  await calendarReady()
   expect(calendarMode('Monthly')).toHaveAttribute('aria-pressed', 'true')
   expect(displayedCalendarDates()).toEqual(septemberDates)
   expect(document.querySelector('.calendar-range option:checked')).toHaveTextContent('Sept 2026')
@@ -486,20 +547,34 @@ it('owner counts and trainer weekly rows open complete scoped days and retain Mo
 
 
 it('replaces renewal controls with owner-only progress report activity that survives refresh', async () => {
+  // Keep the real adapter, persistence and authorization; this scenario does
+  // not measure the mock transport's artificial 20/120/180 ms latency.
+  vi.spyOn(await import('./services/mockDb.js'), 'delay').mockResolvedValue()
   vi.spyOn(progressPdf, 'progressReportPdf').mockResolvedValue(new Blob(['%PDF-1.4'], { type: 'application/pdf' }))
   const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:report')
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-  show('clients/c1')
-  await screen.findByRole('heading', { name: 'General Information' })
+  // Wait inside the owning region: an expected loading state should not
+  // repeatedly compute role diagnostics for the entire assembled app.
+  await act(async () => { show('clients/c1') })
+  await waitFor(() => {
+    expect(location.hash).toBe('#/clients/c1')
+    expect(document.querySelector('main.content .profile-identity-card h1')).toHaveTextContent('Amanda Lim')
+  })
+  const content = () => within(document.querySelector('main.content'))
+  expect(content().getByRole('heading', { name: 'General Information' })).toBeVisible()
   expect(screen.queryByText('Renewal status')).not.toBeInTheDocument()
   expect(screen.queryByText('Renewal History')).not.toBeInTheDocument()
-  profileTab('Progress')
-  fireEvent.click(within(screen.getByLabelText('Progress packages')).getAllByRole('button', { name: 'View' })[0])
-  click('View Export/WhatsApp History')
-  await screen.findByText('No export or WhatsApp history yet.')
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Download Progress Report PDF' })).toBeEnabled())
-  click('Download Progress Report PDF')
+  await act(async () => { profileTab('Progress') })
+  await act(async () => { fireEvent.click(within(screen.getByLabelText('Progress packages')).getAllByRole('button', { name: 'View' })[0]) })
+  const report = within(screen.getByLabelText('Strength progress'))
+  await act(async () => { fireEvent.click(report.getByRole('button', { name: 'View Export/WhatsApp History', exact: true })) })
+  const history = within(screen.getByLabelText('Export/WhatsApp history'))
+  await history.findByText('No export or WhatsApp history yet.')
+  const download = report.getByRole('button', { name: 'Download Progress Report PDF', exact: true })
+  await waitFor(() => { expect(download).toBeInTheDocument(); expect(download).toBeEnabled() })
+  await act(async () => { fireEvent.click(download) })
+  await history.findByText('PDF export')
   await waitFor(() => expect(document.querySelector('.report-history-row')).toHaveTextContent('PDF export'))
   expect(create).toHaveBeenCalledTimes(1)
   const saved = mockDb.read().progressReportEvents[0]
@@ -507,11 +582,18 @@ it('replaces renewal controls with owner-only progress report activity that surv
   expect(document.querySelector(`time[datetime="${saved.at}"]`)).toBeVisible()
   await act(async () => { window.dispatchEvent(new Event('focus')) })
   await waitFor(() => expect(document.querySelector('.report-history-row')).toHaveTextContent('PDF export'))
-  change('Demo identity', 'u-marcus')
-  await screen.findByRole('heading', { name: 'Trainer Dashboard' })
+  await act(async () => { change('Demo identity', 'u-marcus') })
+  // Wait on the actual identity transition before checking its heading. A
+  // missing global role query otherwise builds diagnostics for the old page.
+  await waitFor(() => {
+    expect(document.querySelector('.portal-shell')).toHaveAttribute('data-user-id', 'u-marcus')
+    expect(document.querySelector('.portal-shell')).toHaveAttribute('aria-busy', 'false')
+  })
+  expect(within(document.querySelector('main.content .page-head')).getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
   await act(async () => { location.hash = '#/clients/c1' })
-  await screen.findByRole('heading', { name: 'General Information' })
-  profileTab('Progress')
+  await waitFor(() => expect(document.querySelector('main.content')).toHaveTextContent('General Information'))
+  expect(content().getByRole('heading', { name: 'General Information' })).toBeVisible()
+  await act(async () => { profileTab('Progress') })
   expect(screen.queryByRole('button', { name: 'View Export/WhatsApp History' })).not.toBeInTheDocument()
 })
 
@@ -521,25 +603,25 @@ it('opens a package report through shared navigation and restores its package li
     client.packageHistory = Array.from({ length: 12 }, (_, index) => ({ id: `purchase-${index}`, total: 12, used: 12,
       startDate: `20${10 + index}-01-01`, endDate: `20${10 + index}-04-01` }))
   })
-  show('clients/c1')
+  await act(async () => { show('clients/c1') })
   await screen.findByRole('heading', { name: 'Amanda Lim' })
-  profileTab('Progress')
+  await act(async () => { profileTab('Progress') })
   const list = screen.getByLabelText('Progress packages')
   expect(list.querySelectorAll('article')).toHaveLength(10)
   click('Next')
   const selected = list.querySelector('article')
   const id = selected.dataset.packageId
-  fireEvent.click(within(selected).getByRole('button', { name: 'View' }))
+  await act(async () => { fireEvent.click(within(selected).getByRole('button', { name: 'View' })) })
   await screen.findByText('No completed exercise loads yet.')
   expect(location.hash).toBe(`#/clients/c1/progress/${id}`)
-  click('Back')
+  await act(async () => { click('Back') })
   await screen.findByRole('heading', { name: 'Progress Packages' })
   expect(screen.getByLabelText('List pages')).toHaveTextContent('Page 2 of 2')
   expect(screen.getByLabelText('Progress packages').querySelector('article').dataset.packageId).toBe(id)
   await act(async () => { history.forward() })
   await screen.findByText('No completed exercise loads yet.')
   expect(location.hash).toBe(`#/clients/c1/progress/${id}`)
-  profileTab('Upcoming Sessions')
+  await act(async () => { profileTab('Upcoming Sessions') })
   expect(screen.getByRole('heading', { name: 'Upcoming Sessions' })).toBeVisible()
   expect(location.hash).toBe('#/clients/c1')
 })

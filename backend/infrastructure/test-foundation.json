@@ -1,0 +1,584 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Fitfinity test foundation: isolated network and private PostgreSQL. No internet egress or app deployment. Singapore test account only through guarded operator.",
+  "Resources": {
+    "Vpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.84.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-vpc"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "DatabaseRoutes": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-DatabaseRoutes"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "AppRoutesA": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-AppRoutesA"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "AppRoutesB": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-AppRoutesB"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "DatabaseSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.84.16.0/24",
+        "AvailabilityZone": "ap-southeast-1a",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-DatabaseSubnetA"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "DatabaseSubnetARoutes": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "DatabaseSubnetA"
+        },
+        "RouteTableId": {
+          "Ref": "DatabaseRoutes"
+        }
+      }
+    },
+    "DatabaseSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.84.17.0/24",
+        "AvailabilityZone": "ap-southeast-1b",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-DatabaseSubnetB"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "DatabaseSubnetBRoutes": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "DatabaseSubnetB"
+        },
+        "RouteTableId": {
+          "Ref": "DatabaseRoutes"
+        }
+      }
+    },
+    "AppSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.84.32.0/24",
+        "AvailabilityZone": "ap-southeast-1a",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-AppSubnetA"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "AppSubnetARoutes": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "AppSubnetA"
+        },
+        "RouteTableId": {
+          "Ref": "AppRoutesA"
+        }
+      }
+    },
+    "AppSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.84.33.0/24",
+        "AvailabilityZone": "ap-southeast-1b",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-AppSubnetB"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "AppSubnetBRoutes": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "AppSubnetB"
+        },
+        "RouteTableId": {
+          "Ref": "AppRoutesB"
+        }
+      }
+    },
+    "DatabaseSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "PostgreSQL from dedicated application and migration security groups only",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 9,
+            "ToPort": 9,
+            "CidrIp": "127.0.0.1/32"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-database"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "ApplicationSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Dedicated Fitfinity ApplicationSecurityGroup",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "DestinationSecurityGroupId": {
+              "Fn::GetAtt": [
+                "DatabaseSecurityGroup",
+                "GroupId"
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-ApplicationSecurityGroup"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "ApplicationSecurityGroupDatabaseAccess": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Fn::GetAtt": [
+            "DatabaseSecurityGroup",
+            "GroupId"
+          ]
+        },
+        "IpProtocol": "tcp",
+        "FromPort": 5432,
+        "ToPort": 5432,
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "ApplicationSecurityGroup",
+            "GroupId"
+          ]
+        }
+      }
+    },
+    "MigrationSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Dedicated Fitfinity MigrationSecurityGroup",
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "DestinationSecurityGroupId": {
+              "Fn::GetAtt": [
+                "DatabaseSecurityGroup",
+                "GroupId"
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-MigrationSecurityGroup"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "MigrationSecurityGroupDatabaseAccess": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Fn::GetAtt": [
+            "DatabaseSecurityGroup",
+            "GroupId"
+          ]
+        },
+        "IpProtocol": "tcp",
+        "FromPort": 5432,
+        "ToPort": 5432,
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "MigrationSecurityGroup",
+            "GroupId"
+          ]
+        }
+      }
+    },
+    "DatabaseSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "Isolated database subnets in two Singapore AZs",
+        "SubnetIds": [
+          {
+            "Ref": "DatabaseSubnetA"
+          },
+          {
+            "Ref": "DatabaseSubnetB"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-database-subnets"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "DatabaseParameters": {
+      "Type": "AWS::RDS::DBParameterGroup",
+      "Properties": {
+        "Description": "Fitfinity PostgreSQL 17 TLS and statement privacy",
+        "Family": "postgres17",
+        "Parameters": {
+          "rds.force_ssl": "1",
+          "log_statement": "none",
+          "log_min_duration_statement": "-1",
+          "log_min_error_statement": "panic"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-postgres17"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "Database": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBInstanceIdentifier": "fitfinity-test-db",
+        "Engine": "postgres",
+        "EngineVersion": "17.11",
+        "EngineLifecycleSupport": "open-source-rds-extended-support-disabled",
+        "DBInstanceClass": "db.t4g.micro",
+        "DBName": "fitfinity",
+        "MasterUsername": "fitfinity_admin",
+        "ManageMasterUserPassword": true,
+        "AllocatedStorage": "20",
+        "MaxAllocatedStorage": 30,
+        "StorageType": "gp3",
+        "StorageEncrypted": true,
+        "PubliclyAccessible": false,
+        "MultiAZ": false,
+        "AvailabilityZone": "ap-southeast-1a",
+        "DBSubnetGroupName": {
+          "Ref": "DatabaseSubnetGroup"
+        },
+        "DBParameterGroupName": {
+          "Ref": "DatabaseParameters"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Fn::GetAtt": [
+              "DatabaseSecurityGroup",
+              "GroupId"
+            ]
+          }
+        ],
+        "Port": "5432",
+        "BackupRetentionPeriod": 1,
+        "CopyTagsToSnapshot": true,
+        "DeletionProtection": true,
+        "DeleteAutomatedBackups": false,
+        "AutoMinorVersionUpgrade": true,
+        "AllowMajorVersionUpgrade": false,
+        "MonitoringInterval": 0,
+        "EnablePerformanceInsights": false,
+        "PreferredBackupWindow": "18:00-18:30",
+        "PreferredMaintenanceWindow": "sun:19:00-sun:19:30",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-database"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      },
+      "DeletionPolicy": "Snapshot",
+      "UpdateReplacePolicy": "Snapshot"
+    }
+  },
+  "Outputs": {
+    "Vpc": {
+      "Value": {
+        "Ref": "Vpc"
+      }
+    },
+    "AppSubnetA": {
+      "Value": {
+        "Ref": "AppSubnetA"
+      }
+    },
+    "AppSubnetB": {
+      "Value": {
+        "Ref": "AppSubnetB"
+      }
+    },
+    "AppRoutesA": {
+      "Value": {
+        "Ref": "AppRoutesA"
+      }
+    },
+    "AppRoutesB": {
+      "Value": {
+        "Ref": "AppRoutesB"
+      }
+    },
+    "ApplicationSecurityGroup": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ApplicationSecurityGroup",
+          "GroupId"
+        ]
+      }
+    },
+    "MigrationSecurityGroup": {
+      "Value": {
+        "Fn::GetAtt": [
+          "MigrationSecurityGroup",
+          "GroupId"
+        ]
+      }
+    },
+    "DatabaseSecurityGroup": {
+      "Value": {
+        "Fn::GetAtt": [
+          "DatabaseSecurityGroup",
+          "GroupId"
+        ]
+      }
+    },
+    "DatabaseEndpoint": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "Endpoint.Address"
+        ]
+      }
+    },
+    "DatabasePort": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "Endpoint.Port"
+        ]
+      }
+    },
+    "AdminSecretArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Database",
+          "MasterUserSecret.SecretArn"
+        ]
+      }
+    }
+  }
+}

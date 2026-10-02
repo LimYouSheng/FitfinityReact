@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-pages/
+dist-api-test/
 .DS_Store
 .env
 .env.*
@@ -12,3 +13,7 @@ test-results/
 playwright-report/
 *.backup-*
 .Rhistory
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/

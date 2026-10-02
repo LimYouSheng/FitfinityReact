@@ -9,11 +9,11 @@ export const TRAINER_ONBOARDING_STEPS = [
   { key: 'autonomy', title: 'Owner Approval Needed' },
 ]
 
-export function createTrainerDraft(policy) {
+export function createTrainerDraft(policy, { includeRates = true } = {}) {
   return {
     name: '', email: '', phone: { countryCode: policy.defaultCountryCode, number: '' },
     birthday: '', gender: '', trainerType: '', qualifications: '', publicProfile: 'Visible',
-    rates: { peak: String(policy.trainerRates.peak), offPeak: String(policy.trainerRates.offPeak) },
+    ...(includeRates ? { rates: { peak: String(policy.trainerRates.peak), offPeak: String(policy.trainerRates.offPeak) } } : {}),
     availabilityBlocks: [],
     approvalNeeded: { ...policy.approvalDefaults },
   }

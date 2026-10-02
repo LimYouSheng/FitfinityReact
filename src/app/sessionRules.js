@@ -1,4 +1,18 @@
+import { managesOperations } from './permissions.js'
 import { today as currentDate } from './clock.js'
+import { parseDateOnly } from '../utils/date.js'
+
+export function validSessionDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = parseDateOnly(value)
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+export function sessionScheduleError(session) {
+  const validTime = value => typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value)
+  return validSessionDate(session?.date) && validTime(session.from) && validTime(session.to) && session.from < session.to
+    ? null : 'Choose a valid date, start time and end time.'
+}
 const STATUS = {
   not_planned: { label: 'Not Planned', tone: 'amber' },
   planned: { label: 'Planned', tone: 'blue' },
@@ -17,7 +31,7 @@ export function sessionDurationMinutes(session) {
 }
 
 export function visibleSessionsForUser(user, sessions) {
-  if (user.role === 'owner') return [...sessions]
+  if (managesOperations(user)) return [...sessions]
   return sessions.filter(session => session.trainerId === user.trainerId)
 }
 

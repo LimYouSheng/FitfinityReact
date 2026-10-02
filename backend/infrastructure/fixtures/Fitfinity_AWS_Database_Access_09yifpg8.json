@@ -1,0 +1,257 @@
+{
+  "operator_revision": "2026-09-25-retained-resource-review",
+  "account": "418638389566",
+  "region": "ap-southeast-1",
+  "image_digest": "sha256:efa53edd08c54786bb7e04cc2509b6ace31ff903d1a2c473f203548b2e4d6d12",
+  "database_access_verified": false,
+  "temporary_cleanup_complete": false,
+  "app_deployed": false,
+  "migrations_applied": false,
+  "owner_created": false,
+  "auth_secret_created": false,
+  "cloud_writes": [
+    {
+      "service": "cloudformation",
+      "operation": "update-stack"
+    },
+    {
+      "service": "lambda",
+      "operation": "invoke"
+    },
+    {
+      "service": "lambda",
+      "operation": "invoke"
+    }
+  ],
+  "diagnostic_only": true,
+  "recovery_only": false,
+  "plan": {
+    "accountId": "418638389566",
+    "accountPlanType": "FREE",
+    "accountPlanStatus": "ACTIVE",
+    "accountPlanRemainingCredits": {
+      "amount": 137.28,
+      "unit": "USD"
+    },
+    "accountPlanExpirationDate": "2027-03-22T05:57:29.311000+00:00"
+  },
+  "database_configuration": {
+    "EngineVersion": "17.11",
+    "AllocatedStorage": 20,
+    "DBInstanceClass": "db.t4g.micro",
+    "PubliclyAccessible": false,
+    "StorageEncrypted": true
+  },
+  "scan": {
+    "completed": "2026-09-25T01:46:07+08:00",
+    "findings": {
+      "CVE-2026-95818": [
+        "LOW",
+        "glibc",
+        "2.41-12+deb13u4"
+      ],
+      "CVE-2026-85091": [
+        "HIGH",
+        "zlib",
+        "1.3.dfsg+really1.3.1-1"
+      ],
+      "CVE-2026-86805": [
+        "MEDIUM",
+        "glibc",
+        "2.41-12+deb13u4"
+      ],
+      "CVE-2026-82560": [
+        "HIGH",
+        "perl",
+        "5.40.1-6+deb13u1"
+      ]
+    },
+    "exception": "FITFINITY-TEST-2026-09-25-ZLIB",
+    "expires": "2026-09-29T15:59:00+00:00"
+  },
+  "prices": {
+    "database_compute": {
+      "sku": "BQ5T85JXP99J9D2J",
+      "usd": "0.0250000000",
+      "unit": "Hrs",
+      "description": "$ 0.025 per RDS db.t4g.micro Single-AZ instance hour (or partial hour) running PostgreSQL",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "database_storage": {
+      "sku": "FXXDJWB23UZKQHCN",
+      "usd": "0.1380000000",
+      "unit": "GB-Mo",
+      "description": "$0.138 per GB-month of provisioned GP3 storage running PostgreSQL",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "nat_compute": {
+      "sku": "KVDBNHWN4332K9WE",
+      "usd": "0.0106000000",
+      "unit": "Hrs",
+      "description": "$0.0106 per On Demand Linux t4g.micro Instance Hour",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "nat_storage": {
+      "sku": "X8SY8CJFS8WV7VQN",
+      "usd": "0.0960000000",
+      "unit": "GB-Mo",
+      "description": "$0.096 per GB-month of General Purpose (gp3) provisioned storage - Asia Pacific (Singapore)",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "ipv4": {
+      "sku": "C8D8VMQRDHMB9KRU",
+      "usd": "0.0050000000",
+      "unit": "Hrs",
+      "description": "$0.005 per In-use public IPv4 address per hour",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "secret": {
+      "sku": "J5PMSXRJZ3HNHFEV",
+      "usd": "0.4000000000",
+      "unit": "Secrets",
+      "description": "$0.40 per Secret",
+      "effective": "2025-07-01T00:00:00Z"
+    }
+  },
+  "monthly_base_usd": {
+    "existing": "33.5660000000",
+    "two_database_secrets": "0.8000000000",
+    "after_this_step": "34.3660000000",
+    "later_auth_secret": "0.4000000000",
+    "hours": 730,
+    "db_gib": 20,
+    "nat_gib": 8
+  },
+  "database_secret_arns": {
+    "app": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+    "migration": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/migration-HRPtjy"
+  },
+  "bootstrap_configuration_bytes": {
+    "Setup": {
+      "image_config": 2031,
+      "environment": 464,
+      "limit_each": 4096,
+      "modeled_update_request": 2867,
+      "provider_allowance": 1024,
+      "update_request_limit": 5120
+    },
+    "Application": {
+      "image_config": 2031,
+      "environment": 329,
+      "limit_each": 4096,
+      "modeled_update_request": 2736,
+      "provider_allowance": 1024,
+      "update_request_limit": 5120
+    }
+  },
+  "probe_resource_review": [
+    {
+      "LogicalResourceId": "ApplicationFunction",
+      "PhysicalResourceId": "fitfinity-test-db-app-probe",
+      "ResourceType": "AWS::Lambda::Function",
+      "ResourceStatus": "UPDATE_ROLLBACK_FAILED",
+      "LastUpdatedTimestamp": "2026-09-25T05:57:53.221000+00:00",
+      "ResourceStatusReason": "Resource handler returned message: \"Request must be smaller than 5120 bytes for the UpdateFunctionConfiguration operation (Service: Lambda, Status Code: 413, Request ID: f38bd912-5687-4db0-a713-86e2626cc1f2) (SDK Attempt Count: 1)\" (RequestToken: 5d36c829-2cc5-6199-cc6c-d8ca873fb690, HandlerErrorCode: GeneralServiceException)"
+    },
+    {
+      "LogicalResourceId": "ApplicationLogs",
+      "PhysicalResourceId": "/aws/lambda/fitfinity-test-db-app-probe",
+      "ResourceType": "AWS::Logs::LogGroup",
+      "ResourceStatus": "CREATE_COMPLETE",
+      "LastUpdatedTimestamp": "2026-09-25T03:22:30.401000+00:00",
+      "ResourceStatusReason": null
+    },
+    {
+      "LogicalResourceId": "ApplicationRole",
+      "PhysicalResourceId": "fitfinity-test-db-bootstrap-ApplicationRole-NF8mXUbui3by",
+      "ResourceType": "AWS::IAM::Role",
+      "ResourceStatus": "CREATE_COMPLETE",
+      "LastUpdatedTimestamp": "2026-09-25T03:22:39.196000+00:00",
+      "ResourceStatusReason": null
+    },
+    {
+      "LogicalResourceId": "SetupFunction",
+      "PhysicalResourceId": "fitfinity-test-db-setup",
+      "ResourceType": "AWS::Lambda::Function",
+      "ResourceStatus": "UPDATE_ROLLBACK_FAILED",
+      "LastUpdatedTimestamp": "2026-09-25T05:57:53.252000+00:00",
+      "ResourceStatusReason": "Resource handler returned message: \"Request must be smaller than 5120 bytes for the UpdateFunctionConfiguration operation (Service: Lambda, Status Code: 413, Request ID: fde0edff-e944-4f17-961e-6cead8efa622) (SDK Attempt Count: 1)\" (RequestToken: 3ef700a6-22a6-fc13-4074-2ab4f3d8ca6a, HandlerErrorCode: GeneralServiceException)"
+    },
+    {
+      "LogicalResourceId": "SetupLogs",
+      "PhysicalResourceId": "/aws/lambda/fitfinity-test-db-setup",
+      "ResourceType": "AWS::Logs::LogGroup",
+      "ResourceStatus": "CREATE_COMPLETE",
+      "LastUpdatedTimestamp": "2026-09-25T03:22:30.494000+00:00",
+      "ResourceStatusReason": null
+    },
+    {
+      "LogicalResourceId": "SetupRole",
+      "PhysicalResourceId": "fitfinity-test-db-bootstrap-SetupRole-VvysP0EEFXFJ",
+      "ResourceType": "AWS::IAM::Role",
+      "ResourceStatus": "CREATE_COMPLETE",
+      "LastUpdatedTimestamp": "2026-09-25T03:22:39.236000+00:00",
+      "ResourceStatusReason": null
+    }
+  ],
+  "recovery_live_config_sha256": {
+    "Setup": "27add2c158f6baf0a31a337cae91d99633497b2c6eecd55e1ba601b80c4f5e87",
+    "Application": "803734f4b4d4723a06d99123a429cd62accac3a5e35fc84873c34f21adb40cb0"
+  },
+  "reviewed_probe_update": {
+    "stack_id": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-db-bootstrap/4f92faf0-b890-11f1-8866-066e2b180577",
+    "previous_template_sha256": "9c2a025c81c26e93de49526cebe7ca08f91508914dc78d574fc41c8da9392d15",
+    "previous_stack_status": "UPDATE_ROLLBACK_COMPLETE",
+    "scope": "two function loader commands and removal of source environment variables",
+    "rollback_enabled": true
+  },
+  "preview_update_rollback_enabled": true,
+  "bootstrap_source_sha256": "06b86b4c1596c9b81f2f6e5e25501baef1b9e3c346d6fbaec0d9f8a57df6b691",
+  "bootstrap_loader_sha256": "5aeb21653ab891d1a71c78dd75cf03594853d765ce0d9fa215db69526107cdfb",
+  "persistent_template_sha256": "5d2bc8c1964589e67f0e93245ab6abd7c5c411718999d835d710bf3c4057cbbc",
+  "retained_rollback_review": {
+    "stack_id": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-db-bootstrap/4f92faf0-b890-11f1-8866-066e2b180577",
+    "state": "UPDATE_ROLLBACK_COMPLETE",
+    "resource_ids": [
+      "ApplicationFunction",
+      "SetupFunction"
+    ],
+    "live_template_sha256": "9c2a025c81c26e93de49526cebe7ca08f91508914dc78d574fc41c8da9392d15"
+  },
+  "probe_update_requested": true,
+  "stacks": {
+    "fitfinity-test-db-bootstrap": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-db-bootstrap/4f92faf0-b890-11f1-8866-066e2b180577"
+  },
+  "provisioning_stack_status": "UPDATE_COMPLETE",
+  "runtime_preflight": {
+    "setup": {
+      "ok": false,
+      "stage": "runtime_identity",
+      "error_type": "RuntimeError",
+      "sqlstate": null,
+      "runtime_identity": {
+        "uid": 993,
+        "euid": 993,
+        "gid": 990,
+        "egid": 990
+      },
+      "ca_sha256": null
+    },
+    "app-probe": {
+      "ok": false,
+      "stage": "runtime_identity",
+      "error_type": "RuntimeError",
+      "sqlstate": null,
+      "runtime_identity": {
+        "uid": 993,
+        "euid": 993,
+        "gid": 990,
+        "egid": 990
+      },
+      "ca_sha256": null
+    }
+  },
+  "runtime_preflight_verified": false,
+  "error": "Runtime preflight stopped; see per-function checks. No secret values or database calls made",
+  "checked_at": "2026-09-25T07:36:28.217439+00:00"
+}

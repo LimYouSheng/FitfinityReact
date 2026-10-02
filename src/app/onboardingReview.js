@@ -1,3 +1,4 @@
+import { ASSESSMENT_FORMS } from './assessmentForms.js'
 import { weeklyFrequencyLabel } from './packages.js'
 import { APPROVAL_FIELDS } from './constants.js'
 import { packageFor } from './clientOnboarding.js'
@@ -35,10 +36,19 @@ export function clientReviewSections(draft, trainer, policy) {
           row('Emergency contact name', person.emergencyContact?.name),
           row('Emergency contact relationship', person.emergencyContact?.relationship),
           row('Emergency contact phone', reviewPhone(person.emergencyContact)),
-          row('Health / Limitation Notes', person.healthNotes),
+          ...(person.healthNotes ? [row('Historical health notes', person.healthNotes)] : []),
         ],
       })),
     ] },
+    { key: 'assessments', title: 'Health & Assessments', layout: 'assessments', groups: people.map((person, index) => ({
+      title: draft.type === 'Couple' ? `Client ${index + 1} · ${person.name}` : person.name,
+      rows: ASSESSMENT_FORMS.map(form => {
+        const record = person.assessments?.[form.id]
+        return record?.status === 'filled'
+          ? { ...row(form.title, 'Filled'), detail: `${formatDate(record.date)} · ${record.assessor}`, open: { personIndex: index, formId: form.id } }
+          : row(form.title, 'Not filled')
+      }),
+    })) },
     { key: 'package', title: 'Package & Preferences', groups: [group([
       row('PT Package', `${pack.total} sessions`), row('Validity', `${pack.validityDays} days`),
       row('Free gym package', pack.freeGym ? 'Included' : 'Not included'),
@@ -56,7 +66,7 @@ export function clientReviewSections(draft, trainer, policy) {
   ]
 }
 
-export function trainerReviewSections(draft) {
+export function trainerReviewSections(draft, { includeRates = true } = {}) {
   const money = value => value === '' || value === null || value === undefined || !Number.isFinite(Number(value))
     ? '—' : `S$${Number(value).toFixed(2)} / session`
   return [
@@ -65,9 +75,9 @@ export function trainerReviewSections(draft) {
       row('Phone', reviewPhone(draft.phone)), row('Birthday', formatDate(draft.birthday)), row('Gender', draft.gender),
       row('Trainer type', draft.trainerType), row('Public profile', draft.publicProfile), row('Qualifications', draft.qualifications),
     ])] },
-    { key: 'rates', title: 'Training & Rates', groups: [group([
+    ...(includeRates ? [{ key: 'rates', title: 'Training & Rates', groups: [group([
       row('Peak session rate', money(draft.rates.peak)), row('Off-peak session rate', money(draft.rates.offPeak)),
-    ])] },
+    ])] }] : []),
     { key: 'availability', title: 'Trainer Availability', groups: [group(blockRows(draft.availabilityBlocks))] },
     { key: 'autonomy', title: 'Owner Approval Needed', groups: [group(APPROVAL_FIELDS.map(([field, label]) =>
       row(label, draft.approvalNeeded[field] === true ? 'Owner approval needed'

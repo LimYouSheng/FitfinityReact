@@ -1,9 +1,10 @@
 import { createElement } from 'react'
+import { runInNewContext } from 'node:vm'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { reportFilename } from '../../services/reportService.js'
 import { progressReportPages } from './progressReportPdf.jsx'
-import { reportPdfDocument } from '../../utils/reportPdf.js'
+import { renderReportPdf, reportPdfDocument } from '../../utils/reportPdf.js'
 import StrengthProgressChart from './StrengthProgressChart.jsx'
 import { progressChange } from './progressChart.js'
 
@@ -21,6 +22,79 @@ const readBytes = blob => new Promise(resolve => {
   reader.onload = () => resolve(new Uint8Array(reader.result))
   reader.readAsArrayBuffer(blob)
 })
+
+// Exercise the real PDF pipeline while replacing only browser image/codec APIs.
+function rasterizer({ offscreen = true, failure, controlled = false } = {}) {
+  const canvases = [], images = [], bitmaps = [], workers = [], urls = new Map(), pending = new Map()
+  const encode = vi.fn(async (canvas, type, quality) => {
+    expect([canvas.width, canvas.height, type, quality]).toEqual([2000, 2828, 'image/jpeg', 0.95])
+    expect(canvases.filter(item => item.width > 0 && item.height > 0).length).toBeLessThanOrEqual(offscreen ? 4 : 1)
+    const page = canvas.page
+    if (controlled) await new Promise((resolve, reject) => pending.set(page, { resolve, reject }))
+    if (failure === 'encoder') throw new Error('Encoder failed')
+    return failure === 'empty' ? null : {
+      type: failure === 'format' ? 'image/png' : 'image/jpeg',
+      arrayBuffer: async () => new Uint8Array([255, 216, page, 255, 217]).buffer,
+    }
+  })
+  const context = function () {
+    return failure === 'context' ? null : {
+      clearRect: vi.fn(() => { this.page = null }),
+      drawImage: vi.fn(image => {
+        expect(this.page == null).toBe(true)
+        this.page = image.page
+      }),
+    }
+  }
+  class DetachedCanvas {
+    constructor(width, height) { this.width = width; this.height = height; canvases.push(this) }
+    getContext() { return context.call(this) }
+    convertToBlob({ type, quality }) { return encode(this, type, quality) }
+    transferToImageBitmap() { const bitmap = { page: this.page, close: vi.fn() }; bitmaps.push(bitmap); return bitmap }
+  }
+  vi.stubGlobal('OffscreenCanvas', offscreen ? DetachedCanvas : undefined)
+  vi.stubGlobal('Worker', class {
+    constructor(url) {
+      if (failure === 'startup' || failure === 'second-startup' && workers.length === 1) throw new Error('Workers unavailable')
+      workers.push(this)
+      this.scope = { self: { postMessage: data => queueMicrotask(() => this.onmessage?.({ data })) }, OffscreenCanvas: DetachedCanvas }
+      // Run the actual self-contained worker body, with controlled codec APIs.
+      this.ready = readBytes(urls.get(url)).then(bytes => runInNewContext(new TextDecoder().decode(bytes), this.scope))
+      this.terminate = vi.fn()
+      if (failure === 'worker') queueMicrotask(() => this.onerror?.())
+    }
+    postMessage(message, transfer) {
+      expect(transfer).toEqual([message.bitmap])
+      this.ready.then(() => this.scope.self.onmessage({ data: message }))
+    }
+  })
+  vi.stubGlobal('Image', class {
+    constructor() { images.push(this) }
+    set src(value) {
+      this.url = value
+      readBytes(urls.get(value)).then(bytes => {
+        this.page = Number(new TextDecoder().decode(bytes).match(/Page (\d+)/)?.[1] ?? 1)
+        failure === 'image' ? this.onerror?.() : this.onload?.()
+      })
+    }
+  })
+  vi.spyOn(URL, 'createObjectURL').mockImplementation(blob => {
+    const url = `blob:report-${urls.size}`
+    urls.set(url, blob)
+    return url
+  })
+  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function () {
+    if (!canvases.includes(this)) canvases.push(this)
+    return context.call(this)
+  })
+  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (callback, type, quality) {
+    encode(this, type, quality).then(callback)
+  })
+  return { canvases, images, encode, bitmaps, workers, urls, pending }
+}
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('progress report export', () => {
   it('exports every exercise and its recorded loads, dates, sets and reps in a PDF visual', () => {
@@ -95,10 +169,93 @@ describe('progress report export', () => {
     entries.forEach((entry, index) => expect(text.slice(Number(entry.slice(0, 10)))).toMatch(new RegExp(`^${index + 1} 0 obj\\n`)))
     expect(text.match(/\/Subtype \/Image/g)).toHaveLength(2)
     expect(text).toContain('/Length 8 >>\nstream\n')
+
+    const pages = Array.from({ length: 12 }, (_, index) => ({ width: 1000, height: 1414, svg: `<svg><text>Page ${index + 1}</text></svg>` }))
+    for (const settings of [{ offscreen: true }, { offscreen: false }, { offscreen: true, failure: 'second-startup' }]) {
+      const { offscreen, failure } = settings
+      const workerCount = !offscreen ? 0 : failure ? 1 : 2
+      const { canvases, images, encode, bitmaps, workers, urls } = rasterizer(settings)
+      const rendered = new TextDecoder().decode(await readBytes(await renderReportPdf(pages, 'Twelve exercises')))
+      expect(rendered).toContain('/Count 12 /Kids')
+      expect(rendered.match(/\/Subtype \/Image/g)).toHaveLength(12)
+      expect(encode).toHaveBeenCalledTimes(12)
+      expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalledTimes(offscreen ? 0 : 12)
+      expect(canvases).toHaveLength(offscreen ? 12 + workerCount : 1)
+      expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true)
+      expect(images.every(image => image.onload === null && image.onerror === null)).toBe(true)
+      expect(new Set(URL.revokeObjectURL.mock.calls.flat())).toEqual(new Set(urls.keys()))
+      expect(bitmaps).toHaveLength(offscreen ? 12 : 0)
+      bitmaps.forEach(bitmap => expect(bitmap.close).toHaveBeenCalledTimes(1))
+      expect(workers).toHaveLength(workerCount)
+      workers.forEach(worker => expect(worker.terminate).toHaveBeenCalledTimes(1))
+      vi.restoreAllMocks(); vi.unstubAllGlobals()
+    }
+
+    // A slow first page must not serialize the whole report or reorder its contents.
+    const { canvases, encode, workers, bitmaps, pending } = rasterizer({ controlled: true })
+    let settled = false
+    const result = renderReportPdf(pages, 'Out-of-order completion').then(blob => { settled = true; return blob })
+    await vi.waitFor(() => expect(encode).toHaveBeenCalledTimes(2))
+    expect([...pending.keys()]).toEqual([1, 2])
+    for (let page = 2; page <= 12; page += 1) {
+      await vi.waitFor(() => expect(pending.has(page)).toBe(true))
+      expect(encode).toHaveBeenCalledTimes(page)
+      expect(settled).toBe(false)
+      bitmaps.forEach(bitmap => expect(bitmap.close).toHaveBeenCalledTimes(1))
+      pending.get(page).resolve()
+    }
+    expect(settled).toBe(false)
+    pending.get(1).resolve()
+    const ordered = await readBytes(await result)
+    const pageMarkers = []
+    for (let index = 0; index < ordered.length - 4; index += 1) {
+      if (ordered[index] === 255 && ordered[index + 1] === 216 && ordered[index + 3] === 255 && ordered[index + 4] === 217) pageMarkers.push(ordered[index + 2])
+    }
+    expect(pageMarkers).toEqual(Array.from({ length: 12 }, (_, index) => index + 1))
+    expect(workers).toHaveLength(2)
+    expect(canvases).toHaveLength(14)
+    expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true)
+    workers.forEach(worker => expect(worker.terminate).toHaveBeenCalledTimes(1))
   })
 
-  it('rejects an empty report before creating a misleading PDF', () => {
+  it('rejects an empty or unrenderable report and releases temporary resources', async () => {
     expect(() => progressReportPages({ ...client, strengthProgress: [] }, options)).toThrow('No completed exercise loads')
     expect(() => reportPdfDocument([], client.name)).toThrow('No progress report pages')
+    await expect(renderReportPdf([], client.name)).rejects.toThrow('No progress report pages')
+    for (const failure of ['image', 'context', 'encoder', 'empty', 'format', 'worker']) {
+      const { canvases, images, workers, bitmaps, urls } = rasterizer({ failure })
+      await expect(renderReportPdf([{ width: 1000, height: 1414, svg: '<svg/>' }], client.name)).rejects.toThrow()
+      expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true)
+      expect(images.every(image => image.onload === null && image.onerror === null)).toBe(true)
+      expect(new Set(URL.revokeObjectURL.mock.calls.flat())).toEqual(new Set(urls.keys()))
+      workers.forEach(worker => expect(worker.terminate).toHaveBeenCalledTimes(1))
+      bitmaps.forEach(bitmap => expect(bitmap.close).toHaveBeenCalledTimes(1))
+      vi.restoreAllMocks(); vi.unstubAllGlobals()
+    }
+    const { encode, urls } = rasterizer({ failure: 'startup' })
+    await expect(renderReportPdf([{ width: 1000, height: 1414, svg: '<svg/>' }], client.name)).resolves.toHaveProperty('type', 'application/pdf')
+    expect(encode).toHaveBeenCalledTimes(1)
+    expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalledTimes(1)
+    expect(new Set(URL.revokeObjectURL.mock.calls.flat())).toEqual(new Set(urls.keys()))
+    vi.restoreAllMocks(); vi.unstubAllGlobals()
+
+    // Failure in one lane must drain the other page and never start the rest.
+    const failed = rasterizer({ controlled: true })
+    const pages = Array.from({ length: 12 }, (_, index) => ({ width: 1000, height: 1414, svg: `<svg><text>Page ${index + 1}</text></svg>` }))
+    let settled = false
+    const rejected = renderReportPdf(pages, client.name).catch(error => { settled = true; return error })
+    await vi.waitFor(() => expect(failed.encode).toHaveBeenCalledTimes(2))
+    failed.pending.get(1).reject(new Error('Page 1 failed'))
+    await vi.waitFor(() => expect(failed.canvases.filter(canvas => canvas.width > 0)).toHaveLength(2))
+    expect(settled).toBe(false)
+    failed.pending.get(2).resolve()
+    expect((await rejected).message).toBe('Page 1 failed')
+    expect(failed.encode).toHaveBeenCalledTimes(2)
+    expect(failed.images).toHaveLength(2)
+    expect(failed.canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true)
+    expect(failed.images.every(image => image.onload === null && image.onerror === null)).toBe(true)
+    expect(new Set(URL.revokeObjectURL.mock.calls.flat())).toEqual(new Set(failed.urls.keys()))
+    failed.bitmaps.forEach(bitmap => expect(bitmap.close).toHaveBeenCalledTimes(1))
+    failed.workers.forEach(worker => expect(worker.terminate).toHaveBeenCalledTimes(1))
   })
 })

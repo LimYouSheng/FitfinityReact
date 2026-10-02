@@ -1,3 +1,4 @@
+import { managesOperations } from '../app/permissions.js'
 import { packageDefinitions, packageErrors, packageValidityDays } from '../app/packages.js'
 import { requireActiveActor } from '../app/scheduleChanges.js'
 import { appendSavedEditMessage } from './editMessage.js'
@@ -8,7 +9,7 @@ export const packageService = {
     await delay(180)
     let savedId
     const state = mockDb.mutate(db => {
-      if (requireActiveActor(db, actor).role !== 'owner') throw new Error('Only the owner can set up packages.')
+      if (!managesOperations(requireActiveActor(db, actor))) throw new Error('Only the owner can set up packages.')
       const errors = packageErrors(draft, db.settings)
       if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
       const definitions = structuredClone(packageDefinitions(db))

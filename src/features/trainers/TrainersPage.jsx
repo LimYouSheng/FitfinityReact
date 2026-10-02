@@ -66,7 +66,7 @@ export default function TrainersPage({ trainers, onOpen, onAdd }) {
           <span className="eyebrow">Operations</span>
           <h1>Trainers</h1>
         </div>
-        <button type="button" className="onboarding-button primary" onClick={onAdd}>Add New Trainer</button>
+        {onAdd && <button type="button" className="onboarding-button primary" onClick={onAdd}>Add New Trainer</button>}
       </div>
 
       <Panel>

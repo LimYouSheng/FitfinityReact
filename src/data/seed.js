@@ -253,7 +253,7 @@ export function createDemoSeed(referenceDate) {
     title: `Session update: ${client.name}`,
     body: `${client.name}'s latest session record is ready for review.`,
     kind: 'session',
-    read: index > 4,
+    readBy: index > 4 ? { 'u-owner': {} } : {},
   }))
 
   const initialRenewals = { settings: mockPolicy, messages: [] }
@@ -330,11 +330,11 @@ export function createDemoSeed(referenceDate) {
     messages: [
       {
         id: 'm1', createdAt: `${addDays(referenceDate, -1)}T09:00:00+08:00`, recipientRole: 'owner', title: 'Messages foundation ready',
-        body: 'Requests and operational updates share one Messages destination.', kind: 'system', read: false,
+        body: 'Requests and operational updates share one Messages destination.', kind: 'system', readBy: {},
       },
       {
         id: 'm2', createdAt: `${addDays(referenceDate, -1)}T09:10:00+08:00`, recipientTrainerId: 't1', trainerId: 't1', title: 'Trainer messages ready',
-        body: 'Approvals, assignments and client-status updates appear here.', kind: 'system', read: false,
+        body: 'Approvals, assignments and client-status updates appear here.', kind: 'system', readBy: {},
       },
       ...initialRenewals.messages,
       ...generatedMessages,

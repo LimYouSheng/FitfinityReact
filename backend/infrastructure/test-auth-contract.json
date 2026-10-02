@@ -1,0 +1,7 @@
+{
+  "cognito_stack_id": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-cognito/776045f0-b66b-11f1-92b4-06ffd526f669",
+  "cognito_template_sha256": "29c02827c022bdc090f7e9bd2665a1348e824d2dd51887a450b9cc64e2066f22",
+  "pool_id": "ap-southeast-1_La0Y3MXCj",
+  "client_id": "2jj6r722g5591u5kf2b812pkgm",
+  "accepted_schema_sha256": "3804a0078549a967756946aae538ed2a595aa16d4b61f23a521d02ad14e8104d"
+}

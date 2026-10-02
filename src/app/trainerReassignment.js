@@ -2,6 +2,7 @@ import { businessClock } from './clock.js'
 import { requireActiveClient, sessionIsInactive } from './clientPackages.js'
 import { trainerCoversBlock } from './clientOnboarding.js'
 import { weekday } from '../utils/date.js'
+import { sessionBookingConflict } from './bookingAvailability.js'
 
 const activePurchases = client => [client.package, ...(client.additionalPackages ?? [])].filter(item => item && item.status !== 'inactive')
 
@@ -44,9 +45,9 @@ export function validateTrainerReassignment(db, client, draft) {
   const purchases = activePurchases(client)
   const ids = new Set(expected.sessions.map(item => item.id))
   const sessions = db.sessions.filter(item => ids.has(item.id))
+  const calendar = { ...db, sessions: db.sessions.map(item => ids.has(item.id) ? { ...item, trainerId: trainer.id } : item) }
   for (const session of sessions) {
-    if (db.sessions.some(other => other.id !== session.id && !sessionIsInactive(db.clients.find(item => item.id === other.clientId), other) &&
-      other.status !== 'cancelled' && other.date === session.date && (ids.has(other.id) || other.trainerId === trainer.id) && other.from < session.to && session.from < other.to)) {
+    if (sessionBookingConflict(calendar, session, { trainerId: trainer.id })) {
       throw new Error(`The selected trainer has a booking conflict on ${session.date}, ${session.from}–${session.to}.`)
     }
   }
@@ -82,7 +83,7 @@ export function applyTrainerReassignment(db, client, draft, staff) {
     Object.assign(message, { status: 'rejected', decidedAt: at, decidedBy: staff.id, decisionReason: 'Superseded by permanent trainer reassignment.' })
   }
   const recipients = new Set([entry.from.id, trainer.id, ...entry.packages.map(item => item.previousTrainerId), ...entry.sessions.map(item => item.previousTrainerId)])
-  const message = { createdAt: at, clientId: client.id, trainerId: trainer.id, kind: 'client_assignment', read: false,
+  const message = { createdAt: at, clientId: client.id, trainerId: trainer.id, kind: 'client_assignment', readBy: {},
     title: `Trainer reassigned: ${client.name}`,
     body: `${entry.from.name} → ${trainer.name} · ${sessions.length} upcoming sessions · ${purchases.length} current/additional packages · ${staff.name}` }
   db.messages.push({ ...message, id: `reassignment-${draft.requestId}-owner`, recipientRole: 'owner' })

@@ -84,6 +84,7 @@ for (const [total, validity, frequency] of [[12, 90, 2], [24, 180, 1], [36, 270,
     await start(page, 'clients/new')
     await page.getByLabel('Client name', { exact: true }).fill(name)
     await fillClientRequiredFields(page)
+    await page.getByRole('button', { name: 'Continue to Health & Assessments', exact: true }).click()
     await page.getByRole('button', { name: 'Continue to Package & Preferences', exact: true }).click()
     await page.getByLabel('PT Package', { exact: true }).selectOption(`package-${total}`)
     await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')
@@ -117,7 +118,9 @@ for (const [total, validity, frequency] of [[12, 90, 2], [24, 180, 1], [36, 270,
     await expect(summary.locator('dt').filter({ hasText: /^Free gym package$/ }).locator('..')).toContainText(frequency >= 2 ? 'Included' : 'Not included')
     await page.getByRole('button', { name: 'Create Client', exact: true }).click()
     await confirm(page, `Create ${name}?`, 'Create Client')
-    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+    // The assessment review also contains the client name; wait for the saved profile and persisted record.
+    await expect(page.getByRole('heading', { name, level: 1, exact: true })).toBeVisible()
+    await expect.poll(async () => (await database(page)).clients.filter(item => item.name === name).length).toBe(1)
     const db = await database(page), client = db.clients.find(item => item.name === name)
     expect(client.package).toMatchObject({ total, validityDays: validity, sessionsPerWeek: frequency, freeGym: frequency >= 2 })
     const sessions = db.sessions.filter(item => item.clientId === client.id)

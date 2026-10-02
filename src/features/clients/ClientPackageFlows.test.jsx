@@ -12,11 +12,13 @@ import RenewPackageDialog from './RenewPackageDialog.jsx'
 import ClientProfilePage from './ClientProfilePage.jsx'
 import TrainerProfilePage from '../trainers/TrainerProfilePage.jsx'
 import { GENDERS } from '../../app/contact.js'
+import TrainerDeactivationDialog from '../trainers/TrainerDeactivationDialog.jsx'
+import ClientOnboardingForm from './ClientOnboardingForm.jsx'
 
 vi.mock('./progressReportPdf.jsx', () => ({ progressReportPdf: vi.fn() }))
 beforeEach(() => { Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() }); vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
-const wrapper = ({ children }) => {
+const Wrapper = ({ children }) => {
   const [values, setValues] = useState({})
   return <PageState.Provider value={{ values, setValue: (key, next, initial) => setValues(current => ({ ...current,
     [key]: typeof next === 'function' ? next(current[key] ?? initial) : next })) }}>
@@ -25,10 +27,63 @@ const wrapper = ({ children }) => {
 }
 const owner = seed.users.find(item => item.role === 'owner')
 
+it('deactivation offers only active unoccupied replacements and invalidates a choice when the calendar changes', () => {
+  const trainers = seed.trainers.slice(0, 4).map((trainer, index) => ({ ...trainer, status: index === 3 ? 'inactive' : 'active', availability: {} }))
+  const sessions = [
+    { id: 'departing', clientId: 'c1', trainerId: 't1', date: '2027-06-07', from: '18:00', to: '19:00', status: 'planned' },
+    { id: 'occupied', clientId: 'c2', trainerId: 't2', date: '2027-06-07', from: '18:30', to: '19:30', status: 'planned' },
+  ]
+  const props = { trainer: trainers[0], trainers, clients: seed.clients, sessions, deactivateOpen: true, setDeactivateOpen: vi.fn(), onDeactivate: vi.fn() }
+  const { rerender } = render(<TrainerDeactivationDialog {...props} />, { wrapper: Wrapper })
+  const select = screen.getByRole('combobox', { name: 'Reassign Amanda Lim' })
+  expect(within(select).getAllByRole('option').map(option => option.value)).toEqual(['', 't3'])
+  fireEvent.change(select, { target: { value: 't3' } })
+  expect(screen.getByRole('button', { name: 'Deactivate Trainer' })).toBeEnabled()
+  rerender(<TrainerDeactivationDialog {...props} sessions={[...sessions, { ...sessions[1], id: 'new-booking', trainerId: 't3' }]} />)
+  expect(select).toHaveValue('')
+  expect(select).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Deactivate Trainer' })).toBeDisabled()
+  expect(screen.getByText(/No active trainer is free for this session/)).toBeVisible()
+  expect(props.onDeactivate).not.toHaveBeenCalled()
+})
+
+it('deactivation filters against other pending replacement selections before saving', () => {
+  const trainers = seed.trainers.slice(0, 3)
+  const sessions = ['c1', 'c2'].map((clientId, index) => ({ id: `departing-${index}`, clientId, trainerId: 't1', date: '2027-06-07', from: '18:00', to: '19:00', status: 'planned' }))
+  render(<TrainerDeactivationDialog trainer={trainers[0]} trainers={trainers} clients={seed.clients} sessions={sessions}
+    deactivateOpen setDeactivateOpen={vi.fn()} onDeactivate={vi.fn()} />, { wrapper: Wrapper })
+  const selects = screen.getAllByRole('combobox')
+  fireEvent.change(selects[0], { target: { value: 't2' } })
+  expect(within(selects[1]).getAllByRole('option').map(option => option.value)).toEqual(['', 't3'])
+  expect(screen.getByRole('button', { name: 'Deactivate Trainer' })).toBeDisabled()
+  fireEvent.change(selects[1], { target: { value: 't3' } })
+  expect(screen.getByRole('button', { name: 'Deactivate Trainer' })).toBeEnabled()
+})
+
+it('onboarding excludes occupied trainers and rechecks the dropdown when booked dates refresh', () => {
+  const packageDraft = { clientName: 'New purchase', clientId: 'c1', packageId: 'package-12', startDate: '2027-06-07', sessionsPerWeek: 1,
+    clientPreferences: [{ days: ['Monday'], from: '18:00', to: '19:00' }], genderPreference: 'No gender preference', trainerId: '' }
+  const booked = { id: 'occupied', clientId: 'c2', trainerId: 't1', date: '2027-06-14', from: '18:30', to: '19:30', status: 'planned' }
+  const props = { packageDraft, packages: seed.packages, trainers: seed.trainers.slice(0, 2), clients: seed.clients,
+    sessions: [booked], policy: seed.settings, onCreate: vi.fn(), onCreated: vi.fn(), onCancel: vi.fn() }
+  const { rerender } = render(<ClientOnboardingForm {...props} />, { wrapper: Wrapper })
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Client Availability' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Trainer Matching' }))
+  const select = screen.getByRole('combobox', { name: 'Matched trainer' })
+  expect(within(select).getAllByRole('option').map(option => option.value)).toEqual(['', 't2'])
+  expect(select).toHaveValue('t2')
+  rerender(<ClientOnboardingForm {...props} sessions={[booked, { ...booked, id: 'new-booking', trainerId: 't2' }]} />)
+  expect(select).toBeDisabled()
+  expect(select).toHaveValue('')
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Review & Confirm' }))
+  expect(screen.getByRole('alert')).toHaveTextContent('Choose a matched trainer')
+  expect(props.onCreate).not.toHaveBeenCalled()
+})
+
 it('edits client details with creation controls, validates before saving and retains a failed draft', async () => {
   const onUpdate = vi.fn().mockRejectedValueOnce(new Error('Offline')).mockResolvedValueOnce()
   render(<ClientProfilePage client={seed.clients[0]} user={owner} trainer={seed.trainers[0]} trainers={seed.trainers}
-    sessions={seed.sessions} policy={seed.settings} packages={seed.packages} today="2026-09-09" onUpdate={onUpdate} />, { wrapper })
+    sessions={seed.sessions} policy={seed.settings} packages={seed.packages} today="2026-09-09" onUpdate={onUpdate} />, { wrapper: Wrapper })
   const general = within(screen.getByRole('heading', { name: 'General Information' }).closest('.panel'))
   fireEvent.click(general.getByRole('button', { name: 'Edit', exact: true }))
   expect(screen.getByRole('combobox', { name: 'Client type' })).toBeDisabled()
@@ -60,7 +115,7 @@ it('edits client details with creation controls, validates before saving and ret
 it('uses creation controls and validation for trainer profile details and decimal rates', async () => {
   const onUpdate = vi.fn().mockResolvedValue()
   render(<TrainerProfilePage trainer={seed.trainers[0]} viewer={owner} trainers={seed.trainers} clients={seed.clients}
-    sessions={seed.sessions} policy={seed.settings} onUpdate={onUpdate} />, { wrapper })
+    sessions={seed.sessions} policy={seed.settings} onUpdate={onUpdate} />, { wrapper: Wrapper })
   const general = within(screen.getByRole('heading', { name: 'General Information' }).closest('.panel'))
   fireEvent.click(general.getByRole('button', { name: 'Edit', exact: true }))
   expect(within(screen.getByRole('combobox', { name: 'Trainer gender' })).getAllByRole('option').map(item => item.value)).toEqual(['', ...GENDERS])
@@ -160,7 +215,7 @@ it('paginates current and past packages for both roles, excludes queued purchase
     id: `past-amanda-${index}`, packageId: amanda.packageHistory[0].id, date }))]
   amanda.strengthProgress = amanda.strengthProgress.map(exercise => ({ ...exercise, points: exercise.points.slice(-1) }))
   render(<ClientProfilePage client={amanda} user={owner} trainer={seed.trainers[0]} trainers={seed.trainers}
-    sessions={history} policy={seed.settings} today="2026-09-09" />, { wrapper })
+    sessions={history} policy={seed.settings} today="2026-09-09" />, { wrapper: Wrapper })
   fireEvent.click(screen.getByRole('button', { name: 'Session History', exact: true }))
   expect(within(screen.getByLabelText('Session History')).getAllByRole('article')).toHaveLength(5)
   expect(screen.getByLabelText('Session History')).not.toHaveTextContent('Package started')
@@ -211,7 +266,7 @@ it('filters and paginates client history and upcoming sessions independently wit
     sessionNumber: index + 1, packageTotal: 24, status: kind === 'history' ? (index % 2 ? 'completed' : 'planned') : (index % 2 ? 'planned' : 'not_planned'),
   })))
   render(<ClientProfilePage client={client} user={owner} trainer={seed.trainers[0]} trainers={seed.trainers}
-    sessions={sessions} policy={seed.settings} today="2026-09-09" />, { wrapper })
+    sessions={sessions} policy={seed.settings} today="2026-09-09" />, { wrapper: Wrapper })
   fireEvent.click(screen.getByRole('button', { name: 'Session History', exact: true }))
   expect(screen.getByText('Select start date')).toHaveClass('date-filter-hint')
   expect(screen.getByText('Select end date')).toHaveClass('date-filter-hint')
@@ -258,7 +313,7 @@ it('hides Additional Packages when empty or entirely inactive and shows an activ
   const extra = { ...source.package, id: 'additional', name: 'Extra purchase', status: 'active' }
   for (const additionalPackages of [undefined, [], [{ ...extra, status: 'inactive' }], [extra]]) {
     render(<ClientProfilePage client={{ ...source, additionalPackages }} user={owner} trainer={seed.trainers[0]}
-      trainers={seed.trainers} sessions={seed.sessions} policy={seed.settings} packages={seed.packages} today="2026-09-09" />, { wrapper })
+      trainers={seed.trainers} sessions={seed.sessions} policy={seed.settings} packages={seed.packages} today="2026-09-09" />, { wrapper: Wrapper })
     fireEvent.click(screen.getByRole('button', { name: 'Package', exact: true }))
     if (additionalPackages?.some(item => item.status === 'active')) expect(screen.getByRole('heading', { name: 'Additional Packages' })).toBeInTheDocument()
     else expect(screen.queryByRole('heading', { name: 'Additional Packages' })).not.toBeInTheDocument()
@@ -271,7 +326,7 @@ it('hides Additional Packages when empty or entirely inactive and shows an activ
 it('prefills steps two to five, retains the saved schedule and submits once after review', async () => {
   const client = seed.clients[0], onSave = vi.fn().mockResolvedValue(), onClose = vi.fn()
   render(<RenewPackageDialog client={client} trainers={seed.trainers} sessions={seed.sessions} packages={seed.packages}
-    policy={seed.settings} today="2026-09-09" onSave={onSave} onClose={onClose} />, { wrapper })
+    policy={seed.settings} today="2026-09-09" onSave={onSave} onClose={onClose} />, { wrapper: Wrapper })
   expect(screen.getByLabelText('Start date')).toHaveValue('2026-11-16')
   expect(screen.queryByLabelText('Client name')).not.toBeInTheDocument()
   expect(screen.queryByLabelText('Matched trainer')).not.toBeInTheDocument()
@@ -296,7 +351,7 @@ it('prefills steps two to five, retains the saved schedule and submits once afte
 it('retains the renewal draft after a service rejection and guards cancellation of unsaved changes', async () => {
   const client = seed.clients[0], onClose = vi.fn()
   render(<RenewPackageDialog client={client} trainers={seed.trainers} sessions={seed.sessions} packages={seed.packages}
-    policy={seed.settings} today="2026-09-09" onSave={vi.fn().mockRejectedValue(new Error('The renewal conflicts with another session.'))} onClose={onClose} />, { wrapper })
+    policy={seed.settings} today="2026-09-09" onSave={vi.fn().mockRejectedValue(new Error('The renewal conflicts with another session.'))} onClose={onClose} />, { wrapper: Wrapper })
   fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-11-23' } })
   fireEvent.click(screen.getByRole('button', { name: 'Continue to Client Availability' }))
   expect(screen.getByLabelText('Client availability blocks')).toHaveTextContent('Monday')
@@ -321,7 +376,7 @@ it('gives both roles read-only inactive profiles and reserves reactivation for t
   for (const user of [owner, seed.users.find(item => item.role === 'trainer')]) {
     const client = { ...seed.clients[0], status: 'inactive' }
     render(<ClientProfilePage client={client} user={user} trainer={seed.trainers[0]} trainers={seed.trainers}
-      sessions={seed.sessions} policy={seed.settings} packages={seed.packages} today="2026-09-09" />, { wrapper })
+      sessions={seed.sessions} policy={seed.settings} packages={seed.packages} today="2026-09-09" />, { wrapper: Wrapper })
     expect(screen.queryByRole('button', { name: 'Edit', exact: true })).not.toBeInTheDocument()
     expect(screen.queryAllByRole('button', { name: 'Reactivate Client' })).toHaveLength(user.role === 'owner' ? 1 : 0)
     fireEvent.click(screen.getByRole('button', { name: 'Package', exact: true }))
@@ -334,7 +389,7 @@ it('gives both roles read-only inactive profiles and reserves reactivation for t
 it('lets the owner edit prefilled availability and trainer in the shared package wizard', async () => {
   const client = seed.clients[0], onSave = vi.fn().mockResolvedValue(client)
   render(<RenewPackageDialog client={client} trainers={seed.trainers} sessions={seed.sessions} packages={seed.packages}
-    policy={seed.settings} today="2026-09-09" onSave={onSave} onClose={vi.fn()} />, { wrapper })
+    policy={seed.settings} today="2026-09-09" onSave={onSave} onClose={vi.fn()} />, { wrapper: Wrapper })
   fireEvent.click(screen.getByRole('button', { name: 'Continue to Client Availability' }))
   fireEvent.click(screen.getByRole('button', { name: 'Reset Availability' }))
   const trainer = seed.trainers.find(item => item.id !== client.trainerId && item.status === 'active' && item.availability.Monday?.length)
@@ -361,7 +416,7 @@ it('offers late session cleanup to the owner on an inactive client and shows its
   const sessions = [{ id: 'future', packageId: client.package.id, clientId: client.id, date: '2099-09-09', from: '18:00', to: '19:00', status: 'planned' }]
   for (const user of [owner, seed.users.find(item => item.role === 'trainer')]) {
     render(<ClientProfilePage client={client} user={user} trainer={seed.trainers[0]} trainers={seed.trainers}
-      sessions={sessions} policy={seed.settings} packages={seed.packages} today="2026-09-09" onDeletePackageSessions={onDelete} />, { wrapper })
+      sessions={sessions} policy={seed.settings} packages={seed.packages} today="2026-09-09" onDeletePackageSessions={onDelete} />, { wrapper: Wrapper })
     fireEvent.click(screen.getByRole('button', { name: 'Package', exact: true }))
     expect(screen.getByText(/1 upcoming sessions deleted/)).toHaveTextContent(owner.name)
     if (user.role === 'owner') {
@@ -378,7 +433,7 @@ it('offers late session cleanup to the owner on an inactive client and shows its
 it('prefills a legacy 24-session purchase and keeps unavailable templates unselected for explicit review', () => {
   const client = seed.clients.find(item => item.package.total === 24)
   const renderPackage = packages => render(<RenewPackageDialog client={client} trainers={seed.trainers} sessions={seed.sessions}
-    packages={packages} policy={seed.settings} today="2026-09-09" onSave={vi.fn()} onClose={vi.fn()} />, { wrapper })
+    packages={packages} policy={seed.settings} today="2026-09-09" onSave={vi.fn()} onClose={vi.fn()} />, { wrapper: Wrapper })
   renderPackage(seed.packages)
   expect(screen.getByLabelText('PT Package')).toHaveValue('package-24')
   expect(screen.getByLabelText('Weekly frequency')).toHaveValue(String(client.package.sessionsPerWeek))
@@ -393,7 +448,7 @@ it('prefills a legacy 24-session purchase and keeps unavailable templates unsele
 it('reviews a permanent reassignment before saving the selected trainer and original assignment snapshot once', async () => {
   const client = seed.clients[0], onSave = vi.fn().mockResolvedValue(client), onClose = vi.fn()
   render(<ReassignTrainerDialog client={client} trainers={seed.trainers} sessions={seed.sessions} timeZone={seed.settings.timeZone}
-    onSave={onSave} onClose={onClose} />, { wrapper })
+    onSave={onSave} onClose={onClose} />, { wrapper: Wrapper })
   expect(screen.getByRole('button', { name: 'Review Reassignment' })).toBeDisabled()
   expect(screen.getByRole('option', { name: 'Priya Nair — Unavailable' })).toBeDisabled()
   expect(screen.getByText(/Priya Nair:.*Monday, 18:00–19:00/)).toBeVisible()
@@ -412,7 +467,7 @@ it('reviews a permanent reassignment before saving the selected trainer and orig
 it('keeps reassignment selection after cancelled confirmation and a failed save', async () => {
   const onSave = vi.fn().mockRejectedValue(new Error('The selected trainer has a booking conflict.')), onClose = vi.fn()
   render(<ReassignTrainerDialog client={seed.clients[0]} trainers={seed.trainers} sessions={seed.sessions} timeZone={seed.settings.timeZone}
-    onSave={onSave} onClose={onClose} />, { wrapper })
+    onSave={onSave} onClose={onClose} />, { wrapper: Wrapper })
   fireEvent.change(screen.getByLabelText('New trainer'), { target: { value: 't2' } })
   fireEvent.click(screen.getByRole('button', { name: 'Review Reassignment' }))
   let confirm = await screen.findByRole('dialog', { name: 'Reassign trainer for Amanda Lim?' })

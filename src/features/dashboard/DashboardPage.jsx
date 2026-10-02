@@ -1,3 +1,4 @@
+import { managesOperations } from '../../app/permissions.js'
 import SelectField from '../../components/SelectField.jsx'
 import Panel from '../../components/Panel.jsx'
 import ModalPortal from '../../components/ModalPortal.jsx'
@@ -26,7 +27,7 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
   }
   const entries = value => records.filter(session => session.date === value)
   const trainerName = id => trainers.find(trainer => trainer.id === id)?.name ?? 'Trainer unavailable'
-  const dayGroups = user.role === 'owner' ? [...new Set(dayRecords.map(session => session.trainerId))].map(id => ({
+  const dayGroups = managesOperations(user) ? [...new Set(dayRecords.map(session => session.trainerId))].map(id => ({
     id, name: trainerName(id), sessions: dayRecords.filter(session => session.trainerId === id),
   })) : []
   const event = session => {
@@ -45,9 +46,9 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
       <div className="page-head dashboard-page-head">
         <div>
           <span className="eyebrow">Operations</span>
-          <h1>{user.role === 'owner' ? 'Owner Dashboard' : 'Trainer Dashboard'}</h1>
+          <h1>{user.role === 'owner' ? 'Owner Dashboard' : user.role === 'admin' ? 'Admin Dashboard' : 'Trainer Dashboard'}</h1>
         </div>
-        {user.role === 'owner' && (
+        {managesOperations(user) && (
           <div className="dashboard-quick-actions">
             <button type="button" className="onboarding-button primary" onClick={onAddClient}>Add Client</button>
             <button type="button" className="onboarding-button primary" onClick={onAddTrainer}>Add Trainer</button>
@@ -106,7 +107,7 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
               <button type="button" className="icon-button" aria-label="Close calendar sessions" onClick={onCloseDay}>×</button>
             </div>
             <div className="modal-body calendar-day-list">
-              {user.role === 'owner' ? dayGroups.map(group => <section className="calendar-trainer-group" key={group.id} aria-label={`${group.name} sessions`}>
+              {managesOperations(user) ? dayGroups.map(group => <section className="calendar-trainer-group" key={group.id} aria-label={`${group.name} sessions`}>
                 <h3>{group.name}</h3>
                 {group.sessions.map(event)}
               </section>) : dayRecords.map(event)}

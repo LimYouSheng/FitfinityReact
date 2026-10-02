@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { formatTimestamp } from '../../utils/date.js'
 import {
@@ -26,6 +26,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [compressionProgress, setCompressionProgress] = useState(0)
+  const loadVideo = useEffectEvent(() => onLoad())
 
   useEffect(() => {
     if (!open || !exercise) {
@@ -41,7 +42,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
     setCompressionProgress(0)
 
     if (exercise.videoAttached) {
-      onLoad().then(blob => {
+      loadVideo().then(blob => {
         if (cancelled) return
         if (blob) setPreviewUrl(URL.createObjectURL(blob))
         else setError('The saved video is no longer available.')
@@ -100,7 +101,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
     }
 
     let metadataTimer = 0
-    let duration = null
+    let duration
     try {
       duration = await Promise.race([
         readVideoDuration(file, { signal: operation.signal }).catch(() => null),

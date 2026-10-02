@@ -7,14 +7,28 @@ import { join, resolve } from 'node:path'
 // Build one complete shell revision, including Vite's hashed bundles and public assets.
 function staffPortalPwa() {
   let base
+  let portalMode
   return {
     name: 'fitfinity-staff-pwa',
     apply: 'build',
     configResolved(config) {
       base = config.base
+      portalMode = config.env.VITE_PORTAL_MODE ?? 'demo'
       if (!/^\/(?:[A-Za-z0-9_.-]+\/)*$/.test(base) || base.split('/').some(part => part === '.' || part === '..')) {
         throw new Error('Use an absolute directory path such as / or /FitfinityReact/ for the app base.')
       }
+    },
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, { bundle }) {
+        if (portalMode !== 'demo') return
+        const adapter = Object.values(bundle).find(item => item.type === 'chunk' &&
+          item.moduleIds.some(id => id.replaceAll('\\', '/').endsWith('/src/services/mockPortalAdapter.js')))
+        if (!adapter) throw new Error('The demo portal startup adapter is missing from the build.')
+        // Demo startup needs this module on every route. Fetch it with the shell,
+        // while keeping its execution behind mode selection and API builds isolated.
+        return [{ tag: 'link', attrs: { rel: 'modulepreload', crossorigin: '', href: `${base}${adapter.fileName}` }, injectTo: 'head' }]
+      },
     },
     writeBundle(options) {
       const directory = resolve(options.dir)

@@ -1,3 +1,4 @@
+import { canEditTrainerRates } from '../../app/permissions.js'
 import { useEffect, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import OnboardingReview from '../../components/OnboardingReview.jsx'
@@ -12,12 +13,13 @@ import TrainerGeneralFields from './TrainerGeneralFields.jsx'
 import { DAYS, availabilityBlockError } from '../../app/availability.js'
 import { TRAINER_ONBOARDING_STEPS, createTrainerDraft, trainerStepErrors } from '../../app/trainerOnboarding.js'
 
-const FORM_STEPS = [...TRAINER_ONBOARDING_STEPS, ONBOARDING_REVIEW_STEP]
-
-export default function AddTrainerPage({ policy, trainers, onCancel, onCreate, onCreated }) {
+export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onCreate, onCreated }) {
+  const includeRates = canEditTrainerRates(viewer)
+  const creationSteps = TRAINER_ONBOARDING_STEPS.filter(step => step.key !== 'rates' || includeRates)
+  const formSteps = [...creationSteps, ONBOARDING_REVIEW_STEP]
   const confirmAction = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
-  const [initialDraft] = useState(() => createTrainerDraft(policy))
+  const [initialDraft] = useState(() => createTrainerDraft(policy, { includeRates }))
   const [draft, setDraft] = useState(initialDraft)
   const [stepIndex, setStepIndex] = useState(0)
   const [returningToReview, setReturningToReview] = useState(false)
@@ -33,10 +35,10 @@ export default function AddTrainerPage({ policy, trainers, onCancel, onCreate, o
   const formRef = useRef(null)
   const headingRef = useRef(null)
   const previousIndex = useRef(0)
-  const step = FORM_STEPS[stepIndex]
+  const step = formSteps[stepIndex]
   const reviewing = step.key === 'review'
-  const previous = FORM_STEPS[stepIndex - 1]
-  const next = FORM_STEPS[stepIndex + 1]
+  const previous = formSteps[stepIndex - 1]
+  const next = formSteps[stepIndex + 1]
   const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft) || selectedDays.length > 0 || from !== policy.availability.from || to !== policy.availability.to
 
   useEffect(() => {
@@ -86,18 +88,18 @@ export default function AddTrainerPage({ policy, trainers, onCancel, onCreate, o
     }
     if (Object.keys(validation).length) { setErrors(validation); return }
     if (!returningToReview && next && next.key !== 'review') { goTo(stepIndex + 1); return }
-    const invalid = firstIncompleteSection(draft, TRAINER_ONBOARDING_STEPS, trainerStepErrors, selectedDays.length > 0)
+    const invalid = firstIncompleteSection(draft, creationSteps, trainerStepErrors, selectedDays.length > 0)
     if (invalid) { goTo(invalid.index); setErrors(invalid.errors); return }
     if (!reviewing) {
       setReturningToReview(false)
-      goTo(TRAINER_ONBOARDING_STEPS.length)
+      goTo(creationSteps.length)
       return
     }
     submissionPending.current = true
     try {
       const confirmed = await confirmAction({
         title: `Create ${draft.name.trim()}?`,
-        message: 'Create the trainer profile with these rates, approved availability and approval controls? This is a mock account; no login invitation is sent.',
+        message: includeRates ? 'Create the trainer profile with these rates, approved availability and approval controls? This is a mock account; no login invitation is sent.' : 'Create the trainer profile with approved availability and approval controls? Owner-configured default rates will apply. This is a mock account; no login invitation is sent.',
         confirmLabel: 'Create Trainer',
       })
       if (!confirmed) return
@@ -112,7 +114,7 @@ export default function AddTrainerPage({ policy, trainers, onCancel, onCreate, o
   }
 
   const editReviewSection = key => {
-    const index = TRAINER_ONBOARDING_STEPS.findIndex(item => item.key === key)
+    const index = creationSteps.findIndex(item => item.key === key)
     if (index < 0 || saving || submissionPending.current) return
     setReturningToReview(true)
     goTo(index)
@@ -128,7 +130,7 @@ export default function AddTrainerPage({ policy, trainers, onCancel, onCreate, o
         <Panel>
           <div className="section-head onboarding-step-head">
             <h2 ref={headingRef} tabIndex={-1}>{step.title}</h2>
-            <span className="onboarding-step-count" aria-label="Creation progress">Step {stepIndex + 1} of {FORM_STEPS.length}</span>
+            <span className="onboarding-step-count" aria-label="Creation progress">Step {stepIndex + 1} of {formSteps.length}</span>
           </div>
           <fieldset className="onboarding-step-body" disabled={saving}>
             <legend className="visually-hidden">{step.title}</legend>
@@ -165,7 +167,7 @@ export default function AddTrainerPage({ policy, trainers, onCancel, onCreate, o
                 </div>
               </div>
             )}
-            {reviewing && <OnboardingReview sections={trainerReviewSections(draft)} onEdit={editReviewSection} />}
+            {reviewing && <OnboardingReview sections={trainerReviewSections(draft, { includeRates })} onEdit={editReviewSection} />}
           </fieldset>
           {Object.keys(errors).length > 0 && <p className="onboarding-error" role="alert">{Object.values(errors)[0]}</p>}
           <div className="onboarding-step-actions">

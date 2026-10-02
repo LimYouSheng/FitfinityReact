@@ -2,7 +2,8 @@ import { packageForRecord, sessionIsInactive } from './clientPackages.js'
 import { businessClock } from './clock.js'
 import { DAYS, availabilityBlockError, availabilityByDay } from './availability.js'
 import { parseDateOnly, weekday } from '../utils/date.js'
-import { sessionDurationMinutes } from './sessionRules.js'
+import { sessionDurationMinutes, sessionScheduleError } from './sessionRules.js'
+import { sessionBookingConflict } from './bookingAvailability.js'
 
 export function availabilityBlocks(availability = {}) {
   return DAYS.flatMap(day => (availability[day] ?? []).map(([from, to], index) => ({ id: `${day}-${index}`, days: [day], from, to })))
@@ -46,7 +47,7 @@ export function sessionTimeChangeError(session, next, clock) {
   const hasStarted = slot => slot.date < clock.date || (slot.date === clock.date && slot.from <= clock.time)
   if (!validStart(session)) return 'The session date or start time is invalid.'
   if (hasStarted(session)) return 'Time changes are only available before the session starts.'
-  if (next && !validStart(next)) return 'Choose a valid requested date and start time.'
+  if (next && sessionScheduleError({ ...session, ...next })) return 'Choose a valid requested date, start time and end time.'
   return next && hasStarted(next) ? 'Choose a requested date and start time in the future.' : null
 }
 
@@ -86,7 +87,7 @@ export function weeklyScheduleChanges(db, client, nextSlots, now = new Date()) {
   const changedById = new Map(changes.map(session => [session.id, session]))
   const candidate = db.sessions.map(session => changedById.get(session.id) ?? session)
   for (const session of changes) {
-    if (candidate.some(other => other.id !== session.id && !['completed', 'cancelled'].includes(other.status) && !sessionIsInactive(db.clients.find(item => item.id === other.clientId), other) && other.date === session.date && (other.trainerId === session.trainerId || other.clientId === session.clientId) && other.from < session.to && session.from < other.to)) {
+    if (sessionBookingConflict({ ...db, sessions: candidate }, session)) {
       throw new Error(`The weekly change conflicts with another session on ${session.date}. Choose another time.`)
     }
   }

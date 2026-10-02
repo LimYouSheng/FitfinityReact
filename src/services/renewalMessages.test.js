@@ -70,11 +70,11 @@ describe('last-session renewal updates', () => {
     for (const total of [1, 2]) {
       const definition = await packageService.save({ draft: { name: `Small ${total} package`, total: String(total) } }, owner)
       const created = await clientService.create({
-        type: 'Individual', people: [{ name: `Small ${total} client`, phone: { countryCode: '+65', number: '91234567' }, email: 'client@example.com', birthday: '1990-01-02', gender: 'Female', emergencyContact: { name: 'Emergency Contact', relationship: 'Spouse', countryCode: '+65', number: '98765432' } }], startDate: '2026-09-07', trainerId: 't1',
+        type: 'Individual', people: [{ name: `Small ${total} client`, phone: { countryCode: '+65', number: '91234567' }, email: 'client@example.com', birthday: '1990-01-02', gender: 'Female', emergencyContact: { name: 'Emergency Contact', relationship: 'Spouse', countryCode: '+65', number: '98765432' } }], startDate: total === 1 ? '2027-06-07' : '2027-07-05', trainerId: 't1',
         sessionsPerWeek: 1, packageId: definition.id, packageVersion: definition.version,
         clientPreferences: [{ days: ['Monday'], from: '18:00', to: '19:00' }],
         fixedWeeklySchedule: [{ day: 'Monday', from: '18:00', to: '19:00' }],
-      })
+      }, mockDb.read().users.find(user => user.role === 'owner'))
       expect(created.package.id).toEqual(expect.any(String))
       purchasedIds.push(created.package.id)
       const messages = renewals(mockDb.read(), created.id)
@@ -154,7 +154,7 @@ describe('last-session renewal updates', () => {
     expect(mockDb.read().packageCreditTransactions.filter(transaction => transaction.sessionId === 's1')).toHaveLength(1)
   })
 
-  it('defers migration until loading, recovers from storage failure and preserves legacy read state and package identities', async () => {
+  it('defers migration until loading, recovers from storage failure and preserves package identities without attributing ambiguous legacy reads', async () => {
     const legacy = structuredClone(seed)
     delete legacy.renewalMessageVersion
     for (const client of legacy.clients) {
@@ -197,11 +197,13 @@ describe('last-session renewal updates', () => {
     expect(migrated.renewalMessageVersion).toBe(1)
     expect(migrated.messages.filter(message => message.kind === 'renewal')).toHaveLength(2)
     expect(renewals(migrated, 'c3')[0]).toMatchObject({
-      id: preserved.id, read: true, readAt: preserved.readAt, createdAt: preserved.createdAt,
+      id: preserved.id, readBy: {}, createdAt: preserved.createdAt,
       title: 'Renewal follow-up: Nadia Koh', renewal: { type: 'last_sessions', used: 10, total: 12 },
     })
     expect(renewals(migrated)).toHaveLength(1)
-    expect(migrated.messages).toContainEqual(ordinary)
+    const { read: legacyRead, ...ordinaryContent } = ordinary
+    expect(legacyRead).toBe(false)
+    expect(migrated.messages).toContainEqual({ ...ordinaryContent, readBy: {} })
     expect(migrated.clients.every(client => typeof client.package.id === 'string' && client.package.id.length > 0)).toBe(true)
     expect(new Set(migrated.clients.map(client => client.package.id)).size).toBe(migrated.clients.length)
     expect(JSON.parse(localStorage.getItem(KEY))).toEqual(migrated)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 import { useEditGuard } from '../components/EditGuardProvider.jsx'
 import { PORTAL_SESSION_ENDED } from './usePortalData.js'
 
@@ -153,7 +153,7 @@ export default function useAppNavigation(userId = '') {
       window.removeEventListener('hashchange', sync)
       window.removeEventListener(PORTAL_SESSION_ENDED, endSession)
     }
-  }, [])
+  }, [userId, write])
 
   useEffect(() => {
     const previous = history.scrollRestoration
@@ -193,12 +193,17 @@ export default function useAppNavigation(userId = '') {
   }, [userId])
 
   const entryToken = token(entry)
+  // Page state can change within one history entry. Restore only on traversal,
+  // reading its latest saved position when the animation frame runs.
+  const restoreEntryScroll = useEffectEvent(() => {
+    const position = scrollPositions.current.get(entryToken) ?? (entry.state?.fitfinityUserId === userId ? entry.state.fitfinityScroll : null)
+    if (document.body.style.position !== 'fixed') window.scrollTo(position?.x ?? 0, position?.y ?? 0)
+  })
   useLayoutEffect(() => {
     restoringScroll.current = true
     let secondFrame
     const firstFrame = requestAnimationFrame(() => {
-      const position = scrollPositions.current.get(entryToken) ?? (entry.state?.fitfinityUserId === userId ? entry.state.fitfinityScroll : null)
-      if (document.body.style.position !== 'fixed') window.scrollTo(position?.x ?? 0, position?.y ?? 0)
+      restoreEntryScroll()
       secondFrame = requestAnimationFrame(() => { restoringScroll.current = false })
     })
     return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame) }

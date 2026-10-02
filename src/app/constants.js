@@ -15,6 +15,8 @@ export const OWNER_NAV = [
   { key: 'content', label: 'Content Management', group: 'Management' },
 ]
 
+export const ADMIN_NAV = OWNER_NAV.filter(item => item.key !== 'remuneration').map(item => item.key === 'owner-profile' ? { ...item, key: 'account' } : item)
+
 export const TRAINER_NAV = [
   { key: 'dashboard', label: 'Dashboard', group: 'Trainer' },
   { key: 'clients', label: 'Clients', group: 'Trainer' },

@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ProvisionInvitedStaffInTestPoolOnly",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:DescribeUserPool",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:AdminCreateUser"
+      ],
+      "Resource": "arn:aws:cognito-idp:ap-southeast-1:418638389566:userpool/ap-southeast-1_La0Y3MXCj"
+    }
+  ]
+}

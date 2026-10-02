@@ -1,0 +1,977 @@
+{
+  "revisions": [
+    "20260915_0001",
+    "20260915_0002",
+    "20260915_0003",
+    "20260921_0004",
+    "20260921_0005",
+    "20260924_0006"
+  ],
+  "files": {
+    "alembic.ini": "4be35c86b24192bde1327811488c4fcbc1f446b8c1e688fbbcba8f27640a252b",
+    "app/__init__.py": "3acf88b4bee5005dd733c8b756893fb982c254a8f13d3644aaf8fbdbf73c8614",
+    "app/api/__init__.py": "11d347b98616c756efd0f06a95390c85eea12c3c4344776ecc056b6d7e8d7585",
+    "app/api/assessments.py": "de7e9ce38cdba5b1ec368ba5ffe53625a7dd6fcbfb0ecc74545181b5af1d291e",
+    "app/api/contract.py": "f0b74a18c198db527d9d61f8e1a973f6a9e5c1faceda010bc94b841a63fce643",
+    "app/api/dependencies.py": "3444f5b76109721cc76751b65f812aaa5918008c2e9b1d32b4c8a3fe4306882d",
+    "app/api/directory.py": "437784df1a71b1a75e6813e510f690aececc5b9638cfbf21812b79fcb8cc8a86",
+    "app/api/openapi.py": "351a673eaa9dc2475aa619418732cafafd4f723a197927350f2ed144fdd855be",
+    "app/api/routes.py": "511b10125beec82570f31f0802be5a39dde2aa47c93b6a90f28b12c646ab6701",
+    "app/api/schemas.py": "e397d2c255a25dbfd9429b3a85746e524f5c60a2d9d26ece3d5c3c6e7d2b18d5",
+    "app/api/staff.py": "2604a1bc6c9e3f88145fea59331367201c2685ec1906f9150228d5ee66712c4e",
+    "app/api/staff_schemas.py": "99bdd11cea11f842cbc84bd70eb5b0a37f21f0ac2a757e0644efc1ed3845f1f4",
+    "app/assessment_persistence.py": "30204b58b93e4d51ae184f1383c186cf0554783d4e56d04e8c9463d4fa061b5f",
+    "app/assessment_validation.py": "2ba103120691347835a3d45dd8410d260e08e030857b9bf3b7df03dfeb1cf4fa",
+    "app/auth/__init__.py": "45348049eba74d48cd7acefd134cccc4bef61703838a8037996503dbf1761923",
+    "app/auth/admin.py": "e40a571fa68aa39e631ef88160e4b87441ca00013c8114dd0983554e77e875d4",
+    "app/auth/cognito.py": "9ecc08e3b299753d3c22ee48a49777f70b7f865429708cc41dadac7ceee1ab3a",
+    "app/auth/errors.py": "0b4992997dbe2b5f9dbde493d6fc7b6a1e313aeb5ad545df9e2a46abf8c104d5",
+    "app/auth/invitations.py": "c3e5ec6fc7d6edefc8b5eb1b518d97fa9c460f6dbc475a386a2e70a84988e745",
+    "app/auth/jwt.py": "731c0356677b7742f2e96a6370b2cc07a5bf03e1d38231a6854c4bb736351d88",
+    "app/auth/middleware.py": "cf2baa8db07edb6fad1d3c14e95cd018a515b437d166545c35dc96c43430310d",
+    "app/auth/routes.py": "5895ccf07c768584eb761916c6d9dcb6389e7989fdcd04d553fa394aa0788a05",
+    "app/auth/security.py": "f0a5cc301dcf02c0d036f3660d3af3654fe43cb9bdd382cb245ce7351819557f",
+    "app/auth/service.py": "fb40c0d70271dd0b4fd83de4d3f17ba29559d14f4f712f8801b36662534ae8bc",
+    "app/authorization.py": "722e45275e3b337778c78c1c40824b37d0ddc66cbce568989750e883e4c2bce5",
+    "app/config.py": "cf27a1f58af3f2685c9cfaa8061a7f99ad205f6cd71a8e830def526d5a9fa9ff",
+    "app/database.py": "69ea887430c72542339f2862860f992ae7b60d1df1241398d7b54f1406910e6b",
+    "app/main.py": "0a765fd1e7955faf12d5648786d8da35d44f56db2c64d75d00d88255b915c9d9",
+    "app/managed_secrets.py": "9ec82abc76f1624184acd45356f96bd50ea80d80fbb2f49fe4f655e47268237b",
+    "app/migrations.py": "670275fb1514f3995cfc293cdda9b4008dbe34c67003aa0e598dd1ce37f49a40",
+    "app/models/__init__.py": "48ce6dc7b35870291c6db06aa1c025ad95c5f002471d86b67ece4b549e53fd12",
+    "app/models/api.py": "e76f30c6457c79a22a47f030c0163232b8db20876e3201c3dc2df07477dd8c23",
+    "app/models/assessments.py": "5e2942997c1e9774a0242880d2c25d01ff2c1a66ddd44610ec2795c7821dd329",
+    "app/models/authentication.py": "04310812c18f224b89cd837d7729e93429b28b877230efc4cbff6f045810e64f",
+    "app/models/common.py": "14fe4abc8aa0b46334313dbd12f6852276614b42943d18bb91ac4cda29f1090a",
+    "app/models/communications.py": "502088c9db8e668d049c72a1e940337c7be5ebfefb058c646adb1580845618c0",
+    "app/models/evidence.py": "e28055aa48464bdf9fa35d786ac66a48c79c1268640b665a77032d0f9efbf4fc",
+    "app/models/media.py": "9a333083a8e4a1bed53414cd48a5181b34ee3d767b4628693f45814f831d5e0f",
+    "app/models/people.py": "1dc8c640fae1b8ec55f32d8f97a7d63a3853e11f315741f17c1f7a87f4747f6f",
+    "app/models/staff.py": "26f6247291999220614a7cc036e53c3d62f077e4d5874e5da370a50a9987c943",
+    "app/models/training.py": "8b2db3890b1acb9e36c0e79efd2d0301e6647b4e2c433ab6d46cece1afffc228",
+    "app/observability.py": "076dd012a7732c6e5b864ab10bd7e3596af839336aa578c70ab8c3cc366e23c0",
+    "app/persistence.py": "b9b3c23cb4bba38d38d09fbeee04ae8f5b68447c11a0e7640d6948fc7a1abfab",
+    "migrations/definitions/20260921_assessments_v1.json": "1d53752765fe92a07ab07cc370e67a6d8ac15da18126e84cfedf2be5d3d6c54d",
+    "migrations/env.py": "0678da38225e6582433a0274d52c421121814d7ccc123fa67cc07388ca9fb554",
+    "migrations/versions/20260915_0001_foundation.py": "ace33b0ecbdc4a4def572dab5bb8f29172d954ee6adc37c29011ddb085c1dcfb",
+    "migrations/versions/20260915_0002_core_schema.py": "867ea5d7371c58636822dd81fe42ea50e910a418a01ef807d1382331f0642872",
+    "migrations/versions/20260915_0003_staff_auth.py": "f2b3cd3a6a9a66526ee0ef71af01ca14d05856464eb84abf195a9ac53001faf0",
+    "migrations/versions/20260921_0004_assessments.py": "c88783fccc16bac3c69e53c42aff0ad40d2e99a0fc024225249d054cee9281f6",
+    "migrations/versions/20260921_0005_api_contracts.py": "a8bce60f420b6bb4b0cd6cc0f7152def689cf91a6aa4dca433612c2360cee1e7",
+    "migrations/versions/20260924_0006_admin_access.py": "d26b17f93f5a5cb9f45a9ad37ea91c6d91073163bd889545717a9a9994b9f0b5"
+  },
+  "tables": {
+    "acknowledgements": [
+      "SELECT",
+      "INSERT"
+    ],
+    "admin_profiles": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "alembic_version": [
+      "SELECT"
+    ],
+    "api_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "assessment_access": [
+      "SELECT",
+      "INSERT"
+    ],
+    "assessment_form_versions": [
+      "SELECT"
+    ],
+    "assignment_changes": [
+      "SELECT",
+      "INSERT"
+    ],
+    "assignment_events": [
+      "SELECT",
+      "INSERT"
+    ],
+    "auth_accounts": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "auth_flows": [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE"
+    ],
+    "auth_sessions": [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE"
+    ],
+    "change_requests": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "client_assessment_revisions": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_assessments": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "client_people": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "clients": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "content_entries": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "credit_debits": [
+      "SELECT",
+      "INSERT"
+    ],
+    "exercise_plan_items": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "exercise_result_revisions": [
+      "SELECT",
+      "INSERT"
+    ],
+    "exercise_results": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "exercises": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "lifecycle_events": [
+      "SELECT",
+      "INSERT"
+    ],
+    "media_assets": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "media_deletions": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "message_receipts": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "messages": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_purchases": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "package_template_revisions": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_templates": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "purchase_preferences": [
+      "SELECT",
+      "INSERT"
+    ],
+    "purchase_schedule_slots": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "remuneration_approvals": [
+      "SELECT",
+      "INSERT"
+    ],
+    "remuneration_lines": [
+      "SELECT",
+      "INSERT"
+    ],
+    "report_audit": [
+      "SELECT",
+      "INSERT"
+    ],
+    "request_events": [
+      "SELECT",
+      "INSERT"
+    ],
+    "request_slots": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_events": [
+      "SELECT",
+      "INSERT"
+    ],
+    "staff_identities": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "staff_invitations": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "staff_users": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "trainer_availability": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "trainers": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "training_sessions": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ]
+  },
+  "functions": {
+    "ff_acknowledgement": "276bbb623fda02cf4a30c89ef195ae5a5489139d4c5e6f0d784c55ed89498e02",
+    "ff_actor": "f748a8f5a860d0478ef76b0196d3bd17e48b7ea25837b190751de20ff9cee060",
+    "ff_assessment_revision": "1076822f1229b2d506d5b3f085f0188c345852b1234db7673e19e79e2666ce26",
+    "ff_auth_epoch_changed": "c4923f74510e6bc5443e5d5f362dc1085256783047085c47bf0a748bed753068",
+    "ff_birth": "08d5124c44f36915e996a0ca7cb6c451043412b5a77ab76c5b2503150c4526f0",
+    "ff_completion": "24b3643f508a1a7a5fd69727f878c431158e20e2d7cd546e843a43b35a6ad5e5",
+    "ff_immutable": "d56972564a6ff0df1478bfd76efebfe125d74d13a8d79b3a680e29732704c301",
+    "ff_lifecycle_event": "5276c4e98bfff7d8e84e9ea0e386324d196b0be801210ac740ba8ebc64b832b8",
+    "ff_lifecycle_state": "4d462e49064731814684c29a711620b98d167e82282dbd37697f85ca771bda0a",
+    "ff_media_scope": "b003b7993729b45bbc356fa3e4ec1f4121cb35c5d4b6e21cc9c288fe206a95a6",
+    "ff_pay_line": "e832bcc8c4daf13f40ae0a81fa99bf08f610606a8d994e335cef1817702212b1",
+    "ff_pay_totals": "ab0a5f09fe7b748b9e0c9f7308bd0ec889f392f72442999d67d76ffaeb602349",
+    "ff_people_count": "fcda70aea0db0f834e3d010e03137537183b4d3a42d3d1e2c64190c88456b1c9",
+    "ff_preserve_fields": "aba597aeea360dd2a5e88b7769f5db16aebcdf1e16f963e2be378b0ba9c9b09c",
+    "ff_purchase_child": "ef12ae47f43e708dae55264118de0f0672b65097b1d1f3bcab75215e52fd0e0e",
+    "ff_purchase_complete": "e16ddb17ba997a71171b81105af60006b5bc1cb45115c24ef1015d6d69ad09ac",
+    "ff_purchase_insert": "959b01c23a0683d6b9b50bf195f4e6a79623f514ed89ada80e94b663fe00f17f",
+    "ff_request_guard": "727ec9f4cc53ccff96c8122dc0277431bc02a81aa8fce70872cb33cd9b1d77d0",
+    "ff_request_history": "cfc20150c854a76eebf15329f4af7e007d3e7af5231f5761611b3a2c9a9f2250",
+    "ff_request_slot": "2912e482dcc3eab0e1ff836b6f0323458d9bd72798ac9bebc6df647c11cf142d",
+    "ff_session_guard": "3006c45caba6b9d7a7832b37a7efde755961a56dc4c55b009f6e0c46cafc62cf",
+    "ff_staff_identity_guard": "588dedea0377906792fa33cf7505e5a9d35fe4fdb239c348be975e42786aba3e",
+    "ff_template_revision": "17e9f08c17e9703dc7573204e9185eb717f655dade63c1db2ec1c81e5f39672d",
+    "ff_version": "c894e1e2cffb507e87b8d7f27e48c9f6194881cbdc3bb88bb50eb3794a1b4307"
+  },
+  "triggers": [
+    [
+      "acknowledgements",
+      "ff_acknowledgement",
+      "ff_acknowledgement",
+      "O"
+    ],
+    [
+      "acknowledgements",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "acknowledgements",
+      "ff_completion",
+      "ff_completion",
+      "O"
+    ],
+    [
+      "acknowledgements",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "admin_profiles",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "admin_profiles",
+      "ff_preserve",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "admin_profiles",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "api_receipts",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "api_receipts",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "assessment_access",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "assessment_access",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "assessment_form_versions",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "assignment_changes",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "assignment_events",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "assignment_events",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "change_requests",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "change_requests",
+      "ff_birth",
+      "ff_birth",
+      "O"
+    ],
+    [
+      "change_requests",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "change_requests",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "change_requests",
+      "ff_request_guard",
+      "ff_request_guard",
+      "O"
+    ],
+    [
+      "change_requests",
+      "ff_request_history",
+      "ff_request_history",
+      "O"
+    ],
+    [
+      "change_requests",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "client_assessment_revisions",
+      "ff_assessment_revision",
+      "ff_assessment_revision",
+      "O"
+    ],
+    [
+      "client_assessment_revisions",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "client_assessments",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "client_assessments",
+      "ff_assessment_identity",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "client_assessments",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "client_assessments",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "client_people",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "client_people",
+      "ff_people_count",
+      "ff_people_count",
+      "O"
+    ],
+    [
+      "client_people",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "client_people",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "clients",
+      "ff_lifecycle_state",
+      "ff_lifecycle_state",
+      "O"
+    ],
+    [
+      "clients",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "clients",
+      "ff_people_count",
+      "ff_people_count",
+      "O"
+    ],
+    [
+      "clients",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "content_entries",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "content_entries",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "credit_debits",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "credit_debits",
+      "ff_completion",
+      "ff_completion",
+      "O"
+    ],
+    [
+      "credit_debits",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "exercise_plan_items",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "exercise_plan_items",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "exercise_result_revisions",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "exercise_result_revisions",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "exercise_results",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "exercise_results",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "exercises",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "exercises",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "lifecycle_events",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "lifecycle_events",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "lifecycle_events",
+      "ff_lifecycle_event",
+      "ff_lifecycle_event",
+      "O"
+    ],
+    [
+      "media_assets",
+      "ff_media_scope",
+      "ff_media_scope",
+      "O"
+    ],
+    [
+      "media_assets",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "media_assets",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "media_assets",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "media_deletions",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "media_deletions",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "media_deletions",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "message_receipts",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "message_receipts",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "messages",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "messages",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "package_purchases",
+      "ff_birth",
+      "ff_birth",
+      "O"
+    ],
+    [
+      "package_purchases",
+      "ff_lifecycle_state",
+      "ff_lifecycle_state",
+      "O"
+    ],
+    [
+      "package_purchases",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "package_purchases",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "package_purchases",
+      "ff_purchase_complete",
+      "ff_purchase_complete",
+      "O"
+    ],
+    [
+      "package_purchases",
+      "ff_purchase_insert",
+      "ff_purchase_insert",
+      "O"
+    ],
+    [
+      "package_purchases",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "package_template_revisions",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "package_template_revisions",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "package_template_revisions",
+      "ff_template_revision",
+      "ff_template_revision",
+      "O"
+    ],
+    [
+      "package_templates",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "package_templates",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "purchase_preferences",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "purchase_preferences",
+      "ff_purchase_child",
+      "ff_purchase_child",
+      "O"
+    ],
+    [
+      "purchase_schedule_slots",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "purchase_schedule_slots",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "purchase_schedule_slots",
+      "ff_purchase_child",
+      "ff_purchase_child",
+      "O"
+    ],
+    [
+      "purchase_schedule_slots",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "remuneration_approvals",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "remuneration_approvals",
+      "ff_birth",
+      "ff_birth",
+      "O"
+    ],
+    [
+      "remuneration_approvals",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "remuneration_approvals",
+      "ff_pay_totals",
+      "ff_pay_totals",
+      "O"
+    ],
+    [
+      "remuneration_lines",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "remuneration_lines",
+      "ff_pay_line",
+      "ff_pay_line",
+      "O"
+    ],
+    [
+      "remuneration_lines",
+      "ff_pay_totals",
+      "ff_pay_totals",
+      "O"
+    ],
+    [
+      "report_audit",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "report_audit",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "request_events",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "request_events",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "request_events",
+      "ff_request_history",
+      "ff_request_history",
+      "O"
+    ],
+    [
+      "request_slots",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "request_slots",
+      "ff_request_slot",
+      "ff_request_slot",
+      "O"
+    ],
+    [
+      "session_events",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "session_events",
+      "ff_immutable",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "staff_identities",
+      "ff_auth_identity_changed",
+      "ff_auth_epoch_changed",
+      "O"
+    ],
+    [
+      "staff_identities",
+      "ff_immutable",
+      "ff_staff_identity_guard",
+      "O"
+    ],
+    [
+      "staff_invitations",
+      "ff_actor",
+      "ff_actor",
+      "O"
+    ],
+    [
+      "staff_invitations",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "staff_invitations",
+      "ff_preserve",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "staff_users",
+      "ff_auth_staff_changed",
+      "ff_auth_epoch_changed",
+      "O"
+    ],
+    [
+      "staff_users",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "staff_users",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "trainer_availability",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "trainers",
+      "ff_auth_trainer_changed",
+      "ff_auth_epoch_changed",
+      "O"
+    ],
+    [
+      "trainers",
+      "ff_no_delete",
+      "ff_immutable",
+      "O"
+    ],
+    [
+      "trainers",
+      "ff_version",
+      "ff_version",
+      "O"
+    ],
+    [
+      "training_sessions",
+      "ff_completion",
+      "ff_completion",
+      "O"
+    ],
+    [
+      "training_sessions",
+      "ff_preserve_fields",
+      "ff_preserve_fields",
+      "O"
+    ],
+    [
+      "training_sessions",
+      "ff_session_guard",
+      "ff_session_guard",
+      "O"
+    ],
+    [
+      "training_sessions",
+      "ff_version",
+      "ff_version",
+      "O"
+    ]
+  ],
+  "assessment_forms": 11,
+  "assessment_seed_sha256": "65695fa7c25e4e95200ede79295be5ba75d8a8fecabeedeaf11bee5c05dcc84d",
+  "secret_arns": {
+    "app": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+    "migration": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/migration-HRPtjy"
+  }
+}

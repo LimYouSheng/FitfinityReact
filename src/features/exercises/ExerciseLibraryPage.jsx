@@ -1,3 +1,4 @@
+import { managesOperations } from '../../app/permissions.js'
 import SelectField from '../../components/SelectField.jsx'
 import usePageState from '../../hooks/usePageState.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -123,6 +124,6 @@ function OwnerExerciseLibrary({ exercises, categories, detailId, onNavigate, onB
   </div>
 }
 export default function ExerciseLibraryPage(props) {
-  if (props.user.role !== 'owner') return <Panel><h1>Exercise Library</h1><p>Exercise library management is available to the owner.</p></Panel>
+  if (!managesOperations(props.user)) return <Panel><h1>Exercise Library</h1><p>Exercise library management is available to the owner.</p></Panel>
   return <OwnerExerciseLibrary {...props} />
 }

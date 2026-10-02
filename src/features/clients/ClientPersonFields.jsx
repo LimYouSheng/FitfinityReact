@@ -3,7 +3,7 @@ import SelectField from '../../components/SelectField.jsx'
 import Field from '../../components/OnboardingField.jsx'
 import { COUNTRY_CODES, RELATIONSHIPS, GENDERS } from '../../app/contact.js'
 
-export default function ClientPersonFields({ person, labelPrefix, errors = {}, requireComplete = false, onChange }) {
+export default function ClientPersonFields({ person, labelPrefix, errors = {}, requireComplete = false, showLegacyNotes = false, onChange }) {
   const patch = next => onChange({ ...person, ...next })
 
   return (
@@ -83,14 +83,14 @@ export default function ClientPersonFields({ person, labelPrefix, errors = {}, r
         </div>
       </Field>
 
-      <Field label="Health / Limitation Notes" className="onboarding-span-2">
+      {showLegacyNotes && <Field label="Health / Limitation Notes" className="onboarding-span-2">
         <textarea
           aria-label={`${labelPrefix} health or limitation notes`}
           value={person.healthNotes}
           onChange={event => patch({ healthNotes: event.target.value })}
           placeholder="Optional"
         />
-      </Field>
+      </Field>}
     </div>
   )
 }

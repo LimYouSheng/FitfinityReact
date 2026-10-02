@@ -1,0 +1,47 @@
+{
+    "OperationEvents": [
+        {
+            "EventId": "e7494325-e835-4ae4-b735-8f249af37fc4",
+            "StackId": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-egress/91ae3440-b683-11f1-a1c7-0216717a447b",
+            "OperationId": "91af6cc0-b683-11f1-a1c7-0216717a447b",
+            "EventType": "PROVISIONING_ERROR",
+            "LogicalResourceId": "fitfinity-test-egress",
+            "PhysicalResourceId": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-egress/91ae3440-b683-11f1-a1c7-0216717a447b",
+            "ResourceType": "AWS::CloudFormation::Stack",
+            "Timestamp": "2026-09-22T12:46:07.128000+00:00",
+            "ResourceStatus": "CREATE_FAILED",
+            "ResourceStatusReason": "Validation failure detected. See the operation's FAILED event for details.",
+            "ClientRequestToken": "fitfinity-egress-7f932464a445c2a1b2bb6607"
+        },
+        {
+            "EventId": "978714a5-c2cd-4684-8eda-4a7753ca6ce5",
+            "StackId": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-egress/91ae3440-b683-11f1-a1c7-0216717a447b",
+            "OperationId": "91af6cc0-b683-11f1-a1c7-0216717a447b",
+            "EventType": "PROVISIONING_ERROR",
+            "LogicalResourceId": "fitfinity-test-egress",
+            "PhysicalResourceId": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-egress/91ae3440-b683-11f1-a1c7-0216717a447b",
+            "ResourceType": "AWS::CloudFormation::Stack",
+            "Timestamp": "2026-09-22T12:46:06.886000+00:00",
+            "ResourceStatus": "CREATE_FAILED",
+            "ResourceStatusReason": "Validation failed with 1 error(s). Call DescribeEvents to retrieve the full list of issues with resource and property details, resolve each error, then retry the operation.",
+            "ClientRequestToken": "fitfinity-egress-7f932464a445c2a1b2bb6607",
+            "DetailedStatus": "VALIDATION_FAILED"
+        },
+        {
+            "EventId": "0d679f4a-5c1a-49c0-98c1-24729d6d1600",
+            "StackId": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-egress/91ae3440-b683-11f1-a1c7-0216717a447b",
+            "OperationId": "91af6cc0-b683-11f1-a1c7-0216717a447b",
+            "OperationType": "CREATE_STACK",
+            "EventType": "VALIDATION_ERROR",
+            "LogicalResourceId": "NatInstance",
+            "PhysicalResourceId": "",
+            "ResourceType": "AWS::EC2::Instance",
+            "Timestamp": "2026-09-22T12:46:06.813000+00:00",
+            "ValidationFailureMode": "FAIL",
+            "ValidationName": "PROPERTY_VALIDATION",
+            "ValidationStatus": "FAILED",
+            "ValidationStatusReason": "Unsupported property [Throughput]",
+            "ValidationPath": "/Resources/NatInstance/Properties/BlockDeviceMappings/0/Ebs"
+        }
+    ]
+}

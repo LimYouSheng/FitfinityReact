@@ -35,8 +35,8 @@ it('permanently changes active assignments and eligible sessions while preservin
   mockDb.mutate(db => {
     const sample = db.sessions.find(item => item.id === 'queued-session')
     db.sessions.push({ ...sample, id: 'already-started', date: '2026-09-09', from: '11:00', to: '12:00' },
-      { ...sample, id: 'signed-future', acknowledgement: { method: 'signature', signature: 'retained-evidence' } },
-      { ...sample, id: 'credited-future' })
+      { ...sample, id: 'signed-future', from: '19:00', to: '20:00', acknowledgement: { method: 'signature', signature: 'retained-evidence' } },
+      { ...sample, id: 'credited-future', from: '20:00', to: '21:00' })
     db.packageCreditTransactions.push({ id: 'kept-credit', sessionId: 'credited-future', packageId: 'queued', amount: -1 })
   })
   const draft = request(), before = mockDb.read(), original = target()
@@ -58,7 +58,7 @@ it('requires the authenticated owner and rejects inactive clients, inactive trai
   const before = mockDb.read(), trainer = before.users.find(item => item.role === 'trainer')
   await expect(clientService.reassignTrainer('c1', request(), trainer)).rejects.toThrow('owner')
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: trainer.id, expiresAt: Date.now() + 3600000 }))
-  await expect(mockPortalAdapter.invoke('clientService', 'reassignTrainer', ['c1', request(), owner()])).rejects.toThrow('owner')
+  await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'reassignTrainer', input: { id: 'c1', draft: request() } })).rejects.toThrow('owner')
   for (const patch of [{ trainerId: 't1' }, { trainerId: 'missing' }, { requestId: '' }]) await expect(reassign(request(patch))).rejects.toThrow()
   expect(mockDb.read()).toEqual(before)
   mockDb.mutate(db => { db.trainers.find(item => item.id === 't2').status = 'inactive' })
@@ -141,5 +141,5 @@ it('keeps the new assignment when a queued package activates and retains histori
   expect(target().package.trainerId).toBe('t2')
   for (const trainerId of ['t1', 't2']) expect(visibleClientsForUser({ role: 'trainer', trainerId }, db.clients, db.sessions).some(item => item.id === 'c1')).toBe(true)
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-marcus', expiresAt: Date.now() + 3600000 }))
-  await expect(mockPortalAdapter.invoke('clientService', 'update', ['c1', { notes: 'Former trainer edit' }])).rejects.toThrow('unavailable')
+  await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'update', input: { id: 'c1', patch: { notes: 'Former trainer edit' } } })).rejects.toThrow('unavailable')
 })

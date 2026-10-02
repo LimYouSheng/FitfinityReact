@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 
 export default function ExerciseLibraryMedia({ media, file, onLoad }) {
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')
+  const mediaId = media?.id
+  // Reload on resource changes, with the latest transport callback.
+  const loadMedia = useEffectEvent(id => onLoad(id))
   useEffect(() => {
     let cancelled = false, createdUrl = ''
     setUrl(''); setError('')
-    if (!file && !media) return
+    if (!file && !mediaId) return
     const load = async () => {
       try {
-        const blob = file || await onLoad(media.id)
+        const blob = file || await loadMedia(mediaId)
         if (cancelled) return
         if (!blob) throw new Error('This attachment is not available in this browser.')
         createdUrl = URL.createObjectURL(blob)
@@ -18,7 +21,7 @@ export default function ExerciseLibraryMedia({ media, file, onLoad }) {
     }
     load()
     return () => { cancelled = true; if (createdUrl) URL.revokeObjectURL(createdUrl) }
-  }, [file, media?.id])
+  }, [file, mediaId])
   if (!media && !file) return null
   if (error) return <p className="validation-copy" role="alert">{error}</p>
   if (!url) return <p className="muted">Loading attachment…</p>

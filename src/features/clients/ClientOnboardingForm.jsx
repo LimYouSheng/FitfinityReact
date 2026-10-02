@@ -6,6 +6,8 @@ import Panel from '../../components/Panel.jsx'
 import OnboardingReview from '../../components/OnboardingReview.jsx'
 import { ONBOARDING_REVIEW_STEP, clientReviewSections, firstIncompleteSection } from '../../app/onboardingReview.js'
 import Field from '../../components/OnboardingField.jsx'
+import ClientAssessments, { AssessmentDialog } from './ClientAssessments.jsx'
+import { assessmentForm } from '../../app/assessmentForms.js'
 import ClientGeneralFields from './ClientGeneralFields.jsx'
 import AvailabilityEditor from '../../components/AvailabilityEditor.jsx'
 import { availabilityBlockError } from '../../app/availability.js'
@@ -14,7 +16,6 @@ import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import {
   CLIENT_ONBOARDING_STEPS,
   DAYS,
-  buildFixedWeeklySchedule,
   clientStepErrors,
   defaultMatchingTrainer,
   matchTrainers,
@@ -28,6 +29,7 @@ const emptyPerson = policy => ({
   gender: '',
   emergencyContact: { name: '', relationship: policy.defaultRelationship, countryCode: policy.defaultCountryCode, number: '' },
   healthNotes: '',
+  assessments: {},
 })
 
 const emptyDraft = policy => ({
@@ -41,9 +43,9 @@ const emptyDraft = policy => ({
   trainerId: '',
 })
 
-export default function ClientOnboardingForm({ packages, policy, trainers, onCancel, onCreate, onCreated, packageDraft }) {
+export default function ClientOnboardingForm({ user, packages, policy, trainers, sessions = [], clients = [], onCancel, onCreate, onCreated, packageDraft }) {
   const addingPackage = Boolean(packageDraft)
-  const steps = addingPackage ? CLIENT_ONBOARDING_STEPS.slice(1) : CLIENT_ONBOARDING_STEPS
+  const steps = addingPackage ? CLIENT_ONBOARDING_STEPS.filter(step => !['general', 'assessments'].includes(step.key)) : CLIENT_ONBOARDING_STEPS
   const formSteps = [...steps, ONBOARDING_REVIEW_STEP]
   const confirmAction = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
@@ -52,6 +54,7 @@ export default function ClientOnboardingForm({ packages, policy, trainers, onCan
   const [stepIndex, setStepIndex] = useState(0)
   const [returningToReview, setReturningToReview] = useState(false)
   const [activePerson, setActivePerson] = useState(0)
+  const [reviewAssessment, setReviewAssessment] = useState(null)
   const [selectedDays, setSelectedDays] = useState([])
   const [from, setFrom] = useState(policy.availability.from)
   const [to, setTo] = useState(policy.availability.to)
@@ -69,6 +72,8 @@ export default function ClientOnboardingForm({ packages, policy, trainers, onCan
     ...(key === 'package' && !packages.some(item => item.id === value.packageId) ? { packageId: 'Choose an active PT package.' } : {}) })
   const step = formSteps[stepIndex]
   const reviewing = step.key === 'review'
+  const reviewPerson = reviewAssessment && draft.people[reviewAssessment.personIndex]
+  const reviewRecord = reviewPerson?.assessments?.[reviewAssessment.formId]
   const previousStep = formSteps[stepIndex - 1]
   const nextStep = formSteps[stepIndex + 1]
   const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft) || selectedDays.length > 0 || from !== policy.availability.from || to !== policy.availability.to
@@ -98,16 +103,16 @@ export default function ClientOnboardingForm({ packages, policy, trainers, onCan
     formRef.current?.querySelector('[aria-invalid="true"]')?.focus()
   }, [activePerson, errors])
 
-  const visibleMatches = useMemo(
-    () => matchTrainers(trainers, draft.clientPreferences, draft.genderPreference),
-    [trainers, draft.clientPreferences, draft.genderPreference],
-  )
-  const selectedTrainer = visibleMatches.find(result => result.trainer.id === draft.trainerId)?.trainer ?? null
-  const fixedWeeklySchedule = useMemo(
-    () => selectedTrainer ? (draft.fixedWeeklySchedule ?? buildFixedWeeklySchedule(selectedTrainer, draft.clientPreferences, draft.sessionsPerWeek)) : [],
-    [draft.clientPreferences, draft.fixedWeeklySchedule, draft.sessionsPerWeek, selectedTrainer],
-  )
   const selectedPack = packages.find(item => item.id === draft.packageId)
+  const visibleMatches = useMemo(
+    () => matchTrainers(trainers, draft.clientPreferences, draft.genderPreference, {
+      ...draft, definition: selectedPack, sessions, clients, clientId: packageDraft?.clientId,
+    }),
+    [trainers, draft, selectedPack, sessions, clients, packageDraft?.clientId],
+  )
+  const selectedMatch = visibleMatches.find(result => result.trainer.id === draft.trainerId)
+  const selectedTrainer = selectedMatch?.trainer ?? null
+  const fixedWeeklySchedule = selectedMatch?.schedule ?? []
   const completeDraft = { ...draft, packageVersion: selectedPack?.version, packageName: selectedPack?.name, packageDefinition: selectedPack, trainerId: selectedTrainer?.id ?? '', fixedWeeklySchedule }
 
   const update = (patch, invalidateMatching = false) => {
@@ -200,7 +205,7 @@ export default function ClientOnboardingForm({ packages, policy, trainers, onCan
     const index = steps.findIndex(item => item.key === key)
     if (index < 0 || saving || submissionPending.current) return
     setReturningToReview(true)
-    if (key === 'general') setActivePerson(0)
+    if (key === 'general' || key === 'assessments') setActivePerson(0)
     goToStep(index)
   }
 
@@ -215,7 +220,7 @@ export default function ClientOnboardingForm({ packages, policy, trainers, onCan
         <Panel>
           <div className="section-head onboarding-step-head">
             <h2 ref={stepHeading} tabIndex={-1}>{step.title}</h2>
-            <span className="onboarding-step-count" aria-label="Creation progress">Step {stepIndex + (addingPackage ? 2 : 1)} of {CLIENT_ONBOARDING_STEPS.length + 1}</span>
+            <span className="onboarding-step-count" aria-label="Creation progress">Step {stepIndex + 1} of {formSteps.length}</span>
           </div>
           <fieldset className="onboarding-step-body" disabled={saving}>
             <legend className="visually-hidden">{step.title}</legend>
@@ -223,6 +228,9 @@ export default function ClientOnboardingForm({ packages, policy, trainers, onCan
             {step.key === 'general' && (
               <ClientGeneralFields draft={draft} errors={errors} activePerson={activePerson} setActivePerson={setActivePerson} onChange={update} />
             )}
+
+            {step.key === 'assessments' && <ClientAssessments assessor={user?.name} timeZone={policy.timeZone} people={draft.people.slice(0, draft.type === 'Couple' ? 2 : 1)}
+              activePerson={activePerson} setActivePerson={setActivePerson} onChange={people => update({ people: draft.people.map((person, index) => people[index] ?? person) })} />}
 
             {step.key === 'package' && (
               <ClientPackageFields packages={packages} policy={policy} draft={draft} errors={errors} onChange={patch => update(patch, Object.hasOwn(patch, 'sessionsPerWeek') || Object.hasOwn(patch, 'genderPreference'))} />
@@ -249,7 +257,7 @@ export default function ClientOnboardingForm({ packages, policy, trainers, onCan
                     {visibleMatches.map(result => <option key={result.trainer.id} value={result.trainer.id}>{result.trainer.name}</option>)}
                   </SelectField>
                 </Field>
-                {!visibleMatches.length && <p className="onboarding-hint" role="status">No active trainer matches these days and times. Go back to adjust the availability or preference.</p>}
+                {!visibleMatches.length && <p className="onboarding-hint" role="status">No active trainer is free for every session on these days and times. Go back to adjust the start date, availability or preference.</p>}
                 {visibleMatches.length > 0 && (
                   <>
                     <div className="onboarding-schedule-preview" aria-label="Fixed Weekly Schedule">
@@ -262,7 +270,11 @@ export default function ClientOnboardingForm({ packages, policy, trainers, onCan
                 )}
               </div>
             )}
-            {reviewing && <OnboardingReview sections={clientReviewSections(completeDraft, selectedTrainer, policy).filter(section => !addingPackage || section.key !== 'general')} onEdit={editReviewSection} />}
+            {reviewing && <OnboardingReview sections={clientReviewSections(completeDraft, selectedTrainer, policy).filter(section => !addingPackage || !['general', 'assessments'].includes(section.key))}
+              onEdit={editReviewSection} onOpen={item => { if (!saving && !submissionPending.current) setReviewAssessment(item) }} />}
+            {reviewing && reviewRecord?.status === 'filled' && <AssessmentDialog
+              key={`${reviewAssessment.personIndex}-${reviewAssessment.formId}`} definition={assessmentForm(reviewAssessment.formId)}
+              person={reviewPerson} record={reviewRecord} readOnly onClose={() => setReviewAssessment(null)} />}
           </fieldset>
           {Object.keys(errors).length > 0 && <p className="onboarding-error" role="alert">{Object.values(errors)[0]}</p>}
           <div className="onboarding-step-actions">

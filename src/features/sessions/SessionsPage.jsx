@@ -1,6 +1,7 @@
+import { managesOperations } from '../../app/permissions.js'
 import SelectField from '../../components/SelectField.jsx'
 import usePageState from '../../hooks/usePageState.js'
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import Panel from '../../components/Panel.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import { isSessionHistory, sortSessions, visibleSessionsForUser } from '../../app/sessionRules.js'
@@ -15,8 +16,8 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
   const [fromDate, setFromDate] = usePageState('SessionsPage.fromDate', '')
   const [toDate, setToDate] = usePageState('SessionsPage.toDate', '')
 
-  const clientName = id => clients.find(client => client.id === id)?.name ?? 'Unknown client'
-  const trainerName = id => trainers.find(trainer => trainer.id === id)?.name ?? 'Unknown trainer'
+  const clientName = useCallback(id => clients.find(client => client.id === id)?.name ?? 'Unknown client', [clients])
+  const trainerName = useCallback(id => trainers.find(trainer => trainer.id === id)?.name ?? 'Unknown trainer', [trainers])
 
   const visible = useMemo(() => {
     const search = query.trim().toLowerCase()
@@ -37,7 +38,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
 
       return true
     })
-  }, [clients, fromDate, period, query, sessions, statusFilter, toDate, trainers, user, today])
+  }, [clientName, fromDate, period, query, sessions, statusFilter, toDate, trainerName, user, today])
 
   const pagination = usePagination(
     visible,
@@ -129,7 +130,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
                   <strong className="compact-primary">{clientName(session.clientId)}</strong>
                   {clients.find(client => client.id === session.clientId)?.status === 'inactive' && <span className="inline-inactive">Client inactive</span>}
                   <span className="compact-secondary">
-                    {user.role === 'owner' ? `Trainer: ${trainerName(session.trainerId)} · ` : ''}
+                    {managesOperations(user) ? `Trainer: ${trainerName(session.trainerId)} · ` : ''}
                     Session {session.sessionNumber} / {session.packageTotal}
                   </span>
                 </div>

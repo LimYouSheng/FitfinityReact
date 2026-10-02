@@ -1,3 +1,4 @@
+import { managesOperations } from '../app/permissions.js'
 import { delay, mockDb } from './mockDb.js'
 import { requireActiveActor } from '../app/scheduleChanges.js'
 import { exerciseCatalog, exerciseDraftErrors, exerciseMediaError } from '../app/exerciseCatalog.js'
@@ -12,7 +13,7 @@ function libraryId(prefix) {
 
 function validateSave(db, options, actor) {
   const owner = requireActiveActor(db, actor)
-  if (owner.role !== 'owner') throw new Error('Only the owner can manage the exercise library.')
+  if (!managesOperations(owner)) throw new Error('Only the owner can manage the exercise library.')
   const catalog = exerciseCatalog(db)
   const current = options.id ? catalog.find(item => item.id === options.id) : null
   if (options.id && !current) throw new Error('Exercise not found.')
@@ -31,7 +32,7 @@ export const exerciseLibraryService = {
   async loadMedia(id) { return exerciseLibraryMedia.load(id) },
   getAll(actor) {
     const db = mockDb.read(), user = requireActiveActor(db, actor)
-    return structuredClone(exerciseCatalog(db).filter(item => user.role === 'owner' || item.status === 'active'))
+    return structuredClone(exerciseCatalog(db).filter(item => managesOperations(user) || item.status === 'active'))
   },
   async save(options, actor) {
     await delay(100)

@@ -1,0 +1,409 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Fitfinity Singapore synthetic-test HTTPS egress. One NAT instance; not HA. No application or DB resources.",
+  "Rules": {
+    "TargetOnly": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::AccountId"
+              },
+              "418638389566"
+            ]
+          },
+          "AssertDescription": "Use the reviewed test account."
+        },
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::Region"
+              },
+              "ap-southeast-1"
+            ]
+          },
+          "AssertDescription": "Use Singapore."
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-egress-igw"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "GatewayAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": "vpc-0b55320bb1a054441",
+        "InternetGatewayId": {
+          "Ref": "InternetGateway"
+        }
+      }
+    },
+    "PublicSubnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": "vpc-0b55320bb1a054441",
+        "AvailabilityZone": "ap-southeast-1a",
+        "CidrBlock": "10.84.0.0/24",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-egress-public"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "PublicRoutes": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": "vpc-0b55320bb1a054441",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-egress-routes"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "PublicAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRoutes"
+        }
+      }
+    },
+    "PublicDefaultRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRoutes"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "InternetGateway"
+        }
+      },
+      "DependsOn": "GatewayAttachment"
+    },
+    "NatSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Private app HTTPS forwarding only; no inbound administration",
+        "VpcId": "vpc-0b55320bb1a054441",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "10.84.32.0/23"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-nat-sg"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "NatInterface": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "GroupSet": [
+          {
+            "Ref": "NatSecurityGroup"
+          }
+        ],
+        "SourceDestCheck": false,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-nat-eni"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "PublicAddress": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-nat-eip"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      },
+      "DependsOn": "GatewayAttachment"
+    },
+    "NatRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "SsmManagementOnly",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ssm:UpdateInstanceInformation",
+                    "ssm:ListInstanceAssociations",
+                    "ssm:UpdateInstanceAssociationStatus"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ssmmessages:CreateControlChannel",
+                    "ssmmessages:CreateDataChannel",
+                    "ssmmessages:OpenControlChannel",
+                    "ssmmessages:OpenDataChannel"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-nat-role"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      }
+    },
+    "NatProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Roles": [
+          {
+            "Ref": "NatRole"
+          }
+        ]
+      }
+    },
+    "NatInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": "ami-021e6de04c7a84a9f",
+        "InstanceType": "t4g.micro",
+        "IamInstanceProfile": {
+          "Ref": "NatProfile"
+        },
+        "CreditSpecification": {
+          "CPUCredits": "standard"
+        },
+        "MetadataOptions": {
+          "HttpEndpoint": "enabled",
+          "HttpTokens": "required",
+          "HttpPutResponseHopLimit": 1,
+          "InstanceMetadataTags": "disabled"
+        },
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "VolumeType": "gp3",
+              "VolumeSize": 8,
+              "Iops": 3000,
+              "Encrypted": true,
+              "DeleteOnTermination": true
+            }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeviceIndex": "0",
+            "NetworkInterfaceId": {
+              "Ref": "NatInterface"
+            }
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": "#!/bin/bash\nset -euo pipefail\numask 077\n# Dedicated NAT host; no application data or credentials on this machine.\n# A small encrypted-disk swapfile prevents package installation exhausting instance RAM.\nif [ ! -f /swapfile ]; then\n  fallocate -l 1G /swapfile\n  chmod 600 /swapfile\n  mkswap /swapfile\nfi\nswapon /swapfile || swapon --show | grep -q /swapfile\ngrep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab\n# EIP association is a separate CloudFormation resource and can arrive after boot.\nfor attempt in $(seq 1 30); do\n  if dnf install -y nftables; then break; fi\n  sleep 10\ndone\ncommand -v nft\ncat > /etc/sysctl.d/90-fitfinity-nat.conf <<'EOF'\n# Start closed; only the firewall service enables forwarding.\nnet.ipv4.ip_forward=0\nnet.ipv4.conf.all.rp_filter=0\nnet.ipv4.conf.default.rp_filter=0\nEOF\ncat > /usr/local/sbin/fitfinity-nat-start <<'EOF'\n#!/bin/bash\nset -euo pipefail\nsysctl -w net.ipv4.ip_forward=0\nuplink=$(ip -4 route show default | awk 'NR==1 {print $5}')\n[[ \"$uplink\" =~ ^[a-zA-Z0-9_-]+$ ]]\nif nft list table ip fitfinity_nat >/dev/null 2>&1; then\n  nft delete table ip fitfinity_nat\nfi\nnft -f - <<RULES\ntable ip fitfinity_nat {\n  chain forward {\n    type filter hook forward priority 0; policy drop;\n    ct state invalid drop\n    ip daddr { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16, 224.0.0.0/4, 240.0.0.0/4 } ct state new drop\n    iifname \"$uplink\" oifname \"$uplink\" ip daddr 10.84.32.0/23 ct state established,related accept\n    iifname \"$uplink\" oifname \"$uplink\" ip saddr 10.84.32.0/23 tcp dport 443 ct state new,established accept\n  }\n  chain postrouting {\n    type nat hook postrouting priority 100; policy accept;\n    oifname \"$uplink\" ip saddr 10.84.32.0/23 tcp dport 443 masquerade\n  }\n}\nRULES\nsysctl -w net.ipv4.conf.all.rp_filter=0 net.ipv4.conf.default.rp_filter=0\nsysctl -w net.ipv4.ip_forward=1\nEOF\nchmod 700 /usr/local/sbin/fitfinity-nat-start\ncat > /etc/systemd/system/fitfinity-nat.service <<'EOF'\n[Unit]\nDescription=Fitfinity private-subnet HTTPS NAT\nWants=network-online.target\nAfter=network-online.target systemd-sysctl.service\n[Service]\nType=oneshot\nExecStart=/usr/local/sbin/fitfinity-nat-start\nExecStop=/usr/sbin/sysctl -w net.ipv4.ip_forward=0\nRemainAfterExit=yes\n[Install]\nWantedBy=multi-user.target\nEOF\nsystemctl daemon-reload\nsystemctl enable --now fitfinity-nat.service\nsystemctl enable --now amazon-ssm-agent\nsystemctl is-active --quiet fitfinity-nat.service\nnft list table ip fitfinity_nat > /var/lib/fitfinity-nat-rules-at-bootstrap.txt\ndate -u +%FT%TZ > /var/lib/fitfinity-nat-ready\n"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "fitfinity-test-nat"
+          },
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          }
+        ]
+      },
+      "DependsOn": [
+        "PublicDefaultRoute",
+        "PublicAssociation"
+      ]
+    },
+    "AddressAssociation": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "PublicAddress",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "NatInterface"
+        }
+      },
+      "DependsOn": "NatInstance"
+    },
+    "AppDefaultRouteA": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": "rtb-09f050cad93faea2c",
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NetworkInterfaceId": {
+          "Ref": "NatInterface"
+        }
+      },
+      "DependsOn": "AddressAssociation"
+    },
+    "AppDefaultRouteB": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": "rtb-046a15665b5999a5a",
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NetworkInterfaceId": {
+          "Ref": "NatInterface"
+        }
+      },
+      "DependsOn": "AddressAssociation"
+    }
+  },
+  "Outputs": {
+    "InstanceId": {
+      "Value": {
+        "Ref": "NatInstance"
+      }
+    },
+    "NetworkInterfaceId": {
+      "Value": {
+        "Ref": "NatInterface"
+      }
+    },
+    "PublicIp": {
+      "Value": {
+        "Ref": "PublicAddress"
+      }
+    },
+    "SubnetId": {
+      "Value": {
+        "Ref": "PublicSubnet"
+      }
+    },
+    "SecurityGroupId": {
+      "Value": {
+        "Ref": "NatSecurityGroup"
+      }
+    }
+  }
+}

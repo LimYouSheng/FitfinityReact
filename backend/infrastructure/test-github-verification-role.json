@@ -1,0 +1,165 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Proposed GitHub OIDC verification role. Review/setup only; no cloud mutations or application access.",
+  "Parameters": {
+    "GitHubSubject": {
+      "Type": "String",
+      "AllowedPattern": "repo:LimYouSheng(@[0-9]+)?/FitfinityReact(@[0-9]+)?:environment:aws-test",
+      "Description": "Exact actual GitHub OIDC subject, including immutable IDs when enabled. Do not guess it."
+    }
+  },
+  "Resources": {
+    "VerificationRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "fitfinity-test-github-verify",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+                }
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": {
+                    "Ref": "GitHubSubject"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "VerifyAcceptedTestInfrastructure",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:GetTemplate",
+                    "cloudformation:ListStackResources",
+                    "cloudformation:GetStackPolicy"
+                  ],
+                  "Resource": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-*/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeRouteTables",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeVolumes",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeInstanceCreditSpecifications",
+                    "rds:DescribeDBInstances",
+                    "rds:DescribeDBParameters"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:DescribeSecret",
+                    "secretsmanager:GetResourcePolicy"
+                  ],
+                  "Resource": [
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/*",
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/auth-*"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cognito-idp:DescribeUserPool",
+                    "cognito-idp:DescribeUserPoolClient",
+                    "cognito-idp:GetUserPoolMfaConfig"
+                  ],
+                  "Resource": "arn:aws:cognito-idp:ap-southeast-1:418638389566:userpool/ap-southeast-1_La0Y3MXCj",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:DescribeImageScanFindings"
+                  ],
+                  "Resource": "arn:aws:ecr:ap-southeast-1:418638389566:repository/fitfinity-test-api",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "freetier:GetAccountPlanState"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "github-verification"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "RoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "VerificationRole",
+          "Arn"
+        ]
+      }
+    }
+  }
+}

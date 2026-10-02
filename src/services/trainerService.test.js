@@ -16,12 +16,12 @@ describe('trainer creation service', () => {
   it('applies creation validation to profile edits, synchronizes staff identity and preserves sessions and decimal rates on reload', async () => {
     const before = mockDb.read(), trainer = before.trainers[0]
     for (const patch of [{ gender: 'invalid' }, { phone: '+65 abc' }, { rates: { peak: '', offPeak: 55 } }, { rates: { peak: 80.251, offPeak: 55 } }, { email: before.trainers[1].email }]) {
-      await expect(trainerService.update(trainer.id, patch)).rejects.toThrow()
+      await expect(trainerService.update(trainer.id, patch, owner())).rejects.toThrow()
       expect(mockDb.read()).toEqual(before)
     }
-    await trainerService.update(trainer.id, { name: 'Marcus Lee', email: ' MARCUS.UPDATED@EXAMPLE.COM ', phone: '+60 123456789', gender: 'Male', qualifications: 'Updated certification\nFirst aid', rates: { peak: 80.25, offPeak: 55.50 } })
+    await trainerService.update(trainer.id, { name: 'Marcus Lee', email: ' MARCUS.UPDATED@EXAMPLE.COM ', phone: '+60 123456789', gender: 'Male', qualifications: 'Updated certification\nFirst aid', rates: { peak: 80.25, offPeak: 55.50 } }, owner())
     const after = mockDb.reload(), updated = after.trainers.find(item => item.id === trainer.id)
-    expect(updated).toMatchObject({ name: 'Marcus Lee', email: 'marcus.updated@example.com', phone: '+60 123456789', rates: { peak: 80.25, offPeak: 55.50 } })
+    expect(updated).toMatchObject({ name: 'Marcus Lee', email: 'marcus.updated@example.com', phone: '+60 123456789', rates: { peak: 80.25, offPeak: 55.50 } }, owner())
     expect(after.users.find(item => item.trainerId === trainer.id)).toMatchObject({ name: updated.name, email: updated.email })
     expect(updated.availability).toEqual(trainer.availability)
     expect(after.clients).toEqual(before.clients)
@@ -34,7 +34,7 @@ describe('trainer creation service', () => {
     expect(state.users.find(user => user.trainerId === result.id)).toMatchObject({ role: 'trainer', status: 'active', email: draft().email })
     const messages = state.messages.filter(message => message.trainerId === result.id)
     expect(messages).toHaveLength(2)
-    expect(messages.every(message => message.read === false && message.kind === 'trainer_created')).toBe(true)
+    expect(messages.every(message => Object.keys(message.readBy).length === 0 && message.kind === 'trainer_created')).toBe(true)
     expect(messages.some(message => message.recipientRole === 'owner')).toBe(true)
     expect(messages.some(message => message.recipientTrainerId === result.id && !message.recipientRole)).toBe(true)
   })
@@ -60,7 +60,7 @@ describe('trainer creation service', () => {
   })
   it('rejects duplicate email regardless of case or inactive status', async () => {
     const result = await trainerService.create(draft(), owner())
-    await trainerService.deactivate(result.id)
+    await trainerService.deactivate(result.id, {}, owner())
     const before = mockDb.read()
     await expect(trainerService.create(draft(' M3-NEW-TRAINER@EXAMPLE.COM '), owner())).rejects.toThrow('already belongs')
     expect(mockDb.read()).toEqual(before)
@@ -85,7 +85,7 @@ describe('trainer creation service', () => {
     const result = await trainerService.create(draft(), owner())
     const preferences = [{ days: ['Sunday'], from: '10:00', to: '11:00' }]
     expect(matchTrainers(mockDb.read().trainers, preferences).some(item => item.trainer.id === result.id)).toBe(true)
-    await trainerService.deactivate(result.id)
+    await trainerService.deactivate(result.id, {}, owner())
     expect(matchTrainers(mockDb.read().trainers, preferences).some(item => item.trainer.id === result.id)).toBe(false)
   })
 })

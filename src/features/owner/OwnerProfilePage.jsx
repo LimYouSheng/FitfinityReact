@@ -19,7 +19,7 @@ export default function OwnerProfilePage({ user }) {
       <div className="section-head"><h2>Account Details</h2></div>
       <div className="info-list profile-info-grid">
         <div className="info-row"><span>Name</span><strong>{user.name}</strong></div>
-        <div className="info-row"><span>Role</span><strong>Owner / Site Admin</strong></div>
+        <div className="info-row"><span>Role</span><strong>Owner</strong></div>
       </div>
     </Panel>
   </>

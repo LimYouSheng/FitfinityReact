@@ -7,11 +7,11 @@ import { useActionConfirmation } from '../../components/ActionConfirmationProvid
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { packageErrors, packageValidityDays } from '../../app/packages.js'
 
-export default function PackagesPage({ packages, policy, selectedId, onNavigate, onBack, onSave }) {
+export default function PackagesPage({ readOnly = false, packages, policy, selectedId, onNavigate, onBack, onSave }) {
   const current = packages.find(item => item.id === selectedId)
   const confirm = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
-  const [editing, setEditing] = useState(selectedId === 'new')
+  const [editing, setEditing] = useState(!readOnly && selectedId === 'new')
   const [draft, setDraft] = useState(() => ({ name: current?.name ?? '', total: current?.total ?? '' }))
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
@@ -52,7 +52,7 @@ export default function PackagesPage({ packages, policy, selectedId, onNavigate,
 
   return <div className="package-setup">
     <div className={selectedId ? 'page-head' : 'page-head directory-page-head'}><div><span className="eyebrow">Setup</span><h1>{selectedId === 'new' ? 'New Package' : current?.name ?? 'Packages'}</h1></div>
-      {!selectedId && <button className="onboarding-button primary" onClick={() => onNavigate('packages/new')}>Add Package</button>}
+      {!readOnly && !selectedId && <button className="onboarding-button primary" onClick={() => onNavigate('packages/new')}>Add Package</button>}
     </div>
     {selectedId && selectedId !== 'new' && !current ? <Panel><p>Package unavailable.</p></Panel>
       : editing ? <Panel className="editing-section">
@@ -67,7 +67,7 @@ export default function PackagesPage({ packages, policy, selectedId, onNavigate,
       </Panel> : current ? <Panel>
         <div className="section-head"><h2>Package details</h2><StatusBadge tone={current.status === 'active' ? 'green' : 'amber'}>{current.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge></div>
         <dl className="package-details"><div><dt>Sessions</dt><dd>{current.total}</dd></div><div><dt>Validity</dt><dd>{current.validityDays} days</dd></div></dl>
-        <div className="inline-actions"><button className="onboarding-button" onClick={() => { setSaved(null); setDraft({ name: current.name, total: current.total }); setEditing(true) }}>Edit Package</button><button className="onboarding-button" disabled={busy} onClick={() => void save(current.status === 'active' ? 'inactive' : 'active')}>{current.status === 'active' ? 'Deactivate Package' : 'Reactivate Package'}</button></div>
+        {!readOnly && <div className="inline-actions"><button className="onboarding-button" onClick={() => { setSaved(null); setDraft({ name: current.name, total: current.total }); setEditing(true) }}>Edit Package</button><button className="onboarding-button" disabled={busy} onClick={() => void save(current.status === 'active' ? 'inactive' : 'active')}>{current.status === 'active' ? 'Deactivate Package' : 'Reactivate Package'}</button></div>}
         {errors.form && <p className="validation-copy" role="alert">{errors.form}</p>}
       </Panel> : <Panel><div className="package-list" aria-label="Package list">{pagination.items.map(item => <div className="package-row" key={item.id}>
         <div><strong>{item.name}</strong><span>{item.total} sessions · {item.validityDays} days</span></div><StatusBadge tone={item.status === 'active' ? 'green' : 'amber'}>{item.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge><button className="secondary-button small" aria-label={`View package ${item.name}`} onClick={() => onNavigate(`packages/${item.id}`)}>View</button>
