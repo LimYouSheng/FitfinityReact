@@ -3,6 +3,12 @@
 
 Updated 2 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
 
+## PR #2 frontend job budget — 2 October 2026
+
+PR #2 (`fix/navigation-swipe-fixture-2026-10-02`) published the 505-file navigation fixture repair at `905b71e3777729a45a3ebc7a33a3577d2ad8c362`. Run `36973338215` was cancelled at the configured 30-minute frontend job limit. Its logs confirm 769/769 units passed, 652 browser cases completed, and the previously failing previous-cycle trainer-history navigation case passed on desktop Chromium, phone and tablet. The backend job passed. This partial browser run is not full acceptance; the remaining browser cases and downstream health gate still require completion.
+
+At 15:25 Singapore the user authorized increasing the overall frontend job budget to **60 minutes** and trying the existing PR again. `Fitfinity_CI_Timeout_2026-10-02.sh --publish` updates only the frontend `jobs.frontend.timeout-minutes` value in the canonical shared workflow, plus this Journey record and the current Rules checkpoint. It commits onto the same reviewed PR branch and pushes a verified direct descendant of its known head, triggering a new PR CI run. PR #2 remains open for review; no merge, main push, AWS call or image activation occurs. Individual test/assertion timeouts, retries, workers, trace retention and all strict gate inventories remain unchanged: 769 units / 84 files, 717 browser, 416 backend/PostgreSQL, 408 infrastructure, 33 quality and 20 health-tooling. Full candidate and later main-CI acceptance remain pending.
+
 ## PR controls accepted; main CI navigation-fixture repair — 2 October 2026
 
 PR #1 published the accepted 504-file snapshot and passed CI run `36946096801`. Corrected branch-protection receipt `Fitfinity_Branch_Protection_2026-10-02.R86stM.json` completed at 11:46:47 Singapore: PRs, strict up-to-date checks `verify / frontend` and `verify / backend` bound to GitHub Actions app `15368`, administrator enforcement and zero required reviewer approvals are verified. Force pushes and deletion remain blocked. The earlier `vm59P3` attempt failed with HTTP 422 because the request included both `contexts` and `checks`; the corrected request sends `checks` only. Response objects may legitimately include both.
