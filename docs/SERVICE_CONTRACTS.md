@@ -1,5 +1,13 @@
 # Portal service contracts
 
+## Protected workflow and navigation fixture repair — 2 October 2026
+
+PR #1 merged at 13:31:42 Singapore into main `44a4a9cfce22662aaf9372565ac264a02721cfe1`. PR and strict frontend/backend checks are now required, including for administrators; zero reviewer approvals preserve the solo-owner workflow. Main CI `36969337682` is not accepted: 716/717 browser cases passed, with one previous-cycle trainer-history swipe failure after native Forward; backend and 767 unit cases passed. Deployment was skipped.
+
+The candidate repair changes only the shared synthetic-touch fixture, its owning navigation/hook tests, failure-trace retention, strict unit receipt fixtures and canonical documentation. Finger client coordinates use one viewport origin across the gesture despite surface drag/scroll. Two added unit cases bring the target to **769 units / 84 files**; the full **717 browser** cases remain mandatory. Production navigation, service contracts, authentication/session policy, API schemas, dependencies and migrations are unchanged. Local units are green; full browser acceptance belongs to native/CI execution and remains pending. See Journey for reproduced failure evidence and its limits.
+
+Image activation, real workflow OIDC proof, current-image runtime acceptance, first Owner/live authentication and full application deployment remain separate pending milestones. Existing lifecycle acceptance remains closed for its bounded scope; this failure does not authorize a new general audit.
+
 ## Accepted lifecycle and infrastructure-first continuation — 1 October 2026
 
 The user reports the complete session lifecycle gates passed at 03:21 Singapore for the 500-file `7208b97902ebecfc83458be0003bf2c5acc00201dd7b4cbb7595034aa6b24ad3` source. The six-flow review is closed for its documented scope. Earlier pending lifecycle statements below are historical; the failed 714/717 browser receipt and focused 9/9 diagnostic remain recorded in Journey.
