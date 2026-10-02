@@ -1,0 +1,285 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Temporary private Fitfinity database setup and real-login permission verification. No URL or API.",
+  "Resources": {
+    "SetupLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/fitfinity-test-db-setup",
+        "RetentionInDays": 1
+      }
+    },
+    "SetupRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "FitfinityDatabaseBootstrap",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:rds!db-06e1ffee-8cb6-422d-96d2-f941519d6a9d-f2CW3j",
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/migration-HRPtjy"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "secretsmanager:VersionStage": "AWSCURRENT"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-db-setup:*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Deny",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses",
+                    "ec2:DetachNetworkInterface"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "ArnEquals": {
+                      "lambda:SourceFunctionArn": "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-db-setup"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "SetupFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "SetupLogs"
+      ],
+      "Properties": {
+        "FunctionName": "fitfinity-test-db-setup",
+        "PackageType": "Image",
+        "Code": {
+          "ImageUri": "418638389566.dkr.ecr.ap-southeast-1.amazonaws.com/fitfinity-test-api@sha256:efa53edd08c54786bb7e04cc2509b6ace31ff903d1a2c473f203548b2e4d6d12"
+        },
+        "Architectures": [
+          "x86_64"
+        ],
+        "ImageConfig": {
+          "Command": [
+            "python",
+            "-c",
+            "import base64,zlib;exec(compile(zlib.decompress(base64.b64decode('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')),'fitfinity_db_bootstrap','exec'))"
+          ],
+          "EntryPoint": [],
+          "WorkingDirectory": "/app"
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "SetupRole",
+            "Arn"
+          ]
+        },
+        "Timeout": 120,
+        "MemorySize": 256,
+        "VpcConfig": {
+          "SubnetIds": [
+            "subnet-0a6ea67e00f370997"
+          ],
+          "SecurityGroupIds": [
+            "sg-0e900a9be9ca081a8"
+          ],
+          "Ipv6AllowedForDualStack": false
+        },
+        "Environment": {
+          "Variables": {
+            "FITFINITY_DB_ACCESS_MODE": "setup",
+            "FITFINITY_APP_DB_SECRET_ARN": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+            "AWS_LWA_PASS_THROUGH_PATH": "/events",
+            "AWS_LWA_PORT": "8080",
+            "AWS_LWA_READINESS_CHECK_PATH": "/health/live",
+            "AWS_LWA_READINESS_CHECK_HEALTHY_STATUS": "200",
+            "FITFINITY_MIGRATION_DB_SECRET_ARN": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/migration-HRPtjy"
+          }
+        }
+      }
+    },
+    "ApplicationLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/fitfinity-test-db-app-probe",
+        "RetentionInDays": 1
+      }
+    },
+    "ApplicationRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "FitfinityDatabaseBootstrap",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "secretsmanager:VersionStage": "AWSCURRENT"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-db-app-probe:*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Deny",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses",
+                    "ec2:DetachNetworkInterface"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "ArnEquals": {
+                      "lambda:SourceFunctionArn": "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-db-app-probe"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ApplicationFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "ApplicationLogs"
+      ],
+      "Properties": {
+        "FunctionName": "fitfinity-test-db-app-probe",
+        "PackageType": "Image",
+        "Code": {
+          "ImageUri": "418638389566.dkr.ecr.ap-southeast-1.amazonaws.com/fitfinity-test-api@sha256:efa53edd08c54786bb7e04cc2509b6ace31ff903d1a2c473f203548b2e4d6d12"
+        },
+        "Architectures": [
+          "x86_64"
+        ],
+        "ImageConfig": {
+          "Command": [
+            "python",
+            "-c",
+            "import base64,zlib;exec(compile(zlib.decompress(base64.b64decode('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')),'fitfinity_db_bootstrap','exec'))"
+          ],
+          "EntryPoint": [],
+          "WorkingDirectory": "/app"
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "ApplicationRole",
+            "Arn"
+          ]
+        },
+        "Timeout": 120,
+        "MemorySize": 256,
+        "VpcConfig": {
+          "SubnetIds": [
+            "subnet-0fcdf32ab544f1207"
+          ],
+          "SecurityGroupIds": [
+            "sg-09bcb69b70968f702"
+          ],
+          "Ipv6AllowedForDualStack": false
+        },
+        "Environment": {
+          "Variables": {
+            "FITFINITY_DB_ACCESS_MODE": "app-probe",
+            "FITFINITY_APP_DB_SECRET_ARN": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+            "AWS_LWA_PASS_THROUGH_PATH": "/events",
+            "AWS_LWA_PORT": "8080",
+            "AWS_LWA_READINESS_CHECK_PATH": "/health/live",
+            "AWS_LWA_READINESS_CHECK_HEALTHY_STATUS": "200"
+          }
+        }
+      }
+    }
+  }
+}

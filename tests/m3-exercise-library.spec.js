@@ -74,7 +74,12 @@ test('M3 owner creates an exercise through confirmation and can use it in a sess
   const saved = await create(page)
   const after = await readDb(page)
   expect(after.exerciseLibrary).toHaveLength(50); expect(after.sessions).toEqual(before.sessions)
-  expect(after.messages.at(-1)).toMatchObject({ exerciseId: saved.id, read: false, recipientRole: 'owner' })
+  const notice = after.messages.at(-1)
+  expect(notice).toMatchObject({ exerciseId: saved.id, recipientRole: 'owner' })
+  // Raw storage records personal receipts; no receipt means unread.
+  expect(notice.readBy).toEqual({})
+  expect(notice).not.toHaveProperty('read')
+  expect(notice).not.toHaveProperty('readAt')
   await expect(page.locator('.library-summary')).toContainText('Keep elbows close.')
   await go(page, 'sessions/library-session')
   await button(page, 'Edit exercise plan').click()

@@ -87,7 +87,7 @@ it('approves once, stores the reviewed breakdown and sends separate owner and tr
   expect(db.remunerationApprovals[0]).toMatchObject({ amountCents: 8000, sessions: 1, minutes: 60, approvedBy: 'owner' })
   expect(db.messages).toHaveLength(2)
   expect(db.messages.map(message => message.status)).toEqual(['approved', 'approved'])
-  expect(db.messages[1]).toMatchObject({ trainerId: 't1', recipientTrainerId: 't1', remunerationCycle: '2026-09', read: false })
+  expect(db.messages[1]).toMatchObject({ trainerId: 't1', recipientTrainerId: 't1', remunerationCycle: '2026-09', readBy: {} })
   expect(await finish(remunerationService.approve('2026-09', 't1', expected, owner).catch(error => error))).toBeInstanceOf(Error)
   expect(mockDb.read()).toEqual(db)
 })

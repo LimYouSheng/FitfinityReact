@@ -10,7 +10,9 @@ import { MOCK_SESSION_KEY } from './services/authService.js'
 import { OWNER_NAV, TRAINER_NAV } from './app/constants.js'
 import { withNavigationHistory } from './test/fixtures/navigation.js'
 
-const click = name => fireEvent.click(screen.getByRole('button', { name, exact: true }))
+const topbar = () => within(document.querySelector('.topbar'))
+const click = name => fireEvent.click((['Back', 'Home', 'Open profile menu'].includes(name) ? topbar() : screen)
+  .getByRole('button', { name, exact: true }))
 const route = async path => waitFor(() => expect(location.hash).toBe(`#/${path}`))
 const traverse = async direction => act(async () => { history.go(direction) })
 function touch(type, x) {
@@ -23,13 +25,17 @@ const swipe = () => { touch('touchstart', 10); touch('touchmove', 160); touch('t
 async function show(path = 'dashboard', id = 'u-owner') {
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: id, expiresAt: Date.now() + 3600000 }))
   history.replaceState(null, '', `/#/${path}`)
-  render(<NotificationProvider><ActionConfirmationProvider><EditGuardProvider><App /></EditGuardProvider></ActionConfirmationProvider></NotificationProvider>)
+  await act(async () => {
+    render(<NotificationProvider><ActionConfirmationProvider><EditGuardProvider><App /></EditGuardProvider></ActionConfirmationProvider></NotificationProvider>)
+  })
   await waitFor(() => expect(document.querySelector('.portal-shell')).toHaveAttribute('data-user-id', id))
 }
 function nav(item) {
-  const group = screen.getByRole('button', { name: `${item.group} section`, exact: true })
+  // Scope accessible-name work to the control's owner, not every calendar button.
+  const navigation = within(screen.getByRole('navigation', { name: 'Portal navigation' }))
+  const group = navigation.getByRole('button', { name: `${item.group} section`, exact: true })
   if (group.getAttribute('aria-expanded') === 'false') fireEvent.click(group)
-  fireEvent.click(within(screen.getByRole('navigation', { name: 'Portal navigation' })).getByRole('button', { name: item.label, exact: true }))
+  fireEvent.click(navigation.getByRole('button', { name: item.label, exact: true }))
 }
 beforeEach(() => {
   localStorage.clear(); mockDb.reset(); vi.stubGlobal('crypto', webcrypto)
@@ -41,18 +47,26 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 const mainRoutes = [['owner', 'u-owner', OWNER_NAV], ['trainer', 'u-marcus', TRAINER_NAV]]
   .flatMap(([role, id, items]) => items.filter(item => item.key !== 'dashboard').map(item => [role, item.key, id, item]))
 it.each(mainRoutes)('supports %s %s Back and Forward including a revisited Dashboard', async (_, key, id, item) => {
+  // Keep the real adapter/history; this matrix does not measure demo network delay.
+  vi.spyOn(await import('./services/mockDb.js'), 'delay').mockResolvedValue()
   await show('dashboard', id)
-  expect(screen.queryByRole('button', { name: 'Back', exact: true })).not.toBeInTheDocument()
-    nav(item); await route(item.key)
-    expect(screen.getByRole('button', { name: 'Back', exact: true })).toBeVisible()
-    const depth = history.state.fitfinityDepth
-    nav(item); expect(history.state.fitfinityDepth).toBe(depth)
-    click('Back'); await route('dashboard')
-    await traverse(1); await route(item.key)
-    click('Home'); await route('dashboard')
-    expect(screen.getByRole('button', { name: 'Back', exact: true })).toBeVisible()
-    click('Back'); await route(item.key)
-    click('Back'); await route('dashboard')
+  const at = async path => {
+    await route(path)
+    // A changed URL alone is not evidence that React consumed the traversal.
+    const destination = path === 'dashboard' ? 'Dashboard' : item.label
+    await waitFor(() => expect(document.querySelector('.sidebar .nav-link.active')).toHaveAttribute('aria-label', destination))
+  }
+  expect(topbar().queryByRole('button', { name: 'Back', exact: true })).not.toBeInTheDocument()
+  nav(item); await at(key)
+  expect(topbar().getByRole('button', { name: 'Back', exact: true })).toBeVisible()
+  const depth = history.state.fitfinityDepth
+  nav(item); expect(history.state.fitfinityDepth).toBe(depth)
+  click('Back'); await at('dashboard')
+  await traverse(1); await at(key)
+  click('Home'); await at('dashboard')
+  expect(topbar().getByRole('button', { name: 'Back', exact: true })).toBeVisible()
+  click('Back'); await at(key)
+  click('Back'); await at('dashboard')
 })
 
 it('restores a previous remuneration cycle, independent list pages and shown amounts through a session and native history', async () => {

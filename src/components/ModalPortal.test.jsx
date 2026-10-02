@@ -1,6 +1,6 @@
 import { StrictMode, useState } from 'react'
 import { afterEach, expect, it } from 'vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ConfirmDialog from './ConfirmDialog.jsx'
 import { NotificationProvider, useNotifications } from './NotificationProvider.jsx'
@@ -51,6 +51,51 @@ it('isolates nested confirmations and restores the parent modal without releasin
   expect(review.closest('[inert]')).toBeNull()
   expect(next).toHaveFocus()
   expect(document.body.style.position).toBe('fixed')
+})
+
+it.each([
+  { order: 'together', focusLost: false },
+  { order: 'parent first', focusLost: false },
+  { order: 'together', focusLost: true },
+  { order: 'parent first', focusLost: true },
+])('returns focus after stacked dialogs close $order with focus lost: $focusLost', async ({ order, focusLost }) => {
+  const user = userEvent.setup()
+  function ClosingDialogs() {
+    const [parent, setParent] = useState(false)
+    const [confirmation, setConfirmation] = useState(false)
+    return <><button onClick={() => setParent(true)}>Open form</button>
+      <ConfirmDialog open={parent} title="Form" confirmLabel="Discard" onConfirm={() => setConfirmation(true)} />
+      <ConfirmDialog open={confirmation} title="Discard form changes?" confirmLabel="Discard Changes" onConfirm={() => {
+        setParent(false)
+        if (order === 'together') setConfirmation(false)
+      }}>
+        <button onClick={() => setConfirmation(false)}>Finish confirmation</button>
+      </ConfirmDialog>
+    </>
+  }
+  render(focusLost ? <ClosingDialogs /> : <StrictMode><ClosingDialogs /></StrictMode>)
+  const opener = screen.getByRole('button', { name: 'Open form', exact: true })
+  await user.click(opener)
+  const discard = within(screen.getByRole('dialog', { name: 'Form', exact: true })).getByRole('button', { name: 'Discard', exact: true })
+  if (focusLost) {
+    // Model a touch click that blurs the previous control without focusing the button.
+    document.activeElement.blur()
+    expect(document.activeElement).toBe(document.body)
+    fireEvent.click(discard)
+  } else await user.click(discard)
+  const confirmation = screen.getByRole('dialog', { name: 'Discard form changes?', exact: true })
+  fireEvent.click(within(confirmation).getByRole('button', { name: 'Discard Changes', exact: true }))
+  expect(screen.queryByRole('dialog', { name: 'Form', exact: true })).not.toBeInTheDocument()
+  if (order === 'parent first') {
+    expect(confirmation).toContainElement(document.activeElement)
+    expect(opener.closest('[inert]')).not.toBeNull()
+    expect(document.body.style.position).toBe('fixed')
+    await user.click(within(confirmation).getByRole('button', { name: 'Finish confirmation', exact: true }))
+  }
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(opener).toHaveFocus()
+  expect(opener.closest('[inert]')).toBeNull()
+  expect(document.body.style.position).toBe('')
 })
 
 it('keeps notification dismissal reachable and returns focus to the open modal when the banner disappears', async () => {

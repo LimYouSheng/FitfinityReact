@@ -1,7 +1,9 @@
+import { managesOperations } from '../app/permissions.js'
 import { sessionIsInactive } from '../app/clientPackages.js'
 import { sessionDurationMinutes } from '../app/sessionRules.js'
 import { requestTypes } from '../app/requestTypes.js'
 import { applyWeeklySchedule, availabilityBlocks, businessNow, requireActiveActor, sameAvailability, sameSlots, sessionTimeChangeError, validateAvailability } from '../app/scheduleChanges.js'
+import { requireSessionSlotAvailable } from '../app/bookingAvailability.js'
 import { delay, mockDb } from './mockDb.js'
 
 const snapshot = session => ({ date: session.date, from: session.from, to: session.to })
@@ -33,7 +35,7 @@ export const requestService = {
       Object.assign(message, cancellation)
       for (const receipt of db.messages.filter(item => item.requestId === message.id)) Object.assign(receipt, cancellation)
       const notice = {
-        ...cancellation, requestId: message.id, createdAt: cancelledAt, read: false, kind: 'request_decision',
+        ...cancellation, requestId: message.id, createdAt: cancelledAt, readBy: {}, kind: 'request_decision',
         sessionId: message.request.sessionId, clientId: message.clientId, trainerId: staff.trainerId,
         title: `Request cancelled: ${message.title}`,
         body: `${staff.name} cancelled this request. The proposed change was not applied.`,
@@ -49,9 +51,9 @@ export const requestService = {
   async resolve(messageId, decision, actor) {
     await delay(120)
     if (!['approved', 'rejected'].includes(decision)) throw new Error('Choose approve or reject.')
-    return mockDb.mutate(db => {
+    const state = mockDb.mutate(db => {
       const owner = db.users.find(user => user.id === actor?.id)
-      if (actor?.role !== 'owner' || owner?.role !== 'owner' || (owner.status ?? 'active') !== 'active') {
+      if (!managesOperations(actor) || !managesOperations(owner) || owner.role !== actor.role || (owner.status ?? 'active') !== 'active') {
         throw new Error('Only an active owner can decide requests.')
       }
       const message = db.messages.find(item => item.id === messageId)
@@ -88,15 +90,14 @@ export const requestService = {
           }
           const timeError = sessionTimeChangeError(session, next, businessNow(new Date(), db.settings.timeZone))
           if (timeError) throw new Error(`${timeError} Reject this request.`)
+          requireSessionSlotAvailable(db, session, next)
           Object.assign(session, { date: next.date, from: next.from, to: next.to })
           if (session.outcome) session.outcome.durationMinutes = sessionDurationMinutes(session)
         } else {
           const replacement = db.trainers.find(item => item.id === request.replacementTrainerId && item.status === 'active')
           if (!replacement || replacement.id === session.trainerId) throw new Error('The replacement trainer is no longer eligible.')
+          requireSessionSlotAvailable(db, session, { trainerId: replacement.id })
           session.trainerId = replacement.id
-        }
-        if (db.sessions.some(other => other.id !== session.id && !sessionIsInactive(db.clients.find(item => item.id === other.clientId), other) && !['completed', 'cancelled'].includes(other.status) && other.date === session.date && (other.trainerId === session.trainerId || other.clientId === session.clientId) && other.from < session.to && session.from < other.to)) {
-          throw new Error('The requested change conflicts with another session. Reject it and request another slot.')
         }
         session.detailsUpdatedAt = new Date().toISOString()
       }
@@ -114,9 +115,10 @@ export const requestService = {
           sessionId: request.sessionId, clientId: message.clientId, trainerId,
           title: `Request ${decision}: ${message.title}`,
           body: decision === 'approved' ? `The owner approved the request and updated the ${subject}.` : 'The owner rejected the request. No scheduling or availability data was changed.',
-          kind: 'request_decision', status: decision, createdAt: decidedAt, read: false, requestId: message.id,
+          kind: 'request_decision', status: decision, createdAt: decidedAt, readBy: {}, requestId: message.id,
         })
       }
     })
+    return state.messages.find(message => message.id === messageId)
   },
 }

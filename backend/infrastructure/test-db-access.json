@@ -1,0 +1,80 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Fitfinity test: two retained, distinct restricted database credentials. No administrator credential export or rotation.",
+  "Resources": {
+    "ApplicationDatabaseSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Name": "fitfinity/test/database/app",
+        "Description": "Fitfinity test restricted PostgreSQL credential: fitfinity_app",
+        "GenerateSecretString": {
+          "SecretStringTemplate": "{\"username\":\"fitfinity_app\"}",
+          "GenerateStringKey": "password",
+          "PasswordLength": 48,
+          "ExcludePunctuation": true,
+          "IncludeSpace": false,
+          "RequireEachIncludedType": true
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "database-access-v1"
+          }
+        ]
+      }
+    },
+    "MigrationDatabaseSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Name": "fitfinity/test/database/migration",
+        "Description": "Fitfinity test restricted PostgreSQL credential: fitfinity_migrator",
+        "GenerateSecretString": {
+          "SecretStringTemplate": "{\"username\":\"fitfinity_migrator\"}",
+          "GenerateStringKey": "password",
+          "PasswordLength": 48,
+          "ExcludePunctuation": true,
+          "IncludeSpace": false,
+          "RequireEachIncludedType": true
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": "Fitfinity"
+          },
+          {
+            "Key": "Environment",
+            "Value": "test"
+          },
+          {
+            "Key": "Purpose",
+            "Value": "database-access-v1"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ApplicationDatabaseSecretArn": {
+      "Value": {
+        "Ref": "ApplicationDatabaseSecret"
+      }
+    },
+    "MigrationDatabaseSecretArn": {
+      "Value": {
+        "Ref": "MigrationDatabaseSecret"
+      }
+    }
+  }
+}

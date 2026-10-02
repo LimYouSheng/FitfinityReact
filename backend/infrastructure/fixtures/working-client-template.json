@@ -1,0 +1,287 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Temporary private Fitfinity database setup and real-login permission verification. No URL or API.",
+  "Resources": {
+    "SetupLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/fitfinity-test-db-setup",
+        "RetentionInDays": 1
+      }
+    },
+    "SetupRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "FitfinityDatabaseBootstrap",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:rds!db-06e1ffee-8cb6-422d-96d2-f941519d6a9d-f2CW3j",
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/migration-HRPtjy"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "secretsmanager:VersionStage": "AWSCURRENT"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-db-setup:*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Deny",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses",
+                    "ec2:DetachNetworkInterface"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "ArnEquals": {
+                      "lambda:SourceFunctionArn": "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-db-setup"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "SetupFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "SetupLogs"
+      ],
+      "Properties": {
+        "FunctionName": "fitfinity-test-db-setup",
+        "PackageType": "Image",
+        "Code": {
+          "ImageUri": "418638389566.dkr.ecr.ap-southeast-1.amazonaws.com/fitfinity-test-api@sha256:efa53edd08c54786bb7e04cc2509b6ace31ff903d1a2c473f203548b2e4d6d12"
+        },
+        "Architectures": [
+          "x86_64"
+        ],
+        "ImageConfig": {
+          "Command": [
+            "python",
+            "-c",
+            "\"\"\"Accept only the hash-pinned bootstrap source through a private Lambda Invoke.\"\"\"\n\nimport hashlib\nimport json\nimport re\nimport sys\n\nimport uvicorn\nfrom fastapi import FastAPI, Request\n\nSOURCE_SHA256 = None\napp = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)\n\n\n@app.get(\"/health/live\")\ndef health():\n    return {\"status\": \"ok\"}\n\n\n@app.post(\"/events\")\nasync def run(request: Request):\n    nonce = None\n    try:\n        raw = await request.body()\n        if len(raw) > 49152:\n            raise ValueError(\"envelope size\")\n        event = json.loads(raw)\n        candidate = event.get(\"nonce\")\n        if isinstance(candidate, str) and re.fullmatch(r\"[a-f0-9]{32}\", candidate):\n            nonce = candidate\n        source = event.pop(\"bootstrap_source\").encode(\"utf-8\")\n        if len(source) > 32768 or hashlib.sha256(source).hexdigest() != SOURCE_SHA256:\n            raise ValueError(\"source verification\")\n        body = json.dumps(event).encode()\n        if len(body) > 256:\n            raise ValueError(\"request size\")\n\n        async def receive():\n            return {\"type\": \"http.request\", \"body\": body, \"more_body\": False}\n\n        namespace = {\"__name__\": \"fitfinity_db_bootstrap\"}\n        exec(compile(source, \"fitfinity_db_bootstrap\", \"exec\"), namespace)\n        return await namespace[\"run\"](Request(request.scope, receive))\n    except Exception as error:\n        return {\n            \"ok\": False,\n            \"nonce\": nonce,\n            \"stage\": \"bootstrap_transport\",\n            \"error_type\": type(error).__name__,\n            \"sqlstate\": None,\n        }\n\n\nif __name__ == \"__main__\":\n    SOURCE_SHA256 = sys.argv[1]\n    uvicorn.run(\n        app, host=\"0.0.0.0\", port=8080, access_log=False, log_level=\"error\", proxy_headers=False\n    )\n",
+            "50f1fe97223b0fbbb0eadab87369474ab7f7360e63751a3aebac00cff90d75f9"
+          ],
+          "EntryPoint": [],
+          "WorkingDirectory": "/app"
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "SetupRole",
+            "Arn"
+          ]
+        },
+        "Timeout": 120,
+        "MemorySize": 256,
+        "VpcConfig": {
+          "SubnetIds": [
+            "subnet-0a6ea67e00f370997"
+          ],
+          "SecurityGroupIds": [
+            "sg-0e900a9be9ca081a8"
+          ],
+          "Ipv6AllowedForDualStack": false
+        },
+        "Environment": {
+          "Variables": {
+            "FITFINITY_DB_ACCESS_MODE": "setup",
+            "FITFINITY_APP_DB_SECRET_ARN": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+            "AWS_LWA_PASS_THROUGH_PATH": "/events",
+            "AWS_LWA_PORT": "8080",
+            "AWS_LWA_READINESS_CHECK_PATH": "/health/live",
+            "AWS_LWA_READINESS_CHECK_HEALTHY_STATUS": "200",
+            "FITFINITY_MIGRATION_DB_SECRET_ARN": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/migration-HRPtjy"
+          }
+        }
+      }
+    },
+    "ApplicationLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/fitfinity-test-db-app-probe",
+        "RetentionInDays": 1
+      }
+    },
+    "ApplicationRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "FitfinityDatabaseBootstrap",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "secretsmanager:VersionStage": "AWSCURRENT"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-db-app-probe:*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Deny",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses",
+                    "ec2:DetachNetworkInterface"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "ArnEquals": {
+                      "lambda:SourceFunctionArn": "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-db-app-probe"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ApplicationFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "ApplicationLogs"
+      ],
+      "Properties": {
+        "FunctionName": "fitfinity-test-db-app-probe",
+        "PackageType": "Image",
+        "Code": {
+          "ImageUri": "418638389566.dkr.ecr.ap-southeast-1.amazonaws.com/fitfinity-test-api@sha256:efa53edd08c54786bb7e04cc2509b6ace31ff903d1a2c473f203548b2e4d6d12"
+        },
+        "Architectures": [
+          "x86_64"
+        ],
+        "ImageConfig": {
+          "Command": [
+            "python",
+            "-c",
+            "\"\"\"Accept only the hash-pinned bootstrap source through a private Lambda Invoke.\"\"\"\n\nimport hashlib\nimport json\nimport re\nimport sys\n\nimport uvicorn\nfrom fastapi import FastAPI, Request\n\nSOURCE_SHA256 = None\napp = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)\n\n\n@app.get(\"/health/live\")\ndef health():\n    return {\"status\": \"ok\"}\n\n\n@app.post(\"/events\")\nasync def run(request: Request):\n    nonce = None\n    try:\n        raw = await request.body()\n        if len(raw) > 49152:\n            raise ValueError(\"envelope size\")\n        event = json.loads(raw)\n        candidate = event.get(\"nonce\")\n        if isinstance(candidate, str) and re.fullmatch(r\"[a-f0-9]{32}\", candidate):\n            nonce = candidate\n        source = event.pop(\"bootstrap_source\").encode(\"utf-8\")\n        if len(source) > 32768 or hashlib.sha256(source).hexdigest() != SOURCE_SHA256:\n            raise ValueError(\"source verification\")\n        body = json.dumps(event).encode()\n        if len(body) > 256:\n            raise ValueError(\"request size\")\n\n        async def receive():\n            return {\"type\": \"http.request\", \"body\": body, \"more_body\": False}\n\n        namespace = {\"__name__\": \"fitfinity_db_bootstrap\"}\n        exec(compile(source, \"fitfinity_db_bootstrap\", \"exec\"), namespace)\n        return await namespace[\"run\"](Request(request.scope, receive))\n    except Exception as error:\n        return {\n            \"ok\": False,\n            \"nonce\": nonce,\n            \"stage\": \"bootstrap_transport\",\n            \"error_type\": type(error).__name__,\n            \"sqlstate\": None,\n        }\n\n\nif __name__ == \"__main__\":\n    SOURCE_SHA256 = sys.argv[1]\n    uvicorn.run(\n        app, host=\"0.0.0.0\", port=8080, access_log=False, log_level=\"error\", proxy_headers=False\n    )\n",
+            "50f1fe97223b0fbbb0eadab87369474ab7f7360e63751a3aebac00cff90d75f9"
+          ],
+          "EntryPoint": [],
+          "WorkingDirectory": "/app"
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "ApplicationRole",
+            "Arn"
+          ]
+        },
+        "Timeout": 120,
+        "MemorySize": 256,
+        "VpcConfig": {
+          "SubnetIds": [
+            "subnet-0fcdf32ab544f1207"
+          ],
+          "SecurityGroupIds": [
+            "sg-09bcb69b70968f702"
+          ],
+          "Ipv6AllowedForDualStack": false
+        },
+        "Environment": {
+          "Variables": {
+            "FITFINITY_DB_ACCESS_MODE": "app-probe",
+            "FITFINITY_APP_DB_SECRET_ARN": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+            "AWS_LWA_PASS_THROUGH_PATH": "/events",
+            "AWS_LWA_PORT": "8080",
+            "AWS_LWA_READINESS_CHECK_PATH": "/health/live",
+            "AWS_LWA_READINESS_CHECK_HEALTHY_STATUS": "200"
+          }
+        }
+      }
+    }
+  }
+}

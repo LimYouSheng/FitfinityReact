@@ -1,0 +1,111 @@
+# Local development and an independent, ephemeral verification profile. No AWS resources.
+services:
+  db:
+    image: postgres:17.11-bookworm
+    environment:
+      POSTGRES_USER: fitfinity
+      POSTGRES_PASSWORD: fitfinity-local-only
+      POSTGRES_DB: fitfinity_local
+    volumes:
+      - dev-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U fitfinity -d fitfinity_local"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  migrate:
+    build:
+      context: .
+      target: runtime
+    environment:
+      FITFINITY_ENVIRONMENT: local
+      FITFINITY_DATABASE_URL: postgresql+psycopg://fitfinity:fitfinity-local-only@db:5432/fitfinity_local
+    command: [python, -m, alembic, upgrade, head]
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  api:
+    build:
+      context: .
+      target: runtime
+    environment:
+      FITFINITY_ENVIRONMENT: local
+      FITFINITY_DATABASE_URL: postgresql+psycopg://fitfinity:fitfinity-local-only@db:5432/fitfinity_local
+      FITFINITY_AUTH_ENABLED: ${FITFINITY_AUTH_ENABLED:-false}
+      FITFINITY_COGNITO_POOL_ID: ${FITFINITY_COGNITO_POOL_ID:-}
+      FITFINITY_COGNITO_CLIENT_ID: ${FITFINITY_COGNITO_CLIENT_ID:-}
+      FITFINITY_COGNITO_CLIENT_SECRET: ${FITFINITY_COGNITO_CLIENT_SECRET:-}
+      FITFINITY_AUTH_ENCRYPTION_KEYS: ${FITFINITY_AUTH_ENCRYPTION_KEYS:-[]}
+      FITFINITY_AUTH_ORIGINS: ${FITFINITY_AUTH_ORIGINS:-[]}
+      FITFINITY_AUTH_COOKIE_SECURE: ${FITFINITY_AUTH_COOKIE_SECURE:-true}
+      FITFINITY_AUTH_SESSION_HOURS: ${FITFINITY_AUTH_SESSION_HOURS:-8}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=6)"]
+      interval: 10s
+      timeout: 8s
+      retries: 3
+
+  test-db:
+    profiles: [test]
+    image: postgres:17.11-bookworm
+    environment:
+      POSTGRES_USER: fitfinity_test
+      POSTGRES_PASSWORD: fitfinity-test-only
+      POSTGRES_DB: fitfinity_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U fitfinity_test -d fitfinity_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  tests:
+    profiles: [test]
+    build:
+      context: .
+      target: test
+    environment:
+      FITFINITY_ENVIRONMENT: test
+      FITFINITY_TEST_DATABASE_URL: postgresql+psycopg://fitfinity_test:fitfinity-test-only@test-db:5432/fitfinity_test
+      FORCE_COLOR: '1'
+    depends_on:
+      test-db:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  infrastructure-tests:
+    profiles: [test]
+    build:
+      context: .
+      target: test
+    command: [python, scripts/verify-infrastructure.py]
+    network_mode: none
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      FORCE_COLOR: '1'
+      AWS_EC2_METADATA_DISABLED: 'true'
+
+volumes:
+  dev-postgres:

@@ -1,0 +1,1181 @@
+{
+  "account": "418638389566",
+  "region": "ap-southeast-1",
+  "vpc": "vpc-0b55320bb1a054441",
+  "read_only": true,
+  "preflight_passed": true,
+  "egress_deployed": false,
+  "app_deployed": false,
+  "plan": {
+    "accountId": "418638389566",
+    "accountPlanType": "FREE",
+    "accountPlanStatus": "ACTIVE",
+    "accountPlanRemainingCredits": {
+      "amount": 120.0,
+      "unit": "USD"
+    },
+    "accountPlanExpirationDate": "2027-03-22T05:57:29.311000+00:00"
+  },
+  "foundation": {
+    "stack_id": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d",
+    "status": "UPDATE_COMPLETE",
+    "outputs": [
+      {
+        "OutputKey": "ApplicationSecurityGroup",
+        "OutputValue": "sg-09bcb69b70968f702"
+      },
+      {
+        "OutputKey": "DatabasePort",
+        "OutputValue": "5432"
+      },
+      {
+        "OutputKey": "AdminSecretArn",
+        "OutputValue": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:rds!db-06e1ffee-8cb6-422d-96d2-f941519d6a9d-f2CW3j"
+      },
+      {
+        "OutputKey": "Vpc",
+        "OutputValue": "vpc-0b55320bb1a054441"
+      },
+      {
+        "OutputKey": "MigrationSecurityGroup",
+        "OutputValue": "sg-0e900a9be9ca081a8"
+      },
+      {
+        "OutputKey": "AppSubnetB",
+        "OutputValue": "subnet-0fcdf32ab544f1207"
+      },
+      {
+        "OutputKey": "DatabaseSecurityGroup",
+        "OutputValue": "sg-02e32d9cff9e4e8b6"
+      },
+      {
+        "OutputKey": "AppSubnetA",
+        "OutputValue": "subnet-0a6ea67e00f370997"
+      },
+      {
+        "OutputKey": "AppRoutesB",
+        "OutputValue": "rtb-046a15665b5999a5a"
+      },
+      {
+        "OutputKey": "AppRoutesA",
+        "OutputValue": "rtb-09f050cad93faea2c"
+      },
+      {
+        "OutputKey": "DatabaseEndpoint",
+        "OutputValue": "fitfinity-test-db.c1ak66620gza.ap-southeast-1.rds.amazonaws.com"
+      }
+    ]
+  },
+  "cognito": {
+    "stack_id": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-cognito/776045f0-b66b-11f1-92b4-06ffd526f669",
+    "status": "UPDATE_COMPLETE",
+    "outputs": [
+      {
+        "OutputKey": "PoolId",
+        "OutputValue": "ap-southeast-1_La0Y3MXCj"
+      },
+      {
+        "OutputKey": "ClientId",
+        "OutputValue": "2jj6r722g5591u5kf2b812pkgm"
+      }
+    ]
+  },
+  "subnets": [
+    {
+      "AvailabilityZoneId": "apse1-az1",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "418638389566",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "Tags": [
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-DatabaseSubnetB"
+        },
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        },
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        },
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "DatabaseSubnetB"
+        }
+      ],
+      "SubnetArn": "arn:aws:ec2:ap-southeast-1:418638389566:subnet/subnet-03edec1f8bbb2b425",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-03edec1f8bbb2b425",
+      "State": "available",
+      "VpcId": "vpc-0b55320bb1a054441",
+      "CidrBlock": "10.84.17.0/24",
+      "AvailableIpAddressCount": 251,
+      "AvailabilityZone": "ap-southeast-1b",
+      "DefaultForAz": false,
+      "MapPublicIpOnLaunch": false
+    },
+    {
+      "AvailabilityZoneId": "apse1-az1",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "418638389566",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "Tags": [
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "AppSubnetB"
+        },
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-AppSubnetB"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        },
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        }
+      ],
+      "SubnetArn": "arn:aws:ec2:ap-southeast-1:418638389566:subnet/subnet-0fcdf32ab544f1207",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-0fcdf32ab544f1207",
+      "State": "available",
+      "VpcId": "vpc-0b55320bb1a054441",
+      "CidrBlock": "10.84.33.0/24",
+      "AvailableIpAddressCount": 251,
+      "AvailabilityZone": "ap-southeast-1b",
+      "DefaultForAz": false,
+      "MapPublicIpOnLaunch": false
+    },
+    {
+      "AvailabilityZoneId": "apse1-az2",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "418638389566",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "Tags": [
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        },
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "AppSubnetA"
+        },
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-AppSubnetA"
+        },
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        }
+      ],
+      "SubnetArn": "arn:aws:ec2:ap-southeast-1:418638389566:subnet/subnet-0a6ea67e00f370997",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-0a6ea67e00f370997",
+      "State": "available",
+      "VpcId": "vpc-0b55320bb1a054441",
+      "CidrBlock": "10.84.32.0/24",
+      "AvailableIpAddressCount": 251,
+      "AvailabilityZone": "ap-southeast-1a",
+      "DefaultForAz": false,
+      "MapPublicIpOnLaunch": false
+    },
+    {
+      "AvailabilityZoneId": "apse1-az2",
+      "MapCustomerOwnedIpOnLaunch": false,
+      "OwnerId": "418638389566",
+      "AssignIpv6AddressOnCreation": false,
+      "Ipv6CidrBlockAssociationSet": [],
+      "Tags": [
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "DatabaseSubnetA"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-DatabaseSubnetA"
+        },
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        },
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        }
+      ],
+      "SubnetArn": "arn:aws:ec2:ap-southeast-1:418638389566:subnet/subnet-0cc409df12368c08f",
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "SubnetId": "subnet-0cc409df12368c08f",
+      "State": "available",
+      "VpcId": "vpc-0b55320bb1a054441",
+      "CidrBlock": "10.84.16.0/24",
+      "AvailableIpAddressCount": 250,
+      "AvailabilityZone": "ap-southeast-1a",
+      "DefaultForAz": false,
+      "MapPublicIpOnLaunch": false
+    }
+  ],
+  "route_tables": [
+    {
+      "Associations": [
+        {
+          "Main": false,
+          "RouteTableAssociationId": "rtbassoc-0246100df2832f622",
+          "RouteTableId": "rtb-046a15665b5999a5a",
+          "SubnetId": "subnet-0fcdf32ab544f1207",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "RouteTableId": "rtb-046a15665b5999a5a",
+      "Routes": [
+        {
+          "DestinationCidrBlock": "10.84.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-AppRoutesB"
+        },
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "AppRoutesB"
+        },
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        },
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        }
+      ],
+      "VpcId": "vpc-0b55320bb1a054441",
+      "OwnerId": "418638389566"
+    },
+    {
+      "Associations": [
+        {
+          "Main": false,
+          "RouteTableAssociationId": "rtbassoc-0b21433a24f7cf442",
+          "RouteTableId": "rtb-04c690b00cf7628fc",
+          "SubnetId": "subnet-0cc409df12368c08f",
+          "AssociationState": {
+            "State": "associated"
+          }
+        },
+        {
+          "Main": false,
+          "RouteTableAssociationId": "rtbassoc-0afadf842682f693e",
+          "RouteTableId": "rtb-04c690b00cf7628fc",
+          "SubnetId": "subnet-03edec1f8bbb2b425",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "RouteTableId": "rtb-04c690b00cf7628fc",
+      "Routes": [
+        {
+          "DestinationCidrBlock": "10.84.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-DatabaseRoutes"
+        },
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        },
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "DatabaseRoutes"
+        },
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        }
+      ],
+      "VpcId": "vpc-0b55320bb1a054441",
+      "OwnerId": "418638389566"
+    },
+    {
+      "Associations": [
+        {
+          "Main": true,
+          "RouteTableAssociationId": "rtbassoc-04818f5020d4da874",
+          "RouteTableId": "rtb-08334351a87122370",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "RouteTableId": "rtb-08334351a87122370",
+      "Routes": [
+        {
+          "DestinationCidrBlock": "10.84.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        }
+      ],
+      "Tags": [],
+      "VpcId": "vpc-0b55320bb1a054441",
+      "OwnerId": "418638389566"
+    },
+    {
+      "Associations": [
+        {
+          "Main": false,
+          "RouteTableAssociationId": "rtbassoc-0e5056c1094819acd",
+          "RouteTableId": "rtb-09f050cad93faea2c",
+          "SubnetId": "subnet-0a6ea67e00f370997",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "RouteTableId": "rtb-09f050cad93faea2c",
+      "Routes": [
+        {
+          "DestinationCidrBlock": "10.84.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        },
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "AppRoutesA"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-AppRoutesA"
+        },
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        },
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        }
+      ],
+      "VpcId": "vpc-0b55320bb1a054441",
+      "OwnerId": "418638389566"
+    }
+  ],
+  "internet_gateways": [],
+  "nat_gateways": [],
+  "endpoints": [],
+  "instances": [],
+  "security_groups": [
+    {
+      "GroupId": "sg-09bcb69b70968f702",
+      "IpPermissionsEgress": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 5432,
+          "ToPort": 5432,
+          "UserIdGroupPairs": [
+            {
+              "UserId": "418638389566",
+              "GroupId": "sg-02e32d9cff9e4e8b6"
+            }
+          ],
+          "IpRanges": [],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        },
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 443,
+          "ToPort": 443,
+          "UserIdGroupPairs": [],
+          "IpRanges": [
+            {
+              "CidrIp": "0.0.0.0/0"
+            }
+          ],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "ApplicationSecurityGroup"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-ApplicationSecurityGroup"
+        },
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        },
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        },
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        },
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        }
+      ],
+      "VpcId": "vpc-0b55320bb1a054441",
+      "SecurityGroupArn": "arn:aws:ec2:ap-southeast-1:418638389566:security-group/sg-09bcb69b70968f702",
+      "OwnerId": "418638389566",
+      "GroupName": "fitfinity-test-foundation-ApplicationSecurityGroup-zAFrTQQ9PG0R",
+      "Description": "Dedicated Fitfinity ApplicationSecurityGroup",
+      "IpPermissions": []
+    },
+    {
+      "GroupId": "sg-050a855de242feccb",
+      "IpPermissionsEgress": [
+        {
+          "IpProtocol": "-1",
+          "UserIdGroupPairs": [],
+          "IpRanges": [
+            {
+              "CidrIp": "0.0.0.0/0"
+            }
+          ],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        }
+      ],
+      "VpcId": "vpc-0b55320bb1a054441",
+      "SecurityGroupArn": "arn:aws:ec2:ap-southeast-1:418638389566:security-group/sg-050a855de242feccb",
+      "OwnerId": "418638389566",
+      "GroupName": "default",
+      "Description": "default VPC security group",
+      "IpPermissions": [
+        {
+          "IpProtocol": "-1",
+          "UserIdGroupPairs": [
+            {
+              "UserId": "418638389566",
+              "GroupId": "sg-050a855de242feccb"
+            }
+          ],
+          "IpRanges": [],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        }
+      ]
+    },
+    {
+      "GroupId": "sg-02e32d9cff9e4e8b6",
+      "IpPermissionsEgress": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 9,
+          "ToPort": 9,
+          "UserIdGroupPairs": [],
+          "IpRanges": [
+            {
+              "CidrIp": "127.0.0.1/32"
+            }
+          ],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-database"
+        },
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "DatabaseSecurityGroup"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        },
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        },
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        }
+      ],
+      "VpcId": "vpc-0b55320bb1a054441",
+      "SecurityGroupArn": "arn:aws:ec2:ap-southeast-1:418638389566:security-group/sg-02e32d9cff9e4e8b6",
+      "OwnerId": "418638389566",
+      "GroupName": "fitfinity-test-foundation-DatabaseSecurityGroup-WOkAe4joNQC7",
+      "Description": "PostgreSQL from dedicated application and migration security groups only",
+      "IpPermissions": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 5432,
+          "ToPort": 5432,
+          "UserIdGroupPairs": [
+            {
+              "UserId": "418638389566",
+              "GroupId": "sg-0e900a9be9ca081a8"
+            },
+            {
+              "UserId": "418638389566",
+              "GroupId": "sg-09bcb69b70968f702"
+            }
+          ],
+          "IpRanges": [],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        }
+      ]
+    },
+    {
+      "GroupId": "sg-0e900a9be9ca081a8",
+      "IpPermissionsEgress": [
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 5432,
+          "ToPort": 5432,
+          "UserIdGroupPairs": [
+            {
+              "UserId": "418638389566",
+              "GroupId": "sg-02e32d9cff9e4e8b6"
+            }
+          ],
+          "IpRanges": [],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        },
+        {
+          "IpProtocol": "tcp",
+          "FromPort": 443,
+          "ToPort": 443,
+          "UserIdGroupPairs": [],
+          "IpRanges": [
+            {
+              "CidrIp": "0.0.0.0/0"
+            }
+          ],
+          "Ipv6Ranges": [],
+          "PrefixListIds": []
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Application",
+          "Value": "Fitfinity"
+        },
+        {
+          "Key": "aws:cloudformation:stack-id",
+          "Value": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-foundation/6b51b020-b65f-11f1-82ee-0a2a8f1e9b2d"
+        },
+        {
+          "Key": "ManagedBy",
+          "Value": "fitfinity-foundation-planner"
+        },
+        {
+          "Key": "aws:cloudformation:logical-id",
+          "Value": "MigrationSecurityGroup"
+        },
+        {
+          "Key": "Environment",
+          "Value": "test"
+        },
+        {
+          "Key": "aws:cloudformation:stack-name",
+          "Value": "fitfinity-test-foundation"
+        },
+        {
+          "Key": "TemplateSHA256",
+          "Value": "67d405fd41489323c1efb89785f475e696f6149d429fa9a67318c35d55af07e4"
+        },
+        {
+          "Key": "Name",
+          "Value": "fitfinity-test-MigrationSecurityGroup"
+        }
+      ],
+      "VpcId": "vpc-0b55320bb1a054441",
+      "SecurityGroupArn": "arn:aws:ec2:ap-southeast-1:418638389566:security-group/sg-0e900a9be9ca081a8",
+      "OwnerId": "418638389566",
+      "GroupName": "fitfinity-test-foundation-MigrationSecurityGroup-likAvdIIwfYx",
+      "Description": "Dedicated Fitfinity MigrationSecurityGroup",
+      "IpPermissions": []
+    }
+  ],
+  "network_acls": [
+    {
+      "Associations": [
+        {
+          "NetworkAclAssociationId": "aclassoc-0167972530b44c441",
+          "NetworkAclId": "acl-00efc43ee3c2d26be",
+          "SubnetId": "subnet-0a6ea67e00f370997"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-0a0f33dee98d634f7",
+          "NetworkAclId": "acl-00efc43ee3c2d26be",
+          "SubnetId": "subnet-0cc409df12368c08f"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-02f3c1383ae2a3364",
+          "NetworkAclId": "acl-00efc43ee3c2d26be",
+          "SubnetId": "subnet-03edec1f8bbb2b425"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-00526f22294f2837d",
+          "NetworkAclId": "acl-00efc43ee3c2d26be",
+          "SubnetId": "subnet-0fcdf32ab544f1207"
+        }
+      ],
+      "Entries": [
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        }
+      ],
+      "IsDefault": true,
+      "NetworkAclId": "acl-00efc43ee3c2d26be",
+      "Tags": [],
+      "VpcId": "vpc-0b55320bb1a054441",
+      "OwnerId": "418638389566"
+    }
+  ],
+  "ami_candidate": {
+    "ImageId": "ami-021e6de04c7a84a9f",
+    "Name": "al2023-ami-2023.12.20260918.0-kernel-6.18-arm64",
+    "OwnerId": "137112412989",
+    "Architecture": "arm64",
+    "CreationDate": "2026-09-18T04:41:09.000Z",
+    "RootDeviceName": "/dev/xvda",
+    "BlockDeviceMappings": [
+      {
+        "Ebs": {
+          "DeleteOnTermination": true,
+          "Iops": 3000,
+          "SnapshotId": "snap-011c62a1a3bc255d3",
+          "VolumeSize": 8,
+          "VolumeType": "gp3",
+          "Throughput": 125,
+          "Encrypted": false
+        },
+        "DeviceName": "/dev/xvda"
+      }
+    ]
+  },
+  "candidate_root_gib": 8,
+  "offerings": [
+    {
+      "InstanceType": "t4g.micro",
+      "LocationType": "availability-zone",
+      "Location": "ap-southeast-1a"
+    },
+    {
+      "InstanceType": "t4g.nano",
+      "LocationType": "availability-zone",
+      "Location": "ap-southeast-1a"
+    }
+  ],
+  "instance_types": [
+    {
+      "InstanceType": "t4g.micro",
+      "CurrentGeneration": true,
+      "FreeTierEligible": true,
+      "SupportedUsageClasses": [
+        "on-demand",
+        "spot"
+      ],
+      "SupportedRootDeviceTypes": [
+        "ebs"
+      ],
+      "SupportedVirtualizationTypes": [
+        "hvm"
+      ],
+      "BareMetal": false,
+      "Hypervisor": "nitro",
+      "ProcessorInfo": {
+        "SupportedArchitectures": [
+          "arm64"
+        ],
+        "SustainedClockSpeedInGhz": 2.5,
+        "Manufacturer": "AWS"
+      },
+      "VCpuInfo": {
+        "DefaultVCpus": 2,
+        "DefaultCores": 2,
+        "DefaultThreadsPerCore": 1,
+        "ValidCores": [
+          1,
+          2
+        ],
+        "ValidThreadsPerCore": [
+          1
+        ]
+      },
+      "MemoryInfo": {
+        "SizeInMiB": 1024
+      },
+      "InstanceStorageSupported": false,
+      "EbsInfo": {
+        "EbsOptimizedSupport": "default",
+        "EncryptionSupport": "supported",
+        "EbsOptimizedInfo": {
+          "BaselineBandwidthInMbps": 87,
+          "BaselineThroughputInMBps": 10.875,
+          "BaselineIops": 500,
+          "MaximumBandwidthInMbps": 2085,
+          "MaximumThroughputInMBps": 260.625,
+          "MaximumIops": 11800
+        },
+        "NvmeSupport": "required",
+        "MaximumEbsAttachments": 27,
+        "AttachmentLimitType": "shared"
+      },
+      "NetworkInfo": {
+        "NetworkPerformance": "Up to 5 Gigabit",
+        "MaximumNetworkInterfaces": 2,
+        "MaximumNetworkCards": 1,
+        "DefaultNetworkCardIndex": 0,
+        "NetworkCards": [
+          {
+            "NetworkCardIndex": 0,
+            "NetworkPerformance": "Up to 5 Gigabit",
+            "MaximumNetworkInterfaces": 2,
+            "BaselineBandwidthInGbps": 0.064,
+            "PeakBandwidthInGbps": 5.0,
+            "DefaultEnaQueueCountPerInterface": 2,
+            "InterfaceTypes": [
+              "interface"
+            ]
+          }
+        ],
+        "Ipv4AddressesPerInterface": 2,
+        "Ipv6AddressesPerInterface": 2,
+        "Ipv6Supported": true,
+        "EnaSupport": "required",
+        "EfaSupported": false,
+        "EncryptionInTransitSupported": false,
+        "EnaSrdSupported": false,
+        "FlexibleEnaQueuesSupport": "unsupported",
+        "ConnectionTrackingConfiguration": {
+          "DefaultTcpEstablishedTimeout": 432000,
+          "DefaultUdpTimeout": 30,
+          "DefaultUdpStreamTimeout": 180
+        },
+        "SecondaryNetworkSupported": false
+      },
+      "PlacementGroupInfo": {
+        "SupportedStrategies": [
+          "partition",
+          "spread"
+        ]
+      },
+      "HibernationSupported": true,
+      "BurstablePerformanceSupported": true,
+      "DedicatedHostsSupported": false,
+      "AutoRecoverySupported": true,
+      "SupportedBootModes": [
+        "uefi"
+      ],
+      "NitroEnclavesSupport": "unsupported",
+      "NitroTpmSupport": "supported",
+      "NitroTpmInfo": {
+        "SupportedVersions": [
+          "2.0"
+        ]
+      },
+      "PhcSupport": "unsupported",
+      "RebootMigrationSupport": "supported",
+      "SupportedInRegion": true
+    },
+    {
+      "InstanceType": "t4g.nano",
+      "CurrentGeneration": true,
+      "FreeTierEligible": false,
+      "SupportedUsageClasses": [
+        "on-demand",
+        "spot"
+      ],
+      "SupportedRootDeviceTypes": [
+        "ebs"
+      ],
+      "SupportedVirtualizationTypes": [
+        "hvm"
+      ],
+      "BareMetal": false,
+      "Hypervisor": "nitro",
+      "ProcessorInfo": {
+        "SupportedArchitectures": [
+          "arm64"
+        ],
+        "SustainedClockSpeedInGhz": 2.5,
+        "Manufacturer": "AWS"
+      },
+      "VCpuInfo": {
+        "DefaultVCpus": 2,
+        "DefaultCores": 2,
+        "DefaultThreadsPerCore": 1,
+        "ValidCores": [
+          1,
+          2
+        ],
+        "ValidThreadsPerCore": [
+          1
+        ]
+      },
+      "MemoryInfo": {
+        "SizeInMiB": 512
+      },
+      "InstanceStorageSupported": false,
+      "EbsInfo": {
+        "EbsOptimizedSupport": "default",
+        "EncryptionSupport": "supported",
+        "EbsOptimizedInfo": {
+          "BaselineBandwidthInMbps": 43,
+          "BaselineThroughputInMBps": 5.375,
+          "BaselineIops": 250,
+          "MaximumBandwidthInMbps": 2085,
+          "MaximumThroughputInMBps": 260.625,
+          "MaximumIops": 11800
+        },
+        "NvmeSupport": "required",
+        "MaximumEbsAttachments": 27,
+        "AttachmentLimitType": "shared"
+      },
+      "NetworkInfo": {
+        "NetworkPerformance": "Up to 5 Gigabit",
+        "MaximumNetworkInterfaces": 2,
+        "MaximumNetworkCards": 1,
+        "DefaultNetworkCardIndex": 0,
+        "NetworkCards": [
+          {
+            "NetworkCardIndex": 0,
+            "NetworkPerformance": "Up to 5 Gigabit",
+            "MaximumNetworkInterfaces": 2,
+            "BaselineBandwidthInGbps": 0.032,
+            "PeakBandwidthInGbps": 5.0,
+            "DefaultEnaQueueCountPerInterface": 2,
+            "InterfaceTypes": [
+              "interface"
+            ]
+          }
+        ],
+        "Ipv4AddressesPerInterface": 2,
+        "Ipv6AddressesPerInterface": 2,
+        "Ipv6Supported": true,
+        "EnaSupport": "required",
+        "EfaSupported": false,
+        "EncryptionInTransitSupported": false,
+        "EnaSrdSupported": false,
+        "FlexibleEnaQueuesSupport": "unsupported",
+        "ConnectionTrackingConfiguration": {
+          "DefaultTcpEstablishedTimeout": 432000,
+          "DefaultUdpTimeout": 30,
+          "DefaultUdpStreamTimeout": 180
+        },
+        "SecondaryNetworkSupported": false
+      },
+      "PlacementGroupInfo": {
+        "SupportedStrategies": [
+          "partition",
+          "spread"
+        ]
+      },
+      "HibernationSupported": true,
+      "BurstablePerformanceSupported": true,
+      "DedicatedHostsSupported": false,
+      "AutoRecoverySupported": true,
+      "SupportedBootModes": [
+        "uefi"
+      ],
+      "NitroEnclavesSupport": "unsupported",
+      "NitroTpmSupport": "supported",
+      "NitroTpmInfo": {
+        "SupportedVersions": [
+          "2.0"
+        ]
+      },
+      "PhcSupport": "unsupported",
+      "RebootMigrationSupport": "supported",
+      "SupportedInRegion": true
+    }
+  ],
+  "prices": {
+    "t4g.nano": {
+      "sku": "YNP87TGG5MUZDAE6",
+      "usd": "0.0053000000",
+      "unit": "Hrs",
+      "description": "$0.0053 per On Demand Linux t4g.nano Instance Hour",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "t4g.micro": {
+      "sku": "KVDBNHWN4332K9WE",
+      "usd": "0.0106000000",
+      "unit": "Hrs",
+      "description": "$0.0106 per On Demand Linux t4g.micro Instance Hour",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "gp3": {
+      "sku": "X8SY8CJFS8WV7VQN",
+      "usd": "0.0960000000",
+      "unit": "GB-Mo",
+      "description": "$0.096 per GB-month of General Purpose (gp3) provisioned storage - Asia Pacific (Singapore)",
+      "effective": "2026-09-01T00:00:00Z"
+    },
+    "public_ipv4": {
+      "sku": "C8D8VMQRDHMB9KRU",
+      "usd": "0.0050000000",
+      "unit": "Hrs",
+      "description": "$0.005 per In-use public IPv4 address per hour",
+      "effective": "2026-09-01T00:00:00Z"
+    }
+  },
+  "monthly_base_usd": {
+    "t4g.nano": "8.2870000000",
+    "t4g.micro": "12.1560000000"
+  },
+  "excludes": "Taxes/FX, transfer including cross-AZ, CloudWatch/management usage, snapshots, additional storage/IOPS/throughput and operating labour. Existing foundation/app costs are separate. Standard CPU credits proposed; exhaustion can throttle throughput. Not a spend cap.",
+  "proposal": {
+    "availability_zone": "ap-southeast-1a",
+    "public_subnet_cidr": "10.84.0.0/24",
+    "instance_candidate": "t4g.nano",
+    "comparison": "t4g.micro",
+    "os": "Amazon Linux 2023 arm64 (public parameter resolved in receipt; pin exact AMI during template preparation)",
+    "design": "One NAT instance/EIP in a dedicated public subnet; private app routes through its ENI; database routes remain local-only.",
+    "required_controls": [
+      "No inbound SSH/public administration",
+      "SSM management with least-privilege role",
+      "IMDSv2",
+      "Encrypted gp3",
+      "Standard CPU credits",
+      "Source/destination check disabled only on NAT ENI",
+      "Forwarding limited to app/migration subnet HTTPS with established return traffic",
+      "Persistent firewall and forwarding configuration",
+      "Health/patch/replacement runbook and private-runtime probe before acceptance"
+    ],
+    "limitations": [
+      "Single instance/AZ is an egress failure point; no high-availability claim",
+      "AMI is an ordinary OS image: NAT setup and patching must be implemented",
+      "Instance offerings do not guarantee capacity, Free-plan eligibility or available quota",
+      "PrivateLink-only design has not established JWKS and future external-service reachability"
+    ]
+  },
+  "checked_at": "2026-09-22T11:46:36.329035+00:00"
+}

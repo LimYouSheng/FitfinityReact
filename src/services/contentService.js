@@ -1,3 +1,4 @@
+import { managesOperations } from '../app/permissions.js'
 import { contentErrors } from '../app/content.js'
 import { delay, mockDb } from './mockDb.js'
 import { requireActiveActor } from '../app/scheduleChanges.js'
@@ -10,7 +11,7 @@ export const contentService = {
     if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
     let saved
     mockDb.mutate(db => {
-      if (requireActiveActor(db, actor).role !== 'owner') throw new Error('Only the owner can manage content.')
+      if (!managesOperations(requireActiveActor(db, actor))) throw new Error('Only the owner can manage content.')
       const entries = db.contentEntries ?? []
       const current = entries.find(item => item.id === id)
       if (id && !current) throw new Error('Content entry not found.')

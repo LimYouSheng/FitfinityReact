@@ -17,17 +17,18 @@ function freshDraft(db, cycle, trainerId, revision) {
 export const remunerationService = {
   list(actor, now = new Date()) {
     const db = mockDb.read(), user = requireActiveActor(db, actor)
+    if (user.role === 'admin') throw new Error('Remuneration access is restricted.')
     const currentCycle = cycleForDate(businessNow(now, db.settings.timeZone).date, db.settings.remuneration)
     return remunerationCycles(db, user, now).map(key => ({ key, isCurrent: key === currentCycle, trainers: cycleTrainers(db, key, user, now) }))
   },
   detail(cycle, trainerId, actor, now) {
     const db = mockDb.read(), user = requireActiveActor(db, actor)
-    if (user.role !== 'owner' && user.trainerId !== trainerId) throw new Error('This remuneration belongs to another trainer.')
+    if (user.role === 'admin' || (user.role !== 'owner' && user.trainerId !== trainerId)) throw new Error('This remuneration belongs to another trainer.')
     return remunerationRecord(db, cycle, trainerId, now)
   },
   async approve(cycle, trainerId, revision, actor) {
     await delay(100)
-    return mockDb.mutate(db => {
+    const state = mockDb.mutate(db => {
       const owner = ownerOnly(db, actor)
       const draft = freshDraft(db, cycle, trainerId, revision)
       if (!draft.closed) throw new Error('Approve this cycle after all cycle dates have passed.')
@@ -37,9 +38,10 @@ export const remunerationService = {
       db.remunerationApprovals = [...(db.remunerationApprovals ?? []), record]
       const base = { trainerId, remunerationCycle: cycle, title: `Remuneration approved · ${draft.trainerName} · ${cycle}`,
         body: `${draft.sessions} completed sessions approved at ${formatMoney(draft.amountCents, db.settings)} for ${draft.cycle.start} to ${draft.cycle.end}. Open the remuneration breakdown for the approved record.`,
-        kind: 'remuneration_approval', status: 'approved', createdAt: approvedAt, read: false }
+        kind: 'remuneration_approval', status: 'approved', createdAt: approvedAt, readBy: {} }
       db.messages.push({ ...base, id: `remuneration-approved-${cycle}-${trainerId}-owner`, recipientRole: 'owner' },
         { ...base, id: `remuneration-approved-${cycle}-${trainerId}-trainer`, recipientTrainerId: trainerId })
     })
+    return state.remunerationApprovals.find(record => record.cycle.key === cycle && record.trainerId === trainerId)
   },
 }

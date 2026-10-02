@@ -1,3 +1,4 @@
+import { managesOperations } from '../../app/permissions.js'
 import { sessionStatus } from '../../app/sessionRules.js'
 import { weeklyFrequencyLabel } from '../../app/packages.js'
 import Panel from '../../components/Panel.jsx'
@@ -15,7 +16,7 @@ import DateFilterField from '../../components/DateFilterField.jsx'
 import { businessClock } from '../../app/clock.js'
 import { deletablePackageSessions, pastClientPackages, packageForRecord } from '../../app/clientPackages.js'
 
-function PackageTab({ client, user, trainers, sessions, packages, policy, today, onRenewPackage, onDeactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
+function PackageTab({ readOnly = false, client, clients, user, trainers, sessions, packages, policy, today, onRenewPackage, onDeactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
   const [deletePackage, setDeletePackage] = useState(null)
   const [renewOpen, setRenewOpen] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(null)
@@ -24,27 +25,27 @@ function PackageTab({ client, user, trainers, sessions, packages, policy, today,
   const [deactivationError, setDeactivationError] = useState('')
   const clock = businessClock(new Date(), policy.timeZone)
   const eligibleCount = purchased => deletablePackageSessions(client, purchased.id, sessions, packageCreditTransactions, clock).length
-  const remaining = Math.max(0, client.package.total - client.package.used)
-  const usage = client.package.total ? Math.round((client.package.used / client.package.total) * 100) : 0
+  const remaining = Math.max(0, (client.package?.total ?? 0) - (client.package?.used ?? 0))
+  const usage = (client.package?.total ?? 0) ? Math.round(((client.package?.used ?? 0) / (client.package?.total ?? 0)) * 100) : 0
   const history = pastClientPackages(client)
   const additional = (client.additionalPackages ?? []).filter(item => item.status !== 'inactive')
   const pagination = usePagination(history, client.id, 'client.packageHistoryPage')
-  const elapsedDays = packageDayProgress(client.package.startDate, client.package.validityDays, today)
+  const elapsedDays = packageDayProgress(client.package?.startDate, client.package?.validityDays, today)
 
   return (
     <div className="stack-gap">
-      {renewOpen && client.status !== 'inactive' && <RenewPackageDialog client={client} trainers={trainers} sessions={sessions} packages={packages} policy={policy} today={today} onSave={onRenewPackage} onClose={() => setRenewOpen(false)} />}
+      {renewOpen && client.status !== 'inactive' && <RenewPackageDialog client={client} clients={clients} trainers={trainers} sessions={sessions} packages={packages} policy={policy} today={today} onSave={onRenewPackage} onClose={() => setRenewOpen(false)} />}
       <Panel>
-        <div className="section-head package-section-head"><div><h2>Current Package</h2>{client.package.status !== 'inactive' && client.package.name && <p>{client.package.name}</p>}</div>
-          {user.role === 'owner' && client.status !== 'inactive' && <div className="package-actions">
+        <div className="section-head package-section-head"><div><h2>Current Package</h2>{client.package && client.package.status !== 'inactive' && client.package.name && <p>{client.package.name}</p>}</div>
+          {!readOnly && managesOperations(user) && client.status !== 'inactive' && <div className="package-actions">
             <button type="button" className="secondary-button" onClick={() => setRenewOpen(true)}>Add Package</button>
-            {client.package.status !== 'inactive' && <button type="button" className="secondary-button" onClick={() => { setDeleteUpcoming(false); setDeactivationError(''); setDeactivateOpen(client.package) }}>Deactivate Package</button>}
+            {client.package && client.package.status !== 'inactive' && <button type="button" className="secondary-button" onClick={() => { setDeleteUpcoming(false); setDeactivationError(''); setDeactivateOpen(client.package) }}>Deactivate Package</button>}
           </div>}
         </div>
-        {client.package.status === 'inactive' ? <p className="empty">No active current package.</p> : <>
+        {!client.package || client.package.status === 'inactive' ? <p className="empty">No active current package.</p> : <>
         <div className="client-package-grid">
-          <div><span>Total sessions</span><strong>{client.package.total}</strong></div>
-          <div><span>Completed</span><strong>{client.package.used}</strong></div>
+          <div><span>Total sessions</span><strong>{(client.package?.total ?? 0)}</strong></div>
+          <div><span>Completed</span><strong>{(client.package?.used ?? 0)}</strong></div>
           <div><span>Remaining</span><strong>{remaining}</strong></div>
           <div><span>Frequency</span><strong>{weeklyFrequencyLabel(client.package.sessionsPerWeek, true)}</strong></div>
         </div>
@@ -52,7 +53,7 @@ function PackageTab({ client, user, trainers, sessions, packages, policy, today,
           <span style={{ width: `${usage}%` }} />
         </div>
         <p className="helper">Free gym package: <strong>{client.package.freeGym ? 'Included' : 'Not included'}</strong></p>
-        <p className="helper">{formatDate(client.package.startDate)} – {formatDate(client.package.endDate)} · {elapsedDays} / {client.package.validityDays} days</p>
+        <p className="helper">{formatDate(client.package?.startDate)} – {formatDate(client.package.endDate)} · {elapsedDays} / {client.package?.validityDays} days</p>
         </>}
       </Panel>
 
@@ -62,10 +63,10 @@ function PackageTab({ client, user, trainers, sessions, packages, policy, today,
           {additional.map(item => <article className="client-record-row" key={item.id}>
             <div><strong>{item.name ?? `${item.total} Sessions`}</strong>
               <span>{formatDate(item.startDate)} – {formatDate(item.endDate)}</span>
-              <span>{trainers.find(trainer => trainer.id === item.trainerId)?.name ?? 'Unassigned'} · {weeklyFrequencyLabel(item.sessionsPerWeek, true)}</span>
+              <span>{trainers.find(trainer => trainer.id === item.trainerId)?.name ?? item.trainerName ?? 'Unassigned'} · {weeklyFrequencyLabel(item.sessionsPerWeek, true)}</span>
               <span>{item.used} / {item.total} used</span>
             </div>
-            {user.role === 'owner' && client.status !== 'inactive' && <button type="button" className="secondary-button" onClick={() => {
+            {!readOnly && managesOperations(user) && client.status !== 'inactive' && <button type="button" className="secondary-button" onClick={() => {
               setDeleteUpcoming(false); setDeactivationError(''); setDeactivateOpen(item)
             }}>Deactivate Package</button>}
           </article>)}
@@ -78,11 +79,11 @@ function PackageTab({ client, user, trainers, sessions, packages, policy, today,
             <article className="client-record-row" key={item.id}>
               <div><strong>{item.name ?? `${item.total}-session package`}</strong><span>{formatDate(item.startDate)} – {formatDate(item.endDate)}</span>
                 {item.status === 'inactive' && <><StatusBadge tone="amber">Inactive</StatusBadge>
-                  <span>Deactivated <time dateTime={item.deactivatedAt}>{formatTimestamp(item.deactivatedAt, policy.timeZone)}</time> · {item.deactivatedBy?.name}</span>
+                  {item.deactivatedAt && <span>Deactivated <time dateTime={item.deactivatedAt}>{formatTimestamp(item.deactivatedAt, policy.timeZone)}</time> · {item.deactivatedBy?.name}</span>}
                   {(item.sessionDeletionHistory ?? []).map(entry => <span key={entry.at}>
                     {entry.sessionIds.length} upcoming sessions deleted · <time dateTime={entry.at}>{formatTimestamp(entry.at, policy.timeZone)}</time> · {entry.by.name}
                   </span>)}
-                  {user.role === 'owner' && <button type="button" className="text-action" disabled={!eligibleCount(item)} onClick={() => { setDeactivationError(''); setDeletePackage(item) }}>Delete Upcoming Sessions ({eligibleCount(item)})</button>}
+                  {!readOnly && managesOperations(user) && <button type="button" className="text-action" disabled={!eligibleCount(item)} onClick={() => { setDeactivationError(''); setDeletePackage(item) }}>Delete Upcoming Sessions ({eligibleCount(item)})</button>}
                 </>}
               </div>
               <span>{item.used} / {item.total} used</span>
@@ -158,8 +159,8 @@ function SessionsTab({ title, history = false, client, sessions, trainers, empty
   )
 }
 
-export default function ClientProfileTabs({ progressPackageId, onOpenProgressPackage, tab, user, client, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory, packages, policy, onRenewPackage, onDeactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
-  const clientSessions = sessions.filter(session => session.clientId === client.id && (user.role === 'owner' || session.trainerId === user.trainerId))
+export default function ClientProfileTabs({ readOnly = false, progressPackageId, onOpenProgressPackage, tab, user, client, clients, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory, packages, policy, onRenewPackage, onDeactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
+  const clientSessions = sessions.filter(session => session.clientId === client.id && (managesOperations(user) || session.trainerId === user.trainerId))
   const history = clientSessions
     .filter(session => session.status === 'completed' || session.date < today)
     .sort((a, b) => `${b.date}T${b.from}`.localeCompare(`${a.date}T${a.from}`))
@@ -167,7 +168,7 @@ export default function ClientProfileTabs({ progressPackageId, onOpenProgressPac
     .filter(session => session.status !== 'completed' && session.date >= today)
     .sort((a, b) => `${a.date}T${a.from}`.localeCompare(`${b.date}T${b.from}`))
 
-  if (tab === 'package') return <PackageTab client={client} today={today} user={user} trainers={trainers} sessions={clientSessions} packages={packages} policy={policy} onRenewPackage={onRenewPackage} onDeactivatePackage={onDeactivatePackage} onDeletePackageSessions={onDeletePackageSessions} packageCreditTransactions={packageCreditTransactions} />
+  if (tab === 'package') return <PackageTab clients={clients} readOnly={readOnly} client={client} today={today} user={user} trainers={trainers} sessions={sessions} packages={packages} policy={policy} onRenewPackage={onRenewPackage} onDeactivatePackage={onDeactivatePackage} onDeletePackageSessions={onDeletePackageSessions} packageCreditTransactions={packageCreditTransactions} />
   if (tab === 'history') return <SessionsTab title="Session History" history client={client} sessions={history} trainers={trainers} emptyCopy="No session history." onOpenSession={onOpenSession} />
   if (tab === 'upcoming') return <SessionsTab title="Upcoming Sessions" client={client} sessions={upcoming} trainers={trainers} emptyCopy="No upcoming sessions." onOpenSession={onOpenSession} />
   if (tab === 'progress') return <PackageProgress packageId={progressPackageId} onOpenPackage={onOpenProgressPackage} client={client} sessions={sessions} user={user} timeZone={timeZone} onRecordAction={onRecordProgressReport} onLoadHistory={onLoadProgressReportHistory} />

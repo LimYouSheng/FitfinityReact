@@ -12,7 +12,7 @@ export default function ChangePasswordPage({ policy, onSave, onBack }) {
   const { setActiveEdit } = useEditGuard()
   const confirm = useActionConfirmation()
   const { notify } = useNotifications()
-  const requirements = `Use ${policy.minimumLength}–${policy.maximumLength} characters for the new password. It must differ from your current password and match the confirmation.`
+  const requirements = `Use ${policy.minimumLength}–${policy.maximumLength} characters for the new password.${policy.spacesAllowed === false ? ' No spaces or other whitespace.' : ''} It must differ from your current password and match the confirmation.`
   const showRequirements = () => notify({ tone: 'info', message: requirements })
   const dirty = Object.values(draft).some(Boolean)
   useEffect(() => { setActiveEdit(dirty ? 'Change password' : null); return () => setActiveEdit(null) }, [dirty, setActiveEdit])
@@ -21,12 +21,13 @@ export default function ChangePasswordPage({ policy, onSave, onBack }) {
     if (pending.current) return
     setError('')
     if (!draft.currentPassword) { notify({ tone: 'error', message: 'Enter your current password.' }); return }
-    if (draft.newPassword.length < policy.minimumLength || draft.newPassword.length > policy.maximumLength) { notify({ tone: 'error', message: requirements }); return }
+    const length = policy.spacesAllowed === false ? Array.from(draft.newPassword).length : draft.newPassword.length
+    if (length < policy.minimumLength || length > policy.maximumLength || (policy.spacesAllowed === false && /\s/u.test(draft.newPassword))) { notify({ tone: 'error', message: requirements }); return }
     if (draft.newPassword !== draft.confirmation) { notify({ tone: 'error', message: 'The new passwords do not match.' }); return }
     if (draft.newPassword === draft.currentPassword) { notify({ tone: 'error', message: 'Choose a different new password.' }); return }
     pending.current = true; setBusy(true); setError('')
     try {
-      if (!await confirm({ title: 'Change password?', message: 'The new password takes effect immediately.', confirmLabel: 'Change Password' })) return
+      if (!await confirm({ title: 'Change password?', message: policy.spacesAllowed === false ? 'The new password takes effect immediately and signs out all sessions.' : 'The new password takes effect immediately.', confirmLabel: 'Change Password' })) return
       await onSave(draft)
       setDraft({ currentPassword: '', newPassword: '', confirmation: '' }); setActiveEdit(null)
     } catch (failure) { setError(failure.message || 'Unable to change the password. Try again.') }

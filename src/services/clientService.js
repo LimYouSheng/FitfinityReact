@@ -1,11 +1,15 @@
+import { applyClientReactivationDates } from '../app/clientReactivation.js'
+import { managesOperations } from '../app/permissions.js'
 import { applyTrainerReassignment } from '../app/trainerReassignment.js'
 import { clientAssignedToTrainer, clientPackages, deletablePackageSessions, ensureClientPackageReferences, requireActiveClient } from '../app/clientPackages.js'
 import { deactivatePurchase, restoreClientPurchases } from '../app/packageLifecycle.js'
 import { businessClock } from '../app/clock.js'
+import { saveAssessment, assessmentForm } from '../app/assessmentForms.js'
 import { flushExerciseVideoDeletions, queueExerciseVideoDeletion } from './exerciseVideoRetention.js'
 import { buildPackageRenewal } from '../app/packageRenewal.js'
 import { PROGRESS_REPORT_ACTIONS } from '../app/progress.js'
 import { appendRenewalMessage } from '../app/renewals.js'
+import { requireSessionSlotAvailable } from '../app/bookingAvailability.js'
 import { selectedPackage } from '../app/packages.js'
 import { applyWeeklySchedule, requireActiveActor, sameSlots, weeklyScheduleChanges } from '../app/scheduleChanges.js'
 import { delay, mockDb } from './mockDb.js'
@@ -63,7 +67,7 @@ export const clientService = {
     return mockDb.read().clients.find(client => client.id === id) ?? null
   },
 
-  async create(draft) {
+  async create(draft, actor) {
     await delay(180)
 
     const validationErrors = validateClientDraft(draft)
@@ -71,6 +75,7 @@ export const clientService = {
 
     let createdId = null
     const state = mockDb.mutate(db => {
+      if (!managesOperations(requireActiveActor(db, actor))) throw new Error('Only the owner or Admin can add clients.')
       const trainer = db.trainers.find(item =>
         item.id === draft.trainerId && (item.status ?? 'active') === 'active'
       )
@@ -82,6 +87,8 @@ export const clientService = {
       db.sessions ??= []
       const sessions = buildClientSessions(client)
       if (sessions.length !== client.package.total) throw new Error('The schedule must fit every session within package validity. Review the weekly schedule.')
+      const calendar = { ...db, sessions: [...db.sessions, ...sessions] }
+      for (const session of sessions) requireSessionSlotAvailable(calendar, session)
       db.sessions.push(...sessions)
       db.messages ??= []
       appendRenewalMessage(db, client)
@@ -95,7 +102,7 @@ export const clientService = {
         title: `New client created: ${client.name}`,
         body: `${trainer.name} is assigned to ${client.name}. ${client.package.total} sessions were created with ${client.package.validityDays}-day validity.`,
         kind: 'client_created',
-        read: false,
+        readBy: {},
       })
 
       db.messages.push({
@@ -107,7 +114,7 @@ export const clientService = {
         title: `New client assigned: ${client.name}`,
         body: `${client.name} has been added to your active client list.`,
         kind: 'client_assignment',
-        read: false,
+        readBy: {},
       })
     })
 
@@ -117,7 +124,7 @@ export const clientService = {
   async renewPackage(id, draft, actor) {
     await delay(180)
     const state = mockDb.mutate(db => {
-      if (requireActiveActor(db, actor).role !== 'owner') throw new Error('Only the owner can add packages.')
+      if (!managesOperations(requireActiveActor(db, actor))) throw new Error('Only the owner or Admin can add packages.')
       const client = requireActiveClient(db.clients.find(item => item.id === id))
       if (!/^[a-zA-Z0-9_-]{1,120}$/.test(draft.requestId ?? '')) throw new Error('A renewal request ID is required.')
       const packageId = `client-package-${id}-${draft.requestId}`
@@ -144,7 +151,7 @@ export const clientService = {
     await delay(180)
     const state = mockDb.mutate(db => {
       const staff = requireActiveActor(db, actor)
-      if (staff.role !== 'owner') throw new Error('Only the owner can deactivate packages.')
+      if (!managesOperations(staff)) throw new Error('Only the owner or Admin can deactivate packages.')
       const client = requireActiveClient(db.clients.find(item => item.id === id))
       const purchased = clientPackages(client).find(item => item.id === packageId)
       if (!purchased) throw new Error('Package not found.')
@@ -163,7 +170,7 @@ export const clientService = {
     await delay(180)
     const state = mockDb.mutate(db => {
       const staff = requireActiveActor(db, actor)
-      if (staff.role !== 'owner') throw new Error('Only the owner can delete package sessions.')
+      if (!managesOperations(staff)) throw new Error('Only the owner or Admin can delete package sessions.')
       const client = db.clients.find(item => item.id === id)
       if (!client) throw new Error('Client not found.')
       const purchased = clientPackages(client).find(item => item.id === packageId)
@@ -180,26 +187,36 @@ export const clientService = {
     await delay(180)
     const state = mockDb.mutate(db => {
       const staff = requireActiveActor(db, actor)
-      if (staff.role !== 'owner') throw new Error('Only the owner can permanently reassign trainers.')
+      if (!managesOperations(staff)) throw new Error('Only the owner or Admin can permanently reassign trainers.')
       const client = requireActiveClient(db.clients.find(item => item.id === id))
       applyTrainerReassignment(db, client, draft, staff)
     })
     return state.clients.find(item => item.id === id)
   },
 
-  async update(id, patch) {
+  async update(id, patch, actor) {
     await delay(180)
 
     const state = mockDb.mutate(db => {
       const client = db.clients.find(item => item.id === id)
       if (!client) throw new Error('Client not found')
       requireActiveClient(client)
+      const staff = requireActiveActor(db, actor)
+      if (!managesOperations(staff) && (staff.role !== 'trainer' || staff.trainerId !== client.trainerId || !db.trainers.some(item => item.id === staff.trainerId && item.status === 'active'))) throw new Error('This client is unavailable for your account.')
+      if (!managesOperations(staff) && Object.keys(patch ?? {}).some(key => !['healthNotes', 'remarks', 'notes'].includes(key))) throw new Error('Client information can only be edited by the owner or Admin.')
       const fields = ['name', 'phone', 'email', 'birthday', 'gender', 'emergencyContact', 'genderPreference', 'healthNotes', 'remarks', 'notes', 'people']
       if (!patch || Object.keys(patch).some(key => !fields.includes(key))) throw new Error('Use the dedicated package, schedule or client status action for these changes.')
+      const personalFields = ['name', 'phone', 'email', 'birthday', 'gender', 'emergencyContact']
+      if (client.type === 'Couple' && !Object.hasOwn(patch, 'people') && personalFields.some(key => Object.hasOwn(patch, key))) throw new Error('Edit each couple client’s personal details separately.')
       let changes = { ...patch }
       if (Object.hasOwn(changes, 'people')) {
         const draft = { ...client, ...changes, type: client.type }
         if (!Array.isArray(draft.people) || draft.people.length !== (client.type === 'Couple' ? 2 : 1)) throw new Error('Review each client’s personal details.')
+        draft.people = draft.people.map((person, index) => {
+          const assessments = client.people?.[index]?.assessments ?? {}
+          if (person.assessments !== undefined && JSON.stringify(person.assessments) !== JSON.stringify(assessments)) throw new Error('Saved assessments cannot be changed through a contact edit.')
+          return { ...person, assessments }
+        })
         const errors = clientStepErrors(draft, 'general', { requireComplete: false })
         if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
         changes = { ...changes, ...clientPersonalDetails(draft, db.settings) }
@@ -230,12 +247,41 @@ export const clientService = {
     return state.clients.find(client => client.id === id)
   },
 
+  async saveAssessment(id, { personIndex, formId, record, expectedPerson }, actor) {
+    await delay(180)
+    const state = mockDb.mutate(db => {
+      const staff = requireActiveActor(db, actor)
+      if (!managesOperations(staff)) throw new Error('Assessment recording is available to the owner or Admin.')
+      const client = requireActiveClient(db.clients.find(item => item.id === id))
+      if (!Number.isInteger(personIndex) || personIndex < 0 || personIndex >= (client.type === 'Couple' ? 2 : 1)
+        || !assessmentForm(formId)) throw new Error('Choose a client and supported form.')
+      if (client.type === 'Couple' && client.people?.length !== 2) throw new Error('Complete both clients’ General Information first.')
+      const people = clientProfileDraft(client, db.settings).people
+      const person = people[personIndex]
+      if (!person.name || !person.birthday || person.name !== expectedPerson?.name || person.birthday !== expectedPerson?.birthday) {
+        throw new Error('Client details changed or are incomplete. Review General Information and reopen the form.')
+      }
+      const now = new Date()
+      const saved = saveAssessment(formId, { ...record, date: businessClock(now, db.settings.timeZone).date, assessor: staff.name }, now.toISOString())
+      const existing = person.assessments[formId]
+      if (existing) {
+        // A refresh failure after persistence may retry the same save; never overwrite a filled form.
+        if (existing.assessor === staff.name && existing.date === saved.date
+          && JSON.stringify(existing.answers) === JSON.stringify(saved.answers)) return
+        throw new Error('This form has already been filled. Reopen it to view the saved answers.')
+      }
+      person.assessments = { ...person.assessments, [formId]: saved }
+      client.people = people
+    })
+    return state.clients.find(client => client.id === id).people[personIndex].assessments[formId]
+  },
+
   async recordProgressReportAction(id, { id: actionId, kind, packageId }, actor) {
     await delay(180)
     const state = mockDb.mutate(db => {
       const staff = requireActiveActor(db, actor)
       const client = db.clients.find(item => item.id === id)
-      if (!client || (staff.role !== 'owner' && !clientAssignedToTrainer(client, staff.trainerId, db.sessions))) throw new Error('This client is unavailable for your account.')
+      if (!client || (!managesOperations(staff) && !clientAssignedToTrainer(client, staff.trainerId, db.sessions))) throw new Error('This client is unavailable for your account.')
       if (typeof actionId !== 'string' || !/^[a-zA-Z0-9_-]{1,120}$/.test(actionId) || !Object.hasOwn(PROGRESS_REPORT_ACTIONS, kind)) throw new Error('A valid progress report action is required.')
       db.progressReportEvents ??= []
       const existing = db.progressReportEvents.find(event => event.id === actionId)
@@ -261,7 +307,7 @@ export const clientService = {
     await delay()
     const db = mockDb.read()
     const staff = requireActiveActor(db, actor)
-    if (staff.role !== 'owner') throw new Error('Report history is available to the owner.')
+    if (!managesOperations(staff)) throw new Error('Report history is available to the owner or Admin.')
     if (!db.clients.some(client => client.id === id)) throw new Error('Client not found')
     return (db.progressReportEvents ?? []).filter(event => event.clientId === id && (packageId === undefined || (event.packageId ?? null) === packageId))
       .sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id))
@@ -282,7 +328,7 @@ export const clientService = {
       weeklyScheduleChanges(db, client, nextSlots)
       if (sameSlots(previousSlots, nextSlots)) throw new Error('Change a weekly time before saving.')
 
-      if (actor.role === 'owner') {
+      if (managesOperations(actor)) {
         applyWeeklySchedule(db, client, nextSlots)
         appendSavedEditMessage(db, {
           clientId: client.id,
@@ -320,7 +366,7 @@ export const clientService = {
             `New: ${describeSlots(nextSlots)}`,
           kind: 'schedule_request',
           status: 'pending',
-          read: false,
+          readBy: {},
           request: {
             type: 'fixed_weekly_schedule',
             clientId: client.id,
@@ -338,10 +384,10 @@ export const clientService = {
           clientId: client.id,
           trainerId: trainer.id,
           title: `Schedule change request sent: ${client.name}`,
-          body: 'Owner approval is required before the fixed weekly schedule changes.',
+          body: 'Owner or Admin approval is required before the fixed weekly schedule changes.',
           kind: 'schedule_request',
           status: 'pending',
-          read: false,
+          readBy: {},
         })
 
         return
@@ -372,7 +418,7 @@ export const clientService = {
 
     const state = mockDb.mutate(db => {
       const staff = requireActiveActor(db, actor)
-      if (staff.role !== 'owner') throw new Error('Only the owner can deactivate clients.')
+      if (!managesOperations(staff)) throw new Error('Only the owner or Admin can deactivate clients.')
       const client = db.clients.find(item => item.id === id)
       if (!client) throw new Error('Client not found')
       if (client.status === 'inactive') return
@@ -389,9 +435,9 @@ export const clientService = {
         clientId: client.id,
         trainerId: client.trainerId,
         title: `${client.name} deactivated`,
-        body: `${client.name} has been deactivated by the owner and is available in your client list for viewing only.`,
+        body: `${client.name} has been deactivated by ${staff.name} and is available in your client list for viewing only.`,
         kind: 'client_status',
-        read: false,
+        readBy: {},
       })
 
       db.messages.push({
@@ -403,14 +449,14 @@ export const clientService = {
         title: `${client.name} deactivated`,
         body: 'The client and their packages are inactive and remain viewable in Clients. Open the client’s Package tab to review Past Packages and, if needed, permanently delete unacknowledged upcoming sessions. Reactivating the client restores packages disabled with this client and their retained sessions. Packages deactivated separately stay inactive; deleted sessions cannot be restored.',
         kind: 'client_status',
-        read: false,
+        readBy: {},
       })
     })
 
     return state.clients.find(client => client.id === id)
   },
 
-  async reactivate(id, actor) {
+  async reactivate(id, actor, options = {}) {
     await delay(180)
 
     const state = mockDb.mutate(db => {
@@ -418,10 +464,12 @@ export const clientService = {
       if (!client) throw new Error('Client not found')
 
       const staff = requireActiveActor(db, actor)
-      if (staff.role !== 'owner') throw new Error('Only the owner can reactivate clients.')
+      if (!managesOperations(staff)) throw new Error('Only the owner or Admin can reactivate clients.')
       if (client.status !== 'inactive') return
+      const at = new Date().toISOString()
+      applyClientReactivationDates(db, client, options, staff, at)
       client.status = 'active'
-      client.reactivatedAt = new Date().toISOString()
+      client.reactivatedAt = at
       client.reactivatedBy = { id: staff.id, name: staff.name }
       restoreClientPurchases(client, client.reactivatedAt, client.reactivatedBy)
       delete client.deactivatedAt
@@ -435,7 +483,7 @@ export const clientService = {
         title: `${client.name} reactivated`,
         body: `${client.name} is active again and has returned to your assigned client list.`,
         kind: 'client_status',
-        read: false,
+        readBy: {},
       })
     })
 

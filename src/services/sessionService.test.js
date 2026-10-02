@@ -20,7 +20,7 @@ describe('session service', () => {
       id: 'draft-1', name: 'Romanian Deadlift', weight: '24 kg', customDetails: [], reps: '8', rounds: '3', rest: '75 sec',
       videoAttached: true,
       video: { name: 'deadlift.webm', type: 'video/webm', size: 2048, duration: 18, source: 'recorded', audioIncluded: false },
-    }])
+    }], mockDb.read().users.find(user => user.role === 'owner'))
 
     const session = mockDb.read().sessions.find(item => item.id === 's2')
     expect(session.status).toBe('planned')
@@ -29,7 +29,7 @@ describe('session service', () => {
   })
 
   it('copies the most recent previous plan into a new owned plan', async () => {
-    await sessionService.copyPreviousPlan('s1')
+    await sessionService.copyPreviousPlan('s1', mockDb.read().users.find(user => user.role === 'owner'))
     const session = mockDb.read().sessions.find(item => item.id === 's1')
 
     expect(session.exercisePlan.map(item => item.name)).toEqual(['Goblet Squat', 'Seated Cable Row', 'DB Chest Press', 'Romanian Deadlift', 'Lat Pulldown', 'Walking Lunge'])
@@ -119,10 +119,10 @@ describe('session service', () => {
   })
 
   it('persists session outcome, client summary and repeatable WhatsApp sends', async () => {
-    await sessionService.saveOutcome('s1', { durationMinutes: 55, trainerComments: 'Technique remained consistent.' })
-    await sessionService.saveClientSummary('s1', 'Custom client-ready summary.')
-    await sessionService.markWhatsAppOpened('s1')
-    await sessionService.markWhatsAppOpened('s1')
+    await sessionService.saveOutcome('s1', { durationMinutes: 55, trainerComments: 'Technique remained consistent.' }, mockDb.read().users.find(user => user.role === 'owner'))
+    await sessionService.saveClientSummary('s1', 'Custom client-ready summary.', mockDb.read().users.find(user => user.role === 'owner'))
+    await sessionService.markWhatsAppOpened('s1', mockDb.read().users.find(user => user.role === 'owner'))
+    await sessionService.markWhatsAppOpened('s1', mockDb.read().users.find(user => user.role === 'owner'))
 
     const session = mockDb.read().sessions.find(item => item.id === 's1')
     expect(session.outcome).toEqual({ durationMinutes: 60, trainerComments: 'Technique remained consistent.' })
@@ -137,7 +137,7 @@ describe('session service', () => {
       from: '19:00',
       to: '20:00',
       trainerId: 't2',
-    })
+    }, mockDb.read().users.find(user => user.role === 'owner'))
 
     const session = mockDb.read().sessions.find(item => item.id === 's1')
     expect(session).toMatchObject({ date: '2026-09-03', from: '19:00', to: '20:00', trainerId: 't2' })
@@ -146,7 +146,7 @@ describe('session service', () => {
   it('keeps supervised trainer requests pending without changing the session', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-09-02T09:59:00Z'))
-    const actor = { role: 'trainer', trainerId: 't1' }
+    const actor = mockDb.read().users.find(user => user.role === 'trainer' && user.trainerId === 't1')
     const future = { date: '2026-09-04', from: '17:00', to: '18:00' }
     const before = mockDb.read()
     for (const past of [
@@ -176,7 +176,7 @@ describe('session service', () => {
     )
     const trainerResult = await sessionService.requestTrainerChange(
       's1',
-      { role: 'trainer', trainerId: 't1' },
+      mockDb.read().users.find(user => user.role === 'trainer' && user.trainerId === 't1'),
       't2',
     )
 
@@ -200,18 +200,18 @@ describe('session service', () => {
       { date: '2026-09-06', from: '23:00', to: '23:30' },
       { date: '2026-09-07', from: '00:00', to: '01:00' },
     ]) {
-      await expect(sessionService.requestTimeChange('s2', { role: 'trainer', trainerId: 't3' }, past)).rejects.toThrow('in the future')
+      await expect(sessionService.requestTimeChange('s2', mockDb.read().users.find(user => user.role === 'trainer' && user.trainerId === 't3'), past)).rejects.toThrow('in the future')
       expect(mockDb.read()).toEqual(before)
     }
 
     const timeResult = await sessionService.requestTimeChange(
       's2',
-      { role: 'trainer', trainerId: 't3' },
+      mockDb.read().users.find(user => user.role === 'trainer' && user.trainerId === 't3'),
       { date: '2026-09-08', from: '17:00', to: '18:00' },
     )
     const trainerResult = await sessionService.requestTrainerChange(
       's2',
-      { role: 'trainer', trainerId: 't3' },
+      mockDb.read().users.find(user => user.role === 'trainer' && user.trainerId === 't3'),
       't4',
     )
 

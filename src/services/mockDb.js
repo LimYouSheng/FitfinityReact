@@ -4,6 +4,7 @@ import { normalizePackageLifecycle } from '../app/packageLifecycle.js'
 import { createDemoSeed, seed } from '../data/seed.js'
 import { businessClock } from '../app/clock.js'
 import { migrateRenewalMessages } from '../app/renewals.js'
+import { normalizeMessageReceipts } from '../app/messageInbox.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
 const clone = value => JSON.parse(JSON.stringify(value))
@@ -49,6 +50,7 @@ function load() {
   const before = JSON.stringify(loaded)
   for (const client of normalized.clients) normalizeClientRecords(normalized, client)
   const renewalChanged = migrateRenewalMessages(normalized)
+  normalizeMessageReceipts(normalized)
   if (!stored || renewalChanged || JSON.stringify(normalized) !== before) localStorage.setItem(KEY, JSON.stringify(normalized))
   return normalized
 }
@@ -60,6 +62,7 @@ const current = () => snapshotJson ??= JSON.stringify(load())
 
 function commit(next) {
   for (const client of next.clients) normalizeClientRecords(next, client)
+  normalizeMessageReceipts(next)
   // Publish to memory only after storage succeeds, so failures can be retried safely.
   const serialized = JSON.stringify(next)
   localStorage.setItem(KEY, serialized)

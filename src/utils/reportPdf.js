@@ -38,33 +38,117 @@ export function reportPdfDocument(pages, title) {
   return new Blob(chunks, { type: 'application/pdf' })
 }
 
-async function rasterizePage(page) {
+// Keep the worker body self-contained so the PDF owner also owns its encoder.
+function reportEncoderWorker() {
+  self.onmessage = async ({ data: { bitmap, width, height } }) => {
+    let canvas, consumed = false
+    try {
+      canvas = new OffscreenCanvas(width, height)
+      const context = canvas.getContext('2d')
+      if (!context) throw new Error('The progress report encoder could not create a canvas.')
+      context.drawImage(bitmap, 0, 0)
+      bitmap.close()
+      consumed = true
+      const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.95 })
+      self.postMessage({ blob })
+    } catch (error) {
+      self.postMessage({ error: error.message || 'The progress report could not be encoded.' })
+    } finally {
+      if (!consumed) bitmap.close()
+      if (canvas) { canvas.width = 0; canvas.height = 0 }
+    }
+  }
+}
+
+function createPageEncoder() {
+  if (typeof globalThis.Worker !== 'function' ||
+      typeof globalThis.OffscreenCanvas?.prototype?.transferToImageBitmap !== 'function' ||
+      typeof globalThis.OffscreenCanvas?.prototype?.convertToBlob !== 'function') return null
+  const url = URL.createObjectURL(new Blob([`(${reportEncoderWorker.toString()})()`], { type: 'text/javascript' }))
+  let worker
+  try { worker = new Worker(url) } catch { URL.revokeObjectURL(url); return null }
+  let pending, failure
+  const fail = message => {
+    failure = new Error(message)
+    pending?.reject(failure)
+    pending = null
+  }
+  worker.onmessage = ({ data }) => {
+    if (data.error) { fail(data.error); return }
+    pending?.resolve(data.blob)
+    pending = null
+  }
+  worker.onerror = () => fail('The progress report encoder could not start. Please try exporting again.')
+  worker.onmessageerror = () => fail('The progress report encoder returned an unreadable page.')
+  return {
+    encode(canvas) {
+      return new Promise((resolve, reject) => {
+        if (failure) { reject(failure); return }
+        pending = { resolve, reject }
+        let bitmap
+        try {
+          bitmap = canvas.transferToImageBitmap()
+          worker.postMessage({ bitmap, width: canvas.width, height: canvas.height }, [bitmap])
+        } catch (error) { bitmap?.close(); pending = null; reject(error) }
+      })
+    },
+    dispose() { worker.terminate(); URL.revokeObjectURL(url) },
+  }
+}
+
+async function rasterizePage(page, encoder, canvas) {
   const url = URL.createObjectURL(new Blob([page.svg], { type: 'image/svg+xml;charset=utf-8' }))
   const image = new Image()
-  const canvas = document.createElement('canvas')
   try {
     await new Promise((resolve, reject) => {
       image.onload = resolve
       image.onerror = () => reject(new Error('The progress chart could not be rendered. Please try exporting again.'))
       image.src = url
     })
-    canvas.width = page.width * 2; canvas.height = page.height * 2
+    if (canvas.width !== page.width * 2) canvas.width = page.width * 2
+    if (canvas.height !== page.height * 2) canvas.height = page.height * 2
     const context = canvas.getContext('2d')
     if (!context) throw new Error('Your browser could not create the progress report. Please try another browser.')
+    context.clearRect(0, 0, canvas.width, canvas.height)
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95))
+    const blob = encoder
+      ? await encoder.encode(canvas)
+      : await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95))
     if (!blob || blob.type !== 'image/jpeg') throw new Error('Your browser could not encode the progress report. Please try another browser.')
     return { width: canvas.width, height: canvas.height, bytes: new Uint8Array(await blob.arrayBuffer()) }
   } finally {
     URL.revokeObjectURL(url)
     image.onload = null; image.onerror = null
-    canvas.width = 0; canvas.height = 0
   }
 }
 
 export async function renderReportPdf(pages, title) {
+  if (!pages.length) throw new Error('No progress report pages are available.')
   await document.fonts?.ready
-  const images = []
-  for (const page of pages) images.push(await rasterizePage(page))
-  return reportPdfDocument(images, title)
+  // Bound expensive full-resolution work to two pages. Reuse each drawing canvas,
+  // keep the fallback sequential, and store by page index regardless of finish order.
+  const encoders = [], images = new Array(pages.length)
+  let nextPage = 0, failure
+  try {
+    const first = createPageEncoder()
+    encoders.push(first)
+    if (first && pages.length > 1) {
+      const second = createPageEncoder()
+      if (second) encoders.push(second)
+    }
+    await Promise.all(encoders.map(async encoder => {
+      let canvas
+      try {
+        canvas = encoder ? new OffscreenCanvas(1, 1) : document.createElement('canvas')
+        while (!failure && nextPage < pages.length) {
+          const index = nextPage++
+          images[index] = await rasterizePage(pages[index], encoder, canvas)
+        }
+      } catch (error) { failure ??= error }
+      finally { if (canvas) { canvas.width = 0; canvas.height = 0 } }
+    }))
+    // Every in-flight page has settled and released its resources, including on failure.
+    if (failure) throw failure
+    return reportPdfDocument(images, title)
+  } finally { encoders.forEach(encoder => encoder?.dispose()) }
 }

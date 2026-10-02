@@ -24,7 +24,7 @@ export default function ClientGeneralFields({ draft, errors = {}, activePerson, 
           ))}
         </div>
       )}
-      <ClientPersonFields person={draft.people[activePerson]} labelPrefix={personLabel} requireComplete={!editing} errors={Object.fromEntries(Object.entries(errors).filter(([key]) => key.startsWith(`people.${activePerson}.`)).map(([key, value]) => [key.split('.').slice(2).join('.'), value]))} onChange={updatePerson} />
+      <ClientPersonFields showLegacyNotes={editing && Boolean(draft.people[activePerson].healthNotes)} person={draft.people[activePerson]} labelPrefix={personLabel} requireComplete={!editing} errors={Object.fromEntries(Object.entries(errors).filter(([key]) => key.startsWith(`people.${activePerson}.`)).map(([key, value]) => [key.split('.').slice(2).join('.'), value]))} onChange={updatePerson} />
       <Field label="Remarks"><textarea aria-label="Remarks" value={draft.remarks} onChange={event => update({ remarks: event.target.value })} /></Field>
       {editing && <Field label="Gender preference"><SelectField aria-label="Gender preference" value={draft.genderPreference}
         onChange={event => update({ genderPreference: event.target.value })}>

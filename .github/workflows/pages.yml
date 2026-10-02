@@ -3,27 +3,40 @@ name: Verify and publish the staff demo
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: fitfinity-pages
+  group: fitfinity-pages-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  verify-and-build:
-    # WebKit media coverage targets Safari's macOS implementation.
-    runs-on: macos-15
-    timeout-minutes: 30
+  verify:
+    uses: ./.github/workflows/verify.yml
+
+  image:
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aws-image.yml
+
+  build:
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pages: read
     env:
-      CI: 'true'
-      FORCE_COLOR: '1'
-      PLAYWRIGHT_FORCE_TTY: '0'
+      VITE_PORTAL_MODE: 'demo'
+      VITE_API_BASE_URL: ''
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -31,33 +44,6 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - name: Unit gate
-        shell: bash
-        run: |
-          set -euo pipefail
-          unset NO_COLOR NODE_DISABLE_COLORS
-          npm test -- --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/fitfinity-unit.log"
-          node scripts/verify-test-results.mjs unit "$RUNNER_TEMP/fitfinity-unit.log"
-      - name: Install browser engines
-        run: npx playwright install --with-deps chromium webkit
-      - name: Browser gate at root and repository paths
-        shell: bash
-        run: |
-          set -euo pipefail
-          unset NO_COLOR NODE_DISABLE_COLORS
-          npm run test:e2e -- --reporter=list 2>&1 | tee "$RUNNER_TEMP/fitfinity-browser.log"
-          node scripts/verify-test-results.mjs browser "$RUNNER_TEMP/fitfinity-browser.log"
-      - name: Retain complete verification logs and browser failure details
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: fitfinity-verification-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/fitfinity-unit.log
-            ${{ runner.temp }}/fitfinity-browser.log
-            test-results/
-            playwright-report/
-          if-no-files-found: warn
       - name: Read Pages location
         id: pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
@@ -73,7 +59,8 @@ jobs:
           path: dist
 
   deploy:
-    needs: verify-and-build
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

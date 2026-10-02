@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { OWNER_NAV, TRAINER_NAV } from '../app/constants.js'
+import { messageVisibleTo } from '../app/messageInbox.js'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { OWNER_NAV, ADMIN_NAV, TRAINER_NAV } from '../app/constants.js'
 import { useActionConfirmation } from './ActionConfirmationProvider.jsx'
 import { useEditGuard } from './EditGuardProvider.jsx'
 import RoleSwitcher from './RoleSwitcher.jsx'
@@ -27,6 +28,7 @@ function closeProfileDropdowns(outsideTarget = null) {
 export default function AppShell({
   user,
   demoControls = false,
+  enabledRoutes,
   users,
   userId,
   route,
@@ -49,7 +51,7 @@ export default function AppShell({
   const previousLocation = useRef({ userId, routePath })
   const profileRef = useRef(null)
 
-  const nav = user.role === 'owner' ? OWNER_NAV : TRAINER_NAV
+  const nav = useMemo(() => (user.role === 'owner' ? OWNER_NAV : user.role === 'admin' ? ADMIN_NAV : TRAINER_NAV).filter(item => !enabledRoutes || enabledRoutes.includes(item.key)), [user.role, enabledRoutes])
 
   useEffect(() => {
     const previous = previousLocation.current
@@ -61,7 +63,8 @@ export default function AppShell({
     previousLocation.current = { userId, routePath }
   }, [nav, route, routePath, userId])
 
-  useEffect(() => {
+  // Close route-owned overlays before the destination can be interacted with.
+  useLayoutEffect(() => {
     setDrawerOpen(false)
     setProfileOpen(false)
 
@@ -98,12 +101,7 @@ export default function AppShell({
     return result
   }, [nav])
 
-  const visibleMessages = messages.filter(message => {
-    if (message.recipientRole === user.role) return true
-    if (user.role === 'trainer' && message.recipientTrainerId === user.trainerId) return true
-    if (message.recipientUserId === user.id) return true
-    return false
-  })
+  const visibleMessages = messages.filter(message => messageVisibleTo(user, message))
 
   const unread = visibleMessages.filter(message => !message.read).length
 
@@ -117,7 +115,7 @@ export default function AppShell({
         onClick={() => setDrawerOpen(false)}
       />
 
-      <aside className={`sidebar ${drawerOpen ? 'mobile-open' : ''}`} inert={accountBusy}>
+      <aside id="portal-sidebar" className={`sidebar ${drawerOpen ? 'mobile-open' : ''}`} inert={accountBusy}>
         <button
           className="brand"
           type="button"
@@ -128,7 +126,7 @@ export default function AppShell({
         </button>
 
         <div className="role-chip">
-          {user.role === 'owner' ? 'OWNER / SITE ADMIN' : 'PERSONAL TRAINER'}
+          {user.role === 'owner' ? 'OWNER' : user.role === 'admin' ? 'ADMIN' : 'PERSONAL TRAINER'}
         </div>
 
         <nav aria-label="Portal navigation">
@@ -209,6 +207,8 @@ export default function AppShell({
               type="button"
               className="menu-toggle"
               aria-label="Open navigation"
+              aria-expanded={drawerOpen}
+              aria-controls="portal-sidebar"
               onClick={() => setDrawerOpen(true)}
             >
               ☰
@@ -239,7 +239,7 @@ export default function AppShell({
           </div>
 
           <div className="topbar-user">
-            <button
+            {(!enabledRoutes || enabledRoutes.includes('messages')) && <button
               type="button"
               className="message-button"
               aria-label="Messages"
@@ -267,7 +267,7 @@ export default function AppShell({
                 />
               </svg>
               {unread > 0 && <span className="message-count">{unread}</span>}
-            </button>
+            </button>}
 
             <div className="profile-menu-wrap" ref={profileRef}>
               <button
@@ -287,14 +287,16 @@ export default function AppShell({
                   <div className="profile-popover-head">
                     <strong>{user.name}</strong>
                     <span>
-                      {user.role === 'owner' ? 'Owner / Site Admin' : 'Personal Trainer'}
+                      {user.role === 'owner' ? 'Owner' : user.role === 'admin' ? 'Admin' : 'Personal Trainer'}
                     </span>
                   </div>
+
+                  {user.role === 'owner' && <button type="button" role="menuitem" onClick={() => onRoute('owner-profile/create-admin')}>Create Admin</button>}
 
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={() => onRoute(user.role === 'owner' ? 'owner-profile' : 'my-profile')}
+                    onClick={() => onRoute(user.role === 'owner' ? 'owner-profile' : user.role === 'admin' ? 'account' : 'my-profile')}
                   >
                     My Profile
                   </button>

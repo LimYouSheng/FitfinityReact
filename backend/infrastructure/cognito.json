@@ -1,0 +1,184 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Review and deploy separately in ap-southeast-1. No runtime credentials in outputs.",
+  "Parameters": {
+    "SessionHours": {
+      "Type": "Number",
+      "Default": 8,
+      "MinValue": 1,
+      "MaxValue": 168
+    },
+    "StaffPortalUrl": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^https://[A-Za-z0-9.-]+(?::443)?(?:/[A-Za-z0-9/_-]*)?/?$",
+      "Description": "Exact HTTPS staff portal URL. Leave empty until the staff frontend is deployed."
+    }
+  },
+  "Rules": {
+    "SingaporeOnly": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::Region"
+              },
+              "ap-southeast-1"
+            ]
+          },
+          "AssertDescription": "Use the approved Singapore region."
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "StaffPool": {
+      "Type": "AWS::Cognito::UserPool",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "UserPoolName": {
+          "Fn::Sub": "${AWS::StackName}-staff"
+        },
+        "UserPoolTier": "ESSENTIALS",
+        "DeletionProtection": "ACTIVE",
+        "UsernameAttributes": [
+          "email"
+        ],
+        "UsernameConfiguration": {
+          "CaseSensitive": false
+        },
+        "AutoVerifiedAttributes": [
+          "email"
+        ],
+        "UserAttributeUpdateSettings": {
+          "AttributesRequireVerificationBeforeUpdate": [
+            "email"
+          ]
+        },
+        "AdminCreateUserConfig": {
+          "AllowAdminCreateUserOnly": true,
+          "InviteMessageTemplate": {
+            "Fn::If": [
+              "HasStaffPortalUrl",
+              {
+                "EmailSubject": "Your Fitfinity staff account",
+                "EmailMessage": {
+                  "Fn::Sub": "<p>You have been invited to Fitfinity.</p><p>Sign-in username: {username}<br>Temporary password: {####}</p><p><a href=\"${StaffPortalUrl}\">Open the Fitfinity staff portal</a> to set your password and authenticator. You can then add the portal to your home screen.</p>"
+                }
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          }
+        },
+        "MfaConfiguration": "ON",
+        "EnabledMfas": [
+          "SOFTWARE_TOKEN_MFA"
+        ],
+        "AccountRecoverySetting": {
+          "RecoveryMechanisms": [
+            {
+              "Name": "verified_email",
+              "Priority": 1
+            }
+          ]
+        },
+        "Policies": {
+          "PasswordPolicy": {
+            "MinimumLength": 15,
+            "RequireUppercase": false,
+            "RequireLowercase": false,
+            "RequireNumbers": false,
+            "RequireSymbols": false,
+            "TemporaryPasswordValidityDays": 7
+          }
+        },
+        "Schema": [
+          {
+            "Name": "email",
+            "AttributeDataType": "String",
+            "Required": true,
+            "Mutable": true
+          },
+          {
+            "Name": "staff_id",
+            "AttributeDataType": "String",
+            "Required": false,
+            "Mutable": false,
+            "StringAttributeConstraints": {
+              "MinLength": "36",
+              "MaxLength": "36"
+            }
+          }
+        ]
+      }
+    },
+    "StaffClient": {
+      "Type": "AWS::Cognito::UserPoolClient",
+      "Properties": {
+        "UserPoolId": {
+          "Ref": "StaffPool"
+        },
+        "ClientName": "fitfinity-staff-backend",
+        "GenerateSecret": true,
+        "ExplicitAuthFlows": [
+          "ALLOW_USER_PASSWORD_AUTH"
+        ],
+        "EnableTokenRevocation": true,
+        "PreventUserExistenceErrors": "ENABLED",
+        "RefreshTokenRotation": {
+          "Feature": "ENABLED",
+          "RetryGracePeriodSeconds": 0
+        },
+        "AccessTokenValidity": 5,
+        "IdTokenValidity": 5,
+        "RefreshTokenValidity": {
+          "Ref": "SessionHours"
+        },
+        "TokenValidityUnits": {
+          "AccessToken": "minutes",
+          "IdToken": "minutes",
+          "RefreshToken": "hours"
+        },
+        "AuthSessionValidity": 5,
+        "ReadAttributes": [
+          "email",
+          "email_verified"
+        ],
+        "WriteAttributes": [
+          "email",
+          "name"
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "PoolId": {
+      "Value": {
+        "Ref": "StaffPool"
+      }
+    },
+    "ClientId": {
+      "Value": {
+        "Ref": "StaffClient"
+      }
+    }
+  },
+  "Conditions": {
+    "HasStaffPortalUrl": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "StaffPortalUrl"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "environment": "test",
+  "account": "418638389566",
+  "region": "ap-southeast-1",
+  "profile": "fitfinity-test",
+  "repository": "LimYouSheng/FitfinityReact",
+  "github_environment": "aws-test",
+  "github_verify_role": "arn:aws:iam::418638389566:role/fitfinity-test-github-verify",
+  "accepted_at": "2026-09-25T13:33:42.499544+00:00",
+  "auth_stack": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-auth-secret/18339770-b8e2-11f1-8a24-0a463e296739",
+  "auth_secret": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/auth-Y2c7Xy",
+  "auth_version": "76c0fda4f58c0aba21e462f172c282fe7ff3a3e52805ee0d0414232b5e68ec63",
+  "stages": {
+    "account-preflight": {
+      "kind": "review",
+      "script": "test-preflight.py",
+      "accepted": true
+    },
+    "foundation-plan": {
+      "kind": "bootstrap",
+      "script": "test-foundation-plan.py",
+      "accepted": true
+    },
+    "foundation": {
+      "kind": "bootstrap",
+      "script": "test-foundation-execute.py",
+      "accepted": true
+    },
+    "egress-preflight": {
+      "kind": "review",
+      "script": "test-egress-preflight.py",
+      "accepted": true
+    },
+    "egress": {
+      "kind": "bootstrap",
+      "script": "test-egress-execute.py",
+      "accepted": true
+    },
+    "cognito": {
+      "kind": "bootstrap",
+      "script": "test-cognito-execute.py",
+      "accepted": true
+    },
+    "image": {
+      "kind": "release",
+      "script": "test-image-publish.py",
+      "accepted": true,
+      "scope": "accepted image digest only"
+    },
+    "image-runtime": {
+      "kind": "review",
+      "script": "test-image-runtime.py",
+      "accepted": true
+    },
+    "private-egress": {
+      "kind": "probe",
+      "script": "test-private-egress.py",
+      "accepted": true
+    },
+    "database-access": {
+      "kind": "bootstrap",
+      "script": "test-db-access.py",
+      "accepted": true
+    },
+    "initial-schema": {
+      "kind": "bootstrap",
+      "script": "test-db-migrations.py",
+      "accepted": true
+    },
+    "authentication": {
+      "kind": "bootstrap",
+      "script": "test-auth-secrets.py",
+      "accepted": true
+    },
+    "database-recovery": {
+      "kind": "recovery",
+      "script": "test-db-access.py",
+      "arguments": [
+        "--recover"
+      ],
+      "accepted": false,
+      "scope": "exact recorded temporary failure only"
+    }
+  },
+  "release_blockers": [
+    "First Owner linking primitive exists; reviewed live bootstrap and sign-in/MFA acceptance remain pending.",
+    "Application Lambda/API and frontend hosting templates, origins, and runtime IAM are not defined.",
+    "Repeatable migration upgrades for a populated database and rollback policy need implementation; initial-schema is not an upgrade runner.",
+    "Current-source image candidate build/publication/scan tooling is prepared but requires native and GitHub acceptance; application rollout, populated-data migration and post-deployment smoke/rollback remain pending.",
+    "GitHub AWS OIDC trust/roles and the protected aws-test environment need setup and native verification."
+  ]
+}

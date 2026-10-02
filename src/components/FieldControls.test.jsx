@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import SelectField from './SelectField.jsx'
+import Field from './OnboardingField.jsx'
 import DateField from './DateField.jsx'
 import PortraitOrientation from './PortraitOrientation.jsx'
 import SuggestionField from './SuggestionField.jsx'
@@ -69,12 +70,41 @@ it('opens the app option menu, cancels the native picker, chooses with pointer/k
   await user.keyboard('{Enter}')
   expect(period).toHaveValue('one')
   expect(screen.queryByRole('listbox')).toBeNull()
+  cleanup()
+  function RequiredForm() {
+    const [name, setName] = useState('')
+    const [phone, setPhone] = useState('')
+    const [kind, setKind] = useState('')
+    return <><Field label="Required name" required><input value={name} onChange={event => setName(event.target.value)} /></Field>
+      <Field label="Phone" required group><div>
+        <SelectField aria-label="Country code" required value="+65" onChange={() => {}}><option>+65</option></SelectField>
+        <input aria-label="Phone number" required value={phone} onChange={event => setPhone(event.target.value)} />
+      </div></Field>
+      <Field label="Required kind" required><SelectField value={kind} onChange={event => setKind(event.target.value)}><option value="">Choose</option><option>Coach</option></SelectField></Field>
+      <Field label="Zero rate" required><input value={0} onChange={() => {}} /></Field>
+      <Field label="Invalid email" required error="Invalid email"><input value="invalid" onChange={() => {}} /></Field></>
+  }
+  render(<RequiredForm />)
+  for (const label of ['Required name', 'Phone number', 'Required kind']) {
+    const input = screen.getByLabelText(new RegExp(`^${label}`))
+    expect(input).toHaveAttribute('data-required-empty', 'true')
+    fireEvent.change(input, { target: { value: label === 'Required kind' ? 'Coach' : 'Entered' } })
+    expect(input).not.toHaveAttribute('data-required-empty')
+    expect(input).toBeRequired()
+    fireEvent.change(input, { target: { value: '' } })
+    expect(input).toHaveAttribute('data-required-empty', 'true')
+  }
+  fireEvent.change(screen.getByLabelText(/^Required name/), { target: { value: '   ' } })
+  expect(screen.getByLabelText(/^Required name/)).toHaveAttribute('data-required-empty', 'true')
+  expect(screen.getByLabelText('Country code')).not.toHaveAttribute('data-required-empty')
+  expect(screen.getByLabelText(/^Zero rate/)).not.toHaveAttribute('data-required-empty')
+  expect(screen.getByLabelText(/^Invalid email/)).toHaveAttribute('aria-invalid', 'true')
 })
 
 it('uses a compact calendar with ISO values, date limits, clearing and no native date input', async () => {
   function Form() {
     const [value, setValue] = useState('2026-09-11')
-    return <DateField aria-label="Start date" value={value} min="2026-09-10" max="2026-10-15" onChange={event => setValue(event.target.value)} />
+    return <Field label="Start date" required><DateField aria-label="Start date" value={value} min="2026-09-10" max="2026-10-15" onChange={event => setValue(event.target.value)} /></Field>
   }
   renderFields(<Form />)
   const user = userEvent.setup()
@@ -91,8 +121,10 @@ it('uses a compact calendar with ISO values, date limits, clearing and no native
   expect(screen.getByRole('button', { name: '16 Oct 2026' })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
   expect(control).toHaveValue('')
+  expect(control).toHaveAttribute('data-required-empty', 'true')
   fireEvent.change(control, { target: { value: '2026-10-14' } })
   expect(control).toHaveValue('2026-10-14')
+  expect(control).not.toHaveAttribute('data-required-empty')
   await user.click(control)
   await user.click(screen.getByLabelText('Calendar picker month'))
   const months = screen.getByRole('listbox', { name: 'Calendar picker month' })

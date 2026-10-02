@@ -76,7 +76,7 @@ it('validates package version, calendar date, cadence, trainer preference and sc
 
 it('keeps old-session progress and credit on the old package after renewal and reload', async () => {
   const previousId = client().package.id, previousUsed = client().package.used
-  await sessionService.saveExercisePlan('s1', [{ id: 'row', name: 'Package Row', weight: '30 kg', reps: '8', rounds: '3' }])
+  await sessionService.saveExercisePlan('s1', [{ id: 'row', name: 'Package Row', weight: '30 kg', reps: '8', rounds: '3' }], mockDb.read().users.find(user => user.role === 'owner'))
   const result = await renew()
   await sessionService.acknowledge('s1', { method: 'signature', signerName: 'Amanda', signature: signatureFixture }, owner())
   mockDb.reload()
@@ -85,7 +85,7 @@ it('keeps old-session progress and credit on the old package after renewal and r
   expect(progressForPackage(client(), result.package.id)).toEqual([])
   expect(progressForPackage(client(), previousId).find(item => item.name === 'Package Row').points).toMatchObject([{ sessionId: 's1', load: 30, packageId: previousId }])
   const nextSession = mockDb.read().sessions.find(item => item.packageId === result.package.id)
-  await sessionService.saveExercisePlan(nextSession.id, [{ id: 'row', name: 'Package Row', weight: '40 kg', reps: '8', rounds: '3' }])
+  await sessionService.saveExercisePlan(nextSession.id, [{ id: 'row', name: 'Package Row', weight: '40 kg', reps: '8', rounds: '3' }], mockDb.read().users.find(user => user.role === 'owner'))
   await sessionService.acknowledge(nextSession.id, { method: 'signature', signerName: 'Amanda', signature: signatureFixture }, owner())
   expect(client().package.used).toBe(1)
   expect(progressForPackage(client(), result.package.id).find(item => item.name === 'Package Row').points).toMatchObject([{ sessionId: nextSession.id, load: 40 }])
@@ -172,10 +172,10 @@ it('records report actions per purchase and preserves package-scoped idempotency
   await expect(clientService.recordProgressReportAction('c1', { ...action, packageId: client().package.id }, owner())).rejects.toThrow('already been used')
   await expect(clientService.recordProgressReportAction('c1', { ...action, id: 'foreign', packageId: 'client-package-c2' }, owner())).rejects.toThrow('package not found')
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-marcus', expiresAt: Date.now() + 3600000 }))
-  await expect(mockPortalAdapter.invoke('clientService', 'progressReportHistory', ['c1', owner(), previousId])).rejects.toThrow('owner')
-  await expect(mockPortalAdapter.invoke('clientService', 'renewPackage', ['c1', draft(), owner()])).rejects.toThrow('owner')
-  for (const method of ['deactivate', 'deactivatePackage', 'deletePackageSessions']) await expect(mockPortalAdapter.invoke('clientService', method, ['c1', { packageId: client().package.id }, owner()])).rejects.toThrow('owner')
-  await expect(mockPortalAdapter.invoke('clientService', 'update', ['c1', { status: 'inactive' }])).rejects.toThrow('owner')
+  await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'progressReportHistory', input: { id: 'c1', packageId: previousId } })).rejects.toThrow('owner')
+  await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'renewPackage', input: { id: 'c1', draft: draft() } })).rejects.toThrow('owner')
+  for (const method of ['deactivate', 'deactivatePackage', 'deletePackageSessions']) await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: method, input: { id: 'c1', ...(method === 'deactivate' ? {} : { options: { packageId: client().package.id } }) } })).rejects.toThrow('owner')
+  await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'update', input: { id: 'c1', patch: { status: 'inactive' } } })).rejects.toThrow('owner')
 })
 
 it('keeps inactive sessions unchanged and rejects every session mutation through the authenticated adapter', async () => {
@@ -186,22 +186,22 @@ it('keeps inactive sessions unchanged and rejects every session mutation through
   const plan = [{ id: 'row', name: 'Row', weight: '10 kg', reps: '8', rounds: '3' }]
   for (const userId of ['u-owner', 'u-marcus']) {
     localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId, expiresAt: Date.now() + 3600000 }))
-    for (const [method, args] of [
-      ['saveExercisePlan', [plan]], ['copyPreviousPlan', []], ['saveOutcome', [{ durationMinutes: 50 }]],
-      ['saveClientSummary', ['Changed']], ['markWhatsAppOpened', []], ['acknowledge', [{ method: 'late_no_show' }]],
-      ['saveVideo', ['exercise-s1-1', new Blob(), {}]], ['removeVideo', ['exercise-s1-1']],
-      ['updateDetails', [{ date: '2027-06-01', from: '10:00', to: '11:00', trainerId: 't1' }]],
-      ['requestTimeChange', [owner(), { date: '2027-06-01', from: '10:00', to: '11:00' }]],
-      ['requestTrainerChange', [owner(), 't2']],
-    ]) await expect(mockPortalAdapter.invoke('sessionService', method, ['s1', ...args])).rejects.toThrow()
-    await expect(mockPortalAdapter.invoke('clientService', 'update', ['c1', { remarks: 'Changed' }])).rejects.toThrow('inactive')
-    await expect(mockPortalAdapter.invoke('clientService', 'saveFixedWeeklySchedule', ['c1', client().fixedWeeklySchedule])).rejects.toThrow('active')
+    for (const [method, input] of [
+      ['saveExercisePlan', { items: plan }], ['copyPreviousPlan', {}], ['saveOutcome', { outcome: { durationMinutes: 50 } }],
+      ['saveClientSummary', { summary: 'Changed' }], ['markWhatsAppOpened', {}], ['acknowledge', { acknowledgement: { method: 'late_no_show' } }],
+      ['saveVideo', { exerciseId: 'exercise-s1-1', file: new Blob(), metadata: {} }], ['removeVideo', { exerciseId: 'exercise-s1-1' }],
+      ['updateDetails', { patch: { date: '2027-06-01', from: '10:00', to: '11:00', trainerId: 't1' } }],
+      ['requestTimeChange', { patch: { date: '2027-06-01', from: '10:00', to: '11:00' } }],
+      ['requestTrainerChange', { replacementTrainerId: 't2' }],
+    ]) await expect(mockPortalAdapter.invoke({ service: 'sessionService', operation: method, input: { sessionId: 's1', ...input } })).rejects.toThrow()
+    await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'update', input: { id: 'c1', patch: { remarks: 'Changed' } } })).rejects.toThrow('inactive')
+    await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'saveFixedWeeklySchedule', input: { id: 'c1', slots: client().fixedWeeklySchedule } })).rejects.toThrow('active')
     expect(mockDb.read()).toEqual(inactive)
-    await expect(mockPortalAdapter.invoke('sessionService', 'previousPlanFor', ['s1'])).resolves.toBeInstanceOf(Array)
+    await expect(mockPortalAdapter.invoke({ service: 'sessionService', operation: 'previousPlanFor', input: { sessionId: 's1' } })).resolves.toBeInstanceOf(Array)
   }
   await expect(renew()).rejects.toThrow('inactive')
   await clientService.reactivate('c1', owner())
-  await sessionService.saveClientSummary('s1', 'Changed')
+  await sessionService.saveClientSummary('s1', 'Changed', mockDb.read().users.find(user => user.role === 'owner'))
   expect(client().package.status).toBe('active')
 })
 
@@ -209,7 +209,7 @@ it('keeps inactive sessions immutable during trainer deactivation and retains co
   await clientService.deactivate('c1', owner())
   const before = mockDb.read(), inactiveSessions = before.sessions.filter(item => item.clientId === 'c1')
   const replacements = Object.fromEntries(before.sessions.filter(item => item.trainerId === 't1' && item.clientId !== 'c1' && !['completed', 'cancelled'].includes(item.status)).map(item => [item.id, 't2']))
-  await trainerService.deactivate('t1', replacements)
+  await trainerService.deactivate('t1', replacements, owner())
   const after = mockDb.read()
   expect(after.sessions.filter(item => item.clientId === 'c1')).toEqual(inactiveSessions)
   const pay = remunerationDraft(after, '2026-09', 't1')
@@ -230,9 +230,9 @@ it('deactivates a package once with owner evidence, retains sessions by default 
   await clientService.deactivatePackage('c1', { packageId: newId }, owner())
   expect(mockDb.read()).toEqual(after)
   const frozen = before.sessions.find(item => item.packageId === newId)
-  await expect(sessionService.saveClientSummary(frozen.id, 'Changed')).rejects.toThrow('Package inactive')
+  await expect(sessionService.saveClientSummary(frozen.id, 'Changed', mockDb.read().users.find(user => user.role === 'owner'))).rejects.toThrow('Package inactive')
   await expect(sessionService.acknowledge(frozen.id, { method: 'late_no_show' }, owner())).rejects.toThrow('Package inactive')
-  await sessionService.saveClientSummary('s1', 'Older active package remains editable')
+  await sessionService.saveClientSummary('s1', 'Older active package remains editable', mockDb.read().users.find(user => user.role === 'owner'))
   expect(client().packageHistory.find(item => item.id === oldId).status).not.toBe('inactive')
   await renew(draft({ requestId: 'corrected-renewal', startDate: '2026-11-16' }))
   expect(client().packageHistory[0]).toEqual(inactive)
@@ -269,7 +269,7 @@ it('rolls back package deactivation and optional deletion if storage fails and r
   await expect(clientService.deactivatePackage('c1', options, owner())).rejects.toThrow('Storage full')
   expect(mockDb.read()).toEqual(before)
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-marcus', expiresAt: Date.now() + 3600000 }))
-  await expect(mockPortalAdapter.invoke('clientService', 'deactivatePackage', ['c1', options, owner()])).rejects.toThrow('owner')
+  await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'deactivatePackage', input: { id: 'c1', options } })).rejects.toThrow('owner')
   await expect(clientService.deactivatePackage('c1', options, { ...owner(), id: 'u-marcus' })).rejects.toThrow('active staff')
   expect(mockDb.read()).toEqual(before)
 })
@@ -332,7 +332,7 @@ it('prefills current settings and applies a reviewed new trainer and schedule on
 it('rejects tampered or unavailable trainer schedules atomically before adding a purchase', async () => {
   const before = mockDb.read()
   for (const patch of [{ status: 'inactive' }, { package: { status: 'inactive' } }, { trainerId: 't2' }, { fixedWeeklySchedule: [] }]) {
-    await expect(clientService.update('c1', patch)).rejects.toThrow('dedicated')
+    await expect(clientService.update('c1', patch, mockDb.read().users.find(user => user.role === 'owner'))).rejects.toThrow('dedicated')
     expect(mockDb.read()).toEqual(before)
   }
   for (const patch of [{ trainerId: 'missing' }, { clientPreferences: [] },
@@ -482,16 +482,16 @@ it('keeps client visibility from saved session assignment even when current assi
 it('renames clients and trainer accounts without changing IDs, bookings or historical signatures and enforces ownership', async () => {
   const before = mockDb.read()
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-owner', expiresAt: Date.now() + 3600000 }))
-  await mockPortalAdapter.invoke('clientService', 'update', ['c1', { name: ' Amanda Updated ' }])
-  await mockPortalAdapter.invoke('trainerService', 'update', ['t1', { name: ' Marcus Updated ' }])
+  await mockPortalAdapter.invoke({ service: 'clientService', operation: 'update', input: { id: 'c1', patch: { name: ' Amanda Updated ' } } })
+  await mockPortalAdapter.invoke({ service: 'trainerService', operation: 'update', input: { id: 't1', patch: { name: ' Marcus Updated ' } } })
   expect(client().name).toBe('Amanda Updated')
   expect(mockDb.read().trainers.find(item => item.id === 't1').name).toBe('Marcus Updated')
   expect(mockDb.read().users.find(item => item.id === 'u-marcus').name).toBe('Marcus Updated')
   expect(mockDb.read().sessions).toEqual(before.sessions)
-  for (const [domain, id] of [['clientService', 'c1'], ['trainerService', 't1']]) await expect(mockPortalAdapter.invoke(domain, 'update', [id, { name: ' ' }])).rejects.toThrow('name')
+  for (const [domain, id] of [['clientService', 'c1'], ['trainerService', 't1']]) await expect(mockPortalAdapter.invoke({ service: domain, operation: 'update', input: { id, patch: { name: ' ' } } })).rejects.toThrow('name')
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-marcus', expiresAt: Date.now() + 3600000 }))
-  await expect(mockPortalAdapter.invoke('clientService', 'update', ['c1', { name: 'Changed' }])).rejects.toThrow('owner')
-  await expect(mockPortalAdapter.invoke('trainerService', 'update', ['t1', { name: 'Changed' }])).rejects.toThrow('owner')
+  await expect(mockPortalAdapter.invoke({ service: 'clientService', operation: 'update', input: { id: 'c1', patch: { name: 'Changed' } } })).rejects.toThrow('owner')
+  await expect(mockPortalAdapter.invoke({ service: 'trainerService', operation: 'update', input: { id: 't1', patch: { name: 'Changed' } } })).rejects.toThrow('owner')
   expect((await mockPortalAdapter.load()).user.name).toBe('Marcus Updated')
 })
 

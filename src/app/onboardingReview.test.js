@@ -1,5 +1,6 @@
 import { mockPolicy } from '../data/mockPolicy.js'
 
+import { saveAssessment } from './assessmentForms.js'
 import { DEFAULT_PACKAGES } from '../data/mockPackages.js'
 import { describe, expect, it } from 'vitest'
 import { CLIENT_ONBOARDING_STEPS, clientStepErrors } from './clientOnboarding.js'
@@ -33,7 +34,7 @@ describe('onboarding review', () => {
     expect(sections.map(section => section.key)).toEqual(CLIENT_ONBOARDING_STEPS.map(step => step.key))
     expect(rows(sections[0])).toMatchObject({ 'Client type': 'Single', Name: 'Amanda', Phone: '+65 9123 4567',
       Email: 'amanda@example.com', Birthday: '02 Jan 1990', Gender: 'Female', 'Emergency contact name': 'Jason',
-      'Emergency contact relationship': 'Spouse', 'Emergency contact phone': '+60 123456789', 'Health / Limitation Notes': 'Knee notes' })
+      'Emergency contact relationship': 'Spouse', 'Emergency contact phone': '+60 123456789', 'Historical health notes': 'Knee notes' })
     expect(JSON.stringify(sections)).not.toContain('Hidden draft')
     expect(JSON.stringify(draft)).toBe(snapshot)
   })
@@ -42,23 +43,31 @@ describe('onboarding review', () => {
     draft.people[1] = { ...person('Mei'), healthNotes: 'Shoulder notes', phone: { countryCode: '+44', number: '1234567' } }
     const general = clientReviewSections(draft, { name: 'Rachel' }, mockPolicy)[0]
     expect(general.groups.slice(1).map(group => group.title)).toEqual(['Client 1', 'Client 2'])
-    expect(general.groups[1].rows).toContainEqual({ label: 'Health / Limitation Notes', value: 'Knee notes' })
-    expect(general.groups[2].rows).toContainEqual({ label: 'Health / Limitation Notes', value: 'Shoulder notes' })
+    expect(general.groups[1].rows).toContainEqual({ label: 'Historical health notes', value: 'Knee notes' })
+    expect(general.groups[2].rows).toContainEqual({ label: 'Historical health notes', value: 'Shoulder notes' })
     expect(general.groups[2].rows).toContainEqual({ label: 'Phone', value: '+44 1234567' })
+    const balance = saveAssessment('balance', { date: '2026-09-18', assessor: 'Owner', answers: { eyes_open_1: 10 } })
+    draft.people[1].assessments = { balance }
+    const snapshot = JSON.stringify(draft)
+    const assessment = clientReviewSections(draft, { name: 'Rachel' }, mockPolicy).find(section => section.key === 'assessments')
+    expect(assessment.groups[0].rows.every(row => !row.open)).toBe(true)
+    expect(assessment.groups[1].rows.find(row => row.label === 'Static Balance').open).toEqual({ personIndex: 1, formId: 'balance' })
+    expect(assessment.groups[1].rows.filter(row => row.open)).toHaveLength(1)
+    expect(JSON.stringify(draft)).toBe(snapshot)
   })
   it('derives package totals, all availability blocks and the selected fixed schedule from current inputs', () => {
     const draft = client(); draft.sessionsPerWeek = 2; draft.packageDefinition = DEFAULT_PACKAGES[1]
     draft.clientPreferences.push({ days: ['Wednesday'], from: '19:00', to: '20:00' })
     draft.fixedWeeklySchedule.push({ day: 'Wednesday', from: '19:00', to: '20:00' })
     const sections = clientReviewSections(draft, { name: 'Chosen Trainer' }, mockPolicy)
-    expect(rows(sections[1])).toMatchObject({ 'PT Package': '24 sessions', Validity: '180 days', 'Free gym package': 'Included',
+    expect(rows(sections[2])).toMatchObject({ 'PT Package': '24 sessions', Validity: '180 days', 'Free gym package': 'Included',
       'Total sessions': '24', 'Weekly frequency': 'Twice per week' })
     expect(rows(sections[0]).Remarks).toBe('Shared remark')
-    expect(rows(sections[1])).not.toHaveProperty('Remarks')
-    expect(rows(sections[1])['Expiry date']).toContain('Mar')
-    expect(sections[2].groups[0].rows).toHaveLength(2)
-    expect(rows(sections[3])['Assigned trainer']).toBe('Chosen Trainer')
-    expect(rows(sections[3])['Fixed Weekly Schedule']).toBe('Monday · 18:00–19:00\nWednesday · 19:00–20:00')
+    expect(rows(sections[2])).not.toHaveProperty('Remarks')
+    expect(rows(sections[2])['Expiry date']).toContain('Mar')
+    expect(sections[3].groups[0].rows).toHaveLength(2)
+    expect(rows(sections[4])['Assigned trainer']).toBe('Chosen Trainer')
+    expect(rows(sections[4])['Fixed Weekly Schedule']).toBe('Monday · 18:00–19:00\nWednesday · 19:00–20:00')
   })
   it('shows trainer rates including zero, all profile fields and the meaning of every approval control', () => {
     const draft = trainer(); draft.rates = { peak: '85.50', offPeak: '0' }; draft.approvalNeeded.sessionTime = false
@@ -77,17 +86,17 @@ describe('onboarding review', () => {
     expect(firstIncompleteSection(draft, CLIENT_ONBOARDING_STEPS, clientStepErrors)).toMatchObject({ index: 0, errors: { 'people.0.name': 'Client name is required.' } })
     expect(JSON.stringify(draft)).toBe(snapshot)
     draft.people[0].name = 'Ready'
-    expect(firstIncompleteSection(draft, CLIENT_ONBOARDING_STEPS, clientStepErrors).index).toBe(1)
+    expect(firstIncompleteSection(draft, CLIENT_ONBOARDING_STEPS, clientStepErrors).index).toBe(2)
   })
   it('does not let unadded availability bypass review validation for either form', () => {
-    expect(firstIncompleteSection(client(), CLIENT_ONBOARDING_STEPS, clientStepErrors, true)).toMatchObject({ index: 2 })
+    expect(firstIncompleteSection(client(), CLIENT_ONBOARDING_STEPS, clientStepErrors, true)).toMatchObject({ index: 3 })
     expect(firstIncompleteSection(trainer(), TRAINER_ONBOARDING_STEPS, trainerStepErrors, true)).toMatchObject({ index: 2 })
     expect(firstIncompleteSection(client(), CLIENT_ONBOARDING_STEPS, clientStepErrors)).toBeNull()
     expect(firstIncompleteSection(trainer(), TRAINER_ONBOARDING_STEPS, trainerStepErrors)).toBeNull()
   })
   it('requires matching again after dependent client edits and blocks invalid trainer rates', () => {
     const draft = client(); draft.trainerId = ''; draft.fixedWeeklySchedule = []
-    expect(firstIncompleteSection(draft, CLIENT_ONBOARDING_STEPS, clientStepErrors).index).toBe(3)
+    expect(firstIncompleteSection(draft, CLIENT_ONBOARDING_STEPS, clientStepErrors).index).toBe(4)
     const changedTrainer = trainer(); changedTrainer.rates.peak = '-1'
     expect(firstIncompleteSection(changedTrainer, TRAINER_ONBOARDING_STEPS, trainerStepErrors).index).toBe(1)
   })

@@ -1,0 +1,35 @@
+[project]
+name = "fitfinity-backend"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi==0.141.1",
+  "uvicorn==0.53.0",
+  "sqlalchemy==2.0.53",
+  "psycopg[binary]==3.3.5",
+  "alembic==1.20.0",
+  "pydantic-settings==2.15.0",
+  "boto3==1.43.94",
+  "PyJWT[crypto]==2.14.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest==9.1.1", "httpx2==2.13.0", "ruff==0.16.7"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --strict-markers --strict-config -p no:cacheprovider"
+xfail_strict = true
+markers = ["database: requires isolated real PostgreSQL"]
+filterwarnings = [
+  "error",
+  # Starlette 1.6 still uses this AnyIO alias. Keep the upstream warning visible.
+  "always:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

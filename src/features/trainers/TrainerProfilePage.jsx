@@ -1,62 +1,32 @@
-import SelectField from '../../components/SelectField.jsx'
+import TrainerAssignedClients from './TrainerAssignedClients.jsx'
+import TrainerDeactivationDialog from './TrainerDeactivationDialog.jsx'
+import TrainerAvailabilityGrid from './TrainerAvailabilityGrid.jsx'
+import { managesOperations, canViewTrainerRates, canEditTrainerRates } from '../../app/permissions.js'
 import TrainerGeneralFields from './TrainerGeneralFields.jsx'
 import { trainerProfileDraft, trainerStepErrors } from '../../app/trainerOnboarding.js'
 import { phoneText } from '../../app/contact.js'
-import { clientAssignedToTrainer } from '../../app/clientPackages.js'
 import usePageState from '../../hooks/usePageState.js'
 import TrainerAvailabilityEditor from './TrainerAvailabilityEditor.jsx'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { APPROVAL_FIELDS, DAYS } from '../../app/constants.js'
-import { activeTrainers, remainingTrainerSessions } from '../../app/status.js'
+import { useEffect, useRef, useState } from 'react'
+import { APPROVAL_FIELDS } from '../../app/constants.js'
 import ApprovalSetting from '../../components/ApprovalSetting.jsx'
-import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ProfileAvatar from '../../components/ProfileAvatar.jsx'
 import ProfileNavigation from '../../components/ProfileNavigation.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
-import PaginationControls from '../../components/PaginationControls.jsx'
-import usePagination from '../../hooks/usePagination.js'
 import { formatDate } from '../../utils/date.js'
-
-function formatTime(value) {
-  const [hour, minute] = value.split(':').map(Number)
-  const period = hour >= 12 ? 'pm' : 'am'
-  const h = hour % 12 || 12
-  return `${h}:${String(minute).padStart(2, '0')}${period}`
-}
-
-function AvailabilityGrid({ availability }) {
-  return (
-    <div className="availability-grid">
-      {DAYS.map(day => {
-        const blocks = availability?.[day] ?? []
-        return (
-          <div className="availability-day" key={day}>
-            <strong>{day.slice(0, 3).toUpperCase()}</strong>
-            {blocks.length
-              ? blocks.map(([from, to], index) => (
-                  <span className="availability-block" key={`${day}-${index}`}>
-                    {formatTime(from)}–{formatTime(to)}
-                  </span>
-                ))
-              : <span className="availability-empty">Unavailable</span>}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 export default function TrainerProfilePage({
   policy,
+  readOnly = false,
+  activityAvailable = true,
   viewer,
   trainer,
   trainers,
   clients,
   sessions,
-  onBack,
   onOpenClient,
   onSaveAutonomy,
   onSaveAvailability,
@@ -66,8 +36,10 @@ export default function TrainerProfilePage({
 }) {
   const confirmAction = useActionConfirmation()
   const { guardNavigation, setActiveEdit } = useEditGuard()
-  const isOwner = viewer.role === 'owner'
-  const [tab, setTab] = usePageState(`trainer.${trainer.id}.${viewer.role}.tab`, 'overview')
+  const canEditRates = canEditTrainerRates(viewer)
+  const isManager = managesOperations(viewer)
+  const [savedTab, setTab] = usePageState(`trainer.${trainer.id}.${viewer.role}.tab`, 'overview')
+  const tab = !activityAvailable && savedTab === 'activity' ? 'overview' : savedTab
   const [activeEditor, setActiveEditor] = useState(null)
   const [generalDraft, setGeneralDraft] = useState(() => trainerProfileDraft(trainer, policy))
   const [generalErrors, setGeneralErrors] = useState({})
@@ -76,25 +48,19 @@ export default function TrainerProfilePage({
   const [ratesErrors, setRatesErrors] = useState({})
   const [autonomyDraft, setAutonomyDraft] = useState(trainer.approvalNeeded)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
-  const [replacements, setReplacements] = useState({})
-  const [assignedQuery, setAssignedQuery] = usePageState('TrainerProfilePage.assignedQuery', '')
-  const [assignedType, setAssignedType] = usePageState('TrainerProfilePage.assignedType', '')
-  const [assignedFrequency, setAssignedFrequency] = usePageState('TrainerProfilePage.assignedFrequency', '')
 
-  useEffect(() => {
-    setGeneralDraft(trainerProfileDraft(trainer, policy))
-    setRatesDraft(trainer.rates)
-    setAutonomyDraft(trainer.approvalNeeded)
-    setActiveEditor(null)
-  }, [trainer.id])
 
+  const draftTrainerId = useRef(trainer.id)
   useEffect(() => {
-    if (!activeEditor) {
+    const changed = draftTrainerId.current !== trainer.id
+    if (changed || !activeEditor) {
       setGeneralDraft(trainerProfileDraft(trainer, policy))
       setRatesDraft(trainer.rates)
       setAutonomyDraft(trainer.approvalNeeded)
     }
-  }, [activeEditor, trainer])
+    if (changed) setActiveEditor(null)
+    draftTrainerId.current = trainer.id
+  }, [activeEditor, trainer, policy])
 
   useEffect(() => {
     const label = ({ general: 'Trainer information', rates: 'Trainer rates', autonomy: 'Autonomy controls', availability: 'Trainer availability' })[activeEditor] ?? null
@@ -103,32 +69,6 @@ export default function TrainerProfilePage({
   }, [activeEditor, setActiveEdit])
 
   const supervised = Object.values(trainer.approvalNeeded).filter(Boolean).length
-  const assignedClients = clients
-    .filter(client =>
-      clientAssignedToTrainer(client, trainer.id, sessions)
-    )
-    .sort((a, b) => Number(a.status === 'inactive') - Number(b.status === 'inactive') || (b.startDate ?? '').localeCompare(a.startDate ?? ''))
-
-  const filteredAssignedClients = useMemo(() => {
-    const search = assignedQuery.trim().toLowerCase()
-    return assignedClients.filter(client => {
-      if (search && !client.name.toLowerCase().includes(search) && !client.email.toLowerCase().includes(search)) return false
-      if (assignedType && client.type !== assignedType) return false
-      if (assignedFrequency && String(client.package.sessionsPerWeek) !== assignedFrequency) return false
-      return true
-    })
-  }, [assignedClients, assignedFrequency, assignedQuery, assignedType])
-
-  const remaining = useMemo(
-    () => remainingTrainerSessions(trainer.id, sessions, clients),
-    [trainer.id, sessions, clients]
-  )
-  const assignedClientPagination = usePagination(filteredAssignedClients, `${trainer.id}|${assignedQuery}|${assignedType}|${assignedFrequency}`, 'trainer.assignedPage')
-  const remainingPagination = usePagination(remaining, `${trainer.id}|${deactivateOpen}`, 'trainer.reassignmentPage')
-
-  const selectableReplacements = activeTrainers(trainers).filter(item => item.id !== trainer.id)
-  const allAssigned = remaining.every(session => replacements[session.id])
-
   const saveGeneral = async () => {
     const errors = trainerStepErrors(generalDraft, 'general', { requireComplete: false })
     if (Object.keys(errors).length) { setGeneralErrors(errors); return }
@@ -158,6 +98,7 @@ export default function TrainerProfilePage({
   }, [generalErrors])
 
   const saveRates = async () => {
+    if (readOnly || !canEditRates) return
     const errors = trainerStepErrors({ rates: ratesDraft }, 'rates')
     if (Object.keys(errors).length) { setRatesErrors(errors); return }
     setRatesErrors({})
@@ -209,8 +150,8 @@ export default function TrainerProfilePage({
         items={[
           ['overview', 'Overview'],
           ['availability', 'Availability'],
-          ...(isOwner ? [['clients', 'Assigned Clients']] : []),
-          ['activity', 'Monthly Activity'],
+          ...(isManager ? [['clients', 'Assigned Clients']] : []),
+          ...(activityAvailable ? [['activity', 'Monthly Activity']] : []),
         ]}
         activeKey={tab}
         onSelect={key => guardNavigation(() => {
@@ -219,13 +160,13 @@ export default function TrainerProfilePage({
         })}
       >
 
-          {isOwner && trainer.status !== 'inactive' && (
+          {!readOnly && isManager && trainer.status !== 'inactive' && (
             <button type="button" className="profile-menu-danger" disabled={Boolean(activeEditor)} onClick={() => setDeactivateOpen(true)}>
               Deactivate Trainer
             </button>
           )}
 
-          {isOwner && trainer.status === 'inactive' && (
+          {!readOnly && isManager && trainer.status === 'inactive' && (
             <button type="button" className="profile-menu-reactivate" disabled={Boolean(activeEditor)} onClick={async () => {
               const confirmed = await confirmAction({
                 title: `Reactivate ${trainer.name}?`,
@@ -246,7 +187,7 @@ export default function TrainerProfilePage({
           <Panel className={activeEditor === 'general' ? 'editing-section' : ''}>
             <div className="section-head">
               <div><h2>General Information</h2></div>
-              {isOwner && (activeEditor !== 'general' ? (
+              {!readOnly && isManager && (activeEditor !== 'general' ? (
                 <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setGeneralErrors({}); setActiveEditor('general') }}>Edit</button>
               ) : (
                 <div className="inline-actions">
@@ -274,11 +215,11 @@ export default function TrainerProfilePage({
 
           </Panel>
 
-          <Panel className={activeEditor === 'rates' ? 'editing-section' : ''}>
+          {canViewTrainerRates(viewer) && <Panel className={activeEditor === 'rates' ? 'editing-section' : ''}>
             <div className="section-head">
               <h2>Training & Rates</h2>
 
-              {isOwner && (activeEditor !== 'rates' ? (
+              {!readOnly && canEditRates && (activeEditor !== 'rates' ? (
                 <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setRatesErrors({}); setActiveEditor('rates') }}>Edit</button>
               ) : (
                 <div className="inline-actions">
@@ -339,7 +280,7 @@ export default function TrainerProfilePage({
               </div>
             </div>
             {activeEditor === 'rates' && Object.values(ratesErrors).map(error => <p role="alert" key={error}>{error}</p>)}
-          </Panel>
+          </Panel>}
 
           <Panel className={activeEditor === 'autonomy' ? 'editing-section' : ''}>
             <div className="section-head">
@@ -347,7 +288,7 @@ export default function TrainerProfilePage({
                 <h2>Owner Approval Needed</h2>
               </div>
 
-              {isOwner && (activeEditor !== 'autonomy' ? (
+              {!readOnly && isManager && (activeEditor !== 'autonomy' ? (
                 <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('autonomy')}>Edit</button>
               ) : (
                 <div className="inline-actions">
@@ -377,7 +318,7 @@ export default function TrainerProfilePage({
                   key={field}
                   label={label}
                   checked={(activeEditor === 'autonomy' ? autonomyDraft : trainer.approvalNeeded)[field]}
-                  disabled={!isOwner || activeEditor !== 'autonomy'}
+                  disabled={!isManager || activeEditor !== 'autonomy'}
                   onChange={checked => setAutonomyDraft(current => ({ ...current, [field]: checked }))}
                 />
               ))}
@@ -398,51 +339,15 @@ export default function TrainerProfilePage({
           ) : <>
             <div className="section-head">
               <h2>Approved Availability</h2>
-              {!isOwner && viewer.trainerId === trainer.id && trainer.status === 'active' && <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setActiveEditor('availability') }}>{trainer.approvalNeeded?.availability !== false ? 'Request Change' : 'Edit'}</button>}
+              {!readOnly && !isManager && viewer.trainerId === trainer.id && trainer.status === 'active' && <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setActiveEditor('availability') }}>{trainer.approvalNeeded?.availability !== false ? 'Request Change' : 'Edit'}</button>}
             </div>
-            <AvailabilityGrid availability={trainer.availability} />
+            <TrainerAvailabilityGrid availability={trainer.availability} />
           </>}
         </Panel>
       )}
 
-      {isOwner && tab === 'clients' && (
-        <Panel>
-          <div className="section-head">
-            <div><h2>Assigned Clients</h2></div>
-          </div>
-
-          <div className="list-controls assigned-client-controls">
-            <input
-              aria-label="Search assigned clients"
-              value={assignedQuery}
-              onChange={event => setAssignedQuery(event.target.value)}
-              placeholder="Search name or email"
-            />
-            <SelectField aria-label="Filter assigned clients by type" value={assignedType} onChange={event => setAssignedType(event.target.value)}>
-              <option value="">All types</option>
-              <option value="Individual">Individual</option>
-              <option value="Couple">Couple</option>
-            </SelectField>
-            <SelectField aria-label="Filter assigned clients by frequency" value={assignedFrequency} onChange={event => setAssignedFrequency(event.target.value)}>
-              <option value="">All frequencies</option>
-              <option value="1">Once per week</option>
-              <option value="2">Twice per week</option>
-            </SelectField>
-          </div>
-
-          <div className="compact-list" aria-label="Assigned client list">
-            <div className="compact-list-head client-compact-grid"><span>Client</span><span>Package</span><span>View</span></div>
-            {assignedClientPagination.items.map(client => (
-              <div className={`compact-list-row client-compact-grid ${client.status === 'inactive' ? 'inactive-row' : ''}`} key={client.id}>
-                <div className="compact-name-wrap"><strong className="compact-primary">{client.name}</strong>{client.status === 'inactive' && <span className="inline-inactive">Client inactive</span>}</div>
-                <span className="compact-secondary">{client.type} · {client.package.total} sessions · {client.package.sessionsPerWeek === 2 ? 'Twice' : 'Once'} weekly</span>
-                <button type="button" className="secondary-button small compact-view" aria-label={`View ${client.name}`} onClick={() => onOpenClient(client.id)}>View</button>
-              </div>
-            ))}
-            {!filteredAssignedClients.length && <div className="empty">No matching assigned clients.</div>}
-          </div>
-          <PaginationControls {...assignedClientPagination} onPage={assignedClientPagination.setPage} />
-        </Panel>
+      {isManager && tab === 'clients' && (
+        <TrainerAssignedClients trainer={trainer} clients={clients} sessions={sessions} onOpenClient={onOpenClient} />
       )}
 
       {tab === 'activity' && (
@@ -460,66 +365,8 @@ export default function TrainerProfilePage({
         </div>
       )}
 
-      <ConfirmDialog
-        open={deactivateOpen}
-        title={`Deactivate ${trainer.name}?`}
-        confirmLabel="Deactivate Trainer"
-        danger
-        confirmDisabled={!allAssigned}
-        onCancel={() => {
-          setDeactivateOpen(false)
-          setReplacements({})
-        }}
-        onConfirm={async () => {
-          try {
-            await onDeactivate(replacements)
-            setDeactivateOpen(false)
-            setReplacements({})
-          } catch { /* Failure is shown in the action banner; keep the dialog open. */ }
-        }}
-      >
-        <p>
-          An inactive trainer will immediately stop appearing in active trainer lists and availability matching.
-          Any remaining tagged sessions must be reassigned first.
-        </p>
-
-        {remaining.length > 0 ? (
-          <div className="reassign-list">
-            {remainingPagination.items.map(session => {
-              const client = clients.find(item => item.id === session.clientId)
-              return (
-                <div className="reassign-row" key={session.id}>
-                  <div>
-                    <strong>{client?.name ?? 'Client'}</strong>
-                    <span>{formatDate(session.date)} • {formatTime(session.from)}–{formatTime(session.to)}</span>
-                  </div>
-                  <label>
-                    <span>Reassign to</span>
-                    <SelectField
-                      aria-label={`Reassign ${client?.name ?? session.id}`}
-                      value={replacements[session.id] ?? ''}
-                      onChange={event => setReplacements(current => ({
-                        ...current,
-                        [session.id]: event.target.value,
-                      }))}
-                    >
-                      <option value="">Choose active trainer</option>
-                      {selectableReplacements.map(item => (
-                        <option key={item.id} value={item.id}>{item.name}</option>
-                      ))}
-                    </SelectField>
-                  </label>
-                </div>
-              )
-            })}
-            <PaginationControls {...remainingPagination} onPage={remainingPagination.setPage} />
-          </div>
-        ) : (
-          <div className="notice">No remaining sessions are tagged to this trainer.</div>
-        )}
-
-        {!allAssigned && <p className="validation-copy">Choose an active replacement for every remaining session.</p>}
-      </ConfirmDialog>
+      <TrainerDeactivationDialog trainer={trainer} trainers={trainers} clients={clients} sessions={sessions}
+        deactivateOpen={deactivateOpen} setDeactivateOpen={setDeactivateOpen} onDeactivate={onDeactivate} />
     </>
   )
 }

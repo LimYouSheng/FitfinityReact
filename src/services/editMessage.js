@@ -25,7 +25,7 @@ export function appendSavedEditMessage(db, {
     title,
     body,
     kind,
-    read: false,
+    readBy: {},
   })
 }
 

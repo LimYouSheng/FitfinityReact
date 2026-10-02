@@ -1,0 +1,2171 @@
+[
+  {
+    "form_id": "health_history",
+    "version": 1,
+    "title": "Lifestyle & Health History",
+    "source_filename": "5_Sample_Lifestyle_and_Health-History_Questionnaire.pdf",
+    "source_sha256": "bd62100e419794bea4e950ea73e700449610c491933c397cf332b9d8c26e8838",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "a80dcbeb06caba4cfb8012a3056cde327e7f9a8afeb208b22a45d33de898ed6f",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "health": {
+          "type": "select",
+          "label": "Current state of health",
+          "options": [
+            "Very well",
+            "Healthy",
+            "Unhealthy",
+            "Unwell",
+            "Other"
+          ]
+        },
+        "health_details": {
+          "type": "textarea",
+          "label": "Health details",
+          "max_length": 4000
+        },
+        "medications": {
+          "type": "textarea",
+          "label": "Medications, frequency and dosage",
+          "max_length": 4000
+        },
+        "medication_adherence": {
+          "type": "select",
+          "label": "Taking medication as prescribed?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "medication_reason": {
+          "type": "textarea",
+          "label": "If not, why?",
+          "max_length": 4000
+        },
+        "supplements": {
+          "type": "select",
+          "label": "Taking supplements?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "supplement_details": {
+          "type": "textarea",
+          "label": "Supplement types and amounts",
+          "max_length": 4000
+        },
+        "physician_visit": {
+          "type": "text",
+          "label": "Last physician visit",
+          "max_length": 500
+        },
+        "cholesterol_checked": {
+          "type": "select",
+          "label": "Cholesterol checked?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "cholesterol_date": {
+          "type": "text",
+          "label": "Cholesterol check date",
+          "max_length": 500
+        },
+        "cholesterol_results": {
+          "type": "textarea",
+          "label": "Cholesterol results (total, HDL, LDL, triglycerides; include units)",
+          "max_length": 4000
+        },
+        "blood_sugar_checked": {
+          "type": "select",
+          "label": "Blood sugar checked?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "blood_sugar_results": {
+          "type": "textarea",
+          "label": "Blood sugar results (include date and units)",
+          "max_length": 4000
+        },
+        "condition_0": {
+          "type": "checkbox",
+          "label": "Allergies",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_1": {
+          "type": "checkbox",
+          "label": "Amenorrhea",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_2": {
+          "type": "checkbox",
+          "label": "Anemia",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_3": {
+          "type": "checkbox",
+          "label": "Anxiety",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_4": {
+          "type": "checkbox",
+          "label": "Arthritis",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_5": {
+          "type": "checkbox",
+          "label": "Asthma",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_6": {
+          "type": "checkbox",
+          "label": "Celiac disease",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_7": {
+          "type": "checkbox",
+          "label": "Chronic sinus condition",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_8": {
+          "type": "checkbox",
+          "label": "Constipation",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_9": {
+          "type": "checkbox",
+          "label": "Crohn’s disease",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_10": {
+          "type": "checkbox",
+          "label": "Depression",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_11": {
+          "type": "checkbox",
+          "label": "Diabetes",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_12": {
+          "type": "checkbox",
+          "label": "Diarrhea",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_13": {
+          "type": "checkbox",
+          "label": "Disordered eating",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_14": {
+          "type": "checkbox",
+          "label": "Gastroesophageal reflux disease (GERD)",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_15": {
+          "type": "checkbox",
+          "label": "High blood pressure",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_16": {
+          "type": "checkbox",
+          "label": "Hypoglycemia",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_17": {
+          "type": "checkbox",
+          "label": "Hypo/hyperthyroidism",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_18": {
+          "type": "checkbox",
+          "label": "Insomnia",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_19": {
+          "type": "checkbox",
+          "label": "Intestinal problems",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_20": {
+          "type": "checkbox",
+          "label": "Irritability",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_21": {
+          "type": "checkbox",
+          "label": "Irritable bowel syndrome (IBS)",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_22": {
+          "type": "checkbox",
+          "label": "Menopausal symptoms",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_23": {
+          "type": "checkbox",
+          "label": "Osteoporosis",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_24": {
+          "type": "checkbox",
+          "label": "Premenstrual syndrome (PMS)",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_25": {
+          "type": "checkbox",
+          "label": "Polycystic ovary syndrome (PCOS)",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_26": {
+          "type": "checkbox",
+          "label": "Pregnant",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_27": {
+          "type": "checkbox",
+          "label": "Skin problems",
+          "options": [
+            "Yes"
+          ]
+        },
+        "condition_28": {
+          "type": "checkbox",
+          "label": "Ulcer",
+          "options": [
+            "Yes"
+          ]
+        },
+        "surgeries": {
+          "type": "textarea",
+          "label": "Major surgeries",
+          "max_length": 4000
+        },
+        "injuries": {
+          "type": "textarea",
+          "label": "Past injuries",
+          "max_length": 4000
+        },
+        "other_conditions": {
+          "type": "textarea",
+          "label": "Other conditions",
+          "max_length": 4000
+        },
+        "nutrition_goals": {
+          "type": "textarea",
+          "label": "Nutrition goals",
+          "max_length": 4000
+        },
+        "modified_diet": {
+          "type": "select",
+          "label": "Modified diet?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "diet_changes": {
+          "type": "textarea",
+          "label": "Diet modifications",
+          "max_length": 4000
+        },
+        "eating_plan": {
+          "type": "select",
+          "label": "Following a special eating plan?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "plan_type": {
+          "type": "textarea",
+          "label": "Plan type and reason",
+          "max_length": 4000
+        },
+        "plan_reason": {
+          "type": "textarea",
+          "label": "Reason for choosing the eating plan",
+          "max_length": 4000
+        },
+        "plan_prescribed": {
+          "type": "select",
+          "label": "Plan prescribed?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "plan_duration": {
+          "type": "text",
+          "label": "Time on this plan",
+          "max_length": 500
+        },
+        "dietitian": {
+          "type": "select",
+          "label": "Seen a dietitian or diabetes educator?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "dietitian_interest": {
+          "type": "select",
+          "label": "Interested in seeing one?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "nutrition_issues": {
+          "type": "textarea",
+          "label": "Nutritional issues",
+          "max_length": 4000
+        },
+        "water": {
+          "type": "number",
+          "label": "Water per day (8-ounce glasses)",
+          "min": 0
+        },
+        "other_drinks": {
+          "type": "textarea",
+          "label": "Other drinks and amounts",
+          "max_length": 4000
+        },
+        "food_allergies": {
+          "type": "select",
+          "label": "Food allergies?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "food_allergy_details": {
+          "type": "textarea",
+          "label": "Food allergy details",
+          "max_length": 4000
+        },
+        "dining_out": {
+          "type": "number",
+          "label": "Dining out (times per week)",
+          "min": 0
+        },
+        "restaurant_breakfast": {
+          "type": "text",
+          "label": "Breakfast — restaurant types",
+          "max_length": 500
+        },
+        "restaurant_lunch": {
+          "type": "text",
+          "label": "Lunch — restaurant types",
+          "max_length": 500
+        },
+        "restaurant_dinner": {
+          "type": "text",
+          "label": "Dinner — restaurant types",
+          "max_length": 500
+        },
+        "restaurant_snacks": {
+          "type": "text",
+          "label": "Snacks — restaurant types",
+          "max_length": 500
+        },
+        "cravings": {
+          "type": "select",
+          "label": "Food cravings?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "craving_details": {
+          "type": "textarea",
+          "label": "Craving details",
+          "max_length": 4000
+        },
+        "alcohol": {
+          "type": "select",
+          "label": "Alcohol use?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "caffeine": {
+          "type": "select",
+          "label": "Caffeine use?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "caffeine_amount": {
+          "type": "number",
+          "label": "Caffeinated drinks per day",
+          "min": 0
+        },
+        "tobacco": {
+          "type": "select",
+          "label": "Tobacco use?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "tobacco_amount": {
+          "type": "text",
+          "label": "Tobacco amount",
+          "max_length": 500
+        },
+        "structured_exercise": {
+          "type": "select",
+          "label": "Structured exercise?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "cardio_minutes": {
+          "type": "number",
+          "label": "Cardio minutes per session",
+          "min": 0
+        },
+        "cardio_frequency": {
+          "type": "number",
+          "label": "Cardio sessions per week",
+          "min": 0
+        },
+        "strength_frequency": {
+          "type": "number",
+          "label": "Strength sessions per week",
+          "min": 0
+        },
+        "flexibility_frequency": {
+          "type": "number",
+          "label": "Flexibility sessions per week",
+          "min": 0
+        },
+        "sport_minutes": {
+          "type": "number",
+          "label": "Sport minutes per week",
+          "min": 0
+        },
+        "activities": {
+          "type": "textarea",
+          "label": "Sports and activities",
+          "max_length": 4000
+        },
+        "other_activity": {
+          "type": "select",
+          "label": "Other physical activity?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "other_activity_details": {
+          "type": "textarea",
+          "label": "Other activity details",
+          "max_length": 4000
+        },
+        "injury_restriction": {
+          "type": "select",
+          "label": "Injury affecting activity?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "activity_injuries": {
+          "type": "textarea",
+          "label": "Injuries affecting physical activity",
+          "max_length": 4000
+        },
+        "restrictions": {
+          "type": "textarea",
+          "label": "Injuries and activity restrictions",
+          "max_length": 4000
+        },
+        "exercise_feelings": {
+          "type": "textarea",
+          "label": "Feelings about exercise",
+          "max_length": 4000
+        },
+        "favorite_activities": {
+          "type": "textarea",
+          "label": "Favourite activities",
+          "max_length": 4000
+        },
+        "working": {
+          "type": "select",
+          "label": "Currently working?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "occupation": {
+          "type": "text",
+          "label": "Occupation",
+          "max_length": 500
+        },
+        "work_schedule": {
+          "type": "text",
+          "label": "Work schedule",
+          "max_length": 500
+        },
+        "work_activity": {
+          "type": "text",
+          "label": "Activity level at work",
+          "max_length": 500
+        },
+        "sleep_hours": {
+          "type": "number",
+          "label": "Sleep per night (hours)",
+          "min": 0,
+          "max": 24
+        },
+        "stress": {
+          "type": "number",
+          "label": "Stress level (1–10)",
+          "min": 1,
+          "max": 10
+        },
+        "stressors": {
+          "type": "textarea",
+          "label": "Sources of stress",
+          "max_length": 4000
+        },
+        "appetite": {
+          "type": "select",
+          "label": "Effect of stress on appetite",
+          "options": [
+            "Increased",
+            "Unaffected",
+            "Decreased"
+          ]
+        },
+        "present_weight": {
+          "type": "number",
+          "label": "Present weight (kg)",
+          "min": 0
+        },
+        "weight_goal": {
+          "type": "select",
+          "label": "Desired weight change",
+          "options": [
+            "Lose",
+            "Gain",
+            "Maintain"
+          ]
+        },
+        "lowest_weight": {
+          "type": "number",
+          "label": "Lowest weight in five years (kg)",
+          "min": 0
+        },
+        "highest_weight": {
+          "type": "number",
+          "label": "Highest weight in five years (kg)",
+          "min": 0
+        },
+        "ideal_weight": {
+          "type": "number",
+          "label": "Ideal weight (kg)",
+          "min": 0
+        },
+        "waist": {
+          "type": "number",
+          "label": "Waist (cm)",
+          "min": 0
+        },
+        "hip": {
+          "type": "number",
+          "label": "Hip (cm)",
+          "min": 0
+        },
+        "body_fat": {
+          "type": "number",
+          "label": "Body fat (%)",
+          "min": 0,
+          "max": 100
+        },
+        "readiness": {
+          "type": "number",
+          "label": "Likelihood of adopting a healthy lifestyle (1–10)",
+          "min": 1,
+          "max": 10
+        },
+        "specific_goals": {
+          "type": "select",
+          "label": "Specific goals?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "goals": {
+          "type": "textarea",
+          "label": "Personal goals",
+          "max_length": 4000
+        },
+        "weight_loss_goal": {
+          "type": "select",
+          "label": "Weight loss goal?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        "weight_loss_details": {
+          "type": "textarea",
+          "label": "Weight loss goal and reason",
+          "max_length": 4000
+        },
+        "weight_loss_reason": {
+          "type": "textarea",
+          "label": "Reason for wanting to lose weight",
+          "max_length": 4000
+        },
+        "cholesterol_total": {
+          "type": "text",
+          "label": "Total cholesterol (include units)",
+          "max_length": 500
+        },
+        "cholesterol_hdl": {
+          "type": "text",
+          "label": "HDL cholesterol (include units)",
+          "max_length": 500
+        },
+        "cholesterol_ldl": {
+          "type": "text",
+          "label": "LDL cholesterol (include units)",
+          "max_length": 500
+        },
+        "triglycerides": {
+          "type": "text",
+          "label": "Triglycerides (include units)",
+          "max_length": 500
+        },
+        "allergies_specify": {
+          "type": "text",
+          "label": "Allergies — specify",
+          "max_length": 500
+        },
+        "surgeries_selected": {
+          "type": "checkbox",
+          "label": "Major surgeries — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "injuries_selected": {
+          "type": "checkbox",
+          "label": "Past injuries — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "other_conditions_selected": {
+          "type": "checkbox",
+          "label": "Other health conditions — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "family_0_selected": {
+          "type": "checkbox",
+          "label": "Family history — Heart disease",
+          "options": [
+            "Yes"
+          ]
+        },
+        "family_0_relation": {
+          "type": "text",
+          "label": "Heart disease — relationship",
+          "max_length": 500
+        },
+        "family_0_age": {
+          "type": "text",
+          "label": "Heart disease — age at diagnosis",
+          "max_length": 500
+        },
+        "family_1_selected": {
+          "type": "checkbox",
+          "label": "Family history — High cholesterol",
+          "options": [
+            "Yes"
+          ]
+        },
+        "family_1_relation": {
+          "type": "text",
+          "label": "High cholesterol — relationship",
+          "max_length": 500
+        },
+        "family_1_age": {
+          "type": "text",
+          "label": "High cholesterol — age at diagnosis",
+          "max_length": 500
+        },
+        "family_2_selected": {
+          "type": "checkbox",
+          "label": "Family history — High blood pressure",
+          "options": [
+            "Yes"
+          ]
+        },
+        "family_2_relation": {
+          "type": "text",
+          "label": "High blood pressure — relationship",
+          "max_length": 500
+        },
+        "family_2_age": {
+          "type": "text",
+          "label": "High blood pressure — age at diagnosis",
+          "max_length": 500
+        },
+        "family_3_selected": {
+          "type": "checkbox",
+          "label": "Family history — Cancer",
+          "options": [
+            "Yes"
+          ]
+        },
+        "family_3_relation": {
+          "type": "text",
+          "label": "Cancer — relationship",
+          "max_length": 500
+        },
+        "family_3_age": {
+          "type": "text",
+          "label": "Cancer — age at diagnosis",
+          "max_length": 500
+        },
+        "family_4_selected": {
+          "type": "checkbox",
+          "label": "Family history — Diabetes",
+          "options": [
+            "Yes"
+          ]
+        },
+        "family_4_relation": {
+          "type": "text",
+          "label": "Diabetes — relationship",
+          "max_length": 500
+        },
+        "family_4_age": {
+          "type": "text",
+          "label": "Diabetes — age at diagnosis",
+          "max_length": 500
+        },
+        "family_5_selected": {
+          "type": "checkbox",
+          "label": "Family history — Osteoporosis",
+          "options": [
+            "Yes"
+          ]
+        },
+        "family_5_relation": {
+          "type": "text",
+          "label": "Osteoporosis — relationship",
+          "max_length": 500
+        },
+        "family_5_age": {
+          "type": "text",
+          "label": "Osteoporosis — age at diagnosis",
+          "max_length": 500
+        },
+        "food_preparation_self": {
+          "type": "checkbox",
+          "label": "Food shopping and preparation — Self",
+          "options": [
+            "Yes"
+          ]
+        },
+        "food_preparation_spouse": {
+          "type": "checkbox",
+          "label": "Food shopping and preparation — Spouse",
+          "options": [
+            "Yes"
+          ]
+        },
+        "food_preparation_parent": {
+          "type": "checkbox",
+          "label": "Food shopping and preparation — Parent",
+          "options": [
+            "Yes"
+          ]
+        },
+        "food_preparation_minimal": {
+          "type": "checkbox",
+          "label": "Food shopping and preparation — Minimal preparation",
+          "options": [
+            "Yes"
+          ]
+        },
+        "alcohol_frequency": {
+          "type": "number",
+          "label": "Alcohol — times per week",
+          "min": 0
+        },
+        "alcohol_average": {
+          "type": "text",
+          "label": "Alcohol — average amount",
+          "max_length": 500
+        },
+        "present_weight_unknown": {
+          "type": "checkbox",
+          "label": "Present weight — don’t know",
+          "options": [
+            "Yes"
+          ]
+        },
+        "ideal_weight_unknown": {
+          "type": "checkbox",
+          "label": "Ideal weight — don’t know",
+          "options": [
+            "Yes"
+          ]
+        },
+        "circumferences_unknown": {
+          "type": "checkbox",
+          "label": "Waist and hip — don’t know",
+          "options": [
+            "Yes"
+          ]
+        },
+        "body_fat_unknown": {
+          "type": "checkbox",
+          "label": "Body fat — don’t know",
+          "options": [
+            "Yes"
+          ]
+        }
+      },
+      "legacy_field_ids": [
+        "conditions",
+        "family_0",
+        "family_1",
+        "family_2",
+        "family_3",
+        "family_4",
+        "family_5",
+        "food_shopper",
+        "food_preparer",
+        "alcohol_amount",
+        "unknown_measurements",
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "health_history-1.svg",
+          "sha256": "a7f1df77dd083af22dc01db21d9e3fa0cabb7b61d00517a7f255a581a18d83bf"
+        },
+        {
+          "asset": "health_history-2.svg",
+          "sha256": "792411a8e97a4e93a0ccb133381d2e37b94f7adf80fdbef2e764b62cdec64246"
+        },
+        {
+          "asset": "health_history-3.svg",
+          "sha256": "717a8f0149c705a41dc62be324976bee24c3a5fa0b9c9ad7edb8ae3c3fbf4ac5"
+        },
+        {
+          "asset": "health_history-4.svg",
+          "sha256": "83deb6ac80fd2c11b548315f1c2cc9bfcaa371dbca3220170448104a70a6f0cf"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "upper_flexibility",
+    "version": 1,
+    "title": "Upper Body Flexibility",
+    "source_filename": "10_Flexibility_Assessment_Form-Upper_Body.pdf",
+    "source_sha256": "4185b610ae5faa9f61098625da4027d99bc648be82af6f5ace44262736ef53b8",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "b555d4289f7d7ea321d95b5964f97881836cc722c59bae8d87e9ee655b2d9c02",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "shoulder_flexion_observations": {
+          "type": "textarea",
+          "label": "Shoulder flexion — observations",
+          "max_length": 4000
+        },
+        "shoulder_extension_observations": {
+          "type": "textarea",
+          "label": "Shoulder extension — observations",
+          "max_length": 4000
+        },
+        "shoulder_abduction_observations": {
+          "type": "textarea",
+          "label": "Shoulder abduction — observations",
+          "max_length": 4000
+        },
+        "shoulder_internal_observations": {
+          "type": "textarea",
+          "label": "Shoulder internal rotation — observations",
+          "max_length": 4000
+        },
+        "shoulder_external_observations": {
+          "type": "textarea",
+          "label": "Shoulder external rotation — observations",
+          "max_length": 4000
+        },
+        "shoulder_horizontal_adduction_observations": {
+          "type": "textarea",
+          "label": "Shoulder horizontal adduction — observations",
+          "max_length": 4000
+        },
+        "shoulder_horizontal_abduction_observations": {
+          "type": "textarea",
+          "label": "Shoulder horizontal abduction — observations",
+          "max_length": 4000
+        },
+        "elbow_flexion_observations": {
+          "type": "textarea",
+          "label": "Elbow flexion — observations",
+          "max_length": 4000
+        },
+        "elbow_extension_observations": {
+          "type": "textarea",
+          "label": "Elbow extension — observations",
+          "max_length": 4000
+        },
+        "pronation_observations": {
+          "type": "textarea",
+          "label": "Forearm pronation — observations",
+          "max_length": 4000
+        },
+        "supination_observations": {
+          "type": "textarea",
+          "label": "Forearm supination — observations",
+          "max_length": 4000
+        },
+        "wrist_flexion_observations": {
+          "type": "textarea",
+          "label": "Wrist flexion — observations",
+          "max_length": 4000
+        },
+        "wrist_extension_observations": {
+          "type": "textarea",
+          "label": "Wrist extension — observations",
+          "max_length": 4000
+        },
+        "radial_deviation_observations": {
+          "type": "textarea",
+          "label": "Wrist radial deviation — observations",
+          "max_length": 4000
+        },
+        "ulnar_deviation_observations": {
+          "type": "textarea",
+          "label": "Wrist ulnar deviation — observations",
+          "max_length": 4000
+        },
+        "shoulder_flexion_reference_checked": {
+          "type": "checkbox",
+          "label": "Shoulder flexion — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "shoulder_extension_reference_checked": {
+          "type": "checkbox",
+          "label": "Shoulder extension — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "shoulder_abduction_reference_checked": {
+          "type": "checkbox",
+          "label": "Shoulder abduction — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "shoulder_internal_reference_checked": {
+          "type": "checkbox",
+          "label": "Shoulder internal rotation — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "shoulder_external_reference_checked": {
+          "type": "checkbox",
+          "label": "Shoulder external rotation — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "shoulder_horizontal_adduction_reference_checked": {
+          "type": "checkbox",
+          "label": "Shoulder horizontal adduction — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "shoulder_horizontal_abduction_reference_checked": {
+          "type": "checkbox",
+          "label": "Shoulder horizontal abduction — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "elbow_flexion_reference_checked": {
+          "type": "checkbox",
+          "label": "Elbow flexion — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "elbow_extension_reference_checked": {
+          "type": "checkbox",
+          "label": "Elbow extension — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "pronation_reference_checked": {
+          "type": "checkbox",
+          "label": "Forearm pronation — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "supination_reference_checked": {
+          "type": "checkbox",
+          "label": "Forearm supination — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "wrist_flexion_reference_checked": {
+          "type": "checkbox",
+          "label": "Wrist flexion — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "wrist_extension_reference_checked": {
+          "type": "checkbox",
+          "label": "Wrist extension — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "radial_deviation_reference_checked": {
+          "type": "checkbox",
+          "label": "Wrist radial deviation — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "ulnar_deviation_reference_checked": {
+          "type": "checkbox",
+          "label": "Wrist ulnar deviation — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        }
+      },
+      "legacy_field_ids": [
+        "shoulder_flexion_left",
+        "shoulder_flexion_right",
+        "shoulder_extension_left",
+        "shoulder_extension_right",
+        "shoulder_abduction_left",
+        "shoulder_abduction_right",
+        "shoulder_internal_left",
+        "shoulder_internal_right",
+        "shoulder_external_left",
+        "shoulder_external_right",
+        "shoulder_horizontal_adduction_left",
+        "shoulder_horizontal_adduction_right",
+        "shoulder_horizontal_abduction_left",
+        "shoulder_horizontal_abduction_right",
+        "elbow_flexion_left",
+        "elbow_flexion_right",
+        "elbow_extension_left",
+        "elbow_extension_right",
+        "pronation_left",
+        "pronation_right",
+        "supination_left",
+        "supination_right",
+        "wrist_flexion_left",
+        "wrist_flexion_right",
+        "wrist_extension_left",
+        "wrist_extension_right",
+        "radial_deviation_left",
+        "radial_deviation_right",
+        "ulnar_deviation_left",
+        "ulnar_deviation_right",
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "upper_flexibility-1.svg",
+          "sha256": "e42bdd8d5d1e82bd8f99def2836fc0c44a4f42d4d2e9c324b6b7c8d3cd752d80"
+        },
+        {
+          "asset": "upper_flexibility-2.svg",
+          "sha256": "2dbc6ea6a66a843919efcb115bd651d5f66962b3015e86904378680b078648be"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "lower_flexibility",
+    "version": 1,
+    "title": "Lower Body Flexibility",
+    "source_filename": "11_Flexibility_Assessment_Form-Lower_Body.pdf",
+    "source_sha256": "bfa1bd00267a58f03b0fe774dae77ae9d007cac2ab2520f6cb2dcb2d412709d9",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "06cf6689cfdc9e42c82c45ed7e81c981cb5b044cbbe728c2aea74c4fe32ba3c2",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "hip_flexion_observations": {
+          "type": "textarea",
+          "label": "Hip flexion — observations",
+          "max_length": 4000
+        },
+        "hip_extension_observations": {
+          "type": "textarea",
+          "label": "Hip extension — observations",
+          "max_length": 4000
+        },
+        "hip_abduction_observations": {
+          "type": "textarea",
+          "label": "Hip abduction — observations",
+          "max_length": 4000
+        },
+        "hip_adduction_observations": {
+          "type": "textarea",
+          "label": "Hip adduction — observations",
+          "max_length": 4000
+        },
+        "hip_internal_observations": {
+          "type": "textarea",
+          "label": "Hip internal rotation — observations",
+          "max_length": 4000
+        },
+        "hip_external_observations": {
+          "type": "textarea",
+          "label": "Hip external rotation — observations",
+          "max_length": 4000
+        },
+        "knee_flexion_observations": {
+          "type": "textarea",
+          "label": "Knee flexion — observations",
+          "max_length": 4000
+        },
+        "knee_extension_observations": {
+          "type": "textarea",
+          "label": "Knee extension — observations",
+          "max_length": 4000
+        },
+        "ankle_dorsiflexion_observations": {
+          "type": "textarea",
+          "label": "Ankle dorsiflexion — observations",
+          "max_length": 4000
+        },
+        "ankle_plantarflexion_observations": {
+          "type": "textarea",
+          "label": "Ankle plantarflexion — observations",
+          "max_length": 4000
+        },
+        "subtalar_inversion_observations": {
+          "type": "textarea",
+          "label": "Subtalar inversion — observations",
+          "max_length": 4000
+        },
+        "subtalar_eversion_observations": {
+          "type": "textarea",
+          "label": "Subtalar eversion — observations",
+          "max_length": 4000
+        },
+        "hip_flexion_reference_checked": {
+          "type": "checkbox",
+          "label": "Hip flexion — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "hip_extension_reference_checked": {
+          "type": "checkbox",
+          "label": "Hip extension — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "hip_abduction_reference_checked": {
+          "type": "checkbox",
+          "label": "Hip abduction — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "hip_adduction_reference_checked": {
+          "type": "checkbox",
+          "label": "Hip adduction — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "hip_internal_reference_checked": {
+          "type": "checkbox",
+          "label": "Hip internal rotation — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        },
+        "hip_external_reference_checked": {
+          "type": "checkbox",
+          "label": "Hip external rotation — paper ROM checkbox",
+          "options": [
+            "Yes"
+          ]
+        }
+      },
+      "legacy_field_ids": [
+        "hip_flexion_left",
+        "hip_flexion_right",
+        "hip_extension_left",
+        "hip_extension_right",
+        "hip_abduction_left",
+        "hip_abduction_right",
+        "hip_adduction_left",
+        "hip_adduction_right",
+        "hip_internal_left",
+        "hip_internal_right",
+        "hip_external_left",
+        "hip_external_right",
+        "knee_flexion_left",
+        "knee_flexion_right",
+        "knee_extension_left",
+        "knee_extension_right",
+        "ankle_dorsiflexion_left",
+        "ankle_dorsiflexion_right",
+        "ankle_plantarflexion_left",
+        "ankle_plantarflexion_right",
+        "subtalar_inversion_left",
+        "subtalar_inversion_right",
+        "subtalar_eversion_left",
+        "subtalar_eversion_right",
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "lower_flexibility-1.svg",
+          "sha256": "cf5beef9aaf3fd2c9ca304e71e5078a4348c76f7454f2d88d87e9ce8f45cf479"
+        },
+        {
+          "asset": "lower_flexibility-2.svg",
+          "sha256": "54b981e306e7b4a7c912742231be0f55d4f47609f401d1b6cf0f566609f95149"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "hurdle_step",
+    "version": 1,
+    "title": "Hurdle Step Screen",
+    "source_filename": "03-02-CMES-HurdleStepScreen.pdf",
+    "source_sha256": "2c7ab7ed829a02b29dc298662d43975640b138a71f4ab58821251e0f55d380c5",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "476a0c6b54abc26b9f42fd48971eec8403a8b751811090510457d0bcafe227ae",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": true,
+      "fields": {
+        "feet_reference_observed": {
+          "type": "checkbox",
+          "label": "Front view: feet — reference finding observed",
+          "options": [
+            "Yes"
+          ]
+        },
+        "knees_reference_observed": {
+          "type": "checkbox",
+          "label": "Front view: knees — reference finding observed",
+          "options": [
+            "Yes"
+          ]
+        },
+        "hips_reference_observed": {
+          "type": "checkbox",
+          "label": "Front view: hips — reference finding observed",
+          "options": [
+            "Yes"
+          ]
+        },
+        "torso_reference_observed": {
+          "type": "checkbox",
+          "label": "Front view: torso — reference finding observed",
+          "options": [
+            "Yes"
+          ]
+        },
+        "raised_leg_reference_observed": {
+          "type": "checkbox",
+          "label": "Front view: raised leg — reference finding observed",
+          "options": [
+            "Yes"
+          ]
+        },
+        "pelvis_reference_observed": {
+          "type": "checkbox",
+          "label": "Side view: pelvis / low back — reference finding observed",
+          "options": [
+            "Yes"
+          ]
+        }
+      },
+      "legacy_field_ids": [
+        "side",
+        "feet_observation",
+        "feet_overactive",
+        "feet_underactive",
+        "knees_observation",
+        "knees_overactive",
+        "knees_underactive",
+        "hips_observation",
+        "hips_overactive",
+        "hips_underactive",
+        "torso_observation",
+        "torso_overactive",
+        "torso_underactive",
+        "raised_leg_observation",
+        "raised_leg_overactive",
+        "raised_leg_underactive",
+        "pelvis_observation",
+        "pelvis_overactive",
+        "pelvis_underactive",
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "hurdle_step-1.svg",
+          "sha256": "142d295acc6933b3ee45d81e9931531de6f20b60486ff85772d4c4b3527e032b"
+        },
+        {
+          "asset": "hurdle_step-2.svg",
+          "sha256": "e505ae5238fd7ab11be134e753684d83c6759a570c7e5f344a9566bf51096343"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "bend_lift",
+    "version": 1,
+    "title": "Bend & Lift",
+    "source_filename": "23_Bend_and_Lift_Assessment_Form.pdf",
+    "source_sha256": "7e6a1c398ed761b496668c7ffca3e6ed3375d661a5453779cda1ce34be7cb491",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "d7abfe7d26db437df57ee38eca5d4a1f706a0f1f8aa196acce0f18fc6b2e5954",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "front_feet_observation": {
+          "type": "textarea",
+          "label": "Front view: feet — compensation observed",
+          "max_length": 4000
+        },
+        "front_feet_overactive": {
+          "type": "textarea",
+          "label": "Front view: feet — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "front_feet_underactive": {
+          "type": "textarea",
+          "label": "Front view: feet — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "front_knees_observation": {
+          "type": "textarea",
+          "label": "Front view: knees — compensation observed",
+          "max_length": 4000
+        },
+        "front_knees_overactive": {
+          "type": "textarea",
+          "label": "Front view: knees — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "front_knees_underactive": {
+          "type": "textarea",
+          "label": "Front view: knees — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "front_torso_observation": {
+          "type": "textarea",
+          "label": "Front view: torso — compensation observed",
+          "max_length": 4000
+        },
+        "side_feet_observation": {
+          "type": "textarea",
+          "label": "Side view: feet — compensation observed",
+          "max_length": 4000
+        },
+        "side_feet_overactive": {
+          "type": "textarea",
+          "label": "Side view: feet — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "side_feet_underactive": {
+          "type": "textarea",
+          "label": "Side view: feet — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "hip_knee_observation": {
+          "type": "textarea",
+          "label": "Side view: hip / knee — compensation observed",
+          "max_length": 4000
+        },
+        "knee_contact_observation": {
+          "type": "textarea",
+          "label": "Side view: hip / knee — contact behind knee — compensation observed",
+          "max_length": 4000
+        },
+        "spine_observation": {
+          "type": "textarea",
+          "label": "Side view: lumbar / thoracic spine — compensation observed",
+          "max_length": 4000
+        },
+        "spine_overactive": {
+          "type": "textarea",
+          "label": "Side view: lumbar / thoracic spine — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "spine_underactive": {
+          "type": "textarea",
+          "label": "Side view: lumbar / thoracic spine — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "head_observation": {
+          "type": "textarea",
+          "label": "Side view: head — compensation observed",
+          "max_length": 4000
+        },
+        "front_feet_selected": {
+          "type": "checkbox",
+          "label": "Front view: feet — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "front_knees_selected": {
+          "type": "checkbox",
+          "label": "Front view: knees — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "front_torso_selected": {
+          "type": "checkbox",
+          "label": "Front view: torso — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "front_torso_compensations": {
+          "type": "textarea",
+          "label": "Front view: torso — key suspected compensations",
+          "max_length": 4000
+        },
+        "side_feet_selected": {
+          "type": "checkbox",
+          "label": "Side view: feet — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "hip_knee_selected": {
+          "type": "checkbox",
+          "label": "Side view: hip / knee — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "hip_knee_compensations": {
+          "type": "textarea",
+          "label": "Side view: hip / knee — key suspected compensations",
+          "max_length": 4000
+        },
+        "knee_contact_selected": {
+          "type": "checkbox",
+          "label": "Side view: hip / knee — contact behind knee — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "knee_contact_compensations": {
+          "type": "textarea",
+          "label": "Side view: hip / knee — contact behind knee — key suspected compensations",
+          "max_length": 4000
+        },
+        "spine_selected": {
+          "type": "checkbox",
+          "label": "Side view: lumbar / thoracic spine — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "head_selected": {
+          "type": "checkbox",
+          "label": "Side view: head — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "head_compensations": {
+          "type": "textarea",
+          "label": "Side view: head — key suspected compensations",
+          "max_length": 4000
+        }
+      },
+      "legacy_field_ids": [
+        "front_torso_overactive",
+        "front_torso_underactive",
+        "hip_knee_overactive",
+        "hip_knee_underactive",
+        "knee_contact_overactive",
+        "knee_contact_underactive",
+        "head_overactive",
+        "head_underactive",
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "bend_lift-1.svg",
+          "sha256": "3cc8e7a05a4f56530c36dbda68f0699baf8086914fb6ec868fd530dace9d43a4"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "single_leg",
+    "version": 1,
+    "title": "Single-Leg Assessment",
+    "source_filename": "25_Single_Leg_Assessment_Form.pdf",
+    "source_sha256": "219d1274575d415689bf35f9a0b2167a1011a8993fe2b23bc45c3ac81ab6b3c8",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "d4cbcde2d03b01947665faf475703e596c0f2ef29a168e47518673529a9a2790",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "feet_observation": {
+          "type": "textarea",
+          "label": "Front view: feet — compensation observed",
+          "max_length": 4000
+        },
+        "feet_overactive": {
+          "type": "textarea",
+          "label": "Front view: feet — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "feet_underactive": {
+          "type": "textarea",
+          "label": "Front view: feet — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "knees_observation": {
+          "type": "textarea",
+          "label": "Front view: knees — compensation observed",
+          "max_length": 4000
+        },
+        "knees_overactive": {
+          "type": "textarea",
+          "label": "Front view: knees — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "knees_underactive": {
+          "type": "textarea",
+          "label": "Front view: knees — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "hips_observation": {
+          "type": "textarea",
+          "label": "Front view: hips — compensation observed",
+          "max_length": 4000
+        },
+        "hips_overactive": {
+          "type": "textarea",
+          "label": "Front view: hips — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "hips_underactive": {
+          "type": "textarea",
+          "label": "Front view: hips — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "torso_observation": {
+          "type": "textarea",
+          "label": "Front view: torso — compensation observed",
+          "max_length": 4000
+        },
+        "raised_leg_observation": {
+          "type": "textarea",
+          "label": "Front view: raised leg — compensation observed",
+          "max_length": 4000
+        },
+        "raised_leg_overactive": {
+          "type": "textarea",
+          "label": "Front view: raised leg — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "raised_leg_underactive": {
+          "type": "textarea",
+          "label": "Front view: raised leg — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "pelvis_observation": {
+          "type": "textarea",
+          "label": "Side view: pelvis / low back — compensation observed",
+          "max_length": 4000
+        },
+        "pelvis_overactive": {
+          "type": "textarea",
+          "label": "Side view: pelvis / low back — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "pelvis_underactive": {
+          "type": "textarea",
+          "label": "Side view: pelvis / low back — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "feet_selected": {
+          "type": "checkbox",
+          "label": "Front view: feet — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "knees_selected": {
+          "type": "checkbox",
+          "label": "Front view: knees — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "hips_selected": {
+          "type": "checkbox",
+          "label": "Front view: hips — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "torso_selected": {
+          "type": "checkbox",
+          "label": "Front view: torso — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "torso_compensations": {
+          "type": "textarea",
+          "label": "Front view: torso — key suspected compensations",
+          "max_length": 4000
+        },
+        "raised_leg_selected": {
+          "type": "checkbox",
+          "label": "Front view: raised leg — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "pelvis_selected": {
+          "type": "checkbox",
+          "label": "Side view: pelvis / low back — selected",
+          "options": [
+            "Yes"
+          ]
+        }
+      },
+      "legacy_field_ids": [
+        "side",
+        "torso_overactive",
+        "torso_underactive",
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "single_leg-1.svg",
+          "sha256": "0980c155a96fdcdcddf84bca116f72dcc1d176746807b09481fb2b5355eb4f4d"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "push",
+    "version": 1,
+    "title": "Push Assessment",
+    "source_filename": "27_Push_Assessment_Form.pdf",
+    "source_sha256": "125ec8531835ed82073cc19fb1cc44865d7ead488c2dd53e576724d9f5902e6e",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "487d38a73376f3578937660664e6bd4546286d35f00101df0318ecd9e5f5f3b8",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "scapula_observation": {
+          "type": "textarea",
+          "label": "Side view: scapulothoracic — compensation observed",
+          "max_length": 4000
+        },
+        "scapula_suspected": {
+          "type": "textarea",
+          "label": "Side view: scapulothoracic — key suspected compensations",
+          "max_length": 4000
+        },
+        "trunk_observation": {
+          "type": "textarea",
+          "label": "Side view: trunk — compensation observed",
+          "max_length": 4000
+        },
+        "trunk_suspected": {
+          "type": "textarea",
+          "label": "Side view: trunk — key suspected compensations",
+          "max_length": 4000
+        },
+        "scapula_selected": {
+          "type": "checkbox",
+          "label": "Side view: scapulothoracic — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "trunk_selected": {
+          "type": "checkbox",
+          "label": "Side view: trunk — selected",
+          "options": [
+            "Yes"
+          ]
+        }
+      },
+      "legacy_field_ids": [
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "push-1.svg",
+          "sha256": "702a44fff81334a1c5ee54296d8ccd52316e5cc2cdc0afebc88bd516e4fe6909"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "pull",
+    "version": 1,
+    "title": "Pull Assessment",
+    "source_filename": "29_Pull_Assessment_Form.pdf",
+    "source_sha256": "17c4285daeb27d585c743ad094f55c691fdee0763f76afcf5cc7412003d3fd77",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "fa9cdf897693981757c40187b342d9e594258f8608567546700d78dbf89610ac",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "lumbar_observation": {
+          "type": "textarea",
+          "label": "Side view: lumbar spine — compensation observed",
+          "max_length": 4000
+        },
+        "lumbar_overactive": {
+          "type": "textarea",
+          "label": "Side view: lumbar spine — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "lumbar_underactive": {
+          "type": "textarea",
+          "label": "Side view: lumbar spine — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "scapula_1_observation": {
+          "type": "textarea",
+          "label": "Rear view: scapulothoracic (1) — compensation observed",
+          "max_length": 4000
+        },
+        "scapula_1_overactive": {
+          "type": "textarea",
+          "label": "Rear view: scapulothoracic (1) — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "scapula_1_underactive": {
+          "type": "textarea",
+          "label": "Rear view: scapulothoracic (1) — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "head_observation": {
+          "type": "textarea",
+          "label": "Side view: head — compensation observed",
+          "max_length": 4000
+        },
+        "head_overactive": {
+          "type": "textarea",
+          "label": "Side view: head — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "head_underactive": {
+          "type": "textarea",
+          "label": "Side view: head — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "scapula_2_observation": {
+          "type": "textarea",
+          "label": "Rear view: scapulothoracic (2) — compensation observed",
+          "max_length": 4000
+        },
+        "scapula_2_overactive": {
+          "type": "textarea",
+          "label": "Rear view: scapulothoracic (2) — suspected overactive muscles",
+          "max_length": 4000
+        },
+        "scapula_2_underactive": {
+          "type": "textarea",
+          "label": "Rear view: scapulothoracic (2) — suspected underactive muscles",
+          "max_length": 4000
+        },
+        "lumbar_selected": {
+          "type": "checkbox",
+          "label": "Side view: lumbar spine — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "scapula_1_selected": {
+          "type": "checkbox",
+          "label": "Rear view: scapulothoracic (1) — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "head_selected": {
+          "type": "checkbox",
+          "label": "Side view: head — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "scapula_2_selected": {
+          "type": "checkbox",
+          "label": "Rear view: scapulothoracic (2) — selected",
+          "options": [
+            "Yes"
+          ]
+        }
+      },
+      "legacy_field_ids": [
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "pull-1.svg",
+          "sha256": "e72e36922d59c9f38c5f0cc869d81decc3308e55b13081d0549384a090e464a0"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "rotation",
+    "version": 1,
+    "title": "Rotation Assessment",
+    "source_filename": "31_Rotation_Assessment_Form.pdf",
+    "source_sha256": "1dc62dd285bdeca68a2ece0d54698921d703dbd5e38208c478540d64beabc642",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "6f40c541dee9fafe680b0586e184f3007b6c475b687ac124ea178d85e9c92dda",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "trunk_1_observation": {
+          "type": "textarea",
+          "label": "Front / rear view: trunk (1) — compensation observed",
+          "max_length": 4000
+        },
+        "trunk_1_biomechanical": {
+          "type": "textarea",
+          "label": "Front / rear view: trunk (1) — possible biomechanical problems",
+          "max_length": 4000
+        },
+        "trunk_2_observation": {
+          "type": "textarea",
+          "label": "Front / rear view: trunk (2) — compensation observed",
+          "max_length": 4000
+        },
+        "trunk_2_biomechanical": {
+          "type": "textarea",
+          "label": "Front / rear view: trunk (2) — possible biomechanical problems",
+          "max_length": 4000
+        },
+        "trunk_1_selected": {
+          "type": "checkbox",
+          "label": "Front / rear view: trunk (1) — selected",
+          "options": [
+            "Yes"
+          ]
+        },
+        "trunk_2_selected": {
+          "type": "checkbox",
+          "label": "Front / rear view: trunk (2) — selected",
+          "options": [
+            "Yes"
+          ]
+        }
+      },
+      "legacy_field_ids": [
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "rotation-1.svg",
+          "sha256": "dd2fc45026a325e390a3befa94e2f87a94487ce1f397acb5786815ea36abf48e"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "balance",
+    "version": 1,
+    "title": "Static Balance",
+    "source_filename": "35_Static_Balance_Assessment_Form.pdf",
+    "source_sha256": "7d8ed2464bbf0ab9a7580075206b411faf239ec1acb715af99abc39c3e7128e0",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "1adbb6e7d24ae2558353697e00c41747c55867075b2e1cd4f119a4a5cf70f251",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "eyes_open_1": {
+          "type": "number",
+          "label": "Eyes open — trial 1 (seconds)",
+          "min": 0
+        },
+        "eyes_closed_1": {
+          "type": "number",
+          "label": "Eyes closed — trial 1 (seconds)",
+          "min": 0
+        },
+        "eyes_open_2": {
+          "type": "number",
+          "label": "Eyes open — trial 2 (seconds)",
+          "min": 0
+        },
+        "eyes_closed_2": {
+          "type": "number",
+          "label": "Eyes closed — trial 2 (seconds)",
+          "min": 0
+        },
+        "eyes_open_3": {
+          "type": "number",
+          "label": "Eyes open — trial 3 (seconds)",
+          "min": 0
+        },
+        "eyes_closed_3": {
+          "type": "number",
+          "label": "Eyes closed — trial 3 (seconds)",
+          "min": 0
+        }
+      },
+      "legacy_field_ids": [
+        "side",
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "balance-1.svg",
+          "sha256": "0ef08841d0c6583592ed4f58b2e8bf75a8a18f3dd6279fe978f3786625e111d5"
+        }
+      ]
+    }
+  },
+  {
+    "form_id": "anthropometric",
+    "version": 1,
+    "title": "Anthropometric Measurements",
+    "source_filename": "46_Anthropometric_Measurements_Form.pdf",
+    "source_sha256": "a4068b2432f1c0d611ddeea9be807256d59e515f022980112a44376479d9a2c4",
+    "layout_release": "paper-20260917-v1",
+    "layout_sha256": "273acefb1b42b76661114457613fbd4830e03b5c237e88aba62b213d40446b3b",
+    "definition": {
+      "max_bytes": 65536,
+      "allow_empty_completion": false,
+      "fields": {
+        "weight_lb": {
+          "type": "number",
+          "label": "Weight (lb)",
+          "min": 0
+        },
+        "height_in": {
+          "type": "number",
+          "label": "Height (in)",
+          "min": 0
+        },
+        "weight": {
+          "type": "number",
+          "label": "Weight (kg)",
+          "min": 0
+        },
+        "height": {
+          "type": "number",
+          "label": "Height (m)",
+          "min": 0
+        },
+        "bmi": {
+          "type": "number",
+          "label": "Recorded BMI (kg/m²)",
+          "min": 0
+        },
+        "male_chest": {
+          "type": "number",
+          "label": "Chest skinfold (mm)",
+          "min": 0
+        },
+        "female_triceps": {
+          "type": "number",
+          "label": "Triceps skinfold (mm)",
+          "min": 0
+        },
+        "male_abdomen": {
+          "type": "number",
+          "label": "Abdomen skinfold (mm)",
+          "min": 0
+        },
+        "female_suprailium": {
+          "type": "number",
+          "label": "Suprailium skinfold (mm)",
+          "min": 0
+        },
+        "male_thigh": {
+          "type": "number",
+          "label": "Male thigh skinfold (mm)",
+          "min": 0
+        },
+        "female_thigh": {
+          "type": "number",
+          "label": "Female thigh skinfold (mm)",
+          "min": 0
+        },
+        "male_total": {
+          "type": "number",
+          "label": "Male skinfold total (mm)",
+          "min": 0
+        },
+        "female_total": {
+          "type": "number",
+          "label": "Female skinfold total (mm)",
+          "min": 0
+        },
+        "body_fat": {
+          "type": "number",
+          "label": "Estimated body fat (%)",
+          "min": 0,
+          "max": 100
+        },
+        "abdomen": {
+          "type": "number",
+          "label": "Abdomen circumference (cm)",
+          "min": 0
+        },
+        "hip": {
+          "type": "number",
+          "label": "Hip circumference (cm)",
+          "min": 0
+        },
+        "waist": {
+          "type": "number",
+          "label": "Waist circumference (cm)",
+          "min": 0
+        },
+        "ratio": {
+          "type": "number",
+          "label": "Recorded waist-to-hip ratio",
+          "min": 0
+        },
+        "biceps": {
+          "type": "number",
+          "label": "Biceps circumference (cm)",
+          "min": 0
+        },
+        "thigh": {
+          "type": "number",
+          "label": "Mid-thigh circumference (cm)",
+          "min": 0
+        }
+      },
+      "legacy_field_ids": [
+        "body_fat_method",
+        "notes"
+      ],
+      "pages": [
+        {
+          "asset": "anthropometric-1.svg",
+          "sha256": "72ecc7d5ad8a843b24eea7a744b6dbc78e05f5bd0656e4a9842643be667386b6"
+        }
+      ]
+    }
+  }
+]

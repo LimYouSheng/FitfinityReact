@@ -7,11 +7,20 @@
     "dev": "vite",
     "build": "vite build",
     "build:pages-test": "vite build --base=/FitfinityReact/ --outDir=dist-pages",
+    "build:api-test": "node scripts/build-api-test.mjs",
     "verify:pwa": "node scripts/verify-pwa.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build && npm run build:pages-test && npm run verify:pwa -- dist / && npm run verify:pwa -- dist-pages /FitfinityReact/ && playwright test"
+    "test:e2e": "npm run build && npm run build:pages-test && npm run build:api-test && npm run verify:pwa -- dist / && npm run verify:pwa -- dist-pages /FitfinityReact/ && npm run verify:pwa -- dist-api-test / && playwright test",
+    "verify:health": "node scripts/verify-code-health.mjs",
+    "verify:health-checker": "node --test --test-reporter=spec scripts/verify-code-health.test.mjs",
+    "verify:backend": "node scripts/verify-backend.mjs",
+    "verify:assessments": "node scripts/verify-assessment-forms.mjs",
+    "verify:infrastructure": "node scripts/verify-infrastructure.mjs",
+    "infra": "python3 backend/infrastructure/deploy.py",
+    "verify:lint": "node scripts/verify-lint.mjs",
+    "verify:quality-checker": "node --test --test-reporter=spec scripts/verify-quality.test.mjs"
   },
   "dependencies": {
     "react": "19.2.0",
@@ -25,6 +34,13 @@
     "@vitejs/plugin-react": "latest",
     "jsdom": "latest",
     "vite": "^8.1.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.0",
+    "eslint": "10.11.0",
+    "@eslint/js": "10.0.1",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.12.0",
+    "yaml": "2.9.1",
+    "css-tree": "3.2.1",
+    "rolldown": "1.2.6"
   }
 }

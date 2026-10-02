@@ -1,3 +1,4 @@
+import { managesOperations } from '../../app/permissions.js'
 import usePageState from '../../hooks/usePageState.js'
 import { useEffect, useId, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -18,7 +19,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
   const exercisePages = usePagination(exercises, exerciseScope, `client.${exerciseScope}.exercisePage`)
   const [selectedId, setSelectedId] = usePageState(`StrengthProgress.${client.reportPackageId ?? 'unassigned'}.selectedId`, '')
 
-  const owner = user?.role === 'owner'
+  const owner = managesOperations(user)
   const [historyOpen, setHistoryOpen] = usePageState(`client.${client.id}.reportHistoryOpen`, false)
   const [historyState, setHistoryState] = useState({ items: [], loading: true, error: '' })
   const [historyRevision, setHistoryRevision] = useState(0)
@@ -116,7 +117,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
         </div>}
       </Panel>}
       {actionFeedback}
-      {report.preparing && <p role="status">Preparing PDF…</p>}
+      <p className="progress-report-status" role="status">{report.preparing ? 'Preparing PDF…' : ''}</p>
       {report.error && <div role="alert"><p>{report.error}</p><button type="button" className="secondary-button" onClick={report.retry}>Retry PDF</button></div>}
       {shareFallback && report.file && <div className="report-file-actions"><button type="button" className="secondary-button" disabled={busy || Boolean(unsavedAction)} onClick={openReport}>Open PDF</button></div>}
       {!exercises.length ? <Panel><div className="empty">No completed exercise loads yet.</div></Panel> : <Panel>

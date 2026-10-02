@@ -40,7 +40,7 @@ it('autonomous availability changes immediately and emits a related message', as
   expect((await trainerService.saveAvailability('t1',blocks,trainer)).outcome).toBe('applied')
   expect(mockDb.read().trainers.find(item=>item.id==='t1').availability.Monday).toEqual([['09:00','12:00']])
   expect(pending('trainer_availability')).toBeUndefined()
-  expect(mockDb.read().messages.findLast(message=>message.kind==='availability_update')).toMatchObject({read:false,trainerId:'t1'})
+  expect(mockDb.read().messages.findLast(message=>message.kind==='availability_update')).toMatchObject({readBy:{},trainerId:'t1'})
 })
 it('availability rejects owner editing, spoofed identities and another trainer', async () => {
   const before=mockDb.read()
@@ -77,7 +77,7 @@ it('supervised weekly change leaves client and every session unchanged until app
   expect((await clientService.saveFixedWeeklySchedule('c1',nextSlots,trainer)).outcome).toBe('requested')
   expect(mockDb.read().clients).toEqual(before.clients);expect(mockDb.read().sessions).toEqual(before.sessions)
   const request=pending('fixed_weekly_schedule')
-  expect(mockDb.read().messages.find(item=>item.requestId===request.id)).toMatchObject({status:'pending'})
+  expect(mockDb.read().messages.find(item=>item.requestId===request.id)).toMatchObject({status:'pending',body:'Owner or Admin approval is required before the fixed weekly schedule changes.'})
 })
 it('weekly approval changes every upcoming booking including custom times and replacement trainers, keeping plans, IDs and credits', async () => {
   await clientService.saveFixedWeeklySchedule('c1',nextSlots,trainer);const before=mockDb.read()

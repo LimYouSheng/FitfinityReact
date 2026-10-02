@@ -3,6 +3,11 @@ import { mockPhysicalOrientation, expectRequiredFieldHighlights, fillClientRequi
 const DB_KEY = 'fitfinity-m2-demo-db-v4'
 const stepHeading = (page, name) => page.getByRole('heading', { level: 2, name, exact: true })
 const continueTo = async (page, name) => {
+  if (name === 'Package & Preferences' && await stepHeading(page, 'General Information').isVisible()) {
+    await page.getByRole('button', { name: 'Continue to Health & Assessments', exact: true }).click()
+    if (await stepHeading(page, 'General Information').isVisible()) return
+    await expect(stepHeading(page, 'Health & Assessments')).toBeVisible()
+  }
   await page.getByRole('button', { name: `Continue to ${name}`, exact: true }).click()
   const actions = page.locator('.onboarding-step-actions')
   const backButton = actions.getByRole('button', { name: /^Back to / })
@@ -13,7 +18,18 @@ const continueTo = async (page, name) => {
     expect(Math.abs(back.y + back.height - next.y - next.height)).toBeLessThanOrEqual(2)
   }
 }
-const backTo = (page, name) => page.getByRole('button', { name: `Back to ${name}`, exact: true }).click()
+const backTo = async (page, name) => {
+  if (name === 'General Information') await page.getByRole('button', { name: 'Back to Health & Assessments', exact: true }).click()
+  await page.getByRole('button', { name: `Back to ${name}`, exact: true }).click()
+}
+
+async function saveBalance(page, seconds) {
+  await page.getByRole('button', { name: /^Static Balance — / }).click()
+  const dialog = page.getByRole('dialog', { name: 'Static Balance', exact: true })
+  await dialog.getByLabel('Eyes open — trial 1 (seconds)', { exact: true }).fill(seconds)
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+}
 
 async function beginClient(page, name = 'M3 Created Client', frequency = '1', remarks = '') {
   await page.goto('/#/clients/new')
@@ -83,7 +99,8 @@ test('M3 Add Client shows only the current section, labels required fields and v
   await expect(page.getByLabel('Client name', { exact: true })).toHaveAttribute('aria-required', 'true')
   await expect(page.getByLabel('Client birthday', { exact: true })).toHaveAttribute('aria-required', 'true')
   await expectRequiredFieldHighlights(page, 11)
-  for (const label of ['Client health or limitation notes', 'Remarks']) {
+  await expect(page.getByLabel('Client health or limitation notes', { exact: true })).toHaveCount(0)
+  for (const label of ['Remarks']) {
     await expect(page.getByLabel(label, { exact: true })).not.toHaveAttribute('required')
     await expect(page.getByLabel(label, { exact: true })).toHaveCSS('border-top-color', 'rgb(58, 63, 75)')
   }
@@ -93,7 +110,12 @@ test('M3 Add Client shows only the current section, labels required fields and v
   await expect(page.getByLabel('Client name', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   await expectRequiredFieldHighlights(page, 11)
   await page.getByLabel('Client name', { exact: true }).fill('Sequential Client')
+  await expect(page.getByLabel('Client name', { exact: true })).toHaveCSS('border-top-color', 'rgb(58, 63, 75)')
+  await page.getByLabel('Client name', { exact: true }).fill(' ')
+  await expect(page.getByLabel('Client name', { exact: true })).toHaveCSS('border-top-color', 'rgb(150, 80, 110)')
+  await page.getByLabel('Client name', { exact: true }).fill('Sequential Client')
   await fillClientRequiredFields(page)
+  await expectRequiredFieldHighlights(page, 11)
   await continueTo(page, 'Package & Preferences')
   await expect(page.getByLabel('Client name', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Start date', { exact: true })).toHaveAttribute('aria-required', 'true')
@@ -150,8 +172,8 @@ test('M3 owner creates a once-weekly 12-session / 90-day client through the serv
   expect(saved.client.package).toMatchObject({ durationWeeks: 12, sessionsPerWeek: 1, total: 12, used: 0, validityDays: 90, startDate: '2026-09-07', endDate: '2026-12-05' })
   expect(saved.sessions).toHaveLength(12)
   expect(saved.sessions.at(-1).sessionNumber).toBe(12)
-  expect(saved.messages.find(item => item.kind === 'client_assignment').read).toBe(false)
-  expect(saved.messages.find(item => item.kind === 'client_created').read).toBe(false)
+  expect(saved.messages.find(item => item.kind === 'client_assignment').readBy).toEqual({})
+  expect(saved.messages.find(item => item.kind === 'client_created').readBy).toEqual({})
   await page.reload()
   await expect(page.getByRole('heading', { name: 'M3 Created Client', level: 1 })).toBeVisible()
 })
@@ -218,7 +240,7 @@ test('M3 current section scrolls without CSS overrides on desktop and mobile Web
   const originalViewport = page.viewportSize()
   await page.setViewportSize({ width: originalViewport.width, height: 480 })
   await page.goto('/#/clients/new')
-  const continueButton = page.getByRole('button', { name: 'Continue to Package & Preferences', exact: true })
+  const continueButton = page.getByRole('button', { name: 'Continue to Health & Assessments', exact: true })
   // Navigation can finish before React renders the form. Wait for the actual
   // section and its layout before measuring overflow in the short viewport.
   await expect(continueButton).toBeVisible()
@@ -268,17 +290,19 @@ test('M3 Couple requires both names and creates one account with two people and 
   await page.getByLabel('Client 1 name', { exact: true }).fill('Alpha Test')
   await expectRequiredFieldHighlights(page, 11)
   await fillClientRequiredFields(page, 'Client 1')
-  await page.getByLabel('Client 1 health or limitation notes', { exact: true }).fill('Alpha health notes')
   await continueTo(page, 'Package & Preferences')
   await expect(stepHeading(page, 'General Information')).toBeVisible()
   await expect(page.getByLabel('Client 2 name', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   await page.getByLabel('Client 2 name', { exact: true }).fill('Beta Test')
   await expectRequiredFieldHighlights(page, 11)
   await fillClientRequiredFields(page, 'Client 2')
-  await page.getByLabel('Client 2 health or limitation notes', { exact: true }).fill('Beta health notes')
   await page.getByLabel('Remarks', { exact: true }).fill('Shared couple remark')
   await page.getByRole('button', { name: 'Client 1', exact: true }).click()
   await expect(page.getByLabel('Client 1 name', { exact: true })).toHaveValue('Alpha Test')
+  await continueTo(page, 'Health & Assessments')
+  await saveBalance(page, '10')
+  await page.getByRole('button', { name: 'Client 2', exact: true }).click()
+  await saveBalance(page, '20')
   await continueTo(page, 'Package & Preferences')
   await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')
   await page.getByLabel('PT Package', { exact: true }).selectOption('package-24')
@@ -288,7 +312,7 @@ test('M3 Couple requires both names and creates one account with two people and 
   const saved = await savedClient(page, 'Alpha Test & Beta Test')
   expect(saved.count).toBe(1)
   expect(saved.client.people).toHaveLength(2)
-  expect(saved.client.people.map(person => person.healthNotes)).toEqual(['Alpha health notes', 'Beta health notes'])
+  expect(saved.client.people.map(person => person.assessments.balance.answers.eyes_open_1)).toEqual([10, 20])
   expect(saved.client.remarks).toBe('Shared couple remark')
   expect(saved.client.package.total).toBe(24)
   expect(saved.sessions).toHaveLength(24)
@@ -350,7 +374,7 @@ test('M3 automatic matching shows the dropdown and a recoverable no-results stat
   await expect(page.getByLabel('Matched trainer', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Matched trainer', { exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Find Matching Trainers', exact: true })).toHaveCount(0)
-  await expect(page.getByRole('status')).toContainText('No active trainer matches')
+  await expect(page.getByRole('status')).toContainText('No active trainer is free for every session')
   const before = await page.evaluate(key => localStorage.getItem(key), DB_KEY)
   await continueTo(page, 'Review & Confirm')
   await expect(stepHeading(page, 'Trainer Matching')).toBeVisible()
@@ -362,6 +386,39 @@ test('M3 automatic matching shows the dropdown and a recoverable no-results stat
   await continueTo(page, 'Trainer Matching')
   await expect(page.getByLabel('Matched trainer', { exact: true })).toBeEnabled()
   await expect(page.getByLabel('Matched trainer', { exact: true })).not.toHaveValue('')
+})
+
+test('booking-aware onboarding excludes occupied package dates and reserves a new client slot immediately', async ({ page }) => {
+  await page.goto('/')
+  await waitForPortal(page)
+  await page.evaluate(key => {
+    const db = JSON.parse(localStorage.getItem(key))
+    for (const trainer of db.trainers) {
+      trainer.status = ['t1', 't2'].includes(trainer.id) ? 'active' : 'inactive'
+      trainer.availability = { Monday: [['18:00', '21:00']] }
+    }
+    const client = db.clients.find(item => item.id === 'c2')
+    client.status = 'active'; client.package.status = 'active'
+    db.sessions = [{ id: 'occupied-date', clientId: client.id, packageId: client.package.id, trainerId: 't1',
+      date: '2026-09-14', from: '18:30', to: '19:30', sessionNumber: 1, packageTotal: 12, status: 'planned', exercisePlan: [] }]
+    localStorage.setItem(key, JSON.stringify(db))
+  }, DB_KEY)
+  await page.reload()
+  await waitForPortal(page)
+  await beginClient(page, 'Reserved Slot Client')
+  await finishMatching(page)
+  const select = page.getByLabel('Matched trainer', { exact: true })
+  await expect(select.locator('option[value="t1"]')).toHaveCount(0)
+  await expect(select).toHaveValue('t2')
+  await createClient(page, 'Reserved Slot Client')
+  const saved = await savedClient(page, 'Reserved Slot Client')
+  expect(saved.sessions).toHaveLength(12)
+  expect(saved.sessions.every(session => session.trainerId === 't2')).toBe(true)
+  await beginClient(page, 'Conflicting Client')
+  await finishMatching(page)
+  await expect(page.getByLabel('Matched trainer', { exact: true })).toBeDisabled()
+  await expect(page.locator('.onboarding-matching').getByRole('status')).toContainText('No active trainer is free for every session')
+  expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).clients.some(client => client.name === 'Conflicting Client'), DB_KEY)).toBe(false)
 })
 
 test('M3 owner dashboard Add Client quick action opens the canonical form and returns to the dashboard', async ({ page }) => {
@@ -405,23 +462,25 @@ test('M3 client summary displays all entered information and section-specific Ed
   await page.getByLabel('Client emergency contact relationship', { exact: true }).selectOption('Sibling')
   await page.getByLabel('Client emergency contact country code', { exact: true }).selectOption('+60')
   await page.getByLabel('Client emergency contact phone number', { exact: true }).fill('123456789')
-  await page.getByLabel('Client health or limitation notes', { exact: true }).fill('Health notes for review')
   await page.getByLabel('Remarks', { exact: true }).fill('Shared review remark')
+  await continueTo(page, 'Health & Assessments')
+  await saveBalance(page, '12')
   await continueTo(page, 'Package & Preferences')
   await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')
   await finishMatching(page)
   const trainerName = await page.getByLabel('Matched trainer', { exact: true }).locator('option:checked').innerText()
   await expect(page.getByRole('button', { name: 'Create Client', exact: true })).toHaveCount(0)
   await reviewClient(page)
-  await expect(page.getByLabel('Creation progress', { exact: true })).toHaveText('Step 5 of 5')
+  await expect(page.getByLabel('Creation progress', { exact: true })).toHaveText('Step 6 of 6')
   await expect(page.getByLabel('Form summary', { exact: true }).locator('input,select,textarea')).toHaveCount(0)
-  for (const text of ['Summary Client', '+65 9123 4567', 'summary@example.com', '12 Apr 1994', 'Female', 'Emergency Person', 'Sibling', '+60 123456789', 'Health notes for review']) {
+  for (const text of ['Summary Client', '+65 9123 4567', 'summary@example.com', '12 Apr 1994', 'Female', 'Emergency Person', 'Sibling', '+60 123456789']) {
     await expect(clientSummary(page, 'General Information')).toContainText(text)
   }
+  await expect(clientSummary(page, 'Health & Assessments')).toContainText(/Static Balance\s*Filled/)
   await expect(clientSummary(page, 'General Information')).toContainText('Shared review remark')
   await expect(clientSummary(page, 'Client Availability')).toContainText('Monday · 18:00–19:00')
   await expect(clientSummary(page, 'Trainer Matching')).toContainText(trainerName)
-  for (const title of ['General Information', 'Package & Preferences', 'Client Availability', 'Trainer Matching']) {
+  for (const title of ['General Information', 'Health & Assessments', 'Package & Preferences', 'Client Availability', 'Trainer Matching']) {
     await expect(page.getByRole('button', { name: `Edit ${title}`, exact: true })).toBeVisible()
   }
   expect(await page.evaluate(key => localStorage.getItem(key), DB_KEY)).toBe(before)
@@ -481,23 +540,48 @@ test('M3 Couple summary shows both people and preserves person-specific edits th
   await page.getByLabel('Client type', { exact: true }).selectOption('Couple')
   await page.getByLabel('Client 1 name', { exact: true }).fill('Review Alpha')
   await fillClientRequiredFields(page, 'Client 1')
-  await page.getByLabel('Client 1 health or limitation notes', { exact: true }).fill('Alpha notes')
   await page.getByRole('button', { name: 'Client 2', exact: true }).click()
   await page.getByLabel('Client 2 name', { exact: true }).fill('Review Beta')
   await fillClientRequiredFields(page, 'Client 2')
-  await page.getByLabel('Client 2 health or limitation notes', { exact: true }).fill('Beta notes')
+  await continueTo(page, 'Health & Assessments')
+  await page.getByRole('button', { name: 'Client 1', exact: true }).click()
+  await saveBalance(page, '10')
+  await page.getByRole('button', { name: 'Client 2', exact: true }).click()
+  await saveBalance(page, '20')
   await continueTo(page, 'Package & Preferences')
   await page.getByLabel('Start date', { exact: true }).fill('2026-09-07')
   await finishMatching(page)
   await reviewClient(page)
-  await expect(clientSummary(page, 'General Information')).toContainText('Alpha notes')
-  await expect(clientSummary(page, 'General Information')).toContainText('Beta notes')
-  await page.getByRole('button', { name: 'Edit General Information', exact: true }).click()
+  await expect(clientSummary(page, 'Health & Assessments')).toContainText('Review Alpha')
+  await expect(clientSummary(page, 'Health & Assessments')).toContainText('Review Beta')
+  const beforeView = await page.evaluate(() => localStorage.getItem('fitfinity-m2-demo-db-v4'))
+  for (const [person, expected] of [['Client 1 · Review Alpha', '10'], ['Client 2 · Review Beta', '20']]) {
+    const button = clientSummary(page, 'Health & Assessments').getByRole('button', { name: `View Static Balance for ${person}`, exact: true })
+    await button.click()
+    const popup = page.getByRole('dialog', { name: 'Static Balance', exact: true })
+    await expect(popup.getByLabel('Eyes open — trial 1 (seconds)', { exact: true })).toHaveText(expected)
+    await expect(popup.locator('input, textarea, select, [contenteditable]')).toHaveCount(0)
+    await expect(popup.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0)
+    await popup.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(button).toBeFocused()
+    await expect(stepHeading(page, 'Review & Confirm')).toBeVisible()
+  }
+  expect(await page.evaluate(() => localStorage.getItem('fitfinity-m2-demo-db-v4'))).toBe(beforeView)
+  await expect(clientSummary(page, 'Health & Assessments').getByRole('button', { name: /View Hurdle/ })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Edit Health & Assessments', exact: true }).click()
   await page.getByRole('button', { name: 'Client 2', exact: true }).click()
-  await page.getByLabel('Client 2 health or limitation notes', { exact: true }).fill('Beta changed notes')
+  await page.getByRole('button', { name: 'Static Balance — Filled', exact: true }).click()
+  await expect(page.getByLabel('Eyes open — trial 1 (seconds)', { exact: true })).toHaveValue('20')
+  await page.getByLabel('Eyes open — trial 1 (seconds)', { exact: true }).fill('25')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   await returnToClientReview(page)
-  await expect(clientSummary(page, 'General Information')).toContainText('Beta changed notes')
+  await expect(clientSummary(page, 'Health & Assessments')).toContainText(/Static Balance\s*Filled/)
+  await clientSummary(page, 'Health & Assessments').getByRole('button', { name: 'View Static Balance for Client 2 · Review Beta', exact: true }).click()
+  const updated = page.getByRole('dialog', { name: 'Static Balance', exact: true })
+  await expect(updated.getByLabel('Eyes open — trial 1 (seconds)', { exact: true })).toHaveText('25')
+  await page.keyboard.press('Escape')
+  await expect(updated).toHaveCount(0)
   await createClient(page, 'Review Alpha & Review Beta')
-  expect((await savedClient(page, 'Review Alpha & Review Beta')).client.people.map(person => person.healthNotes))
-    .toEqual(['Alpha notes', 'Beta changed notes'])
+  expect((await savedClient(page, 'Review Alpha & Review Beta')).client.people.map(person => person.assessments.balance.answers.eyes_open_1))
+    .toEqual([10, 25])
 })

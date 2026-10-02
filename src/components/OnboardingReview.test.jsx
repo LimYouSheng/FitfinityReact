@@ -19,11 +19,25 @@ describe('shared form summary', () => {
     expect(container.querySelectorAll('input,select,textarea')).toHaveLength(0)
   })
   it('routes each named Edit action to its own section without submitting the parent form', () => {
-    const onEdit = vi.fn(); const onSubmit = vi.fn(event => event.preventDefault())
-    render(<form onSubmit={onSubmit}><OnboardingReview sections={sections} onEdit={onEdit} /></form>)
+    const onEdit = vi.fn(); const onOpen = vi.fn(); const onSubmit = vi.fn(event => event.preventDefault())
+    const assessment = { key: 'assessments', title: 'Health & Assessments', layout: 'assessments', groups: ['Alpha', 'Beta'].map((title, personIndex) => ({ title,
+      rows: [{ label: 'Static Balance', value: 'Filled', detail: '18 Sep 2026 · Owner', open: { personIndex, formId: 'balance' } }, { label: 'Hurdle Step', value: 'Not filled' }] })) }
+    render(<form onSubmit={onSubmit}><OnboardingReview sections={[...sections, assessment]} onEdit={onEdit} onOpen={onOpen} /></form>)
     fireEvent.click(screen.getByRole('button', { name: 'Edit General Information' }))
     fireEvent.click(screen.getByRole('button', { name: 'Edit Training & Rates' }))
     expect(onEdit.mock.calls).toEqual([['general'], ['rates']])
+    for (const person of ['Alpha', 'Beta']) {
+      const list = screen.getByRole('list', { name: `Assessment summary for ${person}` })
+      expect(within(list).getAllByRole('listitem')).toHaveLength(2)
+      expect(within(list).getByText('Filled')).toHaveClass('is-filled')
+      expect(within(list).getByText('Not filled')).not.toHaveClass('is-filled')
+      expect(within(list).getByText('18 Sep 2026 · Owner')).toBeVisible()
+      const button = screen.getByRole('button', { name: `View Static Balance for ${person}` })
+      fireEvent.click(button)
+      expect(button).toHaveFocus()
+    }
+    expect(onOpen.mock.calls).toEqual([[{ personIndex: 0, formId: 'balance' }], [{ personIndex: 1, formId: 'balance' }]])
+    expect(screen.queryByRole('button', { name: /View Hurdle/ })).not.toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
   it('renders entered text safely as text rather than HTML', () => {

@@ -34,7 +34,7 @@ it('approves time atomically and updates the exact receipt with an unread routed
   expect(db.sessions.find(item => item.id === session.id)).toMatchObject(request.request.next)
   expect(db.messages.filter(item => item.requestId === request.id)).toHaveLength(2)
   expect(db.messages.filter(item => item.requestId === request.id).every(item => item.status === 'approved')).toBe(true)
-  expect(db.messages.find(item => item.kind === 'request_decision')).toMatchObject({ read: false, sessionId: session.id, recipientTrainerId: actor.trainerId })
+  expect(db.messages.find(item => item.kind === 'request_decision')).toMatchObject({ readBy: {}, sessionId: session.id, recipientTrainerId: actor.trainerId })
 })
 it('rejects without changing session or credits', async () => {
   const request = await pending(); const before = mockDb.read()
@@ -127,8 +127,8 @@ it.each(['session_time', 'session_trainer', 'fixed_weekly_schedule', 'trainer_av
   expect(after.messages.filter(item => item.requestId === request.id)).toHaveLength(3)
   for (const linked of after.messages.filter(item => item.id === request.id || item.requestId === request.id)) expect(linked).toMatchObject(cancellation)
   expect(after.messages.filter(item => item.id.startsWith(`cancellation-${request.id}-`))).toEqual(expect.arrayContaining([
-    expect.objectContaining({ recipientRole: 'owner', read: false }),
-    expect.objectContaining({ recipientTrainerId: actor.trainerId, read: false }),
+    expect.objectContaining({ recipientRole: 'owner', readBy: {} }),
+    expect.objectContaining({ recipientTrainerId: actor.trainerId, readBy: {} }),
   ]))
   expect({ ...after, messages: before.messages }).toEqual(before)
   expect(mockDb.reload().messages.find(item => item.id === request.id)).toEqual(cancelled)
@@ -212,10 +212,10 @@ it('projects the requesting trainer proposal into legacy receipts and derives ca
   signIn(other)
   expect((await mockPortalAdapter.load()).data.messages.find(item => item.id === receipt.id).request).toBeUndefined()
   const before = mockDb.read()
-  await expect(mockPortalAdapter.invoke('requestService', 'cancel', [request.id, actor])).rejects.toThrow('unavailable')
+  await expect(mockPortalAdapter.invoke({ service: 'requestService', operation: 'cancel', input: { id: request.id } })).rejects.toThrow('unavailable')
   expect(mockDb.read()).toEqual(before)
   signIn(actor)
-  const saved = await mockPortalAdapter.invoke('requestService', 'cancel', [request.id, owner])
+  const saved = await mockPortalAdapter.invoke({ service: 'requestService', operation: 'cancel', input: { id: request.id } })
   expect(saved.cancelledBy.id).toBe(actor.id)
-  await expect(mockPortalAdapter.invoke('requestService', 'resolve', [request.id, 'approved', owner])).rejects.toThrow('owner')
+  await expect(mockPortalAdapter.invoke({ service: 'requestService', operation: 'resolve', input: { id: request.id, decision: 'approved' } })).rejects.toThrow('owner')
 })

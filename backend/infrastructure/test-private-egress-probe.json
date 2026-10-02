@@ -1,0 +1,154 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Temporary Fitfinity private-subnet HTTPS probe. No app, secret or database access.",
+  "Resources": {
+    "ProbeRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ProbeNetworkAndLogs",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Deny",
+                  "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:AssignPrivateIpAddresses",
+                    "ec2:UnassignPrivateIpAddresses"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "ArnEquals": {
+                      "lambda:SourceFunctionArn": [
+                        "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-egress-probe-a",
+                        "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-egress-probe-b"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-egress-probe-a:*",
+                    "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-egress-probe-b:*"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "LogsA": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/fitfinity-test-egress-probe-a",
+        "RetentionInDays": 1
+      }
+    },
+    "ProbeA": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": "LogsA",
+      "Properties": {
+        "FunctionName": "fitfinity-test-egress-probe-a",
+        "Runtime": "python3.12",
+        "Handler": "index.handler",
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 128,
+        "Timeout": 30,
+        "Role": {
+          "Fn::GetAtt": [
+            "ProbeRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "ZipFile": "\"\"\"Fixed HTTPS-only connectivity probe. No credentials, database calls or input URLs.\"\"\"\n\nimport http.client\nimport json\n\n\ndef read_https(host, path, limit):\n    connection = http.client.HTTPSConnection(host, timeout=8)\n    try:\n        connection.request(\"GET\", path)\n        response = connection.getresponse()\n        if response.status != 200:\n            raise RuntimeError(\"Unexpected HTTPS status\")\n        body = response.read(limit + 1)\n        if len(body) > limit:\n            raise RuntimeError(\"Response too large\")\n        return body\n    finally:\n        connection.close()\n\n\ndef handler(event, context):\n    keys = json.loads(\n        read_https(\n            \"cognito-idp.ap-southeast-1.amazonaws.com\",\n            \"/ap-southeast-1_La0Y3MXCj/.well-known/jwks.json\",\n            131072,\n        )\n    )[\"keys\"]\n    if not isinstance(keys, list) or not 1 <= len(keys) <= 8:\n        raise RuntimeError(\"Invalid JWKS\")\n    address = read_https(\"checkip.amazonaws.com\", \"/\", 128).decode(\"ascii\").strip()\n    if address != \"52.77.93.192\":\n        raise RuntimeError(\"Egress address differs from accepted NAT\")\n    return {\"https_verified\": True, \"jwks_key_count\": len(keys), \"egress_ip\": address}\n"
+        },
+        "VpcConfig": {
+          "SubnetIds": [
+            "subnet-0a6ea67e00f370997"
+          ],
+          "SecurityGroupIds": [
+            "sg-09bcb69b70968f702"
+          ],
+          "Ipv6AllowedForDualStack": false
+        }
+      }
+    },
+    "LogsB": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/fitfinity-test-egress-probe-b",
+        "RetentionInDays": 1
+      }
+    },
+    "ProbeB": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": "LogsB",
+      "Properties": {
+        "FunctionName": "fitfinity-test-egress-probe-b",
+        "Runtime": "python3.12",
+        "Handler": "index.handler",
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 128,
+        "Timeout": 30,
+        "Role": {
+          "Fn::GetAtt": [
+            "ProbeRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "ZipFile": "\"\"\"Fixed HTTPS-only connectivity probe. No credentials, database calls or input URLs.\"\"\"\n\nimport http.client\nimport json\n\n\ndef read_https(host, path, limit):\n    connection = http.client.HTTPSConnection(host, timeout=8)\n    try:\n        connection.request(\"GET\", path)\n        response = connection.getresponse()\n        if response.status != 200:\n            raise RuntimeError(\"Unexpected HTTPS status\")\n        body = response.read(limit + 1)\n        if len(body) > limit:\n            raise RuntimeError(\"Response too large\")\n        return body\n    finally:\n        connection.close()\n\n\ndef handler(event, context):\n    keys = json.loads(\n        read_https(\n            \"cognito-idp.ap-southeast-1.amazonaws.com\",\n            \"/ap-southeast-1_La0Y3MXCj/.well-known/jwks.json\",\n            131072,\n        )\n    )[\"keys\"]\n    if not isinstance(keys, list) or not 1 <= len(keys) <= 8:\n        raise RuntimeError(\"Invalid JWKS\")\n    address = read_https(\"checkip.amazonaws.com\", \"/\", 128).decode(\"ascii\").strip()\n    if address != \"52.77.93.192\":\n        raise RuntimeError(\"Egress address differs from accepted NAT\")\n    return {\"https_verified\": True, \"jwks_key_count\": len(keys), \"egress_ip\": address}\n"
+        },
+        "VpcConfig": {
+          "SubnetIds": [
+            "subnet-0fcdf32ab544f1207"
+          ],
+          "SecurityGroupIds": [
+            "sg-09bcb69b70968f702"
+          ],
+          "Ipv6AllowedForDualStack": false
+        }
+      }
+    }
+  }
+}

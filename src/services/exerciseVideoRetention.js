@@ -3,6 +3,7 @@ import { mockDb } from './mockDb.js'
 import { pruneExerciseVideoBlobs, removeExerciseVideoBlob } from './exerciseVideoStore.js'
 
 const deletionKey = ({ sessionId, exerciseId, mediaId }) => JSON.stringify([sessionId, exerciseId, mediaId ?? null])
+let backgroundCleanup = null
 
 export function queueExerciseVideoDeletion(db, sessionId, exerciseId, mediaId) {
   const entry = { sessionId, exerciseId, mediaId: mediaId ?? null }
@@ -27,7 +28,17 @@ export async function flushExerciseVideoDeletions() {
   }
 }
 
-export async function pruneExpiredExerciseVideos(now = new Date()) {
+async function cleanExpiredBlobs(now) {
+  await flushExerciseVideoDeletions()
+  const current = mockDb.read()
+  const retainedExpiries = Object.fromEntries(current.sessions.flatMap(session => (session.exercisePlan ?? [])
+    .filter(exercise => exercise.videoAttached)
+    .map(exercise => [exercise.video?.id ?? `${session.id}:${exercise.id}`, exerciseVideoExpiresAt(exercise.video, current.settings.videoRetentionDays)])))
+  // Failed physical sweeps retry on refresh; expired metadata is already hidden.
+  await pruneExerciseVideoBlobs(now, retainedExpiries).catch(() => {})
+}
+
+export async function pruneExpiredExerciseVideos(now = new Date(), { background = false } = {}) {
   const snapshot = mockDb.read()
   const expired = session => (session.exercisePlan ?? []).some(item =>
     item.videoAttached && exerciseVideoExpired(item.video, now, snapshot.settings.videoRetentionDays),
@@ -44,11 +55,11 @@ export async function pruneExpiredExerciseVideos(now = new Date()) {
       }
     })
   }
-  await flushExerciseVideoDeletions()
-  const current = mockDb.read()
-  const retainedExpiries = Object.fromEntries(current.sessions.flatMap(session => (session.exercisePlan ?? [])
-    .filter(exercise => exercise.videoAttached)
-    .map(exercise => [exercise.video?.id ?? `${session.id}:${exercise.id}`, exerciseVideoExpiresAt(exercise.video, current.settings.videoRetentionDays)])))
-  // The same refresh retries failed sweeps; expired metadata is already unavailable to callers.
-  await pruneExerciseVideoBlobs(now, retainedExpiries).catch(() => {})
+  if (background) {
+    // Portal snapshots require current metadata, not an IndexedDB housekeeping
+    // round trip. Coalesce refresh sweeps; durable queued deletions stay retryable.
+    backgroundCleanup ??= cleanExpiredBlobs(now).catch(() => {}).finally(() => { backgroundCleanup = null })
+    return
+  }
+  await cleanExpiredBlobs(now)
 }

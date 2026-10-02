@@ -101,7 +101,7 @@ function focusDialog(element) {
 export default function ModalPortal({ children }) {
   const elementRef = useRef(null)
   useLayoutEffect(() => {
-    const layer = { element: elementRef.current, opener: document.activeElement }
+    const layer = { element: elementRef.current, opener: document.activeElement, parent: modalLayers.at(-1) }
     modalLayers.push(layer)
     lockPageScroll()
     isolateLayers()
@@ -135,6 +135,14 @@ export default function ModalPortal({ children }) {
       document.removeEventListener('focusin', keepFocus)
       document.removeEventListener('keydown', onKeyDown, true)
       const wasActive = isActive()
+      // Preserve the stack relationship even if a touch click left focus on
+      // the body. A removed parent must pass its return target to its child.
+      for (const remaining of modalLayers) {
+        if (remaining !== layer && (remaining.parent === layer || layer.element.contains(remaining.opener))) {
+          remaining.opener = layer.opener
+          remaining.parent = layer.parent
+        }
+      }
       modalLayers.splice(modalLayers.indexOf(layer), 1)
       isolateLayers()
       unlockPageScroll()

@@ -1,6 +1,7 @@
+import { managesOperations } from '../../app/permissions.js'
 import SelectField from '../../components/SelectField.jsx'
 import usePageState from '../../hooks/usePageState.js'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import { isActive, visibleClientsForUser } from '../../app/status.js'
@@ -13,7 +14,7 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
   const [typeFilter, setTypeFilter] = usePageState('ClientsPage.typeFilter', '')
   const [trainerFilter, setTrainerFilter] = usePageState('ClientsPage.trainerFilter', '')
 
-  const trainerName = id => trainers.find(trainer => trainer.id === id)?.name ?? '—'
+  const trainerName = useCallback(id => trainers.find(trainer => trainer.id === id)?.name ?? '—', [trainers])
 
   const base = useMemo(
     () => visibleClientsForUser(user, clients, sessions),
@@ -39,10 +40,10 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
         trainerName(client.trainerId).toLowerCase().includes(value)
       )
       .slice(0, 6)
-  }, [base, query, trainers])
+  }, [base, query, trainerName])
 
   const effectiveStatus = statusFilter
-  const effectiveTrainer = user.role === 'owner' ? trainerFilter : ''
+  const effectiveTrainer = managesOperations(user) ? trainerFilter : ''
 
   const visible = useMemo(() => {
     const value = query.trim().toLowerCase()
@@ -61,7 +62,7 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
 
       return true
     })
-  }, [base, effectiveStatus, effectiveTrainer, query, typeFilter, trainers])
+  }, [base, effectiveStatus, effectiveTrainer, query, typeFilter, trainerName])
 
   const pagination = usePagination(
     visible,
@@ -76,7 +77,7 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
           <h1>Clients</h1>
         </div>
 
-        {user.role === 'owner' && (
+        {managesOperations(user) && onAdd && (
           <button type="button" className="onboarding-button primary" onClick={onAdd}>
             Add New Client
           </button>
@@ -141,7 +142,7 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
             <option value="Couple">Couple</option>
           </SelectField>
 
-          {user.role === 'owner' && <SelectField
+          {managesOperations(user) && <SelectField
             aria-label="Filter clients by trainer"
             value={trainerFilter}
             onChange={event => setTrainerFilter(event.target.value)}

@@ -24,7 +24,7 @@ export function appendRenewalMessage(db, client, createdAt = new Date().toISOStr
     body: `${client.name} is approaching package renewal. ${purchased.used}/${purchased.total} sessions used · ${remaining} sessions remaining.`,
     kind: 'renewal',
     renewal: { type: 'last_sessions', clientPackageId, used: purchased.used, total: purchased.total, remaining },
-    read: false,
+    readBy: {},
   }
   db.messages.push(message)
   return message
@@ -41,8 +41,13 @@ export function migrateRenewalMessages(db, createdAt = new Date().toISOString())
     const message = appendRenewalMessage(db, client, legacy?.createdAt ?? createdAt)
     if (message && legacy) {
       message.id = legacy.id
-      message.read = legacy.read ?? false
-      if (legacy.readAt) message.readAt = legacy.readAt
+      if (legacy.readBy) message.readBy = structuredClone(legacy.readBy)
+      else {
+        // Leave identity recovery to the message-receipt migration after renewal routing.
+        delete message.readBy
+        message.read = legacy.read ?? false
+        if (legacy.readAt) message.readAt = legacy.readAt
+      }
     }
   }
   db.renewalMessageVersion = 1

@@ -1,6 +1,7 @@
 import { addDays, buildClientSessions, clientStepErrors, packageFor, trainerCoversBlock } from './clientOnboarding.js'
 import { GENDER_PREFERENCES } from './contact.js'
-import { clientPackages, requireActiveClient, sessionIsInactive } from './clientPackages.js'
+import { clientPackages, requireActiveClient } from './clientPackages.js'
+import { sessionBookingConflict } from './bookingAvailability.js'
 import { selectedPackage } from './packages.js'
 
 /** The saved weekly schedule remains authoritative when opening a new purchase. */
@@ -20,6 +21,7 @@ export function packageDraftForClient(client, sessions, packages, today) {
   const matchingTerms = legacyMatches.filter(item => item.validityDays === client.package.validityDays)
   const legacyTemplate = legacyMatches.length === 1 ? legacyMatches[0] : matchingTerms.length === 1 ? matchingTerms[0] : null
   return {
+    clientId: client.id,
     clientName: client.name,
     packageId: template?.id ?? legacyTemplate?.id ?? '',
     startDate: firstScheduled?.date ?? minimumStartDate,
@@ -64,10 +66,7 @@ export function buildPackageRenewal(db, client, draft, id) {
   const sessions = buildClientSessions({ ...client, trainerId: trainer.id, package: purchasedPackage, fixedWeeklySchedule: schedule })
   if (sessions.length !== purchasedPackage.total) throw new Error('Every session must fit within package validity. Choose another frequency or package.')
   for (const session of sessions) {
-    if (db.sessions.some(other => !['completed', 'cancelled'].includes(other.status) &&
-      !sessionIsInactive(db.clients.find(item => item.id === other.clientId), other) &&
-      other.date === session.date && (other.clientId === client.id || other.trainerId === trainer.id) &&
-      other.from < session.to && session.from < other.to)) throw new Error(`The new package conflicts with a session on ${session.date}. Review the start date, trainer or weekly schedule.`)
+    if (sessionBookingConflict(db, session)) throw new Error(`The new package conflicts with a session on ${session.date}. Review the start date, trainer or weekly schedule.`)
   }
   return { purchasedPackage, schedule, sessions }
 }

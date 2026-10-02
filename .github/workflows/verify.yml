@@ -1,0 +1,101 @@
+name: Complete application verification
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    # WebKit media coverage targets Safari's macOS implementation.
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      FORCE_COLOR: '1'
+      PLAYWRIGHT_FORCE_TTY: '0'
+      VITE_PORTAL_MODE: 'demo'
+      VITE_API_BASE_URL: ''
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Semantic lint and quality gate regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset NO_COLOR NODE_DISABLE_COLORS
+          npm run verify:lint 2>&1 | tee "$RUNNER_TEMP/fitfinity-lint.log"
+          npm run verify:quality-checker 2>&1 | tee "$RUNNER_TEMP/fitfinity-quality-checker.log"
+      - name: Unit gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset NO_COLOR NODE_DISABLE_COLORS
+          npm test -- --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/fitfinity-unit.log"
+          node scripts/verify-test-results.mjs unit "$RUNNER_TEMP/fitfinity-unit.log"
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+      - name: Browser gate at root and repository paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset NO_COLOR NODE_DISABLE_COLORS
+          npm run test:e2e -- --reporter=list 2>&1 | tee "$RUNNER_TEMP/fitfinity-browser.log"
+          node scripts/verify-test-results.mjs browser "$RUNNER_TEMP/fitfinity-browser.log"
+      - name: Shared source health and checker rejection gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset NO_COLOR NODE_DISABLE_COLORS
+          npm run verify:health-checker 2>&1 | tee "$RUNNER_TEMP/fitfinity-health-checker.log"
+          npm run verify:health 2>&1 | tee "$RUNNER_TEMP/fitfinity-code-health.log"
+      - name: Retain complete verification logs and browser failure details
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/fitfinity-lint.log
+            ${{ runner.temp }}/fitfinity-quality-checker.log
+            ${{ runner.temp }}/fitfinity-unit.log
+            ${{ runner.temp }}/fitfinity-browser.log
+            ${{ runner.temp }}/fitfinity-health-checker.log
+            ${{ runner.temp }}/fitfinity-code-health.log
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FORCE_COLOR: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+      - name: Container, backend, PostgreSQL and infrastructure gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-assessment-forms.mjs 2>&1 | tee "$RUNNER_TEMP/fitfinity-assessment-forms.log"
+          node scripts/verify-backend.mjs 2>&1 | tee "$RUNNER_TEMP/fitfinity-backend.log"
+      - name: Retain complete backend verification log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-backend-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/fitfinity-assessment-forms.log
+            ${{ runner.temp }}/fitfinity-backend.log
+            backend/contracts/openapi.json
+          if-no-files-found: warn
+

@@ -115,9 +115,9 @@ describe('M3 sequential client validation', () => {
     fixedWeeklySchedule: buildFixedWeeklySchedule(trainers[0], preferences, 1),
   })
 
-  it('uses the existing four named sections in the correct order', () => {
+  it('uses the five named sections in the correct order', () => {
     expect(CLIENT_ONBOARDING_STEPS.map(step => step.title)).toEqual([
-      'General Information', 'Package & Preferences', 'Client Availability', 'Trainer Matching',
+      'General Information', 'Health & Assessments', 'Package & Preferences', 'Client Availability', 'Trainer Matching',
     ])
   })
 
@@ -191,4 +191,69 @@ describe('M3 automatic trainer selection', () => {
     expect(defaultMatchingTrainer(ranked, preferences, 1, 't2')).toBe('t2')
     expect(defaultMatchingTrainer([], preferences, 1, 't3')).toBe('')
   })
+})
+
+describe('dated booking-aware trainer matching', () => {
+  const calendar = overrides => ({ startDate: '2027-06-07', sessionsPerWeek: 1,
+    definition: { total: 2, validityDays: 90 }, clients: [], sessions: [], ...overrides })
+  const booking = overrides => ({ id: 'booked', clientId: 'other', trainerId: 't1', date: '2027-06-07', from: '18:00', to: '19:00', status: 'planned', ...overrides })
+  const matches = (blocks, value) => matchTrainers(trainers, blocks, 'No gender preference', calendar(value))
+
+  it('excludes a trainer occupied on any generated date without changing declared hours', () => {
+    const before = structuredClone(trainers)
+    expect(matches([{ ...preferences[0], days: ['Monday'] }], { sessions: [booking({ date: '2027-06-14' })] }).map(result => result.trainer.id)).toEqual(['t2'])
+    expect(trainers).toEqual(before)
+  })
+  it('uses another offered day when the first weekly option is occupied', () => {
+    expect(matches(preferences, { sessions: [booking()] }).find(result => result.trainer.id === 't1').schedule).toEqual([
+      { id: 'new-slot-1', day: 'Wednesday', from: '18:00', to: '19:00' },
+    ])
+  })
+  it('uses another offered time on the same day and allows touching endpoints', () => {
+    const blocks = [{ days: ['Monday'], from: '18:00', to: '19:00' }, { days: ['Monday'], from: '19:00', to: '20:00' }]
+    expect(matches(blocks, { sessions: [booking()] }).find(result => result.trainer.id === 't1').schedule[0]).toMatchObject({ day: 'Monday', from: '19:00', to: '20:00' })
+  })
+  it('does not block a date after the purchased session count has been scheduled', () => {
+    expect(matches([{ ...preferences[0], days: ['Monday'] }], { sessions: [booking({ date: '2027-06-21' })] }).map(result => result.trainer.id)).toEqual(['t1', 't2'])
+  })
+  it('keeps a saved renewal cadence unchanged and excludes it when occupied', () => {
+    const fixedWeeklySchedule = [{ id: 'saved', day: 'Monday', from: '18:00', to: '19:00' }]
+    expect(matches(preferences, { trainerId: 't1', fixedWeeklySchedule, sessions: [booking()] }).map(result => result.trainer.id)).toEqual(['t2'])
+    expect(matches(preferences, { trainerId: 't1', fixedWeeklySchedule })[0].schedule).toEqual(fixedWeeklySchedule)
+  })
+  it('counts completed history in an inactive package while allowing cancelled and inactive unfinished bookings', () => {
+    const clients = [{ id: 'other', status: 'inactive', package: { id: 'past', status: 'inactive' } }]
+    const blocks = [{ ...preferences[0], days: ['Monday'] }]
+    expect(matches(blocks, { clients, sessions: [booking({ status: 'completed', packageId: 'past' })] }).map(result => result.trainer.id)).toEqual(['t2'])
+    for (const status of ['planned', 'cancelled']) expect(matches(blocks, { clients, sessions: [booking({ status, packageId: 'past' })] })).toHaveLength(2)
+  })
+  it('checks renewal client conflicts even when another trainer owns the occupied session', () => {
+    expect(matches([{ ...preferences[0], days: ['Monday'] }], { clientId: 'other', sessions: [booking({ trainerId: 't9' })] })).toEqual([])
+  })
+  it('requires the full cadence and session count to fit the package', () => {
+    expect(matches(preferences, { sessionsPerWeek: 2, sessions: [booking()] }).map(result => result.trainer.id)).toEqual(['t2'])
+    expect(matches(preferences, { definition: { total: 12, validityDays: 7 } })).toEqual([])
+  })
+})
+
+it.each(['Individual', 'Couple'])('keeps blank legacy %s details optional while validating every supplied contact value', type => {
+  const people = Array.from({ length: type === 'Couple' ? 2 : 1 }, (_, index) => ({ name: `Person ${index}`, phone: { countryCode: '+65', number: '' }, emergencyContact: { countryCode: '+65' } }))
+  const draft = { type, people }
+  expect(clientStepErrors(draft, 'general', { requireComplete: false })).toEqual({})
+  expect(Object.keys(clientStepErrors(draft, 'general')).length).toBeGreaterThan(0)
+  for (const [patch, key] of [
+    [{ email: 'not-an-email' }, 'email'],
+    [{ phone: { countryCode: '+65', number: 'letters-only' } }, 'phoneNumber'],
+    [{ phone: { countryCode: '+999', number: '91234567' } }, 'phoneCountryCode'],
+    [{ birthday: '2026-02-31' }, 'birthday'],
+    [{ emergencyContact: { number: 'letters-only', countryCode: '+65' } }, 'emergencyNumber'],
+    [{ emergencyContact: { number: '91234567', countryCode: '+999' } }, 'emergencyCountryCode'],
+    [{ emergencyContact: { relationship: 'invalid' } }, 'emergencyRelationship'],
+  ]) {
+    const index = people.length - 1
+    const changed = people.map((person, position) => position === index ? { ...person, ...patch } : person)
+    expect(clientStepErrors({ ...draft, people: changed }, 'general', { requireComplete: false })).toHaveProperty(`people.${index}.${key}`)
+  }
+  const valid = people.map(person => ({ ...person, email: 'valid@example.test', birthday: '2000-02-29', phone: { countryCode: '+65', number: '91234567' }, emergencyContact: { name: 'Contact', relationship: 'Friend', countryCode: '+65', number: '87654321' } }))
+  expect(clientStepErrors({ ...draft, people: valid }, 'general', { requireComplete: false })).toEqual({})
 })

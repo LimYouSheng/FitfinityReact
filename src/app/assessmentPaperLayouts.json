@@ -1,0 +1,3725 @@
+{
+  "health_history": [
+    {
+      "asset": "health_history-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "Name:     Date:     Date of birth: \nMedical Information \n1. How would you describe your present state of health? \n Very well        Healthy         Unhealthy         Unwell         Other: \n2. List current medications, how often you take them, and dosages (include prescriptions and over-the-counter medications). \n\n    \n    \n3. Do you take all of your medications as they have been prescribed by your healthcare provider?    Yes      No\nIf not, please share why (e.g., cost, side effects, or feeling as though they are unnecessary). \n    \n    \n4. Do you take any vitamin, mineral, or herbal supplements?    Yes      No\nIf yes, list type and amount per day: \n5. When was the last time you visited your physician? \n6. Have you ever had your cholesterol checked?     Yes      No\nDate of test:  What were the results? \nTotal cholesterol:  High-density lipoprotein (HDL):  Low-density lipoprotein (LDL):  Triglycerides: \n7. Have you ever had your blood sugar checked?     Yes      No \nWhat were the results?  \n8. Please check any that apply to you and list any important information about your condition:\n Allergies (Specify: )\n Amenorrhea\n Anemia\n Anxiety\n Arthritis\n Asthma\n Celiac disease\n Chronic sinus condition\n Constipation\n Crohn’s disease\n Depression\n Diabetes\n Diarrhea\n Disordered eating\n Gastroesophageal reflux disease\n(GERD)\n High blood pressure\n Hypoglycemia\n Hypo/hyperthyroidism\n Insomnia\n Intestinal problems\n Irritability\n Irritable bowel syndrome (IBS)\n Menopausal symptoms\n Osteoporosis\n Premenstrual syndrome (PMS)\n Polycystic ovary syndrome\n(PCOS)\n Pregnant\n Skin problems\n Ulcer\n Major surgeries: \n\n\n Past injuries: \n\n\n Describe any other health\nconditions that you have: \n\n\n\n\nSAMPLE LIFESTYLE AND HEALTH-HISTORY QUESTIONNAIRE\nContinued on the next page\n",
+      "fields": [
+        {
+          "id": "$name",
+          "rect": [
+            52.02,
+            90.05,
+            302.53,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "$date",
+          "rect": [
+            383.27,
+            90.05,
+            72.9,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "$birthday",
+          "rect": [
+            512.61,
+            90.05,
+            69.26,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "health_details",
+          "rect": [
+            291.29,
+            141.05,
+            291.29,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "health",
+          "rect": [
+            36.27,
+            143.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Very well"
+        },
+        {
+          "id": "health",
+          "rect": [
+            92.77,
+            143.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Healthy"
+        },
+        {
+          "id": "health",
+          "rect": [
+            146.26,
+            143.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Unhealthy"
+        },
+        {
+          "id": "health",
+          "rect": [
+            207.92,
+            143.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Unwell"
+        },
+        {
+          "id": "health",
+          "rect": [
+            258.09,
+            143.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Other"
+        },
+        {
+          "id": "medications",
+          "rect": [
+            35.87,
+            181.05,
+            546.12,
+            55.94
+          ],
+          "kind": "area"
+        },
+        {
+          "id": "medication_adherence",
+          "rect": [
+            347.58,
+            254.26,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "medication_adherence",
+          "rect": [
+            378.3,
+            254.26,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "medication_reason",
+          "rect": [
+            35.24,
+            291.55,
+            546.75,
+            33.94
+          ],
+          "kind": "area"
+        },
+        {
+          "id": "supplements",
+          "rect": [
+            243.85,
+            342.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "supplements",
+          "rect": [
+            277.27,
+            342.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "supplement_details",
+          "rect": [
+            163.45,
+            356.05,
+            419.17,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "physician_visit",
+          "rect": [
+            217.07,
+            381.55,
+            368.14,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "cholesterol_checked",
+          "rect": [
+            203.94,
+            410.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "cholesterol_checked",
+          "rect": [
+            237.36,
+            410.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "cholesterol_date",
+          "rect": [
+            81.59,
+            425.05,
+            54.67,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "cholesterol_results",
+          "rect": [
+            220.98,
+            425.05,
+            360.85,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "cholesterol_total",
+          "rect": [
+            100.03,
+            443.05,
+            36.45,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "cholesterol_hdl",
+          "rect": [
+            249.82,
+            443.05,
+            36.45,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "cholesterol_ldl",
+          "rect": [
+            396.52,
+            443.05,
+            40.1,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "triglycerides",
+          "rect": [
+            488.49,
+            443.05,
+            40.08,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "blood_sugar_checked",
+          "rect": [
+            206.35,
+            472.26,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "blood_sugar_checked",
+          "rect": [
+            239.77,
+            472.26,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "blood_sugar_results",
+          "rect": [
+            118.66,
+            482.55,
+            462.91,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "allergies_specify",
+          "rect": [
+            112.32,
+            526.05,
+            40.1,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "condition_0",
+          "rect": [
+            36.4,
+            528.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_14",
+          "rect": [
+            215.4,
+            528.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_26",
+          "rect": [
+            403.4,
+            528.76,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_1",
+          "rect": [
+            36.4,
+            544.1,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_27",
+          "rect": [
+            403.4,
+            544.1,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_15",
+          "rect": [
+            215.4,
+            557.1,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_2",
+          "rect": [
+            36.4,
+            559.44,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_28",
+          "rect": [
+            403.4,
+            559.44,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_16",
+          "rect": [
+            215.4,
+            572.44,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_3",
+          "rect": [
+            36.4,
+            574.78,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "surgeries_selected",
+          "rect": [
+            403.4,
+            574.78,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "surgeries",
+          "rect": [
+            403.0,
+            587.41,
+            131.22,
+            27.28
+          ],
+          "kind": "area"
+        },
+        {
+          "id": "condition_4",
+          "rect": [
+            36.4,
+            590.12,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_17",
+          "rect": [
+            215.4,
+            587.78,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_5",
+          "rect": [
+            36.4,
+            605.46,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_18",
+          "rect": [
+            215.4,
+            603.12,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_6",
+          "rect": [
+            36.4,
+            620.8,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_19",
+          "rect": [
+            215.4,
+            618.46,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "injuries_selected",
+          "rect": [
+            403.4,
+            620.8,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_7",
+          "rect": [
+            36.4,
+            636.14,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_20",
+          "rect": [
+            215.4,
+            633.8,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "injuries",
+          "rect": [
+            403.0,
+            633.43,
+            131.22,
+            27.28
+          ],
+          "kind": "area"
+        },
+        {
+          "id": "condition_8",
+          "rect": [
+            36.4,
+            651.48,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_21",
+          "rect": [
+            215.4,
+            649.14,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_9",
+          "rect": [
+            36.4,
+            666.82,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_22",
+          "rect": [
+            215.4,
+            664.48,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "other_conditions_selected",
+          "rect": [
+            403.4,
+            666.82,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_10",
+          "rect": [
+            36.4,
+            682.16,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_23",
+          "rect": [
+            215.4,
+            679.82,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "other_conditions",
+          "rect": [
+            403.0,
+            692.45,
+            131.22,
+            57.96
+          ],
+          "kind": "area"
+        },
+        {
+          "id": "condition_24",
+          "rect": [
+            215.4,
+            695.16,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_11",
+          "rect": [
+            36.4,
+            697.5,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_25",
+          "rect": [
+            215.4,
+            710.5,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_12",
+          "rect": [
+            36.4,
+            712.84,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "condition_13",
+          "rect": [
+            36.4,
+            728.18,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        }
+      ]
+    },
+    {
+      "asset": "health_history-2.svg",
+      "width": 612,
+      "height": 792,
+      "text": "Family History \n1. Has anyone in your immediate family been diagnosed with the following? \n Heart disease \t\t\nIf yes, what is the relation?  Age of diagnosis:  \n High cholesterol \t\nIf yes, what is the relation?  Age of diagnosis:  \n High blood pressure \t\nIf yes, what is the relation?  Age of diagnosis:  \n Cancer \t\n\t\nIf yes, what is the relation?  Age of diagnosis:  \n Diabetes \t\n\t\nIf yes, what is the relation?  Age of diagnosis:  \n Osteoporosis \t \t\nIf yes, what is the relation?  Age of diagnosis:  \nNutrition\n1. What are your dietary goals? \n2. Have you ever followed a modified diet?     Yes      No\nIf yes, describe: \n3. Are you currently following a specialized eating plan (e.g., low-sodium or low-fat)?     Yes      No\nIf yes, what type of eating plan? \n4. Why did you choose this eating plan? \nWas the eating plan prescribed by a physician?     Yes      No\nHow long have you been on the eating plan? \n5. Have you ever met with a registered dietitian or attended diabetes education classes?     Yes      No\nIf no, are you interested in doing so?     Yes      No\n6. What do you consider to be the major issues with your nutritional choices or eating plan (e.g., eating late at night, snacking on high-fat foods, skipping \nmeals, or lack of variety)? \n    \n    \n7. How many glasses of water do you drink per day?  8-ounce glasses\n8. What do you drink other than water? List what and how much per day. \n9. Do you have any food allergies or intolerance?     Yes      No\nIf yes, what? \n10. Who shops for and prepares your food?             Self           Spouse           Parent          Minimal preparation\n11. How often do you dine out?  times per week\n12. Please specify the type of restaurants for each meal:\nBreakfast:   Lunch: \nDinner: \t  Snacks: \n13. Do you crave any foods?     Yes      No\nIf yes, please specify: \nContinued on the next page\n",
+      "fields": [
+        {
+          "id": "family_0_relation",
+          "rect": [
+            231.54,
+            91.02,
+            80.19,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_0_age",
+          "rect": [
+            377.69,
+            91.02,
+            40.09,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_0_selected",
+          "rect": [
+            36.4,
+            93.73,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "family_1_relation",
+          "rect": [
+            231.54,
+            106.36,
+            80.19,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_1_age",
+          "rect": [
+            377.69,
+            106.36,
+            40.09,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_1_selected",
+          "rect": [
+            36.4,
+            109.07,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "family_2_relation",
+          "rect": [
+            231.54,
+            121.7,
+            80.19,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_2_age",
+          "rect": [
+            377.69,
+            121.7,
+            40.09,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_2_selected",
+          "rect": [
+            36.4,
+            124.41,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "family_3_relation",
+          "rect": [
+            231.54,
+            137.04,
+            80.19,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_3_age",
+          "rect": [
+            377.69,
+            137.04,
+            40.09,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_3_selected",
+          "rect": [
+            36.4,
+            139.75,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "family_4_relation",
+          "rect": [
+            231.54,
+            152.38,
+            80.19,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_4_age",
+          "rect": [
+            377.69,
+            152.38,
+            40.09,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_4_selected",
+          "rect": [
+            36.4,
+            155.09,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "family_5_selected",
+          "rect": [
+            36.4,
+            170.43,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "family_5_relation",
+          "rect": [
+            231.54,
+            167.72,
+            80.19,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "family_5_age",
+          "rect": [
+            377.69,
+            167.72,
+            40.09,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "nutrition_goals",
+          "rect": [
+            138.38,
+            211.72,
+            441.05,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "modified_diet",
+          "rect": [
+            185.92,
+            239.49,
+            7.21,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "modified_diet",
+          "rect": [
+            219.34,
+            239.49,
+            7.21,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "diet_changes",
+          "rect": [
+            93.59,
+            249.78,
+            484.79,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "eating_plan",
+          "rect": [
+            334.51,
+            277.55,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "eating_plan",
+          "rect": [
+            367.93,
+            277.55,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "plan_type",
+          "rect": [
+            149.93,
+            287.84,
+            430.11,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "plan_reason",
+          "rect": [
+            168.88,
+            312.9,
+            411.89,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "plan_prescribed",
+          "rect": [
+            210.19,
+            332.61,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "plan_prescribed",
+          "rect": [
+            243.62,
+            332.61,
+            7.21,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "plan_duration",
+          "rect": [
+            193.51,
+            346.9,
+            386.37,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "dietitian",
+          "rect": [
+            347.38,
+            374.67,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "dietitian",
+          "rect": [
+            380.8,
+            374.67,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "dietitian_interest",
+          "rect": [
+            173.03,
+            387.67,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "dietitian_interest",
+          "rect": [
+            206.45,
+            387.67,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "nutrition_issues",
+          "rect": [
+            35.24,
+            445.02,
+            546.75,
+            33.94
+          ],
+          "kind": "area"
+        },
+        {
+          "id": "water",
+          "rect": [
+            213.07,
+            492.08,
+            36.45,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "other_drinks",
+          "rect": [
+            283.88,
+            517.14,
+            295.24,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "food_allergies",
+          "rect": [
+            207.59,
+            544.91,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "food_allergies",
+          "rect": [
+            241.01,
+            544.91,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "food_allergy_details",
+          "rect": [
+            82.07,
+            559.2,
+            495.72,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "food_preparation_self",
+          "rect": [
+            204.96,
+            586.97,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "food_preparation_spouse",
+          "rect": [
+            249.44,
+            586.97,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "food_preparation_parent",
+          "rect": [
+            306.41,
+            586.97,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "food_preparation_minimal",
+          "rect": [
+            358.31,
+            586.97,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "dining_out",
+          "rect": [
+            139.23,
+            609.32,
+            36.45,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "restaurant_breakfast",
+          "rect": [
+            78.3,
+            651.38,
+            236.92,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "restaurant_lunch",
+          "rect": [
+            344.98,
+            651.38,
+            233.28,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "restaurant_dinner",
+          "rect": [
+            67.02,
+            668.38,
+            247.86,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "restaurant_snacks",
+          "rect": [
+            348.93,
+            668.38,
+            229.64,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "cravings",
+          "rect": [
+            135.4,
+            693.09,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "cravings",
+          "rect": [
+            168.82,
+            693.09,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "craving_details",
+          "rect": [
+            114.17,
+            709.38,
+            466.56,
+            11.94
+          ],
+          "kind": "line"
+        }
+      ]
+    },
+    {
+      "asset": "health_history-3.svg",
+      "width": 612,
+      "height": 792,
+      "text": "Substance-related Habits\n1. Do you drink alcohol?     Yes      No\nIf yes, how often?  times per week\t\nAverage amount? \n2. Do you drink caffeinated beverages?     Yes      No\nIf yes, average number per day: \n3. Do you use tobacco?     Yes      No\nIf yes, how much (cigarettes, cigars, or chewing tobacco per day)? \nPhysical Activity\n1. Do you currently participate in any structured physical activity?     Yes      No\nIf so, please describe:\n minutes of cardiorespiratory activity,  times per week\n muscular-training sessions per week\n flexibility-training sessions per week\n minutes of sports or recreational activities per week\nList sports or activities you participate in: \n2. Do you engage in any other forms of regular physical activity?     Yes      No\nIf yes, describe: \n3. Have you ever experienced any injuries that may limit your physical activity?     Yes      No\nIf yes, describe: \n4. Do you have any physical-activity restrictions? If so, please list:\n    \n    \n5. What are your honest feelings about exercise/physical activity? \n    \n    \n6. What are some of your favorite physical activities? \n    \n    \nContinued on the next page\n",
+      "fields": [
+        {
+          "id": "alcohol",
+          "rect": [
+            120.17,
+            81.6,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "alcohol",
+          "rect": [
+            153.6,
+            81.6,
+            7.21,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "alcohol_frequency",
+          "rect": [
+            100.03,
+            91.89,
+            36.45,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "alcohol_average",
+          "rect": [
+            270.58,
+            91.89,
+            32.8,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "caffeine",
+          "rect": [
+            173.22,
+            116.6,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "caffeine",
+          "rect": [
+            206.64,
+            116.6,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "caffeine_amount",
+          "rect": [
+            147.99,
+            126.89,
+            51.03,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "tobacco",
+          "rect": [
+            117.95,
+            156.1,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "tobacco",
+          "rect": [
+            151.37,
+            156.1,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "tobacco_amount",
+          "rect": [
+            271.4,
+            166.39,
+            309.82,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "structured_exercise",
+          "rect": [
+            265.89,
+            222.1,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "structured_exercise",
+          "rect": [
+            299.31,
+            222.1,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "cardio_minutes",
+          "rect": [
+            35.76,
+            257.39,
+            32.8,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "cardio_frequency",
+          "rect": [
+            202.51,
+            257.39,
+            32.81,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "strength_frequency",
+          "rect": [
+            35.76,
+            276.39,
+            32.8,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "flexibility_frequency",
+          "rect": [
+            35.76,
+            295.39,
+            32.8,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "sport_minutes",
+          "rect": [
+            35.76,
+            314.39,
+            32.8,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "activities",
+          "rect": [
+            184.39,
+            333.39,
+            397.3,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "other_activity",
+          "rect": [
+            262.14,
+            362.6,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "other_activity",
+          "rect": [
+            295.56,
+            362.6,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "other_activity_details",
+          "rect": [
+            93.35,
+            383.39,
+            488.43,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "injury_restriction",
+          "rect": [
+            312.17,
+            412.6,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "injury_restriction",
+          "rect": [
+            345.59,
+            412.6,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "activity_injuries",
+          "rect": [
+            93.35,
+            428.89,
+            488.43,
+            11.94
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "restrictions",
+          "rect": [
+            35.0,
+            479.39,
+            546.75,
+            33.94
+          ],
+          "kind": "area"
+        },
+        {
+          "id": "exercise_feelings",
+          "rect": [
+            35.0,
+            556.39,
+            546.75,
+            33.94
+          ],
+          "kind": "area"
+        },
+        {
+          "id": "favorite_activities",
+          "rect": [
+            35.0,
+            633.39,
+            550.0,
+            33.94
+          ],
+          "kind": "area"
+        }
+      ]
+    },
+    {
+      "asset": "health_history-4.svg",
+      "width": 612,
+      "height": 792,
+      "text": "Occupational\n1. Do you work?     Yes      No \nIf yes, what is your occupation? \nIf you work, what is your work schedule? \n2. Describe your activity level during the work day: \nSleep and Stress\n1. How many hours of sleep do you get at night? \n2. Rate your average stress level from 1 (no stress) to 10 (constant stress) \n3. What is most stressful to you? \n4. How is your appetite affected by stress?        Increased\t   Not affected\t\n Decreased\nWeight History\n1. What is your present weight?      Don’t know\n2. What would you like to do with your weight?         Lose weight\t\n Gain weight\t\n Maintain weight\n3. What was your lowest weight within the past 5 years? \n4. What was your highest weight within the past 5 years? \n5. What do you consider to be your ideal weight (the sustainable weight at which you feel best)?    Don’t know\n6. What are your current waist and hip circumferences?  Waist\t\n Hip      Don’t know\n7. What is your current body composition? % body fat       Don’t know\nGoals\n1. On a scale of 1 to 10, how likely are you to adopt a healthier lifestyle (1 = very unlikely; 10 = very likely)? \n2. Do you have any specific goals for improving your health?    Yes    No  If yes, please list them in order of importance.\n    \n    \n3. Do you have a weight-loss goal?     Yes      No\nIf yes, what is it? \n4. Why do you want to lose weight?\n    \n    \n",
+      "fields": [
+        {
+          "id": "working",
+          "rect": [
+            92.67,
+            76.22,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "working",
+          "rect": [
+            126.09,
+            76.22,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "occupation",
+          "rect": [
+            150.09,
+            91.5,
+            430.11,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "work_schedule",
+          "rect": [
+            181.48,
+            109.5,
+            400.94,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "work_activity",
+          "rect": [
+            206.88,
+            131.5,
+            375.44,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "sleep_hours",
+          "rect": [
+            200.38,
+            183.0,
+            36.45,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "stress",
+          "rect": [
+            293.73,
+            205.0,
+            36.45,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "stressors",
+          "rect": [
+            146.18,
+            227.0,
+            433.75,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "appetite",
+          "rect": [
+            193.94,
+            251.72,
+            7.21,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Increased"
+        },
+        {
+          "id": "appetite",
+          "rect": [
+            246.26,
+            251.72,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Unaffected"
+        },
+        {
+          "id": "appetite",
+          "rect": [
+            316.2,
+            251.72,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Decreased"
+        },
+        {
+          "id": "present_weight",
+          "rect": [
+            140.74,
+            302.5,
+            36.45,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "present_weight_unknown",
+          "rect": [
+            185.01,
+            305.22,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "weight_goal",
+          "rect": [
+            208.26,
+            327.22,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Lose"
+        },
+        {
+          "id": "weight_goal",
+          "rect": [
+            280.2,
+            327.22,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Gain"
+        },
+        {
+          "id": "weight_goal",
+          "rect": [
+            352.2,
+            327.22,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Maintain"
+        },
+        {
+          "id": "lowest_weight",
+          "rect": [
+            227.45,
+            346.5,
+            36.45,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "highest_weight",
+          "rect": [
+            230.21,
+            368.5,
+            36.45,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "ideal_weight",
+          "rect": [
+            342.84,
+            390.5,
+            30.65,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "ideal_weight_unknown",
+          "rect": [
+            377.23,
+            393.22,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "waist",
+          "rect": [
+            224.96,
+            412.5,
+            36.45,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "hip",
+          "rect": [
+            315.8,
+            412.5,
+            40.09,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "circumferences_unknown",
+          "rect": [
+            380.72,
+            415.22,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "body_fat",
+          "rect": [
+            179.05,
+            434.5,
+            40.1,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "body_fat_unknown",
+          "rect": [
+            268.7,
+            437.22,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "readiness",
+          "rect": [
+            373.21,
+            488.0,
+            41.04,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "specific_goals",
+          "rect": [
+            226.68,
+            512.72,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "specific_goals",
+          "rect": [
+            253.39,
+            512.72,
+            7.21,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "goals",
+          "rect": [
+            36.04,
+            534.0,
+            546.75,
+            33.95
+          ],
+          "kind": "area"
+        },
+        {
+          "id": "weight_loss_goal",
+          "rect": [
+            158.62,
+            583.72,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "weight_loss_goal",
+          "rect": [
+            192.04,
+            583.72,
+            7.22,
+            8.29
+          ],
+          "kind": "check",
+          "value": "No"
+        },
+        {
+          "id": "weight_loss_details",
+          "rect": [
+            97.87,
+            601.5,
+            484.79,
+            11.95
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "weight_loss_reason",
+          "rect": [
+            36.04,
+            649.0,
+            546.75,
+            33.95
+          ],
+          "kind": "area"
+        }
+      ]
+    }
+  ],
+  "upper_flexibility": [
+    {
+      "asset": "upper_flexibility-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "FLEXIBILITY ASSESSMENT FORM: UPPER BODY\nJoint and Movement\nObservations\nROM (º)\nShoulder/Scapulae\nFlexion\n¨ 150–180\nExtension\n¨ 50–60\nAbduction\n¨ 180\nInternal/medial \nrotation\n¨ 70–80\nExternal/lateral \nrotation\n¨ 90\nShoulder horizontal \nadduction \n¨ 90\nShoulder horizontal \nabduction\n¨ 30–40\nShoulder range of motion in the transverse plane: Horizontal \nadduction (flexion) 130°, horizontal abduction to 0°, horizontal \nextension 45° past neutral\n90˚\n45˚\nHorizontal \nextension\n130˚ Horizontal \nadduction (flexion)\nHorizontal \nabduction\n0˚\nNeutral\n180˚\nShoulder range of motion in the sagittal plane: \nFlexion 180°, extension to 0°, hyperextension 60°\n90˚\n0˚\nNeutral\nFlexion\nToward \nextension\n60˚ Extension\n75˚ Adduction \nwith flexion\n90˚\nAbduction\nAdduction\n0˚\nNeutral\n180˚\nShoulder rotation range of motion in the sagittal plane: \nExternal rotation 90–100°, internal rotation 70–80°\n90˚\n70˚\nInternal\nrotation 70–80˚ \nExternal \nrotation 90–100˚ \n90˚ \nExternal \nrotation\n0˚\nNeutral\nShoulder rotation range of motion in the transverse\nplane (shoulder is adducted to 0°): External \nrotation 90°, internal rotation 90°\n90˚ \nInternal \nrotation\nDate: \n",
+      "fields": [
+        {
+          "id": "$date",
+          "rect": [
+            452.52,
+            86.33,
+            132.54,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "shoulder_flexion_observations",
+          "rect": [
+            295.6,
+            140.66,
+            220.24,
+            77.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "shoulder_flexion_reference_checked",
+          "rect": [
+            524.74,
+            141.18,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "shoulder_extension_observations",
+          "rect": [
+            295.6,
+            226.16,
+            220.24,
+            77.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "shoulder_extension_reference_checked",
+          "rect": [
+            524.74,
+            226.68,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "shoulder_abduction_observations",
+          "rect": [
+            295.6,
+            311.66,
+            220.24,
+            77.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "shoulder_abduction_reference_checked",
+          "rect": [
+            524.74,
+            312.18,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "shoulder_internal_observations",
+          "rect": [
+            295.6,
+            397.16,
+            220.24,
+            77.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "shoulder_internal_reference_checked",
+          "rect": [
+            524.74,
+            397.68,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "shoulder_external_observations",
+          "rect": [
+            295.6,
+            482.66,
+            220.24,
+            77.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "shoulder_external_reference_checked",
+          "rect": [
+            524.74,
+            483.18,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "shoulder_horizontal_adduction_observations",
+          "rect": [
+            295.6,
+            568.16,
+            220.24,
+            77.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "shoulder_horizontal_adduction_reference_checked",
+          "rect": [
+            524.74,
+            568.68,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "shoulder_horizontal_abduction_observations",
+          "rect": [
+            295.6,
+            653.66,
+            220.24,
+            77.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "shoulder_horizontal_abduction_reference_checked",
+          "rect": [
+            524.74,
+            654.18,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        }
+      ]
+    },
+    {
+      "asset": "upper_flexibility-2.svg",
+      "width": 612,
+      "height": 792,
+      "text": "Elbow \nFlexion\n¨ 145\nExtension\n¨ 0\nRadio-ulnar\nPronation\n¨ 90\nSupination\n¨ 90\nWrist\nFlexion\n¨ 80 \nExtension\n¨ 70 \nRadial deviation\n¨ 20\nUlnar deviation\n¨ 45\n",
+      "fields": [
+        {
+          "id": "elbow_flexion_observations",
+          "rect": [
+            294.71,
+            77.63,
+            219.7,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "elbow_flexion_reference_checked",
+          "rect": [
+            523.34,
+            78.15,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "elbow_extension_observations",
+          "rect": [
+            294.71,
+            149.63,
+            219.7,
+            64.28
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "elbow_extension_reference_checked",
+          "rect": [
+            523.34,
+            150.15,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "pronation_observations",
+          "rect": [
+            294.71,
+            238.63,
+            219.7,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "pronation_reference_checked",
+          "rect": [
+            523.3,
+            239.15,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "supination_observations",
+          "rect": [
+            294.71,
+            310.63,
+            219.7,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "supination_reference_checked",
+          "rect": [
+            523.3,
+            311.15,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "wrist_flexion_observations",
+          "rect": [
+            294.71,
+            399.13,
+            219.7,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "wrist_flexion_reference_checked",
+          "rect": [
+            523.3,
+            399.65,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "wrist_extension_observations",
+          "rect": [
+            294.71,
+            471.13,
+            219.7,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "wrist_extension_reference_checked",
+          "rect": [
+            523.3,
+            471.65,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "radial_deviation_observations",
+          "rect": [
+            294.71,
+            543.13,
+            219.7,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "radial_deviation_reference_checked",
+          "rect": [
+            523.3,
+            543.65,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "ulnar_deviation_observations",
+          "rect": [
+            294.71,
+            615.13,
+            219.7,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "ulnar_deviation_reference_checked",
+          "rect": [
+            523.3,
+            615.65,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        }
+      ]
+    }
+  ],
+  "lower_flexibility": [
+    {
+      "asset": "lower_flexibility-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "Joint and Movement\nObservations\nROM (º)\nHip\nFlexion\n¨ 100–120 \nExtension\n¨ 10–30\nAbduction\n¨ 40–45\nAdduction\n¨ 20–30\nInternal/medial \nrotation\n¨ 35–45\nExternal/lateral \nrotation\n¨ 45–60\nKnee\nFlexion\n125–145 \nExtension\n0–10\nFLEXIBILITY ASSESSMENT FORM: LOWER BODY\nRange of motion for hip abduction\n50˚ Abduction\n0˚ Neutral\n90˚\nHip flexion\n120˚\nExtension\n0˚ Neutral\nHip flexion without pelvic rotation\n0˚ Neutral\nHip extension (<20°)\n<20˚ Extension\nRange of motion for rotation at the hip\n50˚ External rotation\n0˚ Neutral\n35˚ Internal rotation\nDate: \n",
+      "fields": [
+        {
+          "id": "$date",
+          "rect": [
+            474.24,
+            86.94,
+            110.45,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "hip_flexion_observations",
+          "rect": [
+            248.44,
+            151.9,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hip_flexion_reference_checked",
+          "rect": [
+            531.94,
+            152.42,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "hip_extension_observations",
+          "rect": [
+            248.44,
+            223.9,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hip_extension_reference_checked",
+          "rect": [
+            531.94,
+            224.42,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "hip_abduction_observations",
+          "rect": [
+            248.44,
+            295.9,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hip_abduction_reference_checked",
+          "rect": [
+            531.94,
+            296.42,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "hip_adduction_observations",
+          "rect": [
+            248.44,
+            367.9,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hip_adduction_reference_checked",
+          "rect": [
+            531.94,
+            368.42,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "hip_internal_observations",
+          "rect": [
+            248.44,
+            439.9,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hip_internal_reference_checked",
+          "rect": [
+            531.94,
+            440.42,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "hip_external_observations",
+          "rect": [
+            248.44,
+            511.9,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hip_external_reference_checked",
+          "rect": [
+            531.94,
+            512.42,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "knee_flexion_observations",
+          "rect": [
+            248.44,
+            600.4,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "knee_extension_observations",
+          "rect": [
+            248.44,
+            672.4,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        }
+      ]
+    },
+    {
+      "asset": "lower_flexibility-2.svg",
+      "width": 612,
+      "height": 792,
+      "text": "Ankle\nDorsiflexion\n20\nPlantar flexion\n45–50\nSubtalar\nInversion\n30–35 \nEversion\n15–20\nPlantar flexion \n0˚ Neutral\n20˚ Plantar \nflexion\nDorsiflexion\n0˚ Neutral\n20˚ \nDorsiflexion\n90˚\n90˚\n20˚ Dorsiflexion\n0˚ Neutral\n50˚ Plantar flexion\nAnkle range of motion with the knee flexed\n",
+      "fields": [
+        {
+          "id": "ankle_dorsiflexion_observations",
+          "rect": [
+            248.08,
+            74.03,
+            274.6,
+            91.09
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "ankle_plantarflexion_observations",
+          "rect": [
+            248.08,
+            173.12,
+            274.6,
+            88.56
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "subtalar_inversion_observations",
+          "rect": [
+            248.08,
+            286.18,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "subtalar_eversion_observations",
+          "rect": [
+            248.08,
+            358.18,
+            274.6,
+            64.0
+          ],
+          "kind": "cell"
+        }
+      ]
+    }
+  ],
+  "hurdle_step": [
+    {
+      "asset": "hurdle_step-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "© 2015 AMERICAN COUNCIL ON EXERCISE®\nObjective: To examine simultaneous mobility of one limb and stability of the contralateral limb while \nmaintaining both hip and torso stabilization during a balance challenge of standing on one leg\nEquipment:\n•\t Two uprights to anchor string (chair or table legs)\n•\t 36-inch (0.9-m) piece of string\n•\t 48-inch (1.2-m) wooden or plastic dowel\nInstructions:\n•\t Briefly discuss the protocol so the client understands what is required.\n•\t Fasten a piece of string spanning two points at a height even with the underside of the foot \npositioned parallel with the floor, when it is raised to a height that flexes the hip to 70 degrees \n(approximately just above halfway up the tibia).\n•\t Have the client stand with both feet together and the front edge of the toes aligned directly beneath \nthe string.\nü \nUltimately, this test should be performed with the feet positioned at gait-width apart [i.e., 2.8 to \n3.5 inches (7 to 9 cm)] to simulate single-leg support during walking.\n•\t Place the dowel across the client’s shoulders, holding it parallel to the floor (similar to the \nplacement of the bar during the traditional barbell squat). \n•\t Instruct the client to load onto one leg and slowly lift the opposite leg over the string, flexing the \nhip to clear the string and then gently touching the heel of the raised leg to the floor in front of the \nstring before returning to the starting position.\nü \nThe foot only needs to clear the string and does not need to be lifted as high as possible.\nü \nIt is important to remember not to cue the client to use good technique, instead observing the \nnatural movement.\nü \nRepetitions need to be performed slowly and with control.\n•\t Have the client repeat the movement with the opposite leg, completing a series of repetitions with \neach leg so that the CMES can make the necessary evaluations.\n•\t Allow sufficient practice trials to accommodate learning before administrating the test screens. \nObservations (see Table on the next page):\n•\t Frontal view (Figure 1):\nü \nFirst repetition: Observe the stability of the foot (i.e., evidence of pronation, supination, eversion, \nor inversion).\nü \nSecond repetition: Observe the alignment of the stance-leg knee over the foot (i.e., evidence of \nknee movement in any plane).\nü \nThird repetition: Watch for excessive hip adduction greater than 2 inches (5.1 cm), as measured by \nexcessive stance-leg adduction or downward hip-tilting toward the opposite side (Figure 2).\nü \nFourth repetition: Observe the stability of the torso (i.e., evidence of torso movement in any plane \nas demonstrated by movement of the dowel) (see Figure 2).\nü \nFifth repetition: Observe the alignment of the moving leg (i.e., lack of dorsiflexion at the \nankle, deviation from the sagittal plane at the knee or ankle, or hiking of the moving hip) \n(see Figure 2).\n•\t Sagittal view (Figure 3):\nü \nFirst repetition: Observe the stability of the torso and stance leg.\nü \nSecond repetition: Observe the mobility of the hip (i.e., allowing 70 degrees of hip flexion without \ncompensation—anterior tilting).\nGeneral interpretations:\n•\t Identify the origin(s) of movement limitation or compensation.\n•\t Evaluate the impact on the entire kinetic chain.\nHURDLE-STEP \nSCREEN\nFigure 1\nHurdle-step screen: Anterior view\nFigure 2\nHurdle-step screen: Anterior view with \ncompensations\nFigure 3\nHurdle-step screen: Sagittal view\n",
+      "fields": []
+    },
+    {
+      "asset": "hurdle_step-2.svg",
+      "width": 612,
+      "height": 792,
+      "text": "© 2015 AMERICAN COUNCIL ON EXERCISE®\nHURDLE-STEP SCREEN\nView\nJoint \nLocation\nCompensation\nKey Suspected Compensations: \nOveractive (Tight)\nKey Suspected Compensations: \nUnderactive (Lengthened)\n\nFrom \nthe front\nFeet\nLack of foot stability: \nAnkles collapse inward/\nfeet turn outward\nSoleus, lateral gastrocnemius, \nperoneals\nMedial gastrocnemius, gracilis, \nsartorius, tibialis group, gluteus \nmedius and maximus—inability \nto control internal rotation\n\nFrom \nthe front \nKnees\nMove inward\nHip adductors, tensor fascia \nlatae\nGluteus medius and maximus\n\nFrom \nthe front \nHips\nHip adduction* \n>2 inches (5.1 cm)\nStance-leg hip rotation \n(inward)\nHip adductors, tensor fascia \nlatae\nStance-leg or raised-leg \ninternal rotators\nGluteus medius and maximus\nStance-leg or raised-leg \nexternal rotators\n\nFrom \nthe front \nTorso\nLateral tilt, forward lean, \nrotation\nLack of core stability\n\nFrom \nthe front \nRaised-\nleg\nLack of ankle dorsiflexion\nLimb deviates from \nsagittal plane\nHiking the raised hip\nAnkle plantarflexors\nRaised-leg hip extensors\nStance-leg hip flexors—\nlimiting posterior hip rotation \nduring raise\nAnkle dorsiflexors \nRaised-leg hip flexors\n\nFrom \nthe side\nPelvis \nand low \nback\nAnterior tilt with \nforward torso lean\nPosterior tilt with \nhunched-over torso\nStance-leg hip flexors\nRectus abdominis and \nhip extensors\nRectus abdominis and \nhip extensors\nStance-leg hip flexors\n*Hip adduction involves weight transference over the stance leg while preserving hip, knee, and foot alignment. This weight transference requires \na 1- to 2-inch (2.5- to 5-cm) lateral shift over the stance-leg, with a small hike in the stance-hip of 4 to 5 degrees or less.\nSources: Kendall, F.P. et al. (2005). Muscles Testing and Function with Posture and Pain (5th ed.). Baltimore, Md.: Lippincott Williams & \nWilkins; Cook, G. (2003). Athletic Body in Balance. Champaign, Ill.: Human Kinetics; Sahrmann, S.A. (2002). Diagnosis and Treatment of \nMovement Impairment Syndromes. St. Louis, Mo.: Mosby.\n",
+      "fields": [
+        {
+          "id": "feet_reference_observed",
+          "rect": [
+            55.01,
+            98.85,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "knees_reference_observed",
+          "rect": [
+            55.01,
+            150.35,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "hips_reference_observed",
+          "rect": [
+            55.01,
+            178.33,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "torso_reference_observed",
+          "rect": [
+            55.01,
+            244.56,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "raised_leg_reference_observed",
+          "rect": [
+            55.01,
+            276.18,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "pelvis_reference_observed",
+          "rect": [
+            55.01,
+            366.68,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        }
+      ]
+    }
+  ],
+  "bend_lift": [
+    {
+      "asset": "bend_lift-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "View\nLocation\nCompensation\nKey Suspected Compensations: \nOveractive (Tight)\nKey Suspected Compensations: \nUnderactive (Lengthened)\n¨\nAnterior\nFeet\n¨\nAnterior \nKnees\n¨\nAnterior \nTorso\n¨\nSide\nFeet\n¨\nSide\nHip and \nknee\n¨\nSide\nHip and \nknee\nContact \nbehind knee\n¨\nSide\nLumbar and \nthoracic \nspine\n¨\nSide\nHead\nBEND-AND-LIFT ASSESSMENT FORM\nSquat Pattern\nDate: \n",
+      "fields": [
+        {
+          "id": "$date",
+          "rect": [
+            453.32,
+            92.09,
+            132.54,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "front_feet_selected",
+          "rect": [
+            35.03,
+            190.56,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "front_feet_observation",
+          "rect": [
+            155.64,
+            190.76,
+            136.0,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "front_feet_overactive",
+          "rect": [
+            299.64,
+            190.76,
+            130.24,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "front_feet_underactive",
+          "rect": [
+            437.88,
+            190.76,
+            147.87,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "front_knees_selected",
+          "rect": [
+            35.03,
+            258.06,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "front_knees_observation",
+          "rect": [
+            155.64,
+            258.26,
+            136.0,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "front_knees_overactive",
+          "rect": [
+            299.64,
+            258.26,
+            130.24,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "front_knees_underactive",
+          "rect": [
+            437.88,
+            258.26,
+            147.87,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "front_torso_selected",
+          "rect": [
+            35.03,
+            325.56,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "front_torso_observation",
+          "rect": [
+            155.64,
+            325.76,
+            136.0,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "front_torso_compensations",
+          "rect": [
+            299.64,
+            325.76,
+            286.11,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "side_feet_selected",
+          "rect": [
+            35.03,
+            393.06,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "side_feet_observation",
+          "rect": [
+            155.64,
+            393.26,
+            136.0,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "side_feet_overactive",
+          "rect": [
+            299.64,
+            393.26,
+            130.24,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "side_feet_underactive",
+          "rect": [
+            437.88,
+            393.26,
+            147.87,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hip_knee_selected",
+          "rect": [
+            35.03,
+            460.56,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "hip_knee_observation",
+          "rect": [
+            155.64,
+            460.76,
+            136.0,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hip_knee_compensations",
+          "rect": [
+            299.64,
+            460.76,
+            286.11,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "knee_contact_selected",
+          "rect": [
+            35.03,
+            528.06,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "knee_contact_observation",
+          "rect": [
+            155.64,
+            528.26,
+            136.0,
+            63.56
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "knee_contact_compensations",
+          "rect": [
+            299.64,
+            528.26,
+            286.11,
+            63.56
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "spine_selected",
+          "rect": [
+            35.03,
+            599.62,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "spine_observation",
+          "rect": [
+            155.64,
+            599.82,
+            136.0,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "spine_overactive",
+          "rect": [
+            299.64,
+            599.82,
+            130.24,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "spine_underactive",
+          "rect": [
+            437.88,
+            599.82,
+            147.87,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "head_selected",
+          "rect": [
+            35.03,
+            667.12,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "head_observation",
+          "rect": [
+            155.64,
+            667.32,
+            136.0,
+            59.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "head_compensations",
+          "rect": [
+            299.64,
+            667.32,
+            286.11,
+            59.5
+          ],
+          "kind": "cell"
+        }
+      ]
+    }
+  ],
+  "single_leg": [
+    {
+      "asset": "single_leg-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "View\nLocation\nCompensation\nKey Suspected Compensations: \nOveractive (Tight)\nKey Suspected Compensations: \nUnderactive (Lengthened)\n¨\nAnterior\nFeet\n¨\nAnterior \nKnees\n¨\nAnterior \nHips\n¨\nAnterior \nTorso\n¨\nAnterior \nRaised-leg\n¨\nSide\nPelvis and \nlow back\n.\nSINGLE-LEG ASSESSMENT FORM\nStep-up\nDate: \n",
+      "fields": [
+        {
+          "id": "$date",
+          "rect": [
+            452.52,
+            89.03,
+            132.54,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "feet_selected",
+          "rect": [
+            31.43,
+            166.78,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "feet_observation",
+          "rect": [
+            145.12,
+            167.88,
+            131.68,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "feet_overactive",
+          "rect": [
+            284.8,
+            167.88,
+            129.52,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "feet_underactive",
+          "rect": [
+            422.32,
+            167.88,
+            158.46,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "knees_selected",
+          "rect": [
+            31.43,
+            238.78,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "knees_observation",
+          "rect": [
+            145.12,
+            239.88,
+            131.68,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "knees_overactive",
+          "rect": [
+            284.8,
+            239.88,
+            129.52,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "knees_underactive",
+          "rect": [
+            422.32,
+            239.88,
+            158.46,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hips_selected",
+          "rect": [
+            31.43,
+            310.78,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "hips_observation",
+          "rect": [
+            145.12,
+            311.88,
+            131.68,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hips_overactive",
+          "rect": [
+            284.8,
+            311.88,
+            129.52,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "hips_underactive",
+          "rect": [
+            422.32,
+            311.88,
+            158.46,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "torso_selected",
+          "rect": [
+            31.43,
+            382.78,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "torso_observation",
+          "rect": [
+            145.12,
+            383.88,
+            131.68,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "torso_compensations",
+          "rect": [
+            284.8,
+            383.88,
+            295.98,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "raised_leg_selected",
+          "rect": [
+            31.43,
+            454.78,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "raised_leg_observation",
+          "rect": [
+            145.12,
+            455.88,
+            131.68,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "raised_leg_overactive",
+          "rect": [
+            284.8,
+            455.88,
+            129.52,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "raised_leg_underactive",
+          "rect": [
+            422.32,
+            455.88,
+            158.46,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "pelvis_selected",
+          "rect": [
+            31.43,
+            526.78,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "pelvis_observation",
+          "rect": [
+            145.12,
+            527.88,
+            131.68,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "pelvis_overactive",
+          "rect": [
+            284.8,
+            527.88,
+            129.52,
+            64.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "pelvis_underactive",
+          "rect": [
+            422.32,
+            527.88,
+            158.46,
+            64.0
+          ],
+          "kind": "cell"
+        }
+      ]
+    }
+  ],
+  "push": [
+    {
+      "asset": "push-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "View\nJoint Location\nCompensation\nKey Suspected Compensations\n¨\nSide\nScapulothoracic\n¨\nSide \nTrunk \nPUSH ASSESSMENT FORM\nShoulder Push Stabilization\nDate: \n",
+      "fields": [
+        {
+          "id": "$date",
+          "rect": [
+            452.52,
+            82.92,
+            132.54,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "scapula_selected",
+          "rect": [
+            32.15,
+            164.16,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "scapula_observation",
+          "rect": [
+            186.16,
+            163.64,
+            114.4,
+            113.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "scapula_suspected",
+          "rect": [
+            308.56,
+            163.64,
+            272.24,
+            113.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "trunk_selected",
+          "rect": [
+            32.15,
+            285.66,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "trunk_observation",
+          "rect": [
+            186.16,
+            285.14,
+            114.4,
+            128.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "trunk_suspected",
+          "rect": [
+            308.56,
+            285.14,
+            272.24,
+            128.5
+          ],
+          "kind": "cell"
+        }
+      ]
+    }
+  ],
+  "pull": [
+    {
+      "asset": "pull-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "View\nLocation\nCompensation\nKey Suspected Compensations: \nOveractive (Tight)\nKey Suspected Compensations: \nUnderactive (Lengthened) \n¨\nSide\nLumbar spine \n¨\nPosterior\nScapulothoracic\n¨\nSide\nHead\n¨\nPosterior \nScapulothoracic\nPULL ASSESSMENT FORM\nStanding Row\nDate: \n",
+      "fields": [
+        {
+          "id": "$date",
+          "rect": [
+            452.52,
+            88.17,
+            132.54,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "lumbar_observation",
+          "rect": [
+            188.48,
+            182.43,
+            82.0,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "lumbar_overactive",
+          "rect": [
+            278.48,
+            182.43,
+            142.84,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "lumbar_underactive",
+          "rect": [
+            429.32,
+            182.43,
+            153.43,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "lumbar_selected",
+          "rect": [
+            32.75,
+            182.95,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "scapula_1_observation",
+          "rect": [
+            188.48,
+            272.43,
+            82.0,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "scapula_1_overactive",
+          "rect": [
+            278.48,
+            272.43,
+            142.84,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "scapula_1_underactive",
+          "rect": [
+            429.32,
+            272.43,
+            153.43,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "scapula_1_selected",
+          "rect": [
+            32.75,
+            272.95,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "head_observation",
+          "rect": [
+            188.48,
+            362.43,
+            82.0,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "head_overactive",
+          "rect": [
+            278.48,
+            362.43,
+            142.84,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "head_underactive",
+          "rect": [
+            429.32,
+            362.43,
+            153.43,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "head_selected",
+          "rect": [
+            32.75,
+            362.95,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "scapula_2_observation",
+          "rect": [
+            188.48,
+            452.43,
+            82.0,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "scapula_2_overactive",
+          "rect": [
+            278.48,
+            452.43,
+            142.84,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "scapula_2_underactive",
+          "rect": [
+            429.32,
+            452.43,
+            153.43,
+            82.0
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "scapula_2_selected",
+          "rect": [
+            32.75,
+            452.95,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        }
+      ]
+    }
+  ],
+  "rotation": [
+    {
+      "asset": "rotation-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "View\nLocation\nCompensation\nPossible Biomechanical Problems\n¨\nAnterior or \nposterior \nTrunk\n¨\nAnterior or \nposterior \nTrunk\nROTATION ASSESSMENT FORM\nThoracic Spine Mobility\nDate: \n",
+      "fields": [
+        {
+          "id": "$date",
+          "rect": [
+            452.52,
+            85.36,
+            132.54,
+            15.93
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "trunk_1_selected",
+          "rect": [
+            31.65,
+            167.99,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "trunk_1_observation",
+          "rect": [
+            173.53,
+            167.97,
+            155.69,
+            103.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "trunk_1_biomechanical",
+          "rect": [
+            337.22,
+            167.97,
+            243.79,
+            103.5
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "trunk_2_selected",
+          "rect": [
+            31.43,
+            277.05,
+            8.11,
+            9.4
+          ],
+          "kind": "check",
+          "value": "Yes"
+        },
+        {
+          "id": "trunk_2_observation",
+          "rect": [
+            173.53,
+            279.47,
+            155.69,
+            117.62
+          ],
+          "kind": "cell"
+        },
+        {
+          "id": "trunk_2_biomechanical",
+          "rect": [
+            337.22,
+            279.47,
+            243.79,
+            117.62
+          ],
+          "kind": "cell"
+        }
+      ]
+    }
+  ],
+  "balance": [
+    {
+      "asset": "balance-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "Eyes open\nEyes closed\nTrial 1 seconds\nTrial 1 seconds\nTrial 2  seconds\nTrial 2  seconds\nTrial 3 seconds\nTrial 3 seconds\nSTATIC BALANCE ASSESSMENT FORM \nUnipedal Stance Test\n",
+      "fields": [
+        {
+          "id": "eyes_open_1",
+          "rect": [
+            63.35,
+            144.8,
+            47.52,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "eyes_closed_1",
+          "rect": [
+            344.98,
+            144.8,
+            47.52,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "eyes_open_2",
+          "rect": [
+            63.35,
+            176.3,
+            47.52,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "eyes_closed_2",
+          "rect": [
+            344.98,
+            176.3,
+            47.52,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "eyes_open_3",
+          "rect": [
+            60.72,
+            207.8,
+            52.26,
+            15.92
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "eyes_closed_3",
+          "rect": [
+            342.35,
+            207.8,
+            52.26,
+            15.92
+          ],
+          "kind": "line"
+        }
+      ]
+    }
+  ],
+  "anthropometric": [
+    {
+      "asset": "anthropometric-1.svg",
+      "width": 612,
+      "height": 792,
+      "text": "ANTHROPOMETRIC MEASUREMENTS FORM\nDate: \nHEIGHT, WEIGHT, AND BODY MASS INDEX\nWeight (lb):  Height (in): \nIf necessary, convert to metric units: Weight in pounds x 0.454 = Weight in kg \t\n\tHeight in inches x 0.0254 = Height in m\nWeight (kg):  Height (m): \nCalculate body mass index (BMI): BMI = Weight (kg)/Height2 (m)    or    Weight (lb)    x 703\n\t\n\t\n                           Height2 (in)\nBMI: \nSKINFOLD MEASUREMENTS\nMen\t\nWomen\nChest:  \t\nTriceps: \nAbdomen: \t\nSuprailium: \nThigh:  \t\nThigh: \nTotal: \t\nTotal: \n% Body-fat estimation: \nCIRCUMFERENCE MEASUREMENTS\nAbdomen: \nHip: \nWaist: \nWaist-to-hip ratio: \nBiceps: \nMidthigh: \n",
+      "fields": [
+        {
+          "id": "$date",
+          "rect": [
+            474.6,
+            89.82,
+            110.45,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "weight_lb",
+          "rect": [
+            71.5,
+            134.82,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "height_in",
+          "rect": [
+            173.53,
+            134.82,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "weight",
+          "rect": [
+            73.72,
+            179.82,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "height",
+          "rect": [
+            176.39,
+            179.82,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "bmi",
+          "rect": [
+            45.87,
+            225.32,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "male_chest",
+          "rect": [
+            52.56,
+            315.32,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "female_triceps",
+          "rect": [
+            288.69,
+            315.32,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "male_abdomen",
+          "rect": [
+            67.08,
+            337.82,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "female_suprailium",
+          "rect": [
+            300.61,
+            337.82,
+            53.45,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "male_thigh",
+          "rect": [
+            51.96,
+            360.32,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "female_thigh",
+          "rect": [
+            281.95,
+            360.32,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "male_total",
+          "rect": [
+            50.12,
+            382.82,
+            57.26,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "female_total",
+          "rect": [
+            280.12,
+            382.82,
+            57.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "body_fat",
+          "rect": [
+            111.64,
+            405.32,
+            57.26,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "abdomen",
+          "rect": [
+            67.08,
+            472.82,
+            38.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "hip",
+          "rect": [
+            43.79,
+            495.32,
+            38.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "waist",
+          "rect": [
+            52.08,
+            517.82,
+            38.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "ratio",
+          "rect": [
+            94.19,
+            540.32,
+            38.25,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "biceps",
+          "rect": [
+            56.15,
+            562.82,
+            34.45,
+            13.27
+          ],
+          "kind": "line"
+        },
+        {
+          "id": "thigh",
+          "rect": [
+            63.75,
+            585.32,
+            34.45,
+            13.27
+          ],
+          "kind": "line"
+        }
+      ]
+    }
+  ]
+}
