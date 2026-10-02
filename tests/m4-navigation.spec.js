@@ -1,3 +1,4 @@
+import { swipe } from './swipe-fixture.js'
 import { test, expect, expandSidebarSection, selectDemoIdentity } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 import { OWNER_NAV, TRAINER_NAV } from '../src/app/constants.js'
@@ -22,24 +23,6 @@ async function tab(page, name) {
   const menu = page.locator('details.profile-menu')
   if (await menu.locator('summary').isVisible() && !(await menu.getAttribute('open'))) await menu.locator('summary').click()
   await menu.getByRole('button', { name, exact: true }).click()
-}
-// Exercise the DOM's touch path, including real event targets and a refresh
-// between start/end. OS-reserved Safari edge gestures still need a device check.
-async function touch(page, selector, type, delta) {
-  await page.locator(selector).evaluate((element, { type, delta }) => {
-    const rect = element.getBoundingClientRect()
-    const point = { identifier: 7, clientX: rect.left + 12 + delta, clientY: rect.top + 90, target: element }
-    const event = new Event(type, { bubbles: true, cancelable: true })
-    Object.assign(event, { touches: type === 'touchend' ? [] : [point], changedTouches: [point] })
-    element.dispatchEvent(event)
-  }, { type, delta })
-}
-async function swipe(page, selector = '.portal-main', during) {
-  await page.evaluate(() => scrollTo(0, 0))
-  await touch(page, selector, 'touchstart', 0)
-  if (during) await during()
-  await touch(page, selector, 'touchmove', 155)
-  await touch(page, selector, 'touchend', 180)
 }
 
 for (const [role, id, items] of [['owner', 'u-owner', OWNER_NAV], ['trainer', 'u-marcus', TRAINER_NAV]]) {

@@ -1,7 +1,15 @@
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Rules, Architecture and Design Philosophy
 
-Updated 1 October 2026. This is the **authoritative implementation contract** for Fitfinity. It records current business semantics, canonical-development rules, frontend/service boundaries, production architecture, backend decomposition, security direction, migration discipline and CI/CD expectations. When historical notes conflict with this file, this file wins unless the user explicitly changes the requirement. For the full chronology and test receipts, read [Fitfinity Journey and Iteration History](./FITFINITY_JOURNEY.md).
+Updated 2 October 2026. This is the **authoritative implementation contract** for Fitfinity. It records current business semantics, canonical-development rules, frontend/service boundaries, production architecture, backend decomposition, security direction, migration discipline and CI/CD expectations. When historical notes conflict with this file, this file wins unless the user explicitly changes the requirement. For the full chronology and test receipts, read [Fitfinity Journey and Iteration History](./FITFINITY_JOURNEY.md).
+
+## Current CI recovery checkpoint — 2 October 2026
+
+PR #1 is merged into main `44a4a9cfce22662aaf9372565ac264a02721cfe1`. Native protection readback at 11:46:47 Singapore confirms required PRs, strict `verify / frontend` and `verify / backend` checks from GitHub Actions app `15368`, administrator enforcement, zero reviewer approvals and blocked force pushes/deletion. Earlier pending-PR/protection statements below are historical. Main run `36969337682` failed one of 717 browser cases after 767 units and the backend job passed; downstream deployment was correctly skipped. Full main acceptance remains pending.
+
+Recover through a new feature branch and PR. The current bounded repair fixes viewport coordinates in the shared browser swipe fixture, adds two regression cases in the existing hook owner and retains a trace on failures even with zero retries. Required unit inventory becomes **769 / 84 files**, browser remains **717**; all other strict inventories and timeout/retry/worker policies remain. The failed CI snapshot establishes the route mismatch, but does not prove scroll-restoration timing. Do not change production navigation or weaken assertions without new evidence.
+
+After the repair passes full PR CI, merge through the protected workflow and require the new main run to pass before proceeding. Infrastructure closure still requires real read-only workflow OIDC acceptance, current-image build/scan/runtime evidence, explicit first Owner/live authentication, and application release/recovery acceptance. `AWS_IMAGE_RELEASE_ENABLED=false` remains. A green frontend demo deployment would not prove the AWS application is deployed. Do not restart an unrestricted audit or resume M6.1 business integration before these agreed closure steps.
 
 ## Infrastructure closure takes priority — 1 October 2026
 
