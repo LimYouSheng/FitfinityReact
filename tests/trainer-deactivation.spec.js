@@ -2,6 +2,14 @@ import { expect, test, waitForPortal, mockPhysicalOrientation } from './fixtures
 
 const KEY = 'fitfinity-m2-demo-db-v4'
 
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.title !== 'trainer reassignment dropdown waits for release and permits scrolling from the field'
+    || testInfo.status === testInfo.expectedStatus || page.isClosed()) return
+  await testInfo.attach('reassignment-pointer-events', {
+    body: JSON.stringify(await page.evaluate(() => window.__reassignmentPointerEvents ?? []), null, 2), contentType: 'application/json',
+  })
+})
+
 test('trainer reassignment dropdown waits for release and permits scrolling from the field', async ({ page, browserName, hasTouch }) => {
   await mockPhysicalOrientation(page)
   await page.setViewportSize({ width: 390, height: 480 })
@@ -27,6 +35,17 @@ test('trainer reassignment dropdown waits for release and permits scrolling from
   const dialog = page.getByRole('dialog', { name: 'Deactivate Marcus Tan?', exact: true })
   const select = dialog.getByRole('combobox', { name: 'Reassign Amanda Lim' }).first()
   await expect(select).toBeEnabled()
+  // Record the native sequence for diagnosis without changing event behavior.
+  await select.evaluate(element => {
+    window.__reassignmentPointerEvents = []
+    for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'click']) {
+      element.closest('.modal-backdrop').addEventListener(type, event => {
+        queueMicrotask(() => window.__reassignmentPointerEvents.push({ type, pointerType: event.pointerType, trusted: event.isTrusted,
+          target: event.target.tagName, role: event.target.getAttribute('role'), prevented: event.defaultPrevented,
+          x: event.clientX, y: event.clientY, expanded: element.getAttribute('aria-expanded') }))
+      }, true)
+    }
+  })
   await select.scrollIntoViewIfNeeded()
   await select.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'touch', clientX: 150, clientY: 280 })
   await expect(select).toHaveAttribute('aria-expanded', 'false')
@@ -65,11 +84,14 @@ test('trainer reassignment dropdown waits for release and permits scrolling from
   const choices = page.getByRole('listbox', { name: 'Reassign Amanda Lim' })
   await expect(choices).toBeVisible()
   const replacement = await select.locator('option[value="t3"]').textContent()
-  await choices.getByRole('option', { name: replacement, exact: true }).click()
+  const option = choices.getByRole('option', { name: replacement, exact: true })
+  if (hasTouch) await option.tap()
+  else await option.click()
   await expect(select).toHaveValue('t3')
   if (hasTouch) {
     await select.tap()
     await expect(choices).toBeVisible()
+    await expect(select).toHaveAttribute('aria-expanded', 'true')
     await page.keyboard.press('Escape')
   }
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()

@@ -1,7 +1,43 @@
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Rules, Architecture and Design Philosophy
 
-Updated 2 October 2026. This is the **authoritative implementation contract** for Fitfinity. It records current business semantics, canonical-development rules, frontend/service boundaries, production architecture, backend decomposition, security direction, migration discipline and CI/CD expectations. When historical notes conflict with this file, this file wins unless the user explicitly changes the requirement. For the full chronology and test receipts, read [Fitfinity Journey and Iteration History](./FITFINITY_JOURNEY.md).
+Updated 3 October 2026. This is the **authoritative implementation contract** for Fitfinity. It records current business semantics, canonical-development rules, frontend/service boundaries, production architecture, backend decomposition, security direction, migration discipline and CI/CD expectations. When historical notes conflict with this file, this file wins unless the user explicitly changes the requirement. For the full chronology and test receipts, read [Fitfinity Journey and Iteration History](./FITFINITY_JOURNEY.md).
+
+## Current checkpoint: local UI acceptance, PR #3 full CI next — 3 October 2026, 06:54 Singapore
+
+The user reports the refreshed local script passed **12 selected units / 3 inventory checks / 48 browser cases**, with lint and demo/PWA checks. Accepted source fingerprint: `8c3a9947de32bddb4fb6853ccb86e96894110174bbf4a87d082b3e0d31fc19fe`. Success is recorded by user report; no new native receipt was uploaded. The bounded UI repair is ready for publication to the same existing PR #3, as explicitly authorized. Only the three canonical documents change after that accepted source to record this checkpoint.
+
+Next require full PR CI: **781 units / 84 files, 765 browser / 255 per project, 416 backend, 408 infrastructure, 33 quality and 20 health-tooling**. Keep required PR checks, strict inventories and existing timeout/retry policies. Do not merge or deploy as part of publication. Physical-device acceptance and the outstanding AWS infrastructure/Owner/live-authentication milestones remain separate. Earlier native-pending entries below are historical.
+
+## Sticky-header dropdown correction: native rerun pending — 3 October 2026, 00:44 Singapore
+
+Native receipt `vbkTBX` passed **47/48 browser cases**, including every drawer/reassignment case that failed in the older published PR #3. The only remaining failure showed the first country-code option behind the phone's sticky header. Page-owned `FieldPopover` menus must reserve the header's visible area while keeping their edit-owner portal. Modal menus retain their existing layer and viewport bounds. Do not force native taps, raise timeouts or move all page content above the shell to conceal this defect.
+
+A new unit regression reproduces the supplied geometry, checks resize/viewport boundaries and preserves modal ownership. Selected assistant validation passes **12 units, 3 inventory checks, targeted lint and demo/PWA build**. The 48 browser cases are unchanged and their new native run is pending. Full CI now requires **781 units / 84 files and 765 browser / 255 per project**; other inventories stay unchanged. Browser execution remains user/CI-owned, with real phone/iPad acceptance separate from emulated profiles.
+
+Corrections remain local to the same PR #3 branch. The replacement script recognizes all preceding reviewed source states, rejects unknown edits, backs up before writing and performs no Git publication or deployment. The older GitHub failures remain until local acceptance and a separately authorized push to the existing PR.
+
+## Latest native dropdown checkpoint — 3 October 2026, 00:33 Singapore
+
+Receipt `mQy78y` passed lint, 11 selected units, 3 inventory checks and demo/PWA build; browsers passed **15/48**. Drawer, reassignment, client/trainer search and exercise-choice scenarios passed on desktop, phone and tablet. The other 33 failures identify test defects: label locators become ambiguous when a matching listbox opens, and the package case omitted the Health & Assessments step. The correction uses exact `combobox` roles throughout the new select tests and follows the actual onboarding sequence with heading assertions. Runtime source is unchanged.
+
+Current local target remains **11 selected units, 3 inventory checks and 48 browser cases** with no retries/skips accepted. The source guard recognizes the supplied 508-file candidate without weakening unknown-edit protection. New browser acceptance remains pending on the user's Mac; do not represent this 15/48 receipt as full CI or physical-device acceptance. Full CI still requires 780 units / 84 files and 765 browser cases, plus the unchanged other gates. Continue on the same local PR #3 branch with no commit, push, PR change or deployment in the repair script.
+
+## All dropdown implementations: selected local acceptance pending — 3 October 2026
+
+The user expanded the current mobile repair to all dropdown implementations. The canonical select/suggestion option buttons must preserve the native touch press so the completed tap can select; use mouse-down focus suppression without cancelling touch pointer-down. Shared native-field triggers continue to reject movement/cancellation and activate on a valid release. Do not replace native touch assertions with programmatic `selectOption` or mouse clicks in phone/iPad acceptance.
+
+The source inventory includes 37 select usages, seven date usages, editable suggestions, both directory searches, exercise choices and profile menus. Fourteen new browser scenarios cover these implementations and representative owning forms, filters and menus on the actual desktop/phone/tablet project viewports. Existing new drawer/reassignment tests remain. This is implementation coverage, not a claim that every business-flow permutation or physical device passed.
+
+Latest native source receipt `gKhYK8` passed selected units/tooling/build and four of six browser cases; the remaining phone/tablet option taps failed. The corrected candidate requires **11 selected units, 3 updated inventory checks and 48 new browser cases** plus targeted lint/demo/PWA checks. Full CI now requires **780 units / 84 files and 765 browser / 255 per project** with other inventories unchanged. Assistant selected units/tooling/build passed. Expanded native browser acceptance remains pending. The refreshed local script accepts the preceding known repair, leaves branch/HEAD/index and PR #3 unchanged, and automatically collects failure evidence. Publication stays a separate later action after local acceptance.
+
+## Local verification before publication — 2 October 2026, 23:30 Singapore
+
+The user requires **local verification of new and affected work before pushing**. Create the feature branch locally, make the change, run selected local unit/browser/tooling checks, then publish or update the same PR for complete CI. A local branch does not trigger GitHub. Do not publish from the repair/test step. Keep full CI and physical-device acceptance separate from selected local results.
+
+For the current UI repair, the explicit scope is **new tests only**: eleven added unit cases, the three updated inventory-receipt checks and the two added browser scenarios across all three projects (six cases). Targeted lint and the fresh demo/PWA build support that run. No full backend, infrastructure, unit, browser or health-tooling suite is requested at this step. Exact selected-case identities must pass with no retries or selected-case skips. The full 780-unit/723-browser gate remains unchanged and mandatory when this PR is later submitted again.
+
+PR #3 at `a213fcaaa553eca57365bf1dbd5e84ef5e6ca3f3` failed CI with 718/723 browser passes. The repair corrects the hidden desktop button locator and adds shared select/date release handling that rejects movement, cancellation and duplicate clicks. Existing native form semantics, keyboard controls, shared overlay locking and service contracts remain. `Fitfinity_UI_Touch_Local_2026-10-02.sh` applies and checks locally without changing branch/HEAD/index or publishing. Native acceptance is pending; follow the top Journey entry for actual evidence. Do not reuse the previous publication script with this changed candidate.
 
 ## Current accepted deployment and mobile interaction candidate — 2 October 2026
 

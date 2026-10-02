@@ -18,7 +18,7 @@ export default function SuggestionField({ options, onChange, ...props }) {
       }} />
     {open && matches.length > 0 && <FieldPopover anchorRef={ref} onClose={() => setOpen(false)} role="listbox" id={id} aria-label={`${props['aria-label'] ?? 'Field'} suggestions`}>
       {matches.map((option, index) => <button key={option} id={`${id}-${index}`} role="option" aria-selected={props.value === option} type="button"
-        onPointerDown={event => event.preventDefault()} onClick={() => select(option)}>{option}</button>)}
+        onMouseDown={event => event.preventDefault()} onClick={() => select(option)}>{option}</button>)}
     </FieldPopover>}
   </span>
 }

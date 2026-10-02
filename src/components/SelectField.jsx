@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import FieldPopover from './FieldPopover.jsx'
+import useFieldActivation from '../hooks/useFieldActivation.js'
 
 /** Preserve native form semantics while all pointer/keyboard opening uses the app's compact menu. */
 export default function SelectField({ children, onChange, ...props }) {
@@ -21,6 +22,7 @@ export default function SelectField({ children, onChange, ...props }) {
       ? selected : items.findIndex(option => !option.disabled && !option.hidden))
     setOpen(true)
   }
+  const activation = useFieldActivation(openMenu)
   const choose = index => {
     const option = ref.current.options[index]
     if (!option || option.disabled || option.hidden) return
@@ -51,7 +53,7 @@ export default function SelectField({ children, onChange, ...props }) {
   return <span className="select-field">
     <select {...props} ref={ref} onChange={onChange} aria-expanded={open} aria-controls={open ? id : undefined}
       aria-activedescendant={open && active >= 0 ? `${id}-${active}` : undefined}
-      onPointerDown={event => event.preventDefault()} onMouseDown={event => event.preventDefault()} onClick={openMenu} onKeyDown={keyboard}>
+      {...activation} onKeyDown={keyboard}>
       {children}
     </select>
     <span className="select-field-chevron" aria-hidden="true">⌄</span>
@@ -59,7 +61,7 @@ export default function SelectField({ children, onChange, ...props }) {
       {options.map((option, index) => !option.hidden && <button key={`${index}-${option.value}`} id={`${id}-${index}`} type="button" role="option"
         aria-selected={String(props.value ?? '') === option.value} disabled={option.disabled} tabIndex={-1}
         className={active === index ? 'is-highlighted' : ''}
-        onPointerDown={event => event.preventDefault()} onClick={() => choose(index)}>{option.text}</button>)}
+        onMouseDown={event => event.preventDefault()} onClick={() => choose(index)}>{option.text}</button>)}
     </FieldPopover>}
   </span>
 }

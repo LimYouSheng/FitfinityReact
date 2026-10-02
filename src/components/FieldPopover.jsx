@@ -11,12 +11,17 @@ export default function FieldPopover({ anchorRef, onClose, width, children, ...p
       if (!anchor) return
       const rect = anchor.getBoundingClientRect()
       const viewport = window.visualViewport
-      const top = viewport?.offsetTop ?? 0
+      const viewportTop = viewport?.offsetTop ?? 0
+      // Page menus stay in their edit owner, beneath the sticky header's layer.
+      // Reserve that occupied space; modal menus already live above the shell.
+      const pageField = anchor.closest('.content') && !anchor.closest('.modal-backdrop, [data-modal-layer]')
+      const header = pageField ? anchor.closest('.portal-main')?.querySelector(':scope > .topbar') : null
+      const top = Math.max(viewportTop, header?.getBoundingClientRect().bottom ?? viewportTop)
       const left = viewport?.offsetLeft ?? 0
       const height = viewport?.height ?? window.innerHeight
       const availableWidth = viewport?.width ?? window.innerWidth
       const menuWidth = Math.min(width ?? Math.max(rect.width, 180), availableWidth - 24)
-      const below = top + height - rect.bottom - 12
+      const below = viewportTop + height - rect.bottom - 12
       const above = rect.top - top - 12
       const upwards = below < 240 && above > below
       const maxHeight = Math.max(80, Math.min(360, height * .6, (upwards ? above : below) - 5))
