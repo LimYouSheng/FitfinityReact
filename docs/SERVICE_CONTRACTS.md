@@ -1,5 +1,27 @@
 # Portal service contracts
 
+## Session cascade and mutation reversal — 3 October 2026
+
+**Implemented in the mock/demo adapter; selected local acceptance passed by user report on 3 October 2026 at 17:26 Singapore. API business-write availability remains false.** [Rules and Architecture](./FITFINITY_RULES_AND_ARCHITECTURE.md#session-postponement-and-messages-undo--requested-3-october-2026-0910-singapore) owns business semantics. The accepted PR #3 deployment predates these controls.
+
+**Fixture loading contract:** direct writes to browser storage are not application transactions. Hash-only navigation retains the mock adapter's cached database and rendered snapshot. Tests which inject storage after startup must reload the document and wait for portal readiness before expecting the app to use that data. Native run `SNz17i` passed 75 units / 3 receipt checks and 18/24 browser cases; the two fixture-loading failures were repaired in the owning browser spec. The user subsequently reports all 75 units / 3 receipt checks / 24 browser cases passed. No final success JSON was uploaded. This change enables no API endpoints and changes no runtime behavior.
+
+Publication authorization at 17:31 Singapore covers a new feature branch and PR after source/receipt verification. Full PR CI remains required. The publisher does not enable live API writes, merge or deploy.
+
+| Boundary | Implemented contract |
+| --- | --- |
+| `sessionService.previewPostponement({ sessionId })` | Returns affected session IDs, old/new intervals and an opaque expected schedule string. Resolves purchase-local weekly slots and validates the prospective calendar. |
+| `sessionService.postpone({ sessionId, expected, requestKey })` | Uses a stable caller-generated key and rejects changed content on key reuse. Authenticated actor and current transaction determine authority. Recomputes preview, applies all sessions or creates one supervised request; approval revalidates the full proposal. |
+| Mutation receipt | `sessionMutation` captures session before/after values, per-record deltas, dependencies and credit debit references after domain normalization, inside the same persistence commit. Private `sessionMutations` never leaves the snapshot projection. Visible Messages receive safe `undo` metadata only. |
+| `messageService.undo({ id })` | Accepts an authorized Message ID. The stored operation ID is the idempotency identity; its recorded after-state is the expected revision. Current actor, dependencies, authority, expiry and booking calendar are rechecked. The operation and audit Message commit atomically; retries return the established result without another compensation. |
+| One-day expiry | `expiresAt = committedAt + 86400000` in the stored journal and safe Message projection. At or after expiry a new reversal fails. Reads/reload/retry never extend it. Applied approval gets its own commit timestamp. An already committed reversal can return its prior result after expiry. Demo uses the local clock; a future API must use server time. |
+| Completion compensation | Original signatures, acknowledgements and reversal history remain. A referenced `session_reversal` offsets the original debit once on the correct purchase; normalized progress and unapproved remuneration derive from restored sessions. Re-completion requires the latest reversal ID and fresh acknowledgement. Approved pay blocks reversal pending a separate owner adjustment workflow. |
+| Indirect mutations | Shared service transaction capture includes session-producing onboarding/renewals, package/client/trainer lifecycle, permanent reassignment, weekly scheduling and applied approvals. Pending proposals reverse by cancellation; an applied approval is recorded as reversed without reviving pending state. Reject/cancel decisions without session mutations do not gain an inverse that reopens a terminal request. |
+| Media and external actions | Recoverable removed/replaced original bytes are retained only within both original retention and the 24-hour window. Missing/expired media rejects Undo. Internal WhatsApp-open state may reverse with an explicit notice; sent/shared/exported material cannot be recalled. |
+| UI and session replacement | Prominent row/detail controls, confirmation, expiry state and local committed-success state. Adapter-owned guards bind in-flight mutations to the initiating demo identity generation, including same-user replacement. UI cannot supply actor claims or raw inverse state. |
+
+The named contract inventory, existing adapter operations and authorization boundary are updated together. Unsupported API calls remain disabled. Assistant verification passed 318 affected units and 3 inventory checks plus lint/health/demo/PWA build. Selected Mac acceptance is now reported passed: 75 units (74 new and one updated assertion), 3 inventory checks and 24 browser cases. Full CI target: 855 units / 86 files and 789 browser cases; backend, infrastructure and other tooling inventories are unchanged. No publication/deployment is part of this delivery.
+
 ## Selected UI acceptance and publication authorization — 3 October 2026
 
 At 06:54 Singapore, the user reports all local UI checks passed: 12 selected units, 3 inventory checks, 48 browser cases and lint/demo/PWA checks for source `8c3a9947de32bddb4fb6853ccb86e96894110174bbf4a87d082b3e0d31fc19fe`. Publication to the existing PR #3 is authorized. The final success receipt was not uploaded; the acceptance is by user report.

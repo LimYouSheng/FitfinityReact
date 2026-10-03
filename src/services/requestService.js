@@ -1,3 +1,5 @@
+import { mutateSessionRecords } from './sessionMutation.js'
+import { applySessionPostponement } from '../app/sessionPostponement.js'
 import { managesOperations } from '../app/permissions.js'
 import { sessionIsInactive } from '../app/clientPackages.js'
 import { sessionDurationMinutes } from '../app/sessionRules.js'
@@ -27,7 +29,7 @@ export const requestService = {
     await delay(120)
     const current = cancellationTarget(mockDb.read(), messageId, actor)
     if (current.message.status === 'cancelled') return current.message
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'request.cancel', db => {
       const { message, staff } = cancellationTarget(db, messageId, actor)
       const cancelledAt = new Date().toISOString()
       const cancelledBy = { id: staff.id, name: staff.name, trainerId: staff.trainerId }
@@ -51,7 +53,7 @@ export const requestService = {
   async resolve(messageId, decision, actor) {
     await delay(120)
     if (!['approved', 'rejected'].includes(decision)) throw new Error('Choose approve or reject.')
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'request.resolve', db => {
       const owner = db.users.find(user => user.id === actor?.id)
       if (!managesOperations(actor) || !managesOperations(owner) || owner.role !== actor.role || (owner.status ?? 'active') !== 'active') {
         throw new Error('Only an active owner can decide requests.')
@@ -63,7 +65,10 @@ export const requestService = {
       }
       if (message.status !== 'pending') throw new Error('This request has already been decided.')
       const session = db.sessions.find(item => item.id === request.sessionId)
-      if (decision === 'approved' && request.type === 'fixed_weekly_schedule') {
+      if (decision === 'approved' && request.type === 'session_postpone') {
+        if (!session || session.trainerId !== request.trainerId || !db.trainers.some(item => item.id === request.trainerId && item.status === 'active')) throw new Error('The requesting trainer or session assignment changed. Reject this request.')
+        message.updatedSessions = applySessionPostponement(db, session.id, request.expected, message.id).changes.length
+      } else if (decision === 'approved' && request.type === 'fixed_weekly_schedule') {
         const client = db.clients.find(item => item.id === request.clientId)
         if (!client || client.trainerId !== request.trainerId || !sameSlots(client.fixedWeeklySchedule, request.oldSlots)) {
           throw new Error('The client assignment or weekly schedule changed after this request. Reject it and request the updated change.')

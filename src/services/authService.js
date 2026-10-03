@@ -1,10 +1,11 @@
 import { mockDb, delay } from './mockDb.js'
 import { mockAccountPassword, mockPolicy } from '../data/mockPolicy.js'
+import { createUuid } from '../utils/uuid.js'
 
 export const MOCK_SESSION_KEY = 'fitfinity-demo-session-v1'
 const CREDENTIALS_KEY = 'fitfinity-demo-credentials-v1'
 const read = key => { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) : null } catch { return null } }
-const saveSession = userId => localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId, expiresAt: userId ? Date.now() + mockDb.read().settings.sessionHours * 3600000 : null }))
+const saveSession = userId => localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId, generation: createUuid(), expiresAt: userId ? Date.now() + mockDb.read().settings.sessionHours * 3600000 : null }))
 const active = user => user && (user.status ?? 'active') === 'active'
 const denied = () => Object.assign(new Error('Your session has ended. Sign in again.'), { code: 'SESSION_EXPIRED' })
 

@@ -348,3 +348,40 @@ it('M4 shares the prepared session PDF on retry after cancellation without claim
   expect(props.onMarkWhatsAppOpened).not.toHaveBeenCalled()
   expect(props.onAcknowledge).not.toHaveBeenCalled()
 })
+
+it('previews every postponed date and preserves the proposal on a retryable save error', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
+  const preview = { expected: 'reviewed-schedule', changes: [{ sessionId: 's1', before: { date: '2026-09-02', from: '18:00', to: '19:00' }, next: { date: '2026-09-09', from: '18:00', to: '19:00' } }] }
+  const props = renderDetails({ onPreviewPostponement: vi.fn().mockResolvedValue(preview), onPostpone: vi.fn().mockRejectedValueOnce(new Error('New booking conflict')).mockResolvedValueOnce({ outcome: 'applied' }) })
+  fireEvent.click(screen.getByRole('button', { name: 'Postpone', exact: true }))
+  const dialog = within(await screen.findByRole('dialog', { name: 'Postpone sessions by one week?' }))
+  expect(dialog.getByRole('table')).toHaveTextContent(/02 Sept? 2026/)
+  expect(dialog.getByRole('table')).toHaveTextContent(/09 Sept? 2026/)
+  await act(async () => fireEvent.click(dialog.getByRole('button', { name: 'Confirm Postponement' })))
+  expect(dialog.getByRole('alert')).toHaveTextContent('New booking conflict')
+  await act(async () => fireEvent.click(dialog.getByRole('button', { name: 'Confirm Postponement' })))
+  expect(props.onPostpone.mock.calls[0]).toEqual(props.onPostpone.mock.calls[1])
+  expect(props.onPostpone.mock.calls[0][0]).toBe(preview.expected)
+  expect(screen.queryByRole('dialog', { name: 'Postpone sessions by one week?' })).not.toBeInTheDocument()
+})
+it('cancels a postponement preview without writing and disables Postpone after the start', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
+  const props = renderDetails({ onPreviewPostponement: vi.fn().mockResolvedValue({ expected: 'reviewed', changes: [] }), onPostpone: vi.fn() })
+  fireEvent.click(screen.getByRole('button', { name: 'Postpone', exact: true }))
+  const dialog = within(await screen.findByRole('dialog', { name: 'Postpone sessions by one week?' }))
+  fireEvent.click(dialog.getByRole('button', { name: 'Cancel', exact: true }))
+  expect(props.onPostpone).not.toHaveBeenCalled(); cleanup()
+  vi.setSystemTime(new Date('2026-09-02T10:00:00Z'))
+  renderDetails(); expect(screen.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
+})
+
+it('shows the original signer and timestamp when viewing evidence after completion Undo', async () => {
+  const evidence = { method: 'signature', signerName: 'Original Signer', recordedAt: '2026-09-02T11:00:00Z', signature: signatureFixture }
+  renderDetails({ session: { ...session, acknowledgement: null, acknowledgementHistory: [evidence],
+    acknowledgementReversals: [{ operationId: 'reversal-1', at: '2026-09-02T12:00:00Z', acknowledgement: evidence }] } })
+  fireEvent.click(screen.getByRole('button', { name: 'View recorded signature', exact: true }))
+  const dialog = screen.getByRole('dialog', { name: 'Client signature', exact: true })
+  expect(within(dialog).getByText('Original Signer')).toBeVisible()
+  expect(dialog.querySelector('time')).toHaveAttribute('datetime', evidence.recordedAt)
+  expect(within(dialog).getByRole('img')).toBeVisible()
+})

@@ -101,7 +101,7 @@ function PackageTab({ readOnly = false, client, clients, user, trainers, session
           catch (error) { setDeactivationError(error.message || 'Session deletion failed.') }
           finally { setDeactivating(false) }
         }}>
-        {deletePackage && <p>Permanently delete {eligibleCount(deletePackage)} unacknowledged upcoming sessions from {deletePackage.name ?? `${deletePackage.total} Sessions`}?</p>}
+        {deletePackage && <p>Delete {eligibleCount(deletePackage)} unacknowledged upcoming sessions from {deletePackage.name ?? `${deletePackage.total} Sessions`}? Undo is available in Messages for 24 hours.</p>}
         {deactivationError && <p role="alert">{deactivationError}</p>}
       </ConfirmDialog>
       <ConfirmDialog open={Boolean(deactivateOpen)} title="Deactivate Package?" confirmLabel={deactivating ? 'Deactivating…' : 'Deactivate Package'} danger
@@ -114,7 +114,7 @@ function PackageTab({ readOnly = false, client, clients, user, trainers, session
         }}>
         <p>{deactivateOpen?.name ?? `${deactivateOpen?.total} Sessions`} · {formatDate(deactivateOpen?.startDate)} – {formatDate(deactivateOpen?.endDate)}</p>
         <label className="export-summary-option"><input type="checkbox" checked={deleteUpcoming} disabled={deactivating}
-          onChange={event => setDeleteUpcoming(event.target.checked)} />Permanently delete unacknowledged upcoming sessions</label>
+          onChange={event => setDeleteUpcoming(event.target.checked)} />Delete unacknowledged upcoming sessions (24-hour Undo)</label>
         {deactivationError && <p role="alert">{deactivationError}</p>}
       </ConfirmDialog>
     </div>

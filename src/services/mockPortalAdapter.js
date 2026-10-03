@@ -2,7 +2,8 @@ import { managesOperations } from '../app/permissions.js'
 import { adminProjection } from '../app/adminProjection.js'
 import { businessClock } from '../app/clock.js'
 import { payCycle } from '../app/remuneration.js'
-import { authService } from './authService.js'
+import { authService, MOCK_SESSION_KEY } from './authService.js'
+import { bindSessionMutationActor, mutationForMessage } from './sessionMutation.js'
 import { mockDb, delay } from './mockDb.js'
 import { mockPolicy, mockAccountPassword } from '../data/mockPolicy.js'
 import { exerciseLibraryService } from './exerciseLibraryService.js'
@@ -12,7 +13,7 @@ import { pruneExpiredExerciseVideos } from './exerciseVideoRetention.js'
 import { mockPortalOperations } from './mockPortalOperations.js'
 import { portalRequest, authRequest } from './portalContracts.js'
 import { authorizePortalRequest } from './portalAuthorization.js'
-import { messageForUser } from '../app/messageInbox.js'
+import { messageForUser, messageVisibleTo } from '../app/messageInbox.js'
 
 const accountOperations = {
   signIn: input => authService.signIn(input),
@@ -45,7 +46,8 @@ export const mockPortalAdapter = {
       if (user.role !== 'trainer' || message.recipientTrainerId !== user.trainerId || original?.request.trainerId !== user.trainerId) return message
       return { ...message, request: structuredClone(original.request), status: original.status,
         ...(original.cancelledAt ? { cancelledAt: original.cancelledAt, cancelledBy: structuredClone(original.cancelledBy) } : {}) }
-    }).map(message => messageForUser(message, user))
+    }).map(message => ({ ...messageForUser(message, user), ...(messageVisibleTo(user, message) && message.mutationId ? { undo: mutationForMessage(db, message, user) } : {}) }))
+    delete db.sessionMutations
     const data = { ...db, ...(user.role === 'admin' ? {} : { remunerationViews: remunerationService.list(user).map(view => ({ ...view, cycle: payCycle(view.key, policy.remuneration) })) }), contentEntries: managesOperations(user) ? db.contentEntries ?? [] : [], exerciseLibrary: exerciseLibraryService.getAll(user) }
     return { user, capabilities: { demoControls: true }, policy, accounts, demoPassword: mockAccountPassword, data: user.role === 'admin' ? adminProjection(data) : data }
   },
@@ -55,6 +57,10 @@ export const mockPortalAdapter = {
   },
   async invoke(request) {
     const actor = authService.requireCurrent()
+    const scope = localStorage.getItem(MOCK_SESSION_KEY)
+    bindSessionMutationActor(actor, () => {
+      if (localStorage.getItem(MOCK_SESSION_KEY) !== scope || authService.requireCurrent().id !== actor.id) throw Object.assign(new Error('Your session changed. Refresh before trying again.'), { code: 'SESSION_CHANGED' })
+    })
     const resolved = portalRequest(request, 'mock')
     authorizePortalRequest(resolved, actor, mockDb.read())
     const { service, operation, input } = resolved

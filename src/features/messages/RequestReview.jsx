@@ -13,6 +13,7 @@ export default function RequestReview({ message, trainers, sessions, onResolve, 
   const stamp = value => value ? `${weekday(value.date)}, ${formatDate(value.date)} · ${value.from}–${value.to}` : 'Session no longer available'
   const isAvailability = request.type === 'trainer_availability'
   const isWeekly = request.type === 'fixed_weekly_schedule'
+  const isPostponement = request.type === 'session_postpone'
   const session = sessions.find(item => item.id === request.sessionId)
   const decide = async decision => {
     if (locked.current) return
@@ -48,7 +49,7 @@ export default function RequestReview({ message, trainers, sessions, onResolve, 
                 </div>
               )) : isWeekly ? (index ? request.newSlots : request.oldSlots).map(slot => (
                 <div key={slot.day}><dt>{slot.day}</dt><dd>{slot.from}–{slot.to}</dd></div>
-              )) : request.type === 'session_time' ? (
+              )) : isPostponement ? request.changes.map(change => <div key={change.sessionId}><dt>Session</dt><dd>{stamp(index ? change.next : change.before)}</dd></div>) : request.type === 'session_time' ? (
                 <div><dt>Date & time</dt><dd>{stamp(index ? request.next : request.previous)}</dd></div>
               ) : (
                 <div><dt>Trainer</dt><dd>{name(index ? request.replacementTrainerId : request.previousTrainerId)}</dd></div>

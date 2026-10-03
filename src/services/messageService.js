@@ -2,6 +2,17 @@ import { delay, mockDb } from './mockDb.js'
 import { messageForUser, messageVisibleTo } from '../app/messageInbox.js'
 import { requireActiveActor } from '../app/scheduleChanges.js'
 import { PortalContractError } from './portalContracts.js'
+import { mutationVideos, requireUndoReady, reverseSessionMutation } from './sessionMutation.js'
+import { loadExerciseVideoBlob } from './exerciseVideoStore.js'
+import { flushExerciseVideoDeletions } from './exerciseVideoRetention.js'
+
+function undoTarget(db, id, actor) {
+  const message = db.messages.find(item => item.id === id)
+  if (!messageVisibleTo(actor, message)) throw new PortalContractError('FORBIDDEN', 'This message is unavailable.')
+  const entry = db.sessionMutations?.find(item => item.id === message.mutationId)
+  requireUndoReady(db, entry, actor)
+  return entry
+}
 
 async function setRead(id, actor, read) {
   await delay(80)
@@ -17,6 +28,17 @@ async function setRead(id, actor, read) {
 }
 
 export const messageService = {
+  async undo(id, actor) {
+    await delay(80)
+    const entry = undoTarget(mockDb.read(), id, actor)
+    if (entry.status !== 'undone') for (const item of mutationVideos(entry)) {
+      if (!await loadExerciseVideoBlob(item.sessionId, item.exerciseId, item.mediaId)) throw new Error('The original video is no longer available. This change cannot be restored.')
+    }
+    const state = mockDb.mutate(db => reverseSessionMutation(db, undoTarget(db, id, actor), actor))
+    await flushExerciseVideoDeletions()
+    const saved = state.sessionMutations.find(item => item.id === entry.id)
+    return { id: saved.id, status: saved.status, undoneAt: saved.undoneAt }
+  },
   markRead: (id, actor) => setRead(id, actor, true),
   markUnread: (id, actor) => setRead(id, actor, false),
 }

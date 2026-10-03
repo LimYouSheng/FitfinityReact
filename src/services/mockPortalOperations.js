@@ -47,6 +47,8 @@ export const mockPortalOperations = {
     reactivate: ({ id }, { actor }) => trainerService.reactivate(id, actor),
   },
   sessionService: {
+    previewPostponement: ({ sessionId }, { actor }) => sessionService.previewPostponement(sessionId, actor),
+    postpone: ({ sessionId, expected, requestKey }, { actor }) => sessionService.postpone(sessionId, expected, requestKey, actor),
     loadVideo: ({ sessionId, exerciseId }, { actor }) => sessionService.loadVideo(sessionId, exerciseId, actor),
     saveVideo: ({ sessionId, exerciseId, file, metadata }, { actor }) => sessionService.saveVideo(sessionId, exerciseId, file, metadata, actor),
     removeVideo: ({ sessionId, exerciseId }, { actor }) => sessionService.removeVideo(sessionId, exerciseId, actor),
@@ -70,6 +72,7 @@ export const mockPortalOperations = {
     save: (input, { actor }) => exerciseLibraryService.save(input, actor),
   },
   messageService: {
+    undo: ({ id }, { actor }) => messageService.undo(id, actor),
     markRead: ({ id }, { actor }) => messageService.markRead(id, actor),
     markUnread: ({ id }, { actor }) => messageService.markUnread(id, actor),
   },

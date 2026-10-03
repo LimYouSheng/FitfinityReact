@@ -1,3 +1,5 @@
+import { mutateSessionRecords, requireMutationActor } from './sessionMutation.js'
+import { sessionPostponement, applySessionPostponement } from '../app/sessionPostponement.js'
 import { managesOperations } from '../app/permissions.js'
 import { ensureClientPackageReferences, packageForRecord, requireActiveSessionClient } from '../app/clientPackages.js'
 import { exerciseVideoExpired, exerciseVideoExpiresAt, exerciseVideoFileValidation, exerciseVideoValidation } from '../app/video.js'
@@ -6,7 +8,7 @@ import { validateExerciseResults, updateClientProgress, exerciseResultsFor } fro
 import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan, sessionActionError, sessionDurationMinutes, sessionScheduleError } from '../app/sessionRules.js'
 import { businessClock } from '../app/clock.js'
 import { appendRenewalMessage } from '../app/renewals.js'
-import { sessionTimeChangeError, requireActiveActor } from '../app/scheduleChanges.js'
+import { sessionTimeChangeError } from '../app/scheduleChanges.js'
 import { requireSessionSlotAvailable } from '../app/bookingAvailability.js'
 import { delay, mockDb } from './mockDb.js'
 import { appendSavedEditMessage } from './editMessage.js'
@@ -29,7 +31,7 @@ function requireTrainingDate(db, session) {
 }
 
 function requireSessionActor(db, session, actor, operationsOnly = false) {
-  const staff = requireActiveActor(db, actor)
+  const staff = requireMutationActor(db, actor)
   if (operationsOnly && !managesOperations(staff)) throw new Error('Only the owner or Admin can edit session details.')
   if (!managesOperations(staff)) {
     if (staff.role !== 'trainer' || staff.trainerId !== session.trainerId) throw new Error('This session is unavailable for your account.')
@@ -54,6 +56,11 @@ function acknowledgementUnchanged(previous, input) {
 function requireAcknowledgementTransition(previous, input) {
   if (previous?.method === 'signature') throw new Error('The client signature is permanent and cannot be changed or removed.')
   if (previous?.method === 'late_no_show' && input.method !== 'signature') throw new Error('A trainer acknowledgement can only be corrected to a client signature.')
+}
+
+function requireAcknowledgementRevision(session, acknowledgement) {
+  const reversal = session.acknowledgementReversals?.at(-1)
+  if (reversal && acknowledgement.reversalId !== reversal.operationId) throw new Error('The session was reopened. Refresh and record a new acknowledgement.')
 }
 
 function previousPlan(db, session) {
@@ -106,6 +113,44 @@ function appendSessionEdit(db, session, title, body) {
 }
 
 export const sessionService = {
+  async previewPostponement(sessionId, actor) {
+    await delay()
+    const db = mockDb.read()
+    requireSessionActor(db, requireSession(db, sessionId), actor)
+    return sessionPostponement(db, sessionId)
+  },
+  async postpone(sessionId, expected, requestKey, actor) {
+    await delay()
+    if (!/^[a-zA-Z0-9_-]{1,120}$/.test(requestKey)) throw new Error('A postponement request key is required.')
+    let outcome = 'applied'
+    const state = mutateSessionRecords(actor, 'session.postpone', db => {
+      const session = requireEditableSession(db, sessionId)
+      const staff = requireSessionActor(db, session, actor)
+      const previous = db.messages.find(message => message.postponementKey === requestKey)
+      if (previous) {
+        if (previous.postponementActor !== staff.id || previous.postponementExpected !== expected || previous.sessionId !== sessionId) throw new Error('This postponement request key has already been used.')
+        outcome = previous.request ? 'requested' : 'applied'
+        return
+      }
+      const preview = sessionPostponement(db, sessionId)
+      if (preview.expected !== expected) throw new Error('The schedule changed. Review postponement again.')
+      if (!managesOperations(staff) && preview.changes.some(change => change.before.trainerId !== actor.trainerId)) throw new Error('Owner/Admin must review a cascade involving another trainer.')
+      const trainer = db.trainers.find(item => item.id === session.trainerId)
+      const requiresApproval = !managesOperations(staff) && trainer.approvalNeeded?.sessionTime !== false
+      const client = db.clients.find(item => item.id === session.clientId)
+      const notice = { id: messageId('session-postpone'), recipientRole: 'owner', recipientUserId: staff.id, recipientTrainerId: session.trainerId,
+        sessionId, clientId: session.clientId, trainerId: session.trainerId, createdAt: new Date().toISOString(), readBy: {},
+        title: `${requiresApproval ? 'Postponement requested' : 'Sessions postponed'}: ${client.name}`,
+        body: `${preview.changes.length} sessions move one week later. ${preview.changes[0].before.date}–${preview.changes.at(-1).before.date} → ${preview.changes[0].next.date}–${preview.changes.at(-1).next.date}. Credits unchanged.`,
+        kind: requiresApproval ? 'session_postpone_request' : 'session_update', postponementKey: requestKey, postponementExpected: expected, postponementActor: staff.id }
+      if (requiresApproval) {
+        outcome = 'requested'
+        Object.assign(notice, { status: 'pending', request: { type: 'session_postpone', sessionId, clientId: session.clientId, trainerId: session.trainerId, expected, changes: preview.changes } })
+      } else applySessionPostponement(db, sessionId, expected)
+      db.messages.push(notice)
+    })
+    return { outcome, session: state.sessions.find(item => item.id === sessionId) }
+  },
   async loadVideo(sessionId, exerciseId, actor) {
     const db = mockDb.read()
     const session = requireSession(db, sessionId)
@@ -143,7 +188,7 @@ export const sessionService = {
     const previous = JSON.stringify(exercise.video ?? null)
     const mediaId = await saveExerciseVideoBlob(sessionId, exerciseId, file, { expiresAt })
     try {
-      mockDb.mutate(db => {
+      mutateSessionRecords(actor, 'session.saveVideo', db => {
         const currentSession = requireEditableSession(db, sessionId)
         requireSessionActor(db, currentSession, actor)
         const current = currentSession.exercisePlan?.find(item => item.id === exerciseId)
@@ -161,7 +206,7 @@ export const sessionService = {
     return { id: mediaId }
   },
   async removeVideo(sessionId, exerciseId, actor) {
-    mockDb.mutate(db => {
+    mutateSessionRecords(actor, 'session.removeVideo', db => {
       const session = requireEditableSession(db, sessionId)
       requireSessionActor(db, session, actor)
       const exercise = session.exercisePlan?.find(item => item.id === exerciseId)
@@ -176,7 +221,7 @@ export const sessionService = {
     await delay()
     requireValidSchedule(patch)
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'session.updateDetails', db => {
       const session = requireEditableSession(db, sessionId)
       requireSessionActor(db, session, actor, true)
       const replacement = db.trainers.find(item => item.id === patch.trainerId && item.status !== 'inactive')
@@ -202,7 +247,7 @@ export const sessionService = {
     requireValidSchedule(patch)
     let outcome = 'applied'
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'session.requestTimeChange', db => {
       const session = requireEditableSession(db, sessionId)
       const trainer = requireAssignedTrainer(db, session, actor)
       const client = db.clients.find(item => item.id === session.clientId)
@@ -269,7 +314,7 @@ export const sessionService = {
     await delay()
     let outcome = 'applied'
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'session.requestTrainerChange', db => {
       const session = requireEditableSession(db, sessionId)
       const trainer = requireAssignedTrainer(db, session, actor)
       const replacement = db.trainers.find(item => item.id === replacementTrainerId && item.status !== 'inactive')
@@ -342,7 +387,7 @@ export const sessionService = {
     const validation = validateExercisePlan(items)
     if (validation) throw new Error(validation)
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'session.saveExercisePlan', db => {
       const session = requireEditableSession(db, sessionId)
       requireSessionActor(db, session, actor)
       session.exercisePlan = normalizeExercisePlan(items)
@@ -364,7 +409,7 @@ export const sessionService = {
   async copyPreviousPlan(sessionId, actor) {
     await delay()
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'session.copyPreviousPlan', db => {
       const session = requireEditableSession(db, sessionId)
       requireSessionActor(db, session, actor)
       const source = previousPlan(db, session)
@@ -386,7 +431,7 @@ export const sessionService = {
   async saveOutcome(sessionId, outcome, actor) {
     await delay()
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'session.saveOutcome', db => {
       const session = requireSession(db, sessionId)
       requireSessionActor(db, session, actor)
       requireActiveSessionClient(db.clients.find(item => item.id === session.clientId), session)
@@ -405,7 +450,7 @@ export const sessionService = {
   async saveClientSummary(sessionId, summary, actor) {
     await delay()
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'session.saveClientSummary', db => {
       const session = requireSession(db, sessionId)
       requireSessionActor(db, session, actor)
       requireActiveSessionClient(db.clients.find(item => item.id === session.clientId), session)
@@ -419,7 +464,7 @@ export const sessionService = {
   async markWhatsAppOpened(sessionId, actor) {
     await delay(20)
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'session.markWhatsAppOpened', db => {
       const session = requireSession(db, sessionId)
       requireSessionActor(db, session, actor)
       requireActiveSessionClient(db.clients.find(item => item.id === session.clientId), session)
@@ -453,12 +498,14 @@ export const sessionService = {
       return { session: existing, transactions: (current.packageCreditTransactions ?? []).filter(item => item.sessionId === sessionId) }
     }
     requireAcknowledgementTransition(existing.acknowledgement, input)
+    requireAcknowledgementRevision(existing, acknowledgement)
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'session.acknowledge', db => {
       const session = requireSession(db, sessionId)
       requireActiveSessionClient(db.clients.find(item => item.id === session.clientId), session)
       const recordedBy = requireSessionActor(db, session, actor)
       requireAcknowledgementTransition(session.acknowledgement, input)
+      requireAcknowledgementRevision(session, acknowledgement)
       const client = db.clients.find(item => item.id === session.clientId)
       requireTrainingDate(db, session)
       if (!client) throw new Error('Session client not found.')
@@ -471,7 +518,7 @@ export const sessionService = {
 
       if (!alreadyDebited) {
         db.packageCreditTransactions.push({
-          id: `credit-${session.id}`,
+          id: db.packageCreditTransactions.some(item => item.id === `credit-${session.id}`) ? messageId(`credit-${session.id}`) : `credit-${session.id}`,
           type: 'session_debit',
           sessionId: session.id,
           clientId: client.id,

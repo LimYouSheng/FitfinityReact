@@ -91,7 +91,8 @@ export function normalizeExercisePlan(items) {
 
 export function hasSessionDebit(transactions, sessionId) {
   return transactions.some(transaction =>
-    transaction.sessionId === sessionId && transaction.type === 'session_debit'
+    transaction.sessionId === sessionId && transaction.type === 'session_debit' &&
+      !transactions.some(reversal => reversal.type === 'session_reversal' && reversal.debitId === transaction.id)
   )
 }
 
@@ -104,6 +105,6 @@ export function sessionActionError(session, today) {
 export function pendingSessionChanges(messages, sessionId) {
   const kinds = new Set(messages.filter(message => message.status === 'pending' && message.request?.sessionId === sessionId)
     .map(message => message.request.type))
-  return [['session_time', 'Time change pending'], ['session_trainer', 'Trainer change pending']]
+  return [['session_time', 'Time change pending'], ['session_trainer', 'Trainer change pending'], ['session_postpone', 'Postponement pending']]
     .filter(([kind]) => kinds.has(kind)).map(([kind, label]) => ({ kind, label }))
 }

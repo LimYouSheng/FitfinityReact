@@ -1,3 +1,4 @@
+import { mutateSessionRecords } from './sessionMutation.js'
 import { managesOperations, canEditTrainerRates } from '../app/permissions.js'
 import { adminProjection } from '../app/adminProjection.js'
 import { sessionIsInactive } from '../app/clientPackages.js'
@@ -20,7 +21,7 @@ export const trainerService = {
     await delay(180)
     let createdId
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'trainer.create', db => {
       const owner = db.users.find(user => user.id === actor?.id)
       if (!managesOperations(actor) || !managesOperations(owner) || owner.role !== actor.role || (owner.status ?? 'active') !== 'active') {
         throw new Error('Only an active owner can create a trainer.')
@@ -60,7 +61,7 @@ export const trainerService = {
     await delay(180)
     const nextAvailability = validateAvailability(blocks)
     let outcome = 'applied'
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'trainer.saveAvailability', db => {
       const stored = requireActiveActor(db, actor)
       const trainer = db.trainers.find(item => item.id === id)
       if (stored.role !== 'trainer' || stored.trainerId !== id || trainer?.status !== 'active') {
@@ -108,7 +109,7 @@ export const trainerService = {
 
   async update(id, patch, actor) {
     await delay(180)
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'trainer.update', db => {
       const staff = requireActiveActor(db, actor)
       if (Object.keys(patch).some(key => ![...profileFields, 'rates'].includes(key))) {
         throw new Error('Unsupported trainer profile field. Use the dedicated action for approvals, availability or status.')
@@ -154,7 +155,7 @@ export const trainerService = {
 
   async updateAutonomy(id, approvalNeeded, actor) {
     await delay(180)
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'trainer.updateAutonomy', db => {
       if (!managesOperations(requireActiveActor(db, actor))) throw new Error('Only the owner or Admin can change approval settings.')
       if (!approvalNeeded || Object.keys(approvalNeeded).length !== APPROVAL_FIELDS.length ||
           APPROVAL_FIELDS.some(([field]) => typeof approvalNeeded[field] !== 'boolean')) throw new Error('Set all four owner approval controls.')
@@ -173,7 +174,7 @@ export const trainerService = {
   async deactivate(id, replacements = {}, actor) {
     await delay(220)
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'trainer.deactivate', db => {
       if (!managesOperations(requireActiveActor(db, actor))) throw new Error('Only the owner or Admin can deactivate a trainer.')
       const trainer = db.trainers.find(item => item.id === id)
       if (!trainer) throw new Error('Trainer not found')
@@ -240,7 +241,7 @@ export const trainerService = {
 
   async reactivate(id, actor) {
     await delay(180)
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'trainer.reactivate', db => {
       if (!managesOperations(requireActiveActor(db, actor))) throw new Error('Only the owner or Admin can reactivate trainers.')
       const trainer = db.trainers.find(item => item.id === id)
       if (!trainer) throw new Error('Trainer not found')

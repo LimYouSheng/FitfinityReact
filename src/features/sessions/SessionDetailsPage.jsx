@@ -41,6 +41,8 @@ export default function SessionDetailsPage({
   onSaveDetails,
   onRequestTimeChange,
   onRequestTrainerChange,
+  onPreviewPostponement,
+  onPostpone,
 }) {
   const confirmAction = useActionConfirmation()
   const { setActiveEdit } = useEditGuard()
@@ -56,12 +58,14 @@ export default function SessionDetailsPage({
   const [signerName, setSignerName] = useState(client.name)
   const [note, setNote] = useState('')
   const [signature, setSignature] = useState([])
-  const [signatureOpen, setSignatureOpen] = useState(false)
+  const [signatureOpen, setSignatureOpen] = useState(null)
   const [saving, setSaving] = useState(false)
+  const acknowledgementReversalId = session.acknowledgementReversals?.at(-1)?.operationId
+  useEffect(() => { setSignature([]); setNote(''); setAcknowledgementMethod(null) }, [acknowledgementReversalId])
 
 
   const schedule = useSessionSchedule({ session, policy, setActiveEditor, setDetailsError, setSaving,
-    onSaveDetails, onRequestTimeChange, onRequestTrainerChange })
+    onSaveDetails, onRequestTimeChange, onRequestTrainerChange, onPreviewPostponement, onPostpone })
   const { requestKind, setRequestKind } = schedule
 
   const editLabel = activeEditor === 'details'
@@ -76,7 +80,7 @@ export default function SessionDetailsPage({
             ? 'Time-change request'
             : requestKind === 'trainer'
               ? 'Trainer-change request'
-              : acknowledgementMethod
+              : requestKind === 'postpone' ? 'Postpone sessions' : acknowledgementMethod
                 ? 'Session acknowledgement'
                 : null
 
@@ -123,7 +127,7 @@ export default function SessionDetailsPage({
         ? 'This will record a late/no-show, mark the session Completed and debit one package credit without a client signature.'
         : session.acknowledgement?.method === 'late_no_show'
           ? 'This will permanently save the client signature and record the correction with a timestamp. The original trainer acknowledgement remains in the log. No additional credit will be used.'
-          : 'This will permanently save the client signature, complete the session and debit one package credit. The signature cannot be changed or removed. WhatsApp is optional.',
+          : 'This saves the client signature, completes the session and debits one package credit. Undo is available in Messages for 24 hours; the original signature stays in the history. WhatsApp is optional.',
       confirmLabel: 'Complete Session',
       detail: method === 'signature' ? <SignaturePreview strokes={signature} label="Review client signature" /> : null,
     })
@@ -134,7 +138,7 @@ export default function SessionDetailsPage({
 
     setSaving(true)
     try {
-      await onAcknowledge({ method, signerName, note, signature })
+      await onAcknowledge({ method, signerName, note, signature, ...(acknowledgementReversalId ? { reversalId: acknowledgementReversalId } : {}) })
       setAcknowledgementMethod(null)
       setNote('')
     } catch (failure) {
@@ -183,7 +187,7 @@ export default function SessionDetailsPage({
       <Panel className="top-gap session-acknowledgement-panel">
         <div className="section-head">
           <h2>Acknowledgement</h2>
-          {signed && <button type="button" className="secondary-button small" onClick={() => setSignatureOpen(true)}>View Client Signature</button>}
+          {signed && <button type="button" className="secondary-button small" onClick={() => setSignatureOpen(session.acknowledgement)}>View Client Signature</button>}
         </div>
         {acknowledgementHistory.length ? <ol className="acknowledgement-history" aria-label="Acknowledgement history">
           {acknowledgementHistory.map((entry, index) => <li key={`${entry.recordedAt}-${index}`}>
@@ -192,6 +196,8 @@ export default function SessionDetailsPage({
             <time dateTime={entry.recordedAt}>{formatTimestamp(entry.recordedAt, policy.timeZone)}</time>
             {entry.recordedBy?.name && <span>Recorded by {entry.recordedBy.name}</span>}
             {entry.note && <p>{entry.note}</p>}
+            {session.acknowledgementReversals?.filter(reversal => reversal.acknowledgement?.recordedAt === entry.recordedAt && reversal.acknowledgement?.method === entry.method).map(reversal => <span key={reversal.operationId}>Reversed · {formatTimestamp(reversal.at, policy.timeZone)}</span>)}
+            {entry.method === 'signature' && entry !== session.acknowledgement && session.acknowledgementReversals?.length > 0 && <button type="button" className="text-action" onClick={() => setSignatureOpen(entry)}>View recorded signature</button>}
           </li>)}
         </ol> : <p className="empty">Pending acknowledgement</p>}
       </Panel>
@@ -215,10 +221,10 @@ export default function SessionDetailsPage({
           dateError={dateError} checkTrainingDate={checkTrainingDate} saving={saving} setSaving={setSaving} />
       </div>
 
-      <ConfirmDialog open={signatureOpen} title="Client signature" hideConfirm cancelLabel="Close" onCancel={() => setSignatureOpen(false)}>
-        {session.acknowledgement?.signature && <SignaturePreview strokes={session.acknowledgement.signature} />}
-        <p>{session.acknowledgement?.signerName}</p>
-        <p>Signed on <time dateTime={session.acknowledgement?.recordedAt}>{formatTimestamp(session.acknowledgement?.recordedAt, policy.timeZone)}</time></p>
+      <ConfirmDialog open={Boolean(signatureOpen)} title="Client signature" hideConfirm cancelLabel="Close" onCancel={() => setSignatureOpen(null)}>
+        {signatureOpen?.signature && <SignaturePreview strokes={signatureOpen.signature} />}
+        <p>{signatureOpen?.signerName}</p>
+        <p>Signed on <time dateTime={signatureOpen?.recordedAt}>{formatTimestamp(signatureOpen?.recordedAt, policy.timeZone)}</time></p>
       </ConfirmDialog>
 
       <ConfirmDialog
