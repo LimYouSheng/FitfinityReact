@@ -47,8 +47,8 @@ export const mockPortalOperations = {
     reactivate: ({ id }, { actor }) => trainerService.reactivate(id, actor),
   },
   sessionService: {
-    previewPostponement: ({ sessionId }, { actor }) => sessionService.previewPostponement(sessionId, actor),
-    postpone: ({ sessionId, expected, requestKey }, { actor }) => sessionService.postpone(sessionId, expected, requestKey, actor),
+    previewPostponement: ({ sessionId, lastSlot }, { actor }) => sessionService.previewPostponement(sessionId, actor, lastSlot),
+    postpone: ({ sessionId, expected, requestKey, lastSlot }, { actor }) => sessionService.postpone(sessionId, expected, requestKey, actor, lastSlot),
     loadVideo: ({ sessionId, exerciseId }, { actor }) => sessionService.loadVideo(sessionId, exerciseId, actor),
     saveVideo: ({ sessionId, exerciseId, file, metadata }, { actor }) => sessionService.saveVideo(sessionId, exerciseId, file, metadata, actor),
     removeVideo: ({ sessionId, exerciseId }, { actor }) => sessionService.removeVideo(sessionId, exerciseId, actor),

@@ -67,7 +67,7 @@ export const requestService = {
       const session = db.sessions.find(item => item.id === request.sessionId)
       if (decision === 'approved' && request.type === 'session_postpone') {
         if (!session || session.trainerId !== request.trainerId || !db.trainers.some(item => item.id === request.trainerId && item.status === 'active')) throw new Error('The requesting trainer or session assignment changed. Reject this request.')
-        message.updatedSessions = applySessionPostponement(db, session.id, request.expected, message.id).changes.length
+        message.updatedSessions = applySessionPostponement(db, session.id, request.expected, message.id, request.lastSlot).changes.length
       } else if (decision === 'approved' && request.type === 'fixed_weekly_schedule') {
         const client = db.clients.find(item => item.id === request.clientId)
         if (!client || client.trainerId !== request.trainerId || !sameSlots(client.fixedWeeklySchedule, request.oldSlots)) {

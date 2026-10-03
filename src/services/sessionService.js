@@ -1,5 +1,5 @@
 import { mutateSessionRecords, requireMutationActor } from './sessionMutation.js'
-import { sessionPostponement, applySessionPostponement } from '../app/sessionPostponement.js'
+import { sessionPostponement, applySessionPostponement, requirePostponementAvailable } from '../app/sessionPostponement.js'
 import { managesOperations } from '../app/permissions.js'
 import { ensureClientPackageReferences, packageForRecord, requireActiveSessionClient } from '../app/clientPackages.js'
 import { exerciseVideoExpired, exerciseVideoExpiresAt, exerciseVideoFileValidation, exerciseVideoValidation } from '../app/video.js'
@@ -113,13 +113,13 @@ function appendSessionEdit(db, session, title, body) {
 }
 
 export const sessionService = {
-  async previewPostponement(sessionId, actor) {
+  async previewPostponement(sessionId, actor, lastSlot) {
     await delay()
     const db = mockDb.read()
     requireSessionActor(db, requireSession(db, sessionId), actor)
-    return sessionPostponement(db, sessionId)
+    return sessionPostponement(db, sessionId, new Date(), undefined, lastSlot)
   },
-  async postpone(sessionId, expected, requestKey, actor) {
+  async postpone(sessionId, expected, requestKey, actor, lastSlot) {
     await delay()
     if (!/^[a-zA-Z0-9_-]{1,120}$/.test(requestKey)) throw new Error('A postponement request key is required.')
     let outcome = 'applied'
@@ -128,25 +128,25 @@ export const sessionService = {
       const staff = requireSessionActor(db, session, actor)
       const previous = db.messages.find(message => message.postponementKey === requestKey)
       if (previous) {
-        if (previous.postponementActor !== staff.id || previous.postponementExpected !== expected || previous.sessionId !== sessionId) throw new Error('This postponement request key has already been used.')
+        if (previous.postponementActor !== staff.id || previous.postponementExpected !== expected || previous.sessionId !== sessionId || JSON.stringify(previous.postponementLastSlot ?? null) !== JSON.stringify(lastSlot ?? null)) throw new Error('This postponement request key has already been used.')
         outcome = previous.request ? 'requested' : 'applied'
         return
       }
-      const preview = sessionPostponement(db, sessionId)
+      const preview = sessionPostponement(db, sessionId, new Date(), undefined, lastSlot)
       if (preview.expected !== expected) throw new Error('The schedule changed. Review postponement again.')
-      if (!managesOperations(staff) && preview.changes.some(change => change.before.trainerId !== actor.trainerId)) throw new Error('Owner/Admin must review a cascade involving another trainer.')
+      requirePostponementAvailable(preview)
       const trainer = db.trainers.find(item => item.id === session.trainerId)
       const requiresApproval = !managesOperations(staff) && trainer.approvalNeeded?.sessionTime !== false
       const client = db.clients.find(item => item.id === session.clientId)
       const notice = { id: messageId('session-postpone'), recipientRole: 'owner', recipientUserId: staff.id, recipientTrainerId: session.trainerId,
         sessionId, clientId: session.clientId, trainerId: session.trainerId, createdAt: new Date().toISOString(), readBy: {},
-        title: `${requiresApproval ? 'Postponement requested' : 'Sessions postponed'}: ${client.name}`,
-        body: `${preview.changes.length} sessions move one week later. ${preview.changes[0].before.date}–${preview.changes.at(-1).before.date} → ${preview.changes[0].next.date}–${preview.changes.at(-1).next.date}. Credits unchanged.`,
-        kind: requiresApproval ? 'session_postpone_request' : 'session_update', postponementKey: requestKey, postponementExpected: expected, postponementActor: staff.id }
+        title: `${requiresApproval ? 'Postponement requested' : 'Session postponed'}: ${client.name}`,
+        body: `Session moves from ${session.date}, ${session.from}–${session.to} to ${preview.lastSlot.date}, ${preview.lastSlot.from}–${preview.lastSlot.to}. Other sessions and credits stay unchanged.`,
+        kind: requiresApproval ? 'session_postpone_request' : 'session_update', postponementKey: requestKey, postponementExpected: expected, postponementActor: staff.id, postponementLastSlot: lastSlot ?? null }
       if (requiresApproval) {
         outcome = 'requested'
-        Object.assign(notice, { status: 'pending', request: { type: 'session_postpone', sessionId, clientId: session.clientId, trainerId: session.trainerId, expected, changes: preview.changes } })
-      } else applySessionPostponement(db, sessionId, expected)
+        Object.assign(notice, { status: 'pending', request: { type: 'session_postpone', sessionId, clientId: session.clientId, trainerId: session.trainerId, expected, changes: preview.changes, lastSlot: preview.lastSlot } })
+      } else applySessionPostponement(db, sessionId, expected, undefined, lastSlot)
       db.messages.push(notice)
     })
     return { outcome, session: state.sessions.find(item => item.id === sessionId) }

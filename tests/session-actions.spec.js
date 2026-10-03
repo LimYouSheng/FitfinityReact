@@ -5,7 +5,7 @@ const KEY = 'fitfinity-m2-demo-db-v4'
 const instant = new Date('2026-10-03T01:00:00Z')
 const read = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY)
 const activate = (locator, isMobile) => isMobile ? locator.tap() : locator.click()
-async function start(page, { twice = false, supervised = false, past = false, inactive = false } = {}) {
+async function start(page, { twice = false, supervised = false, past = false, inactive = false, conflict = false } = {}) {
   const data = createDemoSeed('2026-10-03')
   const client = data.clients.find(item => item.id === 'c1')
   client.name = 'Postpone Client'; client.status = inactive ? 'inactive' : 'active'; client.trainerId = 't1'
@@ -17,6 +17,12 @@ async function start(page, { twice = false, supervised = false, past = false, in
     from: past && !index ? '08:00' : '10:00', to: past && !index ? '09:00' : '11:00', weeklySlotId: twice && index % 2 ? 'thu' : 'mon',
     sessionNumber: index + 1, status: 'planned', acknowledgement: null, acknowledgementHistory: [], clientSummary: '',
     exercisePlan: [], exerciseResults: undefined }))
+  if (conflict) {
+    Object.assign(data.sessions[0], { date: '2026-10-06', from: '12:00', to: '13:00' })
+    const other = data.clients.find(item => item.id === 'c2')
+    other.status = 'active'; other.package.status = 'active'
+    data.sessions.push({ ...data.sessions[0], id: 'occupied-tail', clientId: other.id, packageId: other.package.id, date: '2026-10-26', from: '10:00', to: '11:00' })
+  }
   for (const trainer of data.trainers) { trainer.status = 'active'; trainer.approvalNeeded.sessionTime = supervised }
   data.messages = []; data.packageCreditTransactions = []; data.remunerationApprovals = []
   await page.clock.setFixedTime(instant)
@@ -26,7 +32,7 @@ async function start(page, { twice = false, supervised = false, past = false, in
 }
 async function postpone(page, isMobile) {
   await activate(page.getByRole('button', { name: 'Postpone', exact: true }), isMobile)
-  const dialog = page.getByRole('dialog', { name: 'Postpone sessions by one week?', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Postpone this session?', exact: true })
   await expect(dialog).toBeVisible()
   await activate(dialog.getByRole('button', { name: 'Confirm Postponement', exact: true }), isMobile)
   await expect(dialog).toHaveCount(0); await waitForPortal(page)
@@ -39,18 +45,19 @@ async function reverse(page, isMobile, row) {
   await activate(page.getByRole('dialog', { name: 'Undo session change?', exact: true }).getByRole('button', { name: 'Undo Change', exact: true }), isMobile)
   await expect(stableRow.getByRole('status')).toHaveText('Undone'); await waitForPortal(page)
 }
-const postponedRow = page => page.locator('.message-title-row').filter({ has: page.getByRole('button', { name: 'Open Sessions postponed: Postpone Client', exact: true }) })
+const postponedRow = page => page.locator('.message-title-row').filter({ has: page.getByRole('button', { name: 'Open Session postponed: Postpone Client', exact: true }) })
 
-for (const twice of [false, true]) test(`session actions: ${twice ? 'twice' : 'once'} weekly preview, cascade and persistent Undo`, async ({ page, isMobile }) => {
+for (const twice of [false, true]) test(`session actions: ${twice ? 'twice' : 'once'} weekly preview, single move and persistent Undo`, async ({ page, isMobile }) => {
   await start(page, { twice }); const before = await read(page)
   await activate(page.getByRole('button', { name: 'Postpone', exact: true }), isMobile)
-  const preview = page.getByRole('dialog', { name: 'Postpone sessions by one week?', exact: true })
-  await expect(preview.locator('tbody tr')).toHaveCount(twice ? 4 : 3)
+  const preview = page.getByRole('dialog', { name: 'Postpone this session?', exact: true })
+  await expect(preview.locator('tbody tr')).toHaveCount(1)
   await expect(preview).toContainText('Credits stay the same')
   await activate(preview.getByRole('button', { name: 'Cancel', exact: true }), isMobile)
   expect((await read(page)).sessions).toEqual(before.sessions)
   await postpone(page, isMobile)
-  expect((await read(page)).sessions.map(item => item.date)).toEqual(twice ? ['2026-10-12', '2026-10-15', '2026-10-19', '2026-10-22'] : ['2026-10-12', '2026-10-19', '2026-10-26'])
+  expect((await read(page)).sessions.map(item => item.date)).toEqual(twice ? ['2026-10-22', '2026-10-08', '2026-10-12', '2026-10-15'] : ['2026-10-26', '2026-10-12', '2026-10-19'])
+  expect((await read(page)).sessions.slice(1)).toEqual(before.sessions.slice(1))
   await messages(page)
   const row = postponedRow(page); await expect(row.getByRole('button', { name: /^Undo / })).toBeEnabled()
   await reverse(page, isMobile, row); await page.reload(); await waitForPortal(page)
@@ -76,7 +83,7 @@ test('session actions: Undo expires while confirmation is open', async ({ page, 
   await expect(row).toContainText('Undo expired')
 })
 
-test('session actions: supervised cascade is approved then reversed without reopening', async ({ page, isMobile }) => {
+test('session actions: supervised postponement is approved then reversed without reopening', async ({ page, isMobile }) => {
   await start(page, { supervised: true }); const before = await read(page)
   await selectDemoIdentity(page, 'u-marcus'); await page.goto('/#/sessions/undo-s1'); await waitForPortal(page)
   await postpone(page, isMobile)
@@ -87,7 +94,7 @@ test('session actions: supervised cascade is approved then reversed without reop
   await expect(page.getByRole('region', { name: 'Requested change' })).toContainText('26 Oct 2026')
   await activate(page.getByRole('button', { name: 'Approve Request', exact: true }), isMobile)
   await activate(page.getByRole('dialog', { name: 'Approve request?', exact: true }).getByRole('button', { name: 'Approve Request', exact: true }), isMobile)
-  await expect.poll(async () => (await read(page)).sessions[0].date).toBe('2026-10-12')
+  await expect.poll(async () => (await read(page)).sessions[0].date).toBe('2026-10-26')
   await activate(page.getByRole('button', { name: 'Close message', exact: true }), isMobile)
   const row = page.locator('.message-title-row').filter({ has: page.getByRole('button', { name: `Open ${title}`, exact: true }) })
   await reverse(page, isMobile, row)
@@ -167,4 +174,32 @@ test('session actions: started and inactive sessions cannot be postponed', async
   await expect(page.getByText('Client inactive', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
   expect((await read(page)).sessionMutations ?? []).toHaveLength(0)
+})
+
+
+test('session actions: conflict offers another date and time without changing other bookings', async ({ page, isMobile }) => {
+  await start(page, { conflict: true }); const before = await read(page)
+  await activate(page.getByRole('button', { name: 'Postpone', exact: true }), isMobile)
+  const dialog = page.getByRole('dialog', { name: 'Postpone this session?', exact: true })
+  await expect(dialog.getByRole('alert')).toContainText('conflicts with another session for this trainer')
+  await expect(dialog.getByRole('button', { name: 'Check Availability', exact: true })).toBeDisabled()
+  expect((await read(page)).sessions).toEqual(before.sessions)
+  await activate(dialog.getByLabel('Postponed session date', { exact: true }), isMobile)
+  await activate(page.getByRole('dialog', { name: 'Postponed session date calendar', exact: true }).getByRole('button', { name: '27 Oct 2026', exact: true }), isMobile)
+  await dialog.getByLabel('Postponed session start time', { exact: true }).fill('13:00')
+  await dialog.getByLabel('Postponed session end time', { exact: true }).fill('14:00')
+  await activate(dialog.getByRole('button', { name: 'Check Availability', exact: true }), isMobile)
+  await expect(dialog.getByRole('button', { name: 'Confirm Postponement', exact: true })).toBeEnabled()
+  await expect(dialog.getByRole('table')).toContainText('27 Oct 2026')
+  expect((await read(page)).sessions).toEqual(before.sessions)
+  await activate(dialog.getByRole('button', { name: 'Confirm Postponement', exact: true }), isMobile)
+  await expect(dialog).toHaveCount(0); await waitForPortal(page)
+  const after = await read(page)
+  expect(after.sessions[0]).toMatchObject({ date: '2026-10-27', from: '13:00', to: '14:00' })
+  expect(after.sessions.slice(1)).toEqual(before.sessions.slice(1))
+  expect(after.packageCreditTransactions).toEqual(before.packageCreditTransactions)
+  await page.reload(); await waitForPortal(page); await messages(page)
+  await reverse(page, isMobile, postponedRow(page))
+  expect((await read(page)).sessions).toEqual(before.sessions)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
 })
