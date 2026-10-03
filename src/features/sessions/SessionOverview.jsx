@@ -8,6 +8,8 @@ import { formatDate, weekday } from '../../utils/date.js'
 export default function SessionOverview({ session, client, trainer, trainers, purchased, clientInactive, packageInactive, status, pendingChanges, isOwner, sessionEditable, activeEditor, setActiveEditor, saving, setDetailsError, schedule, onOpenClient, onOpenTrainer }) {
   const { detailsDraft, setDetailsDraft, requestKind, setRequestKind, setTimeRequestDraft, setTrainerRequestId, timeChangeError, checkTimeRequest, saveDetails } = schedule
 
+  const postponementError = !purchased || purchased.id !== client.package?.id ? 'Postpone is available only for the current package.' : timeChangeError
+
   return (
     <Panel className={`session-overview-panel ${isOwner ? 'owner' : 'trainer'} ${activeEditor === 'details' || requestKind ? 'editing-section' : ''}`}>
       <div className="section-head">
@@ -26,7 +28,7 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
           </div>
         </div>
         <div className="session-detail-actions">
-          <button type="button" className="secondary-button small" disabled={saving || !sessionEditable || Boolean(activeEditor) || Boolean(requestKind) || Boolean(timeChangeError)} onClick={schedule.openPostponement}>Postpone</button>
+          <button type="button" className="secondary-button small" title={postponementError || undefined} disabled={saving || !sessionEditable || Boolean(activeEditor) || Boolean(requestKind) || Boolean(postponementError) || pendingChanges.length > 0} onClick={schedule.openPostponement}>Postpone</button>
           {isOwner ? (
             activeEditor === 'details' ? (
               <div className="inline-actions">

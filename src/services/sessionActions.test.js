@@ -30,9 +30,9 @@ function schedule(twice = false) {
       id: `s${index + 1}`, date, from: '10:00', to: '11:00', weeklySlotId: twice && index % 2 ? 'thu' : 'mon', sessionNumber: index + 1 }))
   })
 }
-async function postpone(sessionId = 's1', requestKey = 'postpone-test') {
-  const preview = await api.sessionService.previewPostponement({ sessionId })
-  return api.sessionService.postpone({ sessionId, expected: preview.expected, requestKey })
+async function postpone(sessionId = 's1', requestKey = 'postpone-test', lastSlot) {
+  const preview = await api.sessionService.previewPostponement({ sessionId, ...(lastSlot ? { lastSlot } : {}) })
+  return api.sessionService.postpone({ sessionId, expected: preview.expected, requestKey, ...(lastSlot ? { lastSlot } : {}) })
 }
 beforeEach(() => {
   localStorage.clear(); vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(baseTime)
@@ -54,19 +54,20 @@ beforeEach(() => {
 })
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); localStorage.clear() })
 
-it.each([false, true].flatMap(twice => ['u-owner', 'undo-admin', 'u-marcus'].map(actor => ({ twice, actor }))))('postpones and restores the entire weekly cascade ($actor / twice=$twice)', async ({ twice, actor }) => {
+it.each([false, true].flatMap(twice => ['u-owner', 'undo-admin', 'u-marcus'].map(actor => ({ twice, actor }))))('postpones and restores only the selected session ($actor / twice=$twice)', async ({ twice, actor }) => {
   schedule(twice); login(actor)
   const before = mockDb.read()
   expect((await postpone()).outcome).toBe('applied')
-  expect(mockDb.read().sessions.map(item => item.date)).toEqual(twice ? ['2026-10-12', '2026-10-15', '2026-10-19', '2026-10-22'] : ['2026-10-12', '2026-10-19', '2026-10-26'])
+  expect(mockDb.read().sessions.map(item => item.date)).toEqual(twice ? ['2026-10-22', '2026-10-08', '2026-10-12', '2026-10-15'] : ['2026-10-26', '2026-10-12', '2026-10-19'])
   expect(mockDb.read().sessions.map(item => item.id)).toEqual(before.sessions.map(item => item.id))
+  expect(mockDb.read().sessions.slice(1)).toEqual(before.sessions.slice(1))
   expect(mockDb.read().clients).toEqual(before.clients)
   expect(mockDb.read().packageCreditTransactions).toEqual(before.packageCreditTransactions)
   await undo()
   expect(mockDb.reload().sessions).toEqual(before.sessions)
   expect(client().package.used).toBe(0)
 })
-it('keeps earlier sessions and a second purchased package outside the cascade', async () => {
+it('keeps other sessions unchanged and anchors only to the current package', async () => {
   mockDb.mutate(db => {
     const person = db.clients.find(item => item.id === 'c1')
     person.additionalPackages = [{ ...person.package, id: 'additional' }]
@@ -75,15 +76,15 @@ it('keeps earlier sessions and a second purchased package outside the cascade', 
   const before = session(), other = session('another-package')
   await postpone('s2')
   expect(session()).toEqual(before); expect(session('another-package')).toEqual(other)
-  expect(session('s2').date).toBe('2026-10-19')
+  expect(session('s2').date).toBe('2026-10-26')
 })
-it.each(['trainer', 'client'])('rejects a cascade conflicting with another %s booking atomically', async subject => {
+it.each(['trainer', 'client'])('rejects a postponement conflicting with another %s booking atomically', async subject => {
   mockDb.mutate(db => { db.sessions.push({ ...db.sessions[0], id: 'conflict', clientId: subject === 'client' ? 'c1' : 'c2', trainerId: subject === 'client' ? 't2' : 't1', packageId: subject === 'client' ? 'outside' : db.clients.find(item => item.id === 'c2').package.id, date: '2026-10-26' }) })
   const before = mockDb.read()
   await expect(postpone()).rejects.toThrow('conflicts')
   expect(mockDb.read()).toEqual(before)
 })
-it.each(['completed', 'cancelled', 'started', 'acknowledged', 'inactive client', 'inactive package', 'inactive trainer', 'individual time'])('rejects ineligible postponement: %s', async kind => {
+it.each(['completed', 'cancelled', 'started', 'acknowledged', 'inactive client', 'inactive package', 'inactive trainer', 'invalid interval'])('rejects ineligible postponement: %s', async kind => {
   mockDb.mutate(db => {
     const first = db.sessions[0], person = db.clients.find(item => item.id === 'c1')
     if (['completed', 'cancelled'].includes(kind)) first.status = kind
@@ -93,13 +94,32 @@ it.each(['completed', 'cancelled', 'started', 'acknowledged', 'inactive client',
     if (kind === 'inactive client') person.status = 'inactive'
     if (kind === 'inactive package') person.package.status = 'inactive'
     if (kind === 'inactive trainer') db.trainers.find(item => item.id === 't1').status = 'inactive'
-    if (kind === 'individual time') first.from = '10:15'
+    if (kind === 'invalid interval') first.from = '11:15'
   })
   const before = mockDb.read(); await expect(postpone()).rejects.toThrow(); expect(mockDb.read()).toEqual(before)
 })
+it('postponement preserves individually rescheduled sessions', async () => {
+  mockDb.mutate(db => { Object.assign(db.sessions[1], { date: '2026-10-13', from: '13:00', to: '14:00' }) })
+  const before = mockDb.read().sessions
+  await postpone()
+  expect(mockDb.read().sessions.map(({ date, from, to }) => ({ date, from, to }))).toEqual([
+    { date: '2026-10-26', from: '10:00', to: '11:00' },
+    { date: '2026-10-13', from: '13:00', to: '14:00' },
+    { date: '2026-10-19', from: '10:00', to: '11:00' },
+  ])
+  await undo(); expect(mockDb.read().sessions).toEqual(before)
+})
+it('postponement returns a final-slot conflict for review without writing', async () => {
+  mockDb.mutate(db => { db.sessions.push({ ...db.sessions[0], id: 'conflict', clientId: 'c2', packageId: db.clients[1].package.id, date: '2026-10-26' }) })
+  const before = mockDb.read()
+  const preview = await api.sessionService.previewPostponement({ sessionId: 's1' })
+  expect(preview.conflicts).toEqual([expect.objectContaining({ sessionId: 's1', subject: 'trainer' })])
+  expect(preview.lastSlot).toEqual({ date: '2026-10-26', from: '10:00', to: '11:00' })
+  expect(mockDb.read()).toEqual(before)
+})
 it('rejects a stale preview without moving any of the remaining sessions', async () => {
   const preview = await api.sessionService.previewPostponement({ sessionId: 's1' })
-  mockDb.mutate(db => { db.sessions[1].trainerId = 't2' })
+  mockDb.mutate(db => { db.sessions[2].date = '2026-10-20' })
   const before = mockDb.read()
   await expect(api.sessionService.postpone({ sessionId: 's1', expected: preview.expected, requestKey: 'stale' })).rejects.toThrow('changed')
   expect(mockDb.read()).toEqual(before)
@@ -121,7 +141,7 @@ it('routes a supervised postponement through approval and reverses it without re
   const request = latestMessage()
   await expect(postpone('s1', 'duplicate')).rejects.toThrow('pending')
   login(); await api.requestService.resolve({ id: request.id, decision: 'approved' })
-  expect(session().date).toBe('2026-10-12')
+  expect(session().date).toBe('2026-10-26')
   await undo(mockDb.read().messages.find(item => item.id === request.id))
   expect(mockDb.read().sessions).toEqual(before)
   expect(mockDb.read().messages.find(item => item.id === request.id).status).toBe('reversed')
@@ -212,7 +232,7 @@ it('preserves unrelated session edits and per-user Message read receipts', async
   expect(session('s2').clientSummary).toBe('Other session')
   expect(mockDb.read().messages.find(item => item.id === first.id).readBy['u-owner']).toBeTruthy()
 })
-it('blocks restoring a now occupied slot without a partial cascade', async () => {
+it('blocks restoring a now occupied slot without partial changes', async () => {
   await postpone(); const message = latestMessage()
   mockDb.mutate(db => { db.sessions.push({ ...db.sessions[0], id: 'occupied', date: '2026-10-05', clientId: 'c2', packageId: db.clients[1].package.id }) })
   const before = mockDb.read(); await expect(undo(message)).rejects.toThrow('conflicts'); expect(mockDb.read()).toEqual(before)
@@ -402,4 +422,88 @@ it('reverses permanent trainer reassignment while retaining assignment history',
   expect(client().trainerId).toBe('t1')
   expect(client().trainerAssignmentHistory).toHaveLength((before.clients[0].trainerAssignmentHistory?.length ?? 0) + 2)
   expect(client().trainerAssignmentHistory.at(-1).reversalOf).toBeTruthy()
+})
+
+it('postponement uses the last booked date and time even when the selected session or anchor was individually changed', async () => {
+  mockDb.mutate(db => {
+    Object.assign(db.sessions[0], { date: '2026-10-06', from: '12:00', to: '13:00' })
+    Object.assign(db.sessions[2], { date: '2026-10-20', from: '14:00', to: '15:30' })
+    db.sessions.push({ ...db.sessions[2], id: 'cancelled-tail', date: '2026-11-30', status: 'cancelled' })
+  })
+  const before = mockDb.read()
+  await postpone()
+  expect(session()).toMatchObject({ date: '2026-10-27', from: '14:00', to: '15:30', weeklySlotId: null })
+  expect(mockDb.read().sessions.slice(1)).toEqual(before.sessions.slice(1))
+  expect(mockDb.read().clients).toEqual(before.clients)
+  await undo(); expect(mockDb.read().sessions).toEqual(before.sessions)
+})
+it.each(['s3', 'only'])('postponement permits the last or only current-package session: %s', async id => {
+  if (id === 'only') mockDb.mutate(db => { db.sessions = [db.sessions[0]] })
+  await postpone(id === 'only' ? 's1' : id)
+  expect(session(id === 'only' ? 's1' : id).date).toBe(id === 'only' ? '2026-10-12' : '2026-10-26')
+})
+it('postponement rejects an additional purchase even when it is active', async () => {
+  mockDb.mutate(db => {
+    const person = db.clients.find(item => item.id === 'c1')
+    person.additionalPackages = [{ ...person.package, id: 'additional' }]
+    db.sessions[0].packageId = 'additional'
+  })
+  const before = mockDb.read()
+  await expect(postpone()).rejects.toThrow('current package')
+  expect(mockDb.read()).toEqual(before)
+})
+it('postponement previews a free alternative without writing, then applies and undoes only the selected session', async () => {
+  mockDb.mutate(db => { db.sessions.push({ ...db.sessions[0], id: 'occupied', clientId: 'c2', packageId: db.clients[1].package.id, date: '2026-10-26' }) })
+  const before = mockDb.read(), lastSlot = { date: '2026-10-27', from: '13:00', to: '14:00' }
+  const preview = await api.sessionService.previewPostponement({ sessionId: 's1', lastSlot })
+  expect(preview.conflicts).toEqual([]); expect(preview.changes).toHaveLength(1)
+  expect(mockDb.read()).toEqual(before)
+  const input = { sessionId: 's1', expected: preview.expected, requestKey: 'alternative', lastSlot }
+  await api.sessionService.postpone(input)
+  expect(session()).toMatchObject(lastSlot)
+  expect(mockDb.read().sessions.slice(1)).toEqual(before.sessions.slice(1))
+  const saved = mockDb.read(); await api.sessionService.postpone(input); expect(mockDb.read()).toEqual(saved)
+  await expect(api.sessionService.postpone({ ...input, lastSlot: { ...lastSlot, date: '2026-10-28' } })).rejects.toThrow('already been used')
+  await undo(); expect(mockDb.read().sessions).toEqual(before.sessions)
+})
+it.each([
+  { date: '2026-10-18', from: '10:00', to: '11:00' },
+  { date: '2026-10-19', from: '10:30', to: '11:30' },
+  { date: '2026-10-27', from: '14:00', to: '13:00' },
+])('postponement rejects an invalid or too-early alternative $date $from', async lastSlot => {
+  const before = mockDb.read()
+  await expect(postpone('s1', 'invalid-choice', lastSlot)).rejects.toThrow()
+  expect(mockDb.read()).toEqual(before)
+})
+it('postponement rechecks a newly occupied alternative at commit without a partial write', async () => {
+  const lastSlot = { date: '2026-10-27', from: '13:00', to: '14:00' }
+  const preview = await api.sessionService.previewPostponement({ sessionId: 's1', lastSlot })
+  mockDb.mutate(db => { db.sessions.push({ ...db.sessions[0], ...lastSlot, id: 'occupied', clientId: 'c2', packageId: db.clients[1].package.id }) })
+  const before = mockDb.read()
+  await expect(api.sessionService.postpone({ sessionId: 's1', expected: preview.expected, lastSlot, requestKey: 'late-conflict' })).rejects.toMatchObject({ code: 'POSTPONEMENT_CONFLICT' })
+  expect(mockDb.read()).toEqual(before)
+})
+it('postponement rejects an alternative preview if the current package tail changed', async () => {
+  const lastSlot = { date: '2026-10-29', from: '13:00', to: '14:00' }
+  const preview = await api.sessionService.previewPostponement({ sessionId: 's1', lastSlot })
+  mockDb.mutate(db => { db.sessions[2].date = '2026-10-20' })
+  const before = mockDb.read()
+  await expect(api.sessionService.postpone({ sessionId: 's1', expected: preview.expected, lastSlot, requestKey: 'tail-changed' })).rejects.toThrow('changed')
+  expect(mockDb.read()).toEqual(before)
+})
+it.each([false, true])('postponement approval revalidates the chosen alternative (new conflict=%s)', async conflict => {
+  const lastSlot = { date: '2026-10-27', from: '13:00', to: '14:00' }
+  mockDb.mutate(db => { db.trainers[0].approvalNeeded.sessionTime = true })
+  login('u-marcus'); await postpone('s1', 'approve-choice', lastSlot)
+  const request = latestMessage(); expect(request.request.lastSlot).toEqual(lastSlot); login()
+  if (conflict) mockDb.mutate(db => { db.sessions.push({ ...db.sessions[0], ...lastSlot, id: 'occupied', clientId: 'c2', packageId: db.clients[1].package.id }) })
+  const before = mockDb.read()
+  if (conflict) {
+    await expect(api.requestService.resolve({ id: request.id, decision: 'approved' })).rejects.toThrow('conflicts')
+    expect(mockDb.read()).toEqual(before)
+  } else {
+    await api.requestService.resolve({ id: request.id, decision: 'approved' })
+    expect(session()).toMatchObject(lastSlot)
+    expect(mockDb.read().sessions.slice(1)).toEqual(before.sessions.slice(1))
+  }
 })

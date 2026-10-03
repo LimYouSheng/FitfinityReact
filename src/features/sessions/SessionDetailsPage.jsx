@@ -80,7 +80,7 @@ export default function SessionDetailsPage({
             ? 'Time-change request'
             : requestKind === 'trainer'
               ? 'Trainer-change request'
-              : requestKind === 'postpone' ? 'Postpone sessions' : acknowledgementMethod
+              : requestKind === 'postpone' ? 'Postpone session' : acknowledgementMethod
                 ? 'Session acknowledgement'
                 : null
 

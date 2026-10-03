@@ -2211,6 +2211,8 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
 }
 .message-undo-action button{min-height:44px}
 .message-undo-action p{flex-basis:100%;margin:0}
+fieldset.session-request-fields{min-width:0;margin:12px 0 0;padding:0;border:0}
+fieldset.session-request-fields legend{margin-bottom:8px;font-weight:600}
 .postponement-preview{width:100%;border-collapse:collapse;font-size:12px}
 .postponement-preview th,.postponement-preview td{padding:8px 4px;text-align:left}
 
