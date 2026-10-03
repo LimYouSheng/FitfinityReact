@@ -1,5 +1,43 @@
 # Portal service contracts
 
+## Selected UI acceptance and publication authorization — 3 October 2026
+
+At 06:54 Singapore, the user reports all local UI checks passed: 12 selected units, 3 inventory checks, 48 browser cases and lint/demo/PWA checks for source `8c3a9947de32bddb4fb6853ccb86e96894110174bbf4a87d082b3e0d31fc19fe`. Publication to the existing PR #3 is authorized. The final success receipt was not uploaded; the acceptance is by user report.
+
+Runtime and service contracts remain exactly those of the accepted local candidate; this checkpoint adds documentation only. Full PR CI still requires 781 units / 84 files and 765 browser cases plus the unchanged backend/infrastructure/tooling gates. Merge, deployment, physical-device acceptance and AWS live authentication remain separate.
+
+## Shared popup bounds under the sticky header — 3 October 2026
+
+Native `vbkTBX` evidence passes 47/48 browser cases, including all five cases failing in the older PR #3 CI. The sole failure shows a page dropdown's first option covered by the sticky header. Shared popup placement now reserves the header's occupied space for page fields, without changing modal ownership, form values/change events, touch release, keyboard navigation or any API/authentication/database contract.
+
+One new regression brings selected local scope to **12 units / 3 inventory checks / 48 browser cases**. Units/tooling/lint/demo/PWA checks pass in the assistant environment; native browser rerun remains pending. Full inventory is **781 units / 84 files and 765 browser cases**, plus unchanged other gates. The updated script stays local only and preserves the same PR branch, HEAD and index.
+
+## Native dropdown test correction — 3 October 2026
+
+Receipt `mQy78y` passes the selected 11 units, 3 inventory checks, lint and demo/PWA build. Fifteen of 48 native browser cases passed, including drawer locking and trainer reassignment on all three profiles. The remaining failures come from test locators and missing onboarding navigation. This iteration changes only the new browser test and documentation, using exact control roles and the real Health & Assessments step before Package & Preferences. Runtime, API, authentication, database and input/selection contracts are unchanged.
+
+Selected acceptance still requires all 48 new browser cases on the user's Mac; full CI and physical-device checks remain separate. Full suite inventories are unchanged at 780 units / 84 files and 765 browser cases plus the existing backend/infrastructure/tooling gates. The updated script applies and tests locally with source guards and backups; it does not publish or deploy.
+
+## Dropdown option correction and expanded device-profile checks — 3 October 2026
+
+The native local repair receipt passed units/tooling/build and 4/6 browser cases. All drawer projects passed; phone/tablet failed selecting a reassignment option with `tap()`. Shared select and suggestion option buttons now preserve touch pointer-down and select through the completed native click, while retaining mouse focus handling. Field-trigger release guards, native form values/change events, keyboard controls, ISO dates and Cancel-without-save contracts remain.
+
+The user requested all dropdown implementations on mobile/iPad. Fourteen new browser scenarios cover selects, date/nested menus, suggestions, directory search, exercise choices and profile menus. The local target is **11 new units, 3 updated receipt checks and 48 new browser cases** across desktop/phone/tablet; expanded native results are pending. Full CI browser inventory becomes **765 / 255 per project**, with units 780 / 84 files and other gates unchanged. Source/API/authentication/database contracts are unchanged. The replacement script performs no publication or deployment.
+
+## Local-only PR #3 correction — 2 October 2026
+
+PR #3 CI run `37004640361` failed five of 723 browser cases in the two new UI scenarios. The correction preserves select values/change events, date ISO values, keyboard behavior, overlay scroll locks and Cancel-without-save semantics. Select/date touch and pen activation use a matching release within the field, reject movement/cancellation and suppress the following duplicate click. Editable suggestions continue to use completed click/typing. No API, authentication, database, migration or AWS contract changes.
+
+The user authorized a local-only run of the eleven new unit cases, three updated receipt checks and six new browser cases, with targeted lint and a fresh demo/PWA build. Assistant selected units/tooling/build passed; native browser and physical-device acceptance remain pending. Full CI totals remain 780 units / 84 files, 723 browser, 416 backend/PostgreSQL, 408 infrastructure, 33 quality and 20 health-tooling. This selective receipt cannot replace full CI acceptance. The script leaves PR #3, Git history and deployments unchanged.
+
+## Accepted demo pipeline and release-based field interaction — 2 October 2026
+
+Main `056d66cb6d4c76b59597f0986a08e9af552d889a` passed verification and GitHub Pages deployment in run `36991077259` attempt 2. This is the demo frontend. The AWS image job was skipped; real OIDC proof, current-image acceptance, first Owner/live authentication and full application deployment remain pending.
+
+The bounded mobile UI candidate moves shared field menus to completed click/tap activation and shares the existing fixed-body page lock between the hamburger drawer and modal layers. Editable suggestions remain available on typing; select values, change events, keyboard selection, form validation and all service contracts remain. Closing the trainer-deactivation dialog without confirmation must not change trainer status or session assignments.
+
+Candidate gates are **780 units / 84 files and 723 browser cases**, plus unchanged 416 backend/PostgreSQL, 408 infrastructure, 33 quality and 20 health-tooling. Source includes eleven new unit cases and two browser scenarios; full candidate CI/device acceptance remains pending. No API schema, authentication/session, dependency, migration or AWS activation changes are included.
+
 ## Protected workflow and navigation fixture repair — 2 October 2026
 
 PR #1 merged at 13:31:42 Singapore into main `44a4a9cfce22662aaf9372565ac264a02721cfe1`. PR and strict frontend/backend checks are now required, including for administrators; zero reviewer approvals preserve the solo-owner workflow. Main CI `36969337682` is not accepted: 716/717 browser cases passed, with one previous-cycle trainer-history swipe failure after native Forward; backend and 767 unit cases passed. Deployment was skipped.

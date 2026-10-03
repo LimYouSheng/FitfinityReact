@@ -1,10 +1,56 @@
-import { test, expect, selectDemoIdentity } from './fixtures.js'
+import { test, expect, selectDemoIdentity, mockPhysicalOrientation } from './fixtures.js'
 
 async function start(page, width) {
   if (width) await page.setViewportSize({ width, height: 1024 })
   await page.goto('/#/dashboard')
   await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
 }
+
+test('M4 hamburger locks background scrolling, restores its position and releases on desktop resize', async ({ page, browserName }) => {
+  await mockPhysicalOrientation(page)
+  await page.setViewportSize({ width: 390, height: 480 })
+  await page.goto('/#/clients/new')
+  await expect(page.locator('.onboarding-step-body')).toBeVisible()
+  await page.evaluate(() => scrollTo(0, 120))
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0)
+  const savedY = await page.evaluate(() => scrollY)
+  const drawer = page.getByRole('button', { name: 'Open navigation' })
+  const sidebar = page.locator('#portal-sidebar')
+  await drawer.click()
+  await expect(page.locator('body')).toHaveCSS('position', 'fixed')
+  await expect(page.locator('body')).toHaveCSS('top', `-${savedY}px`)
+  await expect(page.locator('html')).toHaveCSS('overflow-y', 'hidden')
+  const backgroundTop = await page.locator('.onboarding-step-body').evaluate(element => element.getBoundingClientRect().top)
+  if (browserName === 'chromium') {
+    const input = await page.context().newCDPSession(page)
+    try {
+      await input.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 })
+      await input.send('Input.synthesizeScrollGesture', { x: 365, y: 330, yDistance: -180, gestureSourceType: 'touch' })
+    } finally {
+      await input.send('Emulation.setTouchEmulationEnabled', { enabled: false })
+      await input.detach()
+    }
+  } else {
+    // WebKit mobile has no native swipe API; verify the fixed document and its
+    // independent sidebar scroll container here. Device gestures remain manual acceptance.
+    await page.evaluate(() => scrollTo(0, 400))
+  }
+  expect(await page.locator('.onboarding-step-body').evaluate(element => element.getBoundingClientRect().top)).toBe(backgroundTop)
+  await sidebar.getByRole('button', { name: 'Operations section' }).click()
+  await expect.poll(() => sidebar.evaluate(element => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0)
+  await sidebar.evaluate(element => { element.scrollTop = element.scrollHeight })
+  await expect.poll(() => sidebar.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
+  await page.getByRole('button', { name: 'Close navigation' }).click({ position: { x: 365, y: 200 } })
+  await expect(page.locator('body')).not.toHaveCSS('position', 'fixed')
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(savedY)
+  await drawer.click()
+  await expect(page.locator('body')).toHaveCSS('position', 'fixed')
+  await page.setViewportSize({ width: 781, height: 1024 })
+  await expect(drawer).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Open navigation', includeHidden: true })).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.locator('body')).not.toHaveCSS('position', 'fixed')
+  await expect(sidebar).toHaveCSS('pointer-events', 'auto')
+})
 
 test('M4 sidebar sections start collapsed and allow only one expanded category on every layout', async ({ page }) => {
   await start(page)

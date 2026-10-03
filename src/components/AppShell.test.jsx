@@ -5,6 +5,7 @@ import AppShell from './AppShell.jsx'
 import { ActionConfirmationProvider } from './ActionConfirmationProvider.jsx'
 import { EditGuardProvider } from './EditGuardProvider.jsx'
 import { seed } from '../data/seed.js'
+import ConfirmDialog from './ConfirmDialog.jsx'
 
 let media
 beforeEach(() => {
@@ -17,7 +18,7 @@ beforeEach(() => {
   }
   vi.stubGlobal('matchMedia', () => media)
 })
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 function shell(overrides = {}) {
   const owner = seed.users.find(user => user.role === 'owner')
@@ -103,4 +104,79 @@ it('keeps section choices collapsed or expanded consistently across drawer and f
   expect(screen.getByRole('button', { name: 'System section' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.getByRole('button', { name: 'Management section' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByRole('button', { name: 'Exercise Library', exact: true })).not.toBeInTheDocument()
+})
+
+it('locks the page at its current position until the navigation scrim is closed', async () => {
+  const user = userEvent.setup()
+  vi.stubGlobal('scrollX', 0)
+  vi.stubGlobal('scrollY', 320)
+  const restore = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  document.body.style.overflow = 'auto'
+  document.documentElement.style.overscrollBehavior = 'contain'
+  try {
+    render(shell())
+    await user.click(screen.getByRole('button', { name: 'Open navigation' }))
+    expect(document.body.style.position).toBe('fixed')
+    expect(document.body.style.top).toBe('-320px')
+    expect(document.documentElement.style.overflow).toBe('hidden')
+    await user.click(screen.getByRole('button', { name: 'Close navigation' }))
+    expect(document.body.style.position).toBe('')
+    expect(document.body.style.top).toBe('')
+    expect(document.body.style.overflow).toBe('auto')
+    expect(document.documentElement.style.overscrollBehavior).toBe('contain')
+    expect(restore).toHaveBeenCalledWith(0, 320)
+  } finally {
+    cleanup()
+    document.body.style.overflow = ''
+    document.documentElement.style.overscrollBehavior = ''
+  }
+})
+
+it.each(['route', 'account'])('releases the drawer scroll lock when the %s changes', async change => {
+  const user = userEvent.setup()
+  const { rerender } = render(shell())
+  await user.click(screen.getByRole('button', { name: 'Open navigation' }))
+  expect(document.body.style.position).toBe('fixed')
+  const trainer = seed.users.find(item => item.role === 'trainer')
+  rerender(shell(change === 'route' ? { route: 'clients' } : { user: trainer, userId: trainer.id }))
+  expect(document.body.style.position).toBe('')
+  expect(screen.getByRole('button', { name: 'Open navigation' })).toHaveAttribute('aria-expanded', 'false')
+})
+
+it('releases the drawer lock on desktop resize and on unmount', async () => {
+  const user = userEvent.setup()
+  const { unmount } = render(shell())
+  const opener = screen.getByRole('button', { name: 'Open navigation' })
+  await user.click(opener)
+  expect(document.body.style.position).toBe('fixed')
+  act(() => media.resize(true))
+  expect(opener).toHaveAttribute('aria-expanded', 'false')
+  expect(document.body.style.position).toBe('')
+  act(() => media.resize(false))
+  await user.click(opener)
+  expect(document.body.style.position).toBe('fixed')
+  unmount()
+  expect(document.body.style.position).toBe('')
+  expect(document.documentElement.style.overflow).toBe('')
+})
+
+it.each(['drawer', 'dialog'])('keeps the page locked when an overlapping %s closes first', async first => {
+  const user = userEvent.setup()
+  const view = open => <>{shell()}<ConfirmDialog open={open} title="Overlay" /></>
+  const { rerender } = render(view(false))
+  await user.click(screen.getByRole('button', { name: 'Open navigation' }))
+  expect(document.body.style.position).toBe('fixed')
+  rerender(view(true))
+  expect(document.body.style.position).toBe('fixed')
+  if (first === 'drawer') {
+    act(() => media.resize(true))
+    expect(document.body.style.position).toBe('fixed')
+    rerender(view(false))
+  } else {
+    rerender(view(false))
+    expect(document.body.style.position).toBe('fixed')
+    await user.click(screen.getByRole('button', { name: 'Close navigation' }))
+  }
+  expect(document.body.style.position).toBe('')
+  expect(document.documentElement.style.overflow).toBe('')
 })

@@ -92,7 +92,7 @@ export default function ClientsPage({ user, clients, trainers, sessions = [], on
               aria-autocomplete="list"
               autoComplete="off"
               value={query}
-              onFocus={() => setSearchOpen(true)}
+              onClick={() => setSearchOpen(true)}
               onBlur={() => window.setTimeout(() => setSearchOpen(false), 120)}
               onChange={event => {
                 setQuery(event.target.value)

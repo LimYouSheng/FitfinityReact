@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { formatDate } from '../utils/date.js'
 import FieldPopover from './FieldPopover.jsx'
 import SelectField from './SelectField.jsx'
+import useFieldActivation from '../hooks/useFieldActivation.js'
 
 const iso = date => date.toISOString().slice(0, 10)
 const months = Array.from({ length: 12 }, (_, month) => new Intl.DateTimeFormat('en-SG', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, month, 1))))
@@ -31,6 +32,7 @@ export default function DateField({ value = '', onChange, min, max, ...props }) 
     setMonth(candidate.slice(0, 7))
     setOpen(true)
   }
+  const activation = useFieldActivation(show)
   const select = next => {
     onChange?.({ target: { value: next, name: props.name }, currentTarget: { value: next, name: props.name } })
     setOpen(false)
@@ -46,7 +48,8 @@ export default function DateField({ value = '', onChange, min, max, ...props }) 
     <input {...props} ref={ref} value={value} type="text" inputMode="numeric" placeholder={props.placeholder ?? 'YYYY-MM-DD'}
       maxLength={10} pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" min={min} max={max} onChange={onChange}
       aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined}
-      onPointerDown={show} onClick={show} onKeyDown={event => { if (event.key === 'Enter' || event.key === 'ArrowDown') show(event) }} />
+      {...activation}
+      onKeyDown={event => { if (event.key === 'Enter' || event.key === 'ArrowDown') show(event) }} />
     {open && <FieldPopover anchorRef={ref} onClose={() => setOpen(false)} width={310} role="dialog" id={id} aria-label={`${props['aria-label'] ?? 'Date'} calendar`} className="date-calendar">
       <div className="date-calendar-heading">
         <button type="button" aria-label="Previous month" onClick={() => changeMonth(-1)} disabled={Boolean(min && month <= min.slice(0, 7))}>‹</button>

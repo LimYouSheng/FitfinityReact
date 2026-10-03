@@ -4,6 +4,7 @@ import { OWNER_NAV, ADMIN_NAV, TRAINER_NAV } from '../app/constants.js'
 import { useActionConfirmation } from './ActionConfirmationProvider.jsx'
 import { useEditGuard } from './EditGuardProvider.jsx'
 import RoleSwitcher from './RoleSwitcher.jsx'
+import usePageScrollLock from '../hooks/usePageScrollLock.js'
 
 const initials = name => (name ?? '')
   .split(/\s+/)
@@ -50,6 +51,15 @@ export default function AppShell({
   const [expandedGroup, setExpandedGroup] = useState(null)
   const previousLocation = useRef({ userId, routePath })
   const profileRef = useRef(null)
+  usePageScrollLock(drawerOpen)
+
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 781px)')
+    const closeDesktopDrawer = () => { if (desktop.matches) setDrawerOpen(false) }
+    closeDesktopDrawer()
+    desktop.addEventListener('change', closeDesktopDrawer)
+    return () => desktop.removeEventListener('change', closeDesktopDrawer)
+  }, [])
 
   const nav = useMemo(() => (user.role === 'owner' ? OWNER_NAV : user.role === 'admin' ? ADMIN_NAV : TRAINER_NAV).filter(item => !enabledRoutes || enabledRoutes.includes(item.key)), [user.role, enabledRoutes])
 
@@ -119,7 +129,7 @@ export default function AppShell({
         <button
           className="brand"
           type="button"
-          onClick={() => onRoute('dashboard')}
+          onClick={() => { setDrawerOpen(false); onRoute('dashboard') }}
           aria-label="Fitfinity dashboard"
         >
           <img src={`${import.meta.env.BASE_URL}assets/images/fitfinity-logo.jpg`} alt="Fitfinity" />
