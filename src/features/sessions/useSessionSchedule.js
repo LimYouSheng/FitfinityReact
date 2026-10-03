@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { businessClock } from '../../app/clock.js'
 import { sessionScheduleError } from '../../app/sessionRules.js'
 import { sessionTimeChangeError } from '../../app/scheduleChanges.js'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
+import { createUuid } from '../../utils/uuid.js'
 
-export default function useSessionSchedule({ session, policy, setActiveEditor, setDetailsError, setSaving, onSaveDetails, onRequestTimeChange, onRequestTrainerChange }) {
+export default function useSessionSchedule({ session, policy, setActiveEditor, setDetailsError, setSaving, onSaveDetails, onRequestTimeChange, onRequestTrainerChange, onPreviewPostponement, onPostpone }) {
   const confirmAction = useActionConfirmation()
   const [detailsDraft, setDetailsDraft] = useState({
     date: session.date,
@@ -19,6 +20,32 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
     to: session.to,
   })
   const [trainerRequestId, setTrainerRequestId] = useState('')
+  const [postponement, setPostponement] = useState(null)
+  const postponeLock = useRef(false)
+  const postponementKey = useRef(null)
+  const mounted = useRef(false)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+
+  const openPostponement = async () => {
+    if (postponeLock.current) return
+    postponeLock.current = true; setSaving(true); setDetailsError('')
+    try {
+      const preview = await onPreviewPostponement()
+      if (!mounted.current) return
+      postponementKey.current = createUuid()
+      setPostponement(preview); setRequestKind('postpone')
+    } catch (error) { if (mounted.current) setDetailsError(error.message) }
+    finally { postponeLock.current = false; if (mounted.current) setSaving(false) }
+  }
+  const submitPostponement = async () => {
+    if (postponeLock.current || !postponement) return
+    postponeLock.current = true; setSaving(true); setDetailsError('')
+    try {
+      await onPostpone(postponement.expected, postponementKey.current)
+      if (mounted.current) { setRequestKind(null); setPostponement(null) }
+    } catch (error) { if (mounted.current) setDetailsError(error.message) }
+    finally { postponeLock.current = false; if (mounted.current) setSaving(false) }
+  }
 
   useEffect(() => {
     setDetailsDraft({
@@ -132,5 +159,5 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
     }
   }
 
-  return { detailsDraft, setDetailsDraft, requestKind, setRequestKind, timeRequestDraft, setTimeRequestDraft, trainerRequestId, setTrainerRequestId, clock, timeChangeError, timeRequestError, checkTimeRequest, validSchedule, saveDetails, submitTimeRequest, submitTrainerRequest }
+  return { detailsDraft, setDetailsDraft, requestKind, setRequestKind, timeRequestDraft, setTimeRequestDraft, trainerRequestId, setTrainerRequestId, clock, timeChangeError, timeRequestError, checkTimeRequest, validSchedule, saveDetails, submitTimeRequest, submitTrainerRequest, postponement, openPostponement, submitPostponement }
 }

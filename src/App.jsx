@@ -190,6 +190,11 @@ function StaffPortal({ navigation }) {
       await runAction(() => messageService.markRead({ id }), null)
       await reload()
     },
+    onUndo: async id => {
+      const result = await runAction(() => messageService.undo({ id }), { message: 'Session change undone.' })
+      await reload()
+      return result
+    },
     onMarkUnread: async id => {
       await runAction(() => messageService.markUnread({ id }), { tone: 'info', message: 'Message marked as unread.' })
       await reload()

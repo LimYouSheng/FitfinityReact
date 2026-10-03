@@ -55,6 +55,12 @@ export default function SessionDetailsRoute({ selectedSession, navigate, openCli
         await reload()
         return result
       }}
+      onPreviewPostponement={() => sessionService.previewPostponement({ sessionId: selectedSession.id })}
+      onPostpone={async (expected, requestKey) => {
+        const result = await runAction(() => sessionService.postpone({ sessionId: selectedSession.id, expected, requestKey }), result => ({ message: result.outcome === 'requested' ? 'Postponement sent for approval.' : 'Sessions postponed. Undo is available in Messages for 24 hours.' }))
+        await reload()
+        return result
+      }}
       onRequestTrainerChange={async trainerId => {
         const result = await runAction(() => sessionService.requestTrainerChange({ sessionId: selectedSession.id, replacementTrainerId: trainerId }), result => scheduleNotification('Trainer change', result))
         await reload()

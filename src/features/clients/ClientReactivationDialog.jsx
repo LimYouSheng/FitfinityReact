@@ -32,7 +32,7 @@ export default function ClientReactivationDialog({ client, clients, trainers, se
     confirmDisabled={saving || stale || review.conflicts.length > 0} onConfirm={save}
     onCancel={() => { if (!saving) guardNavigation(onClose) }}>
     <div className="stack-gap">
-      <p>Packages disabled with this client and their retained sessions will become active again. Separately deactivated packages stay inactive; deleted sessions cannot be restored.</p>
+      <p>Packages disabled with this client and their retained sessions will become active again. Separately deactivated packages stay inactive; recently deleted sessions can be restored separately using Undo in Messages within 24 hours.</p>
       <p>{review.rows.length} retained sessions checked. Each conflicting session needs a free date. Its time, trainer and original package stay the same.</p>
       {rows.map(({ session, original, locked, error: conflict }) => {
         const label = `Session ${review.rows.findIndex(row => row.session.id === session.id) + 1} · ${formatDate(original.date)} · ${original.from}–${original.to}`

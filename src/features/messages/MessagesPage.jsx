@@ -4,6 +4,7 @@ import { managesOperations } from '../../app/permissions.js'
 import usePageState from '../../hooks/usePageState.js'
 import RequestStatusBadge from './RequestStatusBadge.jsx'
 import RequestReview from './RequestReview.jsx'
+import MessageUndo from './MessageUndo.jsx'
 import { requestTypes } from '../../app/requestTypes.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StatusBadge from '../../components/StatusBadge.jsx'
@@ -49,6 +50,7 @@ export function MessageInbox({
   onMarkUnread,
   onResolveRequest,
   onCancelRequest,
+  onUndo,
   onOpenRelated,
 }) {
   const [selectedId, setSelectedId] = useState(() =>
@@ -256,6 +258,7 @@ export function MessageInbox({
               >
                 {message.read ? 'Read' : 'Unread'}
               </button>
+              {!embedded && message.undo && <MessageUndo key={`${user.id}:${message.undo.id}`} message={message} timeZone={timeZone} onUndo={onUndo} />}
             </article>
           ))}
 
@@ -308,6 +311,7 @@ export function MessageInbox({
                 </div>
 
                 <p>{selected.body}</p>
+                {selected.undo && <MessageUndo key={`${user.id}:${selected.undo.id}`} message={selected} timeZone={timeZone} onUndo={onUndo} />}
                 {selected.cancelledAt && selected.cancelledBy && <p>
                   Cancelled by {selected.cancelledBy.name} · <time dateTime={selected.cancelledAt}>{formatTimestamp(selected.cancelledAt, timeZone)}</time>
                 </p>}

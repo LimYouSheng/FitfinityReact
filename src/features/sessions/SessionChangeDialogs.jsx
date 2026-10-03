@@ -1,12 +1,22 @@
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import DateField from '../../components/DateField.jsx'
 import SelectField from '../../components/SelectField.jsx'
+import { formatDate } from '../../utils/date.js'
 
 export default function SessionChangeDialogs({ schedule, saving, detailsError, setDetailsError, replacementTrainers }) {
   const { requestKind, setRequestKind, timeRequestDraft, setTimeRequestDraft, trainerRequestId, setTrainerRequestId, clock, timeRequestError, validSchedule, submitTimeRequest, submitTrainerRequest } = schedule
 
   return (
     <>
+          <ConfirmDialog open={requestKind === 'postpone'} title="Postpone sessions by one week?"
+            confirmLabel={saving ? 'Saving…' : 'Confirm Postponement'} confirmDisabled={saving || !schedule.postponement}
+            onCancel={() => { if (!saving) { setRequestKind(null); setDetailsError('') } }} onConfirm={schedule.submitPostponement}>
+            <p>{schedule.postponement?.changes.length} upcoming sessions in this package move one week later. Credits stay the same. Trainer approval rules still apply.</p>
+            <table className="postponement-preview"><thead><tr><th>Current</th><th>New date</th><th>Time</th></tr></thead><tbody>
+              {schedule.postponement?.changes.map(change => <tr key={change.sessionId}><td>{formatDate(change.before.date)}</td><td>{formatDate(change.next.date)}</td><td>{change.next.from}–{change.next.to}</td></tr>)}
+            </tbody></table>
+            {detailsError && <p role="alert" className="validation-copy">{detailsError}</p>}
+          </ConfirmDialog>
           <ConfirmDialog
             open={requestKind === 'time'}
             title="Request Time Change"

@@ -52,13 +52,13 @@ export function normalizePackageLifecycle(db, client) {
       applyPurchaseSettings(client, previous)
     }
   }
-  const deactivation = (db.messages ?? []).filter(message => message.clientId === client.id && message.kind === 'client_status' && message.id.startsWith('client-off-')).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+  const deactivation = (db.messages ?? []).filter(message => !message.reversedAt && message.clientId === client.id && message.kind === 'client_status' && message.id.startsWith('client-off-')).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
   for (const purchased of clientPackages(client)) {
     if (purchased.status === 'inactive' && !purchased.deactivationReason && purchased.deactivatedAt &&
       (purchased.deactivatedAt === client.deactivatedAt || purchased.deactivatedAt === deactivation?.createdAt)) purchased.deactivationReason = 'client'
   }
   if (client.status === 'inactive') return
-  const reactivation = (db.messages ?? []).filter(message => message.clientId === client.id && message.kind === 'client_status' && message.id.startsWith('client-on-')).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+  const reactivation = (db.messages ?? []).filter(message => !message.reversedAt && message.clientId === client.id && message.kind === 'client_status' && message.id.startsWith('client-on-')).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
   if (reactivation) restoreClientPurchases(client, reactivation.createdAt, client.reactivatedBy ?? { id: null, name: 'Unknown staff' })
   const due = (client.additionalPackages ?? []).filter(item => item.status !== 'inactive' && item.startDate <= today).sort((a, b) => a.startDate.localeCompare(b.startDate))
   for (const purchased of due) {

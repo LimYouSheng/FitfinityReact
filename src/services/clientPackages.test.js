@@ -500,7 +500,7 @@ it('keeps reactivation atomic when storage fails and includes actionable package
   const before = mockDb.read()
   const message = before.messages.findLast(item => item.clientId === 'c1' && item.recipientRole === 'owner')
   expect(message.body).toContain('Package tab')
-  expect(message.body).toContain('deleted sessions cannot be restored')
+  expect(message.body).toContain('undone from their Message within 24 hours')
   vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage full') })
   await expect(clientService.reactivate('c1', owner())).rejects.toThrow('Storage full')
   expect(mockDb.read()).toEqual(before)

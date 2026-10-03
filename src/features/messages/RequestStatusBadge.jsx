@@ -5,6 +5,7 @@ const STATES = {
   approved: { label: 'Approved', tone: 'green' },
   rejected: { label: 'Rejected', tone: 'red' },
   cancelled: { label: 'Cancelled', tone: 'neutral' },
+  reversed: { label: 'Undone', tone: 'neutral' },
 }
 
 export default function RequestStatusBadge({ message }) {

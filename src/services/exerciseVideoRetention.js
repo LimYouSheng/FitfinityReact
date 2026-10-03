@@ -1,6 +1,7 @@
 import { exerciseVideoExpired, exerciseVideoExpiresAt } from '../app/video.js'
 import { mockDb } from './mockDb.js'
 import { pruneExerciseVideoBlobs, removeExerciseVideoBlob } from './exerciseVideoStore.js'
+import { retainedMutationVideos } from './sessionMutation.js'
 
 const deletionKey = ({ sessionId, exerciseId, mediaId }) => JSON.stringify([sessionId, exerciseId, mediaId ?? null])
 let backgroundCleanup = null
@@ -12,7 +13,11 @@ export function queueExerciseVideoDeletion(db, sessionId, exerciseId, mediaId) {
 }
 
 export async function flushExerciseVideoDeletions() {
-  const pending = mockDb.read().pendingVideoDeletions ?? []
+  const db = mockDb.read()
+  const retained = retainedMutationVideos(db)
+  const live = db.sessions.flatMap(session => (session.exercisePlan ?? []).filter(item => item.videoAttached).map(item => ({ sessionId: session.id, exerciseId: item.id, mediaId: item.video?.id })))
+  const protectedKeys = new Set([...retained, ...live].map(deletionKey))
+  const pending = (db.pendingVideoDeletions ?? []).filter(item => !protectedKeys.has(deletionKey(item)))
   if (!pending.length) return
   const results = await Promise.allSettled(pending.map(({ sessionId, exerciseId, mediaId }) =>
     removeExerciseVideoBlob(sessionId, exerciseId, mediaId ?? undefined),
@@ -31,9 +36,9 @@ export async function flushExerciseVideoDeletions() {
 async function cleanExpiredBlobs(now) {
   await flushExerciseVideoDeletions()
   const current = mockDb.read()
-  const retainedExpiries = Object.fromEntries(current.sessions.flatMap(session => (session.exercisePlan ?? [])
+  const retainedExpiries = Object.fromEntries([...retainedMutationVideos(current, now).map(item => [item.mediaId ?? `${item.sessionId}:${item.exerciseId}`, exerciseVideoExpiresAt(item.video, current.settings.videoRetentionDays)]), ...current.sessions.flatMap(session => (session.exercisePlan ?? [])
     .filter(exercise => exercise.videoAttached)
-    .map(exercise => [exercise.video?.id ?? `${session.id}:${exercise.id}`, exerciseVideoExpiresAt(exercise.video, current.settings.videoRetentionDays)])))
+    .map(exercise => [exercise.video?.id ?? `${session.id}:${exercise.id}`, exerciseVideoExpiresAt(exercise.video, current.settings.videoRetentionDays)]))])
   // Failed physical sweeps retry on refresh; expired metadata is already hidden.
   await pruneExerciseVideoBlobs(now, retainedExpiries).catch(() => {})
 }

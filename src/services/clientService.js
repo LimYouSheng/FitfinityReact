@@ -1,3 +1,4 @@
+import { mutateSessionRecords } from './sessionMutation.js'
 import { applyClientReactivationDates } from '../app/clientReactivation.js'
 import { managesOperations } from '../app/permissions.js'
 import { applyTrainerReassignment } from '../app/trainerReassignment.js'
@@ -74,7 +75,7 @@ export const clientService = {
     if (validationErrors.length) throw new Error(validationErrors[0])
 
     let createdId = null
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.create', db => {
       if (!managesOperations(requireActiveActor(db, actor))) throw new Error('Only the owner or Admin can add clients.')
       const trainer = db.trainers.find(item =>
         item.id === draft.trainerId && (item.status ?? 'active') === 'active'
@@ -123,7 +124,7 @@ export const clientService = {
 
   async renewPackage(id, draft, actor) {
     await delay(180)
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.renewPackage', db => {
       if (!managesOperations(requireActiveActor(db, actor))) throw new Error('Only the owner or Admin can add packages.')
       const client = requireActiveClient(db.clients.find(item => item.id === id))
       if (!/^[a-zA-Z0-9_-]{1,120}$/.test(draft.requestId ?? '')) throw new Error('A renewal request ID is required.')
@@ -149,7 +150,7 @@ export const clientService = {
 
   async deactivatePackage(id, { packageId, deleteUpcomingSessions = false }, actor) {
     await delay(180)
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.deactivatePackage', db => {
       const staff = requireActiveActor(db, actor)
       if (!managesOperations(staff)) throw new Error('Only the owner or Admin can deactivate packages.')
       const client = requireActiveClient(db.clients.find(item => item.id === id))
@@ -160,7 +161,7 @@ export const clientService = {
       deactivatePurchase(purchased, staff, new Date().toISOString(), 'package')
       const removed = deleteUpcomingSessions ? deleteUpcomingForPackage(db, client, purchased, staff) : 0
       appendSavedEditMessage(db, { clientId: id, trainerId: client.trainerId,
-        title: `Package deactivated: ${client.name}`, body: `${purchased.name ?? `${purchased.total} Sessions`} · ${staff.name}${deleteUpcomingSessions ? ` · ${removed} upcoming sessions permanently deleted` : ''}` })
+        title: `Package deactivated: ${client.name}`, body: `${purchased.name ?? `${purchased.total} Sessions`} · ${staff.name}${deleteUpcomingSessions ? ` · ${removed} upcoming sessions deleted; Undo is available in Messages for 24 hours` : ''}` })
     })
     await flushExerciseVideoDeletions()
     return state.clients.find(client => client.id === id)
@@ -168,7 +169,7 @@ export const clientService = {
 
   async deletePackageSessions(id, { packageId }, actor) {
     await delay(180)
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.deletePackageSessions', db => {
       const staff = requireActiveActor(db, actor)
       if (!managesOperations(staff)) throw new Error('Only the owner or Admin can delete package sessions.')
       const client = db.clients.find(item => item.id === id)
@@ -177,7 +178,7 @@ export const clientService = {
       if (!purchased || purchased.status !== 'inactive') throw new Error('Deactivate the package before deleting its upcoming sessions.')
       const count = deleteUpcomingForPackage(db, client, purchased, staff)
       if (count) appendSavedEditMessage(db, { clientId: id, trainerId: client.trainerId,
-        title: `Package sessions deleted: ${client.name}`, body: `${count} upcoming sessions permanently deleted · ${staff.name}` })
+        title: `Package sessions deleted: ${client.name}`, body: `${count} upcoming sessions deleted; Undo is available in Messages for 24 hours · ${staff.name}` })
     })
     await flushExerciseVideoDeletions()
     return state.clients.find(client => client.id === id)
@@ -185,7 +186,7 @@ export const clientService = {
 
   async reassignTrainer(id, draft, actor) {
     await delay(180)
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.reassignTrainer', db => {
       const staff = requireActiveActor(db, actor)
       if (!managesOperations(staff)) throw new Error('Only the owner or Admin can permanently reassign trainers.')
       const client = requireActiveClient(db.clients.find(item => item.id === id))
@@ -197,7 +198,7 @@ export const clientService = {
   async update(id, patch, actor) {
     await delay(180)
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.update', db => {
       const client = db.clients.find(item => item.id === id)
       if (!client) throw new Error('Client not found')
       requireActiveClient(client)
@@ -249,7 +250,7 @@ export const clientService = {
 
   async saveAssessment(id, { personIndex, formId, record, expectedPerson }, actor) {
     await delay(180)
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.saveAssessment', db => {
       const staff = requireActiveActor(db, actor)
       if (!managesOperations(staff)) throw new Error('Assessment recording is available to the owner or Admin.')
       const client = requireActiveClient(db.clients.find(item => item.id === id))
@@ -278,7 +279,7 @@ export const clientService = {
 
   async recordProgressReportAction(id, { id: actionId, kind, packageId }, actor) {
     await delay(180)
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.recordProgressReportAction', db => {
       const staff = requireActiveActor(db, actor)
       const client = db.clients.find(item => item.id === id)
       if (!client || (!managesOperations(staff) && !clientAssignedToTrainer(client, staff.trainerId, db.sessions))) throw new Error('This client is unavailable for your account.')
@@ -318,7 +319,7 @@ export const clientService = {
 
     let outcome = 'applied'
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.saveFixedWeeklySchedule', db => {
       const client = db.clients.find(item => item.id === id)
       if (!client) throw new Error('Client not found')
 
@@ -416,7 +417,7 @@ export const clientService = {
   async deactivate(id, actor) {
     await delay(180)
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.deactivate', db => {
       const staff = requireActiveActor(db, actor)
       if (!managesOperations(staff)) throw new Error('Only the owner or Admin can deactivate clients.')
       const client = db.clients.find(item => item.id === id)
@@ -447,7 +448,7 @@ export const clientService = {
         clientId: client.id,
         trainerId: client.trainerId,
         title: `${client.name} deactivated`,
-        body: 'The client and their packages are inactive and remain viewable in Clients. Open the client’s Package tab to review Past Packages and, if needed, permanently delete unacknowledged upcoming sessions. Reactivating the client restores packages disabled with this client and their retained sessions. Packages deactivated separately stay inactive; deleted sessions cannot be restored.',
+        body: 'The client and their packages are inactive and remain viewable in Clients. Open the client’s Package tab to review Past Packages and, if needed, delete unacknowledged upcoming sessions. Reactivating the client restores packages disabled with this client and their retained sessions. Packages deactivated separately stay inactive; Recent session deletions can be undone from their Message within 24 hours.',
         kind: 'client_status',
         readBy: {},
       })
@@ -459,7 +460,7 @@ export const clientService = {
   async reactivate(id, actor, options = {}) {
     await delay(180)
 
-    const state = mockDb.mutate(db => {
+    const state = mutateSessionRecords(actor, 'client.reactivate', db => {
       const client = db.clients.find(item => item.id === id)
       if (!client) throw new Error('Client not found')
 

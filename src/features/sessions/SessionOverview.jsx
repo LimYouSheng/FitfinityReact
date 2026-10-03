@@ -26,6 +26,7 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
           </div>
         </div>
         <div className="session-detail-actions">
+          <button type="button" className="secondary-button small" disabled={saving || !sessionEditable || Boolean(activeEditor) || Boolean(requestKind) || Boolean(timeChangeError)} onClick={schedule.openPostponement}>Postpone</button>
           {isOwner ? (
             activeEditor === 'details' ? (
               <div className="inline-actions">

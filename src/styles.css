@@ -2200,6 +2200,20 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
   min-height:44px;
 }
 
+.message-undo-action{
+  grid-column:1 / -1;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:8px 10px;
+  font-size:12px;
+}
+.message-undo-action button{min-height:44px}
+.message-undo-action p{flex-basis:100%;margin:0}
+.postponement-preview{width:100%;border-collapse:collapse;font-size:12px}
+.postponement-preview th,.postponement-preview td{padding:8px 4px;text-align:left}
+
 .message-title-head{
   padding:0 9px 6px 11px;
   color:#858d9c;

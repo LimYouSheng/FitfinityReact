@@ -60,9 +60,10 @@ function load() {
 let snapshotJson
 const current = () => snapshotJson ??= JSON.stringify(load())
 
-function commit(next) {
+function commit(next, afterNormalize) {
   for (const client of next.clients) normalizeClientRecords(next, client)
   normalizeMessageReceipts(next)
+  afterNormalize?.(next)
   // Publish to memory only after storage succeeds, so failures can be retried safely.
   const serialized = JSON.stringify(next)
   localStorage.setItem(KEY, serialized)
@@ -74,10 +75,10 @@ export const mockDb = {
   read() { return JSON.parse(current()) },
   reload() { const serialized = JSON.stringify(load()); snapshotJson = serialized; return JSON.parse(serialized) },
   write(next) { return commit(clone(next)) },
-  mutate(mutator) {
+  mutate(mutator, afterNormalize) {
     const next = JSON.parse(current())
     mutator(next)
-    return commit(next)
+    return commit(next, afterNormalize)
   },
   reset(referenceDate) { return commit(referenceDate ? createDemoSeed(referenceDate) : clone(seed)) },
 }
