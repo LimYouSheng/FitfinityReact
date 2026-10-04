@@ -5,6 +5,7 @@ import { clientService } from './clientService.js'
 import { selectedPackage } from '../app/packages.js'
 import { DEFAULT_PACKAGES } from '../data/mockPackages.js'
 import { relatedMessageLinks } from '../features/messages/messageLinks.js'
+import { addDays } from '../app/clientOnboarding.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
 const owner = () => mockDb.read().users.find(user => user.role === 'owner')
@@ -38,6 +39,18 @@ it('saves rules derived from session count and emits an unread owner-only packag
   expect(message).toMatchObject({ packageId: result.id, readBy: {}, recipientRole: 'owner' })
   expect(relatedMessageLinks(message, { user: owner(), packages: db.packages })).toEqual([{ type: 'package', id: result.id, label: 'Package · Strength package' }])
   expect(relatedMessageLinks(message, { user: { role: 'trainer' }, packages: db.packages })).toEqual([])
+})
+
+it('package validity corrects persisted original demo terms without moving bookings or changing credits', () => {
+  const old = mockDb.read(), client = old.clients.find(item => item.package.total === 24)
+  client.package.validityDays = 90; client.package.endDate = addDays(client.package.startDate, 89)
+  localStorage.setItem(KEY, JSON.stringify(old))
+  const corrected = mockDb.reload(), purchased = corrected.clients.find(item => item.id === client.id).package
+  expect(purchased).toMatchObject({ validityDays: 180, endDate: addDays(client.package.startDate, 179), used: client.package.used })
+  expect(corrected.sessions).toEqual(old.sessions)
+  expect(corrected.packageCreditTransactions).toEqual(old.packageCreditTransactions)
+  expect(JSON.parse(localStorage.getItem(KEY))).toEqual(corrected)
+  expect(mockDb.reload()).toEqual(corrected)
 })
 
 it('requires an active stored owner and rejects forged identities without mutation', async () => {

@@ -1,7 +1,7 @@
 import { clientPackages, packageForRecord } from '../app/clientPackages.js'
 import { updateClientProgress } from '../app/progress.js'
 import { normalizePackageLifecycle } from '../app/packageLifecycle.js'
-import { createDemoSeed, seed } from '../data/seed.js'
+import { createDemoSeed, normalizeDemoPackageValidity, seed } from '../data/seed.js'
 import { businessClock } from '../app/clock.js'
 import { migrateRenewalMessages } from '../app/renewals.js'
 import { normalizeMessageReceipts } from '../app/messageInbox.js'
@@ -20,6 +20,7 @@ function normalizeSession(session) {
 }
 
 function normalizeClientRecords(db, client) {
+  normalizeDemoPackageValidity(client)
   normalizePackageLifecycle(db, client)
   // Old demo sessions were constructed from this exact purchase, even when their
   // example dates preceded it. Stable seed identity can recover that original link.

@@ -10,16 +10,18 @@ import { packageDayProgress } from '../../utils/date.js'
 import { useState } from 'react'
 import PackageProgress from './PackageProgress.jsx'
 import RenewPackageDialog from './RenewPackageDialog.jsx'
+import ClientReactivationDialog from './ClientReactivationDialog.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import DateFilterField from '../../components/DateFilterField.jsx'
 import { businessClock } from '../../app/clock.js'
 import { deletablePackageSessions, pastClientPackages, packageForRecord } from '../../app/clientPackages.js'
 
-function PackageTab({ readOnly = false, client, clients, user, trainers, sessions, packages, policy, today, onRenewPackage, onDeactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
+function PackageTab({ readOnly = false, client, clients, user, trainers, sessions, packages, policy, today, onRenewPackage, onDeactivatePackage, onReactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
   const [deletePackage, setDeletePackage] = useState(null)
   const [renewOpen, setRenewOpen] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(null)
+  const [reactivateOpen, setReactivateOpen] = useState(null)
   const [deleteUpcoming, setDeleteUpcoming] = useState(false)
   const [deactivating, setDeactivating] = useState(false)
   const [deactivationError, setDeactivationError] = useState('')
@@ -35,6 +37,9 @@ function PackageTab({ readOnly = false, client, clients, user, trainers, session
   return (
     <div className="stack-gap">
       {renewOpen && client.status !== 'inactive' && <RenewPackageDialog client={client} clients={clients} trainers={trainers} sessions={sessions} packages={packages} policy={policy} today={today} onSave={onRenewPackage} onClose={() => setRenewOpen(false)} />}
+      {reactivateOpen && !readOnly && managesOperations(user) && client.status !== 'inactive' && <ClientReactivationDialog
+        key={reactivateOpen} packageId={reactivateOpen} client={client} clients={clients} trainers={trainers} sessions={sessions}
+        packageCreditTransactions={packageCreditTransactions} onSave={onReactivatePackage} onClose={() => setReactivateOpen(null)} />}
       <Panel>
         <div className="section-head package-section-head"><div><h2>Current Package</h2>{client.package && client.package.status !== 'inactive' && client.package.name && <p>{client.package.name}</p>}</div>
           {!readOnly && managesOperations(user) && client.status !== 'inactive' && <div className="package-actions">
@@ -84,6 +89,7 @@ function PackageTab({ readOnly = false, client, clients, user, trainers, session
                     {entry.sessionIds.length} upcoming sessions deleted · <time dateTime={entry.at}>{formatTimestamp(entry.at, policy.timeZone)}</time> · {entry.by.name}
                   </span>)}
                   {!readOnly && managesOperations(user) && <button type="button" className="text-action" disabled={!eligibleCount(item)} onClick={() => { setDeactivationError(''); setDeletePackage(item) }}>Delete Upcoming Sessions ({eligibleCount(item)})</button>}
+                  {!readOnly && managesOperations(user) && client.status !== 'inactive' && <button type="button" className="secondary-button" onClick={() => setReactivateOpen(item.id)}>Reactivate Package</button>}
                 </>}
               </div>
               <span>{item.used} / {item.total} used</span>
@@ -114,7 +120,7 @@ function PackageTab({ readOnly = false, client, clients, user, trainers, session
         }}>
         <p>{deactivateOpen?.name ?? `${deactivateOpen?.total} Sessions`} · {formatDate(deactivateOpen?.startDate)} – {formatDate(deactivateOpen?.endDate)}</p>
         <label className="export-summary-option"><input type="checkbox" checked={deleteUpcoming} disabled={deactivating}
-          onChange={event => setDeleteUpcoming(event.target.checked)} />Delete unacknowledged upcoming sessions (24-hour Undo)</label>
+          onChange={event => setDeleteUpcoming(event.target.checked)} />Delete unacknowledged upcoming sessions</label>
         {deactivationError && <p role="alert">{deactivationError}</p>}
       </ConfirmDialog>
     </div>
@@ -159,7 +165,7 @@ function SessionsTab({ title, history = false, client, sessions, trainers, empty
   )
 }
 
-export default function ClientProfileTabs({ readOnly = false, progressPackageId, onOpenProgressPackage, tab, user, client, clients, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory, packages, policy, onRenewPackage, onDeactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
+export default function ClientProfileTabs({ readOnly = false, progressPackageId, onOpenProgressPackage, tab, user, client, clients, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory, packages, policy, onRenewPackage, onDeactivatePackage, onReactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
   const clientSessions = sessions.filter(session => session.clientId === client.id && (managesOperations(user) || session.trainerId === user.trainerId))
   const history = clientSessions
     .filter(session => session.status === 'completed' || session.date < today)
@@ -168,7 +174,7 @@ export default function ClientProfileTabs({ readOnly = false, progressPackageId,
     .filter(session => session.status !== 'completed' && session.date >= today)
     .sort((a, b) => `${a.date}T${a.from}`.localeCompare(`${b.date}T${b.from}`))
 
-  if (tab === 'package') return <PackageTab clients={clients} readOnly={readOnly} client={client} today={today} user={user} trainers={trainers} sessions={sessions} packages={packages} policy={policy} onRenewPackage={onRenewPackage} onDeactivatePackage={onDeactivatePackage} onDeletePackageSessions={onDeletePackageSessions} packageCreditTransactions={packageCreditTransactions} />
+  if (tab === 'package') return <PackageTab clients={clients} readOnly={readOnly} client={client} today={today} user={user} trainers={trainers} sessions={sessions} packages={packages} policy={policy} onRenewPackage={onRenewPackage} onDeactivatePackage={onDeactivatePackage} onReactivatePackage={onReactivatePackage} onDeletePackageSessions={onDeletePackageSessions} packageCreditTransactions={packageCreditTransactions} />
   if (tab === 'history') return <SessionsTab title="Session History" history client={client} sessions={history} trainers={trainers} emptyCopy="No session history." onOpenSession={onOpenSession} />
   if (tab === 'upcoming') return <SessionsTab title="Upcoming Sessions" client={client} sessions={upcoming} trainers={trainers} emptyCopy="No upcoming sessions." onOpenSession={onOpenSession} />
   if (tab === 'progress') return <PackageProgress packageId={progressPackageId} onOpenPackage={onOpenProgressPackage} client={client} sessions={sessions} user={user} timeZone={timeZone} onRecordAction={onRecordProgressReport} onLoadHistory={onLoadProgressReportHistory} />

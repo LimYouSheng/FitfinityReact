@@ -37,6 +37,8 @@ function set(record, path, value) {
 const envelope = value => value === undefined ? [] : [value]
 const requestState = message => ({ status: message.status, request: message.request, decidedAt: message.decidedAt, cancelledAt: message.cancelledAt })
 const sessionRequest = message => message.request && ['session_time', 'session_trainer', 'session_postpone', 'fixed_weekly_schedule'].includes(message.request.type)
+// Purchases and package status use their own lifecycle actions, not session Undo.
+const packageActions = new Set(['client.renewPackage', 'client.deactivatePackage', 'client.reactivatePackage'])
 // Older releases journalled completion. Retain that evidence, but never offer
 // or execute its inverse, including a no-show-to-signature correction.
 const changesAcknowledgement = entry => entry.operation === 'session.acknowledge' || Boolean(entry.debits?.length) ||
@@ -50,7 +52,7 @@ export function mutateSessionRecords(actor, operation, mutator) {
     mutator(db)
     staff = requireMutationActor(before, actor)
   }, db => {
-    if (operation === 'session.acknowledge') return
+    if (operation === 'session.acknowledge' || packageActions.has(operation)) return
     const sessions = [...new Set([...before.sessions, ...db.sessions].map(item => item.id))].flatMap(sessionId => {
       const previous = before.sessions.find(item => item.id === sessionId), next = db.sessions.find(item => item.id === sessionId)
       return same(previous, next) ? [] : [{ id: sessionId, position: before.sessions.findIndex(item => item.id === sessionId), before: previous ?? null, after: next ? clone(next) : null }]
@@ -119,6 +121,7 @@ export function requireUndoReady(db, entry, actor, now = new Date()) {
   if (!entry) throw new Error('This message has no recoverable session change.')
   requireUndoAuthority(db, entry, actor)
   if (changesAcknowledgement(entry)) throw new Error('Acknowledgements cannot be undone.')
+  if (packageActions.has(entry.operation)) throw new Error('Package actions cannot be undone.')
   if (entry.status === 'undone') return
   if (Date.parse(entry.expiresAt) <= +now) throw new Error('Undo expired. Changes can only be undone within 24 hours.')
   for (const change of entry.sessions) {
@@ -149,7 +152,7 @@ export function requireUndoReady(db, entry, actor, now = new Date()) {
 
 export function mutationForMessage(db, message, actor, now = new Date()) {
   const entry = db.sessionMutations?.find(item => item.id === message.mutationId)
-  if (!entry || changesAcknowledgement(entry)) return null
+  if (!entry || changesAcknowledgement(entry) || packageActions.has(entry.operation)) return null
   const result = { id: entry.id, expiresAt: entry.expiresAt, status: entry.status, count: entry.sessions.length,
     ...(entry.operation === 'session.markWhatsAppOpened' ? { notice: 'Undo only corrects this record. It cannot recall a WhatsApp message.' } : {}) }
   if (entry.status === 'undone') return { ...result, undoneAt: entry.undoneAt }

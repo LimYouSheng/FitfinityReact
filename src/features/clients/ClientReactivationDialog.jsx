@@ -4,35 +4,38 @@ import DateField from '../../components/DateField.jsx'
 import Field from '../../components/OnboardingField.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { clientReactivationReview, clientReactivationSnapshot } from '../../app/clientReactivation.js'
+import { clientPackages } from '../../app/clientPackages.js'
 import { formatDate } from '../../utils/date.js'
 
-export default function ClientReactivationDialog({ client, clients, trainers, sessions, packageCreditTransactions = [], onSave, onClose }) {
+export default function ClientReactivationDialog({ client, clients, trainers, sessions, packageCreditTransactions = [], packageId, onSave, onClose }) {
   const { guardNavigation } = useEditGuard()
   const db = { clients, trainers, sessions, packageCreditTransactions }
   const [initial] = useState(() => ({
     expected: clientReactivationSnapshot(client, sessions, packageCreditTransactions),
-    conflicts: clientReactivationReview(db, client).conflicts.map(row => row.session.id),
+    conflicts: clientReactivationReview(db, client, {}, undefined, packageId).conflicts.map(row => row.session.id),
   }))
   const [dates, setDates] = useState({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const stale = JSON.stringify(initial.expected) !== JSON.stringify(clientReactivationSnapshot(client, sessions, packageCreditTransactions))
-  const review = clientReactivationReview(db, client, stale ? {} : dates)
+  const review = clientReactivationReview(db, client, stale ? {} : dates, undefined, packageId)
+  const purchased = clientPackages(client).find(item => item.id === packageId)
   const rows = review.rows.filter(row => row.error || initial.conflicts.includes(row.session.id) || Object.hasOwn(dates, row.session.id))
   const save = async () => {
-    if (saving || stale || review.conflicts.length) return
+    if (saving || stale || review.conflicts.length || review.packageError) return
     setSaving(true); setError('')
     try {
-      await onSave({ dates, expected: initial.expected })
+      await onSave({ dates, expected: initial.expected, ...(packageId !== undefined ? { packageId } : {}) })
       onClose()
-    } catch (failure) { setError(failure.message || 'Client reactivation failed.') }
+    } catch (failure) { setError(failure.message || 'Reactivation failed.') }
     finally { setSaving(false) }
   }
-  return <ConfirmDialog open title={`Reactivate ${client.name}?`} confirmLabel={saving ? 'Reactivating…' : 'Reactivate Client'}
-    confirmDisabled={saving || stale || review.conflicts.length > 0} onConfirm={save}
+  return <ConfirmDialog open title={packageId !== undefined ? 'Reactivate Package?' : `Reactivate ${client.name}?`} confirmLabel={saving ? 'Reactivating…' : packageId !== undefined ? 'Reactivate Package' : 'Reactivate Client'}
+    confirmDisabled={saving || stale || review.conflicts.length > 0 || Boolean(review.packageError)} onConfirm={save}
     onCancel={() => { if (!saving) guardNavigation(onClose) }}>
     <div className="stack-gap">
-      <p>Packages disabled with this client and their retained sessions will become active again. Separately deactivated packages stay inactive; recently deleted sessions can be restored separately using Undo in Messages within 24 hours.</p>
+      {packageId !== undefined ? <p>{purchased?.name ?? `${purchased?.total ?? ''} Sessions`} will become active again. Used credits and the expiry date stay the same. Deleted sessions are not recreated.</p>
+        : <p>Packages disabled with this client and their retained sessions will become active again. Separately deactivated packages stay inactive; recently deleted sessions can be restored separately using Undo in Messages within 24 hours.</p>}
       <p>{review.rows.length} retained sessions checked. Each conflicting session needs a free date. Its time, trainer and original package stay the same.</p>
       {rows.map(({ session, original, locked, error: conflict }) => {
         const label = `Session ${review.rows.findIndex(row => row.session.id === session.id) + 1} · ${formatDate(original.date)} · ${original.from}–${original.to}`
@@ -43,7 +46,8 @@ export default function ClientReactivationDialog({ client, clients, trainers, se
           <p className={conflict ? 'onboarding-error' : 'helper'}>{conflict || 'No scheduling conflict.'}{locked && ' This acknowledged session is locked.'}</p>
         </div>
       })}
-      {!review.conflicts.length && <p role="status">All retained sessions are conflict-free.</p>}
+      {!review.conflicts.length && !review.packageError && <p role="status">All retained sessions are conflict-free.</p>}
+      {review.packageError && <p role="alert" className="onboarding-error">{review.packageError}</p>}
       {stale && <p role="alert" className="onboarding-error">The client packages or sessions changed. Close and reopen reactivation to review them.</p>}
       {error && <p role="alert" className="onboarding-error">{error}</p>}
     </div>

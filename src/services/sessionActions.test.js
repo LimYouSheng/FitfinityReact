@@ -428,11 +428,20 @@ it.each(['additionalPackages', 'packageHistory'])('acknowledgement finality pres
   expect(mockDb.read()).toEqual(completed)
   expect(client()[field][0].used).toBe(3); expect(client().package.used).toBe(0)
 })
-it('preserves the deactivation history when a package is restored by Undo', async () => {
-  await api.clientService.deactivatePackage({ id: 'c1', options: { packageId: client().package.id } }); await undo()
-  expect(client().package.status).toBe('active')
-  expect(client().package.statusHistory.map(item => item.status)).toEqual(['inactive', 'active'])
-  expect(client().package.statusHistory.at(-1).reason).toBe('undo')
+it.each([false, true])('package finality keeps deactivation and its history without Undo (delete sessions=%s)', async deleteUpcomingSessions => {
+  const original = mockDb.read()
+  await api.clientService.deactivatePackage({ id: 'c1', options: { packageId: client().package.id, deleteUpcomingSessions } })
+  const message = mockDb.read().messages.findLast(item => item.title.startsWith('Package deactivated:'))
+  expect(message.mutationId).toBeUndefined()
+  expect(message.body).not.toContain('Undo')
+  expect((await api.load()).data.messages.find(item => item.id === message.id).undo).toBeUndefined()
+  mockDb.reload(); const saved = mockDb.read()
+  await expect(undo(message)).rejects.toThrow('no recoverable session change')
+  expect(mockDb.read()).toEqual(saved)
+  expect(client().package.status).toBe('inactive')
+  expect(client().package.statusHistory.map(item => item.status)).toEqual(['inactive'])
+  expect(saved.sessions).toEqual(deleteUpcomingSessions ? [] : original.sessions)
+  expect(saved.packageCreditTransactions).toEqual(original.packageCreditTransactions)
 })
 it('does not replay an undone reactivation from retained Messages on reload', async () => {
   await api.clientService.deactivate({ id: 'c1' })
@@ -443,7 +452,7 @@ it('does not replay an undone reactivation from retained Messages on reload', as
   expect(notice.reversedAt).toBeTruthy()
 })
 
-it.each([false, true])('reverses renewal after normalized purchase selection (activated=%s)', async activated => {
+it.each([false, true])('package finality preserves Add Package after normalized purchase selection (activated=%s)', async activated => {
   const { packageDraftForClient } = await import('../app/packageRenewal.js')
   if (activated) { vi.setSystemTime('2027-05-01T04:00:00Z'); login() }
   mockDb.mutate(db => {
@@ -456,13 +465,34 @@ it.each([false, true])('reverses renewal after normalized purchase selection (ac
     packageId: 'package-12', packageVersion: 1, startDate: '2027-01-04', sessionsPerWeek: 1, genderPreference: 'No gender preference' }
   await api.clientService.renewPackage({ id: 'c1', draft })
   expect(mockDb.read().sessions.length).toBeGreaterThan(original.sessions.length)
-  const message = latestMessage()
-  expect(message.mutationId).toBeTruthy()
-  await undo(message)
-  expect(mockDb.reload().sessions).toEqual(original.sessions)
-  expect(client().package.id).toBe(person.package.id)
-  expect(client().additionalPackages ?? []).toEqual(person.additionalPackages ?? [])
-  expect(client().packageHistory).toEqual(person.packageHistory)
+  const message = mockDb.read().messages.findLast(item => item.title.startsWith('Package added:'))
+  expect(message.mutationId).toBeUndefined()
+  expect((await api.load()).data.messages.find(item => item.id === message.id).undo).toBeUndefined()
+  mockDb.reload(); const saved = mockDb.read()
+  await expect(undo(message)).rejects.toThrow('no recoverable session change')
+  expect(mockDb.read()).toEqual(saved)
+  await api.clientService.renewPackage({ id: 'c1', draft })
+  expect(mockDb.read()).toEqual(saved)
+  expect(saved.packageCreditTransactions).toEqual(original.packageCreditTransactions)
+})
+it.each(['client.renewPackage', 'client.deactivatePackage', 'client.reactivatePackage'].flatMap(operation => ['u-owner', 'undo-admin', 'u-marcus'].map(actor => ({ operation, actor }))))('package finality refuses legacy $operation Undo by $actor without rewriting history', async ({ operation, actor }) => {
+  const message = { id: 'legacy-package-message', title: 'Package history', kind: 'client_update', recipientRole: 'owner', recipientTrainerId: 't1',
+    clientId: 'c1', mutationId: 'legacy-package-operation', readBy: {}, createdAt: new Date(baseTime).toISOString() }
+  mockDb.mutate(db => {
+    db.messages.push(message)
+    db.sessionMutations ??= []
+    db.sessionMutations.push({ id: message.mutationId, operation, actor: structuredClone(db.users.find(item => item.id === 'u-owner')),
+      committedAt: new Date(baseTime).toISOString(), expiresAt: new Date(baseTime + day).toISOString(), status: 'available',
+      sessions: [], patches: [], proposals: [], requests: [], dependencies: [], messageIds: [message.id] })
+  })
+  login(actor)
+  for (const status of ['available', 'undone']) {
+    mockDb.mutate(db => { db.sessionMutations.find(item => item.id === message.mutationId).status = status })
+    mockDb.reload(); const saved = mockDb.read()
+    expect((await api.load()).data.messages.find(item => item.id === message.id).undo).toBeNull()
+    await expect(undo(message)).rejects.toThrow(/Package actions cannot be undone|original trainer/)
+    expect(mockDb.read()).toEqual(saved)
+  }
 })
 it('reverses permanent trainer reassignment while retaining assignment history', async () => {
   const { trainerReassignmentSnapshot } = await import('../app/trainerReassignment.js')

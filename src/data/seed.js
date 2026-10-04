@@ -1,6 +1,7 @@
 import { mockPolicy } from './mockPolicy.js'
 import { DEFAULT_EXERCISES } from './mockExercises.js'
 import { DEFAULT_PACKAGES } from './mockPackages.js'
+import { packageValidityDays } from '../app/packages.js'
 import { appendRenewalMessage } from '../app/renewals.js'
 import { updateClientProgress } from '../app/progress.js'
 import { addDays, buildClientSessions } from '../app/clientOnboarding.js'
@@ -104,7 +105,7 @@ const baseClients = [
     genderPreference: 'No gender preference', healthNotes: 'Daniel: shoulder history. Mei: no current limitations.',
     remarks: 'Weekend sessions preferred.',
     fixedWeeklySchedule: [{ id: 'slot3', day: 'Wednesday', from: '19:00', to: '20:00' }, { id: 'slot3b', day: 'Saturday', from: '10:00', to: '11:00' }],
-    package: { durationWeeks: 12, sessionsPerWeek: 2, total: 24, used: 7, validityDays: 90 },
+    package: { durationWeeks: 12, sessionsPerWeek: 2, total: 24, used: 7, validityDays: packageValidityDays(24, mockPolicy) },
   },
   {
     id: 'c3', status: 'active', type: 'Individual', name: 'Nadia Koh',
@@ -163,11 +164,24 @@ const additionalClients = additionalClientSpecs.map(([name, gender, type, traine
       from: index === 8 ? '18:00' : index === 9 ? '11:00' : index % 2 === 0 ? '19:00' : '10:00',
       to: index === 8 ? '19:00' : index === 9 ? '12:00' : index % 2 === 0 ? '20:00' : '11:00',
     }, ...(sessionsPerWeek === 2 ? [{ id: `${id}-slot-2`, day: 'Sunday', from: index === 8 ? '11:00' : '10:00', to: index === 8 ? '12:00' : '11:00' }] : [])],
-    package: { durationWeeks: 12, sessionsPerWeek, total, used, validityDays: 90 },
+    package: { durationWeeks: 12, sessionsPerWeek, total, used, validityDays: packageValidityDays(total, mockPolicy) },
   }
 })
 
-// Build a fresh demo around a supplied business date; persisted records never move on reload.
+// Correct only the original untemplated 24-session demo purchase. Purchased
+// snapshots, custom terms, history and bookings are not inferred or rewritten.
+export function normalizeDemoPackageValidity(client) {
+  const source = [...baseClients, ...additionalClients].find(item => item.id === client.id)
+  const purchased = client.package
+  if (!source || source.package.total !== 24 || !purchased || purchased.total !== 24 ||
+    purchased.id !== `client-package-${client.id}` || purchased.templateId || purchased.renewalRequest ||
+    purchased.validityDays !== 90 || !/^\d{4}-\d{2}-\d{2}$/.test(purchased.startDate ?? '') ||
+    purchased.endDate !== addDays(purchased.startDate, 89)) return
+  purchased.validityDays = packageValidityDays(purchased.total, mockPolicy)
+  purchased.endDate = addDays(purchased.startDate, purchased.validityDays - 1)
+}
+
+// Build a fresh demo around a supplied business date; persisted bookings never move on reload.
 export function createDemoSeed(referenceDate) {
   // Every booking uses the production weekly scheduler.
   const allClients = [...baseClients, ...additionalClients].map(source => {
@@ -178,10 +192,13 @@ export function createDemoSeed(referenceDate) {
       startDate: past[0].date, endDate: addDays(past[0].date, client.package.validityDays - 1),
       fixedWeeklySchedule: structuredClone(client.fixedWeeklySchedule) }
     client.lastTrained = past.at(-1).date
+    let nextStartDate = client.package.startDate
     client.packageHistory = [0, 1].map(index => {
-      const endDate = addDays(client.package.startDate, -1 - index * 90)
+      const endDate = addDays(nextStartDate, -1)
       const total = index ? 12 : client.package.total
-      return { id: `${client.id}-package-${index ? '2025-2' : '2026-1'}`, total, used: total, trainerId: client.trainerId, startDate: addDays(endDate, -89), endDate, validityDays: 90 }
+      const validityDays = packageValidityDays(total, mockPolicy)
+      nextStartDate = addDays(endDate, 1 - validityDays)
+      return { id: `${client.id}-package-${index ? '2025-2' : '2026-1'}`, total, used: total, trainerId: client.trainerId, startDate: nextStartDate, endDate, validityDays }
     })
     client.startDate = client.packageHistory.at(-1)?.startDate ?? client.package.startDate
     return client

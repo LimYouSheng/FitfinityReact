@@ -11,12 +11,17 @@ export function deactivatePurchase(purchased, staff, at, reason) {
 export function restoreClientPurchases(client, at, by) {
   for (const purchased of clientPackages(client)) {
     if (purchased.status !== 'inactive' || purchased.deactivationReason !== 'client' || at < purchased.deactivatedAt) continue
-    purchased.status = 'active'
-    purchased.statusHistory = [...(purchased.statusHistory ?? []), { status: 'active', reason: 'client_reactivated', at, by }]
-    delete purchased.deactivationReason
-    delete purchased.deactivatedAt
-    delete purchased.deactivatedBy
+    restorePurchase(purchased, at, by, 'client_reactivated')
   }
+}
+
+export function restorePurchase(purchased, at, by, reason = 'package_reactivated') {
+  if (purchased.status !== 'inactive') return
+  purchased.status = 'active'
+  purchased.statusHistory = [...(purchased.statusHistory ?? []), { status: 'active', reason, at, by }]
+  delete purchased.deactivationReason
+  delete purchased.deactivatedAt
+  delete purchased.deactivatedBy
 }
 
 function applyPurchaseSettings(client, purchased) {
