@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
+import RenewalDismissal from './RenewalDismissal.jsx'
 import userEvent from '@testing-library/user-event'
 import MessagesPage, { MessageInbox } from './MessagesPage.jsx'
 const message = {id:'row-test',title:'Availability request',body:'Review availability.',recipientRole:'owner',kind:'availability_request',status:'pending',read:false,createdAt:'2026-09-05T09:00:00Z'}
@@ -169,4 +171,83 @@ it('uses the shared profile dropdown on phones, updating its selected label and 
   expect(menu.querySelector('button[aria-current="true"]')).toHaveTextContent('Renewals')
   expect(screen.getByRole('button', { name: 'Open Client renewal' })).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Open Availability request' })).not.toBeInTheDocument()
+})
+
+const renewal = { id: 'renewal-cleanup', kind: 'renewal', clientId: 'c1', recipientRole: 'owner', recipientTrainerId: 't1',
+  title: 'Renewal follow-up: Amanda Lim', body: 'Two sessions remaining.', createdAt: '2026-09-08T04:00:00Z', read: true, renewalStatus: 'active' }
+const renewalClient = { id: 'c1', trainerId: 't1' }
+function showRenewals(overrides = {}) {
+  const props = { user: { id: 'u-owner', role: 'owner' }, messages: [renewal], clients: [renewalClient],
+    category: 'renewals', onDismissRenewal: vi.fn().mockResolvedValue({ renewalStatus: 'removed' }), onMarkRead: vi.fn(), ...overrides }
+  const view = render(<ActionConfirmationProvider><MessageInbox {...props} /></ActionConfirmationProvider>)
+  return { ...view, props }
+}
+it('renewal cleanup filters completed follow-ups from the dashboard count and keeps them in All history', () => {
+  const messages = [renewal, { ...renewal, id: 'renewed', title: 'Already renewed', renewalStatus: 'renewed' }, { ...renewal, id: 'removed', title: 'Previously removed', renewalStatus: 'removed' }]
+  showRenewals({ embedded: true, messages })
+  expect(screen.getByLabelText('Total renewal follow-ups')).toHaveTextContent('1')
+  expect(screen.getByLabelText('Renewal messages').querySelectorAll('article')).toHaveLength(1)
+  cleanup(); showRenewals({ category: 'all', messages })
+  expect(screen.getByLabelText('Message list').querySelectorAll('article')).toHaveLength(3)
+  expect(screen.getByText('Renewed', { exact: true })).toBeVisible()
+  expect(screen.getByText('Removed from renewals', { exact: true })).toBeVisible()
+})
+it('renewal cleanup confirms row removal without opening the message and Cancel preserves the list', async () => {
+  const { props } = showRenewals()
+  fireEvent.click(screen.getByRole('button', { name: `Remove ${renewal.title} from renewals` }))
+  const confirm = within(await screen.findByRole('dialog', { name: 'Remove renewal follow-up?' }))
+  expect(screen.queryByRole('dialog', { name: renewal.title })).not.toBeInTheDocument()
+  expect(props.onMarkRead).not.toHaveBeenCalled()
+  fireEvent.click(confirm.getByRole('button', { name: 'Cancel', exact: true }))
+  expect(props.onDismissRenewal).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: `Open ${renewal.title}` })).toBeVisible()
+})
+it('renewal cleanup removes from the popup once and closes only its own history entry', async () => {
+  let finish
+  const onDismissRenewal = vi.fn(() => new Promise(resolve => { finish = resolve }))
+  const { props } = showRenewals({ embedded: true, onDismissRenewal })
+  const preview = within(screen.getByLabelText('Renewal messages'))
+  expect(preview.getAllByRole('button')).toHaveLength(2)
+  expect(preview.queryByRole('button', { name: `Remove ${renewal.title} from renewals` })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: `Open ${renewal.title}` }))
+  const popup = within(await screen.findByRole('dialog', { name: renewal.title }))
+  const back = vi.spyOn(history, 'back').mockImplementation(() => {})
+  fireEvent.click(popup.getByRole('button', { name: `Remove ${renewal.title} from renewals` }))
+  const confirm = within(await screen.findByRole('dialog', { name: 'Remove renewal follow-up?' }))
+  await act(async () => fireEvent.click(confirm.getByRole('button', { name: 'Remove', exact: true })))
+  expect(popup.getByRole('button', { name: `Remove ${renewal.title} from renewals` })).toBeDisabled()
+  await act(async () => finish({ renewalStatus: 'removed' }))
+  expect(props.onDismissRenewal).toHaveBeenCalledExactlyOnceWith(renewal.id)
+  expect(screen.queryByRole('dialog', { name: renewal.title })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: `Open ${renewal.title}` })).not.toBeInTheDocument()
+  expect(back).toHaveBeenCalledTimes(1); back.mockRestore()
+})
+it('renewal cleanup keeps a failed removal retryable and hides only after confirmed success', async () => {
+  const onDismissRenewal = vi.fn().mockRejectedValueOnce(new Error('Storage full')).mockResolvedValueOnce({ renewalStatus: 'removed' })
+  showRenewals({ onDismissRenewal })
+  for (let attempt = 0; attempt < 2; attempt++) {
+    fireEvent.click(screen.getByRole('button', { name: `Remove ${renewal.title} from renewals` }))
+    const confirm = within(await screen.findByRole('dialog', { name: 'Remove renewal follow-up?' }))
+    await act(async () => fireEvent.click(confirm.getByRole('button', { name: 'Remove', exact: true })))
+    if (attempt === 0) {
+      expect(screen.getByRole('alert')).toHaveTextContent('Storage full')
+      expect(screen.getByRole('button', { name: `Open ${renewal.title}` })).toBeVisible()
+    }
+  }
+  expect(onDismissRenewal).toHaveBeenCalledTimes(2)
+  expect(screen.queryByRole('button', { name: `Open ${renewal.title}` })).not.toBeInTheDocument()
+})
+it('renewal cleanup hides Remove after trainer reassignment while preserving the historical message', () => {
+  showRenewals({ user: { id: 'u-marcus', role: 'trainer', trainerId: 't1' }, clients: [{ ...renewalClient, trainerId: 't2' }] })
+  expect(screen.getByRole('button', { name: `Open ${renewal.title}` })).toBeVisible()
+  expect(screen.queryByRole('button', { name: `Remove ${renewal.title} from renewals` })).not.toBeInTheDocument()
+})
+it('renewal cleanup does not submit a confirmation after its initiating control unmounts', async () => {
+  const onDismiss = vi.fn()
+  const view = render(<ActionConfirmationProvider><RenewalDismissal message={renewal} onDismiss={onDismiss} /></ActionConfirmationProvider>)
+  fireEvent.click(screen.getByRole('button', { name: `Remove ${renewal.title} from renewals` }))
+  const confirm = within(await screen.findByRole('dialog', { name: 'Remove renewal follow-up?' }))
+  view.rerender(<ActionConfirmationProvider>{null}</ActionConfirmationProvider>)
+  await act(async () => fireEvent.click(confirm.getByRole('button', { name: 'Remove', exact: true })))
+  expect(onDismiss).not.toHaveBeenCalled()
 })

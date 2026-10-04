@@ -37,6 +37,10 @@ function set(record, path, value) {
 const envelope = value => value === undefined ? [] : [value]
 const requestState = message => ({ status: message.status, request: message.request, decidedAt: message.decidedAt, cancelledAt: message.cancelledAt })
 const sessionRequest = message => message.request && ['session_time', 'session_trainer', 'session_postpone', 'fixed_weekly_schedule'].includes(message.request.type)
+// Older releases journalled completion. Retain that evidence, but never offer
+// or execute its inverse, including a no-show-to-signature correction.
+const changesAcknowledgement = entry => entry.operation === 'session.acknowledge' || Boolean(entry.debits?.length) ||
+  entry.sessions.some(change => !same(change.before?.acknowledgement ?? null, change.after?.acknowledgement ?? null))
 
 /** Journal the domain transaction, including indirect bulk session changes. */
 export function mutateSessionRecords(actor, operation, mutator) {
@@ -46,6 +50,7 @@ export function mutateSessionRecords(actor, operation, mutator) {
     mutator(db)
     staff = requireMutationActor(before, actor)
   }, db => {
+    if (operation === 'session.acknowledge') return
     const sessions = [...new Set([...before.sessions, ...db.sessions].map(item => item.id))].flatMap(sessionId => {
       const previous = before.sessions.find(item => item.id === sessionId), next = db.sessions.find(item => item.id === sessionId)
       return same(previous, next) ? [] : [{ id: sessionId, position: before.sessions.findIndex(item => item.id === sessionId), before: previous ?? null, after: next ? clone(next) : null }]
@@ -56,19 +61,11 @@ export function mutateSessionRecords(actor, operation, mutator) {
     const lifecycle = ['client.deactivate', 'client.deactivatePackage', 'client.reactivate', 'trainer.reactivate'].includes(operation)
     if (!sessions.length && !proposals.length && !lifecycle) return
     const patches = []
-    const debits = (db.packageCreditTransactions ?? []).filter(item => item.type === 'session_debit' && !(before.packageCreditTransactions ?? []).some(old => old.id === item.id))
     for (const collection of ['clients', 'trainers', 'users']) {
       for (const recordId of new Set([...before[collection], ...db[collection]].map(item => item.id))) {
         const previous = before[collection].find(item => item.id === recordId), next = db[collection].find(item => item.id === recordId)
         const previousState = recordState(previous), nextState = recordState(next)
-        // Credits have a compensating ledger entry, including purchases in arrays.
-        // Compare with the same usage so an inverse never restores an old total.
-        const comparable = clone(previousState)
-        if (collection === 'clients' && comparable && nextState) for (const debit of debits.filter(item => item.clientId === recordId)) {
-          const purchase = clientPackages(comparable).find(item => item.id === debit.packageId)
-          if (purchase) purchase.used = clientPackages(nextState).find(item => item.id === debit.packageId)?.used
-        }
-        const deltas = differences(comparable, nextState)
+        const deltas = differences(previousState, nextState)
         if (deltas.length) patches.push({ collection, id: recordId, deltas })
       }
     }
@@ -81,8 +78,7 @@ export function mutateSessionRecords(actor, operation, mutator) {
     const dependencies = db.sessions.filter(session => !sessions.some(change => change.id === session.id) && patches.some(patch =>
       patch.collection === 'clients' && patch.id === session.clientId || patch.collection === 'trainers' && patch.id === session.trainerId)).map(session => ({ id: session.id, state: sessionState(session) }))
     const entry = { id: operationId, operation, actor: { id: staff.id, name: staff.name, role: staff.role, ...(staff.trainerId ? { trainerId: staff.trainerId } : {}) },
-      committedAt, expiresAt: new Date(Date.parse(committedAt) + DAY).toISOString(), sessions, patches, debits: clone(debits),
-      creditUsage: Object.fromEntries(debits.map(debit => [debit.id, clientPackages(db.clients.find(item => item.id === debit.clientId)).find(item => item.id === debit.packageId).used - clientPackages(before.clients.find(item => item.id === debit.clientId)).find(item => item.id === debit.packageId).used])),
+      committedAt, expiresAt: new Date(Date.parse(committedAt) + DAY).toISOString(), sessions, patches,
       requests: changedRequests, proposals: proposals.map(message => ({ id: message.id, after: requestState(message) })), dependencies,
       messageIds: created.map(message => message.id), status: 'available' }
     db.sessionMutations ??= []
@@ -122,6 +118,7 @@ function requireUndoAuthority(db, entry, actor) {
 export function requireUndoReady(db, entry, actor, now = new Date()) {
   if (!entry) throw new Error('This message has no recoverable session change.')
   requireUndoAuthority(db, entry, actor)
+  if (changesAcknowledgement(entry)) throw new Error('Acknowledgements cannot be undone.')
   if (entry.status === 'undone') return
   if (Date.parse(entry.expiresAt) <= +now) throw new Error('Undo expired. Changes can only be undone within 24 hours.')
   for (const change of entry.sessions) {
@@ -152,7 +149,7 @@ export function requireUndoReady(db, entry, actor, now = new Date()) {
 
 export function mutationForMessage(db, message, actor, now = new Date()) {
   const entry = db.sessionMutations?.find(item => item.id === message.mutationId)
-  if (!entry) return null
+  if (!entry || changesAcknowledgement(entry)) return null
   const result = { id: entry.id, expiresAt: entry.expiresAt, status: entry.status, count: entry.sessions.length,
     ...(entry.operation === 'session.markWhatsAppOpened' ? { notice: 'Undo only corrects this record. It cannot recall a WhatsApp message.' } : {}) }
   if (entry.status === 'undone') return { ...result, undoneAt: entry.undoneAt }
@@ -186,16 +183,8 @@ export function reverseSessionMutation(db, entry, actor) {
       const restored = clone(change.before)
       if (current?.acknowledgementHistory?.length) restored.acknowledgementHistory = clone(current.acknowledgementHistory)
       if (current?.acknowledgementReversals?.length) restored.acknowledgementReversals = clone(current.acknowledgementReversals)
-      if (current && !same(current.acknowledgement, restored.acknowledgement)) restored.acknowledgementReversals = [...(restored.acknowledgementReversals ?? []), { operationId: entry.id, at, by: staff.id, acknowledgement: clone(current.acknowledgement ?? null) }]
       db.sessions.splice(Math.max(0, change.position), 0, restored)
     }
-  }
-  for (const debit of entry.debits) {
-    const client = db.clients.find(item => item.id === debit.clientId), purchased = client && clientPackages(client).find(item => item.id === debit.packageId)
-    if (!purchased || purchased.used < 1 || !db.packageCreditTransactions.some(item => same(item, debit))) throw new Error('The package credit changed. Review it before Undo.')
-    if (db.packageCreditTransactions.some(item => item.type === 'session_reversal' && item.debitId === debit.id)) throw new Error('The credit has already been reversed.')
-    db.packageCreditTransactions.push({ id: `reversal-${entry.id}-${debit.id}`, type: 'session_reversal', debitId: debit.id, sessionId: debit.sessionId, clientId: debit.clientId, packageId: debit.packageId, amount: 1, createdAt: at })
-    purchased.used -= entry.creditUsage?.[debit.id] ?? 1
   }
   // Keep historical evidence even when the current status/assignment is reversed.
   const mergeHistory = (earlier = [], later = []) => [...earlier, ...later.filter(item => !earlier.some(old => same(old, item)))]

@@ -4,6 +4,8 @@ import { managesOperations } from '../../app/permissions.js'
 import usePageState from '../../hooks/usePageState.js'
 import RequestStatusBadge from './RequestStatusBadge.jsx'
 import RequestReview from './RequestReview.jsx'
+import RenewalDismissal from './RenewalDismissal.jsx'
+import { canDismissRenewal } from '../../app/renewals.js'
 import MessageUndo from './MessageUndo.jsx'
 import { requestTypes } from '../../app/requestTypes.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -51,8 +53,10 @@ export function MessageInbox({
   onResolveRequest,
   onCancelRequest,
   onUndo,
+  onDismissRenewal,
   onOpenRelated,
 }) {
+  const [renewalStates, setRenewalStates] = useState({})
   const [selectedId, setSelectedId] = useState(() =>
     history.state?.fitfinityOverlay === 'message'
       ? history.state?.messageId ?? null
@@ -69,8 +73,8 @@ export function MessageInbox({
   const [toDate, setToDate] = usePageState('MessagesPage.toDate', '')
 
   const userMessages = useMemo(
-    () => orderMessages(messages.filter(message => messageVisibleTo(user, message))),
-    [messages, user],
+    () => orderMessages(messages.filter(message => messageVisibleTo(user, message)).map(message => renewalStates[message.id] ? { ...message, renewalStatus: renewalStates[message.id] } : message)),
+    [messages, user, renewalStates],
   )
   const visible = useMemo(
     () => filterMessages(userMessages, { query, from: fromDate, to: toDate, category, timeZone }),
@@ -145,6 +149,17 @@ export function MessageInbox({
       setSelectedId(null)
     }
   }, [])
+
+  const dismissRenewal = async id => {
+    const result = await onDismissRenewal(id)
+    if (!mounted.current) return
+    setRenewalStates(current => ({ ...current, [id]: result?.renewalStatus ?? 'removed' }))
+    if (history.state?.fitfinityOverlay === 'message' && history.state.messageId === id) {
+      setSelectedId(null); closeMessage()
+    }
+  }
+  const removeAction = message => onDismissRenewal && canDismissRenewal(user, message, clients.find(client => client.id === message.clientId))
+    ? <RenewalDismissal key={`${user.id}:${message.id}`} message={message} onDismiss={dismissRenewal} /> : null
 
   const markSelectedUnread = async () => {
     if (!selected || markingUnread.current) return
@@ -258,6 +273,8 @@ export function MessageInbox({
               >
                 {message.read ? 'Read' : 'Unread'}
               </button>
+              {!embedded && category === 'renewals' && removeAction(message)}
+              {!embedded && message.renewalStatus && message.renewalStatus !== 'active' && <span className="renewal-closed-status">{message.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</span>}
               {!embedded && message.undo && <MessageUndo key={`${user.id}:${message.undo.id}`} message={message} timeZone={timeZone} onUndo={onUndo} />}
             </article>
           ))}
@@ -342,6 +359,8 @@ export function MessageInbox({
               </div>
               <div className="modal-actions message-popup-actions">
                 {messageError && <p role="alert">{messageError}</p>}
+                {removeAction(selected)}
+                {selected.renewalStatus && selected.renewalStatus !== 'active' && <span role="status">{selected.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</span>}
                 <button type="button" className="secondary-button" disabled={unreadBusy} onClick={markSelectedUnread}>
                   {unreadBusy ? 'Marking…' : 'Mark as Unread'}
                 </button>

@@ -33,6 +33,7 @@ export function filterMessages(messages, { query = '', from = '', to = '', categ
   const term = query.trim().toLowerCase()
 
   return messages.filter(message => {
+    if (category === 'renewals' && ['renewed', 'removed'].includes(message.renewalStatus)) return false
     if (category !== 'all' && messageCategory(message) !== category) return false
     const content = `${message.title ?? ''} ${message.body ?? ''}`.toLowerCase()
     const createdDate = dateKey(message.createdAt, timeZone)

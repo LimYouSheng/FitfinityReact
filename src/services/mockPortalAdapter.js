@@ -1,5 +1,6 @@
 import { managesOperations } from '../app/permissions.js'
 import { adminProjection } from '../app/adminProjection.js'
+import { renewalStatus } from '../app/renewals.js'
 import { businessClock } from '../app/clock.js'
 import { payCycle } from '../app/remuneration.js'
 import { authService, MOCK_SESSION_KEY } from './authService.js'
@@ -46,7 +47,7 @@ export const mockPortalAdapter = {
       if (user.role !== 'trainer' || message.recipientTrainerId !== user.trainerId || original?.request.trainerId !== user.trainerId) return message
       return { ...message, request: structuredClone(original.request), status: original.status,
         ...(original.cancelledAt ? { cancelledAt: original.cancelledAt, cancelledBy: structuredClone(original.cancelledBy) } : {}) }
-    }).map(message => ({ ...messageForUser(message, user), ...(messageVisibleTo(user, message) && message.mutationId ? { undo: mutationForMessage(db, message, user) } : {}) }))
+    }).map(message => ({ ...messageForUser(message, user), ...(message.kind === 'renewal' ? { renewalStatus: renewalStatus(message, db.clients.find(client => client.id === message.clientId)) } : {}), ...(messageVisibleTo(user, message) && message.mutationId ? { undo: mutationForMessage(db, message, user) } : {}) }))
     delete db.sessionMutations
     const data = { ...db, ...(user.role === 'admin' ? {} : { remunerationViews: remunerationService.list(user).map(view => ({ ...view, cycle: payCycle(view.key, policy.remuneration) })) }), contentEntries: managesOperations(user) ? db.contentEntries ?? [] : [], exerciseLibrary: exerciseLibraryService.getAll(user) }
     return { user, capabilities: { demoControls: true }, policy, accounts, demoPassword: mockAccountPassword, data: user.role === 'admin' ? adminProjection(data) : data }
