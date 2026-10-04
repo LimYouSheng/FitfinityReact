@@ -1,7 +1,13 @@
 import { createElement } from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { appendRenewalMessage } from '../app/renewals.js'
+import * as database from './mockDb.js'
+import { createPortalServices } from './portalService.js'
+import { mockPortalAdapter } from './mockPortalAdapter.js'
+import { MOCK_SESSION_KEY } from './authService.js'
+import { packageDraftForClient } from '../app/packageRenewal.js'
+import { filterMessages } from '../features/messages/messageFilters.js'
+import { appendRenewalMessage, renewalStatus } from '../app/renewals.js'
 import { seed } from '../data/seed.js'
 import { MessageInbox } from '../features/messages/MessagesPage.jsx'
 import { signatureFixture } from '../test/fixtures/signature.js'
@@ -239,5 +245,128 @@ describe('last-session renewal updates', () => {
       else expect(screen.getByText('No renewal messages.')).toBeVisible()
       cleanup()
     }
+  })
+})
+
+describe('renewal follow-up cleanup', () => {
+  const api = createPortalServices(mockPortalAdapter)
+  const login = (userId = 'u-owner') => localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId, expiresAt: Date.now() + 86400000 }))
+  const reminder = () => renewals(mockDb.read())[0]
+  const current = () => amanda(mockDb.read())
+  const draft = () => ({ ...packageDraftForClient(current(), mockDb.read().sessions, mockDb.read().packages, '2027-01-04'),
+    requestId: 'cleanup-renewal', startDate: '2027-01-04', packageId: 'package-12', packageVersion: 1,
+    sessionsPerWeek: 1, genderPreference: 'No gender preference' })
+  const renew = () => api.clientService.renewPackage({ id: 'c1', draft: draft() })
+  const dismiss = () => api.messageService.dismissRenewal({ id: reminder().id })
+  const projected = async () => (await api.load()).data.messages.find(item => item.id === reminder().id)
+  beforeEach(() => {
+    vi.spyOn(database, 'delay').mockResolvedValue()
+    prepare(10)
+    mockDb.mutate(db => {
+      db.users.push({ id: 'cleanup-admin', role: 'admin', status: 'active', name: 'Admin' })
+      appendRenewalMessage(db, amanda(db))
+    })
+    login()
+  })
+  it.each(['u-owner', 'cleanup-admin'])('clears a renewal immediately after Add Package by %s while preserving history and credits', async actor => {
+    login(actor)
+    const original = reminder(), before = mockDb.read()
+    await renew()
+    const message = await projected()
+    expect(message.renewalStatus).toBe('renewed')
+    expect(filterMessages([message], { category: 'renewals' })).toEqual([])
+    expect(filterMessages([message], { category: 'all' })).toEqual([message])
+    expect(current().package.id).toBe(original.renewal.clientPackageId)
+    expect(current().additionalPackages).toHaveLength(1)
+    expect(mockDb.read().packageCreditTransactions).toEqual(before.packageCreditTransactions)
+    expect(reminder()).toEqual(original)
+    mockDb.reload(); expect((await projected()).renewalStatus).toBe('renewed')
+  })
+  it('does not create a new follow-up when a later package has already been bought', () => {
+    mockDb.mutate(db => {
+      const client = amanda(db)
+      db.messages = db.messages.filter(item => item.id !== reminder().id)
+      client.additionalPackages = [{ ...client.package, id: 'already-bought', startDate: '2027-01-04', endDate: '2027-04-03', used: 0 }]
+      expect(appendRenewalMessage(db, client)).toBeNull()
+    })
+    expect(renewals(mockDb.read())).toEqual([])
+  })
+  it('does not treat inactive future purchases as renewed', () => {
+    mockDb.mutate(db => { const client = amanda(db); client.additionalPackages = [{ ...client.package, id: 'cancelled-purchase', status: 'inactive', startDate: '2027-01-04', endDate: '2027-04-03' }] })
+    expect(renewalStatus(reminder(), current())).toBe('active')
+  })
+  it('keeps the follow-up active when Add Package fails to persist', async () => {
+    const before = mockDb.read()
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage full') })
+    await expect(renew()).rejects.toThrow('Storage full')
+    expect(mockDb.read()).toEqual(before)
+    expect(renewalStatus(reminder(), current())).toBe('active')
+  })
+  it.each([false, true])('rechecks renewal eligibility after Deactivate Package (manually removed=%s)', async removed => {
+    if (removed) await dismiss()
+    await renew()
+    expect(renewalStatus(reminder(), current())).toBe(removed ? 'removed' : 'renewed')
+    const packageId = current().additionalPackages[0].id
+    const deactivate = () => api.clientService.deactivatePackage({ id: 'c1', options: { packageId } })
+    const before = mockDb.read()
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage full') })
+    await expect(deactivate()).rejects.toThrow('Storage full')
+    expect(mockDb.read()).toEqual(before)
+    expect((await projected()).renewalStatus).toBe(removed ? 'removed' : 'renewed')
+    await deactivate(); mockDb.reload()
+    expect((await projected()).renewalStatus).toBe(removed ? 'removed' : 'active')
+    expect(mockDb.read().sessions).toEqual(before.sessions)
+    expect(mockDb.read().packageCreditTransactions).toEqual(before.packageCreditTransactions)
+  })
+  it('permits a new reminder for the next package without reviving the previous reminder', async () => {
+    await dismiss(); const original = reminder(); await renew()
+    vi.setSystemTime(new Date('2027-01-04T04:00:00Z')); login(); mockDb.reload()
+    mockDb.mutate(db => { amanda(db).package.used = 10; appendRenewalMessage(db, amanda(db)) })
+    const messages = renewals(mockDb.read())
+    expect(messages).toHaveLength(2)
+    expect(renewalStatus(messages[0], current())).toBe('removed')
+    expect(renewalStatus(messages[1], current())).toBe('active')
+    expect(messages[1].renewal.clientPackageId).not.toBe(original.renewal.clientPackageId)
+  })
+  it.each(['u-owner', 'cleanup-admin', 'u-marcus'])('persists manual removal by %s without changing the client or sessions', async actor => {
+    login(actor); const before = mockDb.read(), original = reminder()
+    const result = await dismiss()
+    expect(result).toMatchObject({ id: original.id, renewalStatus: 'removed', renewalDismissal: { by: { id: actor }, at: expect.any(String) } })
+    expect(mockDb.read().clients).toEqual(before.clients)
+    expect(mockDb.read().sessions).toEqual(before.sessions)
+    expect(mockDb.read().packageCreditTransactions).toEqual(before.packageCreditTransactions)
+    expect(reminder().readBy).toEqual(original.readBy)
+    mockDb.reload(); expect((await projected()).renewalStatus).toBe('removed')
+    const saved = mockDb.read(); await dismiss(); expect(mockDb.read()).toEqual(saved)
+  })
+  it('rejects an unrelated trainer and rejects a nonrenewal message', async () => {
+    login('u-aisha'); const before = mockDb.read()
+    await expect(dismiss()).rejects.toMatchObject({ code: 'FORBIDDEN' }); expect(mockDb.read()).toEqual(before)
+    login(); mockDb.mutate(db => { db.messages.push({ id: 'ordinary', kind: 'session_update', recipientRole: 'owner', readBy: {} }) })
+    const saved = mockDb.read()
+    await expect(api.messageService.dismissRenewal({ id: 'ordinary' })).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(mockDb.read()).toEqual(saved)
+  })
+  it.each(['replacement login', 'disabled', 'reassigned'])('rejects a pending removal after %s', async reason => {
+    login('u-marcus'); let release
+    database.delay.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
+    const pending = dismiss()
+    if (reason === 'replacement login') localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-marcus', expiresAt: Date.now() + 3600000 }))
+    else mockDb.mutate(db => { if (reason === 'disabled') db.users.find(item => item.id === 'u-marcus').status = 'inactive'; else amanda(db).trainerId = 't2' })
+    const before = mockDb.read(); release()
+    await expect(pending).rejects.toThrow(); expect(mockDb.read()).toEqual(before)
+  })
+  it('preserves the list after a failed removal and permits one idempotent retry', async () => {
+    const before = mockDb.read()
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage full') })
+    await expect(dismiss()).rejects.toThrow('Storage full'); expect(mockDb.read()).toEqual(before)
+    await dismiss(); expect(renewalStatus(reminder(), current())).toBe('removed')
+    const saved = mockDb.read(); await Promise.all([dismiss(), dismiss()]); expect(mockDb.read()).toEqual(saved)
+  })
+  it('does not write a manual removal if renewal completed while confirmation was pending', async () => {
+    let release; database.delay.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
+    const pending = dismiss(); await renew(); const before = mockDb.read(); release()
+    expect((await pending).renewalStatus).toBe('renewed')
+    expect(mockDb.read()).toEqual(before); expect(reminder().renewalDismissal).toBeUndefined()
   })
 })

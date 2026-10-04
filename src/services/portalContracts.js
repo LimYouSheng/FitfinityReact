@@ -64,6 +64,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     save: contract({ 'id?': 'string', 'expectedVersion?': 'number', 'draft': 'object', 'mediaFile?': 'blob', 'removeMedia?': 'boolean' }, 'operations', 'LibraryExercise'),
   }),
   messageService: Object.freeze({
+    dismissRenewal: contract({ 'id': 'string' }, 'message', 'PersonalMessage'),
     undo: contract({ 'id': 'string' }, 'message', 'SessionUndoResult'),
     markRead: contract({ 'id': 'string' }, 'message', 'PersonalMessage'),
     markUnread: contract({ 'id': 'string' }, 'message', 'PersonalMessage'),

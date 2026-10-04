@@ -20,6 +20,23 @@ const latestMessage = () => mockDb.read().messages.findLast(item => item.mutatio
 const undo = message => api.messageService.undo({ id: (message ?? latestMessage()).id })
 const defer = () => { let release; const promise = new Promise(resolve => { release = resolve }); return { promise, release } }
 
+const acknowledgementMessage = () => mockDb.read().messages.findLast(item => item.title.startsWith('Session acknowledgement saved'))
+// Reproduce the stored journal shape from releases that allowed acknowledgement Undo.
+function legacyAcknowledgement(before, actorId = 'u-owner') {
+  const message = acknowledgementMessage()
+  mockDb.mutate(db => {
+    db.sessionMutations ??= []
+    db.sessionMutations.push({ id: 'legacy-acknowledgement', operation: 'session.acknowledge',
+      actor: structuredClone(db.users.find(item => item.id === actorId)), status: 'available',
+      committedAt: new Date(baseTime).toISOString(), expiresAt: new Date(baseTime + day).toISOString(),
+      sessions: [{ id: 's1', position: 0, before: before.sessions.find(item => item.id === 's1'), after: structuredClone(db.sessions.find(item => item.id === 's1')) }],
+      patches: [], proposals: [], requests: [], dependencies: [], messageIds: [message.id],
+      debits: db.packageCreditTransactions.filter(item => !before.packageCreditTransactions.some(prior => prior.id === item.id)) })
+    db.messages.find(item => item.id === message.id).mutationId = 'legacy-acknowledgement'
+  })
+  return mockDb.read().messages.find(item => item.id === message.id)
+}
+
 function schedule(twice = false) {
   mockDb.mutate(db => {
     const person = db.clients.find(item => item.id === 'c1')
@@ -174,25 +191,48 @@ it.each([
   await undo()
   expect(session()).toEqual(before)
 })
-it.each(['signature', 'late_no_show'])('reverses %s completion with one compensating credit and retained evidence', async method => {
+it.each(['signature', 'late_no_show'])('acknowledgement finality keeps %s completion and its credit permanent for new and old Messages', async method => {
   mockDb.mutate(db => { db.sessions[0].date = '2026-10-03' })
+  const before = mockDb.read()
   await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: method === 'signature' ? signed : { method } })
-  const original = session().acknowledgement
-  expect(client().package.used).toBe(1)
-  const message = latestMessage(); await undo(message); await undo(message)
-  expect(session().status).toBe('planned'); expect(session().acknowledgement).toBeNull()
-  expect(session().acknowledgementHistory).toContainEqual(original)
-  expect(client().package.used).toBe(0); expect(client().strengthProgress).toEqual([])
-  expect(mockDb.read().packageCreditTransactions.map(item => item.amount)).toEqual([-1, 1])
-  expect(hasSessionDebit(mockDb.read().packageCreditTransactions, 's1')).toBe(false)
+  const message = acknowledgementMessage(), completed = mockDb.read()
+  expect(session().status).toBe('completed'); expect(client().package.used).toBe(1)
+  expect(completed.sessionMutations?.some(item => item.operation === 'session.acknowledge') ?? false).toBe(false)
+  expect((await api.load()).data.messages.find(item => item.id === message.id).undo).toBeUndefined()
+  await expect(undo(message)).rejects.toThrow('no recoverable session change')
+  expect(mockDb.read()).toEqual(completed)
+  const legacy = legacyAcknowledgement(before), stored = mockDb.read()
+  expect((await api.load()).data.messages.find(item => item.id === legacy.id).undo).toBeNull()
+  await expect(undo(legacy)).rejects.toThrow('Acknowledgements cannot be undone')
+  expect(mockDb.read()).toEqual(stored)
+  expect(hasSessionDebit(stored.packageCreditTransactions, 's1')).toBe(true)
 })
-it('reverses a no-show-to-signature correction without issuing a credit', async () => {
+it('acknowledgement finality permits no-show-to-signature correction without another credit or a reversible correction', async () => {
   mockDb.mutate(db => { db.sessions[0].date = '2026-10-03' })
   await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: { method: 'late_no_show' } })
+  const before = mockDb.read()
   await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: signed })
-  await undo()
-  expect(session().acknowledgement.method).toBe('late_no_show'); expect(session().acknowledgementHistory).toHaveLength(2)
+  const message = acknowledgementMessage()
+  expect((await api.load()).data.messages.find(item => item.id === message.id).undo).toBeUndefined()
+  expect(session().acknowledgement.method).toBe('signature'); expect(session().acknowledgementHistory).toHaveLength(2)
+  expect(session().acknowledgementHistory[0]).toEqual(before.sessions[0].acknowledgement)
   expect(client().package.used).toBe(1); expect(mockDb.read().packageCreditTransactions).toHaveLength(1)
+  const legacy = legacyAcknowledgement(before), stored = mockDb.read()
+  expect((await api.load()).data.messages.find(item => item.id === legacy.id).undo).toBeNull()
+  await expect(undo(legacy)).rejects.toThrow('Acknowledgements cannot be undone')
+  await expect(api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: { method: 'late_no_show' } })).rejects.toThrow('permanent')
+  expect(mockDb.read()).toEqual(stored)
+})
+it.each(['u-owner', 'undo-admin', 'u-marcus'])('acknowledgement finality refuses legacy Undo by %s after reload', async actor => {
+  mockDb.mutate(db => { db.sessions[0].date = '2026-10-03' }); login('u-marcus')
+  const before = mockDb.read()
+  await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: signed })
+  const legacy = legacyAcknowledgement(before, 'u-marcus')
+  login(actor); mockDb.reload()
+  const stored = mockDb.read()
+  expect((await api.load()).data.messages.find(item => item.id === legacy.id).undo).toBeNull()
+  await expect(undo(legacy)).rejects.toThrow('Acknowledgements cannot be undone')
+  expect(mockDb.read()).toEqual(stored)
 })
 it.each([-1, 0, 1])('enforces the exact 24-hour boundary (%s ms)', async offset => {
   await api.sessionService.saveClientSummary({ sessionId: 's1', summary: 'Changed' })
@@ -238,8 +278,7 @@ it('blocks restoring a now occupied slot without partial changes', async () => {
   const before = mockDb.read(); await expect(undo(message)).rejects.toThrow('conflicts'); expect(mockDb.read()).toEqual(before)
 })
 it('blocks a reversal affecting an approved pay cycle without altering pay or credits', async () => {
-  mockDb.mutate(db => { db.sessions[0].date = '2026-10-03' })
-  await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: signed })
+  await api.sessionService.updateDetails({ sessionId: 's1', patch: { date: '2026-10-06', from: '11:00', to: '12:00', trainerId: 't1' } })
   const message = latestMessage()
   mockDb.mutate(db => { db.remunerationApprovals = [{ trainerId: 't1', cycle: { key: '2026-10' }, amountCents: 9000 }] })
   const before = mockDb.read(); await expect(undo(message)).rejects.toThrow('approved remuneration'); expect(mockDb.read()).toEqual(before)
@@ -296,27 +335,42 @@ it('reverses weekly schedule edits and client deactivation as complete operation
   await api.clientService.deactivate({ id: 'c1' }); await undo()
   expect(client().status).toBe('active'); expect(client().package.status).toBe('active')
 })
-it('requires a fresh acknowledgement after Undo and consumes exactly one credit on re-completion', async () => {
+it('acknowledgement finality preserves already-reopened legacy history and requires fresh completion', async () => {
   mockDb.mutate(db => { db.sessions[0].date = '2026-10-03' })
-  await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: signed }); await undo()
   const before = mockDb.read()
+  await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: signed })
+  const legacy = legacyAcknowledgement(before)
+  mockDb.mutate(db => {
+    const completed = db.sessions[0], debit = db.packageCreditTransactions[0]
+    completed.acknowledgementReversals = [{ operationId: legacy.mutationId, at: new Date(baseTime).toISOString(), by: 'u-owner', acknowledgement: structuredClone(completed.acknowledgement) }]
+    completed.acknowledgement = null; completed.status = 'planned'
+    db.clients.find(item => item.id === 'c1').package.used = 0
+    db.packageCreditTransactions.push({ id: 'legacy-credit-reversal', type: 'session_reversal', debitId: debit.id, sessionId: 's1', clientId: 'c1', packageId: debit.packageId, amount: 1, createdAt: new Date(baseTime).toISOString() })
+    db.sessionMutations.find(item => item.id === legacy.mutationId).status = 'undone'
+  })
+  mockDb.reload(); const reopened = mockDb.read()
+  await expect(undo(legacy)).rejects.toThrow('Acknowledgements cannot be undone')
   await expect(api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: signed })).rejects.toThrow('reopened')
-  expect(mockDb.read()).toEqual(before)
-  const acknowledgement = { ...signed, reversalId: session().acknowledgementReversals.at(-1).operationId }
+  expect(mockDb.read()).toEqual(reopened)
+  const acknowledgement = { ...signed, reversalId: legacy.mutationId }
   await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement })
   await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement })
   expect(client().package.used).toBe(1)
   expect(mockDb.read().packageCreditTransactions.map(item => item.amount)).toEqual([-1, 1, -1])
   expect(new Set(mockDb.read().packageCreditTransactions.map(item => item.id)).size).toBe(3)
-  expect(client().strengthProgress[0].points).toHaveLength(1)
+  expect(session().acknowledgementHistory).toHaveLength(2)
+  expect((await api.load()).data.messages.find(item => item.id === acknowledgementMessage().id).undo).toBeUndefined()
 })
-it('completion Undo preserves credits consumed by another session in the same package', async () => {
+it('acknowledgement finality preserves credits consumed by both sessions when Undo is attempted', async () => {
   mockDb.mutate(db => { db.sessions[0].date = '2026-10-03'; db.sessions[1].date = '2026-10-02' })
-  await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: signed }); const first = latestMessage()
+  await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: signed }); const first = acknowledgementMessage()
   await api.sessionService.acknowledge({ sessionId: 's2', acknowledgement: { method: 'late_no_show' } })
-  await undo(first)
-  expect(client().package.used).toBe(1); expect(session('s2').status).toBe('completed')
-  expect(hasSessionDebit(mockDb.read().packageCreditTransactions, 's2')).toBe(true)
+  const completed = mockDb.read()
+  await expect(undo(first)).rejects.toThrow('no recoverable session change')
+  expect(mockDb.read()).toEqual(completed)
+  expect(client().package.used).toBe(2); expect(session('s2').status).toBe('completed')
+  expect(hasSessionDebit(completed.packageCreditTransactions, 's1')).toBe(true)
+  expect(hasSessionDebit(completed.packageCreditTransactions, 's2')).toBe(true)
 })
 it('rechecks expiry after asynchronous media recovery and commits nothing late', async () => {
   mockDb.mutate(db => { db.sessions[0].exercisePlan[0] = { id: 'row', name: 'Row', videoAttached: true, video: { id: 'old-video', attachedAt: new Date(baseTime).toISOString(), expiresAt: new Date(baseTime + 7 * day).toISOString() } } })
@@ -361,15 +415,18 @@ it('does not reverse a session underneath a newly pending change request', async
   await api.sessionService.requestTimeChange({ sessionId: 's1', patch: { date: '2026-10-06', from: '10:00', to: '11:00' } }); login()
   const before = mockDb.read(); await expect(undo(message)).rejects.toThrow('pending request'); expect(mockDb.read()).toEqual(before)
 })
-it.each(['additionalPackages', 'packageHistory'])('completion Undo restores the correct purchase inside %s', async field => {
+it.each(['additionalPackages', 'packageHistory'])('acknowledgement finality preserves the debit in %s when Undo is attempted', async field => {
   mockDb.mutate(db => {
     const person = db.clients.find(item => item.id === 'c1')
     person[field] = [{ ...person.package, id: 'separate-purchase', used: 2 }]
     Object.assign(db.sessions[0], { packageId: 'separate-purchase', date: '2026-10-03' })
   })
   await api.sessionService.acknowledge({ sessionId: 's1', acknowledgement: signed })
-  expect(client()[field][0].used).toBe(3); await undo()
-  expect(client()[field][0].used).toBe(2); expect(client().package.used).toBe(0)
+  expect(client()[field][0].used).toBe(3)
+  const completed = mockDb.read()
+  await expect(undo(acknowledgementMessage())).rejects.toThrow('no recoverable session change')
+  expect(mockDb.read()).toEqual(completed)
+  expect(client()[field][0].used).toBe(3); expect(client().package.used).toBe(0)
 })
 it('preserves the deactivation history when a package is restored by Undo', async () => {
   await api.clientService.deactivatePackage({ id: 'c1', options: { packageId: client().package.id } }); await undo()

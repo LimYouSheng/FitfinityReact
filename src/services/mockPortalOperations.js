@@ -72,6 +72,7 @@ export const mockPortalOperations = {
     save: (input, { actor }) => exerciseLibraryService.save(input, actor),
   },
   messageService: {
+    dismissRenewal: ({ id }, { actor }) => messageService.dismissRenewal(id, actor),
     undo: ({ id }, { actor }) => messageService.undo(id, actor),
     markRead: ({ id }, { actor }) => messageService.markRead(id, actor),
     markUnread: ({ id }, { actor }) => messageService.markUnread(id, actor),

@@ -1,4 +1,28 @@
+import { clientPackages } from './clientPackages.js'
+import { managesOperations } from './permissions.js'
+
 const packageIdFor = client => client.package.id ?? `legacy-package-${client.id}-${client.package.startDate}`
+
+// Future purchases count as renewed immediately; inactive purchases do not.
+function hasNextPackage(client, purchased) {
+  return Boolean(purchased?.endDate && clientPackages(client).some(next => next.id !== purchased.id &&
+    next.status !== 'inactive' && next.startDate > purchased.endDate))
+}
+
+export function renewalStatus(message, client) {
+  if (message.kind !== 'renewal') return null
+  if (message.renewalDismissal) return 'removed'
+  if (!client) return 'active'
+  const purchased = message.renewal?.clientPackageId
+    ? clientPackages(client).find(item => item.id === message.renewal.clientPackageId)
+    : client.package
+  return hasNextPackage(client, purchased) ? 'renewed' : 'active'
+}
+
+export function canDismissRenewal(user, message, client) {
+  return message?.kind === 'renewal' && (!message.renewalStatus || message.renewalStatus === 'active') &&
+    (managesOperations(user) || (user?.role === 'trainer' && Boolean(user.trainerId) && client?.trainerId === user.trainerId))
+}
 
 export function appendRenewalMessage(db, client, createdAt = new Date().toISOString()) {
   const purchased = client.package
@@ -12,7 +36,7 @@ export function appendRenewalMessage(db, client, createdAt = new Date().toISOStr
     && message.renewal?.type === 'last_sessions' && message.renewal.clientPackageId === clientPackageId)
   if (existing) return existing
   const remaining = purchased.total - purchased.used
-  if (remaining !== threshold) return null
+  if (remaining !== threshold || hasNextPackage(client, purchased)) return null
 
   const message = {
     id: `renewal-${encodeURIComponent(clientPackageId)}`,

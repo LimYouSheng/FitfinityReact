@@ -205,11 +205,26 @@ describe('session detail confirmations', () => {
     const confirmation = screen.getByRole('dialog', { name: 'Complete this session?' })
     expect(confirmation).toBeVisible()
     expect(confirmation).toHaveTextContent('WhatsApp is optional')
+    expect(confirmation).toHaveTextContent('It cannot be undone')
+    expect(confirmation).not.toHaveTextContent('Undo is available')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Complete Session' }))
     await waitFor(() => expect(props.onAcknowledge).toHaveBeenCalledOnce())
     expect(props.onAcknowledge).toHaveBeenCalledWith(expect.objectContaining({ method: 'signature', signerName: 'Amanda Lim' }))
     expect(props.onSaveOutcome).not.toHaveBeenCalled()
     expect(props.onMarkWhatsAppOpened).not.toHaveBeenCalled()
+  })
+
+  it('acknowledgement finality warns that a no-show cannot be undone and permits cancelling confirmation', async () => {
+    const props = renderDetails()
+    fireEvent.click(screen.getByRole('button', { name: 'Client Signature' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Record late / no-show instead' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Completion' }))
+    const confirmation = screen.getByRole('dialog', { name: 'Complete this session?' })
+    expect(confirmation).toHaveTextContent('It cannot be undone')
+    expect(confirmation).toHaveTextContent('correct it to a client signature without another credit deduction')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel', exact: true }))
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Trainer late / no-show' })).toBeVisible())
+    expect(props.onAcknowledge).not.toHaveBeenCalled()
   })
 
   it('shows preserved acknowledgement timestamps and a read-only signature while no-show can only be corrected to a signature', () => {
@@ -376,7 +391,7 @@ it('cancels a postponement preview without writing and disables Postpone after t
   renderDetails(); expect(screen.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
 })
 
-it('shows the original signer and timestamp when viewing evidence after completion Undo', async () => {
+it('acknowledgement finality retains original signature evidence from a historical reversal', async () => {
   const evidence = { method: 'signature', signerName: 'Original Signer', recordedAt: '2026-09-02T11:00:00Z', signature: signatureFixture }
   renderDetails({ session: { ...session, acknowledgement: null, acknowledgementHistory: [evidence],
     acknowledgementReversals: [{ operationId: 'reversal-1', at: '2026-09-02T12:00:00Z', acknowledgement: evidence }] } })

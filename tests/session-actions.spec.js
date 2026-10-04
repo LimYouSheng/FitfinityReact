@@ -1,4 +1,5 @@
-import { test, expect, waitForPortal, selectDemoIdentity } from './fixtures.js'
+import { test, expect, waitForPortal, selectDemoIdentity, drawClientSignature } from './fixtures.js'
+import { signatureFixture } from '../src/test/fixtures/signature.js'
 import { createDemoSeed } from '../src/data/seed.js'
 
 const KEY = 'fitfinity-m2-demo-db-v4'
@@ -37,7 +38,11 @@ async function postpone(page, isMobile) {
   await activate(dialog.getByRole('button', { name: 'Confirm Postponement', exact: true }), isMobile)
   await expect(dialog).toHaveCount(0); await waitForPortal(page)
 }
-async function messages(page) { await page.goto('/#/messages'); await waitForPortal(page) }
+async function messages(page) {
+  await page.goto('/#/messages'); await waitForPortal(page)
+  await expect(page).toHaveURL(/#\/messages$/)
+  await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible()
+}
 async function reverse(page, isMobile, row) {
   const title = await row.getByRole('button', { name: /^Open / }).getAttribute('aria-label')
   const stableRow = page.locator('.message-title-row').filter({ has: page.getByRole('button', { name: title, exact: true }) })
@@ -103,25 +108,89 @@ test('session actions: supervised postponement is approved then reversed without
   expect(after.messages.find(item => item.request?.type === 'session_postpone').status).toBe('reversed')
 })
 
-test('session actions: completion Undo restores credit and retains acknowledgement history', async ({ page, isMobile }) => {
+for (const method of ['signature', 'late_no_show']) test(`session actions: ${method} acknowledgement is final in Messages`, async ({ page, isMobile }) => {
   await start(page, { past: true })
   await activate(page.getByRole('button', { name: 'Client Signature', exact: true }), isMobile)
-  await activate(page.getByRole('button', { name: 'Record late / no-show instead', exact: true }), isMobile)
-  await activate(page.getByRole('dialog', { name: 'Trainer late / no-show', exact: true }).getByRole('button', { name: 'Review Completion', exact: true }), isMobile)
-  await activate(page.getByRole('dialog', { name: 'Complete this session?', exact: true }).getByRole('button', { name: 'Complete Session', exact: true }), isMobile)
+  if (method === 'signature') await drawClientSignature(page)
+  else await activate(page.getByRole('button', { name: 'Record late / no-show instead', exact: true }), isMobile)
+  await activate(page.getByRole('button', { name: 'Review Completion', exact: true }), isMobile)
+  const confirmation = page.getByRole('dialog', { name: 'Complete this session?', exact: true })
+  await expect(confirmation).toContainText('It cannot be undone')
+  await activate(confirmation.getByRole('button', { name: 'Complete Session', exact: true }), isMobile)
   await expect.poll(async () => (await read(page)).sessions[0].status).toBe('completed')
   const completed = await read(page)
   expect(completed.clients.find(item => item.id === 'c1').package.used).toBe(1)
   await messages(page)
-  const row = page.locator('.message-title-row').filter({ has: page.getByRole('button', { name: /^Undo / }) })
-  await expect(row).toHaveCount(1); await reverse(page, isMobile, row)
+  const title = 'Session acknowledgement saved: Postpone Client'
+  await expect(page.getByRole('button', { name: /^Undo / })).toHaveCount(0)
+  await activate(page.getByRole('button', { name: `Open ${title}`, exact: true }), isMobile)
+  await expect(page.getByRole('dialog', { name: title, exact: true }).getByRole('button', { name: /^Undo / })).toHaveCount(0)
+  await activate(page.getByRole('button', { name: 'Close message', exact: true }), isMobile)
   await page.reload(); await waitForPortal(page)
+  await expect(page.getByRole('button', { name: /^Undo / })).toHaveCount(0)
   const after = await read(page)
-  expect(after.sessions[0].status).toBe('planned')
-  expect(after.sessions[0].acknowledgement).toBeNull()
-  expect(after.sessions[0].acknowledgementHistory).toEqual(completed.sessions[0].acknowledgementHistory)
-  expect(after.clients.find(item => item.id === 'c1').package.used).toBe(0)
-  expect(after.packageCreditTransactions.map(item => item.type)).toEqual(['session_debit', 'session_reversal'])
+  expect(after.sessions).toEqual(completed.sessions)
+  expect(after.clients.find(item => item.id === 'c1').package.used).toBe(1)
+  expect(after.packageCreditTransactions.map(item => item.type)).toEqual(['session_debit'])
+  await selectDemoIdentity(page, 'u-marcus'); await messages(page)
+  await expect(page.getByRole('button', { name: `Open ${title}`, exact: true })).toHaveCount(1)
+  await expect(page.getByRole('button', { name: /^Undo / })).toHaveCount(0)
+  await page.goto('/#/sessions/undo-s1'); await waitForPortal(page)
+  if (method === 'late_no_show') {
+    await activate(page.getByRole('button', { name: 'Correct to Client Signature', exact: true }), isMobile)
+    await drawClientSignature(page)
+    await activate(page.getByRole('button', { name: 'Review Completion', exact: true }), isMobile)
+    await expect(confirmation).toContainText('No additional credit will be used')
+    await activate(confirmation.getByRole('button', { name: 'Complete Session', exact: true }), isMobile)
+    await expect(page.getByRole('button', { name: 'View Client Signature', exact: true })).toBeVisible()
+    const corrected = await read(page)
+    expect(corrected.sessions[0].acknowledgementHistory).toHaveLength(2)
+    expect(corrected.sessions[0].acknowledgementHistory[0]).toEqual(completed.sessions[0].acknowledgement)
+    expect(corrected.packageCreditTransactions).toEqual(completed.packageCreditTransactions)
+    await messages(page)
+    await expect(page.getByRole('button', { name: `Open ${title}`, exact: true })).toHaveCount(2)
+    await expect(page.getByRole('button', { name: /^Undo / })).toHaveCount(0)
+    await page.reload(); await waitForPortal(page)
+    await expect(page.getByRole('button', { name: /^Undo / })).toHaveCount(0)
+  } else {
+    await expect(page.getByRole('button', { name: 'View Client Signature', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Correct to Client Signature', exact: true })).toHaveCount(0)
+  }
+})
+
+test('session actions: legacy acknowledgement Messages offer no Undo and preserve their evidence', async ({ page, isMobile }) => {
+  await start(page, { past: true })
+  await page.evaluate(({ key, signature }) => {
+    const data = JSON.parse(localStorage.getItem(key)), session = data.sessions[0], before = structuredClone(session)
+    const at = new Date().toISOString(), client = data.clients.find(item => item.id === 'c1')
+    session.acknowledgement = { method: 'signature', signerName: client.name, signature, note: '', recordedAt: at, recordedBy: { id: 'u-marcus', name: 'Marcus Tan', role: 'trainer' } }
+    session.acknowledgementHistory = [structuredClone(session.acknowledgement)]; session.status = 'completed'
+    client.package.used = 1
+    const debit = { id: 'legacy-debit', type: 'session_debit', sessionId: session.id, clientId: client.id, packageId: client.package.id, amount: -1, createdAt: at }
+    data.packageCreditTransactions = [debit]
+    data.messages = [{ id: 'legacy-message', title: 'Legacy acknowledgement', kind: 'saved_edit', body: 'Acknowledgement recorded.', createdAt: at,
+      recipientRole: 'owner', recipientTrainerId: 't1', sessionId: session.id, clientId: client.id, readBy: {}, mutationId: 'legacy-operation' }]
+    data.sessionMutations = [{ id: 'legacy-operation', operation: 'session.acknowledge', status: 'available',
+      actor: { id: 'u-marcus', name: 'Marcus Tan', role: 'trainer', trainerId: 't1' }, committedAt: at, expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      sessions: [{ id: session.id, position: 0, before, after: structuredClone(session) }], patches: [], debits: [debit], creditUsage: { 'legacy-debit': 1 },
+      requests: [], proposals: [], dependencies: [], messageIds: ['legacy-message'] }]
+    localStorage.setItem(key, JSON.stringify(data))
+  }, { key: KEY, signature: signatureFixture })
+  await page.reload(); await waitForPortal(page); await messages(page)
+  const before = await read(page)
+  for (const user of ['u-owner', 'u-marcus']) {
+    await selectDemoIdentity(page, user); await messages(page)
+    await expect(page.getByRole('button', { name: /^Undo / })).toHaveCount(0)
+    await activate(page.getByRole('button', { name: 'Open Legacy acknowledgement', exact: true }), isMobile)
+    const dialog = page.getByRole('dialog', { name: 'Legacy acknowledgement', exact: true })
+    await expect(dialog.getByRole('button', { name: /^Undo / })).toHaveCount(0)
+    await activate(page.getByRole('button', { name: 'Close message', exact: true }), isMobile)
+  }
+  const after = await read(page)
+  expect(after.sessions).toEqual(before.sessions)
+  expect(after.sessionMutations).toEqual(before.sessionMutations)
+  expect(after.packageCreditTransactions).toEqual(before.packageCreditTransactions)
+  expect(after.clients.find(item => item.id === 'c1').package.used).toBe(1)
 })
 
 test('session actions: summary edit Undo preserves message overlay Back navigation', async ({ page, isMobile }) => {

@@ -186,6 +186,11 @@ function StaffPortal({ navigation }) {
       await runAction(() => requestService.cancel({ id }), { message: 'Request cancelled.' })
       await reload()
     },
+    onDismissRenewal: async id => {
+      const result = await runAction(() => messageService.dismissRenewal({ id }), { message: 'Renewal follow-up removed.' })
+      try { await reload() } catch { notify({ tone: 'warning', message: 'Removed. Refresh to update the renewal list.' }) }
+      return result
+    },
     onMarkRead: async id => {
       await runAction(() => messageService.markRead({ id }), null)
       await reload()
