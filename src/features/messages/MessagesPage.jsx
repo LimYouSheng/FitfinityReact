@@ -273,7 +273,7 @@ export function MessageInbox({
               >
                 {message.read ? 'Read' : 'Unread'}
               </button>
-              {(embedded || category === 'renewals') && removeAction(message)}
+              {!embedded && category === 'renewals' && removeAction(message)}
               {!embedded && message.renewalStatus && message.renewalStatus !== 'active' && <span className="renewal-closed-status">{message.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</span>}
               {!embedded && message.undo && <MessageUndo key={`${user.id}:${message.undo.id}`} message={message} timeZone={timeZone} onUndo={onUndo} />}
             </article>

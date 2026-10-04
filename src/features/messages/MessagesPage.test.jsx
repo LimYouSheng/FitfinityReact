@@ -205,7 +205,10 @@ it('renewal cleanup confirms row removal without opening the message and Cancel 
 it('renewal cleanup removes from the popup once and closes only its own history entry', async () => {
   let finish
   const onDismissRenewal = vi.fn(() => new Promise(resolve => { finish = resolve }))
-  const { props } = showRenewals({ onDismissRenewal })
+  const { props } = showRenewals({ embedded: true, onDismissRenewal })
+  const preview = within(screen.getByLabelText('Renewal messages'))
+  expect(preview.getAllByRole('button')).toHaveLength(2)
+  expect(preview.queryByRole('button', { name: `Remove ${renewal.title} from renewals` })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: `Open ${renewal.title}` }))
   const popup = within(await screen.findByRole('dialog', { name: renewal.title }))
   const back = vi.spyOn(history, 'back').mockImplementation(() => {})

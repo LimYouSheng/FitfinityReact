@@ -1,5 +1,13 @@
 # Portal service contracts
 
+## PR #6 compact renewal-preview correction — 4 October 2026
+
+**Local acceptance (11:38 Singapore):** the user reports all **7 units / 3 inventory checks / 18 browser cases** and supporting gates passed, and authorizes publication to the same PR #6. No final success JSON was uploaded; the publisher validates the matching native receipt and all 516 source files. Accepted runtime, service contracts and tests stay unchanged; publication adds the three documentation checkpoints only. Full CI and deployment remain pending. This supersedes the native-pending status below.
+
+CI run `37171778445` for PR #6 head `43eb049bf350b0feeeeefac64e7162dc21b2f93b` passed 899 units and the backend job, but failed the same compact dashboard layout case on all three browser projects (807/810 passed). Row-level Remove expanded the preview to 74.1875px instead of its existing 44px contract. Keep only title/Read controls in the preview and retain confirmed Remove in its shared detail popup and full Renewals list. This changes only presentation and its existing regression checks; dismissal, acknowledgement, service inputs/results, persistence and authorization contracts remain unchanged.
+
+All 16 affected MessageInbox units pass after reproducing the added-control failure before the fix. Selected native rerun: **7 units / 3 inventory checks / 18 browser cases**, plus lint/health/demo/PWA checks, on the same PR branch. Native browser acceptance and full CI remain pending; full inventories remain 899 units / 86 files and 810 browser cases with unchanged other gates. The local repair performs no Git publication, dependency installation, deployment or AWS action. Earlier publication-pending checkpoints below are historical.
+
 ## Acknowledgement finality — 4 October 2026
 
 **Combined local acceptance (10:30 Singapore):** the user reports all 54 selected units / 3 inventory checks / 21 browser cases and supporting lint/health/demo/PWA checks passed after the Messages-navigation fixture correction. No new final success JSON was uploaded. Accepted source fingerprint: `0cef4b2b82c6810180ca8d5f2f464f3df3d9358297ce7e41820438cd97129a81`. The earlier `cfFVqz` failure is preserved in Journey. The prepared single-PR publisher must verify the exact source and complete matching native receipt; it carries only three documentation changes after this acceptance. No runtime, contract, timeout or retry changes occur at publication.

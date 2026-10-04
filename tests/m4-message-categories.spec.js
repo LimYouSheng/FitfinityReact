@@ -70,6 +70,10 @@ test('M4 dashboard renewal preview opens shared details and keeps read state in 
   await start(page, 'dashboard', title)
   const preview = page.getByLabel('Renewal messages')
   await expect(preview.locator('article')).toHaveCount(3)
+  for (const row of await preview.locator('article').all()) {
+    await expect(row.getByRole('button')).toHaveCount(2)
+    await expect(row.getByRole('button', { name: /^Remove / })).toHaveCount(0)
+  }
   await expect(preview.locator('time, .message-approval-status, .message-title-head')).toHaveCount(0)
   const originalViewport = page.viewportSize()
   for (const width of [320, originalViewport.width]) {
@@ -111,6 +115,7 @@ test('M4 dashboard renewal preview opens shared details and keeps read state in 
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('heading', { name: title, exact: true })).toBeVisible()
   await expect(dialog.getByText('Package follow-up.', { exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: `Remove ${title} from renewals`, exact: true })).toBeVisible()
   await expect(dialog.locator('.message-detail-meta')).toContainText('2026')
   await dialog.getByRole('button', { name: 'View Client · Nadia Koh', exact: true }).click()
   await expect(page).toHaveURL(/#\/clients\/c3$/)
