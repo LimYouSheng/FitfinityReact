@@ -24,6 +24,7 @@ export const mockPortalOperations = {
     create: ({ draft }, { actor }) => clientService.create(draft, actor),
     renewPackage: ({ id, draft }, { actor }) => clientService.renewPackage(id, draft, actor),
     deactivatePackage: ({ id, options }, { actor }) => clientService.deactivatePackage(id, options, actor),
+    reactivatePackage: ({ id, options }, { actor }) => clientService.reactivatePackage(id, options, actor),
     deletePackageSessions: ({ id, options }, { actor }) => clientService.deletePackageSessions(id, options, actor),
     update: ({ id, patch }, { actor }) => clientService.update(id, patch, actor),
     saveAssessment: ({ id, assessment }, { actor }) => clientService.saveAssessment(id, assessment, actor),

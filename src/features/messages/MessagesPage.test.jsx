@@ -237,6 +237,53 @@ it('renewal cleanup keeps a failed removal retryable and hides only after confir
   expect(onDismissRenewal).toHaveBeenCalledTimes(2)
   expect(screen.queryByRole('button', { name: `Open ${renewal.title}` })).not.toBeInTheDocument()
 })
+it.each(['space', 'deadline', 'reason', 'expired', 'undone'])('message row hit area opens from Undo %s without invoking Undo', async target => {
+  const now = Date.now(), onUndo = vi.fn()
+  const item = { ...message, undo: { id: 'row-mutation', expiresAt: new Date(now + 86400000).toISOString(), count: 1,
+    status: target === 'expired' ? 'expired' : target === 'undone' ? 'undone' : target === 'reason' ? 'blocked' : 'available',
+    ...(target === 'reason' ? { reason: 'Later session change.' } : {}) } }
+  const props = { user: { id: 'owner', role: 'owner' }, messages: [item], onMarkRead: vi.fn().mockResolvedValue(), onUndo }
+  const { container } = render(<ActionConfirmationProvider><MessageInbox {...props} /></ActionConfirmationProvider>)
+  const row = within(container.querySelector('article'))
+  const area = container.querySelector('.message-undo-action')
+  const node = target === 'space' ? area : target === 'deadline' ? row.getByText(/^Until /) :
+    target === 'reason' ? row.getByText('Later session change.') : target === 'expired' ? row.getByText('Undo expired') : row.getByText('Undone')
+  fireEvent.click(node)
+  expect(await screen.findByRole('dialog', { name: item.title, exact: true })).toBeVisible()
+  expect(props.onMarkRead).toHaveBeenCalledExactlyOnceWith(item.id)
+  expect(onUndo).not.toHaveBeenCalled()
+  expect(screen.queryByRole('dialog', { name: 'Undo session change?' })).not.toBeInTheDocument()
+})
+it('message row hit area opens from Remove section space and retry feedback', async () => {
+  for (const target of ['space', 'error']) {
+    const { props, container } = showRenewals({ messages: [{ ...renewal, read: false }], onDismissRenewal: vi.fn().mockRejectedValue(new Error('Removal unavailable')) })
+    if (target === 'error') {
+      fireEvent.click(screen.getByRole('button', { name: `Remove ${renewal.title} from renewals` }))
+      fireEvent.click(within(await screen.findByRole('dialog', { name: 'Remove renewal follow-up?' })).getByRole('button', { name: 'Remove', exact: true }))
+      await screen.findByRole('alert')
+    }
+    fireEvent.click(target === 'space' ? container.querySelector('.renewal-remove-action') : screen.getByRole('alert'))
+    expect(await screen.findByRole('dialog', { name: renewal.title, exact: true })).toBeVisible()
+    expect(props.onMarkRead).toHaveBeenCalledExactlyOnceWith(renewal.id)
+    expect(props.onDismissRenewal).toHaveBeenCalledTimes(target === 'error' ? 1 : 0)
+    cleanup(); history.replaceState({}, '', '/')
+  }
+})
+it('message row hit area keeps enabled and disabled Undo buttons separate from opening the message', async () => {
+  for (const status of ['available', 'blocked']) {
+    const onMarkRead = vi.fn(), onUndo = vi.fn()
+    const item = { ...message, undo: { id: 'button-mutation', count: 1, status, expiresAt: new Date(Date.now() + 86400000).toISOString() } }
+    render(<ActionConfirmationProvider><MessageInbox user={{ id: 'owner', role: 'owner' }} messages={[item]} onMarkRead={onMarkRead} onUndo={onUndo} /></ActionConfirmationProvider>)
+    fireEvent.click(screen.getByRole('button', { name: `Undo ${item.title}`, exact: true }))
+    expect(onMarkRead).not.toHaveBeenCalled(); expect(onUndo).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: item.title, exact: true })).not.toBeInTheDocument()
+    if (status === 'available') {
+      const dialog = within(await screen.findByRole('dialog', { name: 'Undo session change?' }))
+      fireEvent.click(dialog.getByRole('button', { name: 'Cancel', exact: true }))
+    } else expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    cleanup()
+  }
+})
 it('renewal cleanup hides Remove after trainer reassignment while preserving the historical message', () => {
   showRenewals({ user: { id: 'u-marcus', role: 'trainer', trainerId: 't1' }, clients: [{ ...renewalClient, trainerId: 't2' }] })
   expect(screen.getByRole('button', { name: `Open ${renewal.title}` })).toBeVisible()

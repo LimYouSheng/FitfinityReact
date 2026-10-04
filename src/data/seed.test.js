@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoSeed, seed } from './seed.js'
+import { createDemoSeed, normalizeDemoPackageValidity, seed } from './seed.js'
 import { buildClientSessions, trainerCoversBlock } from '../app/clientOnboarding.js'
-import { packageForRecord } from '../app/clientPackages.js'
+import { clientPackages, packageForRecord } from '../app/clientPackages.js'
+import { addDays } from '../app/clientOnboarding.js'
 import { clientProgressExercises, progressSessionSummary } from '../app/progress.js'
 
 describe('production-shaped demo data', () => {
-  it('uses only twelve-week packages with fixed ninety-day validity', () => {
+  it('uses session-count validity independently of weekly frequency for demo packages', () => {
     for (const client of seed.clients) {
       expect(client.package.durationWeeks).toBe(12)
       expect([1, 2]).toContain(client.package.sessionsPerWeek)
       expect(client.package.total).toBe(client.package.sessionsPerWeek * 12)
-      expect(client.package.validityDays).toBe(90)
+      for (const purchased of clientPackages(client)) {
+        expect(purchased.validityDays).toBe(({ 12: 90, 24: 180, 36: 270 })[purchased.total])
+        expect(purchased.endDate).toBe(addDays(purchased.startDate, purchased.validityDays - 1))
+      }
     }
   })
 
@@ -23,6 +27,23 @@ describe('production-shaped demo data', () => {
       expect(upcoming).toHaveLength(client.package.total - client.package.used)
       expect(upcoming[0]?.sessionNumber).toBe(client.package.used + 1)
       expect(upcoming.at(-1)?.sessionNumber).toBe(client.package.total)
+    }
+  })
+
+  it('corrects only the identifiable old 24-session demo purchase without rewriting custom or purchased terms', () => {
+    const client = structuredClone(seed.clients.find(item => item.package.total === 24))
+    client.package.validityDays = 90; client.package.endDate = addDays(client.package.startDate, 89)
+    const old = structuredClone(client), purchased = { ...structuredClone(client), package: { ...client.package, templateId: 'package-24' } }
+    const custom = { ...structuredClone(client), package: { ...client.package, id: 'custom-purchase' } }
+    normalizeDemoPackageValidity(client)
+    expect(client.package.validityDays).toBe(180)
+    expect(client.package.endDate).toBe(addDays(old.package.startDate, 179))
+    expect(client.package.used).toBe(old.package.used)
+    expect(client.packageHistory).toEqual(old.packageHistory)
+    const corrected = structuredClone(client)
+    normalizeDemoPackageValidity(client); expect(client).toEqual(corrected)
+    for (const record of [purchased, custom]) {
+      const before = structuredClone(record); normalizeDemoPackageValidity(record); expect(record).toEqual(before)
     }
   })
 

@@ -70,3 +70,42 @@ it('prevents a second save or dismissal while reactivation is pending', async ()
   expect(onSave).toHaveBeenCalledOnce()
   finish(); await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
 })
+
+it('package reactivation reviews only the selected purchase and retains a failed draft for retry', async () => {
+  const props = fixture(), onSave = vi.fn().mockRejectedValueOnce(new Error('Storage full')).mockResolvedValue(), onClose = vi.fn()
+  props.client.status = 'active'; props.client.package.deactivationReason = 'package'
+  props.client.additionalPackages = [{ id: 'other', status: 'inactive', deactivationReason: 'package' }]
+  props.sessions.push({ ...props.sessions[0], id: 'other-frozen', packageId: 'other' })
+  render(view({ ...props, packageId: 'p1', onSave, onClose }))
+  const dialog = screen.getByRole('dialog', { name: 'Reactivate Package?' })
+  expect(dialog).toHaveTextContent('Used credits and the expiry date stay the same')
+  expect(dialog).toHaveTextContent('Deleted sessions are not recreated')
+  expect(dialog).not.toHaveTextContent('cannot be undone')
+  expect(screen.getAllByRole('textbox')).toHaveLength(2)
+  const save = within(dialog).getByRole('button', { name: 'Reactivate Package', exact: true })
+  expect(save).toBeDisabled()
+  for (const field of screen.getAllByRole('textbox')) fireEvent.change(field, { target: { value: '2026-09-12' } })
+  fireEvent.click(save)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Storage full')
+  expect(onClose).not.toHaveBeenCalled()
+  expect(screen.getAllByRole('textbox').every(field => field.value === '2026-09-12')).toBe(true)
+  fireEvent.click(save)
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+  expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ packageId: 'p1', dates: { a: '2026-09-12', b: '2026-09-12' } }))
+})
+
+it('package reactivation blocks overlapping purchases and stale package state', () => {
+  const props = fixture()
+  props.client.status = 'active'
+  Object.assign(props.client.package, { startDate: '2026-09-01', endDate: '2026-11-29' })
+  props.client.additionalPackages = [{ id: 'other', status: 'active', startDate: '2026-10-01', endDate: '2026-12-29' }]
+  props.sessions = []
+  const onSave = vi.fn(), rendered = render(view({ ...props, packageId: 'p1', onSave, onClose: vi.fn() }))
+  expect(screen.getByRole('alert')).toHaveTextContent('Another active package overlaps')
+  expect(screen.getByRole('button', { name: 'Reactivate Package', exact: true })).toBeDisabled()
+  const changed = structuredClone(props); changed.client.additionalPackages = []
+  rendered.rerender(view({ ...changed, packageId: 'p1', onSave, onClose: vi.fn() }))
+  expect(screen.getByRole('alert')).toHaveTextContent('Close and reopen')
+  expect(screen.getByRole('button', { name: 'Reactivate Package', exact: true })).toBeDisabled()
+  expect(onSave).not.toHaveBeenCalled()
+})

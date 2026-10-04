@@ -323,6 +323,24 @@ it('hides Additional Packages when empty or entirely inactive and shows an activ
   }
 })
 
+it.each(['owner', 'trainer', 'read-only'])('package reactivation controls respect %s access and cancellation', async mode => {
+  const client = structuredClone(seed.clients[0])
+  client.package.status = 'inactive'; client.package.deactivationReason = 'package'
+  const onReactivatePackage = vi.fn()
+  render(<ClientProfilePage client={client} clients={[client]} user={mode === 'trainer' ? seed.users.find(item => item.role === 'trainer') : owner}
+    readOnly={mode === 'read-only'} trainer={seed.trainers[0]} trainers={seed.trainers} sessions={[]} policy={seed.settings}
+    packages={seed.packages} today="2026-09-09" onReactivatePackage={onReactivatePackage} />, { wrapper: Wrapper })
+  fireEvent.click(screen.getByRole('button', { name: 'Package', exact: true }))
+  const button = screen.queryByRole('button', { name: 'Reactivate Package', exact: true })
+  if (mode !== 'owner') { expect(button).not.toBeInTheDocument(); return }
+  fireEvent.click(button)
+  const dialog = screen.getByRole('dialog', { name: 'Reactivate Package?', exact: true })
+  expect(dialog).not.toHaveTextContent('cannot be undone')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel', exact: true }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(onReactivatePackage).not.toHaveBeenCalled()
+})
+
 it('prefills steps two to five, retains the saved schedule and submits once after review', async () => {
   const client = seed.clients[0], onSave = vi.fn().mockResolvedValue(), onClose = vi.fn()
   render(<RenewPackageDialog client={client} trainers={seed.trainers} sessions={seed.sessions} packages={seed.packages}

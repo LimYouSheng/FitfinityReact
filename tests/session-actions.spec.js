@@ -5,7 +5,7 @@ import { createDemoSeed } from '../src/data/seed.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
 const instant = new Date('2026-10-03T01:00:00Z')
 const read = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), KEY)
-const activate = (locator, isMobile) => isMobile ? locator.tap() : locator.click()
+const activate = (locator, isMobile, options) => isMobile ? locator.tap(options) : locator.click(options)
 async function start(page, { twice = false, supervised = false, past = false, inactive = false, conflict = false } = {}) {
   const data = createDemoSeed('2026-10-03')
   const client = data.clients.find(item => item.id === 'c1')
@@ -212,6 +212,93 @@ test('session actions: summary edit Undo preserves message overlay Back navigati
   await expect(page).toHaveURL(/#\/messages$/)
   await reverse(page, isMobile, row)
   expect((await read(page)).sessions[0].clientSummary).toBe(original)
+})
+
+test('message rows: Undo whitespace and state text open details while the Undo button stays separate', async ({ page, isMobile }) => {
+  await start(page); await postpone(page, isMobile); await messages(page)
+  const row = postponedRow(page), title = 'Session postponed: Postpone Client'
+  const saved = await read(page)
+  const dialog = page.getByRole('dialog', { name: title, exact: true })
+  for (const target of ['time', 'space', 'deadline']) {
+    const control = target === 'time' ? row.locator('time') : target === 'deadline' ? row.getByText(/^Until /) : row.locator('.message-undo-action')
+    await control.scrollIntoViewIfNeeded()
+    let options
+    if (target === 'space') {
+      const point = await control.evaluate(element => {
+        const rect = element.getBoundingClientRect(), x = rect.width - 3, y = rect.height / 2
+        return { x, y, hitsSpace: document.elementFromPoint(rect.left + x, rect.top + y) === element }
+      })
+      expect(point.hitsSpace).toBe(true)
+      options = { position: { x: point.x, y: point.y } }
+    }
+    await activate(control, isMobile, options)
+    await expect(dialog).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Undo session change?', exact: true })).toHaveCount(0)
+    expect((await read(page)).sessions).toEqual(saved.sessions)
+    await activate(dialog.getByRole('button', { name: 'Close message', exact: true }), isMobile)
+    await expect(dialog).toHaveCount(0)
+  }
+  await activate(row.getByRole('button', { name: /^Undo / }), isMobile)
+  const confirm = page.getByRole('dialog', { name: 'Undo session change?', exact: true })
+  await expect(confirm).toBeVisible(); await expect(dialog).toHaveCount(0)
+  await activate(confirm.getByRole('button', { name: 'Cancel', exact: true }), isMobile)
+  await expect(confirm).toHaveCount(0)
+  for (const state of ['blocked', 'expired', 'undone']) {
+    await page.evaluate(({ key, saved, state }) => {
+      const data = structuredClone(saved), entry = data.sessionMutations.find(item => item.operation === 'session.postpone')
+      if (state === 'expired') entry.expiresAt = '2026-10-03T00:59:59Z'
+      if (state === 'undone') { entry.status = 'undone'; entry.undoneAt = '2026-10-03T01:00:00Z' }
+      if (state === 'blocked') data.sessions.find(item => item.id === entry.sessions[0].id).clientSummary = 'Later change'
+      localStorage.setItem(key, JSON.stringify(data))
+    }, { key: KEY, saved, state })
+    await page.reload(); await waitForPortal(page)
+    const text = state === 'expired' ? row.getByText('Undo expired', { exact: true }) : state === 'undone' ? row.getByText('Undone', { exact: true }) : row.getByText(/The session changed again/)
+    await expect(text).toBeVisible()
+    const before = await read(page)
+    await activate(text, isMobile)
+    await expect(dialog).toBeVisible()
+    expect((await read(page)).sessions).toEqual(before.sessions)
+    expect((await read(page)).sessionMutations).toEqual(before.sessionMutations)
+    await activate(dialog.getByRole('button', { name: 'Close message', exact: true }), isMobile)
+    await expect(dialog).toHaveCount(0)
+  }
+})
+
+test('package finality: legacy package Messages retain history without Undo for owner and trainer', async ({ page, isMobile }) => {
+  await start(page)
+  await page.evaluate(key => {
+    const data = JSON.parse(localStorage.getItem(key))
+    data.messages = []; data.sessionMutations = []
+    for (const operation of ['client.renewPackage', 'client.deactivatePackage', 'client.reactivatePackage']) for (const status of ['available', 'undone']) {
+      const id = `${operation}-${status}`
+      data.messages.push({ id: `${id}-message`, mutationId: id, title: `Legacy ${id}`, body: 'Preserved package history.', clientId: 'c1',
+        recipientRole: 'owner', recipientTrainerId: 't1', createdAt: '2026-10-03T01:00:00Z', kind: 'client_update', readBy: {} })
+      data.sessionMutations.push({ id, operation, status, actor: { id: 'u-owner', role: 'owner', name: 'Owner' },
+        committedAt: '2026-10-03T01:00:00Z', expiresAt: '2026-10-04T01:00:00Z', sessions: [], patches: [], dependencies: [], proposals: [], requests: [], messageIds: [`${id}-message`] })
+    }
+    localStorage.setItem(key, JSON.stringify(data))
+  }, KEY)
+  await page.reload(); await waitForPortal(page)
+  const stored = await read(page)
+  for (const actor of ['u-owner', 'u-marcus']) {
+    if (actor === 'u-marcus') { await selectDemoIdentity(page, actor); await waitForPortal(page) }
+    await messages(page)
+    for (const message of stored.messages) {
+      const row = page.locator('.message-title-row').filter({ has: page.getByRole('button', { name: `Open ${message.title}`, exact: true }) })
+      await expect(row).toBeVisible()
+      await expect(row.locator('.message-undo-action')).toHaveCount(0)
+      await activate(row.getByRole('button', { name: `Open ${message.title}`, exact: true }), isMobile)
+      const dialog = page.getByRole('dialog', { name: message.title, exact: true })
+      await expect(dialog).toContainText('Preserved package history.')
+      await expect(dialog.locator('.message-undo-action')).toHaveCount(0)
+      await activate(dialog.getByRole('button', { name: 'Close message', exact: true }), isMobile)
+      await expect(dialog).toHaveCount(0)
+    }
+    const current = await read(page)
+    expect(current.sessionMutations).toEqual(stored.sessionMutations)
+    expect(current.sessions).toEqual(stored.sessions)
+    expect(current.clients).toEqual(stored.clients)
+  }
 })
 
 test('session actions: a new booking blocks Undo without partial restoration', async ({ page, isMobile }) => {

@@ -45,6 +45,7 @@ export default function ClientProfilePage({
   policy,
   onRenewPackage,
   onDeactivatePackage,
+  onReactivatePackage,
   onDeletePackageSessions,
   packageCreditTransactions,
 }) {
@@ -203,6 +204,7 @@ export default function ClientProfilePage({
           policy={policy}
           onRenewPackage={onRenewPackage}
           onDeactivatePackage={onDeactivatePackage}
+          onReactivatePackage={onReactivatePackage}
           onDeletePackageSessions={onDeletePackageSessions}
           packageCreditTransactions={packageCreditTransactions}
           tab={tab}

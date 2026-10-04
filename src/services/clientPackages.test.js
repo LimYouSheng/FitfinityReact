@@ -12,6 +12,9 @@ import { signatureFixture } from '../test/fixtures/signature.js'
 import { pastClientPackages } from '../app/clientPackages.js'
 import { packageDraftForClient } from '../app/packageRenewal.js'
 import { requestService } from './requestService.js'
+import { clientReactivationSnapshot } from '../app/clientReactivation.js'
+import { clientPackages } from '../app/clientPackages.js'
+import { addDays } from '../app/clientOnboarding.js'
 
 const owner = () => mockDb.read().users.find(item => item.role === 'owner')
 const client = () => mockDb.read().clients.find(item => item.id === 'c1')
@@ -20,6 +23,7 @@ const draft = (patch = {}) => ({ ...packageDraftForClient(client(), mockDb.read(
   packageId: 'package-12', packageVersion: 1, startDate: '2027-01-04', sessionsPerWeek: 1,
   genderPreference: 'No gender preference', ...patch })
 const renew = request => clientService.renewPackage('c1', request ?? draft(), owner())
+const reactivateOptions = packageId => ({ packageId, expected: clientReactivationSnapshot(client(), mockDb.read().sessions, mockDb.read().packageCreditTransactions) })
 beforeEach(() => { localStorage.clear(); mockDb.reset(); vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2027-05-01T04:00:00Z')) })
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
@@ -38,6 +42,14 @@ it('renews atomically without creating a client, overwriting a package or collid
   expect(after.sessions.filter(item => item.packageId === result.package.id)).toHaveLength(12)
   expect(new Set(after.sessions.map(item => item.id)).size).toBe(after.sessions.length)
   expect(after.sessions.filter(item => before.sessions.some(old => old.id === item.id))).toEqual(before.sessions)
+})
+
+it.each([[12, 90], [24, 180], [36, 270]])('package validity gives a renewed %i-session purchase exactly %i days after reload', async (total, days) => {
+  const result = await renew(draft({ packageId: `package-${total}` }))
+  const purchased = clientPackages(result).find(item => item.renewalRequest)
+  expect(purchased).toMatchObject({ total, validityDays: days, startDate: '2027-01-04', endDate: addDays('2027-01-04', days - 1) })
+  expect(mockDb.reload().sessions.filter(item => item.packageId === purchased.id)).toHaveLength(total)
+  expect(clientPackages(client()).find(item => item.id === purchased.id)).toEqual(purchased)
 })
 
 it('handles concurrent duplicate renewals once and rejects changed or stale requests', async () => {
@@ -274,6 +286,110 @@ it('rolls back package deactivation and optional deletion if storage fails and r
   expect(mockDb.read()).toEqual(before)
 })
 
+it.each(['owner', 'admin'].flatMap(role => ['current', 'additional', 'past'].map(location => ({ role, location }))))('package reactivation restores only the $location purchase for $role without Messages Undo', async ({ role, location }) => {
+  vi.setSystemTime(new Date('2026-09-09T04:00:00Z'))
+  if (location === 'additional') await renew()
+  if (role === 'admin') mockDb.mutate(db => db.users.push({ id: 'package-admin', name: 'Admin', role: 'admin', status: 'active' }))
+  const actor = role === 'owner' ? owner() : mockDb.read().users.find(item => item.id === 'package-admin')
+  const packageId = location === 'current' ? client().package.id : location === 'additional' ? client().additionalPackages[0].id : client().packageHistory[0].id
+  await clientService.deactivatePackage('c1', { packageId }, actor)
+  const before = mockDb.read(), purchased = clientPackages(client()).find(item => item.id === packageId), options = reactivateOptions(packageId)
+  await clientService.reactivatePackage('c1', options, actor)
+  const after = mockDb.reload(), restored = clientPackages(client()).find(item => item.id === packageId)
+  expect(restored).toMatchObject({ status: 'active', used: purchased.used, startDate: purchased.startDate, endDate: purchased.endDate, validityDays: purchased.validityDays })
+  expect(restored.statusHistory.at(-1)).toMatchObject({ status: 'active', reason: 'package_reactivated', by: { id: actor.id } })
+  expect(after.sessions).toEqual(before.sessions)
+  expect(after.packageCreditTransactions).toEqual(before.packageCreditTransactions)
+  expect(clientPackages(client()).filter(item => item.id !== packageId)).toEqual(clientPackages(before.clients[0]).filter(item => item.id !== packageId))
+  expect(after.sessionMutations).toEqual(before.sessionMutations)
+  expect(after.messages.findLast(item => item.title === 'Package reactivated: Amanda Lim')).not.toHaveProperty('mutationId')
+  await clientService.reactivatePackage('c1', options, actor)
+  expect(mockDb.read()).toEqual(after)
+})
+
+it('package reactivation preserves deleted bookings and credit evidence after reactivation', async () => {
+  vi.setSystemTime(new Date('2026-09-09T04:00:00Z'))
+  const packageId = client().package.id
+  await clientService.deactivatePackage('c1', { packageId, deleteUpcomingSessions: true }, owner())
+  const before = mockDb.read(), history = client().package.sessionDeletionHistory
+  expect(history[0].sessionIds.length).toBeGreaterThan(0)
+  await clientService.reactivatePackage('c1', reactivateOptions(packageId), owner())
+  expect(client().package.status).toBe('active')
+  expect(client().package.sessionDeletionHistory).toEqual(history)
+  expect(mockDb.read().sessions).toEqual(before.sessions)
+  expect(mockDb.read().packageCreditTransactions).toEqual(before.packageCreditTransactions)
+})
+
+it('package reactivation rechecks competing bookings and applies reviewed conflict dates atomically', async () => {
+  vi.setSystemTime(new Date('2026-09-09T04:00:00Z'))
+  const packageId = client().package.id
+  await clientService.deactivatePackage('c1', { packageId }, owner())
+  const original = mockDb.read().sessions.find(item => item.clientId === 'c1' && item.status !== 'completed'), options = reactivateOptions(packageId)
+  mockDb.mutate(db => db.sessions.push({ ...original, id: 'new-conflict', clientId: 'c2', packageId: db.clients[1].package.id }))
+  const before = mockDb.read()
+  await expect(clientService.reactivatePackage('c1', options, owner())).rejects.toThrow('conflicts')
+  expect(mockDb.read()).toEqual(before)
+  const dates = { [original.id]: '2026-09-15' }
+  await clientService.reactivatePackage('c1', { ...options, dates }, owner())
+  expect(mockDb.read().sessions.find(item => item.id === original.id)).toMatchObject({ date: dates[original.id], trainerId: original.trainerId, from: original.from, to: original.to, packageId,
+    reactivationDateHistory: [{ fromDate: original.date, toDate: dates[original.id] }] })
+  expect(mockDb.read().sessions.filter(item => item.id !== original.id)).toEqual(before.sessions.filter(item => item.id !== original.id))
+})
+
+it('package reactivation refuses stale reviews, unknown sessions and inactive clients without changing data', async () => {
+  const packageId = client().package.id
+  await clientService.deactivatePackage('c1', { packageId }, owner())
+  const options = reactivateOptions(packageId)
+  mockDb.mutate(db => { db.sessions.find(item => item.clientId === 'c1').from = '01:00' })
+  const stale = mockDb.read()
+  await expect(clientService.reactivatePackage('c1', options, owner())).rejects.toThrow('changed')
+  await expect(clientService.reactivatePackage('c1', { ...reactivateOptions(packageId), dates: { missing: '2027-01-01' } }, owner())).rejects.toThrow('no longer eligible')
+  await expect(clientService.reactivatePackage('c1', { packageId }, owner())).rejects.toThrow('review')
+  expect(mockDb.read()).toEqual(stale)
+  await clientService.deactivate('c1', owner())
+  const inactive = mockDb.read()
+  await expect(clientService.reactivatePackage('c1', reactivateOptions(packageId), owner())).rejects.toThrow('Client inactive')
+  expect(mockDb.read()).toEqual(inactive)
+})
+
+it('package reactivation rejects overlapping active purchases and inactive retained-session trainers', async () => {
+  const packageId = client().package.id
+  await clientService.deactivatePackage('c1', { packageId }, owner())
+  const inactiveClient = client()
+  mockDb.mutate(db => { db.clients[0].additionalPackages = [{ ...db.clients[0].package, id: 'overlap', status: 'active' }] })
+  const before = mockDb.read()
+  await expect(clientService.reactivatePackage('c1', reactivateOptions(packageId), owner())).rejects.toThrow('overlaps')
+  expect(mockDb.read()).toEqual(before)
+  mockDb.mutate(db => { db.clients[0] = inactiveClient; db.trainers[0].status = 'inactive' })
+  const disabled = mockDb.read()
+  await expect(clientService.reactivatePackage('c1', reactivateOptions(packageId), owner())).rejects.toThrow('assigned trainer')
+  expect(mockDb.read()).toEqual(disabled)
+})
+
+it('package reactivation rolls back a failed save and coalesces duplicate retries', async () => {
+  const packageId = client().package.id
+  await clientService.deactivatePackage('c1', { packageId }, owner())
+  const options = reactivateOptions(packageId), before = mockDb.read()
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage full') })
+  await expect(clientService.reactivatePackage('c1', options, owner())).rejects.toThrow('Storage full')
+  expect(mockDb.read()).toEqual(before)
+  await Promise.all([clientService.reactivatePackage('c1', options, owner()), clientService.reactivatePackage('c1', options, owner())])
+  expect(client().package.statusHistory.filter(item => item.reason === 'package_reactivated')).toHaveLength(1)
+  expect(mockDb.read().messages.filter(item => item.title === 'Package reactivated: Amanda Lim')).toHaveLength(1)
+})
+
+it.each(['replacement login', 'disabled owner', 'trainer'])('package reactivation rejects %s without changing package data', async reason => {
+  const packageId = client().package.id
+  await clientService.deactivatePackage('c1', { packageId }, owner())
+  localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: reason === 'trainer' ? 'u-marcus' : 'u-owner', expiresAt: Date.now() + 3600000 }))
+  const pending = mockPortalAdapter.invoke({ service: 'clientService', operation: 'reactivatePackage', input: { id: 'c1', options: reactivateOptions(packageId) } })
+  if (reason === 'replacement login') localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: 'u-owner', generation: 'replacement', expiresAt: Date.now() + 3600000 }))
+  if (reason === 'disabled owner') mockDb.mutate(db => { db.users.find(item => item.id === 'u-owner').status = 'inactive' })
+  const before = mockDb.read()
+  await expect(pending).rejects.toThrow(/session changed|active staff|owner/)
+  expect(mockDb.read()).toEqual(before)
+})
+
 it('blocks approval of a pending change after its package is deactivated', async () => {
   vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
   const trainer = mockDb.read().users.find(item => item.trainerId === 't1')
@@ -351,7 +467,8 @@ it('prefills legacy package terms without silently selecting an unrelated or amb
     trainerId: source.trainerId, fixedWeeklySchedule: source.fixedWeeklySchedule })
   expect(make(source, db.packages.filter(item => item.id !== matching.id)).packageId).toBe('')
   expect(make(source, [...db.packages, { ...matching, id: 'ambiguous' }]).packageId).toBe('')
-  expect(make(source, [...db.packages, { ...matching, id: 'exact-terms', validityDays: source.package.validityDays }]).packageId).toBe('exact-terms')
+  const legacy = { ...source, package: { ...source.package, validityDays: 90 } }
+  expect(make(legacy, [...db.packages, { ...matching, id: 'exact-terms', validityDays: 90 }]).packageId).toBe('exact-terms')
   expect(make({ ...source, package: { ...source.package, templateId: 'retired-template' } }).packageId).toBe('')
   expect(make({ ...source, package: { ...source.package, templateId: matching.id } }, [...db.packages, { ...matching, id: 'ambiguous' }]).packageId).toBe(matching.id)
   expect(make(source, db.packages.map(item => item.id === matching.id ? { ...item, status: 'inactive' } : item)).packageId).toBe('')

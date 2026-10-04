@@ -3,7 +3,7 @@ import { applyClientReactivationDates } from '../app/clientReactivation.js'
 import { managesOperations } from '../app/permissions.js'
 import { applyTrainerReassignment } from '../app/trainerReassignment.js'
 import { clientAssignedToTrainer, clientPackages, deletablePackageSessions, ensureClientPackageReferences, requireActiveClient } from '../app/clientPackages.js'
-import { deactivatePurchase, restoreClientPurchases } from '../app/packageLifecycle.js'
+import { deactivatePurchase, restoreClientPurchases, restorePurchase } from '../app/packageLifecycle.js'
 import { businessClock } from '../app/clock.js'
 import { saveAssessment, assessmentForm } from '../app/assessmentForms.js'
 import { flushExerciseVideoDeletions, queueExerciseVideoDeletion } from './exerciseVideoRetention.js'
@@ -161,9 +161,29 @@ export const clientService = {
       deactivatePurchase(purchased, staff, new Date().toISOString(), 'package')
       const removed = deleteUpcomingSessions ? deleteUpcomingForPackage(db, client, purchased, staff) : 0
       appendSavedEditMessage(db, { clientId: id, trainerId: client.trainerId,
-        title: `Package deactivated: ${client.name}`, body: `${purchased.name ?? `${purchased.total} Sessions`} · ${staff.name}${deleteUpcomingSessions ? ` · ${removed} upcoming sessions deleted; Undo is available in Messages for 24 hours` : ''}` })
+        title: `Package deactivated: ${client.name}`, body: `${purchased.name ?? `${purchased.total} Sessions`} · ${staff.name}${deleteUpcomingSessions ? ` · ${removed} upcoming sessions deleted` : ''}` })
     })
     await flushExerciseVideoDeletions()
+    return state.clients.find(client => client.id === id)
+  },
+
+  async reactivatePackage(id, { packageId, dates = {}, expected }, actor) {
+    await delay(180)
+    const state = mutateSessionRecords(actor, 'client.reactivatePackage', db => {
+      const staff = requireActiveActor(db, actor)
+      if (!managesOperations(staff)) throw new Error('Only the owner or Admin can reactivate packages.')
+      const client = requireActiveClient(db.clients.find(item => item.id === id))
+      const purchased = clientPackages(client).find(item => item.id === packageId)
+      if (!purchased) throw new Error('Package not found.')
+      if (purchased.status !== 'inactive') return
+      if (!expected) throw new Error('Reopen package reactivation to review its sessions.')
+      const at = new Date().toISOString()
+      applyClientReactivationDates(db, client, { dates, expected }, staff, at, packageId)
+      restorePurchase(purchased, at, { id: staff.id, name: staff.name })
+      appendSavedEditMessage(db, { clientId: id, trainerId: purchased.trainerId ?? client.trainerId,
+        title: `Package reactivated: ${client.name}`, body: `${purchased.name ?? `${purchased.total} Sessions`} · ${staff.name} · Used credits and expiry date retained. Deleted sessions are not recreated.` })
+      appendRenewalMessage(db, client)
+    })
     return state.clients.find(client => client.id === id)
   },
 

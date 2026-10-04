@@ -42,6 +42,11 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
         await reload()
         return updated
       }}
+      onReactivatePackage={async options => {
+        const updated = await runAction(() => clientService.reactivatePackage({ id: selectedClient.id, options }), { message: 'Package reactivated.' })
+        await reload()
+        return updated
+      }}
       onRenewPackage={async draft => {
         const renewed = await runAction(() => clientService.renewPackage({ id: selectedClient.id, draft }), { message: 'Package added.' })
         await reload()

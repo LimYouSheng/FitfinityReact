@@ -34,7 +34,7 @@ export default function MessageUndo({ message, timeZone, onUndo }) {
     } catch (failure) { if (mounted.current) setError(failure.message || 'Could not undo the change. Try again.') }
     finally { locked.current = false; if (mounted.current) setBusy(false) }
   }
-  return <div className="message-undo-action" onClick={event => event.stopPropagation()}>
+  return <div className="message-undo-action">
     {undone ? <strong role="status">Undone</strong> : expired ? <span>Undo expired</span> : <>
       <button type="button" className="primary-button small" aria-label={`Undo ${message.title}`} disabled={busy || undo.status === 'blocked' || !onUndo} onClick={perform}>{busy ? 'Please wait…' : 'Undo'}</button>
       <span>Until {formatTimestamp(undo.expiresAt, timeZone)}</span>

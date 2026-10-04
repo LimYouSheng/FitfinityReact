@@ -1,5 +1,27 @@
 # Portal service contracts
 
+## Package reactivation and validity — 4 October 2026, 14:19 Singapore
+
+`clientService.reactivatePackage({ id, options: { packageId, dates?, expected } })` resolves a Client. It is Owner/Admin-only and API-unavailable. The mock boundary supplies the authenticated actor; the service rechecks access at commit. An inactive purchase requires the snapshot from `clientReactivationSnapshot`; an already-active purchase returns idempotently. Reuse `clientReactivationReview`/`applyClientReactivationDates` with package scope. Restore only retained sessions after checking competing bookings, inactive trainers, stale evidence and overlapping active purchase validity. Keep original credits/expiry and deletion history; do not recreate deleted sessions. Persist status history and a package-reactivated Message atomically.
+
+Exclude `client.reactivatePackage`, `client.renewPackage` and `client.deactivatePackage` from generic Undo, including legacy/direct calls. Package deactivation now has an explicit Reactivate Package counterpart; remove its finality sentence. Separate session deletion retains its existing 24-hour Undo. Client reactivation keeps its existing restoration scope.
+
+The 12/90, 24/180 and 36/270 definition/new-purchase rules remain canonical. Correct fresh demo terms and the exact identifiable old untemplated 24-session demo purchase; preserve purchased/custom snapshots, stored history, booking dates and credits. Inclusive end date is start plus validity minus one.
+
+The user reports the preceding 54/3/39 checks passed; 189 affected units pass for the additions. At publication, the guarded publisher verified the complete matching native success receipt: 109 selected units, 3 tooling checks, 66 browser cases and all supporting gates. Full CI and merge remain pending. Expanded selected scope: **109 units / 3 tooling / 66 browser** and supporting gates. Full required inventory: **940 units in 86 files, 837 browser**, with backend/infrastructure/tooling totals unchanged. One feature PR follows the matching expanded native receipt.
+
+Native run `kDHJ12` passed 109 selected units, 3 tooling checks and supporting gates, with 65/66 browser cases. The desktop conflict-review test used a hard-coded `Sep` label despite DateField using browser locale data. Resolve that exact accessible date label in the browser and assert the selected ISO value; preserve all reactivation assertions and service contracts. The corrected source requires a fresh complete receipt before publication.
+
+## Package lifecycle finality and message-row activation — 4 October 2026
+
+`mutateSessionRecords` excludes `client.renewPackage` and `client.deactivatePackage` from reversal capture alongside acknowledgement finality. `mutationForMessage` hides existing package inverses; `requireUndoReady` rejects them before any compensation, including already-undone legacy entries. Preserve private history and present package/session/credit state. Named package operations retain their inputs, validation, idempotency, authorization and persistence boundaries; API availability remains false.
+
+Package deactivation, including its optional session deletion, cannot be undone. Remove the obsolete 24-hour recovery promise from its dialog and resulting Message. `client.deletePackageSessions` remains a separate session-only action with the existing 24-hour Undo, which preserves package inactivity. Client reactivation still restores only purchases disabled with the client; the new standalone Reactivate Package operation uses the scoped review described above.
+
+Message rows open on completed clicks/taps in nonaction space and text, including Undo/Remove sections. Their buttons keep separate confirmation and disabled behavior; no new service request is made merely by tapping informational text beyond the existing mark-read/open flow. Preserve popup history, receipt persistence, keyboard controls, scrolling and native/swipe Back.
+
+PR #6/main `6f69012fe03d626977ad9ea865051ddfeef07b95` is the verified 516-file baseline; main workflow `37177021964` succeeded. The current repair passes 148 affected unit cases in assistant verification. Local native gate remains pending at **54 units / 3 inventory checks / 39 browser cases** plus lint/health/demo/PWA. Full CI inventory is **913 units / 86 files and 819 browser cases** with unchanged backend/infrastructure/tooling totals. The repair script performs no installation, Git publication, deployment or AWS action. Earlier pending checkpoints below are historical.
+
 ## PR #6 compact renewal-preview correction — 4 October 2026
 
 **Local acceptance (11:38 Singapore):** the user reports all **7 units / 3 inventory checks / 18 browser cases** and supporting gates passed, and authorizes publication to the same PR #6. No final success JSON was uploaded; the publisher validates the matching native receipt and all 516 source files. Accepted runtime, service contracts and tests stay unchanged; publication adds the three documentation checkpoints only. Full CI and deployment remain pending. This supersedes the native-pending status below.
@@ -43,7 +65,7 @@ Publication authorization at 17:31 Singapore covers a new feature branch and PR 
 | `messageService.undo({ id })` | Accepts an authorized Message ID for a reversible operation. Acknowledgement inverses are rejected for every role, including legacy entries. The stored operation ID is the idempotency identity; its recorded after-state is the expected revision. Current actor, dependencies, authority, expiry and booking calendar are rechecked. The operation and audit Message commit atomically; retries return the established result without another compensation. |
 | One-day expiry | `expiresAt = committedAt + 86400000` in the stored journal and safe Message projection. At or after expiry a new reversal fails. Reads/reload/retry never extend it. Applied approval gets its own commit timestamp. An already committed reversal can return its prior result after expiry. Demo uses the local clock; a future API must use server time. |
 | Acknowledgement finality | Signature/no-show completion and no-show-to-signature correction cannot be undone. Preserve the original evidence and one effective debit. Old completed reversals remain historical data; they are not replayed or undone by this update. |
-| Indirect mutations | Shared service transaction capture includes session-producing onboarding/renewals, package/client/trainer lifecycle, permanent reassignment, weekly scheduling and applied approvals. Pending proposals reverse by cancellation; an applied approval is recorded as reversed without reviving pending state. Reject/cancel decisions without session mutations do not gain an inverse that reopens a terminal request. |
+| Indirect mutations | Shared service transaction capture includes onboarding, client/trainer lifecycle, separate deletion of inactive-package sessions, permanent reassignment, weekly scheduling and applied approvals. Add Package and Deactivate Package are excluded, including deletion bundled with deactivation. Pending proposals reverse by cancellation; an applied approval is recorded as reversed without reviving pending state. Reject/cancel decisions without session mutations do not gain an inverse that reopens a terminal request. |
 | Media and external actions | Recoverable removed/replaced original bytes are retained only within both original retention and the 24-hour window. Missing/expired media rejects Undo. Internal WhatsApp-open state may reverse with an explicit notice; sent/shared/exported material cannot be recalled. |
 | UI and session replacement | Prominent row/detail controls, confirmation, expiry state and local committed-success state. Adapter-owned guards bind in-flight mutations to the initiating demo identity generation, including same-user replacement. UI cannot supply actor claims or raw inverse state. |
 
@@ -261,6 +283,7 @@ The catalog is canonical. Each input lists `field: type`; `?` marks optional fie
 | `clientService.create` | `draft: object` | Client | operations | Unavailable |
 | `clientService.renewPackage` | `id: string, draft: object` | Client | operations | Unavailable |
 | `clientService.deactivatePackage` | `id: string, options: object` | Client | operations | Unavailable |
+| `clientService.reactivatePackage` | `id: string, options: object` | Client | operations | Unavailable |
 | `clientService.deletePackageSessions` | `id: string, options: object` | Client | operations | Unavailable |
 | `clientService.update` | `id: string, patch: object` | Client | clientEdit | Unavailable |
 | `clientService.saveAssessment` | `id: string, assessment: object` | AssessmentRecord | operations | Unavailable |

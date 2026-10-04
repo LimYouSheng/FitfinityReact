@@ -18,7 +18,7 @@ export default function RenewalDismissal({ message, onDismiss }) {
     } catch (failure) { if (mounted.current) setError(failure.message || 'Could not remove this follow-up. Try again.') }
     finally { locked.current = false; if (mounted.current) setBusy(false) }
   }
-  return <div className="renewal-remove-action" onClick={event => event.stopPropagation()}>
+  return <div className="renewal-remove-action">
     <button type="button" className="secondary-button small" aria-label={`Remove ${message.title} from renewals`} disabled={busy} onClick={remove}>{busy ? 'Removing…' : 'Remove'}</button>
     {error && <p role="alert">{error}</p>}
   </div>

@@ -247,7 +247,10 @@ export function MessageInbox({
             <article
               key={message.id}
               className={`message-title-row message-title-grid ${embedded ? 'message-title-preview ' : ''}${message.read ? 'read' : 'unread'}`}
-              onClick={() => openMessage(message)}
+              onClick={event => {
+                if (event.target.closest('.message-undo-action button, .renewal-remove-action button')) return
+                openMessage(message)
+              }}
             >
               <button
                 type="button"
