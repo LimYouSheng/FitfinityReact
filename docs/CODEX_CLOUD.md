@@ -1,6 +1,6 @@
 # Fitfinity Codex Cloud workflow
 
-Updated 6 October 2026 after the user merged the accepted local runbook in PR #9. Accepted main checkpoint: `7970f65b5975a6554c46eb521c7ca118939e4bb9`. The cloud experiment remains on PR #8's `docs/codex-cloud-workflow-2026-10-06` branch. Local-source reconciliation is complete; cloud environment activation and acceptance remain pending.
+Updated 7 October 2026 (Singapore). Accepted main: `7970f65b5975a6554c46eb521c7ca118939e4bb9`. Work remains on PR #8's `docs/codex-cloud-workflow-2026-10-06` branch. Published environment restoration and routine internal development are verified; final-candidate CI and public-preview acceptance remain separate. [PROGRESS.md](../PROGRESS.md) owns exact receipts and blockers.
 
 ## 1. Canonical files
 
@@ -44,45 +44,68 @@ Use the current **Codex Cloud** environment flow: select the Fitfinity repositor
 | Database | Isolated test PostgreSQL `17.11-bookworm`, created and removed by the canonical Compose verifier; never AWS RDS or customer data |
 | Application mode | `VITE_PORTAL_MODE=demo`, empty `VITE_API_BASE_URL`; existing API test fixtures remain separate from live AWS |
 
-### Paste into the environment setup conversation
+### Install once; guard each task
 
-```text
-Prepare LimYouSheng/FitfinityReact for Codex Cloud on existing PR #8 branch
-docs/codex-cloud-workflow-2026-10-06. Fetch and check out that branch without
-discarding edits. Confirm its HEAD and that accepted main checkpoint
-7970f65b5975a6554c46eb521c7ca118939e4bb9 is an ancestor; stop if not.
-Read that branch's AGENTS.md, NORTH_STAR.md, PROGRESS.md and
-docs/CODEX_CLOUD.md. Work on C3 only; local reconciliation C2 is complete.
-Use Node 24 and npm ci from the committed lockfile. Install Chromium and
-WebKit through the repository's Playwright dependency. Record versions.
-Verify Docker and Compose for the existing isolated backend test gate;
-backend Python is 3.12 and test PostgreSQL is 17.11-bookworm. Report an
-unavailable capability rather than weakening or replacing the gate.
-Use demo mode, synthetic test data and no AWS/production credentials.
-Prepare the Install script and Start skill using the canonical commands.
-Demonstrate a fresh internal preview and an affected browser scenario.
-Provide an accessible preview if this environment supports one; otherwise
-record the exact missing capability. Do not publish application hosting,
-change CI/infrastructure, merge PR #8, push main or deploy. Keep #8 draft.
-Report setup evidence and unresolved work for review before publishing
-the environment. A fresh task must confirm this branch and instructions.
-```
+Use the existing isolated checkout; no worktree unless explicitly requested. **Install script contains Bash; Start skill contains prose.** The saved Install script uses `npm ci`, downloads the lockfile's Chromium/WebKit, prepares container libraries and cloud-only backend trust, then runs initial lint, browser/build/PWA and full backend validation. Do not execute installation or full backend validation on every task startup. Preserve signatures, TLS and dependency hashes.
 
-### Canonical preparation commands
-
-Run from the repository root after verifying Node 24:
+Read the canonical rules/goal/ledger/guide at entry and compare the requested checkpoint before editing. Run these lightweight guards; also require equality with the task's explicit HEAD when supplied. A historical receipt SHA is not a permanent starting HEAD for future tasks.
 
 ```bash
-npm ci
-npx playwright install --with-deps chromium webkit
-docker info
-docker compose version
+set -euo pipefail
+cd /workspace/FitfinityReact
+git rev-parse HEAD
+test -z "$(git status --porcelain=v1 --untracked-files=all)"
+test "$(git branch --show-current)" = docs/codex-cloud-workflow-2026-10-06
+git merge-base --is-ancestor 7970f65b5975a6554c46eb521c7ca118939e4bb9 HEAD
+node --version
+npm --version
+python3 --version
+test "$(node -p 'process.versions.node.split(".")[0]')" = 24
+python3 -c 'import sys; assert sys.version_info[:2] == (3, 12)'
+export npm_config_cache=/workspace/fitfinity-setup-evidence/npm-cache
+export PLAYWRIGHT_BROWSERS_PATH=/workspace/fitfinity-setup-evidence/browsers
+export BUILDX_CONFIG=/workspace/fitfinity-setup-evidence/buildx
+export VITE_PORTAL_MODE=demo
+export VITE_API_BASE_URL=''
 ```
 
-- Dependencies and browser installation belong in environment preparation. Do not reinstall them on every loop when the lockfile/setup is unchanged.
-- The setup/start procedure must recheck dependencies after a changed lockfile and start only required services. Repository refresh alone is not proof that dependencies or running processes match the new revision.
-- If Docker is unavailable, record that limitation. The unchanged GitHub Actions backend gate remains required; do not fake its receipt, use SQLite, skip database tests or invent a second verifier. Improving cloud backend capability is a separately bounded task.
-- macOS WebKit/media evidence still comes from the existing macOS CI job. Linux cloud browser results are useful evidence but do not establish Safari/macOS or physical iPhone acceptance.
+Stop on a mismatch or unexpected edits; never reset/discard them. A detached restored checkout may have feature-branch metadata restored at its configured HEAD after the clean-tree/source check; do not silently move to a newer tip. Record Docker/Compose versions when those services are needed.
+
+Reuse valid dependencies, npm/buildx caches, pinned engines and prepared images. `npm ls --depth=0` checks dependency availability; reinstall/recreate only if missing or relevant lockfiles/setup inputs changed. Start only required services and verify behavior: retained files/images are not live-process readiness. Restart processes after restoration.
+
+### Prepared Linux browser runtime
+
+The non-root host lacks WebKit library registration. Retained image `fitfinity-browser-runtime:node24-pw1.62.1` uses Node 24/Debian trixie and Playwright-installed system libraries. The saved Install script recreates it from a pinned official Node image when missing; an engine-version change requires a matching runtime. Engine archives stay in the workspace path above. Do not bypass dependency checks or change Playwright settings.
+
+Run this canonical restoration smoke in the prepared container. It retains fresh root/Pages/API-fixture builds, PWA checks and all three projects. Later iterations substitute a real affected spec/filter; full local suites run only when warranted by the change.
+
+```bash
+pw_version="$(node -p 'require("@playwright/test/package.json").version')"
+browser_runtime="fitfinity-browser-runtime:node24-pw${pw_version}"
+docker run --rm --init --shm-size=1g --user "$(id -u):$(id -g)" \
+  --workdir /workspace/FitfinityReact \
+  --mount type=bind,source=/workspace/FitfinityReact,target=/workspace/FitfinityReact \
+  --mount type=bind,source=/workspace/fitfinity-setup-evidence/browsers,target=/workspace/fitfinity-setup-evidence/browsers,readonly \
+  -e PLAYWRIGHT_BROWSERS_PATH=/workspace/fitfinity-setup-evidence/browsers \
+  -e npm_config_cache=/tmp/fitfinity-npm-cache \
+  -e VITE_PORTAL_MODE=demo -e VITE_API_BASE_URL= -e CI=true \
+  "$browser_runtime" npm run test:e2e -- tests/m4-navigation.spec.js --grep 'password screen returns' --reporter=list
+```
+
+These are Linux container results. Existing macOS WebKit/media CI and physical-device acceptance remain distinct. The container gate owns its internal port 4173; it provides no user-facing preview surface.
+
+### Cloud-only backend trust and receipt reuse
+
+The saved Install script generates files outside checkout under `/workspace/fitfinity-setup-evidence/backend-trust/`. A named build context supplies the current **public** host CA bundle and `PIP_CERT` for verified pip downloads. A generated Dockerfile retains canonical instructions and normalizes copied `/app` read/traverse permissions before the existing non-root user runs. The local Docker shim adds a supported Compose override only for canonical backend tests; verifier arguments, isolated PostgreSQL, logs, cleanup and exit status remain intact. Tracked source and authoritative CI are unchanged.
+
+Refresh generated setup after CA/Dockerfile/path changes. Run the unchanged gate with its saved setup:
+
+```bash
+PATH=/workspace/fitfinity-setup-evidence/backend-trust/bin:$PATH \
+  BUILDX_CONFIG=/workspace/fitfinity-setup-evidence/buildx npm run verify:backend
+```
+
+Use full backend verification during initial validation or relevant backend, lockfile, container, verifier, infrastructure or trust changes. Reuse an earlier complete receipt only with supporting logs and matching inputs; document input comparison for a documentation-only successor. Do not use SQLite, skip database tests or invent another verifier. If Docker/Compose/trust is unavailable, record a blocker; unchanged full backend CI remains mandatory.
 
 ### Access
 
@@ -129,18 +152,20 @@ npm run preview -- --host 0.0.0.0 --port 4173
 - Record the exact source revision and demo/API mode. A running internal server is not automatically a user-accessible URL. Show the actual preview link/surface or state the blocker.
 - Playwright screenshots/traces assist review; the user need not watch each run live. Physical PWA, touch/media and live password/MFA/recovery acceptance remain separately recorded.
 - Existing `.github/workflows/pages.yml` deploys the main-branch staff demo after verification. It does **not** deploy PR previews. A new preview hosting workflow needs its own reviewed scope; never merge just to obtain a preview.
+- Public preview remains **blocked** after the authorized Cloudflare trial: direct DNS registration failed and HTTPS-proxy provisioning returned `403 — Your request was blocked`. No public URL was created. Do not retry without new network evidence, represent internal addresses as accessible links or close this criterion. A saved network draft is not working connectivity.
 
 ## 5. Efficient Ralph runs
 
-- Treat Ralph as a bounded work cycle: read the small state files, choose one ready task, implement, verify, checkpoint, stop. No perpetual process is installed.
-- A North Star states one milestone outcome, exclusions, objective evidence and stopping point. Do not use “finish Fitfinity” or the entire production roadmap as one autonomous run.
-- The task ledger is the only queue. Each entry has a completion test, state and next action. An unresolved external dependency becomes a blocker, not a reason to spin or change goals.
-- Reuse discovered owner paths and previous evidence. Search only relevant code/contracts; carry forward a concise diagnosis. Re-read after relevant changes or contradictory evidence.
-- Run focused checks after each material fix and the complete required CI once the candidate is ready. Reuse an existing run for the same commit; do not start duplicate full suites or repeatedly poll while waiting.
-- Stop a repeated failure when there is no new diagnosis or useful next experiment. Do not cycle model prompts, add speculative tools or increase test retries.
-- Keep a single working agent by default. Delegate only when explicitly requested and when the split would avoid duplicated investigation; no standing swarm or heartbeat is part of this setup.
-- Do not automatically escalate model size/reasoning for routine edits. Select a more expensive configuration only for an identified need and within the task's agreed limits.
-- Before enabling unattended orchestration, specify finite run/time/spend limits and a resume policy. No numeric cost promise or billing cap is claimed by these Markdown rules; enforcement belongs in the actual runner/account controls.
+| Phase | Work and completion evidence |
+| --- | --- |
+| Initial preparation | Saved Install script prepares and validates locked dependencies, services and canonical gates; report setup/restoration separately from publication. |
+| Task entry | Saved Start skill reads rules/goal/ledger, guards the requested source/runtime and reuses valid setup. Lightweight guards do not trigger full installation/backend tests. |
+| Ralph iteration | Select one ready ledger task, define evidence, inspect/implement at canonical owners, run affected section-4 checks, diagnose, update progress and checkpoint. Retry only after a material correction/new diagnosis. |
+| Feature-branch publication | Review diff, validate affected behavior/docs, commit/push only the existing branch and update its draft PR. Existing PR CI runs the full normal gates for the final candidate. Require both `verify / frontend` and `verify / backend`, retaining macOS coverage; stop for user review, never merge. |
+
+`PROGRESS.md` is the only queue; `NORTH_STAR.md` supplies the bounded goal. Reuse matching receipts and CI runs, not older green status for a changed final candidate. Record concrete blockers. This guarded-workflow task allows **3 repair iterations or 30 minutes of active work**; CI may continue afterward and remains pending until completed. No duplicate full local suites, indefinite polling, scheduler or unattended relaunch is required.
+
+Use one working agent unless delegation is explicitly requested. A future unattended orchestrator requires explicit finite run/time/spend limits and stopping conditions; no numeric billing enforcement is claimed here.
 
 ## 6. Review and release boundary
 

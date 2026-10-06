@@ -15,11 +15,11 @@
 ## Acceptance
 
 - [x] Intended local work is reconciled into reviewed GitHub commits; no unknown edits or duplicate files were discarded. User merged PR #9 at `7970f65b5975a6554c46eb521c7ca118939e4bb9`; evidence is in `PROGRESS.md`.
-- [ ] A fresh cloud task reads the current instructions and records its repository, branch, HEAD and runtime versions.
-- [ ] Dependencies install from the committed lockfile; relevant frontend checks and Playwright run against a fresh internal preview.
-- [ ] Backend/container capability is verified, or its limitation is recorded and the unchanged authoritative backend CI gate passes.
+- [x] A fresh cloud task reads the current instructions and records its repository, branch, HEAD and runtime versions. Published restoration receipt: 7 October 2026, source `16eea945f9324b6f20610d0a0b98b1a1cb6014e9`; see `PROGRESS.md`.
+- [x] Dependencies install from the committed lockfile; relevant frontend checks and Playwright run against a fresh internal preview. Locked setup reused; all three focused browser projects and restarted demo behavior passed.
+- [x] Backend/container capability is verified, or its limitation is recorded and the unchanged authoritative backend CI gate passes. Matching-input cloud receipt: 416 backend/PostgreSQL and 408 infrastructure cases; cloud-only trust remains separate from CI.
 - [ ] Full required GitHub Actions checks pass for the final PR candidate; macOS WebKit coverage remains intact.
-- [ ] A usable user preview is demonstrated, with the exact revision and demo/API mode stated. If unavailable, this criterion remains blocked.
+- [ ] A usable user preview is demonstrated, with the exact revision and demo/API mode stated. **Blocked:** authorized Cloudflare trial failed at DNS/proxy provisioning; no public URL. Do not retry without new network evidence.
 - [ ] The PR includes verification evidence and remaining human/device/AWS boundaries; no merge or deployment occurs in the development loop.
 
 ## Exclusions
@@ -33,6 +33,7 @@
 - One ready ledger task per run; stop at its acceptance or a concrete blocker.
 - No unattended relaunches are configured. A future orchestrator needs an explicit run/time/spend limit and stop condition before activation.
 - Run focused checks while changing code; consume existing full-CI results for the final candidate rather than repeatedly duplicating that suite.
+- This guarded-workflow run permits at most three repair iterations or 30 minutes of active work. CI may continue afterward; pending is not passed.
 - Do not enlarge scope or edit acceptance criteria to make the milestone appear complete. Ask the user for a changed outcome when needed.
 
 ## Owners
