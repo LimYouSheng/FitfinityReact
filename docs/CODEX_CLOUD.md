@@ -1,6 +1,6 @@
 # Fitfinity Codex Cloud workflow
 
-Prepared 6 October 2026 against GitHub `main` at `d2e8a4b7e44c1554b1f31b5337b87014e6446fdf`. This guide prepares the transition; environment activation and local-source reconciliation require their own evidence.
+Updated 6 October 2026 after the user merged the accepted local runbook in PR #9. Accepted main checkpoint: `7970f65b5975a6554c46eb521c7ca118939e4bb9`. The cloud experiment remains on PR #8's `docs/codex-cloud-workflow-2026-10-06` branch. Local-source reconciliation is complete; cloud environment activation and acceptance remain pending.
 
 ## 1. Canonical files
 
@@ -17,15 +17,14 @@ Prepared 6 October 2026 against GitHub `main` at `d2e8a4b7e44c1554b1f31b5337b870
 
 Do not add a competing `ENGINEERING_RULES.md` or second task list. Existing canonical owners serve those roles. Read relevant sections using search; the large Rules/Journey files are not mandatory full-context input on every loop.
 
-## 2. One-time source cutover
+## 2. Accepted source and experiment branch
 
-- The user reported local repositories ahead of GitHub. A cloud checkout cannot see uncommitted Mac files. Do not declare the migration complete from GitHub alone.
-- Preserve the complete local work and inventory tracked, staged and untracked changes. In the existing checkout, `git status --short --branch --untracked-files=all`, `git diff --stat`, `git diff --cached --stat`, and `git log --oneline origin/main..HEAD` are read-only starting points. Refresh `origin` before making the final ahead/behind comparison.
-- Compare local docs with this candidate before replacing anything. The newly copied `docs/AWS_DEPLOYMENT_RUNBOOK.md` is intended work. Compare its contents, not just its filename.
-- The earlier status listed many untracked names containing ` 2`. Do not commit, delete or classify them as disposable merely from that suffix. Compare them with their canonical files, preserve any unique work, and record their disposition.
-- Review intended changes, stage exact paths and preserve them on a dedicated migration branch. No `git add .`, reset, stash, clean, force push or direct push to `main` as a shortcut.
-- Reconcile the documentation PR with that source branch, resolve conflicts in canonical owners, and run required checks. The user controls merging. Record the final accepted main SHA before starting ordinary cloud feature work.
-- After cutover, GitHub is canonical. Optional local use pulls reviewed GitHub state; Mac installers and local AWS login are no longer routine development prerequisites.
+- Fresh user Git output confirmed local and remote main at `d2e8a4b7e44c1554b1f31b5337b87014e6446fdf`, with no tracked changes or unpublished commits. Only `docs/AWS_DEPLOYMENT_RUNBOOK.md` was untracked; its user-confirmed blob was `041d15c2e68e8b878d71455c30299a9b5b755ff4`.
+- PR #9 preserved that exact file. Both required PR checks passed; the user merged it on 6 October at 22:46:11 Singapore as `7970f65b5975a6554c46eb521c7ca118939e4bb9`. Main contains the accepted local checkpoint. Post-merge verification remains a separate receipt; see `PROGRESS.md`.
+- Earlier ` 2` duplicate entries were absent from the latest user inventory. This task did not delete them or infer that they were disposable. Preserve any newly discovered unknown local work and inspect it separately.
+- Continue the experiment on PR #8's existing `docs/codex-cloud-workflow-2026-10-06` branch, incorporating the accepted main checkpoint without force push. Keep #8 draft and unmerged until the user decides otherwise. Do not recreate the PR or merge it to obtain a preview.
+- Confirm the actual branch and HEAD at setup and every fresh cloud task; the required experiment instructions are on the feature branch, not main. Read its `AGENTS.md`, `NORTH_STAR.md` and `PROGRESS.md` before work.
+- GitHub is canonical for this accepted checkpoint. Optional Mac use must preserve new edits and pull reviewed GitHub state; Mac installers and local AWS login are no longer routine development prerequisites. No `git add .`, reset, stash, clean, force push or direct main push as a shortcut.
 
 The October hosting operator has an exact source manifest and saved state. A newer docs commit cannot silently become its accepted release baseline. Retain its original evidence; separately review any replacement release manifest/operator before resuming deployment.
 
@@ -48,8 +47,12 @@ Use the current **Codex Cloud** environment flow: select the Fitfinity repositor
 ### Paste into the environment setup conversation
 
 ```text
-Prepare LimYouSheng/FitfinityReact for Codex Cloud using its AGENTS.md and
-docs/CODEX_CLOUD.md. Confirm the reconciled source branch and SHA first.
+Prepare LimYouSheng/FitfinityReact for Codex Cloud on existing PR #8 branch
+docs/codex-cloud-workflow-2026-10-06. Fetch and check out that branch without
+discarding edits. Confirm its HEAD and that accepted main checkpoint
+7970f65b5975a6554c46eb521c7ca118939e4bb9 is an ancestor; stop if not.
+Read that branch's AGENTS.md, NORTH_STAR.md, PROGRESS.md and
+docs/CODEX_CLOUD.md. Work on C3 only; local reconciliation C2 is complete.
 Use Node 24 and npm ci from the committed lockfile. Install Chromium and
 WebKit through the repository's Playwright dependency. Record versions.
 Verify Docker and Compose for the existing isolated backend test gate;
@@ -60,8 +63,9 @@ Prepare the Install script and Start skill using the canonical commands.
 Demonstrate a fresh internal preview and an affected browser scenario.
 Provide an accessible preview if this environment supports one; otherwise
 record the exact missing capability. Do not publish application hosting,
-change CI/infrastructure, merge a branch or deploy. Report setup evidence
-and unresolved work for review before the environment is published.
+change CI/infrastructure, merge PR #8, push main or deploy. Keep #8 draft.
+Report setup evidence and unresolved work for review before publishing
+the environment. A fresh task must confirm this branch and instructions.
 ```
 
 ### Canonical preparation commands

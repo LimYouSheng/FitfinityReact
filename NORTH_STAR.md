@@ -14,7 +14,7 @@
 
 ## Acceptance
 
-- [ ] Intended local work is reconciled into reviewed GitHub commits; no unknown edits or duplicate files were discarded.
+- [x] Intended local work is reconciled into reviewed GitHub commits; no unknown edits or duplicate files were discarded. User merged PR #9 at `7970f65b5975a6554c46eb521c7ca118939e4bb9`; evidence is in `PROGRESS.md`.
 - [ ] A fresh cloud task reads the current instructions and records its repository, branch, HEAD and runtime versions.
 - [ ] Dependencies install from the committed lockfile; relevant frontend checks and Playwright run against a fresh internal preview.
 - [ ] Backend/container capability is verified, or its limitation is recorded and the unchanged authoritative backend CI gate passes.
