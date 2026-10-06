@@ -2,7 +2,7 @@
 
 ## Checkpoint — 7 October 2026 (Singapore)
 
-- North Star: `CLOUD-01` remains **incomplete**. Routine guarded cloud development is verified; public preview and final-candidate CI acceptance remain open.
+- North Star: `CLOUD-01` remains **incomplete**. Restored runtime and focused guarded development are verified; end-to-end publication, public preview and final-candidate CI acceptance remain open.
 - This run started clean on PR #8's existing `docs/codex-cloud-workflow-2026-10-06` branch at `16eea945f9324b6f20610d0a0b98b1a1cb6014e9`. Accepted main `7970f65b5975a6554c46eb521c7ca118939e4bb9` is an ancestor. No worktree was created.
 - Configuration reader reported published base version `12f60d46-d1a5-4d2f-b026-310f75fa8b4b~cecfgver_6ac520b839408190ab2cc047c34947a2`, no editable draft at entry, and restoration pinned to that starting SHA. Saved files/images were available; processes were restarted and checked. This run did not publish or republish the environment.
 - Candidate changes are documentation only: `AGENTS.md`, `NORTH_STAR.md`, this ledger and `docs/CODEX_CLOUD.md`. Runtime source, tests, dependencies, workflows, infrastructure and accepted AWS runbook are unchanged. Agent instructions retain six sections; commands/environment handling remain in the guide.
@@ -12,10 +12,10 @@
 
 | ID | Task and completion evidence | State | Next action |
 | --- | --- | --- | --- |
-| C1 | Canonical instructions and recurring guarded workflow; affected documentation checks and final normal PR CI | Consolidated; final CI pending at this checkpoint | Check both required jobs for the exact final PR head |
+| C1 | Canonical instructions and recurring guarded workflow; affected documentation checks and final normal PR CI | Consolidated; publication blocked, final CI not started | Restore repository write access, then check both required jobs for the exact final PR head |
 | C2 | Reconcile intended local source/runbook with reviewed GitHub commits | Complete: user merged PR #9 | Do not repeat reconciliation without new evidence |
 | C3 | Prepare/publish environment; verify restored dependencies, runtime, browser and internal preview | Published restoration verified; startup consolidation saved separately for review | Reuse setup; activate saved configuration only through separately authorized publication |
-| C4 | Final candidate full CI, usable public preview and final acceptance receipt | **Public preview blocked; final CI pending** | No Cloudflare retry without new network evidence; keep unmet boxes open |
+| C4 | Final candidate full CI, usable public preview and final acceptance receipt | **Public preview blocked; final CI not started** | No Cloudflare retry without new network evidence; keep unmet boxes open |
 
 ## Restored runtime and focused evidence
 
@@ -38,8 +38,9 @@ Reuse fingerprints: canonical Dockerfile SHA256 `0cc408586b4b64971fc9646c3b3b5dc
 
 ## CI, publication and remaining boundaries
 
+- Feature-branch push returned HTTP 403: `Permission to LimYouSheng/FitfinityReact.git denied to HNHSJH`. Repository API confirms injected account permissions `pull: true`, `push: false`. The prepared commit remains local; remote PR #8 still points to the starting SHA. Final-candidate CI has not started and has no run URL. Restore platform GitHub authorization for this repository; do not extract/replace credentials or push another branch. Keep the saved repository pin at the remotely available starting SHA until publication succeeds; local-only commit restoration is not established.
 - Starting PR #8 head `16eea945f9324b6f20610d0a0b98b1a1cb6014e9`: both required jobs passed in [run 37482942704](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37482942704). **Historical after this documentation commit**; final CI must match the new head. Existing verification workflow remains unchanged: macOS frontend/WebKit and Ubuntu Docker/PostgreSQL, all inventories/gates retained.
-- Start skill is prose and delegates lifecycle/commands to canonical owners; Install script remains Bash for initial preparation/relevant refreshes. Saving a configuration draft does not apply/publish it. Any new saved draft needs review and separately authorized activation; no automatic republish.
+- One Start skill begins “Follow the current authorized task…” and delegates lifecycle/commands to canonical owners; Install script is a separate Bash field. It optionally verifies `FITFINITY_EXPECTED_HEAD` supplied by the validation task, avoiding a permanent old-commit pin. Its owned temporary browser-container cleanup passed isolated failure/success checks, retaining failure even if cleanup fails; Bash syntax passed. The current prompt owns three repair iterations/30 minutes; reusable startup honors each task's budget. Saving a configuration draft does not apply/publish it. Any new saved draft needs review and separately authorized activation; no automatic republish.
 - **Public preview is blocked.** Authorized Cloudflare trial on 7 October: host/container registration failed resolving `api.trycloudflare.com` (DNS refusal); HTTPS-proxy POST returned `403 — Your request was blocked`. No public URL/edge connection was created. This run did not retry. Existing Pages is merged-main demo only, never PR #8 preview evidence.
 - Linux evidence does not establish macOS/Safari media, physical PWA/touch/device or live password/MFA/recovery acceptance. No AWS/customer credentials, real data, app publication, deployment or infrastructure writes were used.
 - Accepted main's [run 37481747347](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37481747347) passed both required verification jobs; overall conclusion is failure because `image / image` failed. AWS/image investigation is outside this task; no whole-workflow success claim or image retry.

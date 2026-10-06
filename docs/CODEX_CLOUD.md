@@ -48,6 +48,8 @@ Use the current **Codex Cloud** environment flow: select the Fitfinity repositor
 
 Use the existing isolated checkout; no worktree unless explicitly requested. **Install script contains Bash; Start skill contains prose.** The saved Install script uses `npm ci`, downloads the lockfile's Chromium/WebKit, prepares container libraries and cloud-only backend trust, then runs initial lint, browser/build/PWA and full backend validation. Do not execute installation or full backend validation on every task startup. Preserve signatures, TLS and dependency hashes.
 
+For initial C3 validation, explicitly supply `FITFINITY_EXPECTED_HEAD=16eea945f9324b6f20610d0a0b98b1a1cb6014e9` when running the saved Install script; it compares full HEAD with the supplied value before installation. Later validation uses that task's authorized checkpoint, not this historical SHA. Browser preparation traps exit to remove only its owned temporary container and preserves the original failure status. Startup remains prose, with each task's agreed budget.
+
 Read the canonical rules/goal/ledger/guide at entry and compare the requested checkpoint before editing. Run these lightweight guards; also require equality with the task's explicit HEAD when supplied. A historical receipt SHA is not a permanent starting HEAD for future tasks.
 
 ```bash
