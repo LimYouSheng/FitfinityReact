@@ -1,7 +1,20 @@
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Journey and Iteration History
 
-Updated 4 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+Updated 6 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+
+## Codex Cloud process preparation — 6 October 2026
+
+The user requested conversion of the engineering process/documentation for pure Codex Cloud and explicitly referenced recent prompts/replies in **Model Context Protocol Overview** and **Engineering Workflow Principles**. They then required concise, precise `AGENTS.md` sections/point forms and efficient, affordable Ralph loops/North Stars.
+
+- Carry forward bounded milestone work, canonical owners, strict tests and feature branch → PR → full CI → separately reviewed merge/release. The development loop stops at PR-ready and does not deploy or change protected infrastructure.
+- Codex Cloud now owns routine implementation, internal preview and affected browser execution; the old assistant-browser/local-installer restriction is superseded for that workflow. Preserve macOS WebKit/full PostgreSQL CI and separate physical/live acceptance.
+- Add a short root agent checklist, one active North Star and one compact progress/task ledger. Reuse existing architecture/contracts as detailed owners. Limit loops by task/acceptance/blocker; do not create a daemon, schedule, automatic model escalation or duplicate full verification runs.
+- Inspect actual Fitfinity configuration: Node 24, Python 3.12, PostgreSQL 17.11, existing canonical test commands. No other project's runtime/test assumptions were imported. Existing Pages publishes merged main and provides no PR preview deployment.
+- Preserve the user's local-ahead work, including the AWS runbook copied into docs. The reviewed GitHub base is `d2e8a4b7e44c1554b1f31b5337b87014e6446fdf`; local parity has not been verified. Record source reconciliation and fresh cloud setup/preview as open acceptance gates.
+- The AWS runbook records first-owner acceptance and the current hosting quota stop. No AWS API call, application deploy, credential transfer, source-manifest weakening or quota resubmission is part of this documentation change.
+
+This is preparation evidence, not acceptance of a configured cloud environment. See root PROGRESS for current task state and the documentation PR for actual validation/CI results. Historical receipts below retain their original scope and outcome.
 
 ## Package reactivation calendar-label repair — 4 October 2026
 
