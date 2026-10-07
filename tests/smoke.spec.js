@@ -1309,6 +1309,10 @@ test('client profile navigation tabs contain package session and progress data',
     expect(exportBox.x).toBeGreaterThan(titleBox.x)
   }
 
+  // Chart removal precedes the closing chevron's transition; measure its settled edge.
+  await exerciseRows.first().locator('.strength-progress-chevron').evaluate(async chevron => {
+    await Promise.all(chevron.getAnimations().map(animation => animation.finished))
+  })
   const aligned = await exerciseRows.first().evaluate(row => {
     const headings = row.closest('.strength-progress-list').querySelector('.strength-progress-columns').children
     return [...row.children].map((cell, index) => Math.abs(cell.getBoundingClientRect().right - headings[index].getBoundingClientRect().right))

@@ -2,7 +2,7 @@
 
 ## Outcome
 
-Prepare the exact proposed TEST exception `FITFINITY-TEST-2026-10-07-86183723` for the user-selected existing image in [draft PR #11](https://github.com/LimYouSheng/FitfinityReact/pull/11), using the acceptance mechanism merged in PR #10. Stop for YS review and merge. This is a proposal, not completed authorization or image security acceptance.
+Prepare the exact proposed TEST exception `FITFINITY-TEST-2026-10-07-86183723` for the user-selected existing image in [draft PR #11](https://github.com/LimYouSheng/FitfinityReact/pull/11), using the acceptance mechanism merged in PR #10. The authorized follow-up repairs the failed frontend alignment measurement in this same PR, with full final CI required. Stop for YS review and merge. This is a proposal, not completed authorization or image security acceptance.
 
 ## Acceptance — proposal verification and review boundary
 
@@ -10,13 +10,14 @@ Prepare the exact proposed TEST exception `FITFINITY-TEST-2026-10-07-86183723` f
 - [x] Bind the proposed entry to exact TEST scope, immutable digest, provenance and two HIGH finding tuples; use the actual dedicated PR URL.
 - [x] Clearly identify the proposed timestamp and expiry; preserve historical exceptions without transfer or renewal.
 - [x] Existing policy checks, canonical backend/PostgreSQL gate and applicable documentation checks pass.
+- [x] Diagnose the tablet chevron-transition measurement failure and preserve the same settled-state `<=1px` alignment assertion.
 - [ ] Both complete final-SHA GitHub CI jobs pass, retaining macOS/WebKit; final results belong in PR #11 and the delivery report.
 - [ ] YS reviews and merges the proposed approval; this is outside the preparation task.
 - [ ] Separately authorized live evaluation verifies current COMPLETE scan evidence and produces an acceptance receipt; not executed here.
 
 ## Boundaries
 
-Existing checkout, authorized `docs/test-image-approval-2026-10-07` from exact main above. One agent, maximum three repairs or 30 minutes active work; existing CI waiting is separate. Reuse installed dependencies/caches/cloud-only trust. Changes only to the policy and directly affected documentation. No merge, auto-merge, main/force push, workflow dispatch, AWS calls/writes, scan request, image rebuild/publication, deployment, credential setup, IAM change, tunnel retry or environment republishing.
+Existing checkout, authorized `docs/test-image-approval-2026-10-07` from exact main above. One agent, maximum three repairs or 30 minutes active work; existing CI waiting is separate. Reuse installed dependencies/caches/cloud-only trust. The follow-up explicitly expands scope to the smallest evidenced frontend-check repair and directly affected documentation; preserve the proposed policy bytes and original provenance. No merge, auto-merge, main/force push, workflow dispatch, AWS calls/writes, scan request, image rebuild/publication, deployment, credential setup, IAM change, tunnel retry or environment republishing.
 
 ## Completed and deferred goals
 
