@@ -55,9 +55,9 @@ export default function SessionDetailsRoute({ selectedSession, navigate, openCli
         await reload()
         return result
       }}
-      onPreviewPostponement={lastSlot => sessionService.previewPostponement({ sessionId: selectedSession.id, ...(lastSlot ? { lastSlot } : {}) })}
-      onPostpone={async (expected, requestKey, lastSlot) => {
-        const result = await runAction(() => sessionService.postpone({ sessionId: selectedSession.id, expected, requestKey, ...(lastSlot ? { lastSlot } : {}) }), result => ({ message: result.outcome === 'requested' ? 'Postponement sent for approval.' : 'Session postponed. Undo is available in Messages for 24 hours.' }))
+      onPreviewPostponement={() => sessionService.previewPostponement({ sessionId: selectedSession.id })}
+      onPostpone={async (expected, requestKey) => {
+        const result = await runAction(() => sessionService.postpone({ sessionId: selectedSession.id, expected, requestKey }), result => ({ message: result.outcome === 'requested' ? 'Postponement sent for approval.' : 'Session postponed. Undo is available in Messages for 24 hours.' }))
         await reload()
         return result
       }}

@@ -1,7 +1,15 @@
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Journey and Iteration History
 
-Updated 6 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+Updated 7 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+
+## Undated postponement approved as the active cloud feature — 7 October 2026
+
+The user authorized SESSION-OPEN-01 on existing draft PR #8, starting clean at `53aefd6ae8dcaf2f639bbf40548368fb111cce43` with accepted main `7970f65b5975a6554c46eb521c7ca118939e4bb9` as an ancestor. The prior cloud documentation candidate passed both required jobs in [run 37560945624](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37560945624). CLOUD-01 is deferred and incomplete; the public-preview blocker remains.
+
+The decision replaces automatic last-booking-plus-seven-days postponement and fixed display numbers with an explicitly undated existing session and package chronological numbering. The scenarios are documented together in Rules: postpone without a date, schedule through Upcoming or All Sessions, and bring the last eligible booking forward for an extra appointment without postponing. Credit counts, identity, attachments, approval and 24-hour Undo remain protected. Historical dated-postponement physical acceptance remains below; it does not accept the new behaviour.
+
+Implementation passed local verification: 948 units in 86 files and 51 affected browser cases across all three projects, with fresh root/Pages/API-fixture builds and three PWA checks. The final legacy-plumbing removal additionally passed 98 session-action tests and a fresh three-project postponement check. Source lint/health and 33 quality-tooling cases passed. Matching 416 backend/PostgreSQL and 408 infrastructure receipts were reused, not rerun. Exact commands, environment, iteration findings and local evidence are consolidated in `PROGRESS.md`. Final-candidate full CI and user review remain pending at this commit; final SHA/results belong in draft PR #8 without another commit just to record its own CI. Preserve demo/API/device boundaries and the one-agent, three-repair/30-active-minute budget. Existing CI waiting is separate from active repair work. Only the user can merge; no deployment, tunnel or environment publication is authorized.
 
 ## Accepted local checkpoint on main; cloud experiment retained — 6 October 2026, 22:46 Singapore
 

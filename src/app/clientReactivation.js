@@ -1,7 +1,7 @@
 import { clientPackages, packageForRecord, sessionIsInactive } from './clientPackages.js'
 import { restoreClientPurchases, restorePurchase } from './packageLifecycle.js'
 import { sessionBookingConflict } from './bookingAvailability.js'
-import { hasSessionDebit, sessionScheduleError } from './sessionRules.js'
+import { hasSessionDebit, isOpenSession, sessionScheduleError } from './sessionRules.js'
 
 /** Review only scheduling evidence; unrelated notes do not invalidate this dialog. */
 export function clientReactivationSnapshot(client, sessions, credits = []) {
@@ -47,7 +47,7 @@ export function clientReactivationReview(db, client, dates = {}, at = new Date()
     const session = calendar.sessions.find(item => item.id === original.id)
     const locked = Boolean(original.acknowledgement) || hasSessionDebit(db.packageCreditTransactions ?? [], original.id)
     const purchased = packageForRecord(client, original)
-    let error = sessionScheduleError(session)
+    let error = isOpenSession(original) ? (Object.hasOwn(dates, original.id) ? 'Schedule an open session through Change ad-hoc date/time after reactivation.' : null) : sessionScheduleError(session)
     if (!error && !db.trainers.some(item => item.id === session.trainerId && item.status === 'active')) error = 'Reactivate the assigned trainer before restoring this session.'
     if (!error && session.date !== original.date && locked) error = 'Acknowledged sessions cannot be rescheduled.'
     if (!error && session.date !== original.date && !purchased) error = 'The original package could not be identified. Review this session before reactivation.'

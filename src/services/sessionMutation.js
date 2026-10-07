@@ -1,3 +1,4 @@
+import { isOpenSession, renumberPackageSessions } from '../app/sessionRules.js'
 import { mockDb } from './mockDb.js'
 import { requireActiveActor } from '../app/scheduleChanges.js'
 import { managesOperations } from '../app/permissions.js'
@@ -52,6 +53,11 @@ export function mutateSessionRecords(actor, operation, mutator) {
     mutator(db)
     staff = requireMutationActor(before, actor)
   }, db => {
+    const affected = db.sessions.filter(session => {
+      const previous = before.sessions.find(item => item.id === session.id)
+      return previous && session.packageId && ['date', 'from', 'to', 'scheduleState'].some(key => (key === 'scheduleState' ? (previous[key] ?? 'scheduled') !== (session[key] ?? 'scheduled') : previous[key] !== session[key]))
+    })
+    for (const session of affected) renumberPackageSessions(db.sessions, session.clientId, session.packageId)
     if (operation === 'session.acknowledge' || packageActions.has(operation)) return
     const sessions = [...new Set([...before.sessions, ...db.sessions].map(item => item.id))].flatMap(sessionId => {
       const previous = before.sessions.find(item => item.id === sessionId), next = db.sessions.find(item => item.id === sessionId)
@@ -111,7 +117,7 @@ function requireUndoAuthority(db, entry, actor) {
   const staff = requireMutationActor(db, actor)
   if (managesOperations(staff)) return staff
   if (staff.id !== entry.actor.id || staff.role !== 'trainer' || entry.actor.role !== 'trainer' || !db.trainers.some(item => item.id === staff.trainerId && item.status === 'active')) throw new Error('Only the original trainer or Owner/Admin can undo this change.')
-  if (entry.sessions.some(change => (db.sessions.find(item => item.id === change.id)?.trainerId ?? change.after?.trainerId) !== staff.trainerId)) throw new Error('The session is no longer assigned to you.')
+  if (entry.sessions.some(change => !same(Object.fromEntries(Object.entries(change.before ?? {}).filter(([key]) => key !== 'sessionNumber')), Object.fromEntries(Object.entries(change.after ?? {}).filter(([key]) => key !== 'sessionNumber'))) && (db.sessions.find(item => item.id === change.id)?.trainerId ?? change.after?.trainerId) !== staff.trainerId)) throw new Error('The session is no longer assigned to you.')
   const approval = entry.operation === 'client.saveFixedWeeklySchedule' ? 'fixedWeeklySchedule' : entry.operation === 'session.requestTrainerChange' ? 'trainerReassignment' : ['session.requestTimeChange', 'session.postpone'].includes(entry.operation) ? 'sessionTime' : null
   if (!entry.proposals.length && approval && db.trainers.find(item => item.id === staff.trainerId).approvalNeeded?.[approval] !== false) throw new Error('Owner/Admin approval is now required to reverse this schedule change.')
   return staff
@@ -180,7 +186,7 @@ export function reverseSessionMutation(db, entry, actor) {
   for (const change of entry.sessions) {
     const index = db.sessions.findIndex(item => item.id === change.id), current = db.sessions[index]
     if (change.before && change.after && ['date', 'from', 'to', 'trainerId'].some(key => change.before[key] !== change.after[key]) &&
-      [change.before, change.after].some(item => `${item.date}T${item.from}` <= `${clock.date}T${clock.time}`)) throw new Error('A session has already started. Review its schedule with the owner.')
+      [change.before, change.after].some(item => !isOpenSession(item) && `${item.date}T${item.from}` <= `${clock.date}T${clock.time}`)) throw new Error('A session has already started. Review its schedule with the owner.')
     if (index >= 0) db.sessions.splice(index, 1)
     if (change.before) {
       const restored = clone(change.before)

@@ -1,7 +1,7 @@
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Rules, Architecture and Design Philosophy
 
-Updated 6 October 2026. This is the **authoritative implementation contract** for Fitfinity. It records current business semantics, canonical-development rules, frontend/service boundaries, production architecture, backend decomposition, security direction, migration discipline and CI/CD expectations. When historical notes conflict with this file, this file wins unless the user explicitly changes the requirement. For the full chronology and test receipts, read [Fitfinity Journey and Iteration History](./FITFINITY_JOURNEY.md).
+Updated 7 October 2026. This is the **authoritative implementation contract** for Fitfinity. It records current business semantics, canonical-development rules, frontend/service boundaries, production architecture, backend decomposition, security direction, migration discipline and CI/CD expectations. When historical notes conflict with this file, this file wins unless the user explicitly changes the requirement. For the full chronology and test receipts, read [Fitfinity Journey and Iteration History](./FITFINITY_JOURNEY.md).
 
 ## Codex Cloud engineering process — 6 October 2026
 
@@ -71,15 +71,42 @@ The existing unit and browser owners now cover dismissal-enabled compact preview
 - Use the existing renewal domain, mock snapshot projection, named message service boundary, MessageInbox and confirmation/modal owners. API availability remains false for the new operation. No backend/cloud write is enabled by this demo implementation.
 - Verification: 23 new cases in existing unit suites plus 12 affected contract checks; four new native browser scenarios run in desktop Chromium, phone WebKit and tablet WebKit (12 cases). Preserve all native timeouts, retries, projects and strict receipt checks. New full CI inventory: **895 units / 86 files and 804 browser / 268 per project**; unchanged backend/infrastructure/tooling gates. These renewal checks passed by user report and are included in the accepted combined scope above; the 895/804 inventories are historical before acknowledgement finality. Full combined CI and physical renewal acceptance remain pending.
 
+## Undated postponement and chronological session numbering — 7 October 2026
+
+**Authorized active goal: SESSION-OPEN-01; implemented and locally verified, final-candidate full CI pending.** This decision supersedes the earlier automatic “last booking plus seven days” and “Do not renumber” requirements. Their historical acceptance records below remain evidence of the previous behaviour, not acceptance of this change. CLOUD-01 is deferred and incomplete because public preview is still blocked.
+
+A session ID is permanent identity; its displayed number is a chronological position within its own package. On successful Postpone, an eligible upcoming, unacknowledged, undebited current-package session becomes explicitly open (`scheduleState: open`) with no date/time or chronological number. Keep its ID, package, assigned trainer, exercise plans, media and attached history. Do not infer an open session from an invalid/missing date, invent a placeholder date, create a wallet/credit/session/purchase, change  total/used/remaining credits, or extend validity. Other bookings and the standing weekly schedule stay unchanged. Open records neither reserve calendar time nor qualify for completion or acknowledgement.
+
+The old date arithmetic, last-booking anchor, replacement-slot form/state, conflict fallback, service arguments and stored replacement-slot payload have been removed. Only explicit rejection of obsolete persisted requests and regression fixtures remain; there is no legacy placement fallback.
+
+### Scenarios considered together
+
+| Action | Operator path and result | Numbering, conflicts, approval and Undo |
+| --- | --- | --- |
+| Replacement date unknown | Postpone the eligible selected session. It becomes open only when the change is applied. | Dated sessions in that package renumber; no replacement-slot conflict is needed. Supervised proposals retain the old booking until approved. Undo restores the old booking and numbering after current conflict/dependency checks. |
+| Schedule from Upcoming Sessions | Open sessions appear first in the client's Upcoming Sessions, retaining client/role filters. View the record and use Change ad-hoc date/time. | Validate the chosen future interval against trainer/client bookings. Owner/Admin applies directly; trainer approval follows existing autonomy settings. Undo scheduling returns the same ID to open and restores numbering. |
+| Schedule from All Sessions | Open sessions appear first in Sessions with All periods as well as Upcoming. Both routes reach the same session details/action. | Identical authorization, conflict, approval, persistence and Undo rules; no duplicate scheduling implementation. |
+| Extra training this week | “When the client wants another training appointment this week using their existing package, use Change ad-hoc date/time on the package’s last eligible scheduled session and move it to the requested slot.” Select the last eligible session by date/time within that package. | No postponement first, new session, purchase or extra credit. Release its previous booking only after successful application. Preserve its trainer, plans/media and all other dates; apply existing eligibility/conflict/approval checks. Undo restores the prior booking and numbering. Completed, acknowledged, debited and otherwise ineligible sessions are not candidates. |
+
+Open records have a prominent outline using the existing Add New Client visual treatment, not a validation warning. Show “Date/time not set” and “Open session”, never a fabricated number. Multiple open records use stable ID order. Date-range filters do not hide undated records; applicable client, trainer, package and status restrictions still apply. Once scheduled, the record returns to normal dated ordering. Preserve refresh persistence, mobile navigation and existing confirmation interactions. The existing owner Edit and trainer Request Time Change flows are the ad-hoc action; open records label that entry “Change ad-hoc date/time”.
+
+### Required 12-session examples (sessions 1–2 completed)
+
+- **A — Postpone session 3:** that ID is open first in both lists, without a number. Former 4–12 become 3–11; their bookings do not move. Counts remain **12 purchased / 2 used / 10 remaining**.
+- **B — Schedule that open ID between current dated sessions 5 and 6:** it becomes session 6 and later dated sessions renumber. Exactly 12 session records remain.
+- **C — Without postponement, move scheduled session 12 between sessions 5 and 6:** its same ID becomes session 6; former 6–11 become 7–12. Only the moved record changes its booking.
+
+Recompute current display positions after supported booking changes, never move plans, signatures, media or history between IDs. Preserve completed evidence and immutable historical audit snapshots. The original 24-hour Messages Undo window, authority, expiry, idempotency, booking conflicts and dependency guards remain. Booking changes and all affected number changes commit and reverse atomically; later dependent edits block unsafe reversal. API business-write capabilities remain false until transactional server support exists; demo checks are not live API or physical-device acceptance.
+
 ## Session postponement and Messages Undo — requested 3 October 2026, 09:10 Singapore
 
-**Current status: corrected Postpone and 24-hour Undo are accepted on physical devices by user report.** PR #5 merged as `c871aca5d74660d862f7214b6457887da08ac523`; main workflow `37130259933` completed successfully. All 514 published source blobs match the accepted publication manifest. The user reports Postpone and Undo physical checks passed on 4 October 2026. Individual job totals and the live PWA revision were not re-read at this checkpoint. The single-session rule below remains current; Monday postponement leaves Thursday unchanged. API business-write availability remains false. Infrastructure progression is paused for the newly requested renewal follow-up cleanup.
+**Historical acceptance of the superseded dated-postponement behaviour:** corrected Postpone and 24-hour Undo were accepted on physical devices by user report. PR #5 merged as `c871aca5d74660d862f7214b6457887da08ac523`; main workflow `37130259933` completed successfully. All 514 published source blobs match the accepted publication manifest. The user reports Postpone and Undo physical checks passed on 4 October 2026. Individual job totals and the live PWA revision were not re-read at this checkpoint. The dated-placement and no-renumber rules below are superseded by SESSION-OPEN-01; historically, Monday postponement leaves Thursday unchanged. API business-write availability remains false. Infrastructure progression is paused for the newly requested renewal follow-up cleanup.
 
 Historical PR #4 native checkpoint: the user reports the corrected local script passed **75 selected units, 3 receipt checks and all 24 browser cases**, plus lint/health/demo/PWA gates. No final success JSON was uploaded. Accepted source fingerprint: `7f2ceca38e0acceae150a5445f85e677d5786d2e75534456b28cb4c14c119191`. The earlier `SNz17i` 18/24 browser failure is superseded. Subsequent PR and merged-main CI passed. Every one of the 514 published Git blobs matches the reviewed publication manifest.
 
 Publication is authorized through the guarded `Fitfinity_Session_Actions_PR_2026-10-03.sh --publish` script. It verifies the accepted source and native success receipt, creates the new `feat/session-postpone-and-undo-2026-10-03` branch/PR and leaves complete CI, merge and deployment as separate gates. Publication produced PR #4 at `24b5940bd1b4ddeca6caa526d8c8a108ec065768`; PR run `37113934451` passed. The merge is `ffab1788dd77a2a5d3d9b17e418804ecd9dadccb`; main run `37115808925` passed verification, build and Pages deploy. The image job was skipped.
 
-### Postpone
+### Historical Postpone requirements — superseded by SESSION-OPEN-01
 
 - Put **Postpone** with session scheduling actions. It moves **only the selected upcoming, unacknowledged and undebited session of the current package**. Completed, cancelled, started, inactive, additional-purchase and historical-purchase sessions are ineligible.
 - Suggest **seven calendar days after the last noncancelled booked session in the current package, using that last session's start/end times**. Other clients/packages never determine the anchor. A manually rescheduled session is valid; do not require every existing booking to match a fixed weekly slot.
@@ -106,7 +133,7 @@ Publication is authorized through the guarded `Fitfinity_Session_Actions_PR_2026
 - For pending proposals, the inverse is cancellation, not pretending a session was already changed. For an applied approval, preserve the original decision and record a new reversal. Undo must not silently resurrect a decided/cancelled request as pending.
 - Undo of media requires the actual original media to remain recoverable within the existing retention policy. Never resurrect metadata pointing to an expired/deleted blob or silently extend retention. Opening WhatsApp, sharing/exporting or sending externally cannot be recalled; distinguish a reversible internal record from the external action and label that limit honestly.
 
-### Current correction acceptance
+### Historical dated-postponement correction acceptance
 
 The user authorized the new PR step at 20:14 Singapore. `Fitfinity_Postpone_PR_2026-10-03.sh --publish` verifies the successful local receipt and exact source, creates `fix/single-session-postpone-2026-10-03` from merged main `ffab1788dd77a2a5d3d9b17e418804ecd9dadccb`, publishes exactly 19 reviewed files and opens a new PR. Merge, deployment and AWS work remain separate.
 

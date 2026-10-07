@@ -1,9 +1,10 @@
+import { isOpenSession } from './sessionRules.js'
 import { sessionIsInactive } from './clientPackages.js'
 
 /** Completion (including no-show) retains the entire recorded interval. */
 export function sessionOccupiesTime(session, clients) {
-  return session.status === 'completed' || (session.status !== 'cancelled' &&
-    !sessionIsInactive(clients.find(client => client.id === session.clientId), session))
+  return !isOpenSession(session) && (session.status === 'completed' || (session.status !== 'cancelled' &&
+    !sessionIsInactive(clients.find(client => client.id === session.clientId), session)))
 }
 
 export function sessionBookingConflict({ sessions = [], clients = [] }, session, patch = {}) {

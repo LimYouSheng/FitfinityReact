@@ -1,3 +1,4 @@
+import { isOpenSession } from './sessionRules.js'
 import { formatDate, parseDateOnly } from '../utils/date.js'
 
 const iso = date => date.toISOString().slice(0, 10)
@@ -18,7 +19,7 @@ export function calendarDays(date, mode) {
 
 export function calendarSessions(sessions, dates) {
   const days = new Set(dates)
-  return sessions.filter(session => days.has(session.date)).sort((a, b) => `${a.date}|${a.from}|${a.id}`.localeCompare(`${b.date}|${b.from}|${b.id}`))
+  return sessions.filter(session => !isOpenSession(session) && days.has(session.date)).sort((a, b) => `${a.date}|${a.from}|${a.id}`.localeCompare(`${b.date}|${b.from}|${b.id}`))
 }
 
 export function calendarPeriods(date, mode, today) {

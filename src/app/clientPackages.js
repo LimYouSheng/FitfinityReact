@@ -1,3 +1,4 @@
+import { isOpenSession } from './sessionRules.js'
 export function clientPackages(client) {
   return [client.package, ...(client.additionalPackages ?? []), ...(client.packageHistory ?? [])].filter(Boolean)
 }
@@ -91,7 +92,7 @@ export function deletablePackageSessions(client, packageId, sessions, transactio
   return sessions.filter(session => session.clientId === client.id && packageForRecord(client, session)?.id === packageId &&
     !['completed', 'cancelled'].includes(session.status) && !session.acknowledgement && !session.acknowledgementHistory?.length &&
     !transactions.some(transaction => transaction.sessionId === session.id) &&
-    (session.date > clock.date || (session.date === clock.date && session.from > clock.time)))
+    (isOpenSession(session) || session.date > clock.date || (session.date === clock.date && session.from > clock.time)))
 }
 
 export function clientAssignedToTrainer(client, trainerId, sessions = []) {

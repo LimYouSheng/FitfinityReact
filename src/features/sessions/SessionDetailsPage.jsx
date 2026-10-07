@@ -13,7 +13,7 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Panel from '../../components/Panel.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
-import { sessionStatus, pendingSessionChanges, sessionActionError, sessionDurationMinutes } from '../../app/sessionRules.js'
+import { isOpenSession, sessionStatus, pendingSessionChanges, sessionActionError, sessionDurationMinutes } from '../../app/sessionRules.js'
 import { businessClock } from '../../app/clock.js'
 import { exerciseResultsFor } from '../../app/progress.js'
 import { formatDate, formatTimestamp } from '../../utils/date.js'
@@ -202,7 +202,7 @@ export default function SessionDetailsPage({
         </ol> : <p className="empty">Pending acknowledgement</p>}
       </Panel>
 
-      {dateError && <p className="helper">Client signature and WhatsApp are available from {formatDate(session.date)}.</p>}
+      {dateError && <p className="helper">{isOpenSession(session) ? 'Schedule this open session before completion, acknowledgement or WhatsApp.' : `Client signature and WhatsApp are available from ${formatDate(session.date)}.`}</p>}
       <div className={`session-primary-actions ${canAcknowledge ? '' : 'single-action'} ${acknowledgementMethod ? 'editing-section' : ''}`}>
         {canAcknowledge && (
           <button

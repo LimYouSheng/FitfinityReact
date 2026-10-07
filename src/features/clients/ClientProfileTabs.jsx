@@ -1,5 +1,5 @@
 import { managesOperations } from '../../app/permissions.js'
-import { sessionStatus } from '../../app/sessionRules.js'
+import { isOpenSession, isSessionHistory, sessionSequence, sortSessions, sessionStatus } from '../../app/sessionRules.js'
 import { weeklyFrequencyLabel } from '../../app/packages.js'
 import Panel from '../../components/Panel.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
@@ -131,7 +131,7 @@ function SessionsTab({ title, history = false, client, sessions, trainers, empty
   const scope = `client.${client.id}.${title}`
   const [fromDate, setFromDate] = usePageState(`${scope}.from`, '')
   const [toDate, setToDate] = usePageState(`${scope}.to`, '')
-  const filtered = sessions.filter(session => (!fromDate || session.date >= fromDate) && (!toDate || session.date <= toDate))
+  const filtered = sessions.filter(session => isOpenSession(session) || (!fromDate || session.date >= fromDate) && (!toDate || session.date <= toDate))
   const pagination = usePagination(filtered, `${client.id}|${title}|${fromDate}|${toDate}`, `${scope}.page`)
   const trainerName = id => trainers.find(item => item.id === id)?.name ?? 'Unknown trainer'
 
@@ -146,10 +146,10 @@ function SessionsTab({ title, history = false, client, sessions, trainers, empty
         {pagination.items.map(session => {
           const status = session.status === 'cancelled' ? { label: 'Cancelled', tone: 'red' }
             : history && session.status !== 'completed' ? { label: 'Not completed', tone: 'amber' } : sessionStatus(session.status)
-          return <article className="client-record-row" key={session.id}>
+          return <article className={`client-record-row ${isOpenSession(session) ? 'open-session-row' : ''}`} key={session.id}>
             <div>
-              <strong>{weekday(session.date)}, {formatDate(session.date)} · {session.from}–{session.to}</strong>
-              <span>{trainerName(session.trainerId)} · Session {session.sessionNumber} / {packageForRecord(client, session)?.total ?? '—'}</span>
+              <strong>{isOpenSession(session) ? 'Date/time not set' : `${weekday(session.date)}, ${formatDate(session.date)} · ${session.from}–${session.to}`}</strong>
+              <span>{trainerName(session.trainerId)} · {sessionSequence(session)} / {packageForRecord(client, session)?.total ?? '—'}</span>
               {session.acknowledgement?.method === 'late_no_show' && <span>Late/no-show</span>}
             </div>
             <div className="client-session-actions">
@@ -168,11 +168,9 @@ function SessionsTab({ title, history = false, client, sessions, trainers, empty
 export default function ClientProfileTabs({ readOnly = false, progressPackageId, onOpenProgressPackage, tab, user, client, clients, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory, packages, policy, onRenewPackage, onDeactivatePackage, onReactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
   const clientSessions = sessions.filter(session => session.clientId === client.id && (managesOperations(user) || session.trainerId === user.trainerId))
   const history = clientSessions
-    .filter(session => session.status === 'completed' || session.date < today)
+    .filter(session => isSessionHistory(session, today))
     .sort((a, b) => `${b.date}T${b.from}`.localeCompare(`${a.date}T${a.from}`))
-  const upcoming = clientSessions
-    .filter(session => session.status !== 'completed' && session.date >= today)
-    .sort((a, b) => `${a.date}T${a.from}`.localeCompare(`${b.date}T${b.from}`))
+  const upcoming = sortSessions(clientSessions.filter(session => !isSessionHistory(session, today)), today)
 
   if (tab === 'package') return <PackageTab clients={clients} readOnly={readOnly} client={client} today={today} user={user} trainers={trainers} sessions={sessions} packages={packages} policy={policy} onRenewPackage={onRenewPackage} onDeactivatePackage={onDeactivatePackage} onReactivatePackage={onReactivatePackage} onDeletePackageSessions={onDeletePackageSessions} packageCreditTransactions={packageCreditTransactions} />
   if (tab === 'history') return <SessionsTab title="Session History" history client={client} sessions={history} trainers={trainers} emptyCopy="No session history." onOpenSession={onOpenSession} />

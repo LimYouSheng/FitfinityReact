@@ -1,3 +1,4 @@
+import { renumberPackageSessions } from '../app/sessionRules.js'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { mockDb } from './mockDb.js'
 import { clientService } from './clientService.js'
@@ -333,7 +334,10 @@ it('package reactivation rechecks competing bookings and applies reviewed confli
   await clientService.reactivatePackage('c1', { ...options, dates }, owner())
   expect(mockDb.read().sessions.find(item => item.id === original.id)).toMatchObject({ date: dates[original.id], trainerId: original.trainerId, from: original.from, to: original.to, packageId,
     reactivationDateHistory: [{ fromDate: original.date, toDate: dates[original.id] }] })
-  expect(mockDb.read().sessions.filter(item => item.id !== original.id)).toEqual(before.sessions.filter(item => item.id !== original.id))
+  const expectedSessions = structuredClone(before.sessions)
+  expectedSessions.find(item => item.id === original.id).date = dates[original.id]
+  renumberPackageSessions(expectedSessions, original.clientId, packageId)
+  expect(mockDb.read().sessions.filter(item => item.id !== original.id)).toEqual(expectedSessions.filter(item => item.id !== original.id))
 })
 
 it('package reactivation refuses stale reviews, unknown sessions and inactive clients without changing data', async () => {

@@ -1,3 +1,4 @@
+import { isOpenSession } from './sessionRules.js'
 import { businessClock } from './clock.js'
 import { requireActiveClient, sessionIsInactive } from './clientPackages.js'
 import { trainerCoversBlock } from './clientOnboarding.js'
@@ -10,13 +11,13 @@ export function trainerReassignmentSnapshot(client, sessions, transactions, cloc
   const eligible = sessions.filter(session => session.clientId === client.id && !sessionIsInactive(client, session) &&
     !['completed', 'cancelled'].includes(session.status) && !session.acknowledgement && !session.acknowledgementHistory?.length &&
     !transactions.some(transaction => transaction.sessionId === session.id) &&
-    (session.date > clock.date || (session.date === clock.date && session.from > clock.time)))
+    (isOpenSession(session) || session.date > clock.date || (session.date === clock.date && session.from > clock.time)))
   return {
     trainerId: client.trainerId,
     fixedWeeklySchedule: structuredClone(client.fixedWeeklySchedule ?? []),
     packages: activePurchases(client).map(item => ({ id: item.id, trainerId: item.trainerId,
       fixedWeeklySchedule: structuredClone(item.fixedWeeklySchedule ?? []) })).sort((a, b) => a.id.localeCompare(b.id)),
-    sessions: eligible.map(({ id, trainerId, date, from, to }) => ({ id, trainerId, date, from, to })).sort((a, b) => a.id.localeCompare(b.id)),
+    sessions: eligible.map(({ id, trainerId, date, from, to, scheduleState }) => ({ id, trainerId, date, from, to, ...(scheduleState ? { scheduleState } : {}) })).sort((a, b) => a.id.localeCompare(b.id)),
   }
 }
 
@@ -30,7 +31,7 @@ export function trainerReassignmentAvailabilityError(client, trainer, sessions) 
   const unavailable = slots.find(slot => !trainerCoversBlock(trainer, slot.day, slot.from, slot.to))
   if (unavailable) return `The selected trainer is unavailable for a saved weekly schedule: ${unavailable.day}, ${unavailable.from}–${unavailable.to}.`
   for (const session of sessions) {
-    if (!trainerCoversBlock(trainer, weekday(session.date), session.from, session.to)) return `The selected trainer is unavailable on ${session.date}, ${session.from}–${session.to}.`
+    if (!isOpenSession(session) && !trainerCoversBlock(trainer, weekday(session.date), session.from, session.to)) return `The selected trainer is unavailable on ${session.date}, ${session.from}–${session.to}.`
   }
   return ''
 }

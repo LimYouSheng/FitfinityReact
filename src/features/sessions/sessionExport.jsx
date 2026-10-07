@@ -1,3 +1,4 @@
+import { isOpenSession, sessionSequence } from '../../app/sessionRules.js'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { exerciseVideoCaption } from './exerciseVideo.js'
 import { packageForRecord } from '../../app/clientPackages.js'
@@ -9,8 +10,8 @@ export function sessionSummaryText(client, session, summary, videos = []) {
   const purchased = packageForRecord(client, session)
   const lines = [
     `${client.name} — Session Summary`,
-    `${formatDate(session.date)} · ${session.from}–${session.to}`,
-    `Session ${session.sessionNumber} / ${purchased?.total ?? '—'}`,
+    isOpenSession(session) ? 'Date/time not set' : `${formatDate(session.date)} · ${session.from}–${session.to}`,
+    `${sessionSequence(session)} / ${purchased?.total ?? '—'}`,
   ]
   if (purchased) lines.push(`${purchased.name ?? `${purchased.total} Sessions`} · ${formatDate(purchased.startDate)} – ${formatDate(purchased.endDate)}`)
   if (summary?.trim()) lines.push('', 'Client-Facing Summary', summary.trim())

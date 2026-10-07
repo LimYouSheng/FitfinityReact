@@ -4,7 +4,7 @@ import usePageState from '../../hooks/usePageState.js'
 import { useCallback, useMemo } from 'react'
 import Panel from '../../components/Panel.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
-import { isSessionHistory, sortSessions, visibleSessionsForUser } from '../../app/sessionRules.js'
+import { isOpenSession, sessionSequence, isSessionHistory, sortSessions, visibleSessionsForUser } from '../../app/sessionRules.js'
 import { formatDate, weekday } from '../../utils/date.js'
 import usePagination from '../../hooks/usePagination.js'
 import DateFilterField from '../../components/DateFilterField.jsx'
@@ -27,8 +27,8 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
       if (period === 'upcoming' && history) return false
       if (period === 'history' && !history) return false
       if (statusFilter && session.status !== statusFilter) return false
-      if (fromDate && session.date < fromDate) return false
-      if (toDate && session.date > toDate) return false
+      if (!isOpenSession(session) && fromDate && session.date < fromDate) return false
+      if (!isOpenSession(session) && toDate && session.date > toDate) return false
 
       if (
         search &&
@@ -120,10 +120,10 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
           </div>
 
           {pagination.items.map(session => (
-              <article className="compact-list-row session-compact-grid session-list-row" key={session.id}>
+              <article className={`compact-list-row session-compact-grid session-list-row ${isOpenSession(session) ? 'open-session-row' : ''}`} key={session.id}>
                 <div className="session-date-cell">
-                  <strong className="compact-primary">{formatDate(session.date)}</strong>
-                  <span className="compact-secondary">{weekday(session.date)} · {session.from}–{session.to}</span>
+                  <strong className="compact-primary">{isOpenSession(session) ? 'Date/time not set' : formatDate(session.date)}</strong>
+                  <span className="compact-secondary">{isOpenSession(session) ? 'Schedule this open session' : `${weekday(session.date)} · ${session.from}–${session.to}`}</span>
                 </div>
 
                 <div className="session-client-cell">
@@ -131,7 +131,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
                   {clients.find(client => client.id === session.clientId)?.status === 'inactive' && <span className="inline-inactive">Client inactive</span>}
                   <span className="compact-secondary">
                     {managesOperations(user) ? `Trainer: ${trainerName(session.trainerId)} · ` : ''}
-                    Session {session.sessionNumber} / {session.packageTotal}
+                    {sessionSequence(session)} / {session.packageTotal}
                   </span>
                 </div>
 
@@ -139,7 +139,7 @@ export default function SessionsPage({ user, sessions, clients, trainers, today,
                   <button
                     type="button"
                     className="secondary-button small compact-view session-view-button"
-                    aria-label={`View session for ${clientName(session.clientId)} on ${formatDate(session.date)}`}
+                    aria-label={`View session for ${clientName(session.clientId)} ${isOpenSession(session) ? 'with date/time not set' : `on ${formatDate(session.date)}`}`}
                     onClick={() => onOpen(session.id)}
                   >
                     View
