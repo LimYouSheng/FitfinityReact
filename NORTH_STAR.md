@@ -1,22 +1,22 @@
-# North Star: AWS-HOSTING-PREFLIGHT-01
+# North Star: AWS-PRIVATE-RUNTIME-01
 
 ## Outcome
 
-Record the completed exact-image acceptance and prepare a concrete TEST hosting follow-up from reviewed main `c66acf9032b9bf7b9b71fcf118f375e8bb6e9fd1`. PR #11 is merged by LimYouSheng and its final CI passed. Image security acceptance under the exact expiring TEST exception passed; strict scan policy, application deployment and live authentication did not become accepted.
+Prepare the recovered private AWS runtime operator for exact accepted TEST image `86183723…`, with a manual protected cloud execution path. Preparation and offline testing do not establish current-image runtime acceptance. Full application deployment remains blocked.
 
 ## Acceptance
 
-- [x] Clean source, exact remote main and PR #11 merge/feature identities verified; authorized branch created in the existing checkout.
-- [x] Authenticated acceptance ZIP checksum and receipt verified; original image/build/source provenance and open findings preserved.
-- [x] Canonical records reconcile completed approval/live evaluation while preserving failed historical runs.
-- [x] Registry, dispatcher, role policies and historical hosting operator inspected; new-digest runtime and release prerequisites identified.
-- [x] No authorized AWS operator connection available; live quota remains unverified and exact guarded CloudShell reads are documented.
-- [x] Applicable documentation/link/command-syntax and diff checks pass.
-- [ ] Both complete final-SHA GitHub CI jobs pass, retaining all macOS/WebKit/backend coverage; record results in the draft PR and delivery report.
+- [x] Clean accepted main `16d6f98252ed3a371581b7aba562b2b9ec531dfd`, PR #12 merge and both final required CI jobs verified; existing feature branch preserved.
+- [x] Recovered source package, embedded manifest and historical receipt hashes independently verified outside the repository.
+- [x] Separate dispatcher owner, exact original-source inventory, authenticated provenance/approval checks, two-subnet proof and owned cleanup adapted.
+- [x] Proposed dedicated role/boundary and manual-only protected workflow prepared; nothing provisioned or dispatched.
+- [x] Unchanged canonical backend/PostgreSQL gate and affected local checks passed: 416 backend/PostgreSQL, 470 infrastructure; lint, health, documentation and workflow checks.
+- [ ] Complete final-SHA frontend/backend GitHub CI and user review of draft PR.
+- [ ] Separately authorized current-image AWS runtime execution and cleanup prove acceptance.
 
 ## Boundaries
 
-Only directly affected canonical documentation on `docs/aws-test-hosting-preflight-2026-10-07`. One agent, three repairs or 30 minutes active work; existing CI waiting separate. Reuse valid setup/receipts. Only already authorized operator access may run `sts get-caller-identity`, `service-quotas get-requested-service-quota-change` and `lambda get-account-settings` for account `418638389566`, region `ap-southeast-1`. No credentials in the coding environment. No policy/expiry/IAM/workflow changes, AWS writes, deployment, provisioning replay, image rebuild/scan/dispatch, merge/main/force push, tunnel or environment republishing. Draft PR and user-only merge authority.
+One agent; original maximum three repair iterations or 30 active minutes, CI waiting separate. Only feature-branch publication is authorized. No AWS calls, IAM application, environment configuration, workflow dispatch, scans, rebuilds, deployment, merge or environment republishing. YS alone merges. Retain failures and interrupted-operation evidence; never replay historical bootstrap or delete unowned resources.
 
 ## Completed and deferred goals
 

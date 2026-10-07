@@ -189,3 +189,8 @@ Use one working agent unless delegation is explicitly requested. A future unatte
 Record the tested source SHA, scope/diff, actual commands/results, reused-receipt provenance, evidence locations, preview revision/mode and unresolved limitations in `PROGRESS.md` and the PR. Record the new final commit's full-CI links/status in the PR and delivery report after publication; do not create another commit solely to record its own successful CI. Move the completed milestone summary to Journey once accepted. A new cloud task must be able to continue from these files without rereading chat history.
 
 Official behaviour checked on 6 October 2026: [Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments), [AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md). Repository instructions remain concise; detailed guidance is loaded by relevance.
+
+
+### Private runtime preparation
+
+`AWS-PRIVATE-RUNTIME-01` adds a separate manual protected workflow and proposed dedicated runtime role; ordinary coding still needs no AWS credentials. See the [AWS runbook](AWS_DEPLOYMENT_RUNBOOK.md#aws-private-runtime-01--prepared-cloud-operator-7-october-2026) for exact plan/collection/run/recovery/cleanup commands, artifact-access and provisioning prerequisites. The canonical backend gate remains unchanged except for registering 36 additional infrastructure tests (434 existing + 36 = 470); PostgreSQL remains 416. Keep the feature PR draft until complete final-SHA frontend/backend CI and user review. Current-image AWS runtime acceptance requires separate authorized execution.

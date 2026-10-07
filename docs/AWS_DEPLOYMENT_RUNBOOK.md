@@ -815,3 +815,61 @@ def identity_command(operation, payload):
 ### Keep this record current
 
 After each accepted step, record the corrected owner/revision, safe command and input hashes, order/prerequisites, receipt and exact acceptance scope here. Keep failed attempts in the correction section. Before client automation, reconcile any missing argument transcripts against the pinned owning code/templates and verify the client environment independently.
+
+
+## AWS-PRIVATE-RUNTIME-01 — prepared cloud operator, 7 October 2026
+
+The current entry point is `python3 backend/infrastructure/deploy.py private-runtime`. Its registry stage is distinct from the historical local Docker `image-runtime`. Source was adapted from verified retained operator `2026-10-04-current-runtime-2`; the historical `353907f…` receipt is not current `86183723…` acceptance. No historical operator was executed during adaptation.
+
+User-provided quota output received **7 October 2026**: `CASE_OPENED`, requested 1001, case `179123267300687`, actual total 1000 and unreserved 1000. This clears the >=102 recorded capacity prerequisite, without asserting approval of the 1001 request, a new AWS timestamp or a Codex read. The live operator rechecks identity and capacity. Do not resubmit.
+
+### Proposed setup and permissions — not applied
+
+Review `backend/infrastructure/test-github-runtime-role.json` with the generated plan. It proposes `fitfinity-test-github-runtime` plus the temporary-role permissions boundary. The existing image/verification roles are untouched. The protected `aws-test` environment must retain required user review and main-only deployment branch policy; an authorized operator must configure `AWS_RUNTIME_ROLE_ARN=arn:aws:iam::418638389566:role/fitfinity-test-github-runtime` before dispatch.
+
+The proposed runtime role reads STS/capacity, foundation/RDS/EC2 network metadata, Cognito configuration, secret metadata/policies, exact ECR manifest/current scan/repository policy and temporary stack/function/role/log metadata. It may create/delete only the named temporary stack, its two functions/log groups and stack-prefixed IAM roles; invoke only the two private probes; pass only those roles to Lambda. A permissions boundary caps temporary roles at application/auth secret access, Cognito reads, networking and logs. It grants no administrator/migration secret read, database migration, Owner creation, public endpoint or image publishing permission. Review the exact JSON resources and actions before provisioning.
+
+Future user-authorized provisioning command (not run in this task):
+
+```bash
+aws cloudformation deploy --region ap-southeast-1 \
+  --stack-name fitfinity-test-github-runtime-role \
+  --template-file backend/infrastructure/test-github-runtime-role.json \
+  --capabilities CAPABILITY_NAMED_IAM
+```
+
+Preserve the existing ECR Lambda pull policy; if it does not cover both temporary names, the operator stops. Resolve that prerequisite through a separate reviewed permission change. Authenticated GitHub artifact access must work; this coding environment received `Forbidden` from the acceptance artifact storage redirect.
+
+### Exact future sequence
+
+After user review/merge and provisioning, use the reviewed main checkout. Generate and retain one operation ID; reuse it and the previous completed workflow run ID on recovery. These commands are preparation instructions, not authorization to dispatch now.
+
+```bash
+operation_id="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"
+python3 backend/infrastructure/deploy.py private-runtime --mode plan \
+  --operation-id "$operation_id" --directory /tmp/fitfinity-unused-plan
+
+gh workflow run aws-private-runtime.yml --repo LimYouSheng/FitfinityReact --ref main \
+  -f mode=collect -f operation_id="$operation_id"
+# Inspect completed collection evidence before authorizing the run.
+gh workflow run aws-private-runtime.yml --repo LimYouSheng/FitfinityReact --ref main \
+  -f mode=run -f operation_id="$operation_id"
+```
+
+The workflow runs unchanged full frontend/backend verification first, uses protected OIDC only for live modes and retains partial evidence with `always()`. Planning makes no AWS calls. Collection makes reads only. Live execution creates no public endpoint, performs no bootstrap/migration/customer-data writes, and cleans only its owned temporary resources on success.
+
+Collect output or resume/clean an interrupted operation, substituting the actual prior completed runtime run ID:
+
+```bash
+runtime_run=REPLACE_WITH_COMPLETED_RUNTIME_RUN_ID
+gh run download "$runtime_run" --repo LimYouSheng/FitfinityReact --dir runtime-evidence
+gh workflow run aws-private-runtime.yml --repo LimYouSheng/FitfinityReact --ref main \
+  -f mode=run -f operation_id="$operation_id" -f resume_run="$runtime_run"
+# Explicit cleanup instead of further runtime proof:
+gh workflow run aws-private-runtime.yml --repo LimYouSheng/FitfinityReact --ref main \
+  -f mode=cleanup -f operation_id="$operation_id" -f resume_run="$runtime_run"
+```
+
+Recovery authenticates the prior workflow/run/artifact checksum and exact operator commit. Preserve all receipts. A changed main/operator revision, missing artifact, uncertain create without a discoverable owned stack, unverifiable invocation or drift stops instead of recreating/deleting blindly. Do not manually repeat provider writes. If artifact upload was lost, preserve provider resources and obtain a reviewed recovery procedure; the implementation does not invent ownership. Cleanup can run after approval expiry using unchanged reviewed source and authenticated operation state; it does not reassert runtime acceptance.
+
+The receipt binds operator commit separately from original image source/build; exact digest/approval, authenticated acceptance artifact, probe/template hashes, account/region, both subnets and operation ID. `aws_runtime_verified` and `temporary_cleanup_complete` are separate; `accepted` requires both plus a successful completed command. Failures remain visible with `accepted=false`. Historical receipt flags and caller-supplied success flags do not substitute for validated current results. Full application deployment and live sign-in/MFA/recovery remain blocked.

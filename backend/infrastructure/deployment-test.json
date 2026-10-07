@@ -80,6 +80,12 @@
       ],
       "accepted": false,
       "scope": "exact recorded temporary failure only"
+    },
+    "private-runtime": {
+      "kind": "probe",
+      "script": "private_runtime.py",
+      "accepted": false,
+      "scope": "Exact accepted 86183723 image; cloud manual operator; separate from historical local image-runtime"
     }
   },
   "release_blockers": [

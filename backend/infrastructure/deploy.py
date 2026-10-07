@@ -273,6 +273,11 @@ def save_receipt(path, report):
 
 
 def main(argv=None):
+    arguments = sys.argv[1:] if argv is None else argv
+    if arguments[:1] == ["private-runtime"]:
+        from private_runtime import main as private_main
+
+        raise SystemExit(private_main(arguments[1:]))
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "command",
