@@ -2,7 +2,7 @@
 
 ## Outcome
 
-Prepare the recovered private AWS runtime operator for exact accepted TEST image `86183723…`, with a manual protected cloud execution path. Preparation and offline testing do not establish current-image runtime acceptance. Full application deployment remains blocked.
+Correct and verify the prepared operator’s runtime IAM permissions before any provisioning or execution, preserving exact accepted TEST image `86183723…`, with a manual protected cloud execution path. Preparation and offline testing do not establish current-image runtime acceptance. Full application deployment remains blocked.
 
 ## Acceptance
 
@@ -11,7 +11,10 @@ Prepare the recovered private AWS runtime operator for exact accepted TEST image
 - [x] Separate dispatcher owner, exact original-source inventory, authenticated provenance/approval checks, two-subnet proof and owned cleanup adapted.
 - [x] Proposed dedicated role/boundary and manual-only protected workflow prepared; nothing provisioned or dispatched.
 - [x] Unchanged canonical backend/PostgreSQL gate and affected local checks passed: 416 backend/PostgreSQL, 470 infrastructure; lint, health, documentation and workflow checks.
-- [ ] Complete final-SHA frontend/backend GitHub CI and user review of draft PR.
+- [x] PR #13 merged at accepted main `559ed1ec841b6bcf40aef06fc25d3724f0ab85a1`; reviewed feature `ade57a055c2c6655391939ea2bb28189aaa8ff9d` ancestry verified.
+- [x] Corrected documented list/image/VPC/tag permissions with 12 actual-template policy tests; 48 runtime/policy cases pass.
+- [x] Correction’s unchanged canonical backend gate passed: 416 backend/PostgreSQL and 482 infrastructure; lint/format/health/documentation/diff checks passed.
+- [ ] Complete correction final-SHA frontend/backend GitHub CI and user review of its draft PR.
 - [ ] Separately authorized current-image AWS runtime execution and cleanup prove acceptance.
 
 ## Boundaries
