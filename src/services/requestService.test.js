@@ -136,8 +136,10 @@ it.each(['session_time', 'session_trainer', 'fixed_weekly_schedule', 'trainer_av
   expect(mockDb.read()).toEqual(after)
 })
 
-it('cancels just one duplicate request and keeps the session pending until the remaining request is cancelled', async () => {
-  const first = await pending(), second = await pending()
+it('cancels just one legacy duplicate request and keeps the session pending until the remaining request is cancelled', async () => {
+  const first = await pending(), second = { ...structuredClone(first), id: 'legacy-duplicate-request' }
+  // New submissions deduplicate; persisted requests from older versions still cancel independently.
+  mockDb.mutate(db => db.messages.push(second))
   await requestService.cancel(first.id, actor)
   expect(mockDb.read().messages.find(item => item.id === second.id).status).toBe('pending')
   expect(pendingSessionChanges(mockDb.read().messages, session.id)).toEqual([{ kind: 'session_time', label: 'Time change pending' }])

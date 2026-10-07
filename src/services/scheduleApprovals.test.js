@@ -1,3 +1,4 @@
+import { renumberPackageSessions } from '../app/sessionRules.js'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { mockDb } from './mockDb.js'
 import { clientService } from './clientService.js'
@@ -83,7 +84,9 @@ it('weekly approval changes every upcoming booking including custom times and re
   await clientService.saveFixedWeeklySchedule('c1',nextSlots,trainer);const before=mockDb.read()
   await requestService.resolve(pending('fixed_weekly_schedule').id,'approved',owner)
   const db=mockDb.read()
-  expect(db.sessions).toEqual(before.sessions.map(session=>['future','ad-hoc','expired','replacement'].includes(session.id)?{...session,from:'19:00',to:'20:00',outcome:{...session.outcome,durationMinutes:60}}:session))
+  const expected = structuredClone(before.sessions)
+  renumberPackageSessions(expected, 'c1', before.clients.find(item => item.id === 'c1').package.id)
+  expect(db.sessions).toEqual(expected.map(session=>['future','ad-hoc','expired','replacement'].includes(session.id)?{...session,from:'19:00',to:'20:00',outcome:{...session.outcome,durationMinutes:60}}:session))
   expect(db.clients.find(item=>item.id==='c1').fixedWeeklySchedule).toEqual(nextSlots)
   expect(db.packageCreditTransactions).toEqual(before.packageCreditTransactions)
 })
@@ -142,7 +145,7 @@ it('updates off-weekday legacy bookings and explicit slot bookings across packag
   const after = mockDb.reload()
   for (const id of ['future', 'ad-hoc', 'expired', 'replacement']) {
     const updated = after.sessions.find(item => item.id === id), original = before.sessions.find(item => item.id === id)
-    expect(updated).toEqual({ ...original, from: '19:00', to: '19:45', outcome: { ...original.outcome, durationMinutes: 45 } })
+    expect(updated).toEqual({ ...original, sessionNumber: after.sessions.filter(item => item.clientId === original.clientId && item.packageId === original.packageId).sort((a, b) => `${a.date}T${a.from}|${a.id}`.localeCompare(`${b.date}T${b.from}|${b.id}`)).findIndex(item => item.id === id) + 1, from: '19:00', to: '19:45', outcome: { ...original.outcome, durationMinutes: 45 } })
   }
 })
 
@@ -158,5 +161,6 @@ it('keeps past and started sessions and inactive-package sessions unchanged and 
   await expect(clientService.saveFixedWeeklySchedule('c1', nextSlots.map(slot => ({ ...slot, from: '08:00', to: '09:00' })), owner)).rejects.toThrow('passed today')
   expect(mockDb.read()).toEqual(before)
   await clientService.saveFixedWeeklySchedule('c1', nextSlots, owner)
+  renumberPackageSessions(before.sessions, 'c1', before.clients.find(item => item.id === 'c1').package.id)
   for (const id of ['inactive-package', 'started', 'past', 'completed']) expect(mockDb.read().sessions.find(item => item.id === id)).toEqual(before.sessions.find(item => item.id === id))
 })

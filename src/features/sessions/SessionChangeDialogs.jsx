@@ -9,21 +9,12 @@ export default function SessionChangeDialogs({ schedule, saving, detailsError, s
   return (
     <>
           <ConfirmDialog open={requestKind === 'postpone'} title="Postpone this session?"
-            confirmLabel={saving ? 'Checking…' : schedule.lastSlotChanged || schedule.postponementConflicts.length ? 'Check Availability' : 'Confirm Postponement'}
-            confirmDisabled={saving || !schedule.postponement || Boolean(schedule.lastSlotChanged && !validSchedule(schedule.lastSlotDraft)) || Boolean(schedule.postponementConflicts.length && !schedule.lastSlotChanged)}
+            confirmLabel={saving ? 'Saving…' : 'Confirm Postponement'} confirmDisabled={saving || !schedule.postponement}
             onCancel={() => { if (!saving) { setRequestKind(null); setDetailsError('') } }} onConfirm={schedule.submitPostponement}>
-            <p>The suggested slot is one week after the current package’s last session. Only this session moves; other bookings stay unchanged. Credits stay the same.</p>
-            <table className="postponement-preview"><thead><tr><th>Current slot</th><th>New slot</th></tr></thead><tbody>
-              {schedule.postponement?.changes.map(change => <tr key={change.sessionId}><td>{formatDate(change.before.date)}<br />{change.before.from}–{change.before.to}</td><td>{formatDate(change.next.date)}<br />{change.next.from}–{change.next.to}</td></tr>)}
+            <p>When applied, this session becomes open with date/time not set. Its old booking is released. Other bookings, package credits and validity stay unchanged. Dated sessions are renumbered chronologically.</p>
+            <table className="postponement-preview"><thead><tr><th>Current slot</th><th>New state</th></tr></thead><tbody>
+              {schedule.postponement?.changes.map(change => <tr key={change.sessionId}><td>{formatDate(change.before.date)}<br />{change.before.from}–{change.before.to}</td><td>Open session · Date/time not set</td></tr>)}
             </tbody></table>
-            {schedule.lastSlotChanged && <p role="status">Check availability to update this preview.</p>}
-            {schedule.postponementConflicts.map(conflict => <p key={conflict.sessionId} role="alert" className="validation-copy">{conflict.message}</p>)}
-            {schedule.editingLastSlot ? <fieldset className="session-request-fields" disabled={saving}>
-              <legend>Choose another slot</legend>
-              <label>Date<DateField aria-label="Postponed session date" min={schedule.postponement?.lastBooking?.date} value={schedule.lastSlotDraft?.date ?? ''} onChange={event => { setDetailsError(''); schedule.setLastSlotDraft(current => ({ ...current, date: event.target.value })) }} /></label>
-              <label>From<input aria-label="Postponed session start time" type="time" value={schedule.lastSlotDraft?.from ?? ''} onChange={event => { setDetailsError(''); schedule.setLastSlotDraft(current => ({ ...current, from: event.target.value })) }} /></label>
-              <label>To<input aria-label="Postponed session end time" type="time" value={schedule.lastSlotDraft?.to ?? ''} onChange={event => { setDetailsError(''); schedule.setLastSlotDraft(current => ({ ...current, to: event.target.value })) }} /></label>
-            </fieldset> : <button type="button" className="secondary-button small" disabled={saving} onClick={() => schedule.setEditingLastSlot(true)}>Change proposed slot</button>}
             {detailsError && <p role="alert" className="validation-copy">{detailsError}</p>}
           </ConfirmDialog>
           <ConfirmDialog

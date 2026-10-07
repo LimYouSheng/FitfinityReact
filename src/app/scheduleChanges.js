@@ -2,7 +2,7 @@ import { packageForRecord, sessionIsInactive } from './clientPackages.js'
 import { businessClock } from './clock.js'
 import { DAYS, availabilityBlockError, availabilityByDay } from './availability.js'
 import { parseDateOnly, weekday } from '../utils/date.js'
-import { sessionDurationMinutes, sessionScheduleError } from './sessionRules.js'
+import { isOpenSession, sessionDurationMinutes, sessionScheduleError } from './sessionRules.js'
 import { sessionBookingConflict } from './bookingAvailability.js'
 
 export function availabilityBlocks(availability = {}) {
@@ -45,8 +45,9 @@ export function sessionTimeChangeError(session, next, clock) {
     /^([01]\d|2[0-3]):[0-5]\d$/.test(slot.from ?? '') &&
     Number.isFinite(parseDateOnly(slot.date).getTime()) && parseDateOnly(slot.date).toISOString().slice(0, 10) === slot.date
   const hasStarted = slot => slot.date < clock.date || (slot.date === clock.date && slot.from <= clock.time)
-  if (!validStart(session)) return 'The session date or start time is invalid.'
-  if (hasStarted(session)) return 'Time changes are only available before the session starts.'
+  if (session.acknowledgement) return 'Acknowledged sessions cannot change their booking.'
+  if (!isOpenSession(session) && !validStart(session)) return 'The session date or start time is invalid.'
+  if (!isOpenSession(session) && hasStarted(session)) return 'Time changes are only available before the session starts.'
   if (next && sessionScheduleError({ ...session, ...next })) return 'Choose a valid requested date, start time and end time.'
   return next && hasStarted(next) ? 'Choose a requested date and start time in the future.' : null
 }

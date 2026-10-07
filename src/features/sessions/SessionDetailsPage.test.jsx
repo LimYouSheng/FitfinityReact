@@ -367,14 +367,14 @@ it('M4 shares the prepared session PDF on retry after cancellation without claim
 
 it('previews the single postponed session and preserves the proposal on a retryable save error', async () => {
   vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
-  const preview = { expected: 'reviewed-schedule', changes: [{ sessionId: 's1', before: { date: '2026-09-02', from: '18:00', to: '19:00' }, next: { date: '2026-09-09', from: '18:00', to: '19:00' } }] }
-  const props = renderDetails({ onPreviewPostponement: vi.fn().mockResolvedValue(preview), onPostpone: vi.fn().mockRejectedValueOnce(new Error('New booking conflict')).mockResolvedValueOnce({ outcome: 'applied' }) })
+  const preview = { expected: 'reviewed-schedule', changes: [{ sessionId: 's1', before: { date: '2026-09-02', from: '18:00', to: '19:00' }, next: { scheduleState: 'open', date: null, from: null, to: null } }] }
+  const props = renderDetails({ onPreviewPostponement: vi.fn().mockResolvedValue(preview), onPostpone: vi.fn().mockRejectedValueOnce(new Error('Temporary save failure')).mockResolvedValueOnce({ outcome: 'applied' }) })
   fireEvent.click(screen.getByRole('button', { name: 'Postpone', exact: true }))
   const dialog = within(await screen.findByRole('dialog', { name: 'Postpone this session?' }))
   expect(dialog.getByRole('table')).toHaveTextContent(/02 Sept? 2026/)
-  expect(dialog.getByRole('table')).toHaveTextContent(/09 Sept? 2026/)
+  expect(dialog.getByRole('table')).toHaveTextContent('Open session · Date/time not set')
   await act(async () => fireEvent.click(dialog.getByRole('button', { name: 'Confirm Postponement' })))
-  expect(dialog.getByRole('alert')).toHaveTextContent('New booking conflict')
+  expect(dialog.getByRole('alert')).toHaveTextContent('Temporary save failure')
   await act(async () => fireEvent.click(dialog.getByRole('button', { name: 'Confirm Postponement' })))
   expect(props.onPostpone.mock.calls[0]).toEqual(props.onPostpone.mock.calls[1])
   expect(props.onPostpone.mock.calls[0][0]).toBe(preview.expected)
@@ -402,38 +402,28 @@ it('acknowledgement finality retains original signature evidence from a historic
   expect(within(dialog).getByRole('img')).toBeVisible()
 })
 
-const postponementPreview = (conflicts = [], date = '2026-09-09') => ({
-  expected: `reviewed-${date}`, conflicts,
-  lastBooking: { sessionId: 's1', date: '2026-09-02', from: '18:00', to: '19:00' },
-  lastSlot: { date, from: '18:00', to: '19:00' },
-  changes: [{ sessionId: 's1', before: session, next: { date, from: '18:00', to: '19:00' } }],
-})
-it('postponement conflict requires availability review and separate confirmation of the chosen slot', async () => {
+const postponementPreview = () => ({ expected: 'reviewed-open', changes: [{ sessionId: 's1', before: session,
+  next: { scheduleState: 'open', date: null, from: null, to: null } }] })
+it('postponement confirms an undated session without replacement-slot controls', async () => {
   vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
-  const conflict = { sessionId: 's1', message: 'The trainer has another booking. Choose another day and time.' }
-  const props = renderDetails({ onPreviewPostponement: vi.fn().mockResolvedValueOnce(postponementPreview([conflict])).mockResolvedValueOnce(postponementPreview([], '2026-09-10')), onPostpone: vi.fn().mockResolvedValue({ outcome: 'applied' }) })
+  const props = renderDetails({ onPreviewPostponement: vi.fn().mockResolvedValue(postponementPreview()), onPostpone: vi.fn().mockResolvedValue({ outcome: 'applied' }) })
   fireEvent.click(screen.getByRole('button', { name: 'Postpone', exact: true }))
   const dialog = within(await screen.findByRole('dialog', { name: 'Postpone this session?' }))
-  expect(dialog.getByRole('alert')).toHaveTextContent('another booking')
-  expect(dialog.getByRole('button', { name: 'Check Availability' })).toBeDisabled()
-  fireEvent.change(dialog.getByLabelText('Postponed session date'), { target: { value: '2026-09-10' } })
-  await act(async () => fireEvent.click(dialog.getByRole('button', { name: 'Check Availability' })))
+  expect(dialog.getByRole('table')).toHaveTextContent('Open session · Date/time not set')
+  expect(dialog.queryByLabelText('Postponed session date')).not.toBeInTheDocument()
   expect(props.onPostpone).not.toHaveBeenCalled()
-  expect(props.onPreviewPostponement).toHaveBeenLastCalledWith({ date: '2026-09-10', from: '18:00', to: '19:00' })
-  expect(dialog.getByRole('table')).toHaveTextContent(/10 Sept? 2026/)
   await act(async () => fireEvent.click(dialog.getByRole('button', { name: 'Confirm Postponement' })))
-  expect(props.onPostpone).toHaveBeenCalledWith('reviewed-2026-09-10', expect.any(String), { date: '2026-09-10', from: '18:00', to: '19:00' })
+  expect(props.onPostpone).toHaveBeenCalledWith('reviewed-open', expect.any(String))
 })
-it('postponement exposes another-slot controls when a conflict arrives during confirmation', async () => {
+it('postponement retains the reviewed open-state proposal when commit rejects stale evidence', async () => {
   vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
-  const conflict = { sessionId: 's1', message: 'The proposed slot conflicts with another booking.' }
-  const props = renderDetails({ onPreviewPostponement: vi.fn().mockResolvedValueOnce(postponementPreview()).mockResolvedValueOnce(postponementPreview([conflict])),
-    onPostpone: vi.fn().mockRejectedValue(Object.assign(new Error(conflict.message), { code: 'POSTPONEMENT_CONFLICT' })) })
+  const props = renderDetails({ onPreviewPostponement: vi.fn().mockResolvedValue(postponementPreview()),
+    onPostpone: vi.fn().mockRejectedValue(new Error('The schedule changed. Review postponement again.')) })
   fireEvent.click(screen.getByRole('button', { name: 'Postpone', exact: true }))
   const dialog = within(await screen.findByRole('dialog', { name: 'Postpone this session?' }))
   await act(async () => fireEvent.click(dialog.getByRole('button', { name: 'Confirm Postponement' })))
-  expect(dialog.getByLabelText('Postponed session date')).toBeVisible()
-  expect(dialog.getByRole('button', { name: 'Check Availability' })).toBeDisabled()
+  expect(dialog.getByRole('alert')).toHaveTextContent('The schedule changed')
+  expect(dialog.getByRole('table')).toHaveTextContent('Open session · Date/time not set')
   expect(props.onPostpone).toHaveBeenCalledTimes(1)
 })
 it('postponement is disabled for sessions outside the current package', () => {

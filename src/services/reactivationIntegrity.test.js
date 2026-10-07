@@ -51,7 +51,8 @@ it.each(['u-owner', 'test-admin'])('%s can reschedule conflicts without changing
   expect(client().status).toBe('active'); expect(client().package.status).toBe('active')
   expect(moved).toMatchObject({ trainerId: original.trainerId, packageId: original.packageId, from: original.from, to: original.to, date: '2027-01-01' })
   expect(moved.reactivationDateHistory[0]).toMatchObject({ fromDate: original.date, toDate: '2027-01-01', by: { id: userId } })
-  expect(db.sessions.slice(1)).toEqual(before.sessions.slice(1))
+  expect(moved.sessionNumber).toBe(2)
+  expect(db.sessions.slice(1)).toEqual(before.sessions.slice(1).map(item => item.id === 'restore-b' ? { ...item, sessionNumber: 1 } : item))
   expect(sessionBookingConflict(db, moved)).toBeUndefined()
 })
 it('checks proposed dates against each other as one batch and rejects client overlap across trainers', async () => {

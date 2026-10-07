@@ -2,13 +2,13 @@ import { mutateSessionRecords } from './sessionMutation.js'
 import { applySessionPostponement } from '../app/sessionPostponement.js'
 import { managesOperations } from '../app/permissions.js'
 import { sessionIsInactive } from '../app/clientPackages.js'
-import { sessionDurationMinutes } from '../app/sessionRules.js'
+import { hasSessionDebit, sessionDurationMinutes } from '../app/sessionRules.js'
 import { requestTypes } from '../app/requestTypes.js'
 import { applyWeeklySchedule, availabilityBlocks, businessNow, requireActiveActor, sameAvailability, sameSlots, sessionTimeChangeError, validateAvailability } from '../app/scheduleChanges.js'
 import { requireSessionSlotAvailable } from '../app/bookingAvailability.js'
 import { delay, mockDb } from './mockDb.js'
 
-const snapshot = session => ({ date: session.date, from: session.from, to: session.to })
+const snapshot = session => ({ date: session.date, from: session.from, to: session.to, scheduleState: session.scheduleState ?? 'scheduled' })
 
 function cancellationTarget(db, messageId, actor) {
   const staff = requireActiveActor(db, actor)
@@ -66,8 +66,9 @@ export const requestService = {
       if (message.status !== 'pending') throw new Error('This request has already been decided.')
       const session = db.sessions.find(item => item.id === request.sessionId)
       if (decision === 'approved' && request.type === 'session_postpone') {
+        if (Object.hasOwn(request, 'lastSlot')) throw new Error('This obsolete replacement-slot request must be rejected and recreated.')
         if (!session || session.trainerId !== request.trainerId || !db.trainers.some(item => item.id === request.trainerId && item.status === 'active')) throw new Error('The requesting trainer or session assignment changed. Reject this request.')
-        message.updatedSessions = applySessionPostponement(db, session.id, request.expected, message.id, request.lastSlot).changes.length
+        message.updatedSessions = applySessionPostponement(db, session.id, request.expected, message.id).changes.length
       } else if (decision === 'approved' && request.type === 'fixed_weekly_schedule') {
         const client = db.clients.find(item => item.id === request.clientId)
         if (!client || client.trainerId !== request.trainerId || !sameSlots(client.fixedWeeklySchedule, request.oldSlots)) {
@@ -85,10 +86,11 @@ export const requestService = {
         if (!session || ['completed', 'cancelled'].includes(session.status) || client?.status !== 'active' || sessionIsInactive(client, session) || requester?.status !== 'active') {
           throw new Error('The session, client or requesting trainer is no longer eligible. Reject this request.')
         }
-        if (session.trainerId !== request.trainerId || (request.previous && Object.keys(snapshot(session)).some(key => session[key] !== request.previous[key]))) {
+        if (session.trainerId !== request.trainerId || (request.previous && Object.keys(snapshot(session)).some(key => snapshot(session)[key] !== (key === 'scheduleState' ? request.previous[key] ?? 'scheduled' : request.previous[key])))) {
           throw new Error('The session changed after this request. Reject it and request the updated change.')
         }
         if (request.type === 'session_time') {
+          if (session.acknowledgement || hasSessionDebit(db.packageCreditTransactions ?? [], session.id)) throw new Error('Acknowledged or debited sessions cannot change their booking.')
           const next = request.next
           if (!next || !/^\d{4}-\d{2}-\d{2}$/.test(next.date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(next.from) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(next.to) || next.from >= next.to) {
             throw new Error('The requested date or time is invalid.')
@@ -96,7 +98,7 @@ export const requestService = {
           const timeError = sessionTimeChangeError(session, next, businessNow(new Date(), db.settings.timeZone))
           if (timeError) throw new Error(`${timeError} Reject this request.`)
           requireSessionSlotAvailable(db, session, next)
-          Object.assign(session, { date: next.date, from: next.from, to: next.to })
+          Object.assign(session, { date: next.date, from: next.from, to: next.to, scheduleState: 'scheduled' })
           if (session.outcome) session.outcome.durationMinutes = sessionDurationMinutes(session)
         } else {
           const replacement = db.trainers.find(item => item.id === request.replacementTrainerId && item.status === 'active')

@@ -1,7 +1,36 @@
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Journey and Iteration History
 
-Updated 4 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+Updated 7 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+
+## Undated postponement approved as the active cloud feature — 7 October 2026
+
+The user authorized SESSION-OPEN-01 on existing draft PR #8, starting clean at `53aefd6ae8dcaf2f639bbf40548368fb111cce43` with accepted main `7970f65b5975a6554c46eb521c7ca118939e4bb9` as an ancestor. The prior cloud documentation candidate passed both required jobs in [run 37560945624](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37560945624). CLOUD-01 is deferred and incomplete; the public-preview blocker remains.
+
+The decision replaces automatic last-booking-plus-seven-days postponement and fixed display numbers with an explicitly undated existing session and package chronological numbering. The scenarios are documented together in Rules: postpone without a date, schedule through Upcoming or All Sessions, and bring the last eligible booking forward for an extra appointment without postponing. Credit counts, identity, attachments, approval and 24-hour Undo remain protected. Historical dated-postponement physical acceptance remains below; it does not accept the new behaviour.
+
+Implementation passed local verification: 948 units in 86 files and 51 affected browser cases across all three projects, with fresh root/Pages/API-fixture builds and three PWA checks. The final legacy-plumbing removal additionally passed 98 session-action tests and a fresh three-project postponement check. Source lint/health and 33 quality-tooling cases passed. Matching 416 backend/PostgreSQL and 408 infrastructure receipts were reused, not rerun. Exact commands, environment, iteration findings and local evidence are consolidated in `PROGRESS.md`. Final-candidate full CI and user review remain pending at this commit; final SHA/results belong in draft PR #8 without another commit just to record its own CI. Preserve demo/API/device boundaries and the one-agent, three-repair/30-active-minute budget. Existing CI waiting is separate from active repair work. Only the user can merge; no deployment, tunnel or environment publication is authorized.
+
+## Accepted local checkpoint on main; cloud experiment retained — 6 October 2026, 22:46 Singapore
+
+- Fresh user Git output confirmed local main and origin/main both at `d2e8a4b7e44c1554b1f31b5337b87014e6446fdf`, no tracked changes or unpublished commits, and only `docs/AWS_DEPLOYMENT_RUNBOOK.md` untracked. The earlier report that local application code was ahead is superseded by this evidence. Earlier duplicate-file entries were absent from the latest inventory; this task did not delete or classify them as disposable.
+- User-confirmed runbook blob `041d15c2e68e8b878d71455c30299a9b5b755ff4` matched the prepared bytes. PR #9 added only that file; both required checks passed in [run 37469198825](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37469198825).
+- GitHub records `LimYouSheng` merging PR #9 at 22:46:11 Singapore, producing main `7970f65b5975a6554c46eb521c7ca118939e4bb9`. The runbook matches exactly and all 516 pre-existing files remain unchanged. [Post-merge run 37481747347](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37481747347) was still running at this checkpoint; this is not a deployment-success receipt.
+- The user keeps PR #8 draft and unmerged for the cloud experiment. Incorporate the accepted main checkpoint into its existing branch, refresh the source-cutover ledger and retain normal full CI. No force push or replacement PR. Prior PR #8 checks passed at `821005d50c764134865af8f00ae4aa561260b878` in [run 37466883211](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37466883211); those results do not accept a newer candidate.
+- Local-source reconciliation is complete. Next is cloud environment setup on `docs/codex-cloud-workflow-2026-10-06`, followed by a fresh-task/preview receipt. The environment has not been published or accepted by this checkpoint. No AWS operation or application deployment was performed by the assistant.
+
+## Codex Cloud process preparation — 6 October 2026
+
+The user requested conversion of the engineering process/documentation for pure Codex Cloud and explicitly referenced recent prompts/replies in **Model Context Protocol Overview** and **Engineering Workflow Principles**. They then required concise, precise `AGENTS.md` sections/point forms and efficient, affordable Ralph loops/North Stars.
+
+- Carry forward bounded milestone work, canonical owners, strict tests and feature branch → PR → full CI → separately reviewed merge/release. The development loop stops at PR-ready and does not deploy or change protected infrastructure.
+- Codex Cloud now owns routine implementation, internal preview and affected browser execution; the old assistant-browser/local-installer restriction is superseded for that workflow. Preserve macOS WebKit/full PostgreSQL CI and separate physical/live acceptance.
+- Add a short root agent checklist, one active North Star and one compact progress/task ledger. Reuse existing architecture/contracts as detailed owners. Limit loops by task/acceptance/blocker; do not create a daemon, schedule, automatic model escalation or duplicate full verification runs.
+- Inspect actual Fitfinity configuration: Node 24, Python 3.12, PostgreSQL 17.11, existing canonical test commands. No other project's runtime/test assumptions were imported. Existing Pages publishes merged main and provides no PR preview deployment.
+- Preserve the user's local-ahead work, including the AWS runbook copied into docs. The reviewed GitHub base is `d2e8a4b7e44c1554b1f31b5337b87014e6446fdf`; local parity has not been verified. Record source reconciliation and fresh cloud setup/preview as open acceptance gates.
+- The AWS runbook records first-owner acceptance and the current hosting quota stop. No AWS API call, application deploy, credential transfer, source-manifest weakening or quota resubmission is part of this documentation change.
+
+This is preparation evidence, not acceptance of a configured cloud environment. See root PROGRESS for current task state and the documentation PR for actual validation/CI results. Historical receipts below retain their original scope and outcome.
 
 ## Package reactivation calendar-label repair — 4 October 2026
 

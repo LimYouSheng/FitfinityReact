@@ -6,6 +6,7 @@
   --panel:#111319;
   --white:#f7f7f8;
   --blue:#4f67f6;
+  --action-outline:#6677ef;
   --pink:#ff4388;
   --grey:#a9b2c2;
   --line:#2b2e37;
@@ -1279,7 +1280,9 @@ fieldset.onboarding-field>.onboarding-label{margin-bottom:6px}
 .onboarding-time-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;align-items:end;gap:8px;min-width:0}
 .onboarding-time-row input{padding:8px 6px;font-size:12px}
 .onboarding-button{width:auto;max-width:100%;min-height:34px;flex:0 1 auto;justify-self:start;border:1px solid #414956;border-radius:6px;background:#141923;color:#dce2ec;padding:7px 10px;font-size:11px;font-weight:750;line-height:1.4;text-align:center;white-space:normal;overflow-wrap:anywhere}
-.onboarding-button.primary{border-color:#6677ef;background:#3445bd;color:#fff}
+.onboarding-button.primary,.open-session-row{border-color:var(--action-outline)}
+.open-session-row{outline:1px solid var(--action-outline);outline-offset:-1px;border-radius:6px}
+.onboarding-button.primary{background:#3445bd;color:#fff}
 .onboarding-button:hover:not(:disabled){filter:brightness(1.12)}
 .onboarding-preference-list{display:grid;gap:7px;min-width:0}
 .onboarding-preference-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;border:1px solid #303640;border-radius:7px;background:#0d1118;padding:9px 10px}

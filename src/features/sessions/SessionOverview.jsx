@@ -1,3 +1,4 @@
+import { isOpenSession, sessionSequence } from '../../app/sessionRules.js'
 import Panel from '../../components/Panel.jsx'
 import DateField from '../../components/DateField.jsx'
 import SelectField from '../../components/SelectField.jsx'
@@ -8,7 +9,7 @@ import { formatDate, weekday } from '../../utils/date.js'
 export default function SessionOverview({ session, client, trainer, trainers, purchased, clientInactive, packageInactive, status, pendingChanges, isOwner, sessionEditable, activeEditor, setActiveEditor, saving, setDetailsError, schedule, onOpenClient, onOpenTrainer }) {
   const { detailsDraft, setDetailsDraft, requestKind, setRequestKind, setTimeRequestDraft, setTrainerRequestId, timeChangeError, checkTimeRequest, saveDetails } = schedule
 
-  const postponementError = !purchased || purchased.id !== client.package?.id ? 'Postpone is available only for the current package.' : timeChangeError
+  const postponementError = isOpenSession(session) ? 'This session is already open.' : !purchased || purchased.id !== client.package?.id ? 'Postpone is available only for the current package.' : timeChangeError
 
   return (
     <Panel className={`session-overview-panel ${isOwner ? 'owner' : 'trainer'} ${activeEditor === 'details' || requestKind ? 'editing-section' : ''}`}>
@@ -33,7 +34,7 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
             activeEditor === 'details' ? (
               <div className="inline-actions">
                 <button type="button" className="text-action muted-action" disabled={saving} onClick={() => {
-                  setDetailsDraft({ date: session.date, from: session.from, to: session.to, trainerId: session.trainerId })
+                  setDetailsDraft({ date: session.date ?? '', from: session.from ?? '', to: session.to ?? '', trainerId: session.trainerId })
                   setDetailsError('')
                   setActiveEditor(null)
                 }}>Cancel</button>
@@ -43,16 +44,16 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
               <button type="button" className="text-action" disabled={!sessionEditable || Boolean(activeEditor)} onClick={() => {
                 setDetailsError('')
                 setActiveEditor('details')
-              }}>Edit</button>
+              }}>{isOpenSession(session) ? 'Change ad-hoc date/time' : 'Edit'}</button>
             )
           ) : (
             <>
               <button type="button" className="text-action" disabled={saving || !sessionEditable || Boolean(activeEditor) || Boolean(timeChangeError)} title={timeChangeError || undefined} onClick={() => {
                 setDetailsError('')
                 if (!checkTimeRequest(null)) return
-                setTimeRequestDraft({ date: session.date, from: session.from, to: session.to })
+                setTimeRequestDraft({ date: session.date ?? '', from: session.from ?? '', to: session.to ?? '' })
                 setRequestKind('time')
-              }}>Request Time Change</button>
+              }}>{isOpenSession(session) ? 'Change ad-hoc date/time' : 'Request Time Change'}</button>
               <button type="button" className="text-action" disabled={saving || !sessionEditable || Boolean(activeEditor)} onClick={() => {
                 setDetailsError('')
                 setTrainerRequestId('')
@@ -93,13 +94,13 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
               <label>From<input aria-label="Session start time" type="time" value={detailsDraft.from} onChange={event => setDetailsDraft(current => ({ ...current, from: event.target.value }))} /></label>
               <label>To<input aria-label="Session end time" type="time" value={detailsDraft.to} onChange={event => setDetailsDraft(current => ({ ...current, to: event.target.value }))} /></label>
             </div>
-          ) : <strong>{weekday(session.date)}, {formatDate(session.date)} · {session.from}–{session.to}</strong>}
+          ) : <strong>{isOpenSession(session) ? 'Date/time not set' : `${weekday(session.date)}, ${formatDate(session.date)} · ${session.from}–${session.to}`}</strong>}
         </div>
 
         <div className="session-overview-item" aria-label="Session package details">
           <span className="session-fact-label">Package details</span>
           {purchased ? <div className="session-package-summary">
-            <strong>{purchased.name ?? `${purchased.total} Sessions`} · Session {session.sessionNumber} / {purchased.total}</strong>
+            <strong>{purchased.name ?? `${purchased.total} Sessions`} · {sessionSequence(session)} / {purchased.total}</strong>
             <span> · <time dateTime={purchased.startDate}>{formatDate(purchased.startDate)}</time> – <time dateTime={purchased.endDate}>{formatDate(purchased.endDate)}</time></span>
           </div> : <strong>Package details unavailable</strong>}
           {packageInactive && <StatusBadge tone="amber">Package inactive</StatusBadge>}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isSessionHistory, sessionStatus, sortSessions, validateExercisePlan, visibleSessionsForUser } from './sessionRules.js'
+import { isSessionHistory, sessionActionError, sessionScheduleError, sessionStatus, sortSessions, validateExercisePlan, visibleSessionsForUser } from './sessionRules.js'
 
 const sessions = [
   { id: 'future', trainerId: 't1', date: '2026-09-07', from: '18:00', status: 'not_planned' },
@@ -42,4 +42,12 @@ describe('session rules', () => {
     expect(validateExercisePlan([{ name: '   ' }])).toMatch(/needs a name/i)
     expect(validateExercisePlan([{ name: 'Goblet Squat' }])).toBeNull()
   })
+})
+
+it('places explicit open sessions first deterministically without treating invalid dates as open', () => {
+  const records = [{ id: 'b', scheduleState: 'open', date: null }, { id: 'dated', date: '2026-10-10', from: '10:00' }, { id: 'a', scheduleState: 'open', date: null }]
+  for (const period of ['upcoming', 'all']) expect(sortSessions(records, '2026-10-03', period).map(item => item.id)).toEqual(['a', 'b', 'dated'])
+  expect(isSessionHistory(records[0], '2026-10-03')).toBe(false)
+  expect(sessionActionError(records[0], '2026-10-03')).toContain('Schedule this open session')
+  expect(sessionScheduleError({ date: null, from: null, to: null })).toBeTruthy()
 })

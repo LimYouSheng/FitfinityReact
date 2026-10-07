@@ -1,11 +1,11 @@
 import { mutateSessionRecords, requireMutationActor } from './sessionMutation.js'
-import { sessionPostponement, applySessionPostponement, requirePostponementAvailable } from '../app/sessionPostponement.js'
+import { sessionPostponement, applySessionPostponement } from '../app/sessionPostponement.js'
 import { managesOperations } from '../app/permissions.js'
 import { ensureClientPackageReferences, packageForRecord, requireActiveSessionClient } from '../app/clientPackages.js'
 import { exerciseVideoExpired, exerciseVideoExpiresAt, exerciseVideoFileValidation, exerciseVideoValidation } from '../app/video.js'
 import { validSignature } from '../app/signature.js'
 import { validateExerciseResults, updateClientProgress, exerciseResultsFor } from '../app/progress.js'
-import { hasSessionDebit, normalizeExercisePlan, validateExercisePlan, sessionActionError, sessionDurationMinutes, sessionScheduleError } from '../app/sessionRules.js'
+import { hasSessionDebit, isOpenSession, normalizeExercisePlan, validateExercisePlan, sessionActionError, sessionDurationMinutes, sessionScheduleError } from '../app/sessionRules.js'
 import { businessClock } from '../app/clock.js'
 import { appendRenewalMessage } from '../app/renewals.js'
 import { sessionTimeChangeError } from '../app/scheduleChanges.js'
@@ -68,7 +68,7 @@ function previousPlan(db, session) {
     .filter(candidate =>
       candidate.id !== session.id &&
       candidate.clientId === session.clientId &&
-      candidate.date < session.date &&
+      !isOpenSession(candidate) && !isOpenSession(session) && candidate.date < session.date &&
       candidate.exercisePlan?.length
     )
     .sort((a, b) => `${b.date}T${b.from}`.localeCompare(`${a.date}T${a.from}`))[0]
@@ -98,7 +98,7 @@ function requireAssignedTrainer(db, session, actor) {
 }
 
 function scheduleSnapshot(session) {
-  return { date: session.date, from: session.from, to: session.to }
+  return { date: session.date, from: session.from, to: session.to, scheduleState: session.scheduleState ?? 'scheduled' }
 }
 
 function appendSessionEdit(db, session, title, body) {
@@ -113,13 +113,13 @@ function appendSessionEdit(db, session, title, body) {
 }
 
 export const sessionService = {
-  async previewPostponement(sessionId, actor, lastSlot) {
+  async previewPostponement(sessionId, actor) {
     await delay()
     const db = mockDb.read()
     requireSessionActor(db, requireSession(db, sessionId), actor)
-    return sessionPostponement(db, sessionId, new Date(), undefined, lastSlot)
+    return sessionPostponement(db, sessionId, new Date())
   },
-  async postpone(sessionId, expected, requestKey, actor, lastSlot) {
+  async postpone(sessionId, expected, requestKey, actor) {
     await delay()
     if (!/^[a-zA-Z0-9_-]{1,120}$/.test(requestKey)) throw new Error('A postponement request key is required.')
     let outcome = 'applied'
@@ -128,25 +128,24 @@ export const sessionService = {
       const staff = requireSessionActor(db, session, actor)
       const previous = db.messages.find(message => message.postponementKey === requestKey)
       if (previous) {
-        if (previous.postponementActor !== staff.id || previous.postponementExpected !== expected || previous.sessionId !== sessionId || JSON.stringify(previous.postponementLastSlot ?? null) !== JSON.stringify(lastSlot ?? null)) throw new Error('This postponement request key has already been used.')
+        if (previous.postponementActor !== staff.id || previous.postponementExpected !== expected || previous.sessionId !== sessionId) throw new Error('This postponement request key has already been used.')
         outcome = previous.request ? 'requested' : 'applied'
         return
       }
-      const preview = sessionPostponement(db, sessionId, new Date(), undefined, lastSlot)
+      const preview = sessionPostponement(db, sessionId, new Date())
       if (preview.expected !== expected) throw new Error('The schedule changed. Review postponement again.')
-      requirePostponementAvailable(preview)
       const trainer = db.trainers.find(item => item.id === session.trainerId)
       const requiresApproval = !managesOperations(staff) && trainer.approvalNeeded?.sessionTime !== false
       const client = db.clients.find(item => item.id === session.clientId)
       const notice = { id: messageId('session-postpone'), recipientRole: 'owner', recipientUserId: staff.id, recipientTrainerId: session.trainerId,
         sessionId, clientId: session.clientId, trainerId: session.trainerId, createdAt: new Date().toISOString(), readBy: {},
         title: `${requiresApproval ? 'Postponement requested' : 'Session postponed'}: ${client.name}`,
-        body: `Session moves from ${session.date}, ${session.from}–${session.to} to ${preview.lastSlot.date}, ${preview.lastSlot.from}–${preview.lastSlot.to}. Other sessions and credits stay unchanged.`,
-        kind: requiresApproval ? 'session_postpone_request' : 'session_update', postponementKey: requestKey, postponementExpected: expected, postponementActor: staff.id, postponementLastSlot: lastSlot ?? null }
+        body: `Session booking ${session.date}, ${session.from}–${session.to} becomes undated when applied. Other bookings and package credits stay unchanged; dated sessions are numbered chronologically.`,
+        kind: requiresApproval ? 'session_postpone_request' : 'session_update', postponementKey: requestKey, postponementExpected: expected, postponementActor: staff.id }
       if (requiresApproval) {
         outcome = 'requested'
-        Object.assign(notice, { status: 'pending', request: { type: 'session_postpone', sessionId, clientId: session.clientId, trainerId: session.trainerId, expected, changes: preview.changes, lastSlot: preview.lastSlot } })
-      } else applySessionPostponement(db, sessionId, expected, undefined, lastSlot)
+        Object.assign(notice, { status: 'pending', request: { type: 'session_postpone', sessionId, clientId: session.clientId, trainerId: session.trainerId, expected, changes: preview.changes } })
+      } else applySessionPostponement(db, sessionId, expected)
       db.messages.push(notice)
     })
     return { outcome, session: state.sessions.find(item => item.id === sessionId) }
@@ -224,11 +223,17 @@ export const sessionService = {
     const state = mutateSessionRecords(actor, 'session.updateDetails', db => {
       const session = requireEditableSession(db, sessionId)
       requireSessionActor(db, session, actor, true)
+      if (session.acknowledgement || hasSessionDebit(db.packageCreditTransactions ?? [], session.id)) throw new Error('Acknowledged or debited sessions cannot change their booking.')
+      const timeError = isOpenSession(session) && sessionTimeChangeError(session, patch, businessClock(new Date(), db.settings.timeZone))
+      if (timeError) throw new Error(timeError)
+      if (['date', 'from', 'to', 'trainerId'].every(key => session[key] === patch[key]) && !isOpenSession(session)) return
+      if (db.messages.some(item => item.status === 'pending' && item.request?.sessionId === session.id)) throw new Error('Resolve the pending session request before changing its booking.')
       const replacement = db.trainers.find(item => item.id === patch.trainerId && item.status !== 'inactive')
       if (!replacement) throw new Error('Choose an active trainer.')
       requireSessionSlotAvailable(db, session, patch)
 
       Object.assign(session, {
+        scheduleState: 'scheduled',
         date: patch.date,
         from: patch.from,
         to: patch.to,
@@ -252,7 +257,14 @@ export const sessionService = {
       const trainer = requireAssignedTrainer(db, session, actor)
       const client = db.clients.find(item => item.id === session.clientId)
       const previous = scheduleSnapshot(session)
-      const next = { date: patch.date, from: patch.from, to: patch.to }
+      if (hasSessionDebit(db.packageCreditTransactions ?? [], session.id)) throw new Error('Debited sessions cannot change their booking.')
+      const next = { date: patch.date, from: patch.from, to: patch.to, scheduleState: 'scheduled' }
+      const pending = db.messages.find(item => item.status === 'pending' && item.request?.sessionId === session.id)
+      if (pending) {
+        if (pending.request.type === 'session_time' && pending.request.trainerId === trainer.id && JSON.stringify(pending.request.next) === JSON.stringify(next)) { outcome = 'requested'; return }
+        throw new Error('Resolve the pending session request before changing its booking.')
+      }
+      if (['date', 'from', 'to'].every(key => session[key] === next[key]) && !isOpenSession(session)) return
       const timeError = sessionTimeChangeError(session, next, businessClock(new Date(), db.settings.timeZone))
       if (timeError) throw new Error(timeError)
       requireSessionSlotAvailable(db, session, next)
@@ -268,7 +280,7 @@ export const sessionService = {
           clientId: session.clientId,
           trainerId: trainer.id,
           title: `Session time change: ${client?.name ?? session.id}`,
-          body: `${trainer.name} requested a session time change from ${previous.date} ${previous.from}–${previous.to} to ${next.date} ${next.from}–${next.to}.`,
+          body: `${trainer.name} requested a session time change from ${isOpenSession(previous) ? 'Date/time not set' : `${previous.date} ${previous.from}–${previous.to}`} to ${next.date} ${next.from}–${next.to}.`,
           kind: 'session_time_request',
           status: 'pending',
           readBy: {},
@@ -301,7 +313,7 @@ export const sessionService = {
         clientId: session.clientId,
         trainerId: trainer.id,
         title: `Session time updated: ${client?.name ?? session.id}`,
-        body: `${trainer.name} updated the session directly from ${previous.date} ${previous.from}–${previous.to} to ${next.date} ${next.from}–${next.to}.`,
+        body: `${trainer.name} updated the session directly from ${isOpenSession(previous) ? 'Date/time not set' : `${previous.date} ${previous.from}–${previous.to}`} to ${next.date} ${next.from}–${next.to}.`,
         kind: 'session_time_update',
         readBy: {},
       })

@@ -35,12 +35,27 @@ export function visibleSessionsForUser(user, sessions) {
   return sessions.filter(session => session.trainerId === user.trainerId)
 }
 
+export const isOpenSession = session => session.scheduleState === 'open'
+export const sessionSequence = session => isOpenSession(session) ? 'Open session' : `Session ${session.sessionNumber}`
+
+/** Reorder display positions without moving evidence between identities. */
+export function renumberPackageSessions(sessions, clientId, packageId) {
+  const members = sessions.filter(item => item.clientId === clientId && item.packageId === packageId)
+  for (const session of members.filter(isOpenSession)) session.sessionNumber = null
+  members.filter(item => !isOpenSession(item) && !sessionScheduleError(item))
+    .sort((a, b) => `${a.date}T${a.from}|${a.id}`.localeCompare(`${b.date}T${b.from}|${b.id}`))
+    .forEach((session, index) => { session.sessionNumber = index + 1 })
+}
+
 export function isSessionHistory(session, today = currentDate()) {
+  if (isOpenSession(session)) return false
   return session.status === 'completed' || session.date < today
 }
 
 export function sortSessions(sessions, today = currentDate(), period = 'upcoming') {
   return [...sessions].sort((a, b) => {
+    if (isOpenSession(a) || isOpenSession(b)) return isOpenSession(a) && isOpenSession(b)
+      ? a.id.localeCompare(b.id) : isOpenSession(a) ? -1 : 1
     const aHistory = isSessionHistory(a, today)
     const bHistory = isSessionHistory(b, today)
 
@@ -97,6 +112,7 @@ export function hasSessionDebit(transactions, sessionId) {
 }
 
 export function sessionActionError(session, today) {
+  if (isOpenSession(session)) return 'Schedule this open session before completion or acknowledgement.'
   if (!/^\d{4}-\d{2}-\d{2}$/.test(session.date ?? '') || !/^\d{4}-\d{2}-\d{2}$/.test(today ?? '')) return 'The training date is unavailable.'
   return session.date > today ? 'Available from the training date.' : null
 }

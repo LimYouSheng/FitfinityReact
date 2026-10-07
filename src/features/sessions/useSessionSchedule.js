@@ -8,35 +8,23 @@ import { createUuid } from '../../utils/uuid.js'
 export default function useSessionSchedule({ session, policy, setActiveEditor, setDetailsError, setSaving, onSaveDetails, onRequestTimeChange, onRequestTrainerChange, onPreviewPostponement, onPostpone }) {
   const confirmAction = useActionConfirmation()
   const [detailsDraft, setDetailsDraft] = useState({
-    date: session.date,
-    from: session.from,
-    to: session.to,
+    date: session.date ?? '',
+    from: session.from ?? '',
+    to: session.to ?? '',
     trainerId: session.trainerId,
   })
   const [requestKind, setRequestKind] = useState(null)
   const [timeRequestDraft, setTimeRequestDraft] = useState({
-    date: session.date,
-    from: session.from,
-    to: session.to,
+    date: session.date ?? '',
+    from: session.from ?? '',
+    to: session.to ?? '',
   })
   const [trainerRequestId, setTrainerRequestId] = useState('')
   const [postponement, setPostponement] = useState(null)
-  const [lastSlotDraft, setLastSlotDraft] = useState(null)
-  const [editingLastSlot, setEditingLastSlot] = useState(false)
   const postponeLock = useRef(false)
   const postponementKey = useRef(null)
   const mounted = useRef(false)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-  const previewSlot = preview => {
-    const { date, from, to } = preview.lastSlot ?? preview.changes.at(-1)?.next ?? {}
-    return { date, from, to }
-  }
-  const lastSlotChanged = Boolean(postponement && JSON.stringify(lastSlotDraft) !== JSON.stringify(previewSlot(postponement)))
-  const postponementConflicts = postponement?.conflicts ?? []
-  const acceptPreview = preview => {
-    setPostponement(preview); setLastSlotDraft(previewSlot(preview))
-    setEditingLastSlot(Boolean(preview.conflicts?.length))
-  }
 
   const openPostponement = async () => {
     if (postponeLock.current) return
@@ -45,7 +33,7 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
       const preview = await onPreviewPostponement()
       if (!mounted.current) return
       postponementKey.current = createUuid()
-      acceptPreview(preview); setRequestKind('postpone')
+      setPostponement(preview); setRequestKind('postpone')
     } catch (error) { if (mounted.current) setDetailsError(error.message) }
     finally { postponeLock.current = false; if (mounted.current) setSaving(false) }
   }
@@ -53,33 +41,22 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
     if (postponeLock.current || !postponement) return
     postponeLock.current = true; setSaving(true); setDetailsError('')
     try {
-      if (lastSlotChanged || postponementConflicts.length) {
-        const preview = await onPreviewPostponement(lastSlotDraft)
-        if (mounted.current) acceptPreview(preview)
-        return
-      }
-      await onPostpone(postponement.expected, postponementKey.current, postponement.lastSlot)
+      await onPostpone(postponement.expected, postponementKey.current)
       if (mounted.current) { setRequestKind(null); setPostponement(null) }
     } catch (error) {
       if (mounted.current) setDetailsError(error.message)
-      if (error.code === 'POSTPONEMENT_CONFLICT') {
-        try {
-          const preview = await onPreviewPostponement(postponement.lastSlot)
-          if (mounted.current) acceptPreview(preview)
-        } catch (failure) { if (mounted.current) setDetailsError(failure.message) }
-      }
     }
     finally { postponeLock.current = false; if (mounted.current) setSaving(false) }
   }
 
   useEffect(() => {
     setDetailsDraft({
-      date: session.date,
-      from: session.from,
-      to: session.to,
+      date: session.date ?? '',
+      from: session.from ?? '',
+      to: session.to ?? '',
       trainerId: session.trainerId,
     })
-    setTimeRequestDraft({ date: session.date, from: session.from, to: session.to })
+    setTimeRequestDraft({ date: session.date ?? '', from: session.from ?? '', to: session.to ?? '' })
     setTrainerRequestId('')
     setDetailsError('')
   }, [session.date, session.from, session.id, session.to, session.trainerId, setDetailsError])
@@ -184,6 +161,5 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
     }
   }
 
-  return { detailsDraft, setDetailsDraft, requestKind, setRequestKind, timeRequestDraft, setTimeRequestDraft, trainerRequestId, setTrainerRequestId, clock, timeChangeError, timeRequestError, checkTimeRequest, validSchedule, saveDetails, submitTimeRequest, submitTrainerRequest, postponement, openPostponement, submitPostponement,
-    lastSlotDraft, setLastSlotDraft, lastSlotChanged, editingLastSlot, setEditingLastSlot, postponementConflicts }
+  return { detailsDraft, setDetailsDraft, requestKind, setRequestKind, timeRequestDraft, setTimeRequestDraft, trainerRequestId, setTrainerRequestId, clock, timeChangeError, timeRequestError, checkTimeRequest, validSchedule, saveDetails, submitTimeRequest, submitTrainerRequest, postponement, openPostponement, submitPostponement }
 }
