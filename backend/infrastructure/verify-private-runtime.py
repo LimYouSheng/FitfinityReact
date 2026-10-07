@@ -831,5 +831,262 @@ class CloudBindingChecks(unittest.TestCase):
         self.assertEqual(github.call_count, 1)
 
 
+class RuntimePolicyChecks(unittest.TestCase):
+    """Focused documented permission contracts, not a live IAM evaluator."""
+
+    FUNCTIONS = [
+        f"arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-runtime-{x}"
+        for x in "ab"
+    ]
+    LOGS = [
+        f"arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-runtime-{x}"
+        for x in "ab"
+    ]
+    REPO = "arn:aws:ecr:ap-southeast-1:418638389566:repository/fitfinity-test-api"
+    ROLES = "arn:aws:iam::418638389566:role/fitfinity-test-current-runtime-*"
+    BOUNDARY = "arn:aws:iam::418638389566:policy/fitfinity-test-private-runtime-boundary"
+    REGION = {"StringEquals": {"aws:RequestedRegion": "ap-southeast-1"}}
+
+    def setUp(self):
+        self.template = json.loads((ROOT / "test-github-runtime-role.json").read_text())
+        self.role = self.template["Resources"]["RuntimeRole"]["Properties"]
+        self.statements = self.role["Policies"][0]["PolicyDocument"]["Statement"]
+
+    def statement(self, action):
+        rows = [s for s in self.statements if action in s["Action"]]
+        self.assertEqual(len(rows), 1, action)
+        self.assertEqual(rows[0]["Effect"], "Allow")
+        return rows[0]
+
+    def check_mapping_list(self):
+        self.assertEqual(
+            self.statement("lambda:ListEventSourceMappings"),
+            {
+                "Effect": "Allow",
+                "Action": ["lambda:ListEventSourceMappings"],
+                "Resource": "*",
+                "Condition": self.REGION,
+            },
+        )
+
+    def check_layer_read(self):
+        self.assertEqual(self.statement("ecr:GetDownloadUrlForLayer")["Resource"], self.REPO)
+
+    def test_event_mapping_list_is_only_regional_list_action(self):
+        self.check_mapping_list()
+
+    def test_reject_original_function_scoped_mapping_list(self):
+        self.statements = [
+            s for s in self.statements if "lambda:ListEventSourceMappings" not in s["Action"]
+        ]
+        self.statement("lambda:GetFunction")["Action"].append("lambda:ListEventSourceMappings")
+        with self.assertRaises(AssertionError):
+            self.check_mapping_list()
+
+    def test_image_layer_retrieval_is_exact_repository_read(self):
+        self.check_layer_read()
+        actions = {a for s in self.statements for a in s["Action"] if a.startswith("ecr:")}
+        self.assertEqual(
+            actions,
+            {
+                "ecr:BatchGetImage",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:DescribeImageScanFindings",
+                "ecr:GetRepositoryPolicy",
+            },
+        )
+        for action in actions:
+            self.assertEqual(self.statement(action)["Resource"], self.REPO)
+
+    def test_reject_original_missing_image_layer_permission(self):
+        for statement in self.statements:
+            statement["Action"] = [
+                a for a in statement["Action"] if a != "ecr:GetDownloadUrlForLayer"
+            ]
+        with self.assertRaises(AssertionError):
+            self.check_layer_read()
+
+    def test_reject_broad_image_layer_permission(self):
+        self.statement("ecr:GetDownloadUrlForLayer")["Resource"] = "*"
+        with self.assertRaises(AssertionError):
+            self.check_layer_read()
+
+    def test_tagged_function_reads_and_lifecycle_are_exact(self):
+        for action in (
+            "CreateFunction",
+            "GetFunction",
+            "GetFunctionConfiguration",
+            "ListTags",
+            "GetPolicy",
+            "GetFunctionUrlConfig",
+            "InvokeFunction",
+            "TagResource",
+            "UntagResource",
+            "DeleteFunction",
+        ):
+            self.assertEqual(self.statement("lambda:" + action)["Resource"], self.FUNCTIONS)
+
+    def test_vpc_creator_dependencies_have_supported_scopes(self):
+        statement = self.statement("ec2:DescribeVpcs")
+        self.assertEqual(
+            statement,
+            {
+                "Effect": "Allow",
+                "Action": ["ec2:DescribeVpcs"],
+                "Resource": "*",
+                "Condition": self.REGION,
+            },
+        )
+        statement = self.statement("ec2:GetSecurityGroupsForVpc")
+        self.assertEqual(
+            statement["Resource"],
+            "arn:aws:ec2:ap-southeast-1:418638389566:vpc/vpc-0b55320bb1a054441",
+        )
+        self.assertEqual(statement["Condition"], self.REGION)
+        for action in ("ec2:DescribeSecurityGroups", "ec2:DescribeSubnets"):
+            self.assertEqual(self.statement(action)["Resource"], "*")
+
+    def test_logs_tagging_uses_action_specific_arns(self):
+        for action in ("logs:TagResource", "logs:UntagResource"):
+            self.assertEqual(self.statement(action)["Resource"], self.LOGS)
+        for action in (
+            "CreateLogGroup",
+            "DeleteLogGroup",
+            "PutRetentionPolicy",
+            "DeleteRetentionPolicy",
+            "FilterLogEvents",
+            "TagLogGroup",
+            "ListTagsLogGroup",
+        ):
+            self.assertEqual(
+                self.statement("logs:" + action)["Resource"], [arn + ":*" for arn in self.LOGS]
+            )
+
+    def test_iam_creation_passing_and_cleanup_stay_bounded(self):
+        self.assertEqual(
+            self.statement("iam:CreateRole")["Condition"],
+            {"StringEquals": {"iam:PermissionsBoundary": self.BOUNDARY}},
+        )
+        self.assertEqual(
+            self.statement("iam:PassRole")["Condition"],
+            {"StringEquals": {"iam:PassedToService": "lambda.amazonaws.com"}},
+        )
+        expected = {
+            "CreateRole",
+            "DeleteRole",
+            "GetRole",
+            "ListRolePolicies",
+            "GetRolePolicy",
+            "ListAttachedRolePolicies",
+            "PutRolePolicy",
+            "DeleteRolePolicy",
+            "TagRole",
+            "UntagRole",
+            "PassRole",
+        }
+        self.assertEqual(
+            {
+                a.removeprefix("iam:")
+                for s in self.statements
+                for a in s["Action"]
+                if a.startswith("iam:")
+            },
+            expected,
+        )
+        for action in expected:
+            self.assertEqual(self.statement("iam:" + action)["Resource"], self.ROLES)
+        for action in ("cloudformation:CreateStack", "cloudformation:DeleteStack"):
+            self.assertEqual(
+                self.statement(action)["Resource"],
+                "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-current-runtime/*",
+            )
+
+    def test_operator_has_metadata_only_secret_access_and_no_wildcard_writes(self):
+        actions = {a for s in self.statements for a in s["Action"]}
+        self.assertEqual(
+            {a for a in actions if a.startswith("secretsmanager:")},
+            {"secretsmanager:DescribeSecret", "secretsmanager:GetResourcePolicy"},
+        )
+        wildcard = {a for s in self.statements if s["Resource"] == "*" for a in s["Action"]}
+        self.assertEqual(
+            wildcard,
+            {
+                "sts:GetCallerIdentity",
+                "lambda:GetAccountSettings",
+                "lambda:ListEventSourceMappings",
+                "freetier:GetAccountPlanState",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeRouteTables",
+                "ec2:DescribeInstances",
+                "ec2:DescribeVolumes",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeInstanceCreditSpecifications",
+                "rds:DescribeDBInstances",
+                "rds:DescribeDBParameters",
+                "logs:DescribeLogGroups",
+            },
+        )
+
+    def test_boundary_matches_generated_roles_and_preserves_secret_and_eni_guards(self):
+        boundary = self.template["Resources"]["RuntimeBoundary"]["Properties"]["PolicyDocument"][
+            "Statement"
+        ]
+        source, _ = design.source_bundle()
+        resources = design.template(source)["Resources"]
+        for resource in resources.values():
+            if resource["Type"] != "AWS::IAM::Role":
+                continue
+            self.assertEqual(resource["Properties"]["PermissionsBoundary"], self.BOUNDARY)
+            for statement in resource["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]:
+                self.assertIn(statement, boundary)
+        secrets = [s for s in boundary if "secretsmanager:GetSecretValue" in s["Action"]]
+        self.assertEqual(len(secrets), 1)
+        self.assertEqual(
+            secrets[0]["Resource"],
+            [
+                "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+                "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/auth-Y2c7Xy",
+            ],
+        )
+        self.assertEqual(
+            secrets[0]["Condition"], {"StringEquals": {"secretsmanager:VersionStage": "AWSCURRENT"}}
+        )
+        denies = [s for s in boundary if s["Effect"] == "Deny"]
+        self.assertEqual(
+            [s["Condition"]["ArnEquals"]["lambda:SourceFunctionArn"] for s in denies],
+            self.FUNCTIONS,
+        )
+        for statement in denies:
+            self.assertIn("ec2:DeleteNetworkInterface", statement["Action"])
+            self.assertIn("ec2:DetachNetworkInterface", statement["Action"])
+
+    def test_oidc_trust_is_exact_repository_environment_and_audience(self):
+        self.assertEqual(
+            self.role["AssumeRolePolicyDocument"]["Statement"],
+            [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Federated": (
+                            "arn:aws:iam::418638389566:oidc-provider/"
+                            "token.actions.githubusercontent.com"
+                        )
+                    },
+                    "Action": "sts:AssumeRoleWithWebIdentity",
+                    "Condition": {
+                        "StringEquals": {
+                            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                            "token.actions.githubusercontent.com:sub": (
+                                "repo:LimYouSheng/FitfinityReact:environment:aws-test"
+                            ),
+                        }
+                    },
+                }
+            ],
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

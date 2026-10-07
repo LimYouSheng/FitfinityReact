@@ -183,15 +183,27 @@
                     "lambda:GetFunctionConfiguration",
                     "lambda:GetPolicy",
                     "lambda:GetFunctionUrlConfig",
-                    "lambda:ListEventSourceMappings",
                     "lambda:InvokeFunction",
                     "lambda:TagResource",
-                    "lambda:UntagResource"
+                    "lambda:UntagResource",
+                    "lambda:ListTags"
                   ],
                   "Resource": [
                     "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-runtime-a",
                     "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-runtime-b"
                   ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "lambda:ListEventSourceMappings"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
                 },
                 {
                   "Effect": "Allow",
@@ -240,8 +252,8 @@
                     "logs:PutRetentionPolicy",
                     "logs:DeleteRetentionPolicy",
                     "logs:FilterLogEvents",
-                    "logs:TagResource",
-                    "logs:UntagResource"
+                    "logs:TagLogGroup",
+                    "logs:ListTagsLogGroup"
                   ],
                   "Resource": [
                     "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-runtime-a:*",
@@ -251,9 +263,21 @@
                 {
                   "Effect": "Allow",
                   "Action": [
+                    "logs:TagResource",
+                    "logs:UntagResource"
+                  ],
+                  "Resource": [
+                    "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-runtime-a",
+                    "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-runtime-b"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
                     "ecr:BatchGetImage",
                     "ecr:DescribeImageScanFindings",
-                    "ecr:GetRepositoryPolicy"
+                    "ecr:GetRepositoryPolicy",
+                    "ecr:GetDownloadUrlForLayer"
                   ],
                   "Resource": "arn:aws:ecr:ap-southeast-1:418638389566:repository/fitfinity-test-api"
                 },
@@ -273,6 +297,30 @@
                     "cognito-idp:GetUserPoolMfaConfig"
                   ],
                   "Resource": "arn:aws:cognito-idp:ap-southeast-1:418638389566:userpool/ap-southeast-1_*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeVpcs"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:GetSecurityGroupsForVpc"
+                  ],
+                  "Resource": "arn:aws:ec2:ap-southeast-1:418638389566:vpc/vpc-0b55320bb1a054441",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
                 }
               ]
             }
