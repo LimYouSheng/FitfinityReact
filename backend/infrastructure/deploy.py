@@ -286,18 +286,24 @@ def main(argv=None):
             "release",
             "recovery",
             "image-candidate",
+            "image-accept",
         ],
     )
     parser.add_argument("stage", nargs="?")
     parser.add_argument("--actions", action="store_true")
     parser.add_argument("--receipt")
+    parser.add_argument("--digest")
+    parser.add_argument("--build-run", type=int)
+    parser.add_argument("--build-attempt", type=int)
+    parser.add_argument("--artifact-id", type=int)
+    parser.add_argument("--approval-id")
     args = parser.parse_args(argv)
     require(
         not args.stage or args.command in {"bootstrap", "review", "probe", "release", "recovery"},
         "Unexpected stage",
     )
     require(
-        not args.actions or args.command in {"verify", "image-candidate"},
+        not args.actions or args.command in {"verify", "image-candidate", "image-accept"},
         "Actions supports metadata verification or the separate image candidate job",
     )
     if args.command == "status":
@@ -305,6 +311,20 @@ def main(argv=None):
     elif args.command == "deploy":
         raise RuntimeError(
             "Full release is not ready:\n- " + "\n- ".join(CONFIG["release_blockers"])
+        )
+    elif args.command == "image-accept":
+        require(
+            args.actions and args.receipt, "Image acceptance requires Actions and a new receipt"
+        )
+        from image_acceptance import accept_existing
+
+        accept_existing(
+            args.receipt,
+            args.digest,
+            args.build_run,
+            args.build_attempt,
+            args.artifact_id,
+            args.approval_id,
         )
     elif args.command == "image-candidate":
         require(args.actions and args.receipt, "Image candidates require Actions and a new receipt")
