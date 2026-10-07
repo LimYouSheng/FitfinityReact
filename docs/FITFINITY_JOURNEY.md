@@ -3,13 +3,42 @@
 
 Updated 7 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
 
+## AWS-IMAGE-ACCEPT-01 implementation merged — 7 October 2026 (Singapore)
+
+[PR #10](https://github.com/LimYouSheng/FitfinityReact/pull/10) was merged by YS at 14:56:27 Singapore as main `33d124fcd59ffd3f9cb30d645660bdad99a21278`. Final feature `e2418b694ba672510cf14c0725f3c214965b7aab` passed both required jobs in [run 37580783214](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37580783214): 948 units, 849 unchanged macOS Chromium/WebKit browser cases, 416 backend/PostgreSQL and 434 infrastructure cases. Read-only existing-image acceptance is implemented; live image security acceptance remains unverified.
+
+[Main run 37584327992](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37584327992), attempt 1, passed frontend, backend, build and Pages deployment. Its `image / image` job failed strict security policy after publishing `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`; the overall run remains failed. The exact candidate and proposed approval review are owned by the AWS runbook and current PROGRESS ledger. No completed risk authorization or live evaluation is inferred from publication.
+
+The implementation ledger below is retained historical evidence. Its pending final-CI wording is superseded by the complete results above; its older candidate remains historical, not the candidate selected for the new approval review.
+
+### Retained AWS-IMAGE-ACCEPT-01 implementation ledger, 7 October 2026 (Singapore)
+
+- Goal: a separate read-only existing-image acceptance command/workflow, verified build provenance and an exact user-reviewed TEST approval contract. Implementation and local verification passed; final-SHA GitHub CI remains pending at this commit. Live execution is unverified and unauthorized in this task.
+- Entry was clean at `437e6e5c7a74356c5f75c31d7b4ba1fbf7cdd0c6` on `docs/codex-cloud-workflow-2026-10-06`, origin `https://github.com/LimYouSheng/FitfinityReact.git`, no tracked/untracked changes. Fetched origin/main matched the explicitly accepted `40e8bb36868958e56813e2daa27c6ff074b9aced`; created `feat/aws-image-test-acceptance-2026-10-07` from that exact commit in the same checkout. PR #8 is merged; this work requires a new draft PR.
+- Host Node `v24.19.0`, npm `11.9.0`, Python `3.12.14`, retained Docker `28.4.0`. Dependencies, caches, browser runtime and cloud-only backend trust reused; no installer or environment change.
+- One agent; maximum three repair iterations or 30 minutes active work. Waiting for existing final CI is separate. Stop for user review. No merge, auto-merge, main/force push, AWS writes, live risk approval, image publication, deployment, IAM/protection changes, tunnel retry or environment republishing.
+
+| Task | Evidence required | State |
+| --- | --- | --- |
+| AWS-IMAGE-ACCEPT-01 | Trusted original build/artifact and ECR identity; shared complete/fresh scan validation; exact expiring reviewed approvals; truthful receipts; write-free evaluator; local full backend and final frontend/backend CI | Local checks passed; final CI pending; live acceptance unverified |
+
+#### Candidate review and checks
+
+- The retained artifact `fitfinity-image-candidate-37570932661-1`, ID `11462505272`, was downloaded from GitHub. It binds digest `sha256:ca6545a53aecb57b7120da79ff20a23d49b4b549aa57704ac54c8ac73f979b6a` to accepted main. Its 157-file backend manifest was independently compared with that exact Git revision. Full review, finding identities, evidence age and remaining requirements are in the AWS runbook; this is dated artifact evidence, not a live scan or approval.
+- The canonical three-project restoration smoke passed **3/3** in the retained browser container, with fresh root/Pages/API-fixture builds and all three PWA checks (40 resources each). Command: the cloud guide's `npm run test:e2e -- tests/m4-navigation.spec.js --grep 'password screen returns' --reporter=list`, `CI=true`, demo mode and explicit empty API URL. Log: `/workspace/work/aws-image-accept/browser.log`.
+- Offline infrastructure verification passes **434/434** (26 new acceptance cases; all original 408 retained). The host lacks boto3; no dependency was installed. Focused checks use the retained locked backend image, network disabled. Log: `/workspace/work/aws-image-accept/infrastructure-final.log`.
+- Workflow/lint checks passed, including **37/37 quality regressions** (four new rejection cases). The unchanged canonical full backend/PostgreSQL gate passed: **416/416 backend cases and 434/434 infrastructure cases**, including Ruff/format and API contract checks. Exact command: `PATH=/workspace/fitfinity-setup-evidence/backend-trust/bin:$PATH BUILDX_CONFIG=/workspace/fitfinity-setup-evidence/buildx npm run verify:backend`; log `/workspace/work/aws-image-accept/backend-final.log`. The old 408-case receipt was not reused for modified infrastructure. Source health passed (`health.log`); documentation/workflow checks and `git diff --check` passed (`documentation-checks.log`). Only ordinary deprecation/build-size warnings remain; checks/settings were not weakened.
+- Local logs are environment evidence, not GitHub artifacts. Final full SHA and CI links/status belong in the new draft PR and delivery report, without another commit solely to record its own CI.
+
+SESSION-OPEN-01 is accepted for the demo. Its completed summary and original implementation receipt moved to Journey; YS's physical-check confirmation is attributed there. CLOUD-01 remains deferred/incomplete because public PR preview is blocked; main Pages does not satisfy it. Live API, media and unrelated acceptance remain separate.
+
 ## SESSION-OPEN-01 accepted for the demo — 7 October 2026 (Singapore)
 
 Final feature SHA `437e6e5c7a74356c5f75c31d7b4ba1fbf7cdd0c6` passed both frontend and backend in [PR run 37566994808](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37566994808), including all 948 units and 849 macOS Chromium/WebKit browser cases. YS merged PR #8 as main `40e8bb36868958e56813e2daa27c6ff074b9aced`. [Main run 37570932661](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37570932661) passed frontend, backend, build and Pages deployment; its AWS image job **failed** strict security policy.
 
 **YS confirmed all postponement physical checks passed on 7 October 2026.** This is user-reported demo acceptance; no device models or additional tested scenarios were supplied. Undated postponement, both scheduling entry points, chronological numbering, last-session movement and Undo are accepted for the demo. Live API business writes, media and unrelated acceptance limitations remain separate. Main Pages deployment does not satisfy CLOUD-01's blocked public PR-preview criterion.
 
-The active bounded goal is now AWS-IMAGE-ACCEPT-01: implement read-only acceptance of a trusted existing candidate, without live execution or approval. The failed image run remains failed; any future acceptance produces separate evidence for the exact digest. Earlier pending notes in the following implementation receipt are historical, superseded by this acceptance.
+The subsequent AWS-IMAGE-ACCEPT-01 implementation is recorded above; the active approval-review task is owned by PROGRESS. The failed image run remains failed; any future acceptance produces separate evidence for the exact digest. Earlier pending notes in the following implementation receipt are historical, superseded by this acceptance.
 
 ### Retained SESSION-OPEN-01 implementation receipt
 

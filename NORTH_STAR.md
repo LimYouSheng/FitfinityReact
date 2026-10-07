@@ -1,22 +1,23 @@
-# North Star: AWS-IMAGE-ACCEPT-01
+# North Star: AWS-IMAGE-APPROVAL-01
 
 ## Outcome
 
-Evaluate an already-published immutable TEST image against fresh complete scan evidence and an explicit user-reviewed approval, without rebuilding, republishing, starting a scan or deploying. The original build revision and current approval-policy revision are separate. Existing strict image-candidate behavior remains unchanged.
+Prepare the exact proposed TEST exception `FITFINITY-TEST-2026-10-07-86183723` for the user-selected existing image in [draft PR #11](https://github.com/LimYouSheng/FitfinityReact/pull/11), using the acceptance mechanism merged in PR #10. The authorized follow-up repairs the failed frontend alignment measurement in this same PR, with full final CI required. Stop for YS review and merge. This is a proposal, not completed authorization or image security acceptance.
 
-## Acceptance — local checks passed; final CI and live acceptance separate
+## Acceptance — proposal verification and review boundary
 
-- [x] Verify trusted GitHub build/artifact provenance, original source manifest and ECR manifest/digest.
-- [x] Reuse canonical scan validation: complete pagination/counts/identity, COMPLETE status, evidence no older than 24 hours and never future dated.
-- [x] Exact TEST approvals bind reviewer/reference/reason/time/expiry, account/region/repository/digest, finding identities and original provenance; missing, revoked, malformed or mismatched approvals fail closed. Critical/unclassified findings remain blocked.
-- [x] Separate read-only `image-accept` command and manual main-only protected Actions entry; no AWS writes, rebuild, publish or silent scan start.
-- [x] Distinguish strict pass, TEST-exception acceptance and blocked; exception keeps strict policy false and full findings. No deployment/runtime/live-auth claim.
-- [x] Meaningful regressions, full canonical backend/PostgreSQL gate, browser restoration smoke, lint/health and documentation/workflow checks pass.
-- [ ] Both complete final-SHA GitHub CI jobs pass, retaining macOS/WebKit; results belong in the new draft PR and delivery report.
+- [x] Verify exact main `33d124fcd59ffd3f9cb30d645660bdad99a21278`, original run/attempt/artifact, ZIP checksum, all 160 source inputs and both successful required source CI jobs.
+- [x] Bind the proposed entry to exact TEST scope, immutable digest, provenance and two HIGH finding tuples; use the actual dedicated PR URL.
+- [x] Clearly identify the proposed timestamp and expiry; preserve historical exceptions without transfer or renewal.
+- [x] Existing policy checks, canonical backend/PostgreSQL gate and applicable documentation checks pass.
+- [x] Diagnose the tablet chevron-transition measurement failure and preserve the same settled-state `<=1px` alignment assertion.
+- [ ] Both complete final-SHA GitHub CI jobs pass, retaining macOS/WebKit; final results belong in PR #11 and the delivery report.
+- [ ] YS reviews and merges the proposed approval; this is outside the preparation task.
+- [ ] Separately authorized live evaluation verifies current COMPLETE scan evidence and produces an acceptance receipt; not executed here.
 
 ## Boundaries
 
-Start from exact accepted main `40e8bb36868958e56813e2daa27c6ff074b9aced` on authorized `feat/aws-image-test-acceptance-2026-10-07`, existing checkout only. One agent, maximum three repair iterations or 30 minutes active work; existing CI waiting is separate. Reuse setup and caches. No live approval or AWS execution is authorized. No merge, auto-merge, main/force push, installation, IAM/protection change, deployment, tunnel retry or environment republishing. Only YS authorizes merge and subsequent live acceptance.
+Existing checkout, authorized `docs/test-image-approval-2026-10-07` from exact main above. One agent, maximum three repairs or 30 minutes active work; existing CI waiting is separate. Reuse installed dependencies/caches/cloud-only trust. The follow-up explicitly expands scope to the smallest evidenced frontend-check repair and directly affected documentation; preserve the proposed policy bytes and original provenance. No merge, auto-merge, main/force push, workflow dispatch, AWS calls/writes, scan request, image rebuild/publication, deployment, credential setup, IAM change, tunnel retry or environment republishing.
 
 ## Completed and deferred goals
 

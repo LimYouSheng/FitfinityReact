@@ -4,9 +4,40 @@
 
 ## AWS-IMAGE-ACCEPT-01 — existing candidate acceptance, 7 October 2026
 
-Implementation is locally verified; final feature CI is recorded in its draft PR. **Live execution is unverified and was not authorized in the coding task.** This adds a separate security evaluation, not deployment or a replacement successful result for an old failed workflow. `deploy.py deploy` still refuses incomplete full deployment. Existing build-and-scan remains strict and unchanged for candidates without an applicable reviewed approval.
+Implementation was merged in [PR #10](https://github.com/LimYouSheng/FitfinityReact/pull/10) as `33d124fcd59ffd3f9cb30d645660bdad99a21278`; both final feature CI jobs passed in [run 37580783214](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37580783214). **Live execution is unverified and was not authorized in the coding task.** This adds a separate security evaluation, not deployment or a replacement successful result for an old failed workflow. `deploy.py deploy` still refuses incomplete full deployment. Existing build-and-scan remains strict and unchanged for candidates without an applicable reviewed approval.
 
-### Current candidate review — no approval granted
+### Current candidate and proposed approval — 86183723, pending YS review
+
+At **7 October 2026, 16:12:01 Singapore**, authenticated GitHub evidence for [main run 37584327992](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37584327992), attempt `1`, was independently checked. Frontend/backend/build/Pages passed; `image / image` and the overall run failed strict policy. This failed run remains failed.
+
+- Artifact `fitfinity-image-candidate-37584327992-1`, ID `11467134068`, was unexpired and bound to this main run. Downloaded ZIP SHA256 exactly matches metadata and the requested `73133f313b7a7c818c96ac516e5c9bcf5b85a824e6307e27056a59a44ed619ef`.
+- Original source revision `33d124fcd59ffd3f9cb30d645660bdad99a21278`; all **160** backend Git objects match the receipt manifest; source SHA256 `551d454da9fa66fffec60a9fd1a39e083c117e02e392537acc3ed1e458986b97`.
+- Exact TEST identity: account `418638389566`, region `ap-southeast-1`, repository `fitfinity-test-api`, environment `test`; digest `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`; config digest `sha256:e69dfb02ab32409dc63741bdf49e6eade287d19e250953eb69c952b5ebbaf1a1`. Receipt records build/publication complete, `candidate_ready=false`, `scan_policy_passed=false`.
+- Recorded scan COMPLETE at **7 October 2026, 15:44:43 Singapore** (`2026-10-07T07:44:43Z`), **27 minutes 18 seconds old at review**: one complete page, matching HIGH count 2, no continuation token. This is dated artifact evidence, not a fresh live ECR scan; no claim that either vulnerability is fixed, unexploitable or lacks a fix.
+
+| Severity | Finding | Package | Exact version |
+| --- | --- | --- | --- |
+| HIGH | CVE-2026-85091 | zlib | `1.3.dfsg+really1.3.1-1` |
+| HIGH | CVE-2026-95619 | gcc-14 | `14.2.0-19` |
+
+[Draft PR #11](https://github.com/LimYouSheng/FitfinityReact/pull/11) proposes `FITFINITY-TEST-2026-10-07-86183723`, intended approver `LimYouSheng`, with proposed `approved_at=2026-10-07T16:12:01+08:00` and expiry `2026-10-11T20:41:44+08:00`. The timestamp records the proposed terms, **not completed authorization**; no past approval is invented. The proposed reason is a limited TEST exception for controlled development and deployment validation while these two findings remain open. Production is excluded; deployment and runtime acceptance are not authorized.
+
+The policy entry uses the existing schema's `status=approved` as a proposed post-merge state. It is not authoritative while this PR is unmerged: the unchanged evaluator must verify that LimYouSheng merged this exact dedicated PR and that current policy still matches its merged snapshot. Wrong digest, changed/disappeared findings, expired/revoked entries or unmerged/unauthorized review remain blocked. This is a separate proposal, not renewal or transfer of the historical `353907f…` exception.
+
+Only after YS reviews and merges PR #11, the next manually authorized **Evaluate an existing TEST image without publication** run uses:
+
+```text
+Branch: main
+digest: sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a
+build_run: 37584327992
+build_attempt: 1
+artifact_id: 11467134068
+approval_id: FITFINITY-TEST-2026-10-07-86183723
+```
+
+No dispatch or AWS call occurs in preparation. Live evaluation must read current COMPLETE scan evidence within 24 hours, reject future/stale/missing evidence and verify the merged exact approval. Only if all conditions pass may its separate receipt report `accepted_with_test_exception`, retaining `scan_policy_passed=false`, complete findings, `application_deployed=false` and `live_authentication_accepted=false`. Live security acceptance remains unverified. Merging this approval may trigger the normal main image build and another digest; **do not switch this approval or chase that new strict-build result**. These inputs deliberately target the original digest above.
+
+### Historical candidate review — ca6545a, no approval granted
 
 Reviewed retained GitHub artifact at **7 October 2026, 14:10:50 Singapore** (06:10:50 UTC): [main run 37570932661](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37570932661), artifact `fitfinity-image-candidate-37570932661-1`, ID `11462505272`. Main frontend/backend/build/Pages passed; `image / image` failed strict policy and remains failed.
 
@@ -26,14 +57,14 @@ The historical exception `FITFINITY-TEST-2026-10-04-UNFIXED` and review `FITFINI
 
 ### Canonical approval format and authority
 
-[image-test-approvals.json](../backend/infrastructure/image-test-approvals.json) is the sole policy file: version `1`, list `approvals`. It is initially **empty**. An Actions input selects only an existing approval ID; no JSON receipt or workflow text can approve itself. Each entry requires:
+[image-test-approvals.json](../backend/infrastructure/image-test-approvals.json) is the sole policy file: version `1`, list `approvals`. It now contains the **proposed, not yet authorized** PR #11 entry described above. An Actions input selects only an existing approval ID; no JSON receipt or workflow text can approve itself. Each entry requires:
 
 - `id`, `status` (`approved` or `revoked`), `approval_reference` (the exact repository PR URL), `approver` (`LimYouSheng`), nonempty `reason`, timezone-qualified `approved_at` and `expires_at`.
 - Exact `account`, `region`, `repository`, `environment` (`test` only), `image_digest`.
 - `findings`: an exact, duplicate-free list of objects with only `cve`, `package`, `version`, `severity` (`HIGH`). No wildcard, severity-wide waiver, new finding or changed/disappeared identity is accepted. Critical and unclassified findings are always blocked.
 - `provenance`: exact `source_revision`, `source_sha256`, integer `run_id`, `run_attempt`, `artifact_id`, and `artifact_sha256` (plain SHA256 hex of the trusted ZIP).
 
-Approval publication is an explicit risk decision: prepare a dedicated review PR with the exact entry, set `approval_reference` to that PR, and have **YS review and merge it**. The evaluator reads GitHub's merged PR record, requires `merged_by=LimYouSheng`, main in this repository, an ancestor merge commit, and the identical entry in that user-merged policy snapshot. Current main must still contain the identical active entry. Revoking/removing/changing it fails closed; a new authorization requires another explicit user-reviewed policy change. Do not backfill an approval on YS's behalf or automatically renew it. This coding PR contains no approval.
+Approval publication is an explicit risk decision: prepare a dedicated review PR with the exact entry, set `approval_reference` to that PR, and have **YS review and merge it**. The evaluator reads GitHub's merged PR record, requires `merged_by=LimYouSheng`, main in this repository, an ancestor merge commit, and the identical entry in that user-merged policy snapshot. Current main must still contain the identical active entry. Revoking/removing/changing it fails closed; a new authorization requires another explicit user-reviewed policy change. Do not backfill an approval on YS's behalf or automatically renew it. PR #10 introduced an empty policy; PR #11 proposes the separate exact entry, subject to YS review and merge.
 
 The original candidate is downloaded directly from GitHub's authenticated artifact API, not accepted from a caller-supplied JSON file. The evaluator verifies repository/main/event/workflow/run attempt, both successful required build-source CI jobs, the image job, immutable artifact identity and checksum, original Git source manifest and the live ECR manifest/config digest. Approval-policy revision is recorded separately from original source/build revision. An approval-only commit therefore does not rebuild or select another image.
 
