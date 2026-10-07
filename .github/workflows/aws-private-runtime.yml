@@ -1,0 +1,84 @@
+name: Manual private TEST image runtime proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [plan, collect, run, cleanup]
+        default: plan
+        required: true
+      operation_id:
+        description: Durable 32 lowercase hexadecimal operation ID; reuse it for recovery
+        type: string
+        required: true
+      resume_run:
+        description: Previous completed runtime workflow run with this operation state
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fitfinity-aws-test
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/verify.yml
+  runtime:
+    needs: verify
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    environment: aws-test
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Require reviewed main and purpose-specific role
+        env:
+          RUNTIME_ROLE: ${{ vars.AWS_RUNTIME_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = LimYouSheng/FitfinityReact
+          test "$GITHUB_REF" = refs/heads/main
+          test "$RUNTIME_ROLE" = arn:aws:iam::418638389566:role/fitfinity-test-github-runtime
+      - name: Obtain temporary runtime credentials
+        if: inputs.mode != 'plan'
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_RUNTIME_ROLE_ARN }}
+          role-session-name: fitfinity-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ap-southeast-1
+          allowed-account-ids: '418638389566'
+          unset-current-credentials: true
+      - name: Bounded private runtime operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNTIME_MODE: ${{ inputs.mode }}
+          OPERATION_ID: ${{ inputs.operation_id }}
+          RESUME_RUN: ${{ inputs.resume_run }}
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$RESUME_RUN" ]; then args+=(--resume-run "$RESUME_RUN"); fi
+          python3 backend/infrastructure/deploy.py private-runtime --mode "$RUNTIME_MODE" --operation-id "$OPERATION_ID" --directory "$RUNNER_TEMP/private-runtime" "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/private-runtime.log"
+      - name: Preserve operation state and partial evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-private-runtime-${{ inputs.operation_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/private-runtime/*
+            ${{ runner.temp }}/private-runtime.log
+          if-no-files-found: error
