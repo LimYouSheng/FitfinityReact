@@ -2,6 +2,58 @@
 
 **Evidence checkpoint: 6 October 2026, 04:41 Singapore.** Covers the recovered AWS work from 22 September through the current TEST login deployment. Later acceptance must be added here when its receipt is reviewed.
 
+## AWS-IMAGE-ACCEPT-01 — existing candidate acceptance, 7 October 2026
+
+Implementation is locally verified; final feature CI is recorded in its draft PR. **Live execution is unverified and was not authorized in the coding task.** This adds a separate security evaluation, not deployment or a replacement successful result for an old failed workflow. `deploy.py deploy` still refuses incomplete full deployment. Existing build-and-scan remains strict and unchanged for candidates without an applicable reviewed approval.
+
+### Current candidate review — no approval granted
+
+Reviewed retained GitHub artifact at **7 October 2026, 14:10:50 Singapore** (06:10:50 UTC): [main run 37570932661](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37570932661), artifact `fitfinity-image-candidate-37570932661-1`, ID `11462505272`. Main frontend/backend/build/Pages passed; `image / image` failed strict policy and remains failed.
+
+- Source/build revision: `40e8bb36868958e56813e2daa27c6ff074b9aced`; source manifest SHA256 `8cf5b01850fa77f4df3ef434a09d9c2fed6ef47394beef46223fd376ecaa7f5a`. All 157 backend inputs independently match that Git revision.
+- Candidate: `sha256:ca6545a53aecb57b7120da79ff20a23d49b4b549aa57704ac54c8ac73f979b6a`, repository `418638389566.dkr.ecr.ap-southeast-1.amazonaws.com/fitfinity-test-api`; config digest `sha256:be6566b8e44dc9e6989a9e171f58e4bc3b30ea625a7808ce90295247dd86dfe0`.
+- Downloaded artifact ZIP SHA256: `b9d0bd32ab6eaf65721ffd2e8a636e378f7bbc265b8e5b62c2de831ee62832f9`. Original run/attempt: `37570932661` / `1`. The receipt records a completed runtime build and publication, but `candidate_ready=false`, `scan_policy_passed=false`.
+- Recorded scan: COMPLETE at `2026-10-07T05:04:06Z` (13:04:06 Singapore), **1 hour 6 minutes 44 seconds old at review**. The single complete page has matching counts, exactly two High findings and no continuation token. This is dated artifact evidence, **not a fresh live scan**. A later evaluation must read current ECR evidence and enforce its own 24-hour window.
+
+| Severity | Finding | Package | Version |
+| --- | --- | --- | --- |
+| HIGH | CVE-2026-85091 | zlib | `1.3.dfsg+really1.3.1-1` |
+| HIGH | CVE-2026-95619 | gcc-14 | `14.2.0-19` |
+
+Neither finding nor this digest is approved here. Remaining requirements: explicit YS risk review with reason, approval time/expiry and exact provenance/finding scope, a reviewed main policy commit, then a separately authorized main Actions evaluation using fresh complete ECR evidence. A disappeared finding requires new exact review; it is not evidence that a package was fixed.
+
+The historical exception `FITFINITY-TEST-2026-10-04-UNFIXED` and review `FITFINITY-TEST-2026-10-05-SCAN-REVIEW` apply only to `sha256:353907f09c208b35fd5160266e4f92da39e3db4e3a17e61236fdcd430ae15dc1`, expiring **11 October 2026, 20:41:44 Singapore**. They are not transferred, extended or reconstructed into this new format. Missing historical approval details are not inferred. Historical operators retain their original scope and receipts below.
+
+### Canonical approval format and authority
+
+[image-test-approvals.json](../backend/infrastructure/image-test-approvals.json) is the sole policy file: version `1`, list `approvals`. It is initially **empty**. An Actions input selects only an existing approval ID; no JSON receipt or workflow text can approve itself. Each entry requires:
+
+- `id`, `status` (`approved` or `revoked`), `approval_reference` (the exact repository PR URL), `approver` (`LimYouSheng`), nonempty `reason`, timezone-qualified `approved_at` and `expires_at`.
+- Exact `account`, `region`, `repository`, `environment` (`test` only), `image_digest`.
+- `findings`: an exact, duplicate-free list of objects with only `cve`, `package`, `version`, `severity` (`HIGH`). No wildcard, severity-wide waiver, new finding or changed/disappeared identity is accepted. Critical and unclassified findings are always blocked.
+- `provenance`: exact `source_revision`, `source_sha256`, integer `run_id`, `run_attempt`, `artifact_id`, and `artifact_sha256` (plain SHA256 hex of the trusted ZIP).
+
+Approval publication is an explicit risk decision: prepare a dedicated review PR with the exact entry, set `approval_reference` to that PR, and have **YS review and merge it**. The evaluator reads GitHub's merged PR record, requires `merged_by=LimYouSheng`, main in this repository, an ancestor merge commit, and the identical entry in that user-merged policy snapshot. Current main must still contain the identical active entry. Revoking/removing/changing it fails closed; a new authorization requires another explicit user-reviewed policy change. Do not backfill an approval on YS's behalf or automatically renew it. This coding PR contains no approval.
+
+The original candidate is downloaded directly from GitHub's authenticated artifact API, not accepted from a caller-supplied JSON file. The evaluator verifies repository/main/event/workflow/run attempt, both successful required build-source CI jobs, the image job, immutable artifact identity and checksum, original Git source manifest and the live ECR manifest/config digest. Approval-policy revision is recorded separately from original source/build revision. An approval-only commit therefore does not rebuild or select another image.
+
+### Command and Actions usage after review/merge
+
+Use the manual **Evaluate an existing TEST image without publication** workflow, [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), on **main**. Supply `digest`, `build_run`, `build_attempt`, `artifact_id`, and optionally an existing reviewed `approval_id`. Empty approval ID means strict policy, which blocks this current High-bearing candidate. The workflow runs full verification, uses the existing protected `aws-test` environment/exact image role with a **read-only session policy**, and retains `fitfinity-image-acceptance-<run>-<attempt>` including failures. No IAM/protection configuration is changed by this implementation.
+
+The equivalent Actions-only command is:
+
+```bash
+python3 backend/infrastructure/deploy.py image-accept --actions \
+  --digest "$IMAGE_DIGEST" --build-run "$BUILD_RUN" \
+  --build-attempt "$BUILD_ATTEMPT" --artifact-id "$ARTIFACT_ID" \
+  --approval-id "$APPROVAL_ID" --receipt "$RUNNER_TEMP/fitfinity-image-acceptance.json"
+```
+
+The command requires the clean exact main policy checkout and temporary Actions credentials; it is not a local-profile bypass. `gh` uses the workflow's read-only `GH_TOKEN` for this repository's run/artifact/PR reads. Existing-candidate AWS calls are limited to identity/repository/ownership/scanning configuration, manifest and scan reads. It never builds, logs into ECR, publishes, deploys or starts a scan. Missing/in-progress/stale scan evidence is a prerequisite failure; arrange a scan only through a separately authorized operation, then evaluate again.
+
+Results are `strict_policy_passed`, `accepted_with_test_exception`, or `blocked`. Exception acceptance retains `scan_policy_passed=false`, complete scan pages/findings, exact approval and provenance; it sets only `image_security_accepted=true`. Application deployment and live authentication remain false. The old failed run is immutable history; this path creates a separate receipt for the reviewed digest. No live command or new security acceptance occurred during implementation.
+
 ## Purpose and evidence rules
 
 Record the final working procedure while each result is fresh, then use it to implement client deployment automation. Keep this as the single AWS operations reference. The [Journey](FITFINITY_JOURNEY.md) remains the chronology and [Rules and Architecture](FITFINITY_RULES_AND_ARCHITECTURE.md) remains the implementation contract.
@@ -16,7 +68,7 @@ The early receipts often contain phase results and write names, not every full a
 
 **Do not replay the following history as a shell script.** Initial provisioning, one-time Owner creation, normal release and recovery are different operations. Existing guarded operators enforce those boundaries.
 
-## Current position
+## Historical deployment position — 6 October 2026
 
 | Item | Accepted value / status |
 | --- | --- |
@@ -24,7 +76,7 @@ The early receipts often contain phase results and write names, not every full a
 | Application region / CLI profile | `ap-southeast-1` / `fitfinity-test` |
 | Operator identity | `arn:aws:iam::418638389566:user/fitfinity-deployer` |
 | Repository / accepted deployment commit | `LimYouSheng/FitfinityReact` / `d2e8a4b7e44c1554b1f31b5337b87014e6446fdf` |
-| Current image | `sha256:353907f09c208b35fd5160266e4f92da39e3db4e3a17e61236fdcd430ae15dc1` |
+| Historical accepted image | `sha256:353907f09c208b35fd5160266e4f92da39e3db4e3a17e61236fdcd430ae15dc1` |
 | ECR repository | `418638389566.dkr.ecr.ap-southeast-1.amazonaws.com/fitfinity-test-api` |
 | Image runtime | Accepted in both private subnets, with temporary cleanup complete |
 | First Owner | Created and linked, independently verified, temporary cleanup complete |
@@ -303,7 +355,7 @@ Each receipt should capture operation/revision/phase, account/region, source/ima
 
 ## Security acceptance remains separate
 
-The current strict scan policy is **failed**. Existing TEST exception `FITFINITY-TEST-2026-10-04-UNFIXED`, with dated review `FITFINITY-TEST-2026-10-05-SCAN-REVIEW`, permits only the exact reviewed current image and three High finding tuples with a complete scan no older than 24 hours. It expires **11 October 2026, 20:41:44 Singapore**. Production is excluded. This document does not extend the exception or claim the vulnerabilities are fixed.
+For the historical `sha256:353907f09c208b35fd5160266e4f92da39e3db4e3a17e61236fdcd430ae15dc1` deployment, strict scan policy is **failed**. Its TEST exception `FITFINITY-TEST-2026-10-04-UNFIXED`, with dated review `FITFINITY-TEST-2026-10-05-SCAN-REVIEW`, permits only the exact reviewed current image and three High finding tuples with a complete scan no older than 24 hours. It expires **11 October 2026, 20:41:44 Singapore**. Production is excluded. This document does not extend the exception or claim the vulnerabilities are fixed.
 
 ## Source and provider references
 

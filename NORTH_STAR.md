@@ -1,37 +1,29 @@
-# North Star: SESSION-OPEN-01
+# North Star: AWS-IMAGE-ACCEPT-01
 
 ## Outcome
 
-Implement undated postponement and package-scoped chronological session numbering in the demo portal, through existing draft PR #8. Normal cloud development is validated; this is its first functional task. The user alone authorizes merge.
+Evaluate an already-published immutable TEST image against fresh complete scan evidence and an explicit user-reviewed approval, without rebuilding, republishing, starting a scan or deploying. The original build revision and current approval-policy revision are separate. Existing strict image-candidate behavior remains unchanged.
 
-## Acceptance — local verification passed; final CI pending
+## Acceptance — local checks passed; final CI and live acceptance separate
 
-- [x] Eligible Postpone releases only the selected booking into an explicit undated open state, preserving its identity, attachments, credits, package validity and standing schedule.
-- [x] Authorized trainer and Owner/Admin users can find multiple open sessions first in both Upcoming Sessions and All Sessions, including after refresh, and schedule the same record through the existing ad-hoc date/time flow.
-- [x] Bringing the last eligible scheduled session forward requires no postponement or new credit; all three 12-session numbering examples pass.
-- [x] Conflicts, approval, stale requests, idempotency, completion protection and atomic 24-hour Undo remain enforced for booking and numbering changes.
-- [x] Affected unit/browser checks pass in all three canonical browser projects with fresh builds/PWA checks. Reuse matching backend receipts only when relevant inputs are unchanged.
-- [ ] Both complete final-SHA GitHub CI jobs pass, including macOS/WebKit; record results in PR #8 and the delivery report without a self-referential commit.
-- [x] Rules, Service Contracts, Progress and Journey record the scenarios, actual evidence and demo/API/device limitations together.
+- [x] Verify trusted GitHub build/artifact provenance, original source manifest and ECR manifest/digest.
+- [x] Reuse canonical scan validation: complete pagination/counts/identity, COMPLETE status, evidence no older than 24 hours and never future dated.
+- [x] Exact TEST approvals bind reviewer/reference/reason/time/expiry, account/region/repository/digest, finding identities and original provenance; missing, revoked, malformed or mismatched approvals fail closed. Critical/unclassified findings remain blocked.
+- [x] Separate read-only `image-accept` command and manual main-only protected Actions entry; no AWS writes, rebuild, publish or silent scan start.
+- [x] Distinguish strict pass, TEST-exception acceptance and blocked; exception keeps strict policy false and full findings. No deployment/runtime/live-auth claim.
+- [x] Meaningful regressions, full canonical backend/PostgreSQL gate, browser restoration smoke, lint/health and documentation/workflow checks pass.
+- [ ] Both complete final-SHA GitHub CI jobs pass, retaining macOS/WebKit; results belong in the new draft PR and delivery report.
 
-## Boundaries and budget
+## Boundaries
 
-- Existing checkout and feature branch only. Preserve unknown work; no reset, clean, stash or silent source advance.
-- One agent; maximum three repair iterations or 30 minutes of active work. Waiting for existing CI is separate from the active repair budget; do not stop CI monitoring solely at 30 elapsed minutes. No unattended relaunch.
-- Reuse dependencies, engines, browser runtime, caches and backend trust. Unsupported API business writes remain disabled until transactional backend support exists.
-- No merge, auto-merge, main/force push, AWS/image work, live migration, deployment, tunnel retry or environment republishing.
-- Passing checks leads to user review, not merge permission. Physical-device and live API acceptance remain separate.
+Start from exact accepted main `40e8bb36868958e56813e2daa27c6ff074b9aced` on authorized `feat/aws-image-test-acceptance-2026-10-07`, existing checkout only. One agent, maximum three repair iterations or 30 minutes active work; existing CI waiting is separate. Reuse setup and caches. No live approval or AWS execution is authorized. No merge, auto-merge, main/force push, installation, IAM/protection change, deployment, tunnel retry or environment republishing. Only YS authorizes merge and subsequent live acceptance.
 
-## Deferred goal: CLOUD-01 — incomplete
+## Completed and deferred goals
 
-Fresh-task runtime validation passed at `8945ca17121b3742a25aea4f16dffef190cbbf06`. Documentation successor `53aefd6ae8dcaf2f639bbf40548368fb111cce43` passed both required jobs in [run 37560945624](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37560945624). Existing setup and reconciliation receipts remain in `PROGRESS.md` and Journey.
+SESSION-OPEN-01 is accepted for the demo: final feature `437e6e5c7a74356c5f75c31d7b4ba1fbf7cdd0c6`, merged PR #8, full PR/main frontend/backend verification and main Pages deployment passed. YS confirmed all postponement physical checks passed on 7 October 2026. Journey owns the completed receipt; live API, media and unrelated acceptance stay separate.
 
-Public-preview acceptance remains blocked by the recorded Cloudflare DNS/proxy provisioning failure. No public PR-preview URL exists; main-branch Pages is not a PR preview. Preserve this unmet criterion and separate physical-device acceptance. Do not retry tunnels in this task.
+CLOUD-01 remains deferred and **incomplete**: the public PR-preview criterion is blocked by the recorded DNS/proxy failure. Main Pages is not a PR preview. No tunnel retry in this task.
 
 ## Owners
 
-- Business scenarios: `docs/FITFINITY_RULES_AND_ARCHITECTURE.md`.
-- State/operations/persistence/Undo: `docs/SERVICE_CONTRACTS.md`.
-- Current task/evidence/blockers: `PROGRESS.md`.
-- Decision/history: `docs/FITFINITY_JOURNEY.md`.
-- Engineering rules and commands: `AGENTS.md` and `docs/CODEX_CLOUD.md`.
+`PROGRESS.md` owns the current ledger; Journey owns completed history; the AWS runbook owns candidate review, approval format, usage and live prerequisites. `AGENTS.md` and the cloud guide own guarded development. Rules/Service Contracts retain accepted demo semantics.

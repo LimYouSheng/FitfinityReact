@@ -1,0 +1,92 @@
+name: Evaluate an existing TEST image without publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: Exact published sha256 digest
+        required: true
+        type: string
+      build_run:
+        description: Original main Pages workflow run ID
+        required: true
+        type: string
+      build_attempt:
+        description: Original build attempt
+        required: true
+        type: string
+      artifact_id:
+        description: Original retained candidate artifact ID
+        required: true
+        type: string
+      approval_id:
+        description: ID in user-reviewed main policy (empty means strict policy)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fitfinity-aws-test
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/verify.yml
+  accept:
+    needs: verify
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: aws-test
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Require exact repository, main and image role
+        env:
+          IMAGE_ROLE: ${{ vars.AWS_IMAGE_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'LimYouSheng/FitfinityReact'
+          test "$GITHUB_REF" = 'refs/heads/main'
+          test "$IMAGE_ROLE" = 'arn:aws:iam::418638389566:role/fitfinity-test-github-image'
+      - name: Obtain temporary credentials restricted to acceptance reads
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_IMAGE_ROLE_ARN }}
+          role-session-name: fitfinity-image-accept-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ap-southeast-1
+          allowed-account-ids: '418638389566'
+          unset-current-credentials: true
+          inline-session-policy: >-
+            {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["sts:GetCallerIdentity","ecr:GetRegistryScanningConfiguration"],"Resource":"*"},{"Effect":"Allow","Action":["ecr:DescribeRepositories","ecr:ListTagsForResource","ecr:BatchGetImage","ecr:DescribeImageScanFindings"],"Resource":"arn:aws:ecr:ap-southeast-1:418638389566:repository/fitfinity-test-api"}]}
+      - name: Evaluate trusted existing candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_DIGEST: ${{ inputs.digest }}
+          BUILD_RUN: ${{ inputs.build_run }}
+          BUILD_ATTEMPT: ${{ inputs.build_attempt }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          APPROVAL_ID: ${{ inputs.approval_id }}
+        run: |
+          set -euo pipefail
+          python3 backend/infrastructure/deploy.py image-accept --actions --digest "$IMAGE_DIGEST" --build-run "$BUILD_RUN" --build-attempt "$BUILD_ATTEMPT" --artifact-id "$ARTIFACT_ID" --approval-id "$APPROVAL_ID" --receipt "$RUNNER_TEMP/fitfinity-image-acceptance.json" 2>&1 | tee "$RUNNER_TEMP/fitfinity-image-acceptance.log"
+      - name: Retain acceptance evidence including blocked results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-image-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/fitfinity-image-acceptance.json
+            ${{ runner.temp }}/fitfinity-image-acceptance.log
+          if-no-files-found: error

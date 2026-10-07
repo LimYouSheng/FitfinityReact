@@ -38,6 +38,10 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   verifyQualitySetup(readQualitySetup())
 })
 const mutations = [
+  ['image acceptance before full CI', setup => { delete setup.acceptance.jobs.accept.needs }],
+  ['image acceptance outside main', setup => { delete setup.acceptance.jobs.accept.if }],
+  ['image acceptance write credentials', setup => { delete setup.acceptance.jobs.accept.steps.find(step => step.uses?.startsWith('aws-actions/')).with['inline-session-policy'] }],
+  ['suppressed image acceptance failure', setup => { setup.acceptance.jobs.accept.steps.find(step => step.run?.includes('image-accept --actions'))['continue-on-error'] = true }],
   ['missing PR verification', setup => { delete setup.pages.on.pull_request }],
   ['path-filtered PR checks', setup => { setup.pages.on.pull_request.paths = ['backend/**'] }],
   ['optional shared verification', setup => { setup.pages.jobs.verify.if = 'false' }],

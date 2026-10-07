@@ -19,12 +19,13 @@ export function readQualitySetup(root = process.cwd()) {
     verify: parse(read('.github/workflows/verify.yml')),
     infrastructure: parse(read('.github/workflows/infrastructure.yml')),
     image: parse(read('.github/workflows/aws-image.yml')),
+    acceptance: parse(read('.github/workflows/aws-image-accept.yml')),
     packageJson: JSON.parse(read('package.json')),
     lock: JSON.parse(read('package-lock.json')),
   }
 }
 
-export function verifyQualitySetup({ pages, verify, infrastructure, image, packageJson, lock }) {
+export function verifyQualitySetup({ pages, verify, infrastructure, image, acceptance, packageJson, lock }) {
   for (const event of ['pull_request', 'push']) {
     if (!equal(pages.on?.[event]?.branches, ['main']) || Object.keys(pages.on[event]).some(key => key !== 'branches')) fail(`${event} must run all gates for main without path filtering`)
   }
@@ -50,6 +51,17 @@ export function verifyQualitySetup({ pages, verify, infrastructure, image, packa
   if (imageCredentials.length !== 1 || imageCredentials[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || imageCredentials[0].with?.['allowed-account-ids'] !== '418638389566' || imageCredentials[0].with?.['aws-region'] !== 'ap-southeast-1') fail('image publication must use its separate exact-account role')
   requireGate(imageJob, 'test "$IMAGE_ROLE" = \'arn:aws:iam::418638389566:role/fitfinity-test-github-image\'')
   requireGate(imageJob, 'python3 backend/infrastructure/deploy.py image-candidate --actions --receipt')
+  const acceptanceGuard = "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'"
+  const acceptJob = acceptance?.jobs?.accept
+  if (!equal(Object.keys(acceptance?.on ?? {}), ['workflow_dispatch']) || acceptance.jobs?.verify?.uses !== './.github/workflows/verify.yml' || acceptance.jobs.verify.if !== acceptanceGuard || acceptJob?.needs !== 'verify' || acceptJob.if !== acceptanceGuard || acceptJob.environment !== 'aws-test' || acceptJob['continue-on-error']) fail('existing-image acceptance requires manual main execution after full verification')
+  if (!equal(acceptance.permissions, { contents: 'read' }) || !equal(acceptance.concurrency, { group: 'fitfinity-aws-test', 'cancel-in-progress': false }) || !equal(acceptJob.permissions, { contents: 'read', actions: 'read', 'pull-requests': 'read', 'id-token': 'write' })) fail('image acceptance permissions or serialization differ')
+  const credential = acceptJob.steps.filter(step => (step.uses ?? '').startsWith('aws-actions/configure-aws-credentials@'))
+  if (credential.length !== 1 || credential[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || credential[0].with?.['allowed-account-ids'] !== '418638389566' || credential[0].with?.['aws-region'] !== 'ap-southeast-1') fail('image acceptance requires the exact account and role')
+  const sessionPolicy = JSON.parse(credential[0].with['inline-session-policy'] ?? '{}')
+  const expectedReadPolicy = { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: ['sts:GetCallerIdentity', 'ecr:GetRegistryScanningConfiguration'], Resource: '*' }, { Effect: 'Allow', Action: ['ecr:DescribeRepositories', 'ecr:ListTagsForResource', 'ecr:BatchGetImage', 'ecr:DescribeImageScanFindings'], Resource: 'arn:aws:ecr:ap-southeast-1:418638389566:repository/fitfinity-test-api' }] }
+  if (!equal(sessionPolicy, expectedReadPolicy)) fail('existing-image credentials must be restricted to exact read operations')
+  requireGate(acceptJob, 'test "$IMAGE_ROLE" = \'arn:aws:iam::418638389566:role/fitfinity-test-github-image\'')
+  requireGate(acceptJob, 'python3 backend/infrastructure/deploy.py image-accept --actions --digest')
   if (!Object.hasOwn(infrastructure.on ?? {}, 'workflow_call') || !Object.hasOwn(infrastructure.on, 'workflow_dispatch') || Object.hasOwn(infrastructure.on, 'pull_request')) fail('standalone infrastructure checks must remain manual/callable without duplicating full PR gates')
   for (const name of ['eslint', '@eslint/js', 'eslint-plugin-react-hooks', 'globals', 'rolldown', 'css-tree', 'yaml']) {
     const version = packageJson.devDependencies?.[name]

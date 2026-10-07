@@ -2,7 +2,7 @@
 
 ## Open-session scheduling contract — 7 October 2026
 
-**SESSION-OPEN-01: implemented and locally verified; final-candidate full CI pending.** This supersedes the version-3 automatic replacement-slot and no-renumber contract. Historical acceptance below is retained.
+**SESSION-OPEN-01: accepted for the demo; PR/main CI passed and YS confirmed all postponement physical checks on 7 October 2026. Journey records the receipt. Live API/media acceptance remains separate.** This supersedes the version-3 automatic replacement-slot and no-renumber contract. Historical acceptance below is retained.
 
 | Boundary | New contract |
 | --- | --- |

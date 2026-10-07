@@ -53,7 +53,7 @@ def timestamp(value):
         raise RuntimeError("Invalid scan timestamp") from None
 
 
-def scan_policy(pages, digest, now):
+def scan_evidence(pages, digest, now):
     """Check complete current basic-scan evidence, including every findings page."""
     require(bool(pages), "Missing scan evidence")
     first = pages[0].get("imageScanFindings", {})
@@ -102,8 +102,17 @@ def scan_policy(pages, digest, now):
         == Counter({key: value for key, value in counts.items() if value}),
         "Scan findings do not match the complete counts",
     )
+    return counts, findings
+
+
+def strict_scan_passed(counts):
+    return not any(counts.get(level, 0) for level in ("CRITICAL", "HIGH", "UNDEFINED"))
+
+
+def scan_policy(pages, digest, now):
+    counts, _ = scan_evidence(pages, digest, now)
     require(
-        not any(counts.get(level, 0) for level in ("CRITICAL", "HIGH", "UNDEFINED")),
+        strict_scan_passed(counts),
         "Image blocked: critical, high or unclassified findings; no automatic exception",
     )
     return counts
@@ -401,7 +410,7 @@ class ImageCandidate:
         self.report.update(image_uri=URI + "@" + digest, image_digest=digest, image_published=True)
         return digest
 
-    def scan(self, digest):
+    def scan(self, digest, *, read_only=False):
         args = [
             "--registry-id",
             ACCOUNT,
@@ -423,6 +432,9 @@ class ImageCandidate:
                     "1000",
                 )
             except AWSFailure as error:
+                require(
+                    not read_only, "A current COMPLETE scan is required; request a scan separately"
+                )
                 require(error.code == "ScanNotFoundException", "Cannot read image scan")
                 page = {"imageScanStatus": {"status": "PENDING"}}
                 if not started:
@@ -438,6 +450,7 @@ class ImageCandidate:
             if status == "COMPLETE":
                 pages.append(page)
                 break
+            require(not read_only, "A current COMPLETE scan is required; request a scan separately")
             require(status in {"IN_PROGRESS", "PENDING"}, "Image scan failed or unsupported")
             require(attempt < 30, "Image scan did not complete within five minutes")
             print("Waiting for image scan (10 seconds)…", flush=True)
@@ -460,6 +473,8 @@ class ImageCandidate:
                 )
             )
         self.report["scan_pages"] = pages
+        if read_only:
+            return pages
         self.report["severity_counts"] = scan_policy(pages, digest, datetime.now(UTC))
         self.report["scan_policy_passed"] = True
 

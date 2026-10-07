@@ -1,6 +1,6 @@
 # Fitfinity Codex Cloud workflow
 
-Updated 7 October 2026 (Singapore). Accepted main: `7970f65b5975a6554c46eb521c7ca118939e4bb9`. Work remains on PR #8's `docs/codex-cloud-workflow-2026-10-06` branch. Fresh-task runtime validation passed at `8945ca17121b3742a25aea4f16dffef190cbbf06`; normal cloud development can resume. Full CI for each new candidate, public-preview acceptance and device acceptance remain separate. [PROGRESS.md](../PROGRESS.md) owns exact receipts and blockers.
+Updated 7 October 2026 (Singapore). Accepted main for AWS-IMAGE-ACCEPT-01: `40e8bb36868958e56813e2daa27c6ff074b9aced`. PR #8 is merged; this task uses authorized `feat/aws-image-test-acceptance-2026-10-07`. Future tasks must use their own explicitly authorized branch/checkpoint. Fresh-task runtime validation passed at `8945ca17121b3742a25aea4f16dffef190cbbf06`; normal cloud development can resume. Full CI for each new candidate, public-preview acceptance and device acceptance remain separate. [PROGRESS.md](../PROGRESS.md) owns exact receipts and blockers.
 
 ## 1. Canonical files
 
@@ -22,8 +22,8 @@ Do not add a competing `ENGINEERING_RULES.md` or second task list. Existing cano
 - Fresh user Git output confirmed local and remote main at `d2e8a4b7e44c1554b1f31b5337b87014e6446fdf`, with no tracked changes or unpublished commits. Only `docs/AWS_DEPLOYMENT_RUNBOOK.md` was untracked; its user-confirmed blob was `041d15c2e68e8b878d71455c30299a9b5b755ff4`.
 - PR #9 preserved that exact file. Both required PR checks passed; the user merged it on 6 October at 22:46:11 Singapore as `7970f65b5975a6554c46eb521c7ca118939e4bb9`. Main contains the accepted local checkpoint. Post-merge verification remains a separate receipt; see `PROGRESS.md`.
 - Earlier ` 2` duplicate entries were absent from the latest user inventory. This task did not delete them or infer that they were disposable. Preserve any newly discovered unknown local work and inspect it separately.
-- Continue the experiment on PR #8's existing `docs/codex-cloud-workflow-2026-10-06` branch, incorporating the accepted main checkpoint without force push. Keep #8 draft and unmerged until the user decides otherwise. Do not recreate the PR or merge it to obtain a preview.
-- Confirm the actual branch and HEAD at setup and every fresh cloud task; the required experiment instructions are on the feature branch, not main. Read its `AGENTS.md`, `NORTH_STAR.md` and `PROGRESS.md` before work.
+- PR #8 merged as `40e8bb36868958e56813e2daa27c6ff074b9aced`; its demo milestone is accepted. Use the current task's authorized branch and exact source checkpoint. Create a new branch only when authorized, after fetching/verifying main and a clean checkout; stop if main advanced. Never merge to obtain a preview.
+- Confirm the actual branch and HEAD at setup and every fresh cloud task; instructions and source guards must match the current authorized task. Read its `AGENTS.md`, `NORTH_STAR.md` and `PROGRESS.md` before work.
 - GitHub is canonical for this accepted checkpoint. Optional Mac use must preserve new edits and pull reviewed GitHub state; Mac installers and local AWS login are no longer routine development prerequisites. No `git add .`, reset, stash, clean, force push or direct main push as a shortcut.
 
 The October hosting operator has an exact source manifest and saved state. A newer docs commit cannot silently become its accepted release baseline. Retain its original evidence; separately review any replacement release manifest/operator before resuming deployment.
@@ -57,8 +57,12 @@ set -euo pipefail
 cd /workspace/FitfinityReact
 git rev-parse HEAD
 test -z "$(git status --porcelain=v1 --untracked-files=all)"
-test "$(git branch --show-current)" = docs/codex-cloud-workflow-2026-10-06
-git merge-base --is-ancestor 7970f65b5975a6554c46eb521c7ca118939e4bb9 HEAD
+: "${FITFINITY_EXPECTED_BRANCH:?Supply the current task branch}"
+: "${FITFINITY_EXPECTED_HEAD:?Supply the current task full HEAD}"
+: "${FITFINITY_ACCEPTED_MAIN:?Supply the current task accepted main}"
+test "$(git branch --show-current)" = "$FITFINITY_EXPECTED_BRANCH"
+test "$(git rev-parse HEAD)" = "$FITFINITY_EXPECTED_HEAD"
+git merge-base --is-ancestor "$FITFINITY_ACCEPTED_MAIN" HEAD
 node --version
 npm --version
 python3 --version
