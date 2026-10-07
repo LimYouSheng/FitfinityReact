@@ -1,5 +1,9 @@
 # Fitfinity current progress
 
+## Approval preparation — pending user review
+
+Prepare `FITFINITY-TEST-2026-10-07-86183723` for exact digest `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, original main `33d124fcd59ffd3f9cb30d645660bdad99a21278`, run `37584327992` attempt `1`, artifact `11467134068`. Authenticated artifact checksum and all 160 source files match. This initial documentation checkpoint obtains the dedicated draft PR URL; no approval entry or completed authorization exists yet. The final review will reconcile the ledger below. No live AWS evaluation is authorized.
+
 ## Active task — AWS-IMAGE-ACCEPT-01, 7 October 2026 (Singapore)
 
 - Goal: a separate read-only existing-image acceptance command/workflow, verified build provenance and an exact user-reviewed TEST approval contract. Implementation and local verification passed; final-SHA GitHub CI remains pending at this commit. Live execution is unverified and unauthorized in this task.
