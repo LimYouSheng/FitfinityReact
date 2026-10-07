@@ -1,23 +1,22 @@
-# North Star: AWS-IMAGE-APPROVAL-01
+# North Star: AWS-HOSTING-PREFLIGHT-01
 
 ## Outcome
 
-Prepare the exact proposed TEST exception `FITFINITY-TEST-2026-10-07-86183723` for the user-selected existing image in [draft PR #11](https://github.com/LimYouSheng/FitfinityReact/pull/11), using the acceptance mechanism merged in PR #10. The authorized follow-up repairs the failed frontend alignment measurement in this same PR, with full final CI required. Stop for YS review and merge. This is a proposal, not completed authorization or image security acceptance.
+Record the completed exact-image acceptance and prepare a concrete TEST hosting follow-up from reviewed main `c66acf9032b9bf7b9b71fcf118f375e8bb6e9fd1`. PR #11 is merged by LimYouSheng and its final CI passed. Image security acceptance under the exact expiring TEST exception passed; strict scan policy, application deployment and live authentication did not become accepted.
 
-## Acceptance — proposal verification and review boundary
+## Acceptance
 
-- [x] Verify exact main `33d124fcd59ffd3f9cb30d645660bdad99a21278`, original run/attempt/artifact, ZIP checksum, all 160 source inputs and both successful required source CI jobs.
-- [x] Bind the proposed entry to exact TEST scope, immutable digest, provenance and two HIGH finding tuples; use the actual dedicated PR URL.
-- [x] Clearly identify the proposed timestamp and expiry; preserve historical exceptions without transfer or renewal.
-- [x] Existing policy checks, canonical backend/PostgreSQL gate and applicable documentation checks pass.
-- [x] Diagnose the tablet chevron-transition measurement failure and preserve the same settled-state `<=1px` alignment assertion.
-- [ ] Both complete final-SHA GitHub CI jobs pass, retaining macOS/WebKit; final results belong in PR #11 and the delivery report.
-- [ ] YS reviews and merges the proposed approval; this is outside the preparation task.
-- [ ] Separately authorized live evaluation verifies current COMPLETE scan evidence and produces an acceptance receipt; not executed here.
+- [x] Clean source, exact remote main and PR #11 merge/feature identities verified; authorized branch created in the existing checkout.
+- [x] Authenticated acceptance ZIP checksum and receipt verified; original image/build/source provenance and open findings preserved.
+- [x] Canonical records reconcile completed approval/live evaluation while preserving failed historical runs.
+- [x] Registry, dispatcher, role policies and historical hosting operator inspected; new-digest runtime and release prerequisites identified.
+- [x] No authorized AWS operator connection available; live quota remains unverified and exact guarded CloudShell reads are documented.
+- [x] Applicable documentation/link/command-syntax and diff checks pass.
+- [ ] Both complete final-SHA GitHub CI jobs pass, retaining all macOS/WebKit/backend coverage; record results in the draft PR and delivery report.
 
 ## Boundaries
 
-Existing checkout, authorized `docs/test-image-approval-2026-10-07` from exact main above. One agent, maximum three repairs or 30 minutes active work; existing CI waiting is separate. Reuse installed dependencies/caches/cloud-only trust. The follow-up explicitly expands scope to the smallest evidenced frontend-check repair and directly affected documentation; preserve the proposed policy bytes and original provenance. No merge, auto-merge, main/force push, workflow dispatch, AWS calls/writes, scan request, image rebuild/publication, deployment, credential setup, IAM change, tunnel retry or environment republishing.
+Only directly affected canonical documentation on `docs/aws-test-hosting-preflight-2026-10-07`. One agent, three repairs or 30 minutes active work; existing CI waiting separate. Reuse valid setup/receipts. Only already authorized operator access may run `sts get-caller-identity`, `service-quotas get-requested-service-quota-change` and `lambda get-account-settings` for account `418638389566`, region `ap-southeast-1`. No credentials in the coding environment. No policy/expiry/IAM/workflow changes, AWS writes, deployment, provisioning replay, image rebuild/scan/dispatch, merge/main/force push, tunnel or environment republishing. Draft PR and user-only merge authority.
 
 ## Completed and deferred goals
 

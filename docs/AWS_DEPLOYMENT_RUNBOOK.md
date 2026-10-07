@@ -1,12 +1,12 @@
 # AWS deployment runbook
 
-**Evidence checkpoint: 6 October 2026, 04:41 Singapore.** Covers the recovered AWS work from 22 September through the current TEST login deployment. Later acceptance must be added here when its receipt is reviewed.
+**Current evidence checkpoint: 7 October 2026 (Singapore), AWS-HOSTING-PREFLIGHT-01.** Exact-image security acceptance below is verified. Hosting/runtime and quota gates remain separate. The recovered deployment/command history retains its 6 October 2026, 04:41 Singapore checkpoint; it is not a live infrastructure readback.
 
 ## AWS-IMAGE-ACCEPT-01 — existing candidate acceptance, 7 October 2026
 
-Implementation was merged in [PR #10](https://github.com/LimYouSheng/FitfinityReact/pull/10) as `33d124fcd59ffd3f9cb30d645660bdad99a21278`; both final feature CI jobs passed in [run 37580783214](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37580783214). **Live execution is unverified and was not authorized in the coding task.** This adds a separate security evaluation, not deployment or a replacement successful result for an old failed workflow. `deploy.py deploy` still refuses incomplete full deployment. Existing build-and-scan remains strict and unchanged for candidates without an applicable reviewed approval.
+Implementation was merged in [PR #10](https://github.com/LimYouSheng/FitfinityReact/pull/10) as `33d124fcd59ffd3f9cb30d645660bdad99a21278`; both final feature CI jobs passed in [run 37580783214](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37580783214). Live evaluation was subsequently authorized separately and passed for the exact candidate below; it was not executed by the implementation or documentation tasks. This adds a separate security evaluation, not deployment or a replacement successful result for an old failed workflow. `deploy.py deploy` still refuses incomplete full deployment. Existing build-and-scan remains strict and unchanged for candidates without an applicable reviewed approval.
 
-### Current candidate and proposed approval — 86183723, pending YS review
+### Current accepted TEST candidate — 86183723
 
 At **7 October 2026, 16:12:01 Singapore**, authenticated GitHub evidence for [main run 37584327992](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37584327992), attempt `1`, was independently checked. Frontend/backend/build/Pages passed; `image / image` and the overall run failed strict policy. This failed run remains failed.
 
@@ -20,11 +20,11 @@ At **7 October 2026, 16:12:01 Singapore**, authenticated GitHub evidence for [ma
 | HIGH | CVE-2026-85091 | zlib | `1.3.dfsg+really1.3.1-1` |
 | HIGH | CVE-2026-95619 | gcc-14 | `14.2.0-19` |
 
-[Draft PR #11](https://github.com/LimYouSheng/FitfinityReact/pull/11) proposes `FITFINITY-TEST-2026-10-07-86183723`, intended approver `LimYouSheng`, with proposed `approved_at=2026-10-07T16:12:01+08:00` and expiry `2026-10-11T20:41:44+08:00`. The timestamp records the proposed terms, **not completed authorization**; no past approval is invented. The proposed reason is a limited TEST exception for controlled development and deployment validation while these two findings remain open. Production is excluded; deployment and runtime acceptance are not authorized.
+[PR #11](https://github.com/LimYouSheng/FitfinityReact/pull/11) was merged by `LimYouSheng` as `c66acf9032b9bf7b9b71fcf118f375e8bb6e9fd1`, from final feature `1689f84970eee2608ff526a34597e30592f6538e`. Final [PR CI 37598689305](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37598689305) passed both required jobs. Approval `FITFINITY-TEST-2026-10-07-86183723` is now reviewed and merged, with unchanged `approved_at=2026-10-07T16:12:01+08:00` and expiry `2026-10-11T20:41:44+08:00`. The limited TEST exception permits controlled development/deployment validation while these two findings remain open; production is excluded. It does not authorize deployment or establish runtime acceptance.
 
-The policy entry uses the existing schema's `status=approved` as a proposed post-merge state. It is not authoritative while this PR is unmerged: the unchanged evaluator must verify that LimYouSheng merged this exact dedicated PR and that current policy still matches its merged snapshot. Wrong digest, changed/disappeared findings, expired/revoked entries or unmerged/unauthorized review remain blocked. This is a separate proposal, not renewal or transfer of the historical `353907f…` exception.
+The evaluator verified the merged exact dedicated approval. Wrong digest, changed/disappeared findings, expired/revoked entries or unmerged/unauthorized review remain blocked. This is not renewal or transfer of the historical `353907f…` exception.
 
-Only after YS reviews and merges PR #11, the next manually authorized **Evaluate an existing TEST image without publication** run uses:
+The completed **Evaluate an existing TEST image without publication** run used these original candidate identifiers, not the frontend repair or policy merge as image provenance:
 
 ```text
 Branch: main
@@ -35,7 +35,15 @@ artifact_id: 11467134068
 approval_id: FITFINITY-TEST-2026-10-07-86183723
 ```
 
-No dispatch or AWS call occurs in preparation. Live evaluation must read current COMPLETE scan evidence within 24 hours, reject future/stale/missing evidence and verify the merged exact approval. Only if all conditions pass may its separate receipt report `accepted_with_test_exception`, retaining `scan_policy_passed=false`, complete findings, `application_deployed=false` and `live_authentication_accepted=false`. Live security acceptance remains unverified. Merging this approval may trigger the normal main image build and another digest; **do not switch this approval or chase that new strict-build result**. These inputs deliberately target the original digest above.
+#### Verified live acceptance receipt
+
+- [Run 37613240855](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37613240855), attempt `1`, completed successfully at policy revision `c66acf9032b9bf7b9b71fcf118f375e8bb6e9fd1`.
+- Authenticated artifact `fitfinity-image-acceptance-37613240855-1`, ID `11480831590`; downloaded ZIP SHA256 **`34133cf9939ed03e4b35f01b05bc698c97308f273fbf0361e8e4f69d0ff35e01`** matches both GitHub metadata and the supplied checkpoint. ZIP contains `fitfinity-image-acceptance.json` and `.log`; receipt fields and all 160 policy-revision source hashes were independently checked against exact main.
+- Created `2026-10-07T11:54:33.956262+00:00` (**7 October 2026, 19:54:33.956262 Singapore**); account `418638389566`, region `ap-southeast-1`, assumed role `fitfinity-test-github-image`, session `fitfinity-image-accept-37613240855-1`.
+- `result=accepted_with_test_exception`, `image_security_accepted=true`, **`scan_policy_passed=false`**. COMPLETE scan evidence retains exactly the two HIGH findings above. `application_deployed=false`, `live_authentication_accepted=false`, `cloud_write_attempts=[]`.
+- Exact image remains `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`. Original source `33d124fcd59ffd3f9cb30d645660bdad99a21278`, build `37584327992`, attempt `1`, artifact `11467134068` and its checksum remain unchanged. Approval is `FITFINITY-TEST-2026-10-07-86183723`, referenced to PR #11, expiring **11 October 2026, 20:41:44 Singapore**. No extension or transfer.
+
+Separately, [post-merge run 37612539030](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37612539030) passed frontend/backend/build/Pages but failed `image / image`. Its completed image log says `Image blocked: critical, high or unclassified findings; no automatic exception`. This strict build result remains failed and is not replaced by the acceptance receipt. Do not switch the approval to that run's new image. This documentation task made no AWS calls, dispatch or scan request; it verified retained authenticated evidence.
 
 ### Historical candidate review — ca6545a, no approval granted
 
@@ -57,14 +65,14 @@ The historical exception `FITFINITY-TEST-2026-10-04-UNFIXED` and review `FITFINI
 
 ### Canonical approval format and authority
 
-[image-test-approvals.json](../backend/infrastructure/image-test-approvals.json) is the sole policy file: version `1`, list `approvals`. It now contains the **proposed, not yet authorized** PR #11 entry described above. An Actions input selects only an existing approval ID; no JSON receipt or workflow text can approve itself. Each entry requires:
+[image-test-approvals.json](../backend/infrastructure/image-test-approvals.json) is the sole policy file: version `1`, list `approvals`. It contains the **YS-merged PR #11 approval**, verified by the live acceptance receipt above. An Actions input selects only an existing approval ID; no JSON receipt or workflow text can approve itself. Each entry requires:
 
 - `id`, `status` (`approved` or `revoked`), `approval_reference` (the exact repository PR URL), `approver` (`LimYouSheng`), nonempty `reason`, timezone-qualified `approved_at` and `expires_at`.
 - Exact `account`, `region`, `repository`, `environment` (`test` only), `image_digest`.
 - `findings`: an exact, duplicate-free list of objects with only `cve`, `package`, `version`, `severity` (`HIGH`). No wildcard, severity-wide waiver, new finding or changed/disappeared identity is accepted. Critical and unclassified findings are always blocked.
 - `provenance`: exact `source_revision`, `source_sha256`, integer `run_id`, `run_attempt`, `artifact_id`, and `artifact_sha256` (plain SHA256 hex of the trusted ZIP).
 
-Approval publication is an explicit risk decision: prepare a dedicated review PR with the exact entry, set `approval_reference` to that PR, and have **YS review and merge it**. The evaluator reads GitHub's merged PR record, requires `merged_by=LimYouSheng`, main in this repository, an ancestor merge commit, and the identical entry in that user-merged policy snapshot. Current main must still contain the identical active entry. Revoking/removing/changing it fails closed; a new authorization requires another explicit user-reviewed policy change. Do not backfill an approval on YS's behalf or automatically renew it. PR #10 introduced an empty policy; PR #11 proposes the separate exact entry, subject to YS review and merge.
+Approval publication is an explicit risk decision: prepare a dedicated review PR with the exact entry, set `approval_reference` to that PR, and have **YS review and merge it**. The evaluator reads GitHub's merged PR record, requires `merged_by=LimYouSheng`, main in this repository, an ancestor merge commit, and the identical entry in that user-merged policy snapshot. Current main must still contain the identical active entry. Revoking/removing/changing it fails closed; a new authorization requires another explicit user-reviewed policy change. Do not backfill an approval on YS's behalf or automatically renew it. PR #10 introduced an empty policy; PR #11 subsequently supplied the separate exact entry and was merged by YS.
 
 The original candidate is downloaded directly from GitHub's authenticated artifact API, not accepted from a caller-supplied JSON file. The evaluator verifies repository/main/event/workflow/run attempt, both successful required build-source CI jobs, the image job, immutable artifact identity and checksum, original Git source manifest and the live ECR manifest/config digest. Approval-policy revision is recorded separately from original source/build revision. An approval-only commit therefore does not rebuild or select another image.
 
@@ -83,7 +91,7 @@ python3 backend/infrastructure/deploy.py image-accept --actions \
 
 The command requires the clean exact main policy checkout and temporary Actions credentials; it is not a local-profile bypass. `gh` uses the workflow's read-only `GH_TOKEN` for this repository's run/artifact/PR reads. Existing-candidate AWS calls are limited to identity/repository/ownership/scanning configuration, manifest and scan reads. It never builds, logs into ECR, publishes, deploys or starts a scan. Missing/in-progress/stale scan evidence is a prerequisite failure; arrange a scan only through a separately authorized operation, then evaluate again.
 
-Results are `strict_policy_passed`, `accepted_with_test_exception`, or `blocked`. Exception acceptance retains `scan_policy_passed=false`, complete scan pages/findings, exact approval and provenance; it sets only `image_security_accepted=true`. Application deployment and live authentication remain false. The old failed run is immutable history; this path creates a separate receipt for the reviewed digest. No live command or new security acceptance occurred during implementation.
+Results are `strict_policy_passed`, `accepted_with_test_exception`, or `blocked`. Exception acceptance retains `scan_policy_passed=false`, complete scan pages/findings, exact approval and provenance; it sets only `image_security_accepted=true`. Application deployment and live authentication remain false. The old failed run is immutable history; this path creates a separate receipt for the reviewed digest. No live command occurred during implementation; the later independently authorized acceptance is recorded above.
 
 ## Purpose and evidence rules
 
@@ -98,6 +106,33 @@ Record the final working procedure while each result is fresh, then use it to im
 The early receipts often contain phase results and write names, not every full argument vector. This document preserves their exact receipt identities, final operator hashes, canonical source owners and working call families. It does **not** invent missing shell history. Initial manual AWS account/IAM-user creation has no recovered successful command transcript. The initial ECR uploader filename was later reused for a different pinned image, so the currently retained file must not be misidentified as the original September 22 bytes. SDK calls inside a Lambda and actions performed internally by CloudFormation are owned by their source/templates, rather than presented as manually executed CLI commands.
 
 **Do not replay the following history as a shell script.** Initial provisioning, one-time Owner creation, normal release and recovery are different operations. Existing guarded operators enforce those boundaries.
+
+## AWS-HOSTING-PREFLIGHT-01 — current implementation and release prerequisites
+
+This is a documentation/read-only preflight from exact main `c66acf9032b9bf7b9b71fcf118f375e8bb6e9fd1`, not hosting authorization.
+
+| Owner / evidence | Implemented or historically accepted | Current limit |
+| --- | --- | --- |
+| [deployment-test.json](../backend/infrastructure/deployment-test.json) | September 25 registry of explicit bootstrap/review/probe/release/recovery stages | `accepted` flags describe recorded native history, not a live query. Several release-blocker strings predate October Owner/OIDC/image work; registry is unchanged in this documentation task |
+| [deploy.py](../backend/infrastructure/deploy.py) | Stage dispatch, metadata verification, image candidate and exact-image acceptance | `status` explicitly returns `automatic_release_ready=false`; `deploy` refuses full release. Metadata verification is not private runtime or hosting proof |
+| [test-image-runtime.py](../backend/infrastructure/test-image-runtime.py) | Earlier image inspection owner | Still pins historical `efa53edd…`; it cannot establish runtime acceptance for `86183723…` |
+| Dated October runtime operator/receipt | `Fitfinity_AWS_Current_Runtime_2026-10-04.1gdnm7o1.json` records private startup/health/shutdown, DB TLS, Cognito and cleanup in both subnets for `353907f…` | No private-runtime receipt found for newly accepted `86183723…`; image security acceptance is not runtime proof |
+| Dated October hosting operator | `Fitfinity_AWS_Test_Login_2026-10-06.sh`, revision `2026-10-06-test-login-1`; 152 offline/25 CLI serialization checks and a native quota stop before writes | Retained external operator is not a merged repository hosting entry point. Its old source/image/frontend pins must not be bypassed or blindly resumed |
+| GitHub image/verification roles | Checked-in `test-github-image-role.json` and `test-github-verification-role.json` implement their separate limited purposes | Neither policy grants `servicequotas:GetRequestedServiceQuotaChange` or `lambda:GetAccountSettings`; do not assume access or broaden IAM/workflows |
+
+No authorized AWS operator connection is available in this coding session: current environment status exposes no outbound identities/secrets, and no operator connector is available. Credentials remain outside the coding environment. **Live quota request status, total concurrency and unreserved concurrency are unverified.** The account-guarded CloudShell procedure below is the fallback, not evidence that it ran.
+
+### Next concrete task: review the TEST release bundle and runtime/hosting operator
+
+Before any separately authorized hosting execution, prepare and review one immutable bundle with:
+
+1. **Reviewed source:** explicitly select an accepted clean full commit for the hosting operator/templates and frontend, with successful final frontend/backend CI. This preflight starts at `c66acf9…`; its eventual documentation merge must be adopted explicitly if used. Keep the image's original `33d124f…` build provenance separate and verify compatibility; never relabel it with a documentation/repair SHA.
+2. **Frontend artifact:** identify its source, API-mode configuration, exact intended CloudFront origin/API contract, build/PWA receipt, file manifest and checksum. Historical manifest `b63c6c3f7eb59128a52bfcf6368301e7e3d9637a6edbd34d8ba5644b04fde70c` and saved 40-file native bundle belong to the older `d2e8a4b…` release. Main Pages success is demo hosting evidence, not this AWS API-mode artifact. No new hosting frontend artifact was built or verified here.
+3. **Image and private runtime:** retain the exact accepted `86183723…` digest, original candidate artifact and live acceptance receipt. Recheck approval validity/freshness under separately authorized operations at execution time. Obtain digest-bound startup/health/shutdown, database TLS/permissions, Cognito connectivity and temporary cleanup receipts in both private subnets; historical `353907f…` success is insufficient.
+4. **Capacity and permissions:** obtain the three permitted CloudShell read results below, distinguishing request status from applied capacity; first CREATE requires at least 102 unreserved before reserving 2. Review an explicitly authorized operator identity and exact required CloudFormation/S3/CloudFront/API Gateway/WAF/Lambda/IAM operations, with application resources in Singapore and edge WAF in `us-east-1`. Existing image/verification roles do not authorize hosting. Do not change IAM or replay bootstrap to compensate.
+5. **Recovery and acceptance:** review ownership/Add-only change sets, reconciliation of interrupted writes, immutable uploads, protected database/retained bucket handling, application rollback and populated-data migration/restore plan before rollout. Temporary cleanup is not a restore rehearsal. Preserve the existing Owner; do not recreate or resend invitations. Public HTTPS/API bytes, first login/password setup/MFA, `/me`, refresh/sign-out and recovery still require separate live acceptance.
+
+The immediate next action is to return the guarded CloudShell quota outputs and review/adopt the exact operator/source/frontend bundle with digest-bound runtime evidence. Missing prerequisites block hosting execution. This task does not authorize those future AWS operations, dispatch, image rebuild, scan request or deployment.
 
 ## Historical deployment position — 6 October 2026
 
@@ -118,7 +153,7 @@ The early receipts often contain phase results and write names, not every full a
 | Domain choice | AWS-generated CloudFront HTTPS address; client DNS not required for TEST |
 | Full deployment automation | Not accepted; implement after complete release and recovery acceptance |
 
-Latest deployment receipt: `Fitfinity_AWS_Test_Login_2026-10-06.9ai7qy3v.json`. Its cloud-write list is empty. Its saved frontend/state should be reused by the same operator, not deleted or rebuilt manually.
+Latest deployment receipt: `Fitfinity_AWS_Test_Login_2026-10-06.9ai7qy3v.json`. Its cloud-write list is empty. Preserve its saved frontend/state; reuse requires an explicitly reviewed compatible release baseline, not automatic adoption by the new digest.
 
 ## Successful sequence since AWS work began
 
@@ -297,7 +332,7 @@ Future hosting calls include CloudFormation change-set operations, conditional `
 
 CloudFront supplies the AWS HTTPS hostname. API routes share that origin, API caching is disabled, and the application trusts that exact origin. The regional API and edge are WAF protected. Cleanup retains the private versioned frontend bucket; it is not a database restore rehearsal.
 
-## Quota correction and current resume procedure
+## Quota history and current read-only CloudShell preflight
 
 | Field | Last observed value |
 | --- | --- |
@@ -307,11 +342,11 @@ CloudFront supplies the AWS HTTPS hostname. API routes share that origin, API ca
 | Rejected request | `DesiredValue=102`, `IllegalArgumentException`: must exceed default `1000.0` |
 | Submitted request | `DesiredValue=1001`, initially `PENDING` |
 | Request ID | `e57c2d28661842e593dc7f6543c0087eF7Cev008` |
-| Current status / support case | `CASE_OPENED` / `179123267300687` |
+| Historical status / support case (6 October) | `CASE_OPENED` / `179123267300687` |
 
 The **102 capacity gate** and **1001 requested regional quota** serve different purposes. Fitfinity's function remains capped at 2. A case or an approval status alone is not applied capacity. Do not resubmit this request.
 
-Read the current request and actual Lambda capacity:
+Run in an already authorized **AWS CloudShell** session for the TEST account. No local profile or exported credentials are required. The STS account guard stops before either quota read on an account mismatch. Capture request status separately from actual applied capacity; no output has been obtained in this task:
 
 ```bash
 bash <<'SH'
@@ -319,18 +354,22 @@ set -euo pipefail
 export AWS_MAX_ATTEMPTS=2
 export AWS_IGNORE_CONFIGURED_ENDPOINT_URLS=true
 fitfinity_aws=(aws
-  --profile fitfinity-test
   --region ap-southeast-1
   --output json
   --no-cli-pager
   --no-cli-auto-prompt
-  --cli-error-format legacy
   --cli-connect-timeout 10
   --cli-read-timeout 30
 )
+fitfinity_account="$("${fitfinity_aws[@]}" sts get-caller-identity --query Account --output text)"
+if [ "$fitfinity_account" != 418638389566 ]; then
+  printf 'STOP: expected TEST account 418638389566; got %s\n' "$fitfinity_account" >&2
+  exit 1
+fi
+printf 'Verified account %s; region ap-southeast-1\n' "$fitfinity_account"
 "${fitfinity_aws[@]}" service-quotas get-requested-service-quota-change \
   --request-id e57c2d28661842e593dc7f6543c0087eF7Cev008 \
-  --query 'RequestedQuota.{Status:Status,Requested:DesiredValue,CaseId:CaseId}'
+  --query 'RequestedQuota.{RequestId:Id,Service:ServiceCode,Quota:QuotaCode,Status:Status,Requested:DesiredValue,CaseId:CaseId}'
 "${fitfinity_aws[@]}" lambda get-account-settings \
   --query 'AccountLimit.{Total:ConcurrentExecutions,Unreserved:UnreservedConcurrentExecutions}'
 SH
@@ -338,7 +377,7 @@ SH
 
 Historical successful submission: `service-quotas request-service-quota-increase --service-code lambda --quota-code L-B99A9384 --desired-value 1001`, with the explicit TEST options and `AWS_MAX_ATTEMPTS=1`. This records request submission, not approval; do not execute it again for this case.
 
-Once `Unreserved >=102`, resume the same operator while all other source, scan, exception and Owner gates remain valid:
+**Historical invocation only — not a current resume instruction.** `Unreserved >=102` is necessary, not sufficient. The older operator below pins a different source/image/frontend release; complete the reviewed release-bundle prerequisites above before any separately authorized invocation:
 
 ```bash
 bash "$HOME/Downloads/Fitfinity_AWS_Test_Login_2026-10-06.sh" --run "$HOME/Desktop/FitfinityReact"
@@ -346,7 +385,7 @@ bash "$HOME/Downloads/Fitfinity_AWS_Test_Login_2026-10-06.sh" --run "$HOME/Deskt
 
 Operator SHA256: `1acfe7808c1781470224812c8eceede96c90cc4466c499e096961bae68784af0`.
 
-Preserve `~/Library/Logs/Fitfinity/Fitfinity_AWS_Test_Login_2026-10-06/<accepted-main>/state.json` and its frontend directory. Upload the resulting Desktop JSON whether the run completes or stops. The operator requires the exact clean accepted commit and full tree. A documentation merge also changes that baseline: do not merge this documentation change into the active release or loosen its guard just to proceed. The later release must explicitly adopt its reviewed source baseline.
+Preserve `~/Library/Logs/Fitfinity/Fitfinity_AWS_Test_Login_2026-10-06/<accepted-main>/state.json` and its frontend directory. For any later authorized compatible run, preserve its resulting JSON whether it completes or stops. The operator requires the exact clean accepted commit and full tree. A documentation merge also changes that baseline: do not merge this documentation change into the active release or loosen its guard just to proceed. The later release must explicitly adopt its reviewed source baseline.
 
 For a new client, discover applied/default quotas and existing request history early. `get-aws-default-service-quota` and `list-requested-service-quota-change-history-by-quota` are documented discovery operations, not new calls executed for this record. Calculate the required increase for that account; do not blindly reuse 1001. For subsequent updates, account for existing function reservations rather than applying the first-CREATE 102 test unconditionally.
 
