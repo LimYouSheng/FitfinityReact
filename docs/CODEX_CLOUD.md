@@ -1,6 +1,6 @@
 # Fitfinity Codex Cloud workflow
 
-Updated 7 October 2026 (Singapore). Accepted main: `7970f65b5975a6554c46eb521c7ca118939e4bb9`. Work remains on PR #8's `docs/codex-cloud-workflow-2026-10-06` branch. Published environment restoration and routine internal development are verified; final-candidate CI and public-preview acceptance remain separate. [PROGRESS.md](../PROGRESS.md) owns exact receipts and blockers.
+Updated 7 October 2026 (Singapore). Accepted main: `7970f65b5975a6554c46eb521c7ca118939e4bb9`. Work remains on PR #8's `docs/codex-cloud-workflow-2026-10-06` branch. Fresh-task runtime validation passed at `8945ca17121b3742a25aea4f16dffef190cbbf06`; normal cloud development can resume. Full CI for each new candidate, public-preview acceptance and device acceptance remain separate. [PROGRESS.md](../PROGRESS.md) owns exact receipts and blockers.
 
 ## 1. Canonical files
 
@@ -72,6 +72,8 @@ export VITE_API_BASE_URL=''
 ```
 
 Stop on a mismatch or unexpected edits; never reset/discard them. A detached restored checkout may have feature-branch metadata restored at its configured HEAD after the clean-tree/source check; do not silently move to a newer tip. Record Docker/Compose versions when those services are needed.
+
+The user confirmed publication of the correct source ref, and the fresh-task runtime receipt is recorded in `PROGRESS.md`. Missing configuration-management tools do not block runtime validation against the authorized checkpoint; runtime success alone does not verify saved settings. Do not republish as part of routine validation.
 
 Reuse valid dependencies, npm/buildx caches, pinned engines and prepared images. `npm ls --depth=0` checks dependency availability; reinstall/recreate only if missing or relevant lockfiles/setup inputs changed. Start only required services and verify behavior: retained files/images are not live-process readiness. Restart processes after restoration.
 
@@ -180,6 +182,6 @@ Use one working agent unless delegation is explicitly requested. A future unatte
 
 ## 7. Completion receipt
 
-Record in `PROGRESS.md` and the PR: source SHA; scope/diff; actual commands and results; full-CI run URLs; preview revision/mode; unresolved limitations; next action. Move the completed milestone summary to Journey once accepted. A new cloud task must be able to continue from these files without rereading chat history.
+Record the tested source SHA, scope/diff, actual commands/results, reused-receipt provenance, evidence locations, preview revision/mode and unresolved limitations in `PROGRESS.md` and the PR. Record the new final commit's full-CI links/status in the PR and delivery report after publication; do not create another commit solely to record its own successful CI. Move the completed milestone summary to Journey once accepted. A new cloud task must be able to continue from these files without rereading chat history.
 
 Official behaviour checked on 6 October 2026: [Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments), [AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md). Repository instructions remain concise; detailed guidance is loaded by relevance.

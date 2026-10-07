@@ -15,10 +15,10 @@
 ## Acceptance
 
 - [x] Intended local work is reconciled into reviewed GitHub commits; no unknown edits or duplicate files were discarded. User merged PR #9 at `7970f65b5975a6554c46eb521c7ca118939e4bb9`; evidence is in `PROGRESS.md`.
-- [x] A fresh cloud task reads the current instructions and records its repository, branch, HEAD and runtime versions. Published restoration receipt: 7 October 2026, source `16eea945f9324b6f20610d0a0b98b1a1cb6014e9`; see `PROGRESS.md`.
-- [x] Dependencies install from the committed lockfile; relevant frontend checks and Playwright run against a fresh internal preview. Locked setup reused; all three focused browser projects and restarted demo behavior passed.
+- [x] A fresh cloud task reads the current instructions and records its repository, branch, HEAD and runtime versions. Fresh-task runtime validation passed on 7 October 2026 at `8945ca17121b3742a25aea4f16dffef190cbbf06`; normal cloud development can resume; see `PROGRESS.md`.
+- [x] Dependencies install from the committed lockfile; relevant frontend checks and Playwright run against a fresh internal preview. Locked setup reused; all three focused browser projects, fresh root/Pages/API-fixture builds and all three PWA checks passed. Earlier internal demo behavior evidence remains separately recorded.
 - [x] Backend/container capability is verified, or its limitation is recorded and the unchanged authoritative backend CI gate passes. Matching-input cloud receipt: 416 backend/PostgreSQL and 408 infrastructure cases; cloud-only trust remains separate from CI.
-- [ ] Full required GitHub Actions checks pass for the final PR candidate; macOS WebKit coverage remains intact.
+- [ ] Full required GitHub Actions checks pass for the final PR candidate; macOS WebKit coverage remains intact. Both jobs passed for the tested starting SHA; the documentation successor needs its own CI, recorded in PR #8 without a self-referential follow-up commit.
 - [ ] A usable user preview is demonstrated, with the exact revision and demo/API mode stated. **Blocked:** authorized Cloudflare trial failed at DNS/proxy provisioning; no public URL. Do not retry without new network evidence.
 - [ ] The PR includes verification evidence and remaining human/device/AWS boundaries; no merge or deployment occurs in the development loop.
 
