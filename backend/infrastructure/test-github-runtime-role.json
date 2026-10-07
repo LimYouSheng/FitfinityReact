@@ -124,7 +124,7 @@
               "Condition": {
                 "StringEquals": {
                   "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-                  "token.actions.githubusercontent.com:sub": "repo:LimYouSheng/FitfinityReact:environment:aws-test"
+                  "token.actions.githubusercontent.com:sub": "repo:LimYouSheng@141623519/FitfinityReact@1353173586:environment:aws-test"
                 }
               }
             }
