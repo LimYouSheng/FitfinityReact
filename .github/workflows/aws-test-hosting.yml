@@ -1,0 +1,177 @@
+name: Manual persistent TEST hosting
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [plan, release, prepare, execute, verify, rollback]
+        default: plan
+        required: true
+      operation_id:
+        description: Durable 32 lowercase hexadecimal operation ID; reuse it for recovery
+        type: string
+        required: false
+      release_run:
+        description: Successful release-mode run at this exact reviewed main commit
+        type: string
+        required: false
+      review_token:
+        description: Exact review_token from the prepared change-set receipt
+        type: string
+        required: false
+      resume_run:
+        description: Previous completed hosting run containing the durable operation state
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fitfinity-aws-test
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/verify.yml
+  release:
+    needs: verify
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && inputs.mode == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Verify main and build immutable API release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          python3 -c 'import sys; sys.path.insert(0,"backend/infrastructure"); from private_runtime_binding import verify_main; verify_main({})'
+          python3 backend/infrastructure/hosting_frontend.py --directory "$RUNNER_TEMP/hosting-release" --revision "$GITHUB_SHA" 2>&1 | tee "$RUNNER_TEMP/hosting-build.log"
+      - name: Preserve verified release bytes
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-hosting-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hosting-release/artifact/*
+          if-no-files-found: error
+      - name: Preserve build evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-hosting-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hosting-build.log
+          if-no-files-found: error
+  hosting:
+    needs: verify
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && inputs.mode != 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    environment: aws-test
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Require reviewed main and dedicated hosting role
+        if: inputs.mode != 'plan'
+        env:
+          HOSTING_ROLE: ${{ vars.AWS_HOSTING_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = LimYouSheng/FitfinityReact
+          test "$GITHUB_REF" = refs/heads/main
+          test "$HOSTING_ROLE" = arn:aws:iam::418638389566:role/fitfinity-test-github-hosting
+      - name: Obtain temporary hosting credentials
+        id: credentials
+        if: inputs.mode != 'plan'
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_HOSTING_ROLE_ARN }}
+          role-session-name: fitfinity-hosting-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ap-southeast-1
+          unset-current-credentials: true
+      - name: Verify hosting credential account
+        id: account
+        if: inputs.mode != 'plan'
+        env:
+          HOSTING_ACCOUNT: ${{ steps.credentials.outputs.aws-account-id }}
+        run: |
+          set -euo pipefail
+          test "$HOSTING_ACCOUNT" = '418638389566'
+      - name: Reviewed hosting operation
+        id: operation
+        if: success() && (inputs.mode == 'plan' || steps.account.outcome == 'success')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HOSTING_MODE: ${{ inputs.mode }}
+          OPERATION_ID: ${{ inputs.operation_id }}
+          RESUME_RUN: ${{ inputs.resume_run }}
+          RELEASE_RUN: ${{ inputs.release_run }}
+          REVIEW_TOKEN: ${{ inputs.review_token }}
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$RESUME_RUN" ]; then args+=(--resume-run "$RESUME_RUN"); fi
+          if [ -n "$RELEASE_RUN" ]; then args+=(--release-run "$RELEASE_RUN"); fi
+          if [ -n "$REVIEW_TOKEN" ]; then args+=(--review-token "$REVIEW_TOKEN"); fi
+          python3 backend/infrastructure/deploy.py hosting --mode "$HOSTING_MODE" --operation-id "$OPERATION_ID" --directory "$RUNNER_TEMP/hosting" "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/hosting.log"
+      - name: Record workflow diagnostics
+        id: diagnostic
+        if: always()
+        env:
+          AUTH_OUTCOME: ${{ steps.credentials.outcome }}
+          ACCOUNT_OUTCOME: ${{ steps.account.outcome }}
+          OPERATION_OUTCOME: ${{ steps.operation.outcome }}
+          HOSTING_MODE: ${{ inputs.mode }}
+        run: |
+          python3 - <<'PYTHON'
+          import json
+          import os
+          from pathlib import Path
+
+          diagnostic = {
+              "kind": "workflow-diagnostic",
+              "mode": os.environ["HOSTING_MODE"],
+              "authentication": os.environ["AUTH_OUTCOME"],
+              "account_check": os.environ["ACCOUNT_OUTCOME"],
+              "operation": os.environ["OPERATION_OUTCOME"],
+          }
+          target = Path(os.environ["RUNNER_TEMP"]) / "hosting-workflow-diagnostic.json"
+          target.write_text(json.dumps(diagnostic, indent=2) + "\n")
+          PYTHON
+      - name: Preserve workflow diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-hosting-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hosting-workflow-diagnostic.json
+          if-no-files-found: error
+      - name: Preserve operation state and partial evidence
+        if: always() && steps.operation.outcome != 'skipped' && steps.operation.outcome != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-hosting-${{ inputs.operation_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/hosting/*
+            ${{ runner.temp }}/hosting.log
+          if-no-files-found: error
