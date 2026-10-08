@@ -1,6 +1,16 @@
 # Fitfinity current progress
 
-## Active task — AWS-TEST-HOSTING-01, 8 October 2026 (Singapore)
+## Active task — exact TEST scan re-review, 9 October 2026 (Singapore)
+
+- Base is clean detached `28dec686f24ff18f6f99ec183ffd82375f4dec99`, authenticated unchanged main; created `feat/aws-test-scan-review-2026-10-09` without moving older branches or replacing dependencies. Node 24.19.0/Python 3.12.14 retained. One agent; three repairs per issue / 60 active minutes excluding CI wait.
+- Authorized CloudShell IAM provisioning is verified complete; user-readback hosting environment variable is correct. Exactly one scan refresh completed with one remaining unchanged HIGH finding; the helper correctly stopped because the previous approval contains two findings. The runbook owns all actual resource identifiers, timestamps and ZIP checksums.
+- This draft proposes only the exact one-finding approval correction and operational evidence reconciliation. Same approval ID, exact image/provenance and original expiry; merged-owner-review enforcement remains intact. No fresh acceptance or hosting preparation is claimed.
+- **Merge consequence:** advancing main makes release 37743179778 unusable for hosting from the new source. A replacement frontend release requires a separate reviewed plan/authorization. No image rebuild, runtime rerun, workflow optimization or automatic trigger change is authorized or performed here.
+- Validation results and final feature CI are recorded in the draft PR. Required full frontend/macOS WebKit and backend/PostgreSQL remain authoritative; pending is not passed. No merge, extra scan request, workflow dispatch or deployment in this correction.
+
+## Historical implementation checkpoint
+
+## AWS-TEST-HOSTING-01, 8 October 2026 (Singapore)
 
 - Started clean on `feat/aws-test-hosting-preparation-2026-10-08`, HEAD `a4682479f09e36edc63af804bee4057539f6b9dc`. Authenticated main and PR #16 merge matched `e6b4a13b003ade5e7ee49032d5ca3fe95b1d28a9`; ancestry verified. Created only `feat/aws-test-hosting-2026-10-08` from that exact checkpoint, retaining the previous branch and setup; no reset/worktree/reinstall.
 - PR #16 merged-main run 37732930429 passed both required frontend/backend jobs. Its build/Pages publication also passed; the image job is waiting for approval and was not approved in this task; no run was dispatched or repeated to reconcile it. Runtime proof remains the authenticated October 8 run 37721383277, exact image `86183723…` and original image source `33d124fcd59ffd3f9cb30d645660bdad99a21278`.

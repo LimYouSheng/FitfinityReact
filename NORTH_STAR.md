@@ -1,4 +1,10 @@
-# North Star: AWS-TEST-HOSTING-01
+# North Star: AWS TEST hosting — exact scan re-review
+
+## Current safe stopping point — 9 October 2026
+
+IAM hosting authority is verified and the environment variable is owner-read back. One refreshed scan completed; the remaining zlib HIGH is unchanged, while the gcc-14 HIGH is no longer reported. The exact-set approval gate correctly stopped continuation. Prepare a draft policy re-review with unchanged image/provenance/expiry; only YS can merge it. No fresh image acceptance, hosting prepare, deployment, sign-in or recovery acceptance is claimed.
+
+Merging this correction advances main and prevents consuming release 37743179778 from the new operator SHA. Preserve that historical artifact; obtain separate authorization for a replacement GitHub-only frontend release before continuing. Do not rebuild the backend, repeat the runtime proof, request another scan or relax same-source/freshness gates. The following implementation acceptance entries describe the retained PR #17 checkpoint; the runbook owns current live evidence and the blocking decision.
 
 ## Outcome
 
