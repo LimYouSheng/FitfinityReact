@@ -182,7 +182,7 @@ Use one working agent unless delegation is explicitly requested. A future unatte
 - Never broaden GitHub permissions, change branch protection, enable release flags or alter AWS resources simply to finish a coding task.
 - AWS automation should reuse proven repository operators and the runbook with separate least-privilege roles, source/digest binding, reviewable changes, idempotency and recovery evidence. Successful CLI history is the input to that work, not proof that unattended deployment is ready.
 - The existing image/verification OIDC roles do not establish a complete application deployment role. Routine cloud development does not depend on native `aws login`; any unfinished AWS operator transition remains a release workstream.
-- Last AWS hosting evidence remains quota-blocked, with first-owner creation accepted but live hosting/login unaccepted. Check current request status and applied capacity before any authorized resume; do not infer approval from an open support case.
+- Historical AWS hosting stopped on quota; authenticated October 8 runtime records total/unreserved capacity 1000/1000 and accepted two-subnet proof/cleanup. First Owner creation is historically accepted; persistent hosting/login remain unaccepted. Recover the reviewed hosting source and recheck applied capacity before future execution; do not resubmit the quota request.
 
 ## 7. Completion receipt
 
@@ -191,6 +191,6 @@ Record the tested source SHA, scope/diff, actual commands/results, reused-receip
 Official behaviour checked on 6 October 2026: [Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments), [AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md). Repository instructions remain concise; detailed guidance is loaded by relevance.
 
 
-### Private runtime preparation
+### Private runtime completed; hosting preparation next
 
-`AWS-PRIVATE-RUNTIME-01` adds a separate manual protected workflow and proposed dedicated runtime role; ordinary coding still needs no AWS credentials. See the [AWS runbook](AWS_DEPLOYMENT_RUNBOOK.md#aws-private-runtime-01--prepared-cloud-operator-7-october-2026) for exact plan/collection/run/recovery/cleanup commands, artifact-access and provisioning prerequisites. The canonical backend gate remains unchanged except for registering 36 additional infrastructure tests (434 existing + 36 = 470); PostgreSQL remains 416. Keep the feature PR draft until complete final-SHA frontend/backend CI and user review. Current-image AWS runtime acceptance requires separate authorized execution.
+`AWS-PRIVATE-RUNTIME-01` completed in authenticated run 37721383277 on operator main `087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932`, with exact-image two-subnet proof and owned cleanup. See the [AWS runbook](AWS_DEPLOYMENT_RUNBOOK.md#aws-private-runtime-01-completed--8-october-2026-singapore) for immutable evidence and recovery boundaries. Runtime role/workflow remains dedicated to temporary probes; it is not a hosting role. The next task is recovery/adaptation of the reviewed retained hosting owner and preparation of an immutable API-mode release artifact. Source recovery is blocked as recorded in PROGRESS. Preserve 416 PostgreSQL/backend and 486 infrastructure cases, full final macOS/WebKit CI, and separate live hosting/sign-in/recovery acceptance. Ordinary coding needs no AWS credentials and does not rerun completed proofs.

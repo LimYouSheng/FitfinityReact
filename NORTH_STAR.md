@@ -1,29 +1,27 @@
-# North Star: AWS-PRIVATE-RUNTIME-01
+# North Star: AWS-TEST-HOSTING-01
 
 ## Outcome
 
-Repair runtime OIDC authentication and retain verified provisioning/operator evidence, preserving exact accepted TEST image `86183723…`, with a manual protected cloud execution path. Preparation and offline testing do not establish current-image runtime acceptance. Full application deployment remains blocked.
+Prepare the first persistent AWS TEST hosting release from the reviewed retained hosting operator, consuming a verified immutable API-mode frontend artifact and exact accepted backend image. Private-runtime proof is completed; hosting, actual user sign-in and deployment/database recovery acceptance remain separate.
 
 ## Acceptance
 
-- [x] Clean accepted main `16d6f98252ed3a371581b7aba562b2b9ec531dfd`, PR #12 merge and both final required CI jobs verified; existing feature branch preserved.
-- [x] Recovered source package, embedded manifest and historical receipt hashes independently verified outside the repository.
-- [x] Separate dispatcher owner, exact original-source inventory, authenticated provenance/approval checks, two-subnet proof and owned cleanup adapted.
-- [x] Dedicated role/boundary and manual-only protected workflow prepared; owner now reports CREATE_COMPLETE provisioning from PR #14. Failed collection stopped at OIDC before the operator.
-- [x] Unchanged canonical backend/PostgreSQL gate and affected local checks passed: 416 backend/PostgreSQL, 470 infrastructure; lint, health, documentation and workflow checks.
-- [x] PR #13 merged at accepted main `559ed1ec841b6bcf40aef06fc25d3724f0ab85a1`; reviewed feature `ade57a055c2c6655391939ea2bb28189aaa8ff9d` ancestry verified.
-- [x] Corrected documented list/image/VPC/tag permissions with 12 actual-template policy tests; 48 runtime/policy cases pass.
-- [x] Correction’s unchanged canonical backend gate passed: 416 backend/PostgreSQL and 482 infrastructure; lint/format/health/documentation/diff checks passed.
-- [x] PR #14 final-SHA frontend/backend CI passed; merged as accepted main `d80021b0f99ec4637e90c63ac0ad3d8332fdcb1a`.
-- [x] Exact immutable-ID trust, supported credentials-output account check and separate failure diagnostics prepared with regression tests.
-- [x] OIDC correction local gates passed: 416 backend/PostgreSQL, 486 infrastructure and 43 quality-checker cases; lint/format/health/docs checks passed.
-- [ ] OIDC correction draft PR review and complete final-SHA frontend/backend CI.
-- [ ] YS-reviewed post-merge trust-only change set, live OIDC and collection verification.
-- [ ] Separately authorized current-image AWS runtime execution and cleanup prove acceptance.
+- [x] Expected main/operator `087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932` and PR #15 merge verified; existing clean checkout/setup retained.
+- [x] Runtime run 37721383277 attempt 1 and both uploaded ZIPs authenticated; receipt/state/template/probe and all four responses agree. Both subnets and owned cleanup accepted.
+- [x] Existing runbook/Journey/registry reconcile successful OIDC, collection, runtime and capacity while preserving failures, original image provenance and release refusal.
+- [ ] Recover and verify `Fitfinity_AWS_Test_Login_2026-10-06.sh`, revision `2026-10-06-test-login-1`, and embedded dependencies/templates/tests. **Blocked: source unavailable in the retained runtime bundle and checkout.**
+- [ ] Adapt canonical hosting owner, separate least-privilege role/manual protected workflow, reviewed change sets, immutable uploads and interruption/recovery behavior.
+- [ ] Produce traceable API-mode frontend release artifact with manifest, build/PWA and backend compatibility evidence; deployment consumes those verified bytes.
+- [ ] Meaningful changed-hosting failure/recovery tests and complete final-SHA frontend/backend CI for its draft PR.
+- [ ] Separately authorized hosting deployment, user sign-in/MFA and recovery acceptance.
 
 ## Boundaries
 
-One agent; original maximum three repair iterations or 30 active minutes, CI waiting separate. Only feature-branch publication is authorized. No AWS calls, IAM application, environment configuration, workflow dispatch, scans, rebuilds, deployment, merge or environment republishing. YS alone merges. Retain failures and interrupted-operation evidence; never replay historical bootstrap or delete unowned resources.
+One agent; up to three evidence-based repairs per issue and 60 active minutes, CI waiting separate. Code/tests/docs/draft-PR publication only. No AWS proof rerun, workflow dispatch, IAM provisioning, change-set execution, backend image rebuild/publication, infrastructure deployment or merge. YS alone merges. No quota resubmission, bootstrap replay or invitation resend. Preserve exact `86183723…` image/original `33d124f…` source and TEST exception expiry (11 October 2026, 20:41:44 Singapore); future execution rechecks scans and approval.
+
+## Completed AWS phase
+
+AWS-PRIVATE-RUNTIME-01 completed at 12:23:04 Singapore, 8 October, operation `aa2b2e439c3943b3b425de90302833ab`, run 37721383277. Runtime acceptance is digest-bound and does not declare application deployment/live authentication. Runbook owns evidence/procedure; Journey owns the completed phase; PROGRESS owns this source-recovery blocker and development checks.
 
 ## Completed and deferred goals
 

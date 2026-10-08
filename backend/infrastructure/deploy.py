@@ -242,7 +242,7 @@ def status():
     return {
         "environment": CONFIG["environment"],
         "accepted_at": CONFIG["accepted_at"],
-        "source": "recorded native acceptance; not a live AWS query",
+        "source": "recorded native/GitHub acceptance; not a live AWS query",
         "stages": CONFIG["stages"],
         "automatic_release_ready": False,
         "image_candidate_command": "image-candidate --actions --receipt <new-path>",
