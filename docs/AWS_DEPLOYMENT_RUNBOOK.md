@@ -4,7 +4,7 @@
 
 ## Exact scan re-review pending — 9 October 2026 (Singapore)
 
-This is a draft approval correction, not current image acceptance or deployment authority. The owner authorized preparation of the review after the bounded scan operation stopped on changed findings. The proposed policy retains approval ID `FITFINITY-TEST-2026-10-07-86183723`, exact image/provenance and expiry **11 October 2026, 20:41:44 Singapore**. Its timestamp is the proposal timestamp; the evaluator additionally requires LimYouSheng's actual merge of the referenced PR and exact equality with that merged record. The earlier PR #11 two-finding approval remains historical evidence; no historical receipt is rewritten. No evaluator, trust, permission, workflow or freshness rule is relaxed.
+[Draft PR #18](https://github.com/LimYouSheng/FitfinityReact/pull/18) proposes this approval correction; it is not current image acceptance or deployment authority. The owner authorized preparation of the review after the bounded scan operation stopped on changed findings. The proposed policy retains approval ID `FITFINITY-TEST-2026-10-07-86183723`, exact image/provenance and expiry **11 October 2026, 20:41:44 Singapore**. Its timestamp is the proposal timestamp; the evaluator additionally requires LimYouSheng's actual merge of the referenced PR and exact equality with that merged record. The earlier PR #11 two-finding approval remains historical evidence; no historical receipt is rewritten. No evaluator, trust, permission, workflow or freshness rule is relaxed.
 
 ### Verified operational evidence
 

@@ -6,7 +6,7 @@
 - Authorized CloudShell IAM provisioning is verified complete; user-readback hosting environment variable is correct. Exactly one scan refresh completed with one remaining unchanged HIGH finding; the helper correctly stopped because the previous approval contains two findings. The runbook owns all actual resource identifiers, timestamps and ZIP checksums.
 - This draft proposes only the exact one-finding approval correction and operational evidence reconciliation. Same approval ID, exact image/provenance and original expiry; merged-owner-review enforcement remains intact. No fresh acceptance or hosting preparation is claimed.
 - **Merge consequence:** advancing main makes release 37743179778 unusable for hosting from the new source. A replacement frontend release requires a separate reviewed plan/authorization. No image rebuild, runtime rerun, workflow optimization or automatic trigger change is authorized or performed here.
-- Validation results and final feature CI are recorded in the draft PR. Required full frontend/macOS WebKit and backend/PostgreSQL remain authoritative; pending is not passed. No merge, extra scan request, workflow dispatch or deployment in this correction.
+- Validation: 26 existing image-acceptance tests and semantic lint (312 files) passed. Offline comparison of complete uploaded scan evidence confirmed old-set refusal, proposed-set compatibility and unchanged digest/provenance/expiry. [Draft PR #18](https://github.com/LimYouSheng/FitfinityReact/pull/18) owns final feature CI. Required full frontend/macOS WebKit and backend/PostgreSQL remain authoritative; pending is not passed. No merge, extra scan request, workflow dispatch or deployment in this correction.
 
 ## Historical implementation checkpoint
 
