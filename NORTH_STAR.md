@@ -9,10 +9,12 @@ Prepare the first persistent AWS TEST hosting release from the reviewed retained
 - [x] Expected main/operator `087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932` and PR #15 merge verified; existing clean checkout/setup retained.
 - [x] Runtime run 37721383277 attempt 1 and both uploaded ZIPs authenticated; receipt/state/template/probe and all four responses agree. Both subnets and owned cleanup accepted.
 - [x] Existing runbook/Journey/registry reconcile successful OIDC, collection, runtime and capacity while preserving failures, original image provenance and release refusal.
-- [ ] Recover and verify `Fitfinity_AWS_Test_Login_2026-10-06.sh`, revision `2026-10-06-test-login-1`, and embedded dependencies/templates/tests. **Blocked: source unavailable in the retained runtime bundle and checkout.**
-- [ ] Adapt canonical hosting owner, separate least-privilege role/manual protected workflow, reviewed change sets, immutable uploads and interruption/recovery behavior.
-- [ ] Produce traceable API-mode frontend release artifact with manifest, build/PWA and backend compatibility evidence; deployment consumes those verified bytes.
-- [ ] Meaningful changed-hosting failure/recovery tests and complete final-SHA frontend/backend CI for its draft PR.
+- [x] Recover exact October 6 hosting source; outer/payload hashes, safe paths, revision and all 57 manifest entries verified without historical execution.
+- [x] Adapt canonical hosting owner, separate least-privilege role/manual protected workflow, reviewed change sets, immutable uploads and interruption/recovery behavior.
+- [x] Implement immutable API-mode release builder/manifest and authenticated consumption with backend compatibility, build/PWA and exact source checks.
+- [ ] Separately dispatch/review the final merged-main release artifact for live execution.
+- [x] Meaningful changed-hosting failure/recovery checks: 61 hosting cases, 547 total infrastructure cases, and 416 backend/PostgreSQL cases retained.
+- [ ] Complete final-SHA frontend/backend CI and draft PR review (results recorded in PR).
 - [ ] Separately authorized hosting deployment, user sign-in/MFA and recovery acceptance.
 
 ## Boundaries
@@ -21,7 +23,7 @@ One agent; up to three evidence-based repairs per issue and 60 active minutes, C
 
 ## Completed AWS phase
 
-AWS-PRIVATE-RUNTIME-01 completed at 12:23:04 Singapore, 8 October, operation `aa2b2e439c3943b3b425de90302833ab`, run 37721383277. Runtime acceptance is digest-bound and does not declare application deployment/live authentication. Runbook owns evidence/procedure; Journey owns the completed phase; PROGRESS owns this source-recovery blocker and development checks.
+AWS-PRIVATE-RUNTIME-01 completed at 12:23:04 Singapore, 8 October, operation `aa2b2e439c3943b3b425de90302833ab`, run 37721383277. Runtime acceptance is digest-bound and does not declare application deployment/live authentication. Runbook owns evidence/procedure; Journey owns the completed phase; PROGRESS owns this prepared hosting implementation and development checks.
 
 ## Completed and deferred goals
 

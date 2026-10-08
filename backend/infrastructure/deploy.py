@@ -274,6 +274,10 @@ def save_receipt(path, report):
 
 def main(argv=None):
     arguments = sys.argv[1:] if argv is None else argv
+    if arguments[:1] == ["hosting"]:
+        from hosting_operator import main as hosting_main
+
+        return hosting_main(arguments[1:])
     if arguments[:1] == ["private-runtime"]:
         from private_runtime import main as private_main
 

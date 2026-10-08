@@ -170,3 +170,37 @@ test('authentication failure retains only allowlisted workflow diagnostics, neve
     assert.ok(!state.with.path.includes('diagnostic'))
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 })
+
+const hostingWorkflow = () => parse(fs.readFileSync('.github/workflows/aws-test-hosting.yml', 'utf8'))
+test('hosting workflow preserves separate protected manual authority and complete gates', () => {
+  const workflow = hostingWorkflow(), job = workflow.jobs.hosting
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch'])
+  assert.equal(workflow.jobs.verify.uses, './.github/workflows/verify.yml')
+  assert.equal(job.needs, 'verify')
+  assert.equal(job.environment, 'aws-test')
+  assert.match(job.if, /github.ref == 'refs\/heads\/main'/)
+  assert.equal(workflow.concurrency.group, 'fitfinity-aws-test')
+  assert.equal(workflow.concurrency['cancel-in-progress'], false)
+  const credentials = job.steps.find(step => step.id === 'credentials')
+  assert.equal(credentials.with['role-to-assume'], '${{ vars.AWS_HOSTING_ROLE_ARN }}')
+  assert.equal(credentials.uses, 'aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502')
+  const operation = job.steps.find(step => step.id === 'operation')
+  assert.match(operation.if, /steps.account.outcome == 'success'/)
+  assert.match(operation.run, /--release-run "\$RELEASE_RUN"/)
+  assert.match(operation.run, /--review-token "\$REVIEW_TOKEN"/)
+  assert.match(operation.run, /--resume-run "\$RESUME_RUN"/)
+  assert.doesNotMatch(operation.run, /npm|hosting_frontend/)
+})
+test('hosting release builds API artifact without AWS authority and retains immutable bytes', () => {
+  const workflow = hostingWorkflow(), release = workflow.jobs.release
+  assert.equal(release.needs, 'verify')
+  assert.match(release.if, /inputs.mode == 'release'/)
+  assert.equal(release.permissions['id-token'], undefined)
+  assert(release.steps.some(step => step.run?.includes('hosting_frontend.py')))
+  const upload = release.steps.find(step => step.with?.name === 'fitfinity-hosting-release-${{ github.run_id }}-${{ github.run_attempt }}')
+  assert.equal(upload.with['if-no-files-found'], 'error')
+  assert.equal(upload.with.path, '${{ runner.temp }}/hosting-release/artifact/*')
+  const state = workflow.jobs.hosting.steps.find(step => step.name === 'Preserve operation state and partial evidence')
+  assert.match(state.if, /^always\(\)/)
+  assert.equal(state.with['if-no-files-found'], 'error')
+})

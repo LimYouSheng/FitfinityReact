@@ -3,6 +3,14 @@
 
 Updated 8 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
 
+## AWS-TEST-HOSTING-01 source recovery and canonical preparation — 8 October 2026
+
+PR #16 merged at `e6b4a13b003ade5e7ee49032d5ca3fe95b1d28a9`; merged-main run 37732930429 passed both required verification jobs. The user supplied the missing October 6 hosting owner: outer SHA-256 `1acfe7808c1781470224812c8eceede96c90cc4466c499e096961bae68784af0`, payload SHA-256 `a65cd0069c69423822b2a4cd0048b9654894e57f0b7cc190914fd1061a664d30`, revision `2026-10-06-test-login-1`; all 57 embedded manifest entries and safe paths independently passed. The historical entry point was never executed, and original receipts/pins remain outside Git.
+
+The recovered first-release design/operator/frontend builder and tests now have canonical repository owners. Existing metadata, image approval/runtime binding and atomic-write services are reused. A fresh exact-source API-mode artifact carries build/PWA, source/configuration/file manifests and accepted-backend compatibility. Hosting consumes authenticated immutable bytes, using a separate proposed role and protected main-only workflow. Edge and app change sets each pause for a concrete review token; interrupted writes/uploads reconcile ownership and checksums. Failed public smoke does not grant acceptance. Scoped first-release rollback retains frontend versions and the existing database, secrets, Cognito pool and Owner.
+
+Sixty-one hosting tests retain the recovered scope and add cloud input/authority/recovery checks; all 486 existing infrastructure cases remain. Two workflow checks extend the 43 existing quality cases. The unchanged full backend gate passed all 416 PostgreSQL/backend cases; final affected checks and final-SHA CI belong in the draft PR. The [AWS runbook](AWS_DEPLOYMENT_RUNBOOK.md#aws-test-hosting-01--canonical-first-release-preparation-8-october-2026) owns exact implemented commands, permissions, release flow and recovery procedure. This is prepared automation only: live IAM, release execution, public hosting, human sign-in and recovery acceptance are still pending. Runtime proof, original image provenance, scan freshness and the existing TEST exception expiry are unchanged. No AWS deployment or merge occurred in this implementation task.
+
 ## AWS-PRIVATE-RUNTIME-01 completed; persistent TEST hosting next — 8 October 2026 (Singapore)
 
 PR #15 merged as `087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932`; both final feature CI jobs passed in [37701169959](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37701169959). The exact immutable-ID trust correction and supported credentials-output account check resolved the earlier authentication failure in run 37653771533. Collection [37714088812](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37714088812) succeeded without cloud writes. Successful authentication confirms the trust repair operationally; owner-provided Mac provisioning evidence remains separately attributed.
@@ -352,7 +360,7 @@ The replacement local script accepts the exact preceding known sources, backs up
 
 ## Expanded native dropdown run: test locator and onboarding repair — 3 October 2026
 
-Native receipt `Fitfinity_UI_Touch_Local_2026-10-02.mQy78y.json` and its failure archive identify source `c8ef4503dea546601892698569a3a8bb883ee217fb17282a7a7ed29fb57a6c77`. Targeted lint, all 11 selected units, 3 inventory checks and fresh demo/PWA build passed. Browser results were **15/48 passed, 33 failed, zero retries/skips**, in 84.1 seconds. Branch, HEAD and index were unchanged and nothing was published.
+Native receipt `Fitfinity_UI_Touch_Local_2026-10-02.mQy78y.json` and its failure archive identify source `c8ef4503dea547601892698569a3a8bb883ee217fb17282a7a7ed29fb57a6c77`. Targeted lint, all 11 selected units, 3 inventory checks and fresh demo/PWA build passed. Browser results were **15/48 passed, 33 failed, zero retries/skips**, in 84.1 seconds. Branch, HEAD and index were unchanged and nothing was published.
 
 All three device profiles passed the drawer, trainer reassignment, both directory searches and exercise choices. This supplies the first successful native phone/tablet reassignment option-selection and field-reopen evidence for the correction below. It is not complete dropdown, physical-device or full-CI acceptance.
 

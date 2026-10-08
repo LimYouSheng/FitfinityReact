@@ -1,0 +1,661 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "PROPOSED dedicated persistent TEST hosting authority; no runtime role changes.",
+  "Resources": {
+    "ApiBoundary": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "fitfinity-test-hosting-api-boundary",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "secretsmanager:GetSecretValue"
+              ],
+              "Resource": [
+                "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/app-cqKagk",
+                "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/auth-Y2c7Xy"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "secretsmanager:VersionStage": "AWSCURRENT"
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-staff-api:*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "ec2:CreateNetworkInterface",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeSubnets",
+                "ec2:DeleteNetworkInterface",
+                "ec2:AssignPrivateIpAddresses",
+                "ec2:UnassignPrivateIpAddresses"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Deny",
+              "Action": [
+                "ec2:CreateNetworkInterface",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeSubnets",
+                "ec2:DeleteNetworkInterface",
+                "ec2:AssignPrivateIpAddresses",
+                "ec2:UnassignPrivateIpAddresses",
+                "ec2:DetachNetworkInterface"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "ArnEquals": {
+                  "lambda:SourceFunctionArn": "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "CloudFormationRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "fitfinity-test-hosting-cloudformation",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudformation.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "FitfinityOwnedHostingResources",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:CreateRole"
+                  ],
+                  "Resource": "arn:aws:iam::418638389566:role/fitfinity-test-hosting-api",
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PermissionsBoundary": "arn:aws:iam::418638389566:policy/fitfinity-test-hosting-api-boundary"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:GetRole",
+                    "iam:DeleteRole",
+                    "iam:GetRolePolicy",
+                    "iam:PutRolePolicy",
+                    "iam:DeleteRolePolicy",
+                    "iam:ListRolePolicies",
+                    "iam:ListAttachedRolePolicies",
+                    "iam:TagRole",
+                    "iam:UntagRole"
+                  ],
+                  "Resource": "arn:aws:iam::418638389566:role/fitfinity-test-hosting-api"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:PassRole"
+                  ],
+                  "Resource": "arn:aws:iam::418638389566:role/fitfinity-test-hosting-api",
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PassedToService": "lambda.amazonaws.com"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "lambda:CreateFunction",
+                    "lambda:GetFunction",
+                    "lambda:GetFunctionConfiguration",
+                    "lambda:DeleteFunction",
+                    "lambda:UpdateFunctionConfiguration",
+                    "lambda:PublishVersion",
+                    "lambda:ListVersionsByFunction",
+                    "lambda:CreateAlias",
+                    "lambda:GetAlias",
+                    "lambda:DeleteAlias",
+                    "lambda:AddPermission",
+                    "lambda:RemovePermission",
+                    "lambda:GetPolicy",
+                    "lambda:PutFunctionConcurrency",
+                    "lambda:GetFunctionConcurrency",
+                    "lambda:DeleteFunctionConcurrency",
+                    "lambda:TagResource",
+                    "lambda:UntagResource",
+                    "lambda:ListTags"
+                  ],
+                  "Resource": [
+                    "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api",
+                    "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api:*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeVpcs",
+                    "ec2:DescribeNetworkInterfaces"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:GetRepositoryPolicy"
+                  ],
+                  "Resource": "arn:aws:ecr:ap-southeast-1:418638389566:repository/fitfinity-test-api"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:CreateBucket",
+                    "s3:GetBucketLocation",
+                    "s3:GetBucketPolicy",
+                    "s3:PutBucketPolicy",
+                    "s3:DeleteBucketPolicy",
+                    "s3:PutBucketPublicAccessBlock",
+                    "s3:GetBucketPublicAccessBlock",
+                    "s3:PutBucketOwnershipControls",
+                    "s3:GetBucketOwnershipControls",
+                    "s3:PutEncryptionConfiguration",
+                    "s3:GetEncryptionConfiguration",
+                    "s3:PutBucketVersioning",
+                    "s3:GetBucketVersioning",
+                    "s3:PutBucketTagging",
+                    "s3:GetBucketTagging",
+                    "s3:ListBucket"
+                  ],
+                  "Resource": "arn:aws:s3:::fitfinity-test-login-frontendbucket-*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:DeleteLogGroup",
+                    "logs:PutRetentionPolicy",
+                    "logs:DeleteRetentionPolicy",
+                    "logs:TagLogGroup",
+                    "logs:ListTagsLogGroup"
+                  ],
+                  "Resource": [
+                    "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-staff-api",
+                    "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-staff-api:*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:TagResource",
+                    "logs:UntagResource",
+                    "logs:ListTagsForResource"
+                  ],
+                  "Resource": "arn:aws:logs:ap-southeast-1:418638389566:log-group:/aws/lambda/fitfinity-test-staff-api"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudfront:GetDistribution",
+                    "cloudfront:GetDistributionConfig",
+                    "cloudfront:UpdateDistribution",
+                    "cloudfront:DeleteDistribution",
+                    "cloudfront:TagResource",
+                    "cloudfront:UntagResource",
+                    "cloudfront:ListTagsForResource"
+                  ],
+                  "Resource": "arn:aws:cloudfront::418638389566:distribution/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudfront:GetCachePolicy",
+                    "cloudfront:GetCachePolicyConfig",
+                    "cloudfront:DeleteCachePolicy"
+                  ],
+                  "Resource": "arn:aws:cloudfront::418638389566:cache-policy/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudfront:GetOriginAccessControl",
+                    "cloudfront:GetOriginAccessControlConfig",
+                    "cloudfront:DeleteOriginAccessControl"
+                  ],
+                  "Resource": "arn:aws:cloudfront::418638389566:origin-access-control/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudfront:GetResponseHeadersPolicy",
+                    "cloudfront:GetResponseHeadersPolicyConfig",
+                    "cloudfront:DeleteResponseHeadersPolicy"
+                  ],
+                  "Resource": "arn:aws:cloudfront::418638389566:response-headers-policy/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "apigateway:POST",
+                    "apigateway:GET",
+                    "apigateway:PUT",
+                    "apigateway:PATCH",
+                    "apigateway:DELETE"
+                  ],
+                  "Resource": [
+                    "arn:aws:apigateway:ap-southeast-1::/restapis",
+                    "arn:aws:apigateway:ap-southeast-1::/restapis/*",
+                    "arn:aws:apigateway:ap-southeast-1::/tags/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "wafv2:CreateWebACL",
+                    "wafv2:GetWebACL",
+                    "wafv2:DeleteWebACL",
+                    "wafv2:TagResource",
+                    "wafv2:UntagResource",
+                    "wafv2:ListTagsForResource",
+                    "wafv2:AssociateWebACL",
+                    "wafv2:DisassociateWebACL",
+                    "wafv2:GetWebACLForResource"
+                  ],
+                  "Resource": [
+                    "arn:aws:wafv2:ap-southeast-1:418638389566:regional/webacl/fitfinity-test-login-regional/*",
+                    "arn:aws:wafv2:us-east-1:418638389566:global/webacl/fitfinity-test-login-cloudfront/*",
+                    "arn:aws:apigateway:ap-southeast-1::/restapis/*/stages/test"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudwatch:PutMetricAlarm",
+                    "cloudwatch:DescribeAlarms",
+                    "cloudwatch:DeleteAlarms",
+                    "cloudwatch:TagResource",
+                    "cloudwatch:UntagResource",
+                    "cloudwatch:ListTagsForResource"
+                  ],
+                  "Resource": "arn:aws:cloudwatch:ap-southeast-1:418638389566:alarm:fitfinity-test-login-api-errors"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudfront:CreateCachePolicy"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudfront:CreateOriginAccessControl"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudfront:CreateResponseHeadersPolicy"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:DescribeLogGroups"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "apigateway:SetWebACL"
+                  ],
+                  "Resource": "arn:aws:apigateway:ap-southeast-1::/restapis/*/stages/test"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudfront:CreateDistribution"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestTag/Application": "Fitfinity",
+                      "aws:RequestTag/Environment": "test",
+                      "aws:RequestTag/Purpose": "first-login-v1"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "HostingRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "fitfinity-test-github-hosting",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": "arn:aws:iam::418638389566:oidc-provider/token.actions.githubusercontent.com"
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": "repo:LimYouSheng@141623519/FitfinityReact@1353173586:environment:aws-test"
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "FitfinityHostingOperator",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sts:GetCallerIdentity",
+                    "lambda:GetAccountSettings",
+                    "freetier:GetAccountPlanState",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeRouteTables",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeVolumes",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeInstanceCreditSpecifications",
+                    "rds:DescribeDBInstances",
+                    "rds:DescribeDBParameters",
+                    "logs:DescribeLogGroups"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:GetTemplate",
+                    "cloudformation:ListStackResources",
+                    "cloudformation:GetStackPolicy",
+                    "cloudformation:DescribeStackEvents"
+                  ],
+                  "Resource": "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-*/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "lambda:ListEventSourceMappings"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:BatchGetImage",
+                    "ecr:DescribeImageScanFindings",
+                    "ecr:GetRepositoryPolicy",
+                    "ecr:GetDownloadUrlForLayer"
+                  ],
+                  "Resource": "arn:aws:ecr:ap-southeast-1:418638389566:repository/fitfinity-test-api"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:DescribeSecret",
+                    "secretsmanager:GetResourcePolicy"
+                  ],
+                  "Resource": "arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cognito-idp:DescribeUserPool",
+                    "cognito-idp:DescribeUserPoolClient",
+                    "cognito-idp:GetUserPoolMfaConfig"
+                  ],
+                  "Resource": "arn:aws:cognito-idp:ap-southeast-1:418638389566:userpool/ap-southeast-1_*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeVpcs"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:GetSecurityGroupsForVpc"
+                  ],
+                  "Resource": "arn:aws:ec2:ap-southeast-1:418638389566:vpc/vpc-0b55320bb1a054441",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "ap-southeast-1"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:GetTemplate",
+                    "cloudformation:ListStackResources",
+                    "cloudformation:DescribeStackEvents",
+                    "cloudformation:DescribeChangeSet"
+                  ],
+                  "Resource": [
+                    "arn:aws:cloudformation:us-east-1:418638389566:stack/fitfinity-test-login-edge/*",
+                    "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-login/*",
+                    "arn:aws:cloudformation:ap-southeast-1:418638389566:changeSet/first-login-*/*",
+                    "arn:aws:cloudformation:us-east-1:418638389566:changeSet/first-login-*/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:ValidateTemplate"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "lambda:GetFunction",
+                    "lambda:GetFunctionConfiguration",
+                    "lambda:GetAlias",
+                    "lambda:GetPolicy",
+                    "lambda:GetFunctionUrlConfig",
+                    "lambda:GetFunctionConcurrency",
+                    "lambda:ListVersionsByFunction"
+                  ],
+                  "Resource": [
+                    "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api",
+                    "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api:*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:GetRole",
+                    "iam:GetRolePolicy",
+                    "iam:ListRolePolicies",
+                    "iam:ListAttachedRolePolicies"
+                  ],
+                  "Resource": "arn:aws:iam::418638389566:role/fitfinity-test-hosting-api"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudfront:GetDistribution",
+                    "cloudfront:GetCachePolicy",
+                    "cloudfront:GetOriginAccessControl"
+                  ],
+                  "Resource": [
+                    "arn:aws:cloudfront::418638389566:distribution/*",
+                    "arn:aws:cloudfront::418638389566:cache-policy/*",
+                    "arn:aws:cloudfront::418638389566:origin-access-control/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:GetObjectAttributes"
+                  ],
+                  "Resource": "arn:aws:s3:::fitfinity-test-login-frontendbucket-*/releases/*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetBucketPublicAccessBlock",
+                    "s3:GetBucketPolicy",
+                    "s3:GetEncryptionConfiguration",
+                    "s3:GetBucketVersioning",
+                    "s3:ListBucket"
+                  ],
+                  "Resource": "arn:aws:s3:::fitfinity-test-login-frontendbucket-*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "apigateway:GET"
+                  ],
+                  "Resource": [
+                    "arn:aws:apigateway:ap-southeast-1::/restapis/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "wafv2:GetWebACL",
+                    "wafv2:GetWebACLForResource"
+                  ],
+                  "Resource": [
+                    "arn:aws:wafv2:ap-southeast-1:418638389566:regional/webacl/fitfinity-test-login-regional/*",
+                    "arn:aws:wafv2:us-east-1:418638389566:global/webacl/fitfinity-test-login-cloudfront/*",
+                    "arn:aws:apigateway:ap-southeast-1::/restapis/*/stages/test"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:CreateChangeSet"
+                  ],
+                  "Resource": [
+                    "arn:aws:cloudformation:us-east-1:418638389566:stack/fitfinity-test-login-edge/*",
+                    "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-login/*",
+                    "arn:aws:cloudformation:ap-southeast-1:418638389566:changeSet/first-login-*/*",
+                    "arn:aws:cloudformation:us-east-1:418638389566:changeSet/first-login-*/*"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "cloudformation:RoleArn": "arn:aws:iam::418638389566:role/fitfinity-test-hosting-cloudformation"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:ExecuteChangeSet",
+                    "cloudformation:DeleteStack"
+                  ],
+                  "Resource": [
+                    "arn:aws:cloudformation:us-east-1:418638389566:stack/fitfinity-test-login-edge/*",
+                    "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-login/*",
+                    "arn:aws:cloudformation:ap-southeast-1:418638389566:changeSet/first-login-*/*",
+                    "arn:aws:cloudformation:us-east-1:418638389566:changeSet/first-login-*/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:PassRole"
+                  ],
+                  "Resource": "arn:aws:iam::418638389566:role/fitfinity-test-hosting-cloudformation",
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PassedToService": "cloudformation.amazonaws.com"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject"
+                  ],
+                  "Resource": "arn:aws:s3:::fitfinity-test-login-frontendbucket-*/releases/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "s3:x-amz-server-side-encryption": "AES256"
+                    },
+                    "Null": {
+                      "s3:if-none-match": "false"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

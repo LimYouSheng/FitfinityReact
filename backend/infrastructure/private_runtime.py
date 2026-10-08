@@ -415,7 +415,7 @@ class RuntimeOperator:
                 "Runtime log group already exists",
             )
 
-    def verify_ecr_pull_policy(self):
+    def verify_ecr_pull_policy(self, names=None):
         value = self.aws("ecr", "get-repository-policy", "--repository-name", "fitfinity-test-api")
         require(
             value.get("registryId") == ACCOUNT
@@ -466,7 +466,7 @@ class RuntimeOperator:
                         return False
             return True
 
-        for name in design.NAMES.values():
+        for name in design.NAMES.values() if names is None else names:
             arn = f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{name}"
             require(
                 any(allows(s, arn) for s in policy.get("Statement", [])),

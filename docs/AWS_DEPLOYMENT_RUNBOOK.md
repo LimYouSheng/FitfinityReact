@@ -1,6 +1,6 @@
 # AWS deployment runbook
 
-**Current evidence checkpoint: 8 October 2026 (Singapore).** Exact-image private-runtime proof and owned cleanup are accepted; first persistent TEST hosting is blocked on recovery of the reviewed hosting source. Recorded capacity is 1000 total/unreserved. Historical sections retain their original checkpoints; current acceptance and remaining prerequisites are reconciled below.
+**Current evidence checkpoint: 8 October 2026 (Singapore).** Exact-image private-runtime proof and owned cleanup are accepted; first persistent TEST hosting automation is prepared, with live deployment/sign-in/recovery still pending. Recorded capacity is 1000 total/unreserved. Historical sections retain their original checkpoints; current acceptance and remaining prerequisites are reconciled below.
 
 ## AWS-PRIVATE-RUNTIME-01 completed — 8 October 2026 (Singapore)
 
@@ -59,27 +59,108 @@ python3 backend/infrastructure/deploy.py private-runtime --mode run \
 
 For an interrupted future operation, preserve the operation ID and previous completed run/artifact. The existing `--resume-run` path authenticates the exact workflow/run/attempt/artifact/checksum and operator commit before restoring state; uncertain writes are reconciled against owned resources, never blindly replayed. Cleanup requires a recorded owned create intent and matching template/tags/physical inventory. Changed operator SHA, unknown resources, missing artifact, drift or unverifiable invocation results stop for review. These recovery contracts are prepared/tested behavior, **not a claim that an interrupted deployment or database restore was exercised in this successful run**. No rerun/cleanup of this completed operation is needed.
 
-## AWS-TEST-HOSTING-01 — preparation blocked on reviewed source
+## AWS-TEST-HOSTING-01 — canonical first-release preparation, 8 October 2026
 
-The next objective is the first persistent TEST release, preserving the existing CloudFront/private S3/API Gateway/WAF/Lambda design. The reviewed source input is **`Fitfinity_AWS_Test_Login_2026-10-06.sh`**, revision **`2026-10-06-test-login-1`**, expected SHA-256 **`1acfe7808c1781470224812c8eceede96c90cc4466c499e096961bae68784af0`**. It was not found in the checkout, retained runtime bundle or available workspace attachments. The runtime bundle contains the October 4 runtime operator, not this October 6 hosting owner. Historical 152 offline/25 CLI serialization checks are source provenance references, not newly run tests.
+**Hosting automation is prepared; persistent deployment, actual sign-in and live recovery acceptance are pending.** The missing-source blocker from PR #16 is resolved. PR #16 merged as `e6b4a13b003ade5e7ee49032d5ca3fe95b1d28a9`, retaining feature `a4682479f09e36edc63af804bee4057539f6b9dc`. Its [main run 37732930429](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37732930429) passed both required verification jobs and build/Pages publication. Its image job is waiting for approval; this task did not approve it or rerun the workflow.
 
-**Required missing input:** the exact self-contained hosting operator with its embedded dependencies/templates/tests/manifest, or a verifiable retained source bundle identifying those bytes and provenance. Validate the outer hash, safe extraction and embedded manifest before reading/adapting; never execute the old deployment entry point. Do not reconstruct hosting IAM/templates/write/recovery behavior from the runbook's command list. Consequently no executable repository hosting operator, hosting role/workflow or fresh deployable frontend release artifact is claimed prepared in this checkpoint.
+### Recovered source and explicit pin reconciliation
 
-### Next reviewable hosting procedure — prepared requirements, not execution
+The supplied `Fitfinity_AWS_Test_Login_2026-10-06.sh` passed SHA-256 **`1acfe7808c1781470224812c8eceede96c90cc4466c499e096961bae68784af0`**. Its decoded payload passed **`a65cd0069c69423822b2a4cd0048b9654894e57f0b7cc190914fd1061a664d30`**, safe-path checks, the exact **57-entry embedded manifest**, and revision **`2026-10-06-test-login-1`**. The historical shell/entry point was never executed. Its 58 decoded files (manifest included), original pins, receipts, failed attempts and test logs remain outside Git at `/workspace/work/hosting-impl/recovered/`. [hosting-source.json](../backend/infrastructure/hosting-source.json) retains only immutable source hashes; historical 152 composed/25 CLI checks are provenance, not new acceptance.
 
-| Order | Review evidence required before the next action |
+The historical owner pinned frontend/main `d2e8a4b7e44c1554b1f31b5337b87014e6446fdf` and image `sha256:353907f09c208b35fd5160266e4f92da39e3db4e3a17e61236fdcd430ae15dc1`. These remain historical. The adaptation consumes a **fresh release at the exact reviewed operator main SHA**, verifies every tracked source/index blob, builds API mode with same-origin `/` configuration and runs the canonical PWA verifier. It separately pins the accepted `86183723…` image to original `33d124f…` image source and authenticates runtime run **37721383277** / artifact **11528371887** / exact ZIP checksum above. Every shipped backend application/migration/dependency file must still match the accepted image contract. A later incompatible application change fails closed; changing a documentation or operator SHA cannot relabel the image.
+
+### Canonical owners, permissions and artifact flow
+
+| Owner | Implemented responsibility |
 | --- | --- |
-| 1. Recover/adapt source | Verify the exact retained owner and provenance; adopt the reviewed current source explicitly, retaining original backend-image provenance. Preserve all existing database, secrets, Cognito pool and Owner; no bootstrap replay or invitation resend |
-| 2. Build immutable release input | Produce a fresh API-mode frontend artifact with explicit same-origin API configuration, full source/configuration/file manifest and checksum, build/PWA evidence and backend API-contract compatibility. Pin it to a successful reviewed frontend/backend CI source. Deployment must consume and verify these bytes rather than rebuild or consume demo Pages output |
-| 3. Review templates and authority | Application resources in `ap-southeast-1`; existing CloudFront edge-WAF design in `us-east-1`; private versioned S3, WAF-protected API/edge, no API caching, exact trusted CloudFront origin. Prepare a separate least-privilege hosting role and manual main-only protected workflow. Do not broaden the temporary runtime role |
-| 4. Implement failure/recovery gates | Persist write intents before change-set creation/execution and immutable conditional uploads. Test response-loss reconciliation, duplicate/foreign resource refusal, source/manifest/image/approval mismatch, denied/missing permission, partial upload, failed smoke and scoped recovery. Existing temporary-runtime cleanup is not persistent-deployment recovery coverage |
-| 5. Review candidate PR | Full final-SHA frontend/backend CI including macOS/WebKit and PostgreSQL; concrete role/template/artifact manifest, change-set review and rollback/recovery procedures. YS alone merges; no deployment occurs in this coding task |
-| 6. Separately authorized live preflight | Recheck identity, capacity (>=102 before reserving 2), existing resources/ownership, artifact origin/hash, exact backend compatibility, fresh complete scan and unchanged unexpired TEST approval. Accept only separately reviewed hosting authority; no quota resubmission |
-| 7. Separately reviewed first release | Historical design order: edge-WAF CREATE change set then Singapore application CREATE change set, exact Add-only/no replacement review before execution, configuration readback, immutable uploads from the verified artifact, public HTTPS/API bytes and smoke checks. Generate exact executable calls from the recovered/adapted owner; no speculative dispatch command is supplied here |
-| 8. Acceptance | Persistent deployment, actual user password/MFA/sign-in/refresh/sign-out, and recovery/rollback each require their own evidence. Preserve failures and original resources; do not call a successful CloudFormation operation full product acceptance |
+| [hosting_operator.py](../backend/infrastructure/hosting_operator.py), via `deploy.py hosting` | `plan`, `prepare`, `execute`, `verify`, `rollback`; exact owned change sets, durable intents before writes, readback, conditional uploads, public smoke and first-release teardown |
+| [hosting_design.py](../backend/infrastructure/hosting_design.py) | Recovered 20-resource Singapore app and one-resource edge-WAF templates; private versioned retained S3, CloudFront OAC, uncached API routes, pinned Lambda/version/alias, two-concurrency cap, two WAF ACLs and alarm |
+| [hosting_frontend.py](../backend/infrastructure/hosting_frontend.py) | Build once in an isolated Git archive using existing Node 24/dependencies and canonical API/PWA scripts. Export `artifact/frontend/*` plus `release.json`: source inventory/hash, exact source SHA, configuration, lock/Node evidence, PWA result, backend compatibility, file hashes/sizes/MIME/cache settings |
+| [hosting_binding.py](../backend/infrastructure/hosting_binding.py) | Authenticate GitHub repository/main/manual workflow/source/run/attempt/artifact metadata and ZIP checksum; reject expired/ambiguous/unsafe inputs; recover only the same operation and operator revision. Reuse canonical image approval, fresh scan, metadata and ECR-policy checks |
+| [test-github-hosting-role.json](../backend/infrastructure/test-github-hosting-role.json) | **Proposed, unprovisioned** `fitfinity-test-github-hosting`, separate `fitfinity-test-hosting-cloudformation` service role and `fitfinity-test-hosting-api-boundary`. Temporary-runtime authority is unchanged |
+| [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | Manual main-only workflow with complete frontend/backend prerequisites, protected `aws-test` hosting job, exact hosting-role/account guard, serialized AWS operations, strict release/state uploads and separate always-retained diagnostics |
 
-This task updates only evidenced acceptance/blockers in the deployment registry; `automatic_release_ready=false` and the full `deploy` refusal remain. `image_candidate_live_accepted=false` still describes the strict candidate path; the exact-image TEST exception and private-runtime evidence are separately scoped. A future hosting release must authenticate the runtime ZIP above and validate its receipt/state/responses rather than trust this human-readable summary alone.
+The operator role can read the retained metadata, inspect owned hosting resources, create/execute/delete only the two named hosting stacks/change sets, pass only the dedicated CloudFormation role and conditionally upload only the owned frontend bucket's `releases/*` keys. It cannot read secret values, bootstrap users, publish/scan backend images or invoke the temporary runtime probes. The CloudFormation role creates the first-release resources; IAM creation is restricted to exact `fitfinity-test-hosting-api` with the exact boundary, and PassRole is restricted to Lambda. The boundary equals the generated application policy: exact app/auth secrets at AWSCURRENT, function logs and VPC ENI permissions with the existing function-origin deny.
 
+Generated CloudFront/API IDs require account/region-scoped resource patterns; CloudFront distribution/policy/OAC creation and selected read/list actions require `Resource: "*"`; distribution creation also requires exact Application/Environment/Purpose request tags. Actions, resource-level support and condition keys were checked against the [official public AWS service authorization catalog](https://servicereference.us-east-1.amazonaws.com/v1/cloudfront/cloudfront.json), covering all 16 service namespaces in the proposed policy. This is documentation validation, not a live policy simulation. These permissions are isolated in the service role where applicable, not added to the temporary runtime role. Review the complete proposed policy before provisioning. Hosting policy correctness is tested offline; actual IAM provisioning and live permission acceptance remain separate. Existing ECR Lambda pull policy must already cover `fitfinity-test-staff-api`; the operator never changes it.
+
+Application resources remain in **ap-southeast-1**; CloudFront WAF control-plane resources remain in **us-east-1**. Database, secrets, Cognito pool and existing Owner are referenced, never created or modified. No bootstrap replay, invitation resend, migration or account-management operation is part of this owner.
+
+### Implemented commands and future reviewed execution order
+
+The offline command below writes a plan/receipt and edge template outside the checkout; it requires no AWS identity. It was exercised during implementation. The build entry point is also local and has no AWS authority; use a clean exact checkout and a new output directory:
+
+```bash
+python3 backend/infrastructure/deploy.py hosting --mode plan \
+  --operation-id 11111111111111111111111111111111 \
+  --directory /tmp/fitfinity-hosting-plan-NEW
+python3 backend/infrastructure/hosting_frontend.py \
+  --revision "$(git rev-parse HEAD)" --directory /tmp/fitfinity-hosting-release-NEW
+```
+
+The local artifact is build evidence only. Live hosting accepts an authenticated **successful manual release-mode Actions artifact** from the same reviewed main SHA, after complete frontend/backend CI. It does not accept arbitrary local ZIPs or rebuild frontend bytes during deployment.
+
+The following dispatch commands are **prepared future procedures, not executed in this task or authorized by this document**. Before use: YS reviews/merges the PR, separately provisions/reviews the proposed dedicated hosting authority, configures `AWS_HOSTING_ROLE_ARN=arn:aws:iam::418638389566:role/fitfinity-test-github-hosting`, and confirms protected `aws-test` main-only deployment and required-reviewer settings. Confirm exact reviewed main, unchanged backend compatibility, artifact access, capacity and ECR pull policy. Every non-rollback live operation rechecks existing metadata, complete scan freshness and exact unexpired TEST approval. No scan request, quota request or approval extension is automated here.
+
+```bash
+# 1. Build immutable frontend release on the reviewed main SHA; no AWS credentials.
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact \
+  --ref main -f mode=release
+# Inspect its successful full CI, release.json, build log and artifact SHA-256.
+release_run=REPLACE_WITH_SUCCESSFUL_RELEASE_RUN_ID
+operation_id="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"
+
+# 2. Prepare only the edge CREATE change set. No change-set execution.
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact \
+  --ref main -f mode=prepare -f operation_id="$operation_id" -f release_run="$release_run"
+
+# 3. Download this completed run; inspect hosting/state.json, edge-template.json,
+# reviewed_changes, change-set/stack IDs, template hash and exact review_token.
+prepared_run=REPLACE_WITH_COMPLETED_PREPARE_RUN_ID
+gh run download "$prepared_run" --repo LimYouSheng/FitfinityReact --dir hosting-evidence
+review_token=REPLACE_WITH_EXACT_REVIEW_TOKEN
+# Only after explicit review, execute that exact edge change set.
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact \
+  --ref main -f mode=execute -f operation_id="$operation_id" \
+  -f release_run="$release_run" -f resume_run="$prepared_run" -f review_token="$review_token"
+
+# 4. Use the completed edge-execute run to prepare the Singapore app change set.
+edge_run=REPLACE_WITH_COMPLETED_EDGE_EXECUTE_RUN_ID
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact \
+  --ref main -f mode=prepare -f operation_id="$operation_id" \
+  -f release_run="$release_run" -f resume_run="$edge_run"
+# Review the new app template/changes and its NEW review_token. Repeat step 3
+# with this app-prepare run/token. Execution uploads the verified release and
+# checks live configuration plus public frontend/API smoke before acceptance.
+```
+
+Each review token binds operation ID, stack ID, change-set ID and template hash. The owner accepts only the exact declared Add-only resource inventory, never Update/Import/replacement. Edge execution stops before preparing the app. App preparation stops before execution. The reviewer can inspect concrete changes between steps. API startup/public readiness may use the existing application read-only health SELECT; no database bootstrap is called. Success reports application deployment separately from human authentication, which remains false.
+
+### Recovery and scoped first-release rollback
+
+Use the **latest completed hosting run**, including a failed run with retained state, the same operation ID, release run, operator commit and current phase's review token. Artifact identity/checksum/source validation runs before state is adopted. A different release, operator SHA, image or operation fails closed. No automatic migration of recovery state across commits is provided.
+
+- Lost create response: reconcile the exact tagged owned stack/change set and template; never recreate a missing stack with a prior intent.
+- Lost execute response: resume an in-progress/completed owned stack. If execution is still AVAILABLE after an uncertain request, stop for receipt/provider review instead of blindly replaying it.
+- Partial or response-lost upload: HEAD each immutable key, verify checksum/length/MIME/cache/encryption, skip matching objects and conditionally create missing keys with `If-None-Match: *`. A foreign or different object stops; it is never overwritten.
+- Failed configuration/public smoke: preserve state and the failed receipt; do not mark deployment accepted. Resume `execute` with the app token after diagnosing the failure, or separately authorize rollback.
+- `verify` rechecks a completed deployment and public bytes/API behavior. It does not certify actual password setup, MFA, sign-in, refresh or sign-out.
+
+```bash
+latest_run=REPLACE_WITH_COMPLETED_HOSTING_RUN_ID
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact \
+  --ref main -f mode=verify -f operation_id="$operation_id" \
+  -f release_run="$release_run" -f resume_run="$latest_run"
+# Separately reviewed first-release rollback only:
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact \
+  --ref main -f mode=rollback -f operation_id="$operation_id" -f resume_run="$latest_run"
+```
+
+Rollback authenticates owned state and hosting identity, checks stack tags/service role/template/resource identities, and removes the **app stack then edge stack**. Delete response loss is reconciled without blind replay. The frontend bucket and uploaded versions remain retained; database, secrets, Cognito and Owner remain untouched. Rollback deliberately does not require a still-current image approval or a fresh frontend download. It is first-release teardown, not a populated-database restore or a subsequent-release version switch. Any unowned/drifted resource or uncertain non-progressing delete stops for review.
+
+Operation state and partial evidence use `fitfinity-hosting-<operation>-<run>-<attempt>`; diagnostics are separate. Release bytes use `fitfinity-hosting-release-<run>-<attempt>`, and build logs use `fitfinity-hosting-build-<run>-<attempt>`. Preserve failed artifacts. Protected environment approval is required for live phases; no script is an authorization to dispatch them.
+
+The TEST exception still expires **11 October 2026, 20:41:44 Singapore**. Completed runtime proof neither refreshes scans nor extends this expiry. The registry's general `deploy` remains refused and `automatic_release_ready=false`; this separate manual first-release owner does not establish full release, live authentication or recovery acceptance.
 
 
 ## AWS-IMAGE-ACCEPT-01 — existing candidate acceptance, 7 October 2026
@@ -212,7 +293,7 @@ Before any separately authorized hosting execution, prepare and review one immut
 4. **Capacity and permissions:** retain recorded 1000/1000 runtime capacity and recheck it at future execution, distinguishing request status from applied capacity; first CREATE requires at least 102 unreserved before reserving 2. Review an explicitly authorized operator identity and exact required CloudFormation/S3/CloudFront/API Gateway/WAF/Lambda/IAM operations, with application resources in Singapore and edge WAF in `us-east-1`. Existing image/verification roles do not authorize hosting. Do not change IAM or replay bootstrap to compensate.
 5. **Recovery and acceptance:** review ownership/Add-only change sets, reconciliation of interrupted writes, immutable uploads, protected database/retained bucket handling, application rollback and populated-data migration/restore plan before rollout. Temporary cleanup is not a restore rehearsal. Preserve the existing Owner; do not recreate or resend invitations. Public HTTPS/API bytes, first login/password setup/MFA, `/me`, refresh/sign-out and recovery still require separate live acceptance.
 
-The immediate next action is to recover the exact reviewed hosting owner and prepare the traceable frontend/release bundle described in AWS-TEST-HOSTING-01 above. Missing prerequisites block hosting execution. This task does not authorize those future AWS operations, dispatch, image rebuild, scan request or deployment.
+The immediate next action is to review the canonical hosting adaptation and prepare the authenticated release artifact described in AWS-TEST-HOSTING-01 above. Missing prerequisites block hosting execution. This task does not authorize those future AWS operations, dispatch, image rebuild, scan request or deployment.
 
 ## Historical deployment position — 6 October 2026
 
