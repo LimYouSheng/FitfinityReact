@@ -84,15 +84,32 @@
     "private-runtime": {
       "kind": "probe",
       "script": "private_runtime.py",
-      "accepted": false,
-      "scope": "Exact accepted 86183723 image; cloud manual operator; separate from historical local image-runtime"
+      "accepted": true,
+      "scope": "Completed exact-image private runtime proof and owned cleanup only; not persistent hosting or live sign-in acceptance",
+      "accepted_at": "2026-10-08T04:23:04.884777+00:00",
+      "evidence": {
+        "run_id": 37721383277,
+        "run_attempt": 1,
+        "operator_commit": "087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932",
+        "operation_id": "aa2b2e439c3943b3b425de90302833ab",
+        "artifact_id": 11528371887,
+        "artifact_sha256": "5d11866916b82ccfec8e33700465427606394d59e8cfa1d12aac2fc1a58f8296",
+        "diagnostic_artifact_id": 11528282139,
+        "diagnostic_artifact_sha256": "e8b064c823d5a95d387807108bb8277a87c34f29499c20e4d75ca4f7573d5b55",
+        "image_digest": "sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a",
+        "image_source_revision": "33d124fcd59ffd3f9cb30d645660bdad99a21278",
+        "aws_runtime_verified": true,
+        "temporary_cleanup_complete": true,
+        "application_deployed": false,
+        "live_authentication_accepted": false
+      }
     }
   },
   "release_blockers": [
-    "First Owner linking primitive exists; reviewed live bootstrap and sign-in/MFA acceptance remain pending.",
-    "Application Lambda/API and frontend hosting templates, origins, and runtime IAM are not defined.",
+    "First Owner creation/linking is historically accepted; live sign-in/password setup/MFA acceptance remains pending. Preserve the existing Owner; no bootstrap replay or invitation resend.",
+    "Reviewed external hosting operator must be recovered and adapted into canonical templates/operator, a separate hosting role and protected manual workflow; persistent hosting is not implemented in this repository.",
     "Repeatable migration upgrades for a populated database and rollback policy need implementation; initial-schema is not an upgrade runner.",
-    "Current-source image candidate build/publication/scan tooling is prepared but requires native and GitHub acceptance; application rollout, populated-data migration and post-deployment smoke/rollback remain pending.",
-    "GitHub AWS OIDC trust/roles and the protected aws-test environment need setup and native verification."
+    "Exact 86183723 image security acceptance and private runtime proof are complete. A fresh immutable API-mode frontend release artifact, persistent rollout, public HTTPS/API smoke and rollback acceptance remain pending; execution must recheck scan freshness and approval expiry.",
+    "Existing runtime OIDC is verified. Separate least-privilege hosting IAM, protected hosting execution and scoped interrupted-deployment recovery still require review and acceptance."
   ]
 }

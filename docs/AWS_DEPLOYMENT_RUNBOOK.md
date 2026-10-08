@@ -1,6 +1,86 @@
 # AWS deployment runbook
 
-**Current evidence checkpoint: 7 October 2026 (Singapore), AWS-HOSTING-PREFLIGHT-01.** Exact-image security acceptance below is verified. Hosting/runtime and quota gates remain separate. The recovered deployment/command history retains its 6 October 2026, 04:41 Singapore checkpoint; it is not a live infrastructure readback.
+**Current evidence checkpoint: 8 October 2026 (Singapore).** Exact-image private-runtime proof and owned cleanup are accepted; first persistent TEST hosting is blocked on recovery of the reviewed hosting source. Recorded capacity is 1000 total/unreserved. Historical sections retain their original checkpoints; current acceptance and remaining prerequisites are reconciled below.
+
+## AWS-PRIVATE-RUNTIME-01 completed — 8 October 2026 (Singapore)
+
+**Private-runtime proof and owned cleanup are accepted for the exact image below. Persistent application hosting, live user authentication and deployment/database recovery acceptance remain pending.** This reconciliation reads retained evidence; it performs no AWS operation and does not rerun the proof.
+
+### Authenticated source and artifact record
+
+- Reviewed operator/main: `087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932`, PR #15 merge; authenticated remote main matched this checkpoint at reconciliation. Its feature `2d5e3dad28e3e5a17725b96f33916e8c4a256474` passed both required jobs in [run 37701169959](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37701169959).
+- [Runtime run 37721383277](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37721383277), attempt **1**, used that operator SHA. Authenticated GitHub results: frontend job `113129576426`, backend `113129576724`, runtime `113140192276`, all successful. The diagnostic confirms `mode=run`, authentication/account/operator success.
+- Runtime artifact `fitfinity-private-runtime-aa2b2e439c3943b3b425de90302833ab-37721383277-1`, ID **11528371887**, ZIP SHA-256 **`5d11866916b82ccfec8e33700465427606394d59e8cfa1d12aac2fc1a58f8296`**, 180733 bytes.
+- Diagnostic artifact `fitfinity-runtime-diagnostic-37721383277-1`, ID **11528282139**, ZIP SHA-256 **`e8b064c823d5a95d387807108bb8277a87c34f29499c20e4d75ca4f7573d5b55`**, 285 bytes.
+- Both user-uploaded ZIP byte counts/checksums independently match the authenticated GitHub artifact metadata and supplied expected hashes. Direct storage download returned Forbidden; that did not prevent verifying the uploaded bytes. Raw ZIPs, requests, responses, logs, receipt and state remain outside Git under `/workspace/work/hosting-prep/` and uploaded attachments. This document contains only bounded evidence references.
+- Operation **`aa2b2e439c3943b3b425de90302833ab`**, operator revision `2026-10-07-private-runtime-1`; account `418638389566`, region `ap-southeast-1`, runtime-role session `fitfinity-runtime-37721383277-1`.
+- Backend image **`sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`**, original image source **`33d124fcd59ffd3f9cb30d645660bdad99a21278`**. Original build `37584327992` / attempt 1 / artifact `11467134068` remains the build provenance. The operator/hosting/frontend commit must never replace this original image source.
+- Reviewed template SHA-256 `4914d7b7709b6ce99c1f9623eb3b8f370d312888f8ba424e943d8d5e2e8611c2`; probe SHA-256 `bcd249e01cb8070aa14d5c1553d819f7a4e14389b0f06a89d9a4eccb03c413fa`. Both were independently recomputed from the reviewed canonical operator and compared with the saved template, receipt and state.
+
+### Verified responses and cleanup
+
+Receipt checkpoint equals saved state exactly. All four saved request payload hashes, nonce/action bindings, HTTP adapter bodies, Lambda StatusCode 200 without FunctionError, and persisted invocation results match. The existing canonical `validate_result` checks passed again offline against all four responses; no probe code or historical operator was executed by this evidence review.
+
+| Evidence | Verified result |
+| --- | --- |
+| `fitfinity-test-runtime-a`, subnet `subnet-0a6ea67e00f370997` | Preflight and current-runtime responses passed |
+| `fitfinity-test-runtime-b`, subnet `subnet-0fcdf32ab544f1207` | Preflight and current-runtime responses passed |
+| Image contents / execution identity | 54 shipped source files and 33 locked dependencies verified in each response; original image revision/digest and non-root identity match |
+| FastAPI in both subnets | Actual lifespan startup/shutdown; liveness 200, readiness 200, untrusted Host 400 |
+| Database in both subnets | `fitfinity_app`, database `fitfinity`, TLSv1.3, `sslmode=verify-full`, PostgreSQL 17.11; read-only transaction and application health SELECTs; target revision `20260924_0006` |
+| Managed auth and Cognito/JWKS | Exact managed auth-secret version, encryption/settings verified, 18 Cognito configuration checks, JWKS reachable with two keys in each runtime response |
+| Capacity at proof | 1000 total / 1000 unreserved; this is recorded capacity, not a perpetual guarantee. Do not resubmit the existing quota request |
+| Cloud write inventory | One temporary stack create, four synchronous Lambda invocations, one owned stack delete; no bootstrap, Owner creation or public release |
+| Cleanup | Saved stack reached DELETE_COMPLETE; both function and execution-role reads reported absent; operator checked both exact log-group names absent. Delete intent/response and `temporary_cleanup_complete=true` persist |
+| Final receipt | `accepted=true`, `aws_runtime_verified=true`, `temporary_cleanup_complete=true`; `application_deployed=false`, `live_authentication_accepted=false`, `owner_created=false` |
+
+Proof collection began **11:57:29 Singapore** and completed **12:23:04.884777 Singapore**, 8 October 2026. Cleanup took the recorded wait until the owned stack and its resources were absent; do not shorten timeouts or infer a failure from that interval. The last persisted write is the acknowledged delete, not an unresolved action: `pending_write.response_received=true`, `delete_response_received=true`, `complete=true`.
+
+Strict scan policy remains false: the exact image was accepted under TEST exception `FITFINITY-TEST-2026-10-07-86183723` for its two reviewed High findings. Expiry remains **11 October 2026, 20:41:44 Singapore**. Future hosting must recheck complete scan freshness and approval validity. The recorded 7 October 15:44:43 Singapore scan reaches 24 hours on **8 October 15:44:43 Singapore**; completed runtime evidence neither refreshes it nor extends/transfers the exception.
+
+### Executed automation sequence and recovery contract
+
+1. PR #15 corrected the exact immutable-ID trust subject and supported account-output guard. The earlier failed authentication run **37653771533** remains failed, with no collector execution/resources. The owner-provided provisioning/OIDC readbacks and the prepared trust-update procedure remain in the history below. Successful later authentication verifies the repair operationally; this task does not assert a separately inspected CloudFormation change-set execution receipt.
+2. [Collection run 37714088812](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37714088812) passed at the same operator SHA and operation ID. Uploaded receipt/state/log were checked: seven metadata checks passed, checkpoint matched, no cloud writes; `metadata_verified_runtime_pending`, runtime/cleanup/application/live-auth flags false. Its separate diagnostic confirms `mode=collect`. Collection was not application deployment.
+3. Runtime run **37721383277**, attempt 1, selected `run` on `main`, same operation ID, no resume run. The protected workflow first passed complete frontend/backend CI, obtained runtime OIDC credentials, checked account output, then invoked the canonical operator. The following are normalized representations of the executed workflow entry points, not claims that the owner typed CLI dispatch commands:
+
+```bash
+python3 backend/infrastructure/deploy.py private-runtime --mode collect \
+  --operation-id aa2b2e439c3943b3b425de90302833ab \
+  --directory "$RUNNER_TEMP/private-runtime"
+# Separate later run, fresh runner/evidence directory:
+python3 backend/infrastructure/deploy.py private-runtime --mode run \
+  --operation-id aa2b2e439c3943b3b425de90302833ab \
+  --directory "$RUNNER_TEMP/private-runtime"
+```
+
+4. Runtime verified authenticated original candidate/approval evidence, exact reviewed main/source, account/capacity, fresh image scan and retained network/RDS/Cognito/secret metadata; then verified existing Lambda ECR pull policy. It persisted create intent before creating the exact tagged six-resource stack, reconciled template/physical identities and invoked `preflight` in both subnets before `current-runtime` in both. Invocation arguments were exact function name, `RequestResponse`, private `fileb://` payload, `raw-in-base64-out`, and a unique response path; the canonical owner validates transport and function result separately.
+5. After proof, it rechecked retained secret metadata, persisted delete intent and deleted only the owned stack; exact-name absence checks completed before final acceptance. Requests/results and diagnostics were uploaded separately with strict artifact requirements.
+
+For an interrupted future operation, preserve the operation ID and previous completed run/artifact. The existing `--resume-run` path authenticates the exact workflow/run/attempt/artifact/checksum and operator commit before restoring state; uncertain writes are reconciled against owned resources, never blindly replayed. Cleanup requires a recorded owned create intent and matching template/tags/physical inventory. Changed operator SHA, unknown resources, missing artifact, drift or unverifiable invocation results stop for review. These recovery contracts are prepared/tested behavior, **not a claim that an interrupted deployment or database restore was exercised in this successful run**. No rerun/cleanup of this completed operation is needed.
+
+## AWS-TEST-HOSTING-01 — preparation blocked on reviewed source
+
+The next objective is the first persistent TEST release, preserving the existing CloudFront/private S3/API Gateway/WAF/Lambda design. The reviewed source input is **`Fitfinity_AWS_Test_Login_2026-10-06.sh`**, revision **`2026-10-06-test-login-1`**, expected SHA-256 **`1acfe7808c1781470224812c8eceede96c90cc4466c499e096961bae68784af0`**. It was not found in the checkout, retained runtime bundle or available workspace attachments. The runtime bundle contains the October 4 runtime operator, not this October 6 hosting owner. Historical 152 offline/25 CLI serialization checks are source provenance references, not newly run tests.
+
+**Required missing input:** the exact self-contained hosting operator with its embedded dependencies/templates/tests/manifest, or a verifiable retained source bundle identifying those bytes and provenance. Validate the outer hash, safe extraction and embedded manifest before reading/adapting; never execute the old deployment entry point. Do not reconstruct hosting IAM/templates/write/recovery behavior from the runbook's command list. Consequently no executable repository hosting operator, hosting role/workflow or fresh deployable frontend release artifact is claimed prepared in this checkpoint.
+
+### Next reviewable hosting procedure — prepared requirements, not execution
+
+| Order | Review evidence required before the next action |
+| --- | --- |
+| 1. Recover/adapt source | Verify the exact retained owner and provenance; adopt the reviewed current source explicitly, retaining original backend-image provenance. Preserve all existing database, secrets, Cognito pool and Owner; no bootstrap replay or invitation resend |
+| 2. Build immutable release input | Produce a fresh API-mode frontend artifact with explicit same-origin API configuration, full source/configuration/file manifest and checksum, build/PWA evidence and backend API-contract compatibility. Pin it to a successful reviewed frontend/backend CI source. Deployment must consume and verify these bytes rather than rebuild or consume demo Pages output |
+| 3. Review templates and authority | Application resources in `ap-southeast-1`; existing CloudFront edge-WAF design in `us-east-1`; private versioned S3, WAF-protected API/edge, no API caching, exact trusted CloudFront origin. Prepare a separate least-privilege hosting role and manual main-only protected workflow. Do not broaden the temporary runtime role |
+| 4. Implement failure/recovery gates | Persist write intents before change-set creation/execution and immutable conditional uploads. Test response-loss reconciliation, duplicate/foreign resource refusal, source/manifest/image/approval mismatch, denied/missing permission, partial upload, failed smoke and scoped recovery. Existing temporary-runtime cleanup is not persistent-deployment recovery coverage |
+| 5. Review candidate PR | Full final-SHA frontend/backend CI including macOS/WebKit and PostgreSQL; concrete role/template/artifact manifest, change-set review and rollback/recovery procedures. YS alone merges; no deployment occurs in this coding task |
+| 6. Separately authorized live preflight | Recheck identity, capacity (>=102 before reserving 2), existing resources/ownership, artifact origin/hash, exact backend compatibility, fresh complete scan and unchanged unexpired TEST approval. Accept only separately reviewed hosting authority; no quota resubmission |
+| 7. Separately reviewed first release | Historical design order: edge-WAF CREATE change set then Singapore application CREATE change set, exact Add-only/no replacement review before execution, configuration readback, immutable uploads from the verified artifact, public HTTPS/API bytes and smoke checks. Generate exact executable calls from the recovered/adapted owner; no speculative dispatch command is supplied here |
+| 8. Acceptance | Persistent deployment, actual user password/MFA/sign-in/refresh/sign-out, and recovery/rollback each require their own evidence. Preserve failures and original resources; do not call a successful CloudFormation operation full product acceptance |
+
+This task updates only evidenced acceptance/blockers in the deployment registry; `automatic_release_ready=false` and the full `deploy` refusal remain. `image_candidate_live_accepted=false` still describes the strict candidate path; the exact-image TEST exception and private-runtime evidence are separately scoped. A future hosting release must authenticate the runtime ZIP above and validate its receipt/state/responses rather than trust this human-readable summary alone.
+
+
 
 ## AWS-IMAGE-ACCEPT-01 — existing candidate acceptance, 7 October 2026
 
@@ -113,14 +193,14 @@ This is a documentation/read-only preflight from exact main `c66acf9032b9bf7b9b7
 
 | Owner / evidence | Implemented or historically accepted | Current limit |
 | --- | --- | --- |
-| [deployment-test.json](../backend/infrastructure/deployment-test.json) | September 25 registry of explicit bootstrap/review/probe/release/recovery stages | `accepted` flags describe recorded native history, not a live query. Several release-blocker strings predate October Owner/OIDC/image work; registry is unchanged in this documentation task |
+| [deployment-test.json](../backend/infrastructure/deployment-test.json) | September 25 registry of explicit bootstrap/review/probe/release/recovery stages | `accepted` flags describe recorded native history, not a live query. Owner/OIDC/image/runtime blockers are reconciled at the 8 October checkpoint; full release remains refused |
 | [deploy.py](../backend/infrastructure/deploy.py) | Stage dispatch, metadata verification, image candidate and exact-image acceptance | `status` explicitly returns `automatic_release_ready=false`; `deploy` refuses full release. Metadata verification is not private runtime or hosting proof |
 | [test-image-runtime.py](../backend/infrastructure/test-image-runtime.py) | Earlier image inspection owner | Still pins historical `efa53edd…`; it cannot establish runtime acceptance for `86183723…` |
 | Dated October runtime operator/receipt | `Fitfinity_AWS_Current_Runtime_2026-10-04.1gdnm7o1.json` records private startup/health/shutdown, DB TLS, Cognito and cleanup in both subnets for `353907f…` | No private-runtime receipt found for newly accepted `86183723…`; image security acceptance is not runtime proof |
 | Dated October hosting operator | `Fitfinity_AWS_Test_Login_2026-10-06.sh`, revision `2026-10-06-test-login-1`; 152 offline/25 CLI serialization checks and a native quota stop before writes | Retained external operator is not a merged repository hosting entry point. Its old source/image/frontend pins must not be bypassed or blindly resumed |
 | GitHub image/verification roles | Checked-in `test-github-image-role.json` and `test-github-verification-role.json` implement their separate limited purposes | Neither policy grants `servicequotas:GetRequestedServiceQuotaChange` or `lambda:GetAccountSettings`; do not assume access or broaden IAM/workflows |
 
-No authorized AWS operator connection is available in this coding session: current environment status exposes no outbound identities/secrets, and no operator connector is available. Credentials remain outside the coding environment. **Live quota request status, total concurrency and unreserved concurrency are unverified.** The account-guarded CloudShell procedure below is the fallback, not evidence that it ran.
+No authorized AWS operator connection is available in this coding session: current environment status exposes no outbound identities/secrets, and no operator connector is available. Credentials remain outside the coding environment. The historical preflight did not verify live quota/capacity. The authenticated October 8 runtime receipt now records total/unreserved 1000/1000; request approval remains distinct. Future execution rechecks actual capacity without resubmitting the request.
 
 ### Next concrete task: review the TEST release bundle and runtime/hosting operator
 
@@ -128,11 +208,11 @@ Before any separately authorized hosting execution, prepare and review one immut
 
 1. **Reviewed source:** explicitly select an accepted clean full commit for the hosting operator/templates and frontend, with successful final frontend/backend CI. This preflight starts at `c66acf9…`; its eventual documentation merge must be adopted explicitly if used. Keep the image's original `33d124f…` build provenance separate and verify compatibility; never relabel it with a documentation/repair SHA.
 2. **Frontend artifact:** identify its source, API-mode configuration, exact intended CloudFront origin/API contract, build/PWA receipt, file manifest and checksum. Historical manifest `b63c6c3f7eb59128a52bfcf6368301e7e3d9637a6edbd34d8ba5644b04fde70c` and saved 40-file native bundle belong to the older `d2e8a4b…` release. Main Pages success is demo hosting evidence, not this AWS API-mode artifact. No new hosting frontend artifact was built or verified here.
-3. **Image and private runtime:** retain the exact accepted `86183723…` digest, original candidate artifact and live acceptance receipt. Recheck approval validity/freshness under separately authorized operations at execution time. Obtain digest-bound startup/health/shutdown, database TLS/permissions, Cognito connectivity and temporary cleanup receipts in both private subnets; historical `353907f…` success is insufficient.
-4. **Capacity and permissions:** obtain the three permitted CloudShell read results below, distinguishing request status from applied capacity; first CREATE requires at least 102 unreserved before reserving 2. Review an explicitly authorized operator identity and exact required CloudFormation/S3/CloudFront/API Gateway/WAF/Lambda/IAM operations, with application resources in Singapore and edge WAF in `us-east-1`. Existing image/verification roles do not authorize hosting. Do not change IAM or replay bootstrap to compensate.
+3. **Image and private runtime:** retain the exact accepted `86183723…` digest, original candidate artifact and live acceptance receipt. Recheck approval validity/freshness under separately authorized operations at execution time. The October 8 authenticated runtime evidence above supplies digest-bound startup/health/shutdown, database TLS/permissions, Cognito/JWKS and cleanup in both subnets; bind it to the hosting release without relabelling image source. Historical `353907f…` success alone is insufficient.
+4. **Capacity and permissions:** retain recorded 1000/1000 runtime capacity and recheck it at future execution, distinguishing request status from applied capacity; first CREATE requires at least 102 unreserved before reserving 2. Review an explicitly authorized operator identity and exact required CloudFormation/S3/CloudFront/API Gateway/WAF/Lambda/IAM operations, with application resources in Singapore and edge WAF in `us-east-1`. Existing image/verification roles do not authorize hosting. Do not change IAM or replay bootstrap to compensate.
 5. **Recovery and acceptance:** review ownership/Add-only change sets, reconciliation of interrupted writes, immutable uploads, protected database/retained bucket handling, application rollback and populated-data migration/restore plan before rollout. Temporary cleanup is not a restore rehearsal. Preserve the existing Owner; do not recreate or resend invitations. Public HTTPS/API bytes, first login/password setup/MFA, `/me`, refresh/sign-out and recovery still require separate live acceptance.
 
-The immediate next action is to return the guarded CloudShell quota outputs and review/adopt the exact operator/source/frontend bundle with digest-bound runtime evidence. Missing prerequisites block hosting execution. This task does not authorize those future AWS operations, dispatch, image rebuild, scan request or deployment.
+The immediate next action is to recover the exact reviewed hosting owner and prepare the traceable frontend/release bundle described in AWS-TEST-HOSTING-01 above. Missing prerequisites block hosting execution. This task does not authorize those future AWS operations, dispatch, image rebuild, scan request or deployment.
 
 ## Historical deployment position — 6 October 2026
 
@@ -311,7 +391,7 @@ The final GitHub setup revision is `2026-10-01-variable-pagination`. The receipt
 - Setup's `oidc_assumption_tested=false` and `image_publication_enabled=false` describe that setup checkpoint. Later actual image build/publication evidence is separate and must not be retroactively attributed to setup.
 - Required workflow remains feature → PR → complete CI → green required checks → merge → verify merged commit → build/deploy that commit. No force push or direct-main bypass.
 
-### 10. Current-image runtime and first Owner
+### 10. Historical October 4 runtime and first Owner
 
 The accepted October operators reuse the existing foundation and canonical application bootstrap. Their source is retained in the dated deliveries, rather than treated as already merged repository code.
 
@@ -336,7 +416,7 @@ CloudFront supplies the AWS HTTPS hostname. API routes share that origin, API ca
 
 | Field | Last observed value |
 | --- | --- |
-| Lambda total / unreserved concurrency | `10` / `10` |
+| Lambda total / unreserved concurrency | Historical hosting stop: `10` / `10`; authenticated 8 October runtime: `1000` / `1000` |
 | Quota | `lambda` / `L-B99A9384` |
 | First-release unreserved gate | At least `102`: reserve 2 while retaining AWS's 100 unreserved minimum |
 | Rejected request | `DesiredValue=102`, `IllegalArgumentException`: must exceed default `1000.0` |
@@ -849,7 +929,7 @@ The unchanged boundary matches the generated role statements: only the exact app
 
 The PR #14 template used `aud=sts.amazonaws.com` and subject `repo:LimYouSheng/FitfinityReact:environment:aws-test`; the 8 October live readback below establishes the required immutable-ID correction. An environment subject does not encode a branch: retain the protected environment's main-only branch policy and required user reviewer, in addition to the unchanged manual workflow's repository/main checks ([GitHub AWS OIDC guidance](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)). No AWS API call or environment setting was used to validate those live prerequisites in this correction.
 
-The original-policy test run intentionally failed, including the function-scoped mapping list and missing layer read. Corrected runtime/policy tests pass 48/48; negative controls reconstruct both original defects and widened ECR scope. The canonical backend gate retains all 416 backend/PostgreSQL and 470 previous infrastructure cases, adding 12 for 482 infrastructure cases. Final-SHA normal GitHub frontend/backend CI belongs in the correction PR. Current-image runtime acceptance remains pending separately authorized execution and cleanup. Exact `86183723…` approval, provenance, findings and expiry remain unchanged; no exception is extended or transferred.
+The original-policy test run intentionally failed, including the function-scoped mapping list and missing layer read. Corrected runtime/policy tests pass 48/48; negative controls reconstruct both original defects and widened ECR scope. The canonical backend gate retains all 416 backend/PostgreSQL and 470 previous infrastructure cases, adding 12 for 482 infrastructure cases. Final-SHA normal GitHub frontend/backend CI belongs in the correction PR. At that historical permission-review checkpoint runtime acceptance was pending; the authenticated October 8 completion above supersedes it. Exact `86183723…` approval, provenance, findings and expiry remain unchanged; no exception is extended or transferred.
 
 ### OIDC repair and operator evidence — 8 October 2026 (Singapore)
 
@@ -879,9 +959,9 @@ The [pinned credentials action metadata](https://github.com/aws-actions/configur
 
 An `always()` step writes only mode and credential/account/operator step outcomes to `private-runtime-workflow-diagnostic.json`, uploaded separately as `fitfinity-runtime-diagnostic-<run>-<attempt>`. It contains no credentials, token, full environment or runtime receipt. Authentication failure still fails the job and skips the operator. Collector/recovery upload runs only if the operator started, retaining `if-no-files-found: error`; diagnostics never substitute for missing state or runtime acceptance.
 
-### Prepared post-merge trust update — not executed
+### Prepared post-merge trust update — historical procedure
 
-Only after YS merges/reviews this correction and separately authorizes the AWS update, use the named Mac profile and a clean checkout of the exact reviewed merge. This is an **UPDATE** to the existing stack, not a new provisioning or runtime dispatch. The following preview checks the complete proposed template against the provisioned baseline, reads back that exact existing stack/template and creates a change set without executing it. Supply the reviewed merged SHA; do not substitute an unreviewed moving `main`.
+This procedure was prepared before the successful October 8 OIDC/collection/runtime runs above. It is retained as history, not an instruction to repeat the update; exact update execution details were not separately supplied. Its original prerequisites were: only after YS merges/reviews the correction and separately authorizes the AWS update, use the named Mac profile and a clean checkout of the exact reviewed merge. This is an **UPDATE** to the existing stack, not a new provisioning or runtime dispatch. The following preview checks the complete proposed template against the provisioned baseline, reads back that exact existing stack/template and creates a change set without executing it. Supply the reviewed merged SHA; do not substitute an unreviewed moving `main`.
 
 ```bash
 set -euo pipefail
@@ -968,13 +1048,13 @@ aws "${aws_args[@]}" cloudformation get-template --stack-name "$stack_id" \
   --template-stage Original > "$evidence/updated-template.json"
 ```
 
-Verify `UPDATE_COMPLETE`, the same stack/role identity, exact new subject/audience/provider, and unchanged boundary/permissions against the saved proposed template. Retain all outputs, including failures; no automatic rollback/retry or delete is prescribed. Only then may YS separately authorize a fresh `collect` workflow. Do not rerun/resume the failed authentication run as though it held operator state. OIDC success, successful collection, current-image runtime proof and cleanup are separate acceptance steps. Existing ECR pull policy, artifact access, quota/identity, scan freshness and exact image approval/expiry remain prerequisites.
+Verify `UPDATE_COMPLETE`, the same stack/role identity, exact new subject/audience/provider, and unchanged boundary/permissions against the saved proposed template. Retain all outputs, including failures; no automatic rollback/retry or delete is prescribed. Only then may YS separately authorize a fresh `collect` workflow. Do not rerun/resume the failed authentication run as though it held operator state. OIDC success, successful collection, current-image runtime proof and cleanup were subsequently evidenced as recorded above; no repeat is needed. Future release execution still rechecks the existing ECR pull policy, artifact access, quota/identity, scan freshness and exact image approval/expiry.
 
 Preserve the existing ECR Lambda pull policy; if it does not cover both temporary names, the operator stops. Resolve that prerequisite through a separate reviewed permission change. Authenticated GitHub artifact access must work; this coding environment received `Forbidden` from the acceptance artifact storage redirect.
 
-### Exact future sequence
+### Retained runtime operator procedure
 
-After user review/merge and the guarded trust update above, use the reviewed main checkout. Generate and retain one operation ID; reuse it and the previous completed workflow run ID on recovery. These commands are preparation instructions, not authorization to dispatch now.
+Operation `aa2b2e439c3943b3b425de90302833ab` has completed successfully, including cleanup; do not repeat it for documentation or hosting preparation. The commands below remain a reference for a separately authorized future runtime operation using reviewed main. Generate and retain one operation ID; reuse it and the previous completed workflow run ID on recovery. They do not authorize dispatch or describe the pending persistent hosting procedure.
 
 ```bash
 operation_id="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"

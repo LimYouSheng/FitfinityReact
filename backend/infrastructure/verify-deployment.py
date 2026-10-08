@@ -190,6 +190,15 @@ class DeploymentChecks(unittest.TestCase):
             self.assertFalse(value["automatic_release_ready"])
             self.assertEqual(len(value["release_blockers"]), 5)
             self.assertIn("not a live", value["source"])
+            runtime = value["stages"]["private-runtime"]
+            self.assertTrue(runtime["accepted"])
+            evidence = runtime["evidence"]
+            self.assertTrue(evidence["aws_runtime_verified"])
+            self.assertTrue(evidence["temporary_cleanup_complete"])
+            self.assertFalse(evidence["application_deployed"])
+            self.assertFalse(evidence["live_authentication_accepted"])
+            self.assertNotEqual(evidence["operator_commit"], evidence["image_source_revision"])
+            self.assertTrue(value["release_blockers"])
             command.assert_not_called()
 
     def test_full_deploy_fails_before_any_cloud_action(self):

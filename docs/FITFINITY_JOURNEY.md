@@ -1,7 +1,17 @@
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Journey and Iteration History
 
-Updated 7 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+Updated 8 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+
+## AWS-PRIVATE-RUNTIME-01 completed; persistent TEST hosting next — 8 October 2026 (Singapore)
+
+PR #15 merged as `087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932`; both final feature CI jobs passed in [37701169959](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37701169959). The exact immutable-ID trust correction and supported credentials-output account check resolved the earlier authentication failure in run 37653771533. Collection [37714088812](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37714088812) succeeded without cloud writes. Successful authentication confirms the trust repair operationally; owner-provided Mac provisioning evidence remains separately attributed.
+
+The separately authorized [runtime run 37721383277](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37721383277), attempt 1, passed full frontend/backend and runtime jobs on that exact operator source. Uploaded artifact `11528371887` SHA-256 `5d11866916b82ccfec8e33700465427606394d59e8cfa1d12aac2fc1a58f8296` and diagnostic `11528282139` SHA-256 `e8b064c823d5a95d387807108bb8277a87c34f29499c20e4d75ca4f7573d5b55` match authenticated GitHub metadata. Receipt/state, canonical template/probe hashes and all four request/response pairs independently agree. Operation `aa2b2e439c3943b3b425de90302833ab` completed at **12:23:04.884777 Singapore**: accepted runtime proof and owned cleanup, two-subnet FastAPI startup/health/shutdown, TLSv1.3 verify-full read-only database access, 18 Cognito checks/JWKS, 54 source files/33 dependencies. Capacity was 1000 total/unreserved; no quota resubmission.
+
+Exact backend digest remains `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, built from `33d124fcd59ffd3f9cb30d645660bdad99a21278`, not the operator merge. TEST exception expiry remains 11 October 2026, 20:41:44 Singapore, with two High findings and fresh-scan checks still required. `application_deployed=false` and `live_authentication_accepted=false`; temporary cleanup is not populated-data restore/rollout recovery acceptance.
+
+The [AWS runbook](AWS_DEPLOYMENT_RUNBOOK.md#aws-private-runtime-01-completed--8-october-2026-singapore) owns exact evidence, executed sequence and recovery boundaries. Raw artifacts remain outside Git. The registry now records scoped runtime acceptance and corrects stale Owner/OIDC/image blockers while keeping full deployment refused. The next objective is AWS-TEST-HOSTING-01: recover the exact reviewed `Fitfinity_AWS_Test_Login_2026-10-06.sh` source before adaptation, then prepare immutable API-mode release input, separate hosting permissions/templates/workflow and failure/recovery coverage. That hosting source is not present in the available checkout/runtime bundle; no hosting implementation or live release is claimed. This reconciliation task did not call AWS or rerun the completed proof.
 
 ## PR #11 merged and exact-image acceptance completed — 7 October 2026 (Singapore)
 
