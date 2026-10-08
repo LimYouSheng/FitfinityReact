@@ -823,11 +823,11 @@ The current entry point is `python3 backend/infrastructure/deploy.py private-run
 
 User-provided quota output received **7 October 2026**: `CASE_OPENED`, requested 1001, case `179123267300687`, actual total 1000 and unreserved 1000. This clears the >=102 recorded capacity prerequisite, without asserting approval of the 1001 request, a new AWS timestamp or a Codex read. The live operator rechecks identity and capacity. Do not resubmit.
 
-### Proposed setup and permissions — not applied
+### Runtime setup and permissions — provisioning receipt below
 
-Review `backend/infrastructure/test-github-runtime-role.json` with the generated plan. It proposes `fitfinity-test-github-runtime` plus the temporary-role permissions boundary. The existing image/verification roles are untouched. The protected `aws-test` environment must retain required user review and main-only deployment branch policy; an authorized operator must configure `AWS_RUNTIME_ROLE_ARN=arn:aws:iam::418638389566:role/fitfinity-test-github-runtime` before dispatch.
+Review `backend/infrastructure/test-github-runtime-role.json` with the generated plan. It defines `fitfinity-test-github-runtime` plus the temporary-role permissions boundary; YS’s provisioning receipt is recorded below. The existing image/verification roles are untouched. The protected `aws-test` environment must retain required user review and main-only deployment branch policy; retain `AWS_RUNTIME_ROLE_ARN=arn:aws:iam::418638389566:role/fitfinity-test-github-runtime`. The role-variable guard passed in the failed collection run below; no environment setting is changed in this repair.
 
-The proposed runtime role reads STS/capacity, foundation/RDS/EC2 network metadata, Cognito configuration, secret metadata/policies, exact ECR manifest/current scan/repository policy and temporary stack/function/role/log metadata. It may create/delete only the named temporary stack, its two functions/log groups and stack-prefixed IAM roles; invoke only the two private probes; pass only those roles to Lambda. A permissions boundary caps temporary roles at application/auth secret access, Cognito reads, networking and logs. It grants no administrator/migration secret read, database migration, Owner creation, public endpoint or image publishing permission. Review the exact JSON resources and actions before provisioning.
+The runtime role reads STS/capacity, foundation/RDS/EC2 network metadata, Cognito configuration, secret metadata/policies, exact ECR manifest/current scan/repository policy and temporary stack/function/role/log metadata. It may create/delete only the named temporary stack, its two functions/log groups and stack-prefixed IAM roles; invoke only the two private probes; pass only those roles to Lambda. A permissions boundary caps temporary roles at application/auth secret access, Cognito reads, networking and logs. It grants no administrator/migration secret read, database migration, Owner creation, public endpoint or image publishing permission. Review the exact JSON resources and actions before provisioning.
 
 #### Permission correction and offline audit — 7 October 2026
 
@@ -847,24 +847,134 @@ The six-resource CloudFormation template creates two functions, roles and log gr
 
 The unchanged boundary matches the generated role statements: only the exact application/auth secrets at `AWSCURRENT`, auth metadata/Cognito reads, function logs and Lambda's VPC ENI actions. Both `lambda:SourceFunctionArn` denies prevent function code from using those EC2 capabilities. The operator still has only secret metadata/policy reads, not secret values. Existing ownership checks remain additional application guards, not substitutes for IAM scope.
 
-OIDC still requires the exact provider, `aud=sts.amazonaws.com` and `sub=repo:LimYouSheng/FitfinityReact:environment:aws-test`. An environment subject does not encode a branch: retain the protected environment's main-only branch policy and required user reviewer, in addition to the unchanged manual workflow's repository/main checks ([GitHub AWS OIDC guidance](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)). No AWS API call or environment setting was used to validate those live prerequisites in this correction.
+The PR #14 template used `aud=sts.amazonaws.com` and subject `repo:LimYouSheng/FitfinityReact:environment:aws-test`; the 8 October live readback below establishes the required immutable-ID correction. An environment subject does not encode a branch: retain the protected environment's main-only branch policy and required user reviewer, in addition to the unchanged manual workflow's repository/main checks ([GitHub AWS OIDC guidance](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)). No AWS API call or environment setting was used to validate those live prerequisites in this correction.
 
 The original-policy test run intentionally failed, including the function-scoped mapping list and missing layer read. Corrected runtime/policy tests pass 48/48; negative controls reconstruct both original defects and widened ECR scope. The canonical backend gate retains all 416 backend/PostgreSQL and 470 previous infrastructure cases, adding 12 for 482 infrastructure cases. Final-SHA normal GitHub frontend/backend CI belongs in the correction PR. Current-image runtime acceptance remains pending separately authorized execution and cleanup. Exact `86183723…` approval, provenance, findings and expiry remain unchanged; no exception is extended or transferred.
 
-Future user-authorized provisioning command (not run in this task):
+### OIDC repair and operator evidence — 8 October 2026 (Singapore)
+
+**Provisioning completed; runtime authentication failed.** YS reports successful Mac provisioning using profile `fitfinity-test`, region `ap-southeast-1`, account `418638389566`, principal `fitfinity-deployer`. Source was PR #14 merge `d80021b0f99ec4637e90c63ac0ad3d8332fdcb1a`; template SHA-256 `00fa091151848d6a715a1193c20d781973712e7ec90f314ad1fd500cf6dae077`. Stack `fitfinity-test-github-runtime-role` reached `CREATE_COMPLETE`, ID `arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-github-runtime-role/b0791310-c26b-11f1-a0a3-02ffc1e0235f`. It created role `arn:aws:iam::418638389566:role/fitfinity-test-github-runtime` and boundary `arn:aws:iam::418638389566:policy/fitfinity-test-private-runtime-boundary`. Evidence location reported by YS: `/Users/lys/fitfinity-aws-evidence/runtime-role.2cYziG`. These are owner-provided readbacks; Codex did not inspect those Mac files or call AWS.
+
+Successful owner-reported calls, normalized with explicit profile/region for repeatability (not a verbatim terminal transcript):
 
 ```bash
-aws cloudformation deploy --region ap-southeast-1 \
+aws --profile fitfinity-test --region ap-southeast-1 sts get-caller-identity
+aws --profile fitfinity-test --region ap-southeast-1 cloudformation deploy \
   --stack-name fitfinity-test-github-runtime-role \
   --template-file backend/infrastructure/test-github-runtime-role.json \
   --capabilities CAPABILITY_NAMED_IAM
+aws --profile fitfinity-test --region ap-southeast-1 cloudformation describe-stacks \
+  --stack-name fitfinity-test-github-runtime-role
+aws --profile fitfinity-test --region ap-southeast-1 iam get-role \
+  --role-name fitfinity-test-github-runtime
 ```
+
+Profileless Mac calls failed because those credentials belong to the named `fitfinity-test` profile. Retain the successful identity, deploy, stack readback and role readback as provisioning evidence; do not repeat deployment as an authentication diagnostic.
+
+The separate failed collection is [run 37653771533](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37653771533), runtime job [112915682111](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37653771533/job/112915682111), attempt 1, operation ID `eb829b700e6c412b8bb3dbe1e850f034`. GitHub readback confirms both full verification jobs passed, credentials failed, the operator was skipped and runtime artifact upload failed. The reported credential error was `Not authorized to perform sts:AssumeRoleWithWebIdentity`; no collector files existed and no runtime resources were created. This is not successful collection, runtime proof or a recoverable operator-state artifact.
+
+YS's OIDC readbacks at `/Users/lys/fitfinity-aws-evidence/oidc-readback.5oQfoi` showed runtime subject `repo:LimYouSheng/FitfinityReact:environment:aws-test`, while the working verification role trusts `repo:LimYouSheng@141623519/FitfinityReact@1353173586:environment:aws-test`. Both use audience `sts.amazonaws.com` and provider `arn:aws:iam::418638389566:oidc-provider/token.actions.githubusercontent.com`. This repair changes only the runtime template's exact subject to the verified immutable-ID form. It preserves audience/provider/environment, every permission scope and the boundary. It neither accepts both subjects nor changes GitHub's subject configuration. These live trust values are owner-provided evidence, not a new Codex AWS observation.
+
+The [pinned credentials action metadata](https://github.com/aws-actions/configure-aws-credentials/blob/e3dd6a429d7300a6a4c196c26e071d42e0343502/action.yml) declares output `aws-account-id` and does not declare input `allowed-account-ids`. Keep that action pin; the workflow now checks its output immediately after successful credential acquisition. Empty/wrong account fails before the operator; the collector's own STS/account/runtime-role checks remain. `plan` skips credentials and the output check, and its existing offline test rejects all subprocess calls.
+
+An `always()` step writes only mode and credential/account/operator step outcomes to `private-runtime-workflow-diagnostic.json`, uploaded separately as `fitfinity-runtime-diagnostic-<run>-<attempt>`. It contains no credentials, token, full environment or runtime receipt. Authentication failure still fails the job and skips the operator. Collector/recovery upload runs only if the operator started, retaining `if-no-files-found: error`; diagnostics never substitute for missing state or runtime acceptance.
+
+### Prepared post-merge trust update — not executed
+
+Only after YS merges/reviews this correction and separately authorizes the AWS update, use the named Mac profile and a clean checkout of the exact reviewed merge. This is an **UPDATE** to the existing stack, not a new provisioning or runtime dispatch. The following preview checks the complete proposed template against the provisioned baseline, reads back that exact existing stack/template and creates a change set without executing it. Supply the reviewed merged SHA; do not substitute an unreviewed moving `main`.
+
+```bash
+set -euo pipefail
+: "${REVIEWED_OIDC_MERGE:?Set the full reviewed merge SHA after YS merges}"
+test "$(git rev-parse HEAD)" = "$REVIEWED_OIDC_MERGE"
+test -z "$(git status --porcelain=v1 --untracked-files=all)"
+test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$REVIEWED_OIDC_MERGE"
+git merge-base --is-ancestor d80021b0f99ec4637e90c63ac0ad3d8332fdcb1a HEAD
+export AWS_PAGER=''
+aws_args=(--profile fitfinity-test --region ap-southeast-1)
+stack_id='arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-github-runtime-role/b0791310-c26b-11f1-a0a3-02ffc1e0235f'
+evidence="$(mktemp -d /tmp/fitfinity-runtime-oidc.XXXXXX)"
+git show d80021b0f99ec4637e90c63ac0ad3d8332fdcb1a:backend/infrastructure/test-github-runtime-role.json > "$evidence/baseline.json"
+cp backend/infrastructure/test-github-runtime-role.json "$evidence/proposed.json"
+aws "${aws_args[@]}" sts get-caller-identity > "$evidence/identity.json"
+aws "${aws_args[@]}" cloudformation describe-stacks --stack-name "$stack_id" > "$evidence/stack.json"
+aws "${aws_args[@]}" cloudformation get-template --stack-name "$stack_id" \
+  --template-stage Original > "$evidence/deployed-template.json"
+python3 - "$evidence" "$stack_id" <<'PY'
+import hashlib, json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+read = lambda name: json.loads((root / name).read_text())
+assert hashlib.sha256((root / 'baseline.json').read_bytes()).hexdigest() == '00fa091151848d6a715a1193c20d781973712e7ec90f314ad1fd500cf6dae077'
+identity = read('identity.json')
+assert identity['Account'] == '418638389566'
+assert identity['Arn'] == 'arn:aws:iam::418638389566:user/fitfinity-deployer'
+stack, = read('stack.json')['Stacks']
+assert stack['StackId'] == sys.argv[2] and stack['StackStatus'] == 'CREATE_COMPLETE'
+baseline = read('baseline.json')
+body = read('deployed-template.json')['TemplateBody']
+assert (json.loads(body) if isinstance(body, str) else body) == baseline
+claims = baseline['Resources']['RuntimeRole']['Properties']['AssumeRolePolicyDocument']['Statement'][0]['Condition']['StringEquals']
+assert claims['token.actions.githubusercontent.com:sub'] == 'repo:LimYouSheng/FitfinityReact:environment:aws-test'
+claims['token.actions.githubusercontent.com:sub'] = 'repo:LimYouSheng@141623519/FitfinityReact@1353173586:environment:aws-test'
+assert read('proposed.json') == baseline, 'Changes beyond the exact trust subject refused'
+PY
+change_name="runtime-oidc-$(date -u +%Y%m%dT%H%M%SZ)"
+aws "${aws_args[@]}" cloudformation create-change-set --stack-name "$stack_id" \
+  --change-set-name "$change_name" --change-set-type UPDATE \
+  --template-body "file://$evidence/proposed.json" --capabilities CAPABILITY_NAMED_IAM \
+  > "$evidence/change-set-created.json"
+change_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["Id"])' "$evidence/change-set-created.json")"
+aws "${aws_args[@]}" cloudformation wait change-set-create-complete --stack-name "$stack_id" --change-set-name "$change_id"
+aws "${aws_args[@]}" cloudformation describe-change-set --stack-name "$stack_id" \
+  --change-set-name "$change_id" > "$evidence/change-set-review.json"
+python3 - "$evidence/change-set-review.json" <<'PY'
+import json, sys
+change_set = json.load(open(sys.argv[1]))
+assert change_set['Status'] == 'CREATE_COMPLETE' and change_set['ExecutionStatus'] == 'AVAILABLE'
+change, = change_set['Changes']
+resource = change['ResourceChange']
+assert resource['LogicalResourceId'] == 'RuntimeRole'
+assert resource['ResourceType'] == 'AWS::IAM::Role'
+assert resource['Action'] == 'Modify' and resource['Replacement'] == 'False'
+assert resource['Scope'] == ['Properties']
+assert resource['Details'] and all(d['Target'].get('Name') == 'AssumeRolePolicyDocument' and d['Target']['Attribute'] == 'Properties' and d['Evaluation'] == 'Static' for d in resource['Details'])
+print('Review: only RuntimeRole AssumeRolePolicyDocument modification; no replacement.')
+PY
+printf 'Retain evidence at %s; review change set %s before execution.\n' "$evidence" "$change_id"
+```
+
+Stop if the stack/template changed, checks fail, the change set is empty/failed, any resource could be replaced, the boundary changes, or any permission changes appear. Do not relax these checks to fit unexpected drift. Inspect the saved change set and full baseline/proposed diff. **The preview block does not authorize execution.** After YS approves that exact change set, recheck its content and the deployed template, then execute only its saved ARN:
+
+```bash
+# Same reviewed shell/evidence variables; execute only after separate YS approval.
+aws "${aws_args[@]}" cloudformation get-template --stack-name "$stack_id" \
+  --change-set-name "$change_id" --template-stage Original > "$evidence/change-set-template.json"
+aws "${aws_args[@]}" cloudformation get-template --stack-name "$stack_id" \
+  --template-stage Original > "$evidence/before-execute.json"
+python3 - "$evidence" <<'PY'
+import json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+def body(name):
+    value = json.loads((root / name).read_text())['TemplateBody']
+    return json.loads(value) if isinstance(value, str) else value
+assert body('change-set-template.json') == json.loads((root / 'proposed.json').read_text())
+assert body('before-execute.json') == json.loads((root / 'baseline.json').read_text())
+PY
+aws "${aws_args[@]}" cloudformation execute-change-set --stack-name "$stack_id" --change-set-name "$change_id"
+aws "${aws_args[@]}" cloudformation wait stack-update-complete --stack-name "$stack_id"
+aws "${aws_args[@]}" cloudformation describe-stacks --stack-name "$stack_id" > "$evidence/updated-stack.json"
+aws "${aws_args[@]}" iam get-role --role-name fitfinity-test-github-runtime > "$evidence/updated-role.json"
+aws "${aws_args[@]}" cloudformation get-template --stack-name "$stack_id" \
+  --template-stage Original > "$evidence/updated-template.json"
+```
+
+Verify `UPDATE_COMPLETE`, the same stack/role identity, exact new subject/audience/provider, and unchanged boundary/permissions against the saved proposed template. Retain all outputs, including failures; no automatic rollback/retry or delete is prescribed. Only then may YS separately authorize a fresh `collect` workflow. Do not rerun/resume the failed authentication run as though it held operator state. OIDC success, successful collection, current-image runtime proof and cleanup are separate acceptance steps. Existing ECR pull policy, artifact access, quota/identity, scan freshness and exact image approval/expiry remain prerequisites.
 
 Preserve the existing ECR Lambda pull policy; if it does not cover both temporary names, the operator stops. Resolve that prerequisite through a separate reviewed permission change. Authenticated GitHub artifact access must work; this coding environment received `Forbidden` from the acceptance artifact storage redirect.
 
 ### Exact future sequence
 
-After user review/merge and provisioning, use the reviewed main checkout. Generate and retain one operation ID; reuse it and the previous completed workflow run ID on recovery. These commands are preparation instructions, not authorization to dispatch now.
+After user review/merge and the guarded trust update above, use the reviewed main checkout. Generate and retain one operation ID; reuse it and the previous completed workflow run ID on recovery. These commands are preparation instructions, not authorization to dispatch now.
 
 ```bash
 operation_id="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"

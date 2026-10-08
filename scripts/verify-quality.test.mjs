@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { parse } from 'yaml'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -87,4 +89,84 @@ test('unit receipt rejects old totals, missing files, truncation and skipped tes
 })
 test('browser receipt rejects partial totals, retries, skipped tests and errors', () => {
   for (const text of ['837 passed', '819 passed', '810 passed', '804 passed', '792 passed', '789 passed', '765 passed', '788 passed', '723 passed', '717 passed', '714 passed', '711 passed', '708 passed', '696 passed', '707 passed', '849 passed\n(retry #1)', '849 passed\n1 skipped', '849 passed\nError: incomplete']) receipt('browser', text, false)
+})
+
+
+const runtimeWorkflow = () => parse(fs.readFileSync('.github/workflows/aws-private-runtime.yml', 'utf8'))
+const runtimeSteps = () => runtimeWorkflow().jobs.runtime.steps
+const runtimeStep = id => runtimeSteps().find(step => step.id === id)
+
+test('runtime workflow keeps protected manual execution and account validation ordering', () => {
+  const workflow = runtimeWorkflow(), job = workflow.jobs.runtime, steps = job.steps
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch'])
+  assert.equal(job.needs, 'verify')
+  assert.equal(job.environment, 'aws-test')
+  assert.equal(job.if, "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'")
+  assert.equal(workflow.jobs.verify.uses, './.github/workflows/verify.yml')
+  assert.ok(!job['continue-on-error'])
+  assert.ok(steps.every(step => !step['continue-on-error']))
+  const credentials = steps.find(step => step.id === 'credentials'), account = steps.find(step => step.id === 'account'), operation = steps.find(step => step.id === 'operation')
+  assert.equal(credentials.uses, 'aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502')
+  assert.ok(!Object.hasOwn(credentials.with, 'allowed-account-ids'))
+  assert.equal(credentials.with['role-to-assume'], '${{ vars.AWS_RUNTIME_ROLE_ARN }}')
+  assert.equal(credentials.with['aws-region'], 'ap-southeast-1')
+  assert.equal(account.env.RUNTIME_ACCOUNT, '${{ steps.credentials.outputs.aws-account-id }}')
+  assert.equal(steps.indexOf(account), steps.indexOf(credentials) + 1)
+  assert.equal(steps.indexOf(operation), steps.indexOf(account) + 1)
+  assert.equal(operation.if, "success() && (inputs.mode == 'plan' || steps.account.outcome == 'success')")
+})
+
+for (const [account, expected] of [['', false], ['000000000000', false], ['418638389566', true]]) {
+  test(`runtime account output check ${expected ? 'accepts' : 'rejects'} ${account || 'missing account'}`, () => {
+    const step = runtimeStep('account')
+    assert.ok(step, 'account check must exist')
+    const result = spawnSync('/bin/bash', ['-e', '-u', '-o', 'pipefail', '-c', step.run], {
+      env: { PATH: '', RUNTIME_ACCOUNT: account }, encoding: 'utf8',
+    })
+    assert.ifError(result.error)
+    assert.equal(result.status === 0, expected)
+    assert.equal(result.stdout, '')
+  })
+}
+
+test('plan skips credential acquisition and account check; execution requires successful authentication', () => {
+  const credentials = runtimeStep('credentials'), account = runtimeStep('account'), operation = runtimeStep('operation')
+  assert.equal(credentials.if, "inputs.mode != 'plan'")
+  assert.equal(account.if, "inputs.mode != 'plan'")
+  assert.equal(operation.if, "success() && (inputs.mode == 'plan' || steps.account.outcome == 'success')")
+  assert.ok(!operation.run.includes('aws '))
+  assert.ok(operation.run.includes('--mode "$RUNTIME_MODE"'))
+  assert.equal(operation.env.RUNTIME_MODE, '${{ inputs.mode }}')
+  // The actual operator's offline-plan test separately refuses every subprocess call.
+})
+
+test('authentication failure retains only allowlisted workflow diagnostics, never recovery state', () => {
+  const diagnostic = runtimeStep('diagnostic'), steps = runtimeSteps()
+  assert.equal(diagnostic.if, 'always()')
+  assert.deepEqual(diagnostic.env, {
+    AUTH_OUTCOME: '${{ steps.credentials.outcome }}',
+    ACCOUNT_OUTCOME: '${{ steps.account.outcome }}',
+    OPERATION_OUTCOME: '${{ steps.operation.outcome }}',
+    RUNTIME_MODE: '${{ inputs.mode }}',
+  })
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'fitfinity-workflow-diagnostic-'))
+  try {
+    const result = spawnSync('bash', ['-e', '-u', '-o', 'pipefail', '-c', diagnostic.run], {
+      env: { ...process.env, RUNNER_TEMP: folder, AUTH_OUTCOME: 'failure', ACCOUNT_OUTCOME: 'skipped', OPERATION_OUTCOME: 'skipped', RUNTIME_MODE: 'collect', AWS_SECRET_ACCESS_KEY: 'must-not-appear', ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'must-not-appear' }, encoding: 'utf8',
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(fs.readdirSync(folder), ['private-runtime-workflow-diagnostic.json'])
+    const data = JSON.parse(fs.readFileSync(path.join(folder, 'private-runtime-workflow-diagnostic.json'), 'utf8'))
+    assert.deepEqual(data, { kind: 'workflow-diagnostic', mode: 'collect', authentication: 'failure', account_check: 'skipped', operation: 'skipped' })
+    assert.equal(result.stdout, '')
+    const upload = steps.find(step => step.name === 'Preserve workflow diagnostics')
+    assert.equal(upload.if, 'always()')
+    assert.equal(upload.with['if-no-files-found'], 'error')
+    assert.equal(upload.with.path, '${{ runner.temp }}/private-runtime-workflow-diagnostic.json')
+    assert.ok(upload.with.name.startsWith('fitfinity-runtime-diagnostic-'))
+    const state = steps.find(step => step.name === 'Preserve operation state and partial evidence')
+    assert.equal(state.if, "always() && steps.operation.outcome != 'skipped' && steps.operation.outcome != ''")
+    assert.equal(state.with['if-no-files-found'], 'error')
+    assert.ok(!state.with.path.includes('diagnostic'))
+  } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 })

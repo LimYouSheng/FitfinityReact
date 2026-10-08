@@ -1079,13 +1079,80 @@ class RuntimePolicyChecks(unittest.TestCase):
                         "StringEquals": {
                             "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
                             "token.actions.githubusercontent.com:sub": (
-                                "repo:LimYouSheng/FitfinityReact:environment:aws-test"
+                                "repo:LimYouSheng@141623519/FitfinityReact@1353173586:environment:aws-test"
                             ),
                         }
                     },
                 }
             ],
         )
+
+    def reject_trust(self, mutate):
+        mutate(self.role["AssumeRolePolicyDocument"]["Statement"])
+        with self.assertRaises(AssertionError):
+            self.test_oidc_trust_is_exact_repository_environment_and_audience()
+
+    def test_oidc_rejects_original_subject(self):
+        self.reject_trust(
+            lambda rows: rows[0]["Condition"]["StringEquals"].update(
+                {
+                    "token.actions.githubusercontent.com:sub": (
+                        "repo:LimYouSheng/FitfinityReact:environment:aws-test"
+                    )
+                }
+            )
+        )
+
+    def test_oidc_rejects_incorrect_immutable_ids(self):
+        original = copy.deepcopy(self.role)
+        for value in ("141623519", "1353173586"):
+            with self.subTest(immutable_id=value):
+                self.role = copy.deepcopy(original)
+                condition = self.role["AssumeRolePolicyDocument"]["Statement"][0]["Condition"][
+                    "StringEquals"
+                ]
+                condition["token.actions.githubusercontent.com:sub"] = condition[
+                    "token.actions.githubusercontent.com:sub"
+                ].replace(value, "1")
+                with self.assertRaises(AssertionError):
+                    self.test_oidc_trust_is_exact_repository_environment_and_audience()
+
+    def test_oidc_rejects_wrong_environment_or_audience(self):
+        original = copy.deepcopy(self.role)
+        for key, value in (
+            ("aud", "other.example"),
+            ("sub", "repo:LimYouSheng@141623519/FitfinityReact@1353173586:environment:production"),
+        ):
+            with self.subTest(claim=key):
+                self.role = copy.deepcopy(original)
+                self.reject_trust(
+                    lambda rows, key=key, value=value: rows[0]["Condition"]["StringEquals"].update(
+                        {"token.actions.githubusercontent.com:" + key: value}
+                    )
+                )
+
+    def test_oidc_rejects_widened_trust(self):
+        original = copy.deepcopy(self.role)
+        for change in ("wildcard", "second_statement", "multiple_subjects", "string_like"):
+            with self.subTest(change=change):
+                self.role = copy.deepcopy(original)
+                rows = self.role["AssumeRolePolicyDocument"]["Statement"]
+                condition = rows[0]["Condition"]
+                claims = condition["StringEquals"]
+                key = "token.actions.githubusercontent.com:sub"
+                if change == "wildcard":
+                    claims[key] = "repo:LimYouSheng*"
+                elif change == "second_statement":
+                    rows.append(copy.deepcopy(rows[0]))
+                elif change == "multiple_subjects":
+                    claims[key] = [
+                        claims[key],
+                        "repo:LimYouSheng/FitfinityReact:environment:aws-test",
+                    ]
+                else:
+                    condition["StringLike"] = condition.pop("StringEquals")
+                with self.assertRaises(AssertionError):
+                    self.test_oidc_trust_is_exact_repository_environment_and_audience()
 
 
 if __name__ == "__main__":
