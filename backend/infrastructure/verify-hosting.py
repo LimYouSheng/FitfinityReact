@@ -1832,14 +1832,24 @@ class SourceTransitionTests(unittest.TestCase):
                 }
 
                 class FakeOperator:
-                    def __init__(inner, directory, state, report):
+                    def __init__(
+                        inner,
+                        directory,
+                        state,
+                        report,
+                        stack_status=status,
+                        change_execution=execution,
+                        expected_stacks=before,
+                    ):
                         inner.state, inner.report = state, report
+                        inner.stack_status = stack_status
+                        inner.expected_stacks = expected_stacks
                         inner.aws = unittest.mock.Mock(
                             return_value={
                                 "StackId": "pinned-stack",
                                 "ChangeSetId": "pinned-change",
                                 "Status": "CREATE_COMPLETE",
-                                "ExecutionStatus": execution,
+                                "ExecutionStatus": change_execution,
                             }
                         )
 
@@ -1847,12 +1857,12 @@ class SourceTransitionTests(unittest.TestCase):
                         pass
 
                     def stack(inner, key):
-                        return {"StackStatus": status} if status else None
+                        return {"StackStatus": inner.stack_status} if inner.stack_status else None
 
                     def create(inner, key, template):
                         self.assertFalse(inner.state["execution_authorized"])
                         self.assertEqual(key, "edge")
-                        self.assertEqual(inner.state["stacks"], before)
+                        self.assertEqual(inner.state["stacks"], inner.expected_stacks)
                         inner.report["status"] = "change_set_review_required"
 
                 for target in [
