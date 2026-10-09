@@ -22,12 +22,49 @@ ACCEPT_SHA = "34133cf9939ed03e4b35f01b05bc698c97308f273fbf0361e8e4f69d0ff35e01"
 POLICY_SHA = "054c6f32f5ba8541d4c389da8fdabc85f6e9c0720a8f53924044da7531c42991"
 
 
-def local_approval():
-    raw = (Path(__file__).parent / "image-test-approvals.json").read_bytes()
+def historical_approval():
+    """Immutable policy used by ACCEPT_RUN, not authority for a current operation."""
+    raw = (Path(__file__).parent / "private-runtime-accepted-approval.json").read_bytes()
     require(sha(raw) == POLICY_SHA, "Reviewed approval policy changed")
     rows = [r for r in json.loads(raw)["approvals"] if r["id"] == APPROVAL]
     require(len(rows) == 1, "Missing exact approval")
     return rows[0]
+
+
+def local_approval():
+    """Read current policy for planning; collect_binding authenticates its owner merge."""
+    policy = json.loads((Path(__file__).parent / "image-test-approvals.json").read_text())
+    require(
+        policy.get("version") == 1 and isinstance(policy.get("approvals"), list),
+        "Invalid current approval policy",
+    )
+    rows = [row for row in policy["approvals"] if row.get("id") == APPROVAL]
+    require(len(rows) == 1, "Missing or ambiguous current approval")
+    approval = rows[0]
+    historical = historical_approval()
+    require(
+        all(
+            approval.get(key) == historical[key]
+            for key in (
+                "id",
+                "account",
+                "region",
+                "repository",
+                "environment",
+                "image_digest",
+                "provenance",
+                "expires_at",
+                "approver",
+                "status",
+            )
+        ),
+        "Current approval changed the accepted image scope or exception expiry",
+    )
+    require(
+        timestamp(approval["approved_at"]) >= timestamp(historical["approved_at"]),
+        "Current approval predates the historical review",
+    )
+    return approval
 
 
 def check_approval(approval, provenance, now):
@@ -135,7 +172,7 @@ def collect_binding(report):
     require(
         receipt.get("image_digest") == DIGEST
         and receipt.get("candidate_provenance") == provenance
-        and receipt.get("approval") == approval
+        and receipt.get("approval") == historical_approval()
         and receipt.get("policy_revision") == run["head_sha"],
         "Acceptance receipt binding differs",
     )
@@ -158,6 +195,7 @@ def collect_binding(report):
         approval=approval,
         acceptance_artifact_sha256=ACCEPT_SHA,
         acceptance_run=ACCEPT_RUN,
+        historical_acceptance_approval=historical_approval(),
     )
 
 
