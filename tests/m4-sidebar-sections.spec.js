@@ -157,3 +157,36 @@ test.describe('M4 sidebar hardware keyboard', () => {
     await expect(operations).toBeFocused()
   })
 })
+
+test('M4 a loading logo cannot move a sidebar target during a click', async ({ page }) => {
+  let releaseLogo
+  const logoReady = new Promise(resolve => { releaseLogo = resolve })
+  await page.route('**/assets/images/fitfinity-logo.jpg', async route => {
+    const response = await route.fetch()
+    await logoReady
+    await route.fulfill({ response })
+  })
+  try {
+    await page.goto('/#/dashboard', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
+    const drawer = page.getByRole('button', { name: 'Open navigation' })
+    if (await drawer.isVisible()) await drawer.click()
+    const logo = page.locator('.brand img')
+    expect(await logo.evaluate(image => image.naturalWidth)).toBe(0)
+    const operations = page.getByRole('button', { name: 'Operations section' })
+    await expect(operations).toHaveAttribute('aria-expanded', 'false')
+    await operations.scrollIntoViewIfNeeded()
+    const before = await operations.boundingBox()
+    await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
+    await page.mouse.down()
+    releaseLogo()
+    await logo.evaluate(image => image.decode())
+    expect(await operations.boundingBox()).toEqual(before)
+    await page.mouse.up()
+    await expect(operations).toHaveAttribute('aria-expanded', 'true')
+    await page.getByRole('button', { name: 'Clients', exact: true }).click()
+    await expect(page).toHaveURL(/#\/clients$/)
+  } finally {
+    releaseLogo()
+  }
+})

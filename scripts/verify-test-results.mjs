@@ -14,9 +14,9 @@ export function verifyTestResults(kind, logPath) {
     if (!files || !tests || files[1] !== '86' || files[2] !== '86' || tests[1] !== '948' || tests[2] !== '948') fail('Unit totals must be exactly 948 passed / 948 in 86 passed / 86 files.')
   } else {
     const passed = [...text.matchAll(/(?:^|\n)\s*(\d+) passed(?:\s|$)/g)].at(-1)
-    if (!passed || passed[1] !== '849' || /\bError:|\b(?:Timed out waiting|No tests found)\b/.test(text)) fail('Browser gate must finish with exactly 849 passed and no errors.')
+    if (!passed || passed[1] !== '852' || /\bError:|\b(?:Timed out waiting|No tests found)\b/.test(text)) fail('Browser gate must finish with exactly 852 passed and no errors.')
   }
-  console.log(`\u001b[32m${kind === 'unit' ? '948/948 unit tests in 86 files' : '849/849 browser cases'} confirmed.\u001b[0m`)
+  console.log(`\u001b[32m${kind === 'unit' ? '948/948 unit tests in 86 files' : '852/852 browser cases'} confirmed.\u001b[0m`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

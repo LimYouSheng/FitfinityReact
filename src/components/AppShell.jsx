@@ -132,7 +132,7 @@ export default function AppShell({
           onClick={() => { setDrawerOpen(false); onRoute('dashboard') }}
           aria-label="Fitfinity dashboard"
         >
-          <img src={`${import.meta.env.BASE_URL}assets/images/fitfinity-logo.jpg`} alt="Fitfinity" />
+          <img src={`${import.meta.env.BASE_URL}assets/images/fitfinity-logo.jpg`} width="1364" height="720" alt="Fitfinity" />
         </button>
 
         <div className="role-chip">

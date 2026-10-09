@@ -1245,6 +1245,7 @@ def main(argv=None):
     parser.add_argument("--release-run", type=int)
     parser.add_argument("--resume-run", type=int)
     parser.add_argument("--review-token", default="")
+    parser.add_argument("--source-transition", action="store_true")
     args = parser.parse_args(argv)
     require(re.fullmatch(r"[a-f0-9]{32}", args.operation_id), "Invalid operation ID")
     require(
@@ -1258,6 +1259,11 @@ def main(argv=None):
     state = {}
     previous = signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     try:
+        require(
+            not args.source_transition
+            or (args.mode == "prepare" and args.resume_run and not args.review_token),
+            "Source transition is read-only prepare with authenticated recovery only",
+        )
         if args.mode == "plan":
             report.update(
                 status="offline_plan",
@@ -1289,15 +1295,18 @@ def main(argv=None):
             "image_digest": pf.binding.DIGEST,
         }
         if args.resume_run:
-            state, report["recovery_artifact"] = binding.restore(
-                args.resume_run, args.operation_id, source
-            )
+            restore = binding.restore_transition if args.source_transition else binding.restore
+            state, report["recovery_artifact"] = restore(args.resume_run, args.operation_id, source)
         require(
             args.mode not in {"execute", "verify", "rollback"} or args.resume_run,
             "Authenticated recovery state required",
         )
         require(not state.get("cleaned_up"), "Completed rollback cannot be redeployed")
-        state.update(mode=args.mode, review_token=args.review_token, execution_authorized=True)
+        state.update(
+            mode=args.mode,
+            review_token=args.review_token,
+            execution_authorized=not args.source_transition,
+        )
         op = Operator(directory, state, report)
         op.save()
         report["identity"] = binding.EvidenceAWS(report).environment()
@@ -1306,13 +1315,17 @@ def main(argv=None):
             return 0
         require(args.release_run and args.release_run > 0, "Verified release run required")
         new_release = binding.release(args.release_run, source, directory / "frontend")
-        if state.get("frontend"):
+        if state.get("frontend") and not args.source_transition:
             require(
                 {k: v for k, v in state["frontend"].items() if k != "directory"}
                 == {k: v for k, v in new_release.items() if k != "directory"},
                 "Recovery release input differs",
             )
         state["frontend"] = new_release
+        if args.source_transition:
+            state["source_transition"]["replacement_release"] = {
+                k: v for k, v in new_release.items() if k != "directory"
+            }
         op.save()
         pf.binding.collect_binding(report)
         binding.runtime_proof(report)
@@ -1320,6 +1333,37 @@ def main(argv=None):
         RuntimeOperator.verify_ecr_pull_policy(
             SimpleNamespace(aws=op.aws, report=report), names=[design.FUNCTION]
         )
+        if args.source_transition:
+            remote = op.stack("edge")
+            require(
+                remote and remote["StackStatus"] == "REVIEW_IN_PROGRESS",
+                "Source transition requires the existing unexecuted edge stack",
+            )
+            row = state["stacks"]["edge"]
+            change = op.aws(
+                "cloudformation",
+                "describe-change-set",
+                "--stack-name",
+                row["stack_id"],
+                "--change-set-name",
+                row["change_set_id"],
+                region=design.EDGE_REGION,
+            )
+            require(
+                change.get("StackId") == row["stack_id"]
+                and change.get("ChangeSetId") == row["change_set_id"]
+                and change.get("Status") == "CREATE_COMPLETE"
+                and change.get("ExecutionStatus") == "AVAILABLE",
+                "Source transition change set is not available for review",
+            )
+            op.create("edge", design.edge_template())
+            require(
+                report.get("status") == "change_set_review_required" and not report["cloud_writes"],
+                "Source transition must stop at read-only change-set review",
+            )
+            state["source_transition"]["reconciled"] = True
+            op.save()
+            return 0
         if args.mode in {"prepare", "execute"}:
             key = "edge" if not state.get("stacks", {}).get("edge", {}).get("complete") else "app"
             require(

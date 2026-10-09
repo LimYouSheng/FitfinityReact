@@ -9,7 +9,7 @@ Updated 7 October 2026 (Singapore). Accepted main for AWS-HOSTING-PREFLIGHT-01: 
 | File | Owns |
 | --- | --- |
 | [AGENTS.md](../AGENTS.md) | Short instructions loaded by Codex |
-| [NORTH_STAR.md](../NORTH_STAR.md) | One bounded milestone: outcome, scope, acceptance and stop conditions |
+| [NORTH_STAR.md](../NORTH_STAR.md) | Persistent outcome, acceptance and authority boundaries; individual bounded tasks belong in PROGRESS |
 | [PROGRESS.md](../PROGRESS.md) | Current task ledger, results, blockers and next action |
 | [Rules and Architecture](FITFINITY_RULES_AND_ARCHITECTURE.md) | Current product rules, architecture and engineering principles |
 | [Service Contracts](SERVICE_CONTRACTS.md) | Existing operation/service contract reference |

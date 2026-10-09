@@ -17,9 +17,47 @@ Run [37889740465](https://github.com/LimYouSheng/FitfinityReact/actions/runs/378
 
 1. Preserve the original ZIP, source, release and operation directory. Read only the exact stack/change-set ARNs above in `us-east-1`, guarding account `418638389566` and the reviewed operator identity. Reconcile `describe-stacks`, `describe-change-set`, `get-template --template-stage Original` for that change set, and `list-stack-resources`. Require unchanged IDs, exact proposed tags/template/Add-only edge inventory, `CREATE_COMPLETE`/`AVAILABLE` change-set state, empty stack resources and no unrecorded execution. Stop on ambiguity; never replay `create-change-set` or invent another operation to avoid reconciliation.
 2. Preserve release run `37885447016`/attempt 1, artifact `11596294683`, ZIP `fd7f2e0eca27aee6b36c88cf3cd0c092477c10b2589b7943ffb15aa32abbc7ac` at original source `b63fa5ef16904359a429e9048345b8ad13bea2be`. Merging this repair advances main. Existing restoration and release checks intentionally reject cross-source recovery; simply passing the old resume run to the new operator is **not a valid recovery command**.
-3. Before hosting resumes, separately review a bounded source-transition mechanism for this same operation: authenticate the original evidence and owner-merged repair, preserve original IDs/intents and historical release provenance, verify unchanged templates/image, and bind a new GitHub API-mode frontend release to the new reviewed source. This repair does not implement or authorize that migration and does not relax source equality. Recovery is blocked until that explicit transition is reviewed and tested; retain the existing AWS shell meanwhile.
+3. PR #19 now proposes the bounded `--source-transition` preparation described below. It authenticates the exact original evidence and YS-merged repair, preserves original IDs/intents and release provenance, verifies the unchanged edge template/image, and binds a replacement same-source API frontend. It remains blocked until owner merge, matching release and separately approved reconciliation; retain the existing AWS shell meanwhile. Ordinary recovery still rejects cross-source inputs.
 4. Recheck current owner approval, scan freshness, permissions and >=102 unreserved Lambda concurrency. Keep image `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, original source `33d124fcd59ffd3f9cb30d645660bdad99a21278`, runtime evidence and TEST expiry **11 October 2026, 20:41:44 Singapore** unchanged. The recorded scan reaches freshness limit **9 October 23:29:27 Singapore**; stale evidence blocks, and read-only reevaluation does not refresh it.
 5. Only after source recovery and all gates pass may the owner separately authorize resumption to produce the edge review token. Edge execution, app creation/execution, uploads, public smoke and scoped rollback each remain subject to the existing reviewed modes/approvals and durable intent reconciliation. Live hosting/sign-in/recovery acceptance remains pending. No workflow rerun, mutation or merge is authorized by this repair.
+
+### Reviewed source transition proposed in PR #19
+
+The persistent goal is AWS TEST login ready as defined in `NORTH_STAR.md`. A green repair PR or successful read-only transition does not accept hosting, Owner login or YS's devices.
+
+`hosting_binding.restore_transition` supports only operation `769df115e6ea4f478426f75c8a283a32`, run `37889740465`, artifact `11600513161`, the original ZIP/source pins above, and original raw `hosting/state.json` SHA-256 `6d1ccd4dad76e9683bd5c4d93cfa12e82c360c7ec3d6684a815c796b7dc46014`. It requires authenticated PR #19 merged by LimYouSheng into this repository's main, with merge SHA exactly equal to the clean current-main operator source. Main advancement fails closed. The immutable old state and matching stopped receipt must describe the acknowledged, unexecuted edge-only checkpoint. The entire original checkpoint, including old frontend and write intent, is copied into `source_transition.original_checkpoint`; old artifacts are never rewritten.
+
+The opt-in `source_transition=true` workflow input is accepted only with mode `prepare`, the exact old resume run and no review token. It verifies the replacement release against the new source through the existing release validator. `execution_authorized=false` blocks every AWS write, even an unexpected creation attempt. Live checks require the exact existing `REVIEW_IN_PROGRESS` stack, matching role/change-set tags and IDs, empty resources, unchanged template and exact Add-only `EdgeAcl` inventory; the existing operator produces the edge review token. Success records `source_transition.reconciled=true`, old evidence, new release and current source in a new receipt. Missing/deployed/foreign resources stop; no retag/delete/recreation occurs. A failed transition is not usable by ordinary resume. Preserve all failure artifacts and investigate; do not treat the new local state as execution authority.
+
+After successful reconciliation, subsequent phases use **the new transition run** as the resume input, `source_transition=false`, the same operation ID and replacement release. Normal exact-source/exact-release checks apply. Never pass the old run directly to new-main ordinary resume. No AWS operation in this procedure has been executed by this repair task.
+
+### Next owner actions and prepared commands
+
+1. Review PR #19's final code, transition boundary and complete final-SHA frontend/backend results, then YS alone decides whether to merge. Do not merge a red or pending candidate. Authenticate the merge and freeze its exact main SHA before release; if main advances, stop and report it.
+2. Inspect the shared AWS workflow queue; do not approve an unrelated image publication to unblock it. Prefer an existing successful frontend release at the exact merged SHA. Otherwise the authorized GitHub-only release mode runs full CI/build/PWA with no AWS credentials or image rebuild. With the exact merged main verified, the command is:
+
+```bash
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact --ref main -f mode=release
+```
+
+Leave every other input blank/default. Authenticate the resulting run/attempt/source/artifact ID, archive checksum, API-mode configuration (`/`, same-origin API), manifest/build/PWA evidence and accepted-backend compatibility. Authenticate original runtime run 37721383277/1/artifact 11528371887 using its canonical checksum; no proof rerun or backend rebuild.
+
+3. Before dispatching any hosting phase, verify current permissions/identity, exact owner-merged approval, complete fresh scan findings, >=102 actual unreserved concurrency, quota status separately and existing AWS resources. Recorded scan freshness expires **9 October 23:29:27 Singapore**; TEST approval expires **11 October 20:41:44 Singapore**. These are hard stops, not renewal permissions. No authorized coding-environment AWS connection exists; use the established guarded CloudShell readbacks or protected operator connection, keeping credentials outside coding work.
+4. Obtain explicit approval for one read-only source-transition reconciliation after presenting the frozen main/release and exact old stack/change-set IDs. Set `RELEASE_RUN` to the verified replacement run, recheck main, and dispatch:
+
+```bash
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact --ref main -f mode=prepare -f source_transition=true -f operation_id=769df115e6ea4f478426f75c8a283a32 -f resume_run=37889740465 -f release_run="$RELEASE_RUN"
+```
+
+This mode makes AWS reads only and creates a new GitHub evidence artifact; it does not create AWS resources. Preserve its exact run/artifact/checksum and successful receipt. Review the proposed Add `EdgeAcl` WAFv2 WebACL, ownership/template evidence and review token before seeking execution approval. A failed or uncertain readback is a blocker, not permission to replay the old operation.
+5. After explicit edge-execution approval, use the verified transition run as `RESUME_RUN`, its edge token as `REVIEW_TOKEN`, and the same release. The prepared command is:
+
+```bash
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact --ref main -f mode=execute -f operation_id=769df115e6ea4f478426f75c8a283a32 -f resume_run="$RESUME_RUN" -f release_run="$RELEASE_RUN" -f review_token="$REVIEW_TOKEN"
+```
+
+Keep source transition default false. This is **not authorized now**. Execution creates the reviewed edge WAF resources. Subsequent app preparation and execution require separate concrete change-set review for existing architecture: private S3/CloudFront, regional API Gateway/WAF, exact Lambda image/alias and bounded application IAM. Preserve RDS, secrets, Cognito and Owner. Persist and reconcile each intent/response; resume only from the latest reviewed evidence at the same source. Failed public smoke is not acceptance; rollback is separately authorized and scoped to exact owned resources, retaining the frontend bucket and existing database/identity resources.
+6. Record public HTTPS frontend/API verification, then YS's Owner password/MFA and authenticated-application checks. Verify reload/refresh, expiry, sign-out and denied signed-out history access. Record desktop/Samsung/iPad results separately from CI. The North Star remains incomplete until these checks and final release/operational receipts are recorded.
 
 The sections below are historical checkpoints, superseded where the current incident evidence above differs.
 
