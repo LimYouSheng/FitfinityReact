@@ -151,6 +151,8 @@ class CloudFormationFixture:
         self.bad_action = False
         self.lose_create = False
         self.lose_execute = False
+        self.placeholder = False
+        self.change_overrides = {}
         self.stack_id = (
             "arn:aws:cloudformation:us-east-1:418638389566:stack/fitfinit"
             "y-test-login-edge/11111111-1111-1111-1111-111111111111"
@@ -171,6 +173,8 @@ class CloudFormationFixture:
                 "Tags": [{"Key": k, "Value": v} for k, v in self.op.tags("edge").items()],
                 "Outputs": [{"OutputKey": "WebAclArn", "OutputValue": EDGE}],
             }
+            if self.placeholder:
+                self.remote["Tags"] = []
             if self.lose_create:
                 raise RuntimeError("Lost create response")
             return {"StackId": self.stack_id, "Id": "change-set-id"}
@@ -179,8 +183,10 @@ class CloudFormationFixture:
                 "Status": "CREATE_COMPLETE",
                 "ExecutionStatus": "AVAILABLE",
                 "StackId": self.stack_id,
+                "StackName": "fitfinity-test-login-edge",
                 "ChangeSetName": self.op.state["stacks"]["edge"]["change_set_name"],
                 "ChangeSetId": "change-set-id",
+                "Tags": [{"Key": k, "Value": v} for k, v in self.op.tags("edge").items()],
                 "Changes": [
                     {
                         "ResourceChange": {
@@ -191,15 +197,22 @@ class CloudFormationFixture:
                     }
                     for k, v in self.template["Resources"].items()
                 ],
+                **self.change_overrides,
             }
         if operation == "get-template":
             return {"TemplateBody": self.template}
         if operation == "execute-change-set":
             self.remote["StackStatus"] = "CREATE_COMPLETE"
+            self.remote["Tags"] = [{"Key": k, "Value": v} for k, v in self.op.tags("edge").items()]
+            self.remote["RoleARN"] = (
+                "arn:aws:iam::418638389566:role/fitfinity-test-hosting-cloudformation"
+            )
             if self.lose_execute:
                 raise RuntimeError("Lost execute response")
             return {}
         if operation == "list-stack-resources":
+            if self.remote["StackStatus"] == "REVIEW_IN_PROGRESS":
+                return {"StackResourceSummaries": []}
             return {
                 "StackResourceSummaries": [
                     {
@@ -329,6 +342,95 @@ class ResumeTests(unittest.TestCase):
         self.assertTrue(self.state["cleaned_up"])
         self.assertNotIn(("cloudformation", "delete-stack"), self.aws.calls)
         self.assertEqual((Path(self.tmp.name) / "state.json").stat().st_mode & 0o777, 0o600)
+
+    def prepare_placeholder(self):
+        self.aws.placeholder = True
+        self.state["mode"] = "prepare"
+        self.assertIsNone(self.op.create("edge", self.t))
+        self.aws.calls.clear()
+
+    def test_untagged_review_shell_requires_owned_change_set(self):
+        self.prepare_placeholder()
+        row = self.state["stacks"]["edge"]
+        self.assertTrue(row["create_response_received"])
+        self.assertEqual(self.report["status"], "change_set_review_required")
+        self.assertEqual(self.report["review_token"], row["review_token"])
+        self.assertFalse(row.get("execute_intent"))
+        self.assertEqual(self.report["review_stack_ownership"]["edge"]["stack_tags"], [])
+
+    def test_untagged_review_resume_never_recreates_or_executes(self):
+        self.prepare_placeholder()
+        self.assertIsNone(self.op.create("edge", self.t))
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
+
+    def test_review_change_set_foreign_identity_or_tags_refused(self):
+        self.prepare_placeholder()
+        tags = [{"Key": k, "Value": v} for k, v in self.op.tags("edge").items()]
+        bad_tags = deepcopy(tags)
+        bad_tags[-1]["Value"] = "foreign-template"
+        for override in [
+            {"StackId": self.aws.stack_id + "-foreign"},
+            {"StackName": "foreign"},
+            {"ChangeSetId": "foreign"},
+            {"ChangeSetName": "foreign"},
+            {"Tags": []},
+            {"Tags": bad_tags},
+            {"Tags": tags + tags[:1]},
+            {"ExecutionStatus": "EXECUTE_COMPLETE"},
+        ]:
+            with self.subTest(override=override), self.assertRaises(RuntimeError):
+                self.aws.change_overrides = override
+                self.op.create("edge", self.t)
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
+
+    def test_untagged_review_without_acknowledged_create_refused(self):
+        self.prepare_placeholder()
+        self.state["stacks"]["edge"].pop("create_response_received")
+        with self.assertRaisesRegex(RuntimeError, "acknowledged"):
+            self.op.create("edge", self.t)
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
+
+    def test_deployed_stack_cannot_use_placeholder_tag_exception(self):
+        self.prepare_placeholder()
+        self.aws.remote["StackStatus"] = "CREATE_COMPLETE"
+        with self.assertRaisesRegex(RuntimeError, "ownership tags"):
+            self.op.create("edge", self.t)
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
+
+    def test_review_shell_with_resources_refused(self):
+        self.prepare_placeholder()
+        original = self.op.aws
+
+        def unexpected(service, operation, *args, **kwargs):
+            if operation == "list-stack-resources":
+                return {"StackResourceSummaries": [{"PhysicalResourceId": "foreign"}]}
+            return original(service, operation, *args, **kwargs)
+
+        self.op.aws = unexpected
+        with self.assertRaisesRegex(RuntimeError, "contains resources"):
+            self.op.create("edge", self.t)
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
+
+    def test_review_shell_template_drift_refused(self):
+        self.prepare_placeholder()
+        self.aws.template = {**self.t, "Description": "foreign"}
+        with self.assertRaisesRegex(RuntimeError, "template differs"):
+            self.op.create("edge", self.t)
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
+
+    def test_review_shell_foreign_role_or_partial_tags_refused(self):
+        self.prepare_placeholder()
+        for field, value in [
+            ("RoleARN", "arn:aws:iam::418638389566:role/foreign"),
+            ("RoleARN", None),
+            ("Tags", [{"Key": "Application", "Value": "Fitfinity"}]),
+        ]:
+            original = self.aws.remote[field]
+            with self.subTest(field=field), self.assertRaises(RuntimeError):
+                self.aws.remote[field] = value
+                self.op.create("edge", self.t)
+            self.aws.remote[field] = original
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
 
 
 class ArtifactsTests(unittest.TestCase):

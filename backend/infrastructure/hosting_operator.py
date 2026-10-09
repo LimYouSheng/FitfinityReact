@@ -343,13 +343,70 @@ class Operator:
             "Existing stack is not owned by this operation",
         )
         require(
-            {x["Key"]: x["Value"] for x in remote.get("Tags", [])} == self.tags(key),
-            "Stack ownership tags differ",
-        )
-        require(
             not row.get("stack_id") or row["stack_id"] == remote["StackId"],
             "Owned stack ID changed",
         )
+        placeholder = remote["StackStatus"] == "REVIEW_IN_PROGRESS" and not remote.get("Tags")
+        if placeholder:
+            # CREATE change sets have an unexecuted stack shell. Its proposed tags
+            # belong to the change set; never adopt an untagged shell by name.
+            require(
+                row.get("create_response_received") is True
+                and row.get("stack_id") == remote["StackId"]
+                and row.get("change_set_id"),
+                "Untagged review stack requires acknowledged creation identities",
+            )
+            change = self.aws(
+                "cloudformation",
+                "describe-change-set",
+                "--stack-name",
+                row["stack_id"],
+                "--change-set-name",
+                row["change_set_id"],
+                region=region,
+            )
+            require(
+                change.get("StackId") == row["stack_id"]
+                and change.get("StackName") == name
+                and change.get("ChangeSetId") == row["change_set_id"]
+                and change.get("ChangeSetName") == row["change_set_name"],
+                "Review stack change-set identity differs",
+            )
+            require(
+                len(change.get("Tags", [])) == len(self.tags(key))
+                and {x["Key"]: x["Value"] for x in change.get("Tags", [])} == self.tags(key),
+                "Change-set ownership tags differ",
+            )
+            require(
+                change.get("ExecutionStatus") in {"UNAVAILABLE", "AVAILABLE"}
+                or row.get("execute_intent"),
+                "Review stack executed outside this operation",
+            )
+            if not row.get("execute_intent"):
+                inventory = self.aws(
+                    "cloudformation",
+                    "list-stack-resources",
+                    "--stack-name",
+                    row["stack_id"],
+                    region=region,
+                )
+                require(
+                    inventory.get("StackResourceSummaries") == [],
+                    "Unexecuted review stack contains resources",
+                )
+            self.report.setdefault("review_stack_ownership", {})[key] = {
+                "stack_id": remote["StackId"],
+                "stack_tags": remote.get("Tags", []),
+                "stack_role": remote.get("RoleARN"),
+                "change_set_id": change["ChangeSetId"],
+                "change_set_tags": change["Tags"],
+            }
+        else:
+            require(
+                len(remote.get("Tags", [])) == len(self.tags(key))
+                and {x["Key"]: x["Value"] for x in remote.get("Tags", [])} == self.tags(key),
+                "Stack ownership tags differ",
+            )
         require(
             remote.get("RoleARN")
             == "arn:aws:iam::418638389566:role/fitfinity-test-hosting-cloudformation",
@@ -366,7 +423,7 @@ class Operator:
         row = self.state["stacks"][key]
         args = ["--stack-name", row["stack_id"], "--template-stage", "Original"]
         if changeset:
-            args += ["--change-set-name", row["change_set_name"]]
+            args += ["--change-set-name", row.get("change_set_id") or row["change_set_name"]]
         result = self.aws("cloudformation", "get-template", *args, region=design.STACKS[key][1])
         body = result["TemplateBody"]
         body = json.loads(body) if isinstance(body, str) else body
@@ -447,7 +504,7 @@ class Operator:
                     "--stack-name",
                     row["stack_id"],
                     "--change-set-name",
-                    row["change_set_name"],
+                    row.get("change_set_id") or row["change_set_name"],
                     region=region,
                 )
                 if change["Status"] == "CREATE_COMPLETE":
@@ -469,8 +526,17 @@ class Operator:
             self.check_template(key, changeset=True)
             require(
                 change.get("StackId") == row["stack_id"]
-                and change.get("ChangeSetName") == row["change_set_name"],
+                and change.get("ChangeSetName") == row["change_set_name"]
+                and (
+                    not row.get("change_set_id")
+                    or change.get("ChangeSetId") == row["change_set_id"]
+                ),
                 "Change-set identity differs",
+            )
+            require(
+                len(change.get("Tags", [])) == len(self.tags(key))
+                and {x["Key"]: x["Value"] for x in change.get("Tags", [])} == self.tags(key),
+                "Change-set ownership tags differ",
             )
             changes = [x.get("ResourceChange", {}) for x in change.get("Changes", [])]
             expected = {k: r["Type"] for k, r in template["Resources"].items()}

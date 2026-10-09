@@ -371,7 +371,7 @@ def main(argv=None):
 
 if __name__ == "__main__":
     try:
-        main()
+        raise SystemExit(main())
     except Exception as error:
         print(
             f"\033[31mSTOPPED: "

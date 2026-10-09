@@ -1,5 +1,14 @@
 # Fitfinity current progress
 
+## Active repair — hosting ownership and CLI exit, 9 October 2026
+
+- Started from clean local/remote main `b63fa5ef16904359a429e9048345b8ad13bea2be`; created `fix/hosting-change-set-ownership-2026-10-09`, preserving setup and retained evidence. One agent, existing finite repair budget; no worktree/install/AWS mutations.
+- Authenticated run 37889740465 artifact 11600513161 and its exact ZIP checksum. GitHub success masked a stopped hosting receipt. One edge CREATE change-set write was acknowledged; no execute intent is recorded. Owner readback confirms the pinned stack is `REVIEW_IN_PROGRESS`, untagged, with the exact service role. Change-set readback confirms exact ownership tags, IDs/names, `CREATE_COMPLETE` / `AVAILABLE`, and only Add `EdgeAcl`. Runbook owns exact IDs and remaining template/resource recovery checks.
+- Fixed real CLI return-code propagation and checked acknowledged CREATE shell ownership against its exact proposed change set, retaining strict deployed/foreign-resource rejection. Eight hosting regressions retain all previous cases (69 hosting / 563 infrastructure); two real CLI subprocess regressions raise backend/PostgreSQL coverage from 416 to 418. Baseline CLI reproduces exit 0 with a stopped receipt; repaired CLI exits 1 and preserves the same evidence. Focused 69 cases pass. Full canonical and final-SHA CI results will be recorded in the draft PR without a self-recording commit.
+- Existing source-bound recovery remains blocked across a repair merge; no checksum/source bypass or replacement operation was introduced. A separately reviewed transition preserving the same operation and original evidence, plus a new same-source frontend artifact, is required before resumption. Deployment, sign-in and recovery acceptance remain pending. Image/provenance/exception expiry are unchanged.
+
+## Historical checkpoints
+
 ## Active continuation — TEST hosting release preparation, 9 October 2026
 
 - Owner corrected the stale PR #12 request to the only open PR, draft #18. Clean local/remote/PR head `33075090a1fa601447b9b830d79e8426c4ff50c4` matched; unchanged main `28dec686f24ff18f6f99ec183ffd82375f4dec99` is an ancestor. Reused the existing branch, Node 24.19.0/npm 11.9.0/Python 3.12.14, dependencies and receipts; no worktree/install/environment publication.

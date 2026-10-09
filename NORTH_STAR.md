@@ -2,11 +2,9 @@
 
 ## Current safe stopping point — 9 October 2026
 
-Continue on the owner-selected open draft PR #18, starting at `33075090a1fa601447b9b830d79e8426c4ff50c4`; PR #12 is already merged. Prepare the release evidence and execution gates using the existing canonical hosting implementation. No new operator implementation is currently required. Current AWS quota/capacity cannot be read here because no operator connection is configured; retain the guarded CloudShell fallback and require >=102 unreserved before reserving 2. The runbook owns the concrete bundle, source pins, missing local archive warning and recovery prerequisites.
+Repair the confirmed hosting stop in run 37889740465 on a draft feature PR from merged main `b63fa5ef16904359a429e9048345b8ad13bea2be`. GitHub reported success because the CLI ignored the operator's return code; the receipt stopped after acknowledged edge change-set creation. Owner readback confirms an untagged `REVIEW_IN_PROGRESS` shell with the exact service role. Require ownership through the pinned acknowledged change set for that lifecycle state, retaining strict tags/role/template/resource checks elsewhere. The runbook owns exact evidence and pending live reconciliation.
 
-IAM hosting authority is verified and the environment variable is owner-read back. One refreshed scan completed; the remaining zlib HIGH is unchanged, while the gcc-14 HIGH is no longer reported. The exact-set approval gate correctly stopped continuation. Prepare a draft policy re-review with unchanged image/provenance/expiry; only YS can merge it. No fresh image acceptance, hosting prepare, deployment, sign-in or recovery acceptance is claimed.
-
-Merging this correction advances main and prevents consuming release 37743179778 from the new operator SHA. Preserve that historical artifact; obtain separate authorization for a replacement GitHub-only frontend release before continuing. Do not rebuild the backend, repeat the runtime proof, request another scan or relax same-source/freshness gates. The following implementation acceptance entries describe the retained PR #17 checkpoint; the runbook owns current live evidence and the blocking decision.
+Complete canonical backend and final-SHA frontend/backend CI. Keep existing operation `769df115e6ea4f478426f75c8a283a32`, source/release evidence and all write intents intact. A repair merge changes source; recovery cannot reuse the old release or bypass source binding. Separate review of a bounded same-operation source transition and replacement frontend artifact is required before resuming. Deployment/sign-in/recovery acceptance remains pending.
 
 ## Outcome
 
@@ -27,7 +25,7 @@ Prepare the first persistent AWS TEST hosting release from the reviewed retained
 
 ## Boundaries
 
-For this continuation: one agent; at most three repair iterations and 30 active minutes, CI waiting separate. Inspection, canonical documentation and existing draft-PR publication only; the three explicitly authorized quota-preflight reads require an existing authorized connection. No such connection is configured here. No AWS proof rerun, workflow dispatch, IAM provisioning, change-set execution, backend image rebuild/publication, infrastructure deployment or merge. YS alone merges. No quota resubmission, bootstrap replay or invitation resend. Preserve exact `86183723…` image/original `33d124f…` source and TEST exception expiry (11 October 2026, 20:41:44 Singapore); future execution rechecks scans and approval.
+For this repair: one agent; at most three repair iterations and 30 active minutes, CI waiting separate. Evidence inspection, focused code/tests, canonical documentation and draft PR publication are authorized. No AWS mutations, hosting execution, workflow rerun, IAM change, image rebuild, scan request or merge. YS alone merges. Preserve exact `86183723…` image/original `33d124f…` source and TEST exception expiry (11 October 2026, 20:41:44 Singapore); future execution rechecks scans and approval.
 
 ## Completed AWS phase
 
