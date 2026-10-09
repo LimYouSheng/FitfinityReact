@@ -4,6 +4,7 @@ import io
 import json
 import re
 import zipfile
+from copy import deepcopy
 from pathlib import Path, PurePosixPath
 
 import private_runtime_binding as runtime
@@ -17,6 +18,14 @@ RUNTIME_RUN = 37721383277
 RUNTIME_ARTIFACT = 11528371887
 RUNTIME_SHA = "5d11866916b82ccfec8e33700465427606394d59e8cfa1d12aac2fc1a58f8296"
 RUNTIME_SOURCE = "087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932"
+
+# One reviewed recovery edge, not a general cross-source resume permission.
+TRANSITION_RUN = 37889740465
+TRANSITION_OPERATION = "769df115e6ea4f478426f75c8a283a32"
+TRANSITION_SOURCE = "b63fa5ef16904359a429e9048345b8ad13bea2be"
+TRANSITION_ARTIFACT = 11600513161
+TRANSITION_ZIP_SHA = "a384b8b2d8989ac269a4023786ad9c307d78a94b7ee890cfb5dad8477431ec90"
+TRANSITION_STATE_SHA = "6d1ccd4dad76e9683bd5c4d93cfa12e82c360c7ec3d6684a815c796b7dc46014"
 
 
 class EvidenceAWS(preflight.EvidenceAWS):
@@ -197,7 +206,75 @@ def restore(run_id, operation, source):
         state.get("operator_commit") == source
         and state.get("operation_id") == operation
         and state.get("operator_revision") == "2026-10-08-test-hosting-1"
-        and state.get("image_digest") == runtime.DIGEST,
+        and state.get("image_digest") == runtime.DIGEST
+        and (
+            not state.get("source_transition")
+            or state["source_transition"].get("reconciled") is True
+        ),
         "Recovery identity differs",
+    )
+    return state, origin
+
+
+def restore_transition(run_id, operation, source):
+    """Read-only rebind of the pinned, unexecuted operation after owner review."""
+    require(
+        run_id == TRANSITION_RUN and operation == TRANSITION_OPERATION,
+        "Unreviewed source transition operation/run",
+    )
+    pr = ExistingImage({}).github(f"repos/{GITHUB_REPO}/pulls/19")
+    require(
+        pr.get("merged") is True
+        and pr.get("merged_by", {}).get("login") == "LimYouSheng"
+        and pr.get("base", {}).get("ref") == "main"
+        and pr.get("base", {}).get("repo", {}).get("full_name") == GITHUB_REPO
+        and pr.get("head", {}).get("repo", {}).get("full_name") == GITHUB_REPO
+        and pr.get("merge_commit_sha") == source
+        and re.fullmatch(r"[0-9a-f]{40}", source)
+        and source != TRANSITION_SOURCE,
+        "Source transition requires exact owner-merged PR 19 main",
+    )
+    files, origin = artifact(
+        run_id,
+        "fitfinity-hosting-" + operation + "-{run}-{attempt}",
+        TRANSITION_SOURCE,
+        success=False,
+        artifact_id=TRANSITION_ARTIFACT,
+        checksum=TRANSITION_ZIP_SHA,
+    )
+    raw = files["hosting/state.json"]
+    require(sha(raw) == TRANSITION_STATE_SHA, "Source transition checkpoint differs")
+    state = json.loads(raw)
+    receipt = json.loads(files["hosting/receipt.json"])
+    edge = state.get("stacks", {}).get("edge", {})
+    require(
+        receipt.get("checkpoint") == state
+        and receipt.get("status") == "stopped"
+        and receipt.get("error") == "Stack ownership tags differ"
+        and state.get("operator_commit") == TRANSITION_SOURCE
+        and state.get("operation_id") == operation
+        and state.get("image_digest") == runtime.DIGEST
+        and set(state.get("stacks", {})) == {"edge"}
+        and edge.get("create_response_received") is True
+        and edge.get("create_intent")
+        and not edge.get("execute_intent")
+        and not edge.get("complete")
+        and not state.get("frontend_uploaded")
+        and not state.get("complete")
+        and not state.get("source_transition"),
+        "Source transition requires the original unexecuted checkpoint",
+    )
+    original = deepcopy(state)
+    state.update(
+        operator_commit=source,
+        execution_authorized=False,
+        source_transition={
+            "review_pr": 19,
+            "from_source": TRANSITION_SOURCE,
+            "to_source": source,
+            "artifact": origin,
+            "state_sha256": sha(raw),
+            "original_checkpoint": original,
+        },
     )
     return state, origin

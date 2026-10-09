@@ -1,44 +1,34 @@
-# North Star: AWS TEST hosting — reviewed release preparation
+# North Star: Fitfinity AWS TEST login ready
 
-## Current safe stopping point — 9 October 2026
+Carry Fitfinity from M6.21 to a working, secure AWS TEST login that YS can use. This goal persists across repairs, PRs and operational checkpoints. Passing CI, merging a repair or preparing hosting advances the goal; none completes it. `PROGRESS.md` owns individual tasks and evidence; the AWS runbook owns exact release inputs, recovery commands and approval gates.
 
-Continue on the owner-selected open draft PR #18, starting at `33075090a1fa601447b9b830d79e8426c4ff50c4`; PR #12 is already merged. Prepare the release evidence and execution gates using the existing canonical hosting implementation. No new operator implementation is currently required. Current AWS quota/capacity cannot be read here because no operator connection is configured; retain the guarded CloudShell fallback and require >=102 unreserved before reserving 2. The runbook owns the concrete bundle, source pins, missing local archive warning and recovery prerequisites.
+## Definition of done
 
-IAM hosting authority is verified and the environment variable is owner-read back. One refreshed scan completed; the remaining zlib HIGH is unchanged, while the gcc-14 HIGH is no longer reported. The exact-set approval gate correctly stopped continuation. Prepare a draft policy re-review with unchanged image/provenance/expiry; only YS can merge it. No fresh image acceptance, hosting prepare, deployment, sign-in or recovery acceptance is claimed.
+- [ ] A verified public AWS TEST HTTPS URL serves the exact immutable API-mode frontend release and working backend.
+- [ ] The existing Owner completes the applicable password setup and MFA flow and reaches the authenticated application.
+- [ ] Reload/session refresh, expiry and sign-out work; signed-out navigation cannot restore protected access.
+- [ ] YS's agreed desktop, Samsung and iPad checks are recorded separately from automated CI.
+- [ ] Final source, frontend/runtime artifacts, image provenance, operational receipts and remaining limitations are recorded.
 
-Merging this correction advances main and prevents consuming release 37743179778 from the new operator SHA. Preserve that historical artifact; obtain separate authorization for a replacement GitHub-only frontend release before continuing. Do not rebuild the backend, repeat the runtime proof, request another scan or relax same-source/freshness gates. The following implementation acceptance entries describe the retained PR #17 checkpoint; the runbook owns current live evidence and the blocking decision.
+Broader M6 functionality, populated-database recovery and production readiness remain separate. Preserve the existing database, secrets, Cognito pool and Owner.
 
-## Outcome
+## Current path
 
-Prepare the first persistent AWS TEST hosting release from the reviewed retained hosting operator, consuming a verified immutable API-mode frontend artifact and exact accepted backend image. Private-runtime proof is completed; hosting, actual user sign-in and deployment/database recovery acceptance remain separate.
+1. Finish draft PR #19: repair the diagnosed logo-induced sidebar shift, retain the hosting ownership/CLI correction and review the bounded source transition for existing operation `769df115e6ea4f478426f75c8a283a32`. Require full final-SHA frontend/backend CI including macOS/WebKit and PostgreSQL.
+2. YS alone merges reviewed changes. Authenticate that merge and exact main; obtain its matching immutable GitHub frontend release and authenticate retained runtime/image provenance. Report main advancement before proceeding.
+3. Verify current permissions, owner-merged image approval, scan freshness, >=102 unreserved concurrency and the existing stack/change set. Reconcile the same operation read-only using the reviewed transition; present its concrete edge change set for execution approval.
+4. After the applicable explicit approvals, advance the existing operator through edge and app review/execution, immutable upload, public HTTPS/API smoke and YS's login/session/device acceptance. Diagnose evidenced blockers without replaying uncertain writes.
 
-## Acceptance
+## Authority and iteration
 
-- [x] Expected main/operator `087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932` and PR #15 merge verified; existing clean checkout/setup retained.
-- [x] Runtime run 37721383277 attempt 1 and both uploaded ZIPs authenticated; receipt/state/template/probe and all four responses agree. Both subnets and owned cleanup accepted.
-- [x] Existing runbook/Journey/registry reconcile successful OIDC, collection, runtime and capacity while preserving failures, original image provenance and release refusal.
-- [x] Recover exact October 6 hosting source; outer/payload hashes, safe paths, revision and all 57 manifest entries verified without historical execution.
-- [x] Adapt canonical hosting owner, separate least-privilege role/manual protected workflow, reviewed change sets, immutable uploads and interruption/recovery behavior.
-- [x] Implement immutable API-mode release builder/manifest and authenticated consumption with backend compatibility, build/PWA and exact source checks.
-- [ ] Separately dispatch/review the final merged-main release artifact for live execution.
-- [x] Meaningful changed-hosting failure/recovery checks: 61 hosting cases, 547 total infrastructure cases, and 416 backend/PostgreSQL cases retained.
-- [ ] Complete final-SHA frontend/backend CI and draft PR review (results recorded in PR).
-- [ ] Separately authorized hosting deployment, user sign-in/MFA and recovery acceptance.
+One agent; reuse the existing checkout, dependencies, caches and valid receipts. Continue authorized investigation, focused repairs, tests and canonical documentation autonomously. Do not inherit the obsolete 30-minute automatic stop from earlier repairs. Honor explicitly agreed execution budgets with CI waiting separate; carry unfinished work forward accurately. Stop at a concrete blocker, required user action or authorization boundary with the next action prepared.
 
-## Boundaries
+YS is the sole merge authority. No merge, auto-merge, main/force push, account reset, bootstrap replay or replacement operation to evade reconciliation. AWS mutations, hosting execution, scan requests, IAM changes and approval renewal require applicable explicit authorization. Keep credentials outside coding work. Source binding, historical receipts, resource identities, write intents and ownership checks remain mandatory.
 
-For this continuation: one agent; at most three repair iterations and 30 active minutes, CI waiting separate. Inspection, canonical documentation and existing draft-PR publication only; the three explicitly authorized quota-preflight reads require an existing authorized connection. No such connection is configured here. No AWS proof rerun, workflow dispatch, IAM provisioning, change-set execution, backend image rebuild/publication, infrastructure deployment or merge. YS alone merges. No quota resubmission, bootstrap replay or invitation resend. Preserve exact `86183723…` image/original `33d124f…` source and TEST exception expiry (11 October 2026, 20:41:44 Singapore); future execution rechecks scans and approval.
+Preserve image `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, original image source `33d124fcd59ffd3f9cb30d645660bdad99a21278` and TEST exception expiry **11 October 2026, 20:41:44 Singapore**. Stale scan evidence or expired approval blocks execution; never silently extend, transfer or weaken approval.
 
-## Completed AWS phase
+## Retained acceptance and limits
 
-AWS-PRIVATE-RUNTIME-01 completed at 12:23:04 Singapore, 8 October, operation `aa2b2e439c3943b3b425de90302833ab`, run 37721383277. Runtime acceptance is digest-bound and does not declare application deployment/live authentication. Runbook owns evidence/procedure; Journey owns the completed phase; PROGRESS owns this prepared hosting implementation and development checks.
+Private-runtime proof completed on 8 October at 12:23:04 Singapore, operation `aa2b2e439c3943b3b425de90302833ab`, run 37721383277, for the exact accepted digest with owned cleanup. Preserve that evidence; it is not live hosting/sign-in acceptance. Existing hosting source/operator, IAM preparation and release evidence are retained in the runbook.
 
-## Completed and deferred goals
-
-SESSION-OPEN-01 is accepted for the demo: final feature `437e6e5c7a74356c5f75c31d7b4ba1fbf7cdd0c6`, merged PR #8, full PR/main frontend/backend verification and main Pages deployment passed. YS confirmed all postponement physical checks passed on 7 October 2026. Journey owns the completed receipt; live API, media and unrelated acceptance stay separate.
-
-CLOUD-01 remains deferred and **incomplete**: the public PR-preview criterion is blocked by the recorded DNS/proxy failure. Main Pages is not a PR preview. No tunnel retry in this task.
-
-## Owners
-
-`PROGRESS.md` owns the current ledger; Journey owns completed history; the AWS runbook owns candidate review, approval format, usage and live prerequisites. `AGENTS.md` and the cloud guide own guarded development. Rules/Service Contracts retain accepted demo semantics.
+SESSION-OPEN-01 is accepted for the demo, including YS's 7 October physical checks. Those results do not accept the AWS TEST login. CLOUD-01 public PR preview remains incomplete; no tunnel retry is implied. Journey owns completed history; Rules/Service Contracts own product behavior; AGENTS and the cloud guide own development workflow.

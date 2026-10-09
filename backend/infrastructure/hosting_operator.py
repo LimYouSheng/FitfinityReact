@@ -343,13 +343,70 @@ class Operator:
             "Existing stack is not owned by this operation",
         )
         require(
-            {x["Key"]: x["Value"] for x in remote.get("Tags", [])} == self.tags(key),
-            "Stack ownership tags differ",
-        )
-        require(
             not row.get("stack_id") or row["stack_id"] == remote["StackId"],
             "Owned stack ID changed",
         )
+        placeholder = remote["StackStatus"] == "REVIEW_IN_PROGRESS" and not remote.get("Tags")
+        if placeholder:
+            # CREATE change sets have an unexecuted stack shell. Its proposed tags
+            # belong to the change set; never adopt an untagged shell by name.
+            require(
+                row.get("create_response_received") is True
+                and row.get("stack_id") == remote["StackId"]
+                and row.get("change_set_id"),
+                "Untagged review stack requires acknowledged creation identities",
+            )
+            change = self.aws(
+                "cloudformation",
+                "describe-change-set",
+                "--stack-name",
+                row["stack_id"],
+                "--change-set-name",
+                row["change_set_id"],
+                region=region,
+            )
+            require(
+                change.get("StackId") == row["stack_id"]
+                and change.get("StackName") == name
+                and change.get("ChangeSetId") == row["change_set_id"]
+                and change.get("ChangeSetName") == row["change_set_name"],
+                "Review stack change-set identity differs",
+            )
+            require(
+                len(change.get("Tags", [])) == len(self.tags(key))
+                and {x["Key"]: x["Value"] for x in change.get("Tags", [])} == self.tags(key),
+                "Change-set ownership tags differ",
+            )
+            require(
+                change.get("ExecutionStatus") in {"UNAVAILABLE", "AVAILABLE"}
+                or row.get("execute_intent"),
+                "Review stack executed outside this operation",
+            )
+            if not row.get("execute_intent"):
+                inventory = self.aws(
+                    "cloudformation",
+                    "list-stack-resources",
+                    "--stack-name",
+                    row["stack_id"],
+                    region=region,
+                )
+                require(
+                    inventory.get("StackResourceSummaries") == [],
+                    "Unexecuted review stack contains resources",
+                )
+            self.report.setdefault("review_stack_ownership", {})[key] = {
+                "stack_id": remote["StackId"],
+                "stack_tags": remote.get("Tags", []),
+                "stack_role": remote.get("RoleARN"),
+                "change_set_id": change["ChangeSetId"],
+                "change_set_tags": change["Tags"],
+            }
+        else:
+            require(
+                len(remote.get("Tags", [])) == len(self.tags(key))
+                and {x["Key"]: x["Value"] for x in remote.get("Tags", [])} == self.tags(key),
+                "Stack ownership tags differ",
+            )
         require(
             remote.get("RoleARN")
             == "arn:aws:iam::418638389566:role/fitfinity-test-hosting-cloudformation",
@@ -366,7 +423,7 @@ class Operator:
         row = self.state["stacks"][key]
         args = ["--stack-name", row["stack_id"], "--template-stage", "Original"]
         if changeset:
-            args += ["--change-set-name", row["change_set_name"]]
+            args += ["--change-set-name", row.get("change_set_id") or row["change_set_name"]]
         result = self.aws("cloudformation", "get-template", *args, region=design.STACKS[key][1])
         body = result["TemplateBody"]
         body = json.loads(body) if isinstance(body, str) else body
@@ -447,7 +504,7 @@ class Operator:
                     "--stack-name",
                     row["stack_id"],
                     "--change-set-name",
-                    row["change_set_name"],
+                    row.get("change_set_id") or row["change_set_name"],
                     region=region,
                 )
                 if change["Status"] == "CREATE_COMPLETE":
@@ -469,8 +526,17 @@ class Operator:
             self.check_template(key, changeset=True)
             require(
                 change.get("StackId") == row["stack_id"]
-                and change.get("ChangeSetName") == row["change_set_name"],
+                and change.get("ChangeSetName") == row["change_set_name"]
+                and (
+                    not row.get("change_set_id")
+                    or change.get("ChangeSetId") == row["change_set_id"]
+                ),
                 "Change-set identity differs",
+            )
+            require(
+                len(change.get("Tags", [])) == len(self.tags(key))
+                and {x["Key"]: x["Value"] for x in change.get("Tags", [])} == self.tags(key),
+                "Change-set ownership tags differ",
             )
             changes = [x.get("ResourceChange", {}) for x in change.get("Changes", [])]
             expected = {k: r["Type"] for k, r in template["Resources"].items()}
@@ -1179,6 +1245,7 @@ def main(argv=None):
     parser.add_argument("--release-run", type=int)
     parser.add_argument("--resume-run", type=int)
     parser.add_argument("--review-token", default="")
+    parser.add_argument("--source-transition", action="store_true")
     args = parser.parse_args(argv)
     require(re.fullmatch(r"[a-f0-9]{32}", args.operation_id), "Invalid operation ID")
     require(
@@ -1192,6 +1259,11 @@ def main(argv=None):
     state = {}
     previous = signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     try:
+        require(
+            not args.source_transition
+            or (args.mode == "prepare" and args.resume_run and not args.review_token),
+            "Source transition is read-only prepare with authenticated recovery only",
+        )
         if args.mode == "plan":
             report.update(
                 status="offline_plan",
@@ -1223,15 +1295,18 @@ def main(argv=None):
             "image_digest": pf.binding.DIGEST,
         }
         if args.resume_run:
-            state, report["recovery_artifact"] = binding.restore(
-                args.resume_run, args.operation_id, source
-            )
+            restore = binding.restore_transition if args.source_transition else binding.restore
+            state, report["recovery_artifact"] = restore(args.resume_run, args.operation_id, source)
         require(
             args.mode not in {"execute", "verify", "rollback"} or args.resume_run,
             "Authenticated recovery state required",
         )
         require(not state.get("cleaned_up"), "Completed rollback cannot be redeployed")
-        state.update(mode=args.mode, review_token=args.review_token, execution_authorized=True)
+        state.update(
+            mode=args.mode,
+            review_token=args.review_token,
+            execution_authorized=not args.source_transition,
+        )
         op = Operator(directory, state, report)
         op.save()
         report["identity"] = binding.EvidenceAWS(report).environment()
@@ -1240,13 +1315,17 @@ def main(argv=None):
             return 0
         require(args.release_run and args.release_run > 0, "Verified release run required")
         new_release = binding.release(args.release_run, source, directory / "frontend")
-        if state.get("frontend"):
+        if state.get("frontend") and not args.source_transition:
             require(
                 {k: v for k, v in state["frontend"].items() if k != "directory"}
                 == {k: v for k, v in new_release.items() if k != "directory"},
                 "Recovery release input differs",
             )
         state["frontend"] = new_release
+        if args.source_transition:
+            state["source_transition"]["replacement_release"] = {
+                k: v for k, v in new_release.items() if k != "directory"
+            }
         op.save()
         pf.binding.collect_binding(report)
         binding.runtime_proof(report)
@@ -1254,6 +1333,37 @@ def main(argv=None):
         RuntimeOperator.verify_ecr_pull_policy(
             SimpleNamespace(aws=op.aws, report=report), names=[design.FUNCTION]
         )
+        if args.source_transition:
+            remote = op.stack("edge")
+            require(
+                remote and remote["StackStatus"] == "REVIEW_IN_PROGRESS",
+                "Source transition requires the existing unexecuted edge stack",
+            )
+            row = state["stacks"]["edge"]
+            change = op.aws(
+                "cloudformation",
+                "describe-change-set",
+                "--stack-name",
+                row["stack_id"],
+                "--change-set-name",
+                row["change_set_id"],
+                region=design.EDGE_REGION,
+            )
+            require(
+                change.get("StackId") == row["stack_id"]
+                and change.get("ChangeSetId") == row["change_set_id"]
+                and change.get("Status") == "CREATE_COMPLETE"
+                and change.get("ExecutionStatus") == "AVAILABLE",
+                "Source transition change set is not available for review",
+            )
+            op.create("edge", design.edge_template())
+            require(
+                report.get("status") == "change_set_review_required" and not report["cloud_writes"],
+                "Source transition must stop at read-only change-set review",
+            )
+            state["source_transition"]["reconciled"] = True
+            op.save()
+            return 0
         if args.mode in {"prepare", "execute"}:
             key = "edge" if not state.get("stacks", {}).get("edge", {}).get("complete") else "app"
             require(

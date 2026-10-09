@@ -24,6 +24,11 @@ on:
         description: Previous completed hosting run containing the durable operation state
         type: string
         required: false
+      source_transition:
+        description: Read-only recovery of operation 769df115 from run 37889740465 after owner merge of PR 19
+        type: boolean
+        default: false
+        required: false
 
 permissions:
   contents: read
@@ -127,6 +132,7 @@ jobs:
           RESUME_RUN: ${{ inputs.resume_run }}
           RELEASE_RUN: ${{ inputs.release_run }}
           REVIEW_TOKEN: ${{ inputs.review_token }}
+          SOURCE_TRANSITION: ${{ inputs.source_transition }}
           PYTHONDONTWRITEBYTECODE: '1'
         run: |
           set -euo pipefail
@@ -134,6 +140,7 @@ jobs:
           if [ -n "$RESUME_RUN" ]; then args+=(--resume-run "$RESUME_RUN"); fi
           if [ -n "$RELEASE_RUN" ]; then args+=(--release-run "$RELEASE_RUN"); fi
           if [ -n "$REVIEW_TOKEN" ]; then args+=(--review-token "$REVIEW_TOKEN"); fi
+          if [ "$SOURCE_TRANSITION" = 'true' ]; then args+=(--source-transition); fi
           python3 backend/infrastructure/deploy.py hosting --mode "$HOSTING_MODE" --operation-id "$OPERATION_ID" --directory "$RUNNER_TEMP/hosting" "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/hosting.log"
       - name: Record workflow diagnostics
         id: diagnostic
