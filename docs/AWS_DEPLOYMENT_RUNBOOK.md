@@ -2,6 +2,37 @@
 
 **Current evidence checkpoint: 9 October 2026 (Singapore).** IAM hosting authority is verified; the refreshed image scan requires exact re-review, and the draft correction would require a new same-source frontend release after merge. Exact-image private-runtime proof and owned cleanup are accepted; first persistent TEST hosting automation is prepared, with live deployment/sign-in/recovery still pending. Recorded capacity is 1000 total/unreserved. Historical sections retain their original checkpoints; current acceptance and remaining prerequisites are reconciled below.
 
+## Next TEST hosting task — release review package, 9 October 2026
+
+The owner redirected the stale PR #12 request to the open draft PR #18. Entry checkout, remote branch and PR head all matched `33075090a1fa601447b9b830d79e8426c4ff50c4` on `feat/aws-test-scan-review-2026-10-09`; the tree was clean and main `28dec686f24ff18f6f99ec183ffd82375f4dec99` was an ancestor. PR #12 is already merged/closed. This continuation changes documentation only on PR #18, which remains unmerged. Its new final-SHA CI results belong in the PR, not a self-recording commit.
+
+### Quota access and source/evidence inventory
+
+The current managed environment reports current readiness observations but **no configured outbound identities, secret bindings or runtime variables**. No already authorized AWS operator connection is available. No AWS call was attempted, and current request status and total/unreserved concurrency remain **unverified**. Use the three-call [CloudShell preflight](#quota-history-and-current-read-only-cloudshell-preflight) below: STS, the exact existing quota request and Lambda account settings, all in account `418638389566` / `ap-southeast-1`. Preserve its timestamped output; a historical 1000/1000 or CASE_OPENED is not a live result. Require **at least 102 unreserved before reserving 2**, regardless of request status. No quota resubmission or identity setup is part of this task.
+
+All canonical hosting/runtime operators, templates, workflow and regression owners are present. All **57 retained historical hosting source entries** were rehashed against `hosting-source.json`; they match. The old Mac operator remains data only and must not be resumed. The current backend compatibility check passes against original image source `33d124fcd59ffd3f9cb30d645660bdad99a21278`, contract SHA-256 `c7806c37e0f726733a66820cfbf33197cfc2a583d5acabc58d2030ccfb97bd5f`.
+
+The retained release ZIP for run 37743179778 rehashes to `530ae9efe1a49d88ae3408a7b104c573883a1892121cc5c63f731243bc290b51`; authenticated metadata still reports artifact 11536680863 unexpired and that run successful at `28dec686…`. It is historical release evidence, **not a release for this draft or its eventual merge**. Runtime artifact 11528371887 remains unexpired in authenticated metadata with its original checksum/source below. The local `/workspace/work/hosting-prep/runtime.zip` is a **zero-byte download placeholder**, not verified evidence; extracted receipts remain present. Preserve it, but do not consume or repackage it as the authenticated archive. The later operator must download and verify the exact original runtime artifact; if unavailable, recover the original uploaded ZIP and verify its pin rather than rerun the proof. This task does not reassert a new runtime execution.
+
+### Exact bundle and execution gates
+
+| Required input/gate | Review requirement for the next separately authorized task |
+| --- | --- |
+| Operator/release source | Owner merges the final reviewed PR #18, then record the resulting full main SHA and complete main CI. Recheck live main before each phase; stop on advancement. Draft-head CI does not authorize deployment. |
+| Immutable frontend | Separately authorize `aws-test-hosting.yml` mode `release` on that exact main, other inputs blank; inspect shared AWS queue without approving unrelated image jobs. Require complete frontend/backend CI, release run/attempt/artifact ID/ZIP digest, `release.json`, source inventory and dependency lock, API mode, base `/`, empty API base URL (same origin), build log and PWA evidence. No local build substitutes for this artifact. Replacement artifact identifiers are pending, not invented. |
+| Backend image | Keep `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, original source `33d124fcd59ffd3f9cb30d645660bdad99a21278`, build 37584327992/attempt 1/artifact 11467134068. Recheck every shipped app/migration/dependency file against the image contract; no rebuild or provenance reassignment. |
+| Current security acceptance | Authenticate the actual owner-merged approval and exact record. Evaluate complete current findings and scan timestamp; recorded scan reaches 24 hours on **9 October 23:29:27 Singapore**. Read-only evaluation does not refresh it. If stale, stop for separate scan authorization; do not silently request one. Result must be `accepted_with_test_exception`, expiry **11 October 20:41:44 Singapore**, unchanged. Historical acceptance and runtime proof do not confer scan freshness. |
+| Private runtime | Authenticate the existing exact-image run 37721383277/attempt 1/artifact 11528371887 and pinned ZIP, receipt/state and cleanup; keep its original operator source. No runtime rerun is required or authorized. |
+| Authority and environment | Reconcile the already provisioned IAM stack/template `db07e3acdb29e4bae04f483122fc7e4a8c56c76640f5e42e72f4b6c169e180ba`, hosting OIDC role, CloudFormation service role and app boundary. Preserve `aws-test` main-only protection/reviewer and `AWS_HOSTING_ROLE_ARN`. Recheck exact permissions/readback in the later authorized operation; no provisioning replay or runtime-role expansion. |
+| AWS readiness | Obtain current capacity >=102 unreserved, retained network/RDS/secret/Cognito metadata and existing Lambda ECR pull-policy coverage for `fitfinity-test-staff-api`. This task authorizes only the three quota-preflight reads; remaining live reads belong to later execution scope. |
+| Change sets and recovery | Preserve one operation ID, exact release/operator SHA and latest completed evidence run. Review edge then app CREATE change sets separately with exact template/resource inventory/review tokens. Persist intents before writes; reconcile response loss/partial uploads without replaying uncertain writes. Failed public smoke cannot become acceptance. Rollback requires separate authorization and exact owned resources, retaining the frontend bucket and existing database/secrets/Cognito/Owner. |
+
+### Smallest implementation scope
+
+**No additional hosting implementation is currently identified as necessary for the first release.** PR #17 already supplied `hosting_operator.py`, `hosting_design.py`, `hosting_frontend.py`, `hosting_binding.py`, the dedicated authority template and protected workflow. PR #18 repairs the legitimate approval transition while preserving historical evidence and merged-owner enforcement. Reuse these owners; do not import the older Mac implementations or broaden the temporary runtime role.
+
+The next task is a bounded release/evidence operation after owner review, not a new deployer: confirm merged source and CI; obtain the replacement API artifact; reconcile permissions/capacity, fresh exact scan acceptance and retained runtime proof; then present the concrete edge change set for separate execution approval. If these gates expose a reproducible implementation defect, scope a focused fix in the existing owner with its failure regression and full final-SHA CI before any write. Subsequent-release updates and populated-database restore remain outside this first-release scope. Live hosting, password/MFA/sign-in/refresh/sign-out and recovery acceptance remain pending.
+
 ## Exact scan re-review pending — 9 October 2026 (Singapore)
 
 [Draft PR #18](https://github.com/LimYouSheng/FitfinityReact/pull/18) proposes this approval correction; it is not current image acceptance or deployment authority. The owner authorized preparation of the review after the bounded scan operation stopped on changed findings. The proposed policy retains approval ID `FITFINITY-TEST-2026-10-07-86183723`, exact image/provenance and expiry **11 October 2026, 20:41:44 Singapore**. Its timestamp is the proposal timestamp; the evaluator additionally requires LimYouSheng's actual merge of the referenced PR and exact equality with that merged record. The earlier PR #11 two-finding approval remains historical evidence; no historical receipt is rewritten. No evaluator, trust, permission, workflow or freshness rule is relaxed.
@@ -553,6 +584,7 @@ if [ "$fitfinity_account" != 418638389566 ]; then
   printf 'STOP: expected TEST account 418638389566; got %s\n' "$fitfinity_account" >&2
   exit 1
 fi
+date -u +'Read time: %Y-%m-%dT%H:%M:%SZ'
 printf 'Verified account %s; region ap-southeast-1\n' "$fitfinity_account"
 "${fitfinity_aws[@]}" service-quotas get-requested-service-quota-change \
   --request-id e57c2d28661842e593dc7f6543c0087eF7Cev008 \
