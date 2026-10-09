@@ -1,7 +1,15 @@
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Journey and Iteration History
 
-Updated 8 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+Updated 9 October 2026. This document is the chronological record: milestone evolution, verification receipts, failed candidates, repairs and the decisions that changed the roadmap. For current business rules, architecture and development constraints, read [Fitfinity Rules, Architecture and Design Philosophy](./FITFINITY_RULES_AND_ARCHITECTURE.md).
+
+## Hosting IAM completed; changed scan findings stopped continuation — 9 October 2026
+
+At main `28dec686f24ff18f6f99ec183ffd82375f4dec99`, immutable release 37743179778 was verified without rebuilding. Owner-authorized CloudShell provisioning completed the exact three-resource hosting IAM stack at 8 October 23:06:40 Singapore; all 41 responses and readbacks were reconciled. The owner saved/read back the hosting environment variable while preserving protections and automatic triggers.
+
+The single authorized scan refresh completed at 8 October 23:29:27 Singapore. Complete evidence contains only the unchanged zlib HIGH; the previously recorded gcc-14 HIGH is no longer reported. The helper stopped on the changed exact finding set, preserving its intents/STOP/ZIPs. This is successful scan collection with blocked acceptance, not a scan failure or a patched image. No repeat request or acceptance/hosting dispatch followed.
+
+The owner authorized preparation of a narrowly scoped approval correction for review. It retains the original image/provenance/expiry and requires owner merge; it does not establish current image acceptance. Any merge advances main and requires separately authorized replacement frontend release evidence to preserve same-source binding. The [AWS runbook](AWS_DEPLOYMENT_RUNBOOK.md#exact-scan-re-review-pending--9-october-2026-singapore) records actual identifiers/checksums and the next decision. Older ledger entries below retain their original historical claims.
 
 ## AWS-TEST-HOSTING-01 source recovery and canonical preparation — 8 October 2026
 

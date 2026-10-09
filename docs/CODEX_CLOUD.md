@@ -2,6 +2,8 @@
 
 Updated 7 October 2026 (Singapore). Accepted main for AWS-HOSTING-PREFLIGHT-01: `c66acf9032b9bf7b9b71fcf118f375e8bb6e9fd1`, PR #11 merged by LimYouSheng. This task uses authorized `docs/aws-test-hosting-preflight-2026-10-07`; image acceptance is verified separately from hosting/runtime acceptance. Future tasks must use their own explicitly authorized branch/checkpoint. Fresh-task runtime validation passed at `8945ca17121b3742a25aea4f16dffef190cbbf06`; normal cloud development can resume. Full CI for each new candidate, public-preview acceptance and device acceptance remain separate. [PROGRESS.md](../PROGRESS.md) owns exact receipts and blockers.
 
+**9 October continuation:** the owner redirected the obsolete PR #12 starting instruction to open draft PR #18, branch `feat/aws-test-scan-review-2026-10-09`, entry SHA `33075090a1fa601447b9b830d79e8426c4ff50c4`. PR #12 is merged/closed. The clean checkout, remote/PR head and main ancestry matched; no branch switch, worktree or setup replacement was needed. Current environment observations show no configured AWS identity, secrets or runtime variables, so quota reads require the documented authorized CloudShell fallback. Preserve retained setup; no login, installation, tunnel or environment republishing is needed for documentation preparation.
+
 ## 1. Canonical files
 
 | File | Owns |

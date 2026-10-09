@@ -1,13 +1,15 @@
 import asyncio
 import copy
+import io
 import json
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -20,6 +22,10 @@ ROOT = Path(__file__).parent
 PACKAGE = ROOT
 
 STAMP = datetime(2026, 10, 4, 15, 15, tzinfo=UTC)
+# Success fixtures run within the current review window, not before its proposal.
+REVIEW_TIME = pf.binding.timestamp(pf.binding.local_approval()["approved_at"]) + timedelta(
+    seconds=1
+)
 
 
 def valid_result(contract, nonce, action):
@@ -325,7 +331,7 @@ class RuntimeChecks(unittest.TestCase):
             candidate={},
         )
         self.addCleanup(patch.stopall)
-        patch.object(pf, "now", return_value=datetime(2026, 10, 7, 13, 0, tzinfo=UTC)).start()
+        patch.object(pf, "now", return_value=REVIEW_TIME).start()
         patch.object(pf, "collect").start()
         patch.object(pf, "image_review").start()
         patch.object(pf, "secrets_review").start()
@@ -772,7 +778,7 @@ class CloudBindingChecks(unittest.TestCase):
         approval = pf.binding.local_approval()
         for changed, stamp in [
             (approval, datetime(2026, 10, 12, tzinfo=UTC)),
-            ({**approval, "reason": "changed"}, datetime(2026, 10, 7, 13, tzinfo=UTC)),
+            ({**approval, "reason": "changed"}, REVIEW_TIME),
         ]:
             with self.assertRaises(RuntimeError):
                 pf.binding.check_approval(changed, approval["provenance"], stamp)
@@ -780,7 +786,7 @@ class CloudBindingChecks(unittest.TestCase):
     def test_wrong_provenance_refused(self):
         approval = pf.binding.local_approval()
         with self.assertRaises(RuntimeError):
-            pf.binding.check_approval(approval, {}, datetime(2026, 10, 7, 13, tzinfo=UTC))
+            pf.binding.check_approval(approval, {}, REVIEW_TIME)
 
     def test_identity_rejects_wrong_account_and_role(self):
         for account, arn in [("0", "bad"), ("418638389566", "arn:aws:iam::418638389566:root")]:
@@ -801,7 +807,7 @@ class CloudBindingChecks(unittest.TestCase):
         )
         aws = Mock(return_value={"AccountLimit": {"UnreservedConcurrentExecutions": 101}})
         with (
-            patch.object(pf, "now", return_value=datetime(2026, 10, 7, 13, tzinfo=UTC)),
+            patch.object(pf, "now", return_value=REVIEW_TIME),
             self.assertRaisesRegex(RuntimeError, "capacity"),
         ):
             pf.collect(report, aws)
@@ -829,6 +835,186 @@ class CloudBindingChecks(unittest.TestCase):
         ):
             pf.binding.restore_state(123, "a" * 32, "b" * 40)
         self.assertEqual(github.call_count, 1)
+
+
+class ApprovalTransitionChecks(unittest.TestCase):
+    def setUp(self):
+        self.binding = pf.binding
+        self.current = self.binding.local_approval()
+        self.historical = self.binding.historical_approval()
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.policy = self.root / "backend/infrastructure/image-test-approvals.json"
+        self.policy.parent.mkdir(parents=True)
+        self.policy.write_text(json.dumps({"version": 1, "approvals": [self.current]}))
+        self.image = self.binding.ExistingImage({})
+        self.image.root = self.root
+        self.merge = "c" * 40
+        self.pr = {
+            "merged": True,
+            "merged_by": {"login": "LimYouSheng"},
+            "merge_commit_sha": self.merge,
+            "base": {"ref": "main", "repo": {"full_name": self.binding.GITHUB_REPO}},
+        }
+        self.merged_policy = self.policy.read_text()
+        contract = json.loads((ROOT / "private-runtime-contract.json").read_text())
+        self.candidate = {
+            "revision": self.binding.SOURCE,
+            "source_files": {"backend/" + k: v for k, v in contract["files"].items()},
+        }
+        self.lock = "\n".join(k + "==" + v for k, v in contract["dependencies"].items())
+        self.receipt = {
+            "image_digest": self.binding.DIGEST,
+            "candidate_provenance": self.historical["provenance"],
+            "approval": self.historical,
+            "policy_revision": "d" * 40,
+        }
+        self.archive = self.pack(self.receipt)
+        self.archive_sha = self.binding.sha(self.archive)
+
+    def pack(self, receipt):
+        target = io.BytesIO()
+        with zipfile.ZipFile(target, "w") as archive:
+            archive.writestr("fitfinity-image-acceptance.json", json.dumps(receipt))
+        return target.getvalue()
+
+    def github(self, path, binary=False):
+        prefix = f"repos/{self.binding.GITHUB_REPO}"
+        if path.startswith(prefix + "/pulls/"):
+            return self.pr
+        if path.endswith("/attempts/1"):
+            return {
+                "id": self.binding.ACCEPT_RUN,
+                "run_attempt": 1,
+                "repository": {"full_name": self.binding.GITHUB_REPO},
+                "head_repository": {"full_name": self.binding.GITHUB_REPO},
+                "head_branch": "main",
+                "event": "workflow_dispatch",
+                "path": ".github/workflows/aws-image-accept.yml",
+                "head_sha": "d" * 40,
+                "conclusion": "success",
+                "status": "completed",
+            }
+        if path.endswith("/zip"):
+            self.assertTrue(binary)
+            return self.archive
+        if path.endswith(str(self.binding.ACCEPT_ARTIFACT)):
+            return {
+                "id": self.binding.ACCEPT_ARTIFACT,
+                "expired": False,
+                "name": f"fitfinity-image-acceptance-{self.binding.ACCEPT_RUN}-1",
+                "workflow_run": {"id": self.binding.ACCEPT_RUN, "head_sha": "d" * 40},
+                "digest": "sha256:" + self.archive_sha,
+            }
+        raise AssertionError(path)
+
+    def command(self, args):
+        if args == ["git", "merge-base", "--is-ancestor", self.merge, "HEAD"]:
+            return ""
+        if args == [
+            "git",
+            "show",
+            self.merge + ":backend/infrastructure/image-test-approvals.json",
+        ]:
+            return self.merged_policy
+        if args == ["git", "show", self.binding.SOURCE + ":backend/requirements.lock"]:
+            return self.lock
+        raise AssertionError(args)
+
+    def collect(self):
+        report = {}
+        with (
+            patch.object(self.binding, "verify_main"),
+            patch.object(self.binding, "ACCEPT_SHA", self.archive_sha),
+            patch.object(self.binding, "ExistingImage", return_value=self.image),
+            patch.object(self.image, "github", side_effect=self.github),
+            patch.object(self.image, "command", side_effect=self.command),
+            patch.object(
+                self.image,
+                "trusted_candidate",
+                return_value=(
+                    self.candidate,
+                    self.historical["provenance"],
+                ),
+            ),
+        ):
+            self.binding.collect_binding(report)
+        return report
+
+    def test_current_review_and_historical_acceptance_remain_distinct(self):
+        report = self.collect()
+        self.assertNotEqual(self.current, self.historical)
+        self.assertEqual(report["approval"], self.current)
+        self.assertEqual(report["historical_acceptance_approval"], self.historical)
+        self.assertEqual(report["acceptance_run"], self.binding.ACCEPT_RUN)
+        self.binding.check_approval(self.current, self.current["provenance"], REVIEW_TIME)
+
+    def test_historical_policy_checksum_is_preserved_and_enforced(self):
+        self.assertEqual(
+            self.binding.POLICY_SHA,
+            "054c6f32f5ba8541d4c389da8fdabc85f6e9c0720a8f53924044da7531c42991",
+        )
+        with patch.object(Path, "read_bytes", return_value=b"{}"):
+            with self.assertRaisesRegex(RuntimeError, "policy changed"):
+                self.binding.historical_approval()
+
+    def test_unmerged_or_other_owner_review_stops_before_acceptance_download(self):
+        for key, value in [("merged", False), ("merged_by", {"login": "other"})]:
+            with (
+                patch.dict(self.pr, {key: value}),
+                self.assertRaisesRegex(RuntimeError, "authorized reviewer"),
+            ):
+                self.collect()
+
+    def test_tampered_current_policy_differs_from_owner_merged_record(self):
+        changed = copy.deepcopy(self.current)
+        changed["findings"] = []
+        self.policy.write_text(json.dumps({"version": 1, "approvals": [changed]}))
+        with self.assertRaisesRegex(RuntimeError, "differs from the user-merged review"):
+            self.collect()
+
+    def test_current_approval_cannot_replace_historical_receipt_approval(self):
+        self.receipt["approval"] = self.current
+        self.archive = self.pack(self.receipt)
+        self.archive_sha = self.binding.sha(self.archive)
+        with self.assertRaisesRegex(RuntimeError, "receipt binding differs"):
+            self.collect()
+
+    def test_tampered_historical_archive_fails_its_pinned_checksum(self):
+        self.archive += b"tampered"
+        with self.assertRaisesRegex(RuntimeError, "ZIP checksum differs"):
+            self.collect()
+
+    def test_exception_scope_or_expiry_cannot_be_extended_by_new_review(self):
+        for key, value in [
+            ("expires_at", "2026-10-12T20:41:44+08:00"),
+            ("image_digest", "sha256:" + "0" * 64),
+            ("provenance", {}),
+        ]:
+            changed = {**self.current, key: value}
+            with (
+                patch.object(
+                    Path,
+                    "read_text",
+                    return_value=json.dumps(
+                        {
+                            "version": 1,
+                            "approvals": [changed],
+                        }
+                    ),
+                ),
+                self.assertRaisesRegex(RuntimeError, "scope or exception expiry"),
+            ):
+                self.binding.local_approval()
+
+    def test_current_review_time_boundaries_remain_enforced(self):
+        start = self.binding.timestamp(self.current["approved_at"])
+        end = self.binding.timestamp(self.current["expires_at"])
+        for when in [start - timedelta(seconds=1), end]:
+            with self.assertRaisesRegex(RuntimeError, "expired or future"):
+                self.binding.check_approval(self.current, self.current["provenance"], when)
+        self.binding.check_approval(self.current, self.current["provenance"], start)
 
 
 class RuntimePolicyChecks(unittest.TestCase):
