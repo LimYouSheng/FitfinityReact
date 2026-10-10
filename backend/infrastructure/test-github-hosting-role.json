@@ -364,6 +364,17 @@
                       "aws:RequestTag/Purpose": "first-login-v1"
                     }
                   }
+                },
+                {
+                  "Sid": "CreateWebAclReferencedManagedRules",
+                  "Effect": "Allow",
+                  "Action": [
+                    "wafv2:CreateWebACL"
+                  ],
+                  "Resource": [
+                    "arn:aws:wafv2:us-east-1:418638389566:global/managedruleset/*/*",
+                    "arn:aws:wafv2:ap-southeast-1:418638389566:regional/managedruleset/*/*"
+                  ]
                 }
               ]
             }

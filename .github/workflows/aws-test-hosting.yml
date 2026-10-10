@@ -5,7 +5,7 @@ on:
     inputs:
       mode:
         type: choice
-        options: [plan, release, prepare, execute, verify, rollback]
+        options: [plan, release, prepare, execute, verify, rollback, recover-review, recover-delete, recover-prepare]
         default: plan
         required: true
       operation_id:

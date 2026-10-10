@@ -230,8 +230,23 @@ class HostingAWS:
                 "execute-change-set": "execute",
                 "delete-stack": "rollback",
             }
+            recovery_mode = {
+                "create-change-set": "recover-prepare",
+                "delete-stack": "recover-delete",
+            }.get(operation)
             require(
-                self.state.get("mode") == modes[operation], "Write outside selected hosting phase"
+                self.state.get("mode") == modes[operation]
+                or (
+                    recovery_mode
+                    and self.state.get("mode") == recovery_mode
+                    and key == "edge"
+                    and self.state.get("failed_edge_recovery", {}).get("reviewed")
+                    and (
+                        operation != "create-change-set"
+                        or self.state["failed_edge_recovery"].get("deleted")
+                    )
+                ),
+                "Write outside selected hosting phase",
             )
             if operation == "create-change-set":
                 require(
@@ -311,6 +326,149 @@ class Operator:
             "OperationId": self.state["operation_id"],
             "TemplateSHA256": self.state["stacks"][key]["template_sha256"],
         }
+
+    def failed_edge_shell(self):
+        recovery = self.state["failed_edge_recovery"]
+        original = recovery["original_checkpoint"]["stacks"]["edge"]
+        row = self.state["stacks"]["edge"]
+        require(
+            set(self.state["stacks"]) == {"edge"}
+            and row.get("stack_id") == original["stack_id"]
+            and row.get("execute_intent") == original["execute_intent"],
+            "Failed-edge identity/history differs",
+        )
+        remote = self.stack("edge")
+        require(
+            remote and remote["StackStatus"] == "ROLLBACK_COMPLETE",
+            "Failed edge must be ROLLBACK_COMPLETE before deletion review",
+        )
+        self.check_template("edge")
+        resources = self.aws(
+            "cloudformation",
+            "list-stack-resources",
+            "--stack-name",
+            row["stack_id"],
+            region=design.EDGE_REGION,
+        )["StackResourceSummaries"]
+        require(
+            len(resources) == 1
+            and resources[0].get("LogicalResourceId") == "EdgeAcl"
+            and resources[0].get("ResourceType") == "AWS::WAFv2::WebACL"
+            and resources[0].get("ResourceStatus") == "DELETE_COMPLETE"
+            and not resources[0].get("PhysicalResourceId"),
+            "Failed edge has surviving, ambiguous or unexpected resources",
+        )
+        return row
+
+    def recover_failed_edge(self):
+        recovery = self.state["failed_edge_recovery"]
+        mode = self.state["mode"]
+        token = digest(
+            {
+                "source": self.state["operator_commit"],
+                "original": recovery["original_checkpoint"],
+                "release": recovery["replacement_release"],
+                "action": "delete-empty-failed-edge-and-prepare-replacement",
+            }
+        )
+        if mode == "recover-review":
+            self.failed_edge_shell()
+            recovery.update(reviewed=True, deletion_review_token=token)
+            self.save()
+            self.report.update(status="failed_edge_deletion_review_required", review_token=token)
+            return
+        require(
+            recovery.get("reviewed") is True
+            and recovery.get("deletion_review_token") == token
+            and self.state.get("review_token") == token,
+            "Exact failed-edge recovery review required",
+        )
+        row = self.state["stacks"]["edge"]
+        if mode == "recover-delete":
+            require(
+                not recovery.get("replacement_started"), "Replacement cannot use shell deletion"
+            )
+            if not row.get("delete_intent"):
+                self.failed_edge_shell()
+                pf.evidence(self.report, pf.now())
+                args = [
+                    "--stack-name",
+                    row["stack_id"],
+                    "--client-request-token",
+                    self.state["operation_id"] + "-failed-edge-delete",
+                ]
+                row["delete_intent"] = {
+                    "arguments_sha256": digest(args),
+                    "at": pf.now().isoformat(),
+                }
+                self.state["cleanup_authorized"] = True
+                self.save()
+                self.aws("cloudformation", "delete-stack", *args, region=design.EDGE_REGION)
+                row["delete_response_received"] = True
+                self.save()
+            # Read after acknowledgement or response loss; never reissue the write.
+            remote = self.stack("edge")
+            if remote:
+                require(
+                    remote["StackStatus"] in {"DELETE_IN_PROGRESS", "DELETE_COMPLETE"},
+                    "Deletion uncertain or failed; do not replay",
+                )
+                if remote["StackStatus"] == "DELETE_IN_PROGRESS":
+                    self.report["status"] = "failed_edge_deletion_pending"
+                    return
+            recovery["deleted"] = True
+            recovery["deleted_checkpoint"] = deepcopy(row)
+            self.save()
+            self.report["status"] = "failed_edge_deleted_prepare_replacement"
+            return
+        require(
+            mode == "recover-prepare" and recovery.get("deleted") is True,
+            "Replacement requires reconciled deletion",
+        )
+        old = recovery["deleted_checkpoint"]
+        previous = self.aws(
+            "cloudformation",
+            "describe-stacks",
+            "--stack-name",
+            old["stack_id"],
+            region=design.EDGE_REGION,
+            absent=True,
+        )
+        require(
+            previous is None
+            or (
+                len(previous.get("Stacks", [])) == 1
+                and previous["Stacks"][0].get("StackId") == old["stack_id"]
+                and previous["Stacks"][0].get("StackStatus") == "DELETE_COMPLETE"
+            ),
+            "Original failed stack deletion not confirmed",
+        )
+        if not recovery.get("replacement_started"):
+            recovery["replacement_started"] = True
+            self.state["cleanup_authorized"] = False
+            self.state["stacks"]["edge"] = {
+                "template_sha256": old["template_sha256"],
+                "change_set_name": "first-login-" + self.state["operation_id"] + "-recovery-1",
+                "client_token": self.state["operation_id"] + "-edge-recovery-1",
+            }
+            self.save()
+        replacement = self.state["stacks"]["edge"]
+        require(
+            not replacement.get("create_intent")
+            or replacement.get("create_response_received") is True,
+            "Replacement creation response uncertain; preserve evidence for review",
+        )
+        self.create("edge", design.edge_template())
+        require(
+            self.report.get("status") == "change_set_review_required",
+            "Replacement must stop before execution",
+        )
+        require(
+            self.state["stacks"]["edge"]["stack_id"] != old["stack_id"],
+            "Replacement reused deleted stack identity",
+        )
+        recovery["replacement_prepared"] = True
+        self.save()
 
     def stack(self, key):
         row = self.state["stacks"][key]
@@ -471,7 +629,7 @@ class Operator:
                 "--change-set-type",
                 "CREATE",
                 "--client-token",
-                self.state["operation_id"] + "-" + key,
+                row.get("client_token", self.state["operation_id"] + "-" + key),
                 "--role-arn",
                 "arn:aws:iam::418638389566:role/fitfinity-test-hosting-cloudformation",
                 "--template-body",
@@ -558,7 +716,7 @@ class Operator:
             row["review_token"] = token
             row["reviewed_changes"] = changes
             self.save()
-            if self.state.get("mode") == "prepare":
+            if self.state.get("mode") in {"prepare", "recover-prepare"}:
                 self.report.update(
                     status="change_set_review_required", review_token=token, review_stack=key
                 )
@@ -1238,7 +1396,18 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser(description="Persistent TEST hosting; first release only")
     parser.add_argument(
-        "--mode", choices=["plan", "prepare", "execute", "verify", "rollback"], default="plan"
+        "--mode",
+        choices=[
+            "plan",
+            "prepare",
+            "execute",
+            "verify",
+            "rollback",
+            "recover-review",
+            "recover-delete",
+            "recover-prepare",
+        ],
+        default="plan",
     )
     parser.add_argument("--operation-id", required=True)
     parser.add_argument("--directory", type=Path, required=True)
@@ -1259,6 +1428,21 @@ def main(argv=None):
     state = {}
     previous = signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     try:
+        recovery_mode = args.mode.startswith("recover-")
+        require(
+            not recovery_mode
+            or (
+                args.resume_run
+                and args.release_run
+                and not args.source_transition
+                and (
+                    not args.review_token
+                    if args.mode == "recover-review"
+                    else re.fullmatch(r"[a-f0-9]{64}", args.review_token)
+                )
+            ),
+            "Recovery needs pinned evidence/release and phase-specific review token",
+        )
         require(
             not args.source_transition
             or (args.mode == "prepare" and args.resume_run and not args.review_token),
@@ -1295,8 +1479,24 @@ def main(argv=None):
             "image_digest": pf.binding.DIGEST,
         }
         if args.resume_run:
-            restore = binding.restore_transition if args.source_transition else binding.restore
+            restore = (
+                binding.restore_failed_edge
+                if args.mode == "recover-review"
+                else binding.restore_transition
+                if args.source_transition
+                else binding.restore
+            )
             state, report["recovery_artifact"] = restore(args.resume_run, args.operation_id, source)
+        require(
+            not recovery_mode or state.get("failed_edge_recovery"),
+            "Missing reviewed failed-edge recovery",
+        )
+        require(
+            not state.get("failed_edge_recovery")
+            or recovery_mode
+            or state["failed_edge_recovery"].get("replacement_prepared") is True,
+            "Failed-edge recovery must finish before ordinary hosting phases",
+        )
         require(
             args.mode not in {"execute", "verify", "rollback"} or args.resume_run,
             "Authenticated recovery state required",
@@ -1305,7 +1505,7 @@ def main(argv=None):
         state.update(
             mode=args.mode,
             review_token=args.review_token,
-            execution_authorized=not args.source_transition,
+            execution_authorized=not args.source_transition and args.mode != "recover-review",
         )
         op = Operator(directory, state, report)
         op.save()
@@ -1315,7 +1515,7 @@ def main(argv=None):
             return 0
         require(args.release_run and args.release_run > 0, "Verified release run required")
         new_release = binding.release(args.release_run, source, directory / "frontend")
-        if state.get("frontend") and not args.source_transition:
+        if state.get("frontend") and not args.source_transition and args.mode != "recover-review":
             require(
                 {k: v for k, v in state["frontend"].items() if k != "directory"}
                 == {k: v for k, v in new_release.items() if k != "directory"},
@@ -1326,6 +1526,10 @@ def main(argv=None):
             state["source_transition"]["replacement_release"] = {
                 k: v for k, v in new_release.items() if k != "directory"
             }
+        if args.mode == "recover-review":
+            state["failed_edge_recovery"]["replacement_release"] = {
+                k: v for k, v in new_release.items() if k != "directory"
+            }
         op.save()
         pf.binding.collect_binding(report)
         binding.runtime_proof(report)
@@ -1333,6 +1537,9 @@ def main(argv=None):
         RuntimeOperator.verify_ecr_pull_policy(
             SimpleNamespace(aws=op.aws, report=report), names=[design.FUNCTION]
         )
+        if recovery_mode:
+            op.recover_failed_edge()
+            return 0
         if args.source_transition:
             remote = op.stack("edge")
             require(

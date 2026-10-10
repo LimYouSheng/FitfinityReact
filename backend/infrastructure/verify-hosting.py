@@ -1918,5 +1918,414 @@ class SourceTransitionTests(unittest.TestCase):
                     self.assertEqual(receipt["checkpoint"]["frontend"], release)
 
 
+class FailedEdgeRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = {
+            "operation_id": o.binding.TRANSITION_OPERATION,
+            "mode": "prepare",
+            "operator_commit": o.binding.FAILED_SOURCE,
+            "image_digest": o.binding.runtime.DIGEST,
+            "source_transition": {"reconciled": True},
+            "frontend": {"artifact": "old"},
+        }
+        self.report = {}
+        self.op = o.Operator(Path(self.tmp.name), self.state, self.report)
+        self.aws = CloudFormationFixture(self.op, d.edge_template())
+        self.op.aws = self.aws
+        self.enterContext(patch.object(o.pf, "evidence"))
+        self.op.create("edge", d.edge_template())
+        self.state.update(mode="execute", review_token=self.report["review_token"])
+        self.op.create("edge", d.edge_template())
+        self.state["stacks"]["edge"].pop("complete", None)
+        self.state["stacks"]["edge"].pop("outputs", None)
+        self.original = deepcopy(self.state)
+        self.raw = json.dumps(self.original).encode()
+        self.files = {
+            "hosting/state.json": self.raw,
+            "hosting/receipt.json": json.dumps(
+                {
+                    "checkpoint": self.original,
+                    "status": "stopped",
+                    "cloudformation_failure": {"status": "ROLLBACK_IN_PROGRESS"},
+                }
+            ).encode(),
+        }
+        self.source = "d" * 40
+        self.pr = {
+            "merged": True,
+            "merged_by": {"login": "LimYouSheng"},
+            "merge_commit_sha": self.source,
+            "base": {"ref": "main", "repo": {"full_name": o.binding.GITHUB_REPO}},
+            "head": {"repo": {"full_name": o.binding.GITHUB_REPO}},
+        }
+        self.enterContext(patch.object(o.binding.ExistingImage, "github", return_value=self.pr))
+        self.artifact = self.enterContext(
+            patch.object(o.binding, "artifact", return_value=(self.files, {}))
+        )
+        self.enterContext(patch.object(o.binding, "FAILED_STATE_SHA", o.binding.sha(self.raw)))
+        state, _ = self.restore()
+        self.state.clear()
+        self.state.update(state)
+        self.state["failed_edge_recovery"]["replacement_release"] = {"artifact": "new"}
+        self.aws.remote["StackStatus"] = "ROLLBACK_COMPLETE"
+        self.resources = [
+            {
+                "LogicalResourceId": "EdgeAcl",
+                "ResourceType": "AWS::WAFv2::WebACL",
+                "ResourceStatus": "DELETE_COMPLETE",
+            }
+        ]
+        self.deleted = None
+        self.lose_delete = False
+        self.delete_wait = False
+        self.aws.calls.clear()
+        self.op.aws = self.provider
+
+    def restore(self):
+        return o.binding.restore_failed_edge(
+            o.binding.FAILED_RUN, o.binding.TRANSITION_OPERATION, self.source
+        )
+
+    def provider(self, service, operation, *args, **kwargs):
+        if (
+            operation == "list-stack-resources"
+            and self.aws.remote["StackStatus"] == "ROLLBACK_COMPLETE"
+        ):
+            self.aws.calls.append((service, operation))
+            return {"StackResourceSummaries": deepcopy(self.resources)}
+        if operation == "delete-stack":
+            self.aws.calls.append((service, operation))
+            if self.lose_delete:
+                raise RuntimeError("Lost delete response")
+            self.aws.remote["StackStatus"] = (
+                "DELETE_IN_PROGRESS" if self.delete_wait else "DELETE_COMPLETE"
+            )
+            self.deleted = deepcopy(self.aws.remote)
+            return {}
+        if operation == "describe-stacks":
+            name = o.flag(args, "--stack-name")
+            if self.deleted and name == self.deleted["StackId"]:
+                return {"Stacks": [deepcopy(self.deleted)]}
+            if name == d.STACKS["edge"][0] and self.aws.remote["StackStatus"] == "DELETE_COMPLETE":
+                return None
+        return self.aws(service, operation, *args, **kwargs)
+
+    def phase(self, mode):
+        self.state["mode"] = mode
+        if mode != "recover-review":
+            self.state["review_token"] = self.state["failed_edge_recovery"].get(
+                "deletion_review_token", ""
+            )
+        self.op.recover_failed_edge()
+
+    def reviewed(self):
+        self.phase("recover-review")
+
+    def deleted_shell(self):
+        self.reviewed()
+        self.phase("recover-delete")
+
+    def test_binding_preserves_complete_history_and_exact_artifact_pins(self):
+        self.assertEqual(self.state["failed_edge_recovery"]["original_checkpoint"], self.original)
+        self.assertFalse(self.state["execution_authorized"])
+        self.assertEqual(self.artifact.call_args.kwargs["artifact_id"], o.binding.FAILED_ARTIFACT)
+        self.assertEqual(self.artifact.call_args.kwargs["checksum"], o.binding.FAILED_ZIP_SHA)
+
+    def test_binding_rejects_unmerged_foreign_or_advanced_review(self):
+        for change in (
+            {"merged": False},
+            {"merged_by": {"login": "other"}},
+            {"merge_commit_sha": "e" * 40},
+            {"head": {"repo": {"full_name": "foreign/repo"}}},
+        ):
+            with self.subTest(change=change):
+                before = deepcopy(self.pr)
+                self.pr.update(change)
+                with self.assertRaises(RuntimeError):
+                    self.restore()
+                self.pr.clear()
+                self.pr.update(before)
+
+    def test_binding_rejects_wrong_run_tampered_bytes_or_receipt(self):
+        with self.assertRaises(RuntimeError):
+            o.binding.restore_failed_edge(1, o.binding.TRANSITION_OPERATION, self.source)
+        self.files["hosting/state.json"] = self.raw + b" "
+        with self.assertRaises(RuntimeError):
+            self.restore()
+        self.files["hosting/state.json"] = self.raw
+        self.files["hosting/receipt.json"] = b"{}"
+        with self.assertRaises(RuntimeError):
+            self.restore()
+
+    def test_review_reads_only_and_preserves_original_intents(self):
+        self.reviewed()
+        self.assertEqual(self.report["status"], "failed_edge_deletion_review_required")
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
+        self.assertEqual(self.state["failed_edge_recovery"]["original_checkpoint"], self.original)
+
+    def test_review_rejects_incomplete_rollback_or_live_stack(self):
+        for status in ["ROLLBACK_IN_PROGRESS", "ROLLBACK_FAILED", "CREATE_COMPLETE"]:
+            self.aws.remote["StackStatus"] = status
+            with self.subTest(status=status), self.assertRaises(RuntimeError):
+                self.reviewed()
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
+
+    def test_review_rejects_foreign_role_tags_and_identity(self):
+        for key, value in [
+            ("RoleARN", "foreign"),
+            ("Tags", []),
+            ("StackId", self.aws.stack_id + "x"),
+        ]:
+            old = deepcopy(self.aws.remote[key])
+            self.aws.remote[key] = value
+            with self.subTest(key=key), self.assertRaises(RuntimeError):
+                self.reviewed()
+            self.aws.remote[key] = old
+
+    def test_review_rejects_survivors_physical_ids_and_unknown_resources(self):
+        original = deepcopy(self.resources)
+        for change in [
+            {"PhysicalResourceId": EDGE},
+            {"ResourceStatus": "DELETE_FAILED"},
+            {"LogicalResourceId": "Other"},
+        ]:
+            self.resources[0].update(change)
+            with self.subTest(change=change), self.assertRaises(RuntimeError):
+                self.reviewed()
+            self.resources = deepcopy(original)
+        self.resources.append(deepcopy(original[0]))
+        with self.assertRaises(RuntimeError):
+            self.reviewed()
+
+    def test_review_rejects_template_drift(self):
+        self.aws.template = {"Resources": {}}
+        with self.assertRaises(RuntimeError):
+            self.reviewed()
+
+    def test_delete_requires_exact_review_and_release(self):
+        self.reviewed()
+        self.state["mode"] = "recover-delete"
+        self.state["review_token"] = "0" * 64
+        with self.assertRaises(RuntimeError):
+            self.op.recover_failed_edge()
+        self.state["review_token"] = self.report["review_token"]
+        self.state["failed_edge_recovery"]["replacement_release"] = {"artifact": "foreign"}
+        with self.assertRaises(RuntimeError):
+            self.op.recover_failed_edge()
+        self.assertFalse(set(self.aws.calls) & o.WRITES)
+
+    def test_delete_acknowledges_and_archives_without_recreation(self):
+        self.deleted_shell()
+        self.assertEqual(self.report["status"], "failed_edge_deleted_prepare_replacement")
+        self.assertTrue(
+            self.state["failed_edge_recovery"]["deleted_checkpoint"]["delete_response_received"]
+        )
+        self.assertEqual(
+            [c for c in self.aws.calls if c in o.WRITES], [("cloudformation", "delete-stack")]
+        )
+        self.phase("recover-delete")
+        self.assertEqual(self.aws.calls.count(("cloudformation", "delete-stack")), 1)
+
+    def test_lost_delete_response_never_replays_and_can_reconcile_absence(self):
+        self.reviewed()
+        self.lose_delete = True
+        with self.assertRaisesRegex(RuntimeError, "Lost delete"):
+            self.phase("recover-delete")
+        with self.assertRaisesRegex(RuntimeError, "uncertain"):
+            self.phase("recover-delete")
+        self.deleted = deepcopy(self.aws.remote)
+        self.deleted["StackStatus"] = "DELETE_COMPLETE"
+        self.phase("recover-delete")
+        self.assertTrue(self.state["failed_edge_recovery"]["deleted"])
+        self.assertEqual(self.aws.calls.count(("cloudformation", "delete-stack")), 1)
+
+    def test_pending_deletion_never_allows_creation(self):
+        self.reviewed()
+        self.delete_wait = True
+        self.phase("recover-delete")
+        self.assertEqual(self.report["status"], "failed_edge_deletion_pending")
+        with self.assertRaises(RuntimeError):
+            self.phase("recover-prepare")
+        self.assertNotIn(("cloudformation", "create-change-set"), self.aws.calls)
+
+    def test_replacement_preserves_history_and_stops_at_new_review(self):
+        self.deleted_shell()
+        old = deepcopy(self.state["stacks"]["edge"])
+        self.aws.stack_id = self.aws.stack_id.replace("11111111", "22222222")
+        self.phase("recover-prepare")
+        edge = self.state["stacks"]["edge"]
+        self.assertNotEqual(edge["stack_id"], old["stack_id"])
+        self.assertNotEqual(edge["review_token"], old["review_token"])
+        self.assertEqual(self.state["failed_edge_recovery"]["deleted_checkpoint"], old)
+        self.assertTrue(self.state["failed_edge_recovery"]["replacement_prepared"])
+        self.assertNotIn(("cloudformation", "execute-change-set"), self.aws.calls)
+        self.assertTrue(edge["client_token"].endswith("-edge-recovery-1"))
+
+    def test_uncertain_replacement_creation_is_not_replayed(self):
+        self.deleted_shell()
+        self.aws.lose_create = True
+        self.aws.placeholder = True
+        self.aws.stack_id = self.aws.stack_id.replace("11111111", "22222222")
+        with self.assertRaisesRegex(RuntimeError, "Lost create"):
+            self.phase("recover-prepare")
+        for placeholder in [False, True]:
+            self.aws.remote["Tags"] = (
+                []
+                if placeholder
+                else [{"Key": k, "Value": v} for k, v in self.op.tags("edge").items()]
+            )
+            with (
+                self.subTest(placeholder=placeholder),
+                self.assertRaisesRegex(RuntimeError, "uncertain"),
+            ):
+                self.phase("recover-prepare")
+        self.assertEqual(self.aws.calls.count(("cloudformation", "create-change-set")), 1)
+
+    def test_foreign_replacement_stack_is_not_adopted(self):
+        self.deleted_shell()
+        self.aws.remote = deepcopy(self.deleted)
+        self.aws.remote["StackStatus"] = "CREATE_COMPLETE"
+        self.aws.remote["StackId"] = self.aws.stack_id.replace("11111111", "33333333")
+        with self.assertRaises(RuntimeError):
+            self.phase("recover-prepare")
+        self.assertNotIn(("cloudformation", "create-change-set"), self.aws.calls)
+
+    def test_recovery_flags_rejected_before_network(self):
+        for mode in ["recover-review", "recover-delete", "recover-prepare"]:
+            with (
+                tempfile.TemporaryDirectory() as tmp,
+                patch.object(o.pf.binding, "actions_environment") as env,
+            ):
+                result = o.main(
+                    [
+                        "--mode",
+                        mode,
+                        "--operation-id",
+                        "a" * 32,
+                        "--directory",
+                        str(Path(tmp) / "evidence"),
+                    ]
+                )
+                self.assertEqual(result, 1)
+                env.assert_not_called()
+
+    def test_managed_rules_permission_has_exact_scope_and_no_other_actions(self):
+        from fnmatch import fnmatchcase
+
+        t = json.loads((o.ROOT / "test-github-hosting-role.json").read_text())
+        rows = t["Resources"]["CloudFormationRole"]["Properties"]["Policies"][0]["PolicyDocument"][
+            "Statement"
+        ]
+        added = [r for r in rows if r.get("Sid") == "CreateWebAclReferencedManagedRules"]
+        self.assertEqual(len(added), 1)
+        self.assertEqual(added[0]["Action"], ["wafv2:CreateWebACL"])
+        expected = [
+            "arn:aws:wafv2:us-east-1:418638389566:global/managedruleset/*/*",
+            "arn:aws:wafv2:ap-southeast-1:418638389566:regional/managedruleset/*/*",
+        ]
+        self.assertEqual(added[0]["Resource"], expected)
+        for resource in expected:
+            self.assertTrue(any(fnmatchcase(resource, r) for r in added[0]["Resource"]))
+            for bad in [
+                resource.replace("418638389566", "000000000000"),
+                resource.replace("managedruleset", "webacl"),
+                resource.replace("us-east-1", "us-west-2").replace("ap-southeast-1", "us-west-2"),
+            ]:
+                self.assertFalse(any(fnmatchcase(bad, r) for r in added[0]["Resource"]))
+
+    def test_recovery_entry_point_uses_read_only_binding_and_stops_on_survivors(self):
+        from contextlib import ExitStack
+
+        release = {"artifact": {"run_id": 123}, "prefix": "new", "manifest": {}}
+        for survives in [False, True]:
+            with (
+                self.subTest(survives=survives),
+                tempfile.TemporaryDirectory() as tmp,
+                ExitStack() as mocks,
+            ):
+                if survives:
+                    self.resources[0]["PhysicalResourceId"] = EDGE
+                self.state["failed_edge_recovery"].pop("reviewed", None)
+                for target in [
+                    "hosting_operator.pf.binding.actions_environment",
+                    "hosting_operator.pf.binding.collect_binding",
+                    "hosting_operator.binding.runtime_proof",
+                    "hosting_operator.pf.collect",
+                    "private_runtime.RuntimeOperator.verify_ecr_pull_policy",
+                ]:
+                    mocks.enter_context(patch(target))
+                mocks.enter_context(
+                    patch.object(
+                        o.pf.binding,
+                        "verify_main",
+                        side_effect=lambda report: report.update(operator_commit=self.source),
+                    )
+                )
+                restore = mocks.enter_context(
+                    patch.object(o.binding, "restore_failed_edge", return_value=(self.state, {}))
+                )
+                mocks.enter_context(patch.object(o.binding, "release", return_value=release))
+                mocks.enter_context(
+                    patch.object(
+                        o.binding.EvidenceAWS, "environment", return_value="verified-identity"
+                    )
+                )
+
+                def operator(directory, state, report):
+                    self.op.directory, self.op.state, self.op.report = directory, state, report
+                    return self.op
+
+                mocks.enter_context(patch.object(o, "Operator", side_effect=operator))
+                directory = Path(tmp) / "receipt"
+                result = o.main(
+                    [
+                        "--mode",
+                        "recover-review",
+                        "--operation-id",
+                        self.state["operation_id"],
+                        "--directory",
+                        str(directory),
+                        "--resume-run",
+                        str(o.binding.FAILED_RUN),
+                        "--release-run",
+                        "123",
+                    ]
+                )
+                self.assertEqual(result, 1 if survives else 0)
+                restore.assert_called_once_with(
+                    o.binding.FAILED_RUN, self.state["operation_id"], self.source
+                )
+                receipt = json.loads((directory / "receipt.json").read_text())
+                self.assertEqual(receipt["cloud_writes"], [])
+                self.assertFalse(receipt["checkpoint"]["execution_authorized"])
+                self.assertEqual(
+                    receipt["status"],
+                    "stopped" if survives else "failed_edge_deletion_review_required",
+                )
+
+    def test_recovery_write_guard_does_not_authorize_other_phases_or_stacks(self):
+        self.deleted_shell()
+        row = self.state["stacks"]["edge"]
+        args = [
+            "--stack-name",
+            row["stack_id"],
+            "--client-request-token",
+            self.state["operation_id"] + "-failed-edge-delete",
+        ]
+        aws = o.HostingAWS(self.report, self.state, self.op.save)
+        aws.guard_write("cloudformation", "delete-stack", args, d.EDGE_REGION)
+        for mode in ["recover-review", "recover-prepare", "execute"]:
+            self.state["mode"] = mode
+            with self.subTest(mode=mode), self.assertRaises(RuntimeError):
+                aws.guard_write("cloudformation", "delete-stack", args, d.EDGE_REGION)
+        self.state["mode"] = "recover-delete"
+        with self.assertRaises(RuntimeError):
+            aws.guard_write(
+                "cloudformation", "delete-stack", ["--stack-name", "foreign"], d.EDGE_REGION
+            )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -26,6 +26,12 @@ TRANSITION_SOURCE = "b63fa5ef16904359a429e9048345b8ad13bea2be"
 TRANSITION_ARTIFACT = 11600513161
 TRANSITION_ZIP_SHA = "a384b8b2d8989ac269a4023786ad9c307d78a94b7ee890cfb5dad8477431ec90"
 TRANSITION_STATE_SHA = "6d1ccd4dad76e9683bd5c4d93cfa12e82c360c7ec3d6684a815c796b7dc46014"
+FAILED_REVIEW_PR = 20
+FAILED_RUN = 37946314992
+FAILED_SOURCE = "a57a54609f4a4b8ca875534636f78e30aa36ac05"
+FAILED_ARTIFACT = 11626367274
+FAILED_ZIP_SHA = "cf3accdda2f21d8dcf6314a409ad32b993fc99d5afea215755ba9afdd06bacc5"
+FAILED_STATE_SHA = "a86308eb6c55ed4571b5cd125d105308148e5dbe467404209b9141043dd03d1a"
 
 
 class EvidenceAWS(preflight.EvidenceAWS):
@@ -208,6 +214,10 @@ def restore(run_id, operation, source):
         and state.get("operator_revision") == "2026-10-08-test-hosting-1"
         and state.get("image_digest") == runtime.DIGEST
         and (
+            not state.get("failed_edge_recovery")
+            or state["failed_edge_recovery"].get("reviewed") is True
+        )
+        and (
             not state.get("source_transition")
             or state["source_transition"].get("reconciled") is True
         ),
@@ -274,6 +284,68 @@ def restore_transition(run_id, operation, source):
             "to_source": source,
             "artifact": origin,
             "state_sha256": sha(raw),
+            "original_checkpoint": original,
+        },
+    )
+    return state, origin
+
+
+def restore_failed_edge(run_id, operation, source):
+    """One owner-reviewed recovery of the acknowledged failed edge execution."""
+    require(
+        run_id == FAILED_RUN and operation == TRANSITION_OPERATION,
+        "Unreviewed failed-edge operation/run",
+    )
+    pr = ExistingImage({}).github(f"repos/{GITHUB_REPO}/pulls/{FAILED_REVIEW_PR}")
+    require(
+        pr.get("merged") is True
+        and pr.get("merged_by", {}).get("login") == "LimYouSheng"
+        and pr.get("base", {}).get("ref") == "main"
+        and pr.get("base", {}).get("repo", {}).get("full_name") == GITHUB_REPO
+        and pr.get("head", {}).get("repo", {}).get("full_name") == GITHUB_REPO
+        and pr.get("merge_commit_sha") == source
+        and re.fullmatch(r"[0-9a-f]{40}", source)
+        and source != FAILED_SOURCE,
+        "Failed-edge recovery requires exact owner-merged repair main",
+    )
+    files, origin = artifact(
+        run_id,
+        "fitfinity-hosting-" + operation + "-{run}-{attempt}",
+        FAILED_SOURCE,
+        success=False,
+        artifact_id=FAILED_ARTIFACT,
+        checksum=FAILED_ZIP_SHA,
+    )
+    raw = files["hosting/state.json"]
+    require(sha(raw) == FAILED_STATE_SHA, "Failed-edge checkpoint bytes differ")
+    state = json.loads(raw)
+    receipt = json.loads(files["hosting/receipt.json"])
+    edge = state.get("stacks", {}).get("edge", {})
+    require(
+        receipt.get("checkpoint") == state
+        and receipt.get("status") == "stopped"
+        and receipt.get("cloudformation_failure", {}).get("status") == "ROLLBACK_IN_PROGRESS"
+        and state.get("operator_commit") == FAILED_SOURCE
+        and state.get("operation_id") == operation
+        and state.get("image_digest") == runtime.DIGEST
+        and set(state.get("stacks", {})) == {"edge"}
+        and edge.get("execute_response_received") is True
+        and edge.get("execute_intent")
+        and state.get("source_transition", {}).get("reconciled") is True
+        and not state.get("complete")
+        and not state.get("frontend_uploaded")
+        and not state.get("failed_edge_recovery"),
+        "Failed-edge recovery requires exact acknowledged failed execution",
+    )
+    original = deepcopy(state)
+    state.update(
+        operator_commit=source,
+        execution_authorized=False,
+        failed_edge_recovery={
+            "review_pr": FAILED_REVIEW_PR,
+            "from_source": FAILED_SOURCE,
+            "to_source": source,
+            "artifact": origin,
             "original_checkpoint": original,
         },
     )
