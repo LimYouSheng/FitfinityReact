@@ -1,5 +1,65 @@
 # AWS deployment runbook
 
+## Current repair: WAF permission and terminal edge rollback — 10 October 2026
+
+PR #19 was owner-merged as `a57a54609f4a4b8ca875534636f78e30aa36ac05`. Release run 37926044023/1 (artifact 11615862700, ZIP `fa896f07a197decaa19fec663c104c36dd36fb3345c3fb3311d7da72a0dcb31d`) and read-only transition 37933595566/1 (artifact 11620618489, ZIP `2462f5d54b65d7806bfa86bdd464331cd4cce4464929229003760fde7af048af`) succeeded. The transition made 55 reads and zero writes and preserved the original operation. These are historical inputs, not a release for the next merge.
+
+Authorized execution [37946314992](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37946314992) passed CI but **failed hosting**. Artifact 11626367274 authenticates to ZIP SHA-256 `cf3accdda2f21d8dcf6314a409ad32b993fc99d5afea215755ba9afdd06bacc5`; raw `hosting/state.json` is `a86308eb6c55ed4571b5cd125d105308148e5dbe467404209b9141043dd03d1a`. Its stopped receipt matches that checkpoint. Execution was acknowledged at 9 October 23:26:26 Singapore, before scan freshness expired. CloudFormation reported `wafv2:CreateWebACL` denied on `arn:aws:wafv2:us-east-1:418638389566:global/managedruleset/*/*`. The handler labelled this `UnauthorizedTaggingOperation`, but TagResource was already allowed; the evidenced missing authority is CreateWebACL on the referenced managed-rule resource.
+
+Owner readback now confirms the **same** edge stack ARN ending `72a316e0-c3af-11f1-a593-0e4fbbd8106d`, `ROLLBACK_COMPLETE`, exact original ownership tags and CloudFormation role. Its sole resource entry is EdgeAcl / AWS::WAFv2::WebACL / DELETE_COMPLETE, without a physical ID. This supersedes the earlier REVIEW_IN_PROGRESS recovery instructions below. Do not execute the old change set again. AWS creation/execution was attempted; deployment and login remain pending.
+
+### Narrow IAM UPDATE package — preparation only
+
+- Account `418638389566`; IAM authority stack region `ap-southeast-1`; exact existing stack `arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-github-hosting/b2cf46c0-c329-11f1-8df2-02fff9bcfa4b`. This is an UPDATE, not another bootstrap/CREATE.
+- Canonical template: `backend/infrastructure/test-github-hosting-role.json`. Original SHA-256 `db07e3acdb29e4bae04f483122fc7e4a8c56c76640f5e42e72f4b6c169e180ba`; proposed SHA-256 `dcd532996d6c85d23ad0ab39be565862ab8b908dfcabae06dab12df466a6cfe9`. Retrieve the historical baseline from source `a57a54609f4a4b8ca875534636f78e30aa36ac05`, preserving its bytes and receipts. The old CloudShell helper pins the old template; **do not repoint or rerun it with a new checksum**.
+- Only delta: CloudFormationRole inline policy `FitfinityOwnedHostingResources` gains statement `CreateWebAclReferencedManagedRules`, action `wafv2:CreateWebACL`, resources `arn:aws:wafv2:us-east-1:418638389566:global/managedruleset/*/*` and `arn:aws:wafv2:ap-southeast-1:418638389566:regional/managedruleset/*/*`. Both reviewed WAF templates reference managed rules. Existing owned WebACL scopes and tag permissions remain. No trust, HostingRole, API boundary, runtime role, database, secrets or identity changes.
+- AWS lists referenced managedruleset resources for [CreateWebACL authorization](https://docs.aws.amazon.com/service-authorization/latest/reference/list_awswafv2.html). CloudFront-scope WAF requires `us-east-1`; application resources remain Singapore. The new permission has offline regression coverage, not a claim of live success.
+- Provisioning identity stays exactly `arn:aws:iam::418638389566:user/fitfinity-deployer`. Recheck STS account/ARN and GetUser ARN; simulate that **IAM user ARN**, not an assumed-role session. Before any write, require the existing effective CloudFormation describe/get-template/list/create-change-set/execute-change-set authority and bounded IAM read/PutRolePolicy authority for this UPDATE, including any boundary/SCP effects. No identity creation, permission grants or access keys are part of this package. Simulation alone cannot prove an SCP will allow execution.
+
+After separate authorization, use a new evidence directory and reconcile existing stack, change sets and local intent files first. Preserve raw provider responses. Compare current role policy, trust, attachments and boundary with the original template; stop on drift. Verify the proposed file's exact checksum. The intended change-set command shape is below; variables must come from the authenticated merged-source package and newly recorded intent, not an old shell session:
+
+```bash
+aws cloudformation create-change-set --region ap-southeast-1 --stack-name "$IAM_STACK_ARN" --change-set-name "$IAM_UPDATE_NAME" --change-set-type UPDATE --template-body "file://$REVIEWED_IAM_TEMPLATE" --capabilities CAPABILITY_NAMED_IAM --client-token "$IAM_UPDATE_TOKEN" --output json --no-cli-pager
+```
+
+Persist the exact argument digest and token **before** this write and the returned change-set ID afterwards. A lost response requires describe/list reconciliation; never blindly repeat creation. Review the actual change set: only CloudFormationRole Modify, no replacement, no Add/Remove, unchanged roles/trust/boundary and exact policy delta. Stop if CloudFormation reports another resource change. Execution requires a separate approval of that exact change-set ARN; the intended command is:
+
+```bash
+aws cloudformation execute-change-set --region ap-southeast-1 --stack-name "$IAM_STACK_ARN" --change-set-name "$IAM_UPDATE_ARN" --client-request-token "$IAM_EXECUTE_TOKEN" --no-cli-pager
+```
+
+Record a durable execution intent first; never replay an uncertain execute. Read stack/change-set/events to completion and read back `get-role`, `get-role-policy --policy-name FitfinityOwnedHostingResources`, attached policies and boundary. Require UPDATE_COMPLETE and exact proposed policy with unchanged surrounding authority. Simulate CreateWebACL for the CloudFormation role against both owned WebACL and referenced managedruleset resources in each region; include TagResource and required request-tag context. Preserve all results; unexpected deny or foreign scope blocks hosting. GitHub `aws-test` variable remains `AWS_HOSTING_ROLE_ARN=arn:aws:iam::418638389566:role/fitfinity-test-github-hosting`, protected main-only OIDC/environment review unchanged. This task performs none of these writes or setting changes.
+
+### Same-operation recovery after the repair merge
+
+The repair pinned by `hosting_binding.FAILED_REVIEW_PR` is PR #20. Require its authentic LimYouSheng merge into this repository's main and the exact resulting source; report any main advancement. Obtain its matching immutable GitHub API-mode frontend release and authenticate its manifest/configuration/PWA/build evidence. Preserve original frontend, original source transition, image provenance and runtime run 37721383277/1 / artifact 11528371887 / ZIP `5d11866916b82ccfec8e33700465427606394d59e8cfa1d12aac2fc1a58f8296`. Do not rerun runtime proof or substitute a local frontend build.
+
+All phases require current owner-merged image approval, verified accepted image `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, permissions, scan evidence and capacity. Require >=102 unreserved concurrency before reserving 2; quota-request status is separate. Recorded scan is **stale since 9 October 23:29:27 Singapore**. A fresh scan needs separate explicit authorization, followed by evaluation of complete findings. TEST exception expiry remains **11 October 20:41:44 Singapore**. A changed finding set or expiry blocks; this repair grants no renewal or scan authorization.
+
+Each workflow dispatch below is a separately reviewed operational step, **not authorized by the coding task**. Inspect the shared queue without approving unrelated image publication. Keep `source_transition=false` (default). `RELEASE_RUN` is the new exact-source frontend release. Verify live main before each step.
+
+1. `recover-review` authenticates the exact failed run/ZIP/raw checkpoint above and saves the full old state under `failed_edge_recovery.original_checkpoint`. It verifies terminal rollback, exact stack/tags/role/template and only the deleted resource entry with no physical ID. It is read-only and returns a source/release/history-bound deletion review token. Foreign, surviving, ambiguous or incomplete resources stop.
+
+```bash
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact --ref main -f mode=recover-review -f operation_id=769df115e6ea4f478426f75c8a283a32 -f resume_run=37946314992 -f release_run="$RELEASE_RUN"
+```
+
+2. Review that receipt and obtain explicit deletion approval for the exact old ARN. Set `RESUME_RUN` to the authenticated successful review run and `RECOVERY_TOKEN` to its token. `recover-delete` persists intent then deletes only that empty failed shell. It never creates a replacement. A response loss resumes by readback only; DELETE_IN_PROGRESS remains pending, unexpected state stops, and absent/DELETE_COMPLETE records the deleted checkpoint. Reconcile from the latest artifact, never replay the original failed run as ordinary resume.
+
+```bash
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact --ref main -f mode=recover-delete -f operation_id=769df115e6ea4f478426f75c8a283a32 -f resume_run="$RESUME_RUN" -f release_run="$RELEASE_RUN" -f review_token="$RECOVERY_TOKEN"
+```
+
+3. Once deletion is evidenced, obtain separate replacement-preparation approval. Set `RESUME_RUN` to that completed deletion receipt. `recover-prepare` rechecks the old ARN's deletion and creates only a new edge CREATE change set with unchanged template and operation ID, name `first-login-769df115e6ea4f478426f75c8a283a32-recovery-1`, client token `769df115e6ea4f478426f75c8a283a32-edge-recovery-1`. The original row stays in history; the new stack ARN must differ. It stops before execution with a **new change-set review token**. Lost creation acknowledgement stops for evidence review, even if a matching shell exists; it cannot be adopted or recreated automatically.
+
+```bash
+gh workflow run aws-test-hosting.yml --repo LimYouSheng/FitfinityReact --ref main -f mode=recover-prepare -f operation_id=769df115e6ea4f478426f75c8a283a32 -f resume_run="$RESUME_RUN" -f release_run="$RELEASE_RUN" -f review_token="$RECOVERY_TOKEN"
+```
+
+4. Review the replacement's exact stack/change-set IDs, unchanged template and Add EdgeAcl inventory. Only after separate execution approval use ordinary `execute`, that latest preparation run and its **new edge token**, with the same operation/release/source. The historical execution token and deletion token do not authorize it. Require edge CREATE_COMPLETE before separately reviewing app preparation/execution, upload and smoke. Existing scoped rollback remains separately approved; do not delete the retained bucket, database, secrets, Cognito pool or Owner. Public HTTPS/API, password/MFA, session refresh/expiry/sign-out and YS desktop/Samsung/iPad checks remain the final acceptance gates.
+
+The following sections retain historical evidence and commands. Their old PR #19 / REVIEW_IN_PROGRESS next-step instructions are superseded by the terminal-rollback procedure above.
+
 ## Hosting preparation stopped after CREATE change set — 9 October 2026
 
 Run [37889740465](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37889740465) reported GitHub success, but authenticated `receipt.json` records `stopped: Stack ownership tags differ`. AWS creation was attempted and acknowledged; deployment remains pending. The CLI discarded the hosting return code. The repair propagates it through the actual process entry point; an operational stop retains its receipt and exits 1.

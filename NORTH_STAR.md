@@ -14,7 +14,7 @@ Broader M6 functionality, populated-database recovery and production readiness r
 
 ## Current path
 
-1. Finish draft PR #19: repair the diagnosed logo-induced sidebar shift, retain the hosting ownership/CLI correction and review the bounded source transition for existing operation `769df115e6ea4f478426f75c8a283a32`. Require full final-SHA frontend/backend CI including macOS/WebKit and PostgreSQL.
+1. Repair the evidenced WAF managed-rule permission gap and review recovery from the failed edge stack's `ROLLBACK_COMPLETE` state. PR #19 is merged; its source transition succeeded, but run 37946314992 attempted edge execution and rolled back. Preserve operation `769df115e6ea4f478426f75c8a283a32`, all original identities/intents and receipts. Require full final-SHA frontend/backend CI including macOS/WebKit and PostgreSQL for the repair.
 2. YS alone merges reviewed changes. Authenticate that merge and exact main; obtain its matching immutable GitHub frontend release and authenticate retained runtime/image provenance. Report main advancement before proceeding.
 3. Verify current permissions, owner-merged image approval, scan freshness, >=102 unreserved concurrency and the existing stack/change set. Reconcile the same operation read-only using the reviewed transition; present its concrete edge change set for execution approval.
 4. After the applicable explicit approvals, advance the existing operator through edge and app review/execution, immutable upload, public HTTPS/API smoke and YS's login/session/device acceptance. Diagnose evidenced blockers without replaying uncertain writes.
