@@ -350,3 +350,62 @@ def restore_failed_edge(run_id, operation, source):
         },
     )
     return state, origin
+
+
+DELETED_RUN = 38112784350
+DELETED_SOURCE = "fb21593f488044390977c5abb39dd19fa73371b5"
+DELETED_STATE_SHA = "5b2c35365837ad24085d4c1c8a02d23b3d7e43b11134af57c10f0a7a7bbc867e"
+
+
+def restore_deleted_edge(run_id, operation, source):
+    """PR 21 transition from the exact completed deletion; never replay deletion."""
+    require(
+        run_id == DELETED_RUN and operation == TRANSITION_OPERATION,
+        "Unreviewed deleted-edge operation/run",
+    )
+    pr = ExistingImage({}).github(f"repos/{GITHUB_REPO}/pulls/21")
+    require(
+        pr.get("merged") is True
+        and pr.get("merged_by", {}).get("login") == "LimYouSheng"
+        and pr.get("base", {}).get("ref") == "main"
+        and pr.get("base", {}).get("repo", {}).get("full_name") == GITHUB_REPO
+        and pr.get("head", {}).get("repo", {}).get("full_name") == GITHUB_REPO
+        and pr.get("merge_commit_sha") == source
+        and re.fullmatch(r"[0-9a-f]{40}", source)
+        and source != DELETED_SOURCE,
+        "Deleted-edge transition requires exact owner-merged PR 21 main",
+    )
+    files, origin = artifact(
+        run_id,
+        "fitfinity-hosting-" + operation + "-{run}-{attempt}",
+        DELETED_SOURCE,
+        artifact_id=11698601647,
+        checksum="8c9bc22d245f2e1c7401360e6b487bdd35cd09eba294b008779c5ac958de47b3",
+    )
+    raw = files["hosting/state.json"]
+    require(sha(raw) == DELETED_STATE_SHA, "Deleted checkpoint bytes differ")
+    state = json.loads(raw)
+    receipt = json.loads(files["hosting/receipt.json"])
+    recovery = state.get("failed_edge_recovery", {})
+    require(
+        receipt.get("checkpoint") == state
+        and receipt.get("status") == "failed_edge_deleted_prepare_replacement"
+        and receipt.get("read_only") is True
+        and receipt.get("cloud_writes") == []
+        and state.get("operator_commit") == DELETED_SOURCE
+        and state.get("operation_id") == operation
+        and state.get("image_digest") == runtime.DIGEST
+        and recovery.get("deleted") is True
+        and recovery.get("deleted_checkpoint") == state.get("stacks", {}).get("edge")
+        and not recovery.get("replacement_started"),
+        "Deleted recovery checkpoint differs",
+    )
+    original = deepcopy(state)
+    state.update(
+        operator_commit=source,
+        execution_authorized=False,
+        approval_transition={"review_pr": 21, "artifact": origin, "original_checkpoint": original},
+    )
+    recovery.update(reviewed=False)
+    recovery.pop("deletion_review_token", None)
+    return state, origin

@@ -2409,3 +2409,8 @@ Provide one context-transfer archive with the complete current source, the exist
 ## AWS hosting preflight completed — 7 October 2026
 
 PR #12 merged as `16d6f98252ed3a371581b7aba562b2b9ec531dfd`, feature `45f9f3922173488415d8453bcea11ca96552631a`; both required frontend/backend jobs passed in [run 37620440568](https://github.com/LimYouSheng/FitfinityReact/actions/runs/37620440568). User-provided subsequent quota output reports total/unreserved 1000/1000, satisfying the >=102 gate while request 1001 remains CASE_OPENED (case 179123267300687). These were not Codex AWS observations. Private-runtime preparation is the next single active task; current-image runtime and full application deployment remain unaccepted.
+
+
+### 11 October 2026 — hosting deletion reconciled; renewal proposed
+
+IAM correction and same-operation failed-edge deletion completed. Replacement preparation run 38129778553 was cancelled before protected hosting steps after scan/exception expiry; CI success did not deploy hosting. A separately authorized exact-image scan completed at 23:41:30 Singapore with the unchanged single HIGH finding. PR #21 proposes a bounded owner-reviewed approval and completed-deletion source transition; login acceptance remains pending. The AWS runbook owns the exact evidence and next approval gates.
