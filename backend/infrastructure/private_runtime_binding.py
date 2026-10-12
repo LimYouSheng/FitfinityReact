@@ -41,6 +41,16 @@ def local_approval():
     rows = [row for row in policy["approvals"] if row.get("id") == APPROVAL]
     require(len(rows) == 1, "Missing or ambiguous current approval")
     approval = rows[0]
+    require(
+        sha(json.dumps(approval, sort_keys=True, separators=(",", ":")).encode())
+        == "47c46722e1abc218992ca678ca7fa96e736856034fcfdd23d5339276f96c7fdd",
+        "Unreviewed bounded renewal scope or exception expiry",
+    )
+    require(
+        sha((Path(__file__).parent / "test-approval-expired-2026-10-11.json").read_bytes())
+        == "c6f6f68772b8b4c81f58dcf0d67fc5f78c15d2f20bdaec6d14ff3e40c6ce9ae8",
+        "Expired owner approval history changed",
+    )
     historical = historical_approval()
     require(
         all(
@@ -53,7 +63,6 @@ def local_approval():
                 "environment",
                 "image_digest",
                 "provenance",
-                "expires_at",
                 "approver",
                 "status",
             )

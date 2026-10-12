@@ -2327,5 +2327,141 @@ class FailedEdgeRecoveryTests(unittest.TestCase):
             )
 
 
+class DeletedRenewalTests(unittest.TestCase):
+    def setUp(self):
+        self.b = o.binding
+        self.source = "d" * 40
+        self.pr = {
+            "merged": True,
+            "merged_by": {"login": "LimYouSheng"},
+            "merge_commit_sha": self.source,
+            "base": {"ref": "main", "repo": {"full_name": self.b.GITHUB_REPO}},
+            "head": {"repo": {"full_name": self.b.GITHUB_REPO}},
+        }
+        edge = {
+            "stack_id": "owned-original",
+            "delete_intent": {"saved": True},
+            "delete_response_received": True,
+        }
+        self.old = {
+            "operator_commit": self.b.DELETED_SOURCE,
+            "operation_id": self.b.TRANSITION_OPERATION,
+            "image_digest": self.b.runtime.DIGEST,
+            "stacks": {"edge": edge},
+            "failed_edge_recovery": {
+                "deleted": True,
+                "deleted_checkpoint": edge,
+                "original_checkpoint": {"preserved": True},
+            },
+        }
+
+    def restore(self, mutate=None, bad_hash=False):
+        state = deepcopy(self.old)
+        if mutate:
+            mutate(state)
+        raw = json.dumps(state).encode()
+        receipt = {
+            "checkpoint": state,
+            "status": "failed_edge_deleted_prepare_replacement",
+            "read_only": True,
+            "cloud_writes": [],
+        }
+        with (
+            patch.object(self.b.ExistingImage, "github", return_value=self.pr),
+            patch.object(
+                self.b,
+                "artifact",
+                return_value=(
+                    {
+                        "hosting/state.json": raw,
+                        "hosting/receipt.json": json.dumps(receipt).encode(),
+                    },
+                    {},
+                ),
+            ),
+            patch.object(self.b, "DELETED_STATE_SHA", "wrong" if bad_hash else self.b.sha(raw)),
+        ):
+            return self.b.restore_deleted_edge(
+                self.b.DELETED_RUN, self.b.TRANSITION_OPERATION, self.source
+            )[0]
+
+    def test_renewal_rejects_old_token_and_repeat_deletion(self):
+        state = self.restore()
+        state["mode"] = "recover-review"
+        state["failed_edge_recovery"]["replacement_release"] = {"artifact": "new-source"}
+        with tempfile.TemporaryDirectory() as directory:
+            report = {}
+            op = o.Operator(Path(directory), state, report)
+            with patch.object(op, "aws", return_value=None) as aws:
+                op.recover_failed_edge()
+                token = report["review_token"]
+                state.update(mode="recover-prepare", review_token="0" * 64)
+                with self.assertRaisesRegex(RuntimeError, "Exact failed-edge"):
+                    op.recover_failed_edge()
+                state.update(mode="recover-delete", review_token=token)
+                with self.assertRaisesRegex(RuntimeError, "cannot repeat deletion"):
+                    op.recover_failed_edge()
+                self.assertEqual(aws.call_count, 1)
+
+    def test_other_operation_or_run_is_rejected(self):
+        for run, operation in [(1, self.b.TRANSITION_OPERATION), (self.b.DELETED_RUN, "foreign")]:
+            with self.assertRaises(RuntimeError):
+                self.b.restore_deleted_edge(run, operation, self.source)
+
+    def test_exact_deleted_checkpoint_preserves_history_and_requires_new_review(self):
+        state = self.restore()
+        self.assertEqual(state["approval_transition"]["original_checkpoint"], self.old)
+        self.assertEqual(state["stacks"], self.old["stacks"])
+        self.assertFalse(state["execution_authorized"])
+        self.assertFalse(state["failed_edge_recovery"]["reviewed"])
+
+    def test_unmerged_foreign_or_advanced_review_is_rejected(self):
+        for key, value in [
+            ("merged", False),
+            ("merged_by", {"login": "foreign"}),
+            ("merge_commit_sha", "e" * 40),
+        ]:
+            old = deepcopy(self.pr)
+            self.pr[key] = value
+            with self.assertRaises(RuntimeError):
+                self.restore()
+            self.pr = old
+
+    def test_tampered_checkpoint_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "checkpoint bytes"):
+            self.restore(bad_hash=True)
+
+    def test_incomplete_deletion_or_replacement_started_is_rejected(self):
+        for change in [{"deleted": False}, {"replacement_started": True}]:
+            with self.assertRaises(RuntimeError):
+                self.restore(lambda s, change=change: s["failed_edge_recovery"].update(change))
+
+    def test_renewal_review_is_read_only_and_rejects_live_or_foreign_stack(self):
+        for remote, accepted in [
+            (None, True),
+            ({"Stacks": [{"StackId": "owned-original", "StackStatus": "DELETE_COMPLETE"}]}, True),
+            ({"Stacks": [{"StackId": "foreign", "StackStatus": "DELETE_COMPLETE"}]}, False),
+            ({"Stacks": [{"StackId": "owned-original", "StackStatus": "CREATE_COMPLETE"}]}, False),
+        ]:
+            state = self.restore()
+            state["mode"] = "recover-review"
+            state["failed_edge_recovery"]["replacement_release"] = {"artifact": "new-source"}
+            with tempfile.TemporaryDirectory() as directory:
+                report = {}
+                op = o.Operator(Path(directory), state, report)
+                with patch.object(op, "aws", return_value=remote) as aws:
+                    if accepted:
+                        op.recover_failed_edge()
+                        self.assertEqual(
+                            report["status"], "failed_edge_replacement_review_required"
+                        )
+                        self.assertEqual(len(report["review_token"]), 64)
+                    else:
+                        with self.assertRaises(RuntimeError):
+                            op.recover_failed_edge()
+                    self.assertEqual(aws.call_count, 1)
+                    self.assertEqual(aws.call_args.args[:2], ("cloudformation", "describe-stacks"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

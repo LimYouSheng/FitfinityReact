@@ -777,7 +777,7 @@ class CloudBindingChecks(unittest.TestCase):
     def test_expired_or_changed_approval_refused(self):
         approval = pf.binding.local_approval()
         for changed, stamp in [
-            (approval, datetime(2026, 10, 12, tzinfo=UTC)),
+            (approval, pf.binding.timestamp(approval["expires_at"])),
             ({**approval, "reason": "changed"}, REVIEW_TIME),
         ]:
             with self.assertRaises(RuntimeError):
@@ -1007,6 +1007,22 @@ class ApprovalTransitionChecks(unittest.TestCase):
                 self.assertRaisesRegex(RuntimeError, "scope or exception expiry"),
             ):
                 self.binding.local_approval()
+
+    def test_bounded_renewal_retains_expired_owner_review(self):
+        raw = (ROOT / "test-approval-expired-2026-10-11.json").read_bytes()
+        self.assertEqual(
+            self.binding.sha(raw),
+            "c6f6f68772b8b4c81f58dcf0d67fc5f78c15d2f20bdaec6d14ff3e40c6ce9ae8",
+        )
+        old = json.loads(raw)["approvals"][0]
+        self.assertEqual(old["expires_at"], "2026-10-11T20:41:44+08:00")
+        self.assertEqual(self.current["expires_at"], "2026-10-12T23:41:30+08:00")
+        self.assertEqual(
+            self.current["approval_reference"],
+            "https://github.com/LimYouSheng/FitfinityReact/pull/21",
+        )
+        for key in ["image_digest", "provenance", "findings"]:
+            self.assertEqual(old[key], self.current[key])
 
     def test_current_review_time_boundaries_remain_enforced(self):
         start = self.binding.timestamp(self.current["approved_at"])

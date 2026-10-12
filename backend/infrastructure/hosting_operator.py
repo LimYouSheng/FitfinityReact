@@ -372,10 +372,37 @@ class Operator:
             }
         )
         if mode == "recover-review":
-            self.failed_edge_shell()
+            if self.state.get("approval_transition"):
+                old = recovery["deleted_checkpoint"]
+                remote = self.aws(
+                    "cloudformation",
+                    "describe-stacks",
+                    "--stack-name",
+                    old["stack_id"],
+                    region=design.EDGE_REGION,
+                    absent=True,
+                )
+                require(
+                    remote is None
+                    or (
+                        len(remote.get("Stacks", [])) == 1
+                        and remote["Stacks"][0].get("StackId") == old["stack_id"]
+                        and remote["Stacks"][0].get("StackStatus") == "DELETE_COMPLETE"
+                    ),
+                    "Renewal requires original edge deletion readback",
+                )
+            else:
+                self.failed_edge_shell()
             recovery.update(reviewed=True, deletion_review_token=token)
             self.save()
-            self.report.update(status="failed_edge_deletion_review_required", review_token=token)
+            self.report.update(
+                status=(
+                    "failed_edge_replacement_review_required"
+                    if self.state.get("approval_transition")
+                    else "failed_edge_deletion_review_required"
+                ),
+                review_token=token,
+            )
             return
         require(
             recovery.get("reviewed") is True
@@ -385,6 +412,7 @@ class Operator:
         )
         row = self.state["stacks"]["edge"]
         if mode == "recover-delete":
+            require(not self.state.get("approval_transition"), "Renewal cannot repeat deletion")
             require(
                 not recovery.get("replacement_started"), "Replacement cannot use shell deletion"
             )
@@ -1480,7 +1508,9 @@ def main(argv=None):
         }
         if args.resume_run:
             restore = (
-                binding.restore_failed_edge
+                binding.restore_deleted_edge
+                if args.mode == "recover-review" and args.resume_run == binding.DELETED_RUN
+                else binding.restore_failed_edge
                 if args.mode == "recover-review"
                 else binding.restore_transition
                 if args.source_transition

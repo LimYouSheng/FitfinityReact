@@ -1,5 +1,13 @@
 # Fitfinity current progress
 
+## Proposed bounded approval renewal — 11 October 2026
+
+- YS authorized a draft review for the unchanged 86183723 image and CVE-2026-85091/zlib 1.3.dfsg+really1.3.1-1 HIGH finding, ending 12 October 23:41:30 Singapore. This proposal is not effective until authentic owner merge; hosting remains blocked. Historical approval and receipts remain immutable.
+- Scan refresh evidence ZIP SHA256 `76581f119fd956cc6fe86bf7038efd1215f567c6e10c9dd77e89d0408f2324a8` records one acknowledged request and COMPLETE at 11 October 23:41:30 Singapore; freshness ends 24 hours later. No vulnerability fix is claimed.
+- Same operation deletion completed in run 38112784350, artifact 11698601647, ZIP `8c9bc22d245f2e1c7401360e6b487bdd35cd09eba294b008779c5ac958de47b3`. Waiting recover-prepare run 38129778553 was cancelled before any hosting step; both CI gates passed. Replacement is not started.
+- PR #21 implements an exact pinned bounded policy proposal while retaining both original acceptance policy and the expired PR #18 policy. The completed-deletion transition authenticates owner merge, archive/raw state, same operation, unchanged write history, new same-source release and read-only deletion readback. New-token review is mandatory; old token and repeat deletion are rejected.
+- Focused runtime/hosting checks and semantic lint passed during implementation; the final canonical backend/PostgreSQL and full final-SHA GitHub frontend/backend results are recorded in PR #21 without a self-recording commit. No AWS operations, deployment or merge are authorized by this PR.
+
 ## Active repair — WAF authority and failed-edge recovery, 10 October 2026
 
 - Started clean at owner-merged PR #19 main `a57a54609f4a4b8ca875534636f78e30aa36ac05`; remote main matched. New branch `fix/hosting-waf-rollback-recovery-2026-10-10`; existing setup/receipts retained, one agent, no worktree or installation. Persistent North Star remains usable secure AWS TEST login.
