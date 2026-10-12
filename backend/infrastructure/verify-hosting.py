@@ -2997,5 +2997,219 @@ class FailedAppRecoveryTests(unittest.TestCase):
                 o.binding.restore(123, self.state["operation_id"], self.source)
 
 
+class AppRenewalTests(unittest.TestCase):
+    provider = FailedAppRecoveryTests.provider
+    phase = FailedAppRecoveryTests.phase
+
+    def setUp(self):
+        FailedAppRecoveryTests.setUp(self)
+        self.state["operator_commit"] = o.binding.APP_DELETE_SOURCE
+        self.state["failed_app_recovery"]["to_source"] = o.binding.APP_DELETE_SOURCE
+        self.pending = True
+        self.phase("review")
+        self.phase("delete")
+        self.old = deepcopy(self.state)
+        self.old_receipt = {
+            "status": "failed_app_deletion_pending",
+            "checkpoint": self.old,
+            "cloud_writes": [
+                {
+                    "service": "cloudformation",
+                    "operation": "delete-stack",
+                    "region": "ap-southeast-1",
+                    "arguments_sha256": self.old["stacks"]["app"]["delete_intent"][
+                        "arguments_sha256"
+                    ],
+                }
+            ],
+        }
+        self.pr = {
+            "merged": True,
+            "merged_by": {"login": "LimYouSheng"},
+            "merge_commit_sha": self.source,
+            "head": {
+                "ref": o.binding.APP_RENEWAL_BRANCH,
+                "sha": "f" * 40,
+                "repo": {"full_name": o.binding.GITHUB_REPO},
+            },
+            "base": {"ref": "main", "repo": {"full_name": o.binding.GITHUB_REPO}},
+        }
+        self.commit = {
+            "sha": self.source,
+            "parents": [{"sha": o.binding.APP_DELETE_SOURCE}, {"sha": "f" * 40}],
+        }
+        self.calls.clear()
+
+    def bind(self, mutate=None, bad_hash=False):
+        state = deepcopy(self.old)
+        if mutate:
+            mutate(state)
+        receipt = {**self.old_receipt, "checkpoint": state}
+        raw = json.dumps(state).encode()
+        files = {"hosting/state.json": raw, "hosting/receipt.json": json.dumps(receipt).encode()}
+        with (
+            patch.object(o.binding.ExistingImage, "github", side_effect=[self.pr, self.commit]),
+            patch.object(
+                o.binding, "artifact", return_value=(files, {"run_id": o.binding.APP_DELETE_RUN})
+            ),
+            patch.object(
+                o.binding, "APP_DELETE_STATE_SHA", "wrong" if bad_hash else o.binding.sha(raw)
+            ),
+        ):
+            state, _ = o.binding.restore_app_deletion(
+                o.binding.APP_DELETE_RUN, o.binding.TRANSITION_OPERATION, self.source
+            )
+        return state
+
+    def install(self):
+        self.state = self.bind()
+        self.op.state = self.state
+        self.state["failed_app_recovery"]["replacement_release"] = {"prefix": "new-release"}
+        self.state["mode"] = "app-recover-review"
+        self.report.clear()
+        self.calls.clear()
+
+    def test_preserves_pending_receipt_and_all_old_source_history(self):
+        state = self.bind()
+        transition = state["app_approval_transition"]
+        self.assertEqual(transition["original_checkpoint"], self.old)
+        self.assertEqual(transition["original_receipt"], self.old_receipt)
+        self.assertFalse(state["execution_authorized"])
+        self.assertFalse(state["cleanup_authorized"])
+        self.assertFalse(state["failed_app_recovery"]["reviewed"])
+        self.assertNotIn("deleted", state["failed_app_recovery"])
+        self.assertEqual(state["stacks"], self.old["stacks"])
+
+    def test_rejects_unmerged_foreign_owner_branch_or_parent(self):
+        for key, value in [
+            ("merged", False),
+            ("merged_by", {"login": "other"}),
+            ("merge_commit_sha", "a" * 40),
+            ("head", {**self.pr["head"], "ref": "unreviewed"}),
+        ]:
+            with patch.dict(self.pr, {key: value}), self.assertRaises(RuntimeError):
+                self.bind()
+        self.commit["parents"][0]["sha"] = "a" * 40
+        with self.assertRaises(RuntimeError):
+            self.bind()
+
+    def test_rejects_corrupt_hash_or_unacknowledged_and_replaced_state(self):
+        with self.assertRaises(RuntimeError):
+            self.bind(bad_hash=True)
+        for change in [
+            lambda s: s["stacks"]["app"].pop("delete_intent"),
+            lambda s: s["stacks"]["app"].update(delete_response_received=False),
+            lambda s: s["failed_app_recovery"].update(replacement_started=True),
+            lambda s: s.update(operation_id="0" * 32),
+        ]:
+            with self.assertRaises(RuntimeError):
+                self.bind(change)
+
+    def test_complete_or_absent_app_reconciles_without_writes(self):
+        for absent in [False, True]:
+            self.install()
+            self.remote["app"] = (
+                None if absent else {**self.remote["app"], "StackStatus": "DELETE_COMPLETE"}
+            )
+            self.op.recover_failed_app()
+            self.assertEqual(self.report["status"], "failed_app_replacement_review_required")
+            self.assertTrue(self.state["failed_app_recovery"]["deleted"])
+            self.assertTrue(self.state["app_approval_transition"]["reconciled"])
+            self.assertEqual(
+                self.state["failed_app_recovery"]["deleted_checkpoint"], self.old["stacks"]["app"]
+            )
+            self.assertFalse(
+                any(
+                    c[1] in {"delete-stack", "create-change-set", "execute-change-set"}
+                    for c in self.calls
+                )
+            )
+            self.assertNotEqual(
+                self.report["review_token"],
+                self.old["failed_app_recovery"]["deletion_review_token"],
+            )
+
+    def test_live_pending_rollback_or_foreign_app_stops_read_only(self):
+        for status in [
+            "DELETE_IN_PROGRESS",
+            "ROLLBACK_COMPLETE",
+            "DELETE_FAILED",
+            "CREATE_COMPLETE",
+        ]:
+            self.install()
+            self.remote["app"]["StackStatus"] = status
+            with self.assertRaises(RuntimeError):
+                self.op.recover_failed_app()
+            self.assertFalse(any(c[1] == "delete-stack" for c in self.calls))
+        self.install()
+        self.remote["app"].update(
+            StackStatus="DELETE_COMPLETE", StackId=self.remote["app"]["StackId"] + "foreign"
+        )
+        with self.assertRaises(RuntimeError):
+            self.op.recover_failed_app()
+
+    def test_preserved_bucket_or_edge_drift_blocks_renewal_review(self):
+        self.install()
+        self.remote["app"]["StackStatus"] = "DELETE_COMPLETE"
+        self.bucket["list-object-versions"] = {"Versions": [{"Key": "unexpected"}]}
+        with self.assertRaises(RuntimeError):
+            self.op.recover_failed_app()
+        self.bucket["list-object-versions"] = {}
+        self.remote["edge"]["Outputs"] = []
+        with self.assertRaises(RuntimeError):
+            self.op.recover_failed_app()
+
+    def test_renewed_state_rejects_delete_and_old_token_before_preparation(self):
+        self.install()
+        self.remote["app"]["StackStatus"] = "DELETE_COMPLETE"
+        self.op.recover_failed_app()
+        with self.assertRaisesRegex(RuntimeError, "never replay deletion"):
+            self.phase("delete")
+        self.state.update(
+            mode="app-recover-prepare",
+            review_token=self.old["failed_app_recovery"]["deletion_review_token"],
+        )
+        with self.assertRaisesRegex(RuntimeError, "disposition approval"):
+            self.op.recover_failed_app()
+        self.phase("prepare")
+        self.assertEqual(self.report["status"], "change_set_review_required")
+        self.assertEqual(sum(c[1] == "create-change-set" for c in self.calls), 1)
+        self.assertFalse(any(c[1] == "delete-stack" for c in self.calls))
+
+    def test_cli_routes_exact_pending_deletion_run_to_renewal_binding(self):
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(o.pf.binding, "actions_environment"),
+            patch.object(
+                o.pf.binding,
+                "verify_main",
+                side_effect=lambda r: r.update(operator_commit=self.source),
+            ),
+            patch.object(
+                o.binding, "restore_app_deletion", side_effect=RuntimeError("selected renewal")
+            ) as restore,
+            patch.object(o.binding, "restore_failed_app") as original,
+        ):
+            result = o.main(
+                [
+                    "--mode",
+                    "app-recover-review",
+                    "--operation-id",
+                    o.binding.TRANSITION_OPERATION,
+                    "--directory",
+                    str(Path(tmp) / "evidence"),
+                    "--resume-run",
+                    str(o.binding.APP_DELETE_RUN),
+                    "--release-run",
+                    "123",
+                ]
+            )
+            self.assertEqual(result, 1)
+            restore.assert_called_once_with(
+                o.binding.APP_DELETE_RUN, o.binding.TRANSITION_OPERATION, self.source
+            )
+            original.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

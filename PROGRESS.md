@@ -1,5 +1,14 @@
 # Fitfinity current progress
 
+## Proposed three-finding renewal and deletion reconciliation — PR #23
+
+- YS approved preparing a TEST-only proposal for unchanged image 86183723 and all three HIGH findings from the 12 October 23:42:58 Singapore scan, ending 13 October 23:42:58 Singapore. New glibc findings CVE-2026-19499 and CVE-2026-5435 join the existing zlib CVE-2026-85091. All 15 findings/counts and one acknowledged scan request were verified; exact ZIP, assessment sources and limits are recorded in the runbook. No remediation/unreachability claim. Owner merge is required before the proposal becomes effective.
+- PR #22 merged as 58b771bd; the IAM repair completed with exact policy readback. Its API release and read-only recovery review passed. App deletion run 38262560845 acknowledged one delete and stopped pending; later owner readback confirms DELETE_COMPLETE. Preserve both kinds of evidence without rewriting the checkpoint.
+- New branch feat/test-approval-renewal-2026-10-12 starts from clean authenticated main 58b771bd with PR #22 ancestry. Existing checkout/caches retained; no worktree/install/rebuild/publication/AWS mutation. Node 24.19.0 and Python 3.12.14 retained.
+- Proposal preserves both earlier expiry snapshots and runtime acceptance. A narrowly pinned PR #23 transition imports the exact acknowledged app-deletion run, then read-only recovery verifies current deletion plus preserved edge/bucket and issues a new replacement-preparation token. The old token and renewed-state deletion replay are rejected.
+- Focused hosting validation: all 135 cases pass (127 retained plus eight renewal cases). Two added runtime-approval cases cover the actual three-HIGH scan, finding changes and expiry; the final canonical container gate passed 632 infrastructure and 418 backend/PostgreSQL tests. Semantic lint passed for 312 files; final-SHA frontend/backend CI results belong in the PR. A host-only infrastructure invocation could not load boto3; the retained canonical container owns that gate.
+- Next boundary: owner review/merge, new matching release, authorized read-only deletion reconciliation, then separate replacement preparation/execution approval. Persistent North Star remains live secure TEST login; no hosting or login acceptance claimed.
+
 ## Active app repair — 12 October 2026
 
 - Recovered both GitHub deployment artifacts using authenticated artifact access and the exact uploaded CloudShell file ID; all three SHA-256 values match the handover. Authenticated run/source/artifact metadata, raw checkpoint/receipt agreement, one acknowledged app execute, final rollback inventory and exact live/repository inline-policy equality. No repeated AWS readback or mutation. Detailed identities/checksums and the distinction between raw ZIP evidence and later handover-only bucket observations are in the runbook.

@@ -1,5 +1,42 @@
 # AWS deployment runbook
 
+## Three-finding TEST renewal and app-deletion reconciliation — PR #23
+
+YS authorized this proposal after reviewing the two new glibc HIGH findings on 12 October 2026. It becomes effective only through the existing authenticated LimYouSheng merge check. The proposed TEST exception expires **13 October 2026, 23:42:58 Singapore** (`2026-10-13T15:42:58Z`). The prior exception expired on 12 October at 23:41:30 Singapore; no authority bridges that gap. Production and deployment authorization remain excluded. Preserve the unchanged image digest, original source/provenance, historical runtime proof and operation `769df115e6ea4f478426f75c8a283a32`.
+
+### Scan and risk review
+
+Uploaded `fitfinity-scan-refresh-2026-10-12.zip` has SHA-256 `ec793fba57417fe5a7efb7778eaeb115ebc12e408cdea7106525b7cf9a4e1981`. All command envelopes succeeded under `arn:aws:iam::418638389566:user/fitfinity-deployer`. It records one persisted scan intent and one acknowledged request at `2026-10-12T15:42:56.918457Z`, then COMPLETE at `2026-10-12T15:42:58Z`. The exact account/repository/digest match; the complete finding page has no next token, and enumerated counts equal **3 HIGH, 9 MEDIUM, 3 LOW**, with no CRITICAL. The prior scan had one HIGH. The full new findings are retained unchanged in `backend/infrastructure/fixtures/test-scan-2026-10-12.json` for offline regression coverage.
+
+| Exact HIGH finding | Package/version | Review |
+| --- | --- | --- |
+| CVE-2026-19499 | glibc / 2.41-12+deb13u4 | New: strfmon/strfmon_l output-buffer overflow with susceptible width padding. |
+| CVE-2026-5435 | glibc / 2.41-12+deb13u4 | New: deprecated DNS-printing functions can write beyond the supplied buffer when printing TSIG records. |
+| CVE-2026-85091 | zlib / 1.3.dfsg+really1.3.1-1 | Retained: nonblocking gz-write buffer overflow finding. |
+
+The [Debian tracker for CVE-2026-19499](https://security-tracker.debian.org/tracker/CVE-2026-19499) and [CVE-2026-5435](https://security-tracker.debian.org/tracker/CVE-2026-5435), retrieved on 12 October, list current trixie glibc as vulnerable and classify those issues as minor/no-DSA; fixed versions are listed for unstable. The [zlib tracker](https://security-tracker.debian.org/tracker/CVE-2026-85091) still lists vulnerable/unfixed package status. A routine rebuild is not established as a remedy. No direct affected-function calls were found in `backend/app`, but native/transitive exposure remains unverified. This is explicit, bounded risk acceptance, not remediation or proof of unreachability. The nine MEDIUM and three LOW findings remain in the scan evidence under the existing policy; exact HIGH matching and CRITICAL/unclassified rejection are unchanged.
+
+`test-approval-expired-2026-10-12.json` preserves the previous policy bytes (SHA-256 `4bd87983b75932999f797228b431d6eeb44f64f035ec366a2a977554e765e8b7`). Earlier expiry history and `private-runtime-accepted-approval.json` stay unchanged. The current policy independently pins all three HIGH CVE/package/version identities and the new expiry. Historical proof is not rerun or rewritten.
+
+### Completed IAM work and deletion evidence
+
+Owner-merged PR #22 source is `58b771bd4e35f1ffb6c5ff1ccba1853f31796678`. The two-role IAM update completed: uploaded execution ZIP SHA-256 `d04e4435c357f17f4bf397958ec4af67be32f60babea4a01897c6c28e90b83c3` records UPDATE_COMPLETE / EXECUTE_COMPLETE, exact proposed template `0bf75dacb7fc4cff7d941b275063c3b524ec4c81a501d3660a3a2c1548679574`, both inline policies and unchanged role IDs/trust/boundaries/attachments. No additional IAM change is proposed.
+
+API release run 38218536345/1 passed; artifact 11735075507 ZIP SHA-256 `24eeb3577de8c1cca1022d0ab91801a11815c6e9086cc5e3fe77a2eadaa2e184` has 41 verified files, API mode, root path, PWA verification and exact PR #22 source/image compatibility. It is historical after the next merge. Read-only review run 38222681077/1 passed with zero writes; artifact 11737881222 ZIP `e3c53b5a0e2cda5815fab0922b4e1e3a7f7f3111a51df2efe4dd6ff584e4a372` records the reviewed bucket disposition.
+
+App deletion run **38262560845/1** passed, with one acknowledged app-only delete and receipt `failed_app_deletion_pending`. Artifact **11755932657** ZIP SHA-256 **`7a901757131e66189d05667031cfcce7725a2ee1c6046c7105d1fa28d858a063`**, raw state SHA-256 **`8d6e80cd7a04d1cf62cf91051e7a67560fd8bc2f0c2c45bf472bbaffb878df7e`**. Receipt checkpoint equals raw state; intent was recorded at `2026-10-12T15:16:43.494991Z`. Later user-pasted CloudShell readback confirms exact app ARN ending `3582be20-c5fb-11f1-bc07-06ffc07fbc05` is DELETE_COMPLETE. That readback is separate owner evidence, not a rewritten workflow checkpoint. The new transition requires fresh provider confirmation.
+
+### Same-operation continuation after owner merge
+
+Use a normal merge commit on exact main `58b771bd...`; advanced main/squash/rebase fail closed. `restore_app_deletion` authenticates PR #23, owner, repository, branch, merge parents, exact prior run/artifact/ZIP/raw state and acknowledged delete intent/response. It preserves the entire pending checkpoint and receipt, old frontend/source/approval history and original app/edge records in `app_approval_transition`. Neither the owner-pasted result nor GitHub success is treated as a completed deletion checkpoint.
+
+1. Obtain the new merge's matching immutable API release through the existing separately authorized release workflow. Reuse the accepted image and runtime proof.
+2. Authorize `app-recover-review` with `resume_run=38262560845`, operation `769df115e6ea4f478426f75c8a283a32`, the new `release_run`, no review token, default `source_transition=false`. It authenticates the renewed approval and new release, reads current scan/capacity/resource metadata, and verifies the successful edge and retained bucket unmodified. It requires exact original app DELETE_COMPLETE or absence after the acknowledged owned delete. A live/pending/foreign stack stops. This phase performs no writes.
+3. Success records `failed_app_replacement_review_required`, a reconciled deletion checkpoint and a **new** source/release/disposition token. Review that receipt, then separately approve `app-recover-prepare` using its run/token and the same release. The original deletion token is invalid. `app-recover-delete` rejects this renewed state; deletion cannot be replayed.
+4. Preparation creates only the replacement app change set in the same operation and stops for exact change-set review. Execution, immutable upload, smoke and Owner password/MFA/session/device acceptance retain their separate gates. Preserve edge ARN ending `a30164c0-c5eb-11f1-8a6d-0eff9dbd6ce7` and bucket `fitfinity-test-login-frontendbucket-famdouidjpp2`; the replacement uses a separate generated bucket.
+
+Before each applicable phase, require current scan/approval, exact source/release and ownership plus >=102 unreserved Lambda concurrency. Expiry or changed findings stop; another scan/renewal is never automatic. This proposal performs no AWS writes, release dispatch or merge. The older sections below retain history and are superseded for the next step by this section.
+
 ## Failed app repair and preserved-bucket recovery — 12 October 2026
 
 This section supersedes the operational next steps below. The persistent goal is secure AWS TEST login for YS; repair/CI acceptance does not establish hosting or login acceptance. This package performs no AWS writes, dispatch, scan, approval renewal or merge.

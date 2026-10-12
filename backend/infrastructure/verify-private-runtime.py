@@ -1016,12 +1016,12 @@ class ApprovalTransitionChecks(unittest.TestCase):
         )
         old = json.loads(raw)["approvals"][0]
         self.assertEqual(old["expires_at"], "2026-10-11T20:41:44+08:00")
-        self.assertEqual(self.current["expires_at"], "2026-10-12T23:41:30+08:00")
+        self.assertEqual(self.current["expires_at"], "2026-10-13T23:42:58+08:00")
         self.assertEqual(
             self.current["approval_reference"],
-            "https://github.com/LimYouSheng/FitfinityReact/pull/21",
+            "https://github.com/LimYouSheng/FitfinityReact/pull/23",
         )
-        for key in ["image_digest", "provenance", "findings"]:
+        for key in ["image_digest", "provenance"]:
             self.assertEqual(old[key], self.current[key])
 
     def test_current_review_time_boundaries_remain_enforced(self):
@@ -1031,6 +1031,52 @@ class ApprovalTransitionChecks(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "expired or future"):
                 self.binding.check_approval(self.current, self.current["provenance"], when)
         self.binding.check_approval(self.current, self.current["provenance"], start)
+
+    def test_renewal_preserves_prior_policy_and_accepts_exact_three_highs(self):
+        from image_acceptance import acceptance
+
+        raw = (ROOT / "test-approval-expired-2026-10-12.json").read_bytes()
+        self.assertEqual(
+            self.binding.sha(raw),
+            "4bd87983b75932999f797228b431d6eeb44f64f035ec366a2a977554e765e8b7",
+        )
+        old = json.loads(raw)["approvals"][0]
+        self.assertEqual(old["expires_at"], "2026-10-12T23:41:30+08:00")
+        pages = json.loads((ROOT / "fixtures/test-scan-2026-10-12.json").read_text())
+        result, counts = acceptance(
+            pages, self.binding.DIGEST, self.current["provenance"], self.current, REVIEW_TIME
+        )
+        self.assertEqual(result, "accepted_with_test_exception")
+        self.assertEqual(counts, {"HIGH": 3, "MEDIUM": 9, "LOW": 3})
+        self.assertEqual(
+            {x["cve"] for x in self.current["findings"]},
+            {"CVE-2026-19499", "CVE-2026-5435", "CVE-2026-85091"},
+        )
+
+    def test_renewal_rejects_changed_high_findings_and_expiry(self):
+        from image_acceptance import acceptance
+
+        pages = json.loads((ROOT / "fixtures/test-scan-2026-10-12.json").read_text())
+        for changed in [
+            self.current["findings"][:1],
+            [{**x, "version": "other"} for x in self.current["findings"]],
+        ]:
+            with self.assertRaises(RuntimeError):
+                acceptance(
+                    pages,
+                    self.binding.DIGEST,
+                    self.current["provenance"],
+                    {**self.current, "findings": changed},
+                    REVIEW_TIME,
+                )
+        with self.assertRaises(RuntimeError):
+            acceptance(
+                pages,
+                self.binding.DIGEST,
+                self.current["provenance"],
+                self.current,
+                self.binding.timestamp(self.current["expires_at"]),
+            )
 
 
 class RuntimePolicyChecks(unittest.TestCase):

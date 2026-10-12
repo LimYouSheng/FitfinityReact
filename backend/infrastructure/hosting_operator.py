@@ -534,6 +534,28 @@ class Operator:
             }
         )
         if mode == "app-recover-review":
+            if self.state.get("app_approval_transition"):
+                row = self.state["stacks"]["app"]
+                require(
+                    row.get("delete_intent") and row.get("delete_response_received") is True,
+                    "Renewal review requires acknowledged deletion",
+                )
+                self.app_recovery_readback()
+                remote = self.stack("app")
+                self.report["app_deletion_readback"] = deepcopy(remote)
+                require(remote is None, "App deletion must complete before renewal review")
+                recovery.update(
+                    reviewed=True,
+                    deleted=True,
+                    deleted_checkpoint=deepcopy(row),
+                    deletion_review_token=token,
+                )
+                self.state["app_approval_transition"]["reconciled"] = True
+                self.save()
+                self.report.update(
+                    status="failed_app_replacement_review_required", review_token=token
+                )
+                return
             self.app_recovery_readback(shell=True)
             recovery.update(reviewed=True, deletion_review_token=token)
             self.save()
@@ -547,6 +569,10 @@ class Operator:
         )
         row = self.state["stacks"]["app"]
         if mode == "app-recover-delete":
+            require(
+                not self.state.get("app_approval_transition"),
+                "Renewed app recovery must never replay deletion",
+            )
             require(not recovery.get("replacement_started"), "Cannot delete replacement app")
             self.app_recovery_readback(shell=not row.get("delete_intent"))
             if not row.get("delete_intent"):
@@ -1787,7 +1813,9 @@ def main(argv=None):
         }
         if args.resume_run:
             restore = (
-                binding.restore_failed_app
+                binding.restore_app_deletion
+                if args.mode == "app-recover-review" and args.resume_run == binding.APP_DELETE_RUN
+                else binding.restore_failed_app
                 if args.mode == "app-recover-review"
                 else binding.restore_deleted_edge
                 if args.mode == "recover-review" and args.resume_run == binding.DELETED_RUN

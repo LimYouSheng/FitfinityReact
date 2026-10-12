@@ -39,6 +39,10 @@ APP_ZIP_SHA = "731778981c320bd29d4b006814448cf4129daa9bb5536c8a958dd34df3392567"
 APP_STATE_SHA = "4476e4a3f8671d9581b71d48e1409edc5cad512418547d328c5cbde5b64c67ba"
 APP_REPAIR_BRANCH = "repair/app-rollback-769df115"
 RETAINED_BUCKET = "fitfinity-test-login-frontendbucket-famdouidjpp2"
+APP_DELETE_RUN = 38262560845
+APP_DELETE_SOURCE = "58b771bd4e35f1ffb6c5ff1ccba1853f31796678"
+APP_DELETE_STATE_SHA = "8d6e80cd7a04d1cf62cf91051e7a67560fd8bc2f0c2c45bf472bbaffb878df7e"
+APP_RENEWAL_BRANCH = "feat/test-approval-renewal-2026-10-12"
 
 
 class EvidenceAWS(preflight.EvidenceAWS):
@@ -327,6 +331,87 @@ def restore_failed_app(run_id, operation, source):
             "bucket_disposition": "preserve-unmodified-and-create-separate-bucket",
         },
     )
+    return state, origin
+
+
+def restore_app_deletion(run_id, operation, source):
+    """Rebind one acknowledged deletion after owner review; live reads confirm completion."""
+    require(
+        run_id == APP_DELETE_RUN and operation == TRANSITION_OPERATION,
+        "Unreviewed app deletion run/operation",
+    )
+    github = ExistingImage({}).github
+    prefix = f"repos/{GITHUB_REPO}"
+    pr = github(f"{prefix}/pulls/23")
+    commit = github(f"{prefix}/commits/{source}")
+    require(
+        re.fullmatch(r"[0-9a-f]{40}", source)
+        and pr.get("merged") is True
+        and pr.get("merged_by", {}).get("login") == "LimYouSheng"
+        and pr.get("merge_commit_sha") == source
+        and pr.get("head", {}).get("ref") == APP_RENEWAL_BRANCH
+        and pr.get("base", {}).get("ref") == "main"
+        and all(
+            pr.get(k, {}).get("repo", {}).get("full_name") == GITHUB_REPO for k in ("base", "head")
+        )
+        and commit.get("sha") == source
+        and len(commit.get("parents", [])) == 2
+        and commit["parents"][0].get("sha") == APP_DELETE_SOURCE
+        and commit["parents"][1].get("sha") == pr["head"].get("sha"),
+        "App renewal requires exact owner-merged PR 23 on the deletion source",
+    )
+    files, origin = artifact(
+        run_id,
+        "fitfinity-hosting-" + operation + "-{run}-{attempt}",
+        APP_DELETE_SOURCE,
+        artifact_id=11755932657,
+        checksum="7a901757131e66189d05667031cfcce7725a2ee1c6046c7105d1fa28d858a063",
+    )
+    raw = files["hosting/state.json"]
+    require(sha(raw) == APP_DELETE_STATE_SHA, "App deletion checkpoint bytes differ")
+    state = json.loads(raw)
+    receipt = json.loads(files["hosting/receipt.json"])
+    recovery = state.get("failed_app_recovery", {})
+    app = state.get("stacks", {}).get("app", {})
+    writes = receipt.get("cloud_writes", [])
+    require(
+        receipt.get("checkpoint") == state
+        and receipt.get("status") == "failed_app_deletion_pending"
+        and state.get("operator_commit") == APP_DELETE_SOURCE
+        and state.get("operation_id") == operation
+        and state.get("image_digest") == runtime.DIGEST
+        and recovery.get("reviewed") is True
+        and not recovery.get("replacement_started")
+        and not recovery.get("deleted")
+        and recovery.get("retained_bucket") == RETAINED_BUCKET
+        and recovery.get("bucket_disposition") == "preserve-unmodified-and-create-separate-bucket"
+        and app.get("delete_intent")
+        and app.get("delete_response_received") is True
+        and "delete_response" in app
+        and len(writes) == 1
+        and writes[0].get("service") == "cloudformation"
+        and writes[0].get("operation") == "delete-stack"
+        and writes[0].get("region") == "ap-southeast-1"
+        and writes[0].get("arguments_sha256") == app["delete_intent"]["arguments_sha256"],
+        "Acknowledged app deletion checkpoint differs",
+    )
+    original = deepcopy(state)
+    state.update(
+        operator_commit=source,
+        execution_authorized=False,
+        cleanup_authorized=False,
+        app_approval_transition={
+            "review_pr": 23,
+            "artifact": origin,
+            "original_checkpoint": original,
+            "original_receipt": receipt,
+            "review": pr,
+            "merge": commit,
+        },
+    )
+    recovery.update(to_source=source, reviewed=False)
+    recovery.pop("deletion_review_token", None)
+    state["review_token"] = ""
     return state, origin
 
 
