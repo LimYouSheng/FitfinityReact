@@ -27,7 +27,7 @@ SUITES = {
     "verify-release-image.py": 30,
     "verify-image-acceptance.py": 26,
     "verify-private-runtime.py": 61,
-    "verify-hosting.py": 104,
+    "verify-hosting.py": 127,
 }
 
 

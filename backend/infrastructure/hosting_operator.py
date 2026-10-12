@@ -44,6 +44,9 @@ READS = {
     ("s3api", "get-bucket-policy"),
     ("s3api", "get-bucket-encryption"),
     ("s3api", "get-bucket-versioning"),
+    ("s3api", "get-bucket-tagging"),
+    ("s3api", "list-object-versions"),
+    ("s3api", "list-multipart-uploads"),
     ("iam", "get-role-policy"),
     ("iam", "get-role"),
     ("iam", "list-role-policies"),
@@ -212,6 +215,8 @@ class HostingAWS:
             "Incomplete provider pagination",
         )
         call.update(status="complete", response_sha256=digest(value))
+        if self.state.get("failed_app_recovery") and service in {"cloudformation", "s3api"}:
+            call["response"] = deepcopy(value)
         return value
 
     def guard_write(self, service, operation, args, region):
@@ -244,6 +249,19 @@ class HostingAWS:
                     and (
                         operation != "create-change-set"
                         or self.state["failed_edge_recovery"].get("deleted")
+                    )
+                )
+                or (
+                    self.state.get("mode")
+                    == {
+                        "create-change-set": "app-recover-prepare",
+                        "delete-stack": "app-recover-delete",
+                    }.get(operation, "")
+                    and key == "app"
+                    and self.state.get("failed_app_recovery", {}).get("reviewed") is True
+                    and (
+                        operation != "create-change-set"
+                        or self.state["failed_app_recovery"].get("deleted") is True
                     )
                 ),
                 "Write outside selected hosting phase",
@@ -359,6 +377,262 @@ class Operator:
             "Failed edge has surviving, ambiguous or unexpected resources",
         )
         return row
+
+    def app_recovery_readback(self, shell=False):
+        """Recheck preserved resources; keep complete read responses in the receipt."""
+        recovery = self.state["failed_app_recovery"]
+        original = recovery["original_checkpoint"]
+        require(
+            self.state["operation_id"] == original["operation_id"]
+            and self.state["operator_commit"] == recovery["to_source"]
+            and self.state["image_digest"] == original["image_digest"]
+            and self.state["stacks"]["edge"] == original["stacks"]["edge"]
+            and recovery["retained_bucket"] == binding.RETAINED_BUCKET
+            and recovery["bucket_disposition"] == "preserve-unmodified-and-create-separate-bucket",
+            "App recovery identity or preserved edge history differs",
+        )
+        evidence = self.report.setdefault("app_recovery_readbacks", [])
+        current = {}
+        evidence.append(current)
+        edge = self.stack("edge")
+        current["edge_stack"] = deepcopy(edge)
+        require(edge and edge["StackStatus"] == "CREATE_COMPLETE", "Preserve successful edge")
+        self.check_template("edge")
+        expected_edge = original["stacks"]["edge"]
+        require(
+            {r["OutputKey"]: r["OutputValue"] for r in edge.get("Outputs", [])}
+            == expected_edge["outputs"],
+            "Edge outputs changed",
+        )
+        resources = self.aws(
+            "cloudformation",
+            "list-stack-resources",
+            "--stack-name",
+            expected_edge["stack_id"],
+            region=design.EDGE_REGION,
+        )
+        current["edge_resources"] = resources
+        rows = resources.get("StackResourceSummaries", [])
+        require(
+            len(rows) == 1
+            and rows[0].get("LogicalResourceId") == "EdgeAcl"
+            and rows[0].get("ResourceType") == "AWS::WAFv2::WebACL"
+            and rows[0].get("ResourceStatus") == "CREATE_COMPLETE"
+            and rows[0].get("PhysicalResourceId") == expected_edge["resource_ids"]["EdgeAcl"],
+            "Edge resource identity changed",
+        )
+        bucket = recovery["retained_bucket"]
+        for operation in [
+            "get-bucket-tagging",
+            "get-public-access-block",
+            "get-bucket-versioning",
+            "list-object-versions",
+            "list-multipart-uploads",
+        ]:
+            current[operation] = self.aws(
+                "s3api", operation, "--bucket", bucket, "--expected-bucket-owner", design.ACCOUNT
+            )
+        tags = current["get-bucket-tagging"].get("TagSet", [])
+        expected_tags = {
+            "Application": "Fitfinity",
+            "Environment": "test",
+            "Purpose": "first-login-v1",
+            "OperationId": original["operation_id"],
+            "TemplateSHA256": original["stacks"]["app"]["template_sha256"],
+        }
+        actual_tags = {t["Key"]: t["Value"] for t in tags}
+        stack_tags = {
+            "aws:cloudformation:stack-id": original["stacks"]["app"]["stack_id"],
+            "aws:cloudformation:stack-name": design.STACKS["app"][0],
+            "aws:cloudformation:logical-id": "FrontendBucket",
+        }
+        require(
+            len(actual_tags) == len(tags)
+            and all(actual_tags.get(k) == v for k, v in expected_tags.items())
+            and all(k in expected_tags or stack_tags.get(k) == v for k, v in actual_tags.items()),
+            "Retained bucket ownership differs",
+        )
+        blocks = current["get-public-access-block"].get("PublicAccessBlockConfiguration", {})
+        require(
+            all(
+                blocks.get(k) is True
+                for k in [
+                    "BlockPublicAcls",
+                    "IgnorePublicAcls",
+                    "BlockPublicPolicy",
+                    "RestrictPublicBuckets",
+                ]
+            )
+            and current["get-bucket-versioning"].get("Status") == "Enabled",
+            "Retained bucket protection differs",
+        )
+        require(
+            not current["list-object-versions"].get("Versions")
+            and not current["list-object-versions"].get("DeleteMarkers")
+            and not current["list-multipart-uploads"].get("Uploads"),
+            "Retained bucket is no longer empty; preserve it and review",
+        )
+        if not recovery.get("replacement_started"):
+            require(
+                {
+                    k: v
+                    for k, v in self.state["stacks"]["app"].items()
+                    if k not in {"delete_intent", "delete_response_received", "delete_response"}
+                }
+                == original["stacks"]["app"],
+                "Failed app write history changed",
+            )
+        if shell:
+            require(
+                self.state["stacks"]["app"] == original["stacks"]["app"],
+                "Failed app checkpoint changed before deletion",
+            )
+            app = self.stack("app")
+            current["app_stack"] = deepcopy(app)
+            require(
+                app and app["StackStatus"] == "ROLLBACK_COMPLETE",
+                "Failed app must be ROLLBACK_COMPLETE",
+            )
+            template = self.check_template("app")
+            resources = self.aws(
+                "cloudformation",
+                "list-stack-resources",
+                "--stack-name",
+                original["stacks"]["app"]["stack_id"],
+            )
+            current["app_resources"] = resources
+            rows = resources.get("StackResourceSummaries", [])
+            require(
+                len(rows) == len(template["Resources"])
+                and {r.get("LogicalResourceId"): r.get("ResourceType") for r in rows}
+                == {k: v["Type"] for k, v in template["Resources"].items()}
+                and all(
+                    (
+                        r.get("ResourceStatus") == "DELETE_SKIPPED"
+                        and r.get("PhysicalResourceId") == bucket
+                    )
+                    if r.get("LogicalResourceId") == "FrontendBucket"
+                    else r.get("ResourceStatus") == "DELETE_COMPLETE"
+                    for r in rows
+                )
+                and template["Resources"]["FrontendBucket"].get("DeletionPolicy") == "Retain",
+                "Failed app has unexpected or surviving resources",
+            )
+        return current
+
+    def recover_failed_app(self):
+        recovery = self.state["failed_app_recovery"]
+        mode = self.state["mode"]
+        token = digest(
+            {
+                "source": self.state["operator_commit"],
+                "original": recovery["original_checkpoint"],
+                "release": recovery["replacement_release"],
+                "bucket": recovery["retained_bucket"],
+                "disposition": recovery["bucket_disposition"],
+                "action": "delete-failed-app-shell-preserve-edge-and-old-bucket",
+            }
+        )
+        if mode == "app-recover-review":
+            self.app_recovery_readback(shell=True)
+            recovery.update(reviewed=True, deletion_review_token=token)
+            self.save()
+            self.report.update(status="failed_app_disposition_review_required", review_token=token)
+            return
+        require(
+            recovery.get("reviewed") is True
+            and recovery.get("deletion_review_token") == token
+            and self.state.get("review_token") == token,
+            "Exact app recovery disposition approval required",
+        )
+        row = self.state["stacks"]["app"]
+        if mode == "app-recover-delete":
+            require(not recovery.get("replacement_started"), "Cannot delete replacement app")
+            self.app_recovery_readback(shell=not row.get("delete_intent"))
+            if not row.get("delete_intent"):
+                pf.evidence(self.report, pf.now())
+                args = [
+                    "--stack-name",
+                    row["stack_id"],
+                    "--client-request-token",
+                    self.state["operation_id"] + "-failed-app-delete",
+                ]
+                row["delete_intent"] = {
+                    "arguments_sha256": digest(args),
+                    "at": pf.now().isoformat(),
+                }
+                self.state["cleanup_authorized"] = True
+                self.save()
+                response = self.aws("cloudformation", "delete-stack", *args)
+                row.update(delete_response_received=True, delete_response=response)
+                self.save()
+            remote = self.stack("app")
+            self.report["app_deletion_readback"] = deepcopy(remote)
+            if remote:
+                require(
+                    remote["StackStatus"] == "DELETE_IN_PROGRESS",
+                    "App deletion uncertain or failed; never replay",
+                )
+                self.report["status"] = "failed_app_deletion_pending"
+                return
+            recovery.update(deleted=True, deleted_checkpoint=deepcopy(row))
+            self.state["cleanup_authorized"] = False
+            self.save()
+            self.report["status"] = "failed_app_deleted_bucket_preserved"
+            return
+        require(
+            mode == "app-recover-prepare" and recovery.get("deleted") is True,
+            "App replacement requires reconciled deletion",
+        )
+        self.app_recovery_readback()
+        old = recovery["deleted_checkpoint"]
+        previous = self.aws(
+            "cloudformation", "describe-stacks", "--stack-name", old["stack_id"], absent=True
+        )
+        self.report["app_deletion_readback"] = previous
+        require(
+            previous is None
+            or (
+                len(previous.get("Stacks", [])) == 1
+                and previous["Stacks"][0].get("StackId") == old["stack_id"]
+                and previous["Stacks"][0].get("StackStatus") == "DELETE_COMPLETE"
+            ),
+            "Original app deletion not confirmed",
+        )
+        template = design.app_template(
+            self.state["frontend"]["prefix"], self.state["stacks"]["edge"]["outputs"]["WebAclArn"]
+        )
+        require(
+            "BucketName" not in template["Resources"]["FrontendBucket"]["Properties"],
+            "Replacement cannot adopt the preserved bucket",
+        )
+        if not recovery.get("replacement_started"):
+            require(
+                self.aws("lambda", "get-function", "--function-name", design.FUNCTION, absent=True)
+                is None,
+                "Existing API function will not be adopted",
+            )
+            recovery["replacement_started"] = True
+            self.state["stacks"]["app"] = {
+                "template_sha256": digest(template),
+                "change_set_name": "first-login-" + self.state["operation_id"] + "-app-recovery-1",
+                "client_token": self.state["operation_id"] + "-app-recovery-1",
+            }
+            self.save()
+        replacement = self.state["stacks"]["app"]
+        require(
+            not replacement.get("create_intent")
+            or replacement.get("create_response_received") is True,
+            "App replacement creation uncertain; no duplicate write",
+        )
+        self.create("app", template)
+        require(
+            self.report.get("status") == "change_set_review_required"
+            and replacement["stack_id"] != old["stack_id"],
+            "Replacement app must stop at new change-set review",
+        )
+        recovery["replacement_prepared"] = True
+        self.save()
 
     def recover_failed_edge(self):
         recovery = self.state["failed_edge_recovery"]
@@ -744,7 +1018,7 @@ class Operator:
             row["review_token"] = token
             row["reviewed_changes"] = changes
             self.save()
-            if self.state.get("mode") in {"prepare", "recover-prepare"}:
+            if self.state.get("mode") in {"prepare", "recover-prepare", "app-recover-prepare"}:
                 self.report.update(
                     status="change_set_review_required", review_token=token, review_stack=key
                 )
@@ -1434,6 +1708,9 @@ def main(argv=None):
             "recover-review",
             "recover-delete",
             "recover-prepare",
+            "app-recover-review",
+            "app-recover-delete",
+            "app-recover-prepare",
         ],
         default="plan",
     )
@@ -1456,7 +1733,9 @@ def main(argv=None):
     state = {}
     previous = signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     try:
-        recovery_mode = args.mode.startswith("recover-")
+        app_recovery_mode = args.mode.startswith("app-recover-")
+        recovery_mode = args.mode.startswith("recover-") or app_recovery_mode
+        review_mode = args.mode in {"recover-review", "app-recover-review"}
         require(
             not recovery_mode
             or (
@@ -1465,7 +1744,7 @@ def main(argv=None):
                 and not args.source_transition
                 and (
                     not args.review_token
-                    if args.mode == "recover-review"
+                    if review_mode
                     else re.fullmatch(r"[a-f0-9]{64}", args.review_token)
                 )
             ),
@@ -1508,7 +1787,9 @@ def main(argv=None):
         }
         if args.resume_run:
             restore = (
-                binding.restore_deleted_edge
+                binding.restore_failed_app
+                if args.mode == "app-recover-review"
+                else binding.restore_deleted_edge
                 if args.mode == "recover-review" and args.resume_run == binding.DELETED_RUN
                 else binding.restore_failed_edge
                 if args.mode == "recover-review"
@@ -1520,6 +1801,22 @@ def main(argv=None):
         require(
             not recovery_mode or state.get("failed_edge_recovery"),
             "Missing reviewed failed-edge recovery",
+        )
+        require(
+            not app_recovery_mode or state.get("failed_app_recovery"),
+            "Missing authenticated failed-app recovery",
+        )
+        require(
+            not state.get("failed_app_recovery")
+            or (
+                args.mode != "rollback"
+                and not args.mode.startswith("recover-")
+                and (
+                    app_recovery_mode
+                    or state["failed_app_recovery"].get("replacement_prepared") is True
+                )
+            ),
+            "App recovery must preserve edge and finish before ordinary hosting",
         )
         require(
             not state.get("failed_edge_recovery")
@@ -1535,7 +1832,7 @@ def main(argv=None):
         state.update(
             mode=args.mode,
             review_token=args.review_token,
-            execution_authorized=not args.source_transition and args.mode != "recover-review",
+            execution_authorized=not args.source_transition and not review_mode,
         )
         op = Operator(directory, state, report)
         op.save()
@@ -1545,7 +1842,7 @@ def main(argv=None):
             return 0
         require(args.release_run and args.release_run > 0, "Verified release run required")
         new_release = binding.release(args.release_run, source, directory / "frontend")
-        if state.get("frontend") and not args.source_transition and args.mode != "recover-review":
+        if state.get("frontend") and not args.source_transition and not review_mode:
             require(
                 {k: v for k, v in state["frontend"].items() if k != "directory"}
                 == {k: v for k, v in new_release.items() if k != "directory"},
@@ -1556,8 +1853,9 @@ def main(argv=None):
             state["source_transition"]["replacement_release"] = {
                 k: v for k, v in new_release.items() if k != "directory"
             }
-        if args.mode == "recover-review":
-            state["failed_edge_recovery"]["replacement_release"] = {
+        if review_mode:
+            recovery_key = "failed_app_recovery" if app_recovery_mode else "failed_edge_recovery"
+            state[recovery_key]["replacement_release"] = {
                 k: v for k, v in new_release.items() if k != "directory"
             }
         op.save()
@@ -1568,8 +1866,13 @@ def main(argv=None):
             SimpleNamespace(aws=op.aws, report=report), names=[design.FUNCTION]
         )
         if recovery_mode:
-            op.recover_failed_edge()
+            if app_recovery_mode:
+                op.recover_failed_app()
+            else:
+                op.recover_failed_edge()
             return 0
+        if state.get("failed_app_recovery"):
+            op.app_recovery_readback()
         if args.source_transition:
             remote = op.stack("edge")
             require(
@@ -1633,6 +1936,11 @@ def main(argv=None):
             outputs = op.create(key, template)
             if outputs is None:
                 return 0
+            if key == "app" and state.get("failed_app_recovery"):
+                require(
+                    outputs.get("FrontendBucket") != binding.RETAINED_BUCKET,
+                    "Replacement cannot reuse the preserved bucket",
+                )
             if key == "edge":
                 report["status"] = "edge_complete_prepare_app"
                 return 0

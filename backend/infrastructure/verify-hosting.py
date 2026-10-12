@@ -2463,5 +2463,539 @@ class DeletedRenewalTests(unittest.TestCase):
                     self.assertEqual(aws.call_args.args[:2], ("cloudformation", "describe-stacks"))
 
 
+class FailedAppRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.source = "d" * 40
+        self.template = d.app_template(PREFIX, EDGE)
+        self.state = {
+            "operator_commit": self.source,
+            "operation_id": o.binding.TRANSITION_OPERATION,
+            "image_digest": o.binding.runtime.DIGEST,
+            "frontend": {"prefix": PREFIX},
+            "stacks": {},
+            "failed_edge_recovery": {"reviewed": True, "replacement_prepared": True},
+        }
+        self.report = {}
+        self.op = o.Operator(Path(self.tmp.name), self.state, self.report, aws=self.provider)
+        self.remote, self.resources, self.calls = {}, {}, []
+        self.lose_delete = self.lose_create = self.pending = False
+        for key, template in [("edge", d.edge_template()), ("app", self.template)]:
+            name, region = d.STACKS[key]
+            stack_id = f"arn:aws:cloudformation:{region}:{d.ACCOUNT}:stack/{name}/original"
+            row = {
+                "stack_id": stack_id,
+                "template_sha256": o.digest(template),
+                "create_intent": {"arguments_sha256": "original-create"},
+                "execute_intent": {"arguments_sha256": "original-execute"},
+                "execute_response_received": True,
+            }
+            if key == "edge":
+                row.update(
+                    complete=True, outputs={"WebAclArn": EDGE}, resource_ids={"EdgeAcl": "edge-acl"}
+                )
+            self.state["stacks"][key] = row
+            self.remote[key] = {
+                "StackId": stack_id,
+                "StackName": name,
+                "StackStatus": "CREATE_COMPLETE" if key == "edge" else "ROLLBACK_COMPLETE",
+                "RoleARN": "arn:aws:iam::418638389566:role/fitfinity-test-hosting-cloudformation",
+                "Tags": [{"Key": k, "Value": v} for k, v in self.op.tags(key).items()],
+                "Outputs": [{"OutputKey": "WebAclArn", "OutputValue": EDGE}]
+                if key == "edge"
+                else [],
+            }
+            self.resources[key] = [
+                {
+                    "LogicalResourceId": k,
+                    "ResourceType": r["Type"],
+                    "ResourceStatus": "CREATE_COMPLETE"
+                    if key == "edge"
+                    else "DELETE_SKIPPED"
+                    if k == "FrontendBucket"
+                    else "DELETE_COMPLETE",
+                    "PhysicalResourceId": o.binding.RETAINED_BUCKET
+                    if k == "FrontendBucket"
+                    else "edge-acl"
+                    if key == "edge"
+                    else "old-" + k,
+                }
+                for k, r in template["Resources"].items()
+            ]
+        self.original = deepcopy(self.state)
+        self.original["operator_commit"] = o.binding.APP_SOURCE
+        self.state["failed_app_recovery"] = {
+            "original_checkpoint": deepcopy(self.original),
+            "to_source": self.source,
+            "retained_bucket": o.binding.RETAINED_BUCKET,
+            "bucket_disposition": "preserve-unmodified-and-create-separate-bucket",
+            "replacement_release": {"prefix": PREFIX},
+        }
+        self.bucket = {
+            "get-bucket-tagging": {"TagSet": deepcopy(self.remote["app"]["Tags"])},
+            "get-public-access-block": {
+                "PublicAccessBlockConfiguration": {
+                    k: True
+                    for k in [
+                        "BlockPublicAcls",
+                        "IgnorePublicAcls",
+                        "BlockPublicPolicy",
+                        "RestrictPublicBuckets",
+                    ]
+                }
+            },
+            "get-bucket-versioning": {"Status": "Enabled"},
+            "list-object-versions": {"Versions": None, "DeleteMarkers": None},
+            "list-multipart-uploads": {"Uploads": None},
+        }
+        self.enterContext(patch.object(o.pf, "evidence"))
+
+    def provider(self, service, operation, *args, **kwargs):
+        self.calls.append((service, operation, args))
+        if service == "s3api":
+            self.assertEqual(o.flag(args, "--bucket"), o.binding.RETAINED_BUCKET)
+            self.assertEqual(o.flag(args, "--expected-bucket-owner"), d.ACCOUNT)
+            return deepcopy(self.bucket[operation])
+        if operation == "get-function":
+            return None
+        if operation == "validate-template":
+            return {}
+        key = "edge" if "fitfinity-test-login-edge" in o.flag(args, "--stack-name") else "app"
+        if operation == "describe-stacks":
+            if o.flag(args, "--stack-name").endswith("/original") and hasattr(self, "deleted"):
+                if key == "app":
+                    return {"Stacks": [deepcopy(self.deleted)]}
+            row = self.remote[key]
+            if (
+                row
+                and row["StackStatus"] == "DELETE_COMPLETE"
+                and o.flag(args, "--stack-name") == d.STACKS[key][0]
+            ):
+                return None
+            return {"Stacks": [deepcopy(row)]} if row else None
+        if operation == "get-template":
+            return {"TemplateBody": d.edge_template() if key == "edge" else self.template}
+        if operation == "list-stack-resources":
+            return {"StackResourceSummaries": deepcopy(self.resources[key])}
+        if operation == "delete-stack":
+            self.assertEqual(key, "app")
+            self.remote["app"]["StackStatus"] = (
+                "DELETE_IN_PROGRESS" if self.pending else "DELETE_COMPLETE"
+            )
+            if self.lose_delete:
+                raise RuntimeError("lost delete response")
+            return {"request": "delete-acknowledged"}
+        if operation == "validate-template":
+            return {}
+        if operation == "create-change-set":
+            self.assertEqual(key, "app")
+            self.deleted = deepcopy(self.remote["app"])
+            self.remote["app"] = {
+                **self.deleted,
+                "StackId": self.deleted["StackId"].replace("/original", "/replacement"),
+                "StackStatus": "REVIEW_IN_PROGRESS",
+                "Tags": [{"Key": k, "Value": v} for k, v in self.op.tags("app").items()],
+            }
+            if self.lose_create:
+                raise RuntimeError("lost create response")
+            return {"StackId": self.remote["app"]["StackId"], "Id": "replacement-change"}
+        if operation == "describe-change-set":
+            return {
+                "Status": "CREATE_COMPLETE",
+                "ExecutionStatus": "AVAILABLE",
+                "StackId": self.remote["app"]["StackId"],
+                "ChangeSetId": "replacement-change",
+                "ChangeSetName": self.state["stacks"]["app"]["change_set_name"],
+                "Tags": self.remote["app"]["Tags"],
+                "Changes": [
+                    {
+                        "ResourceChange": {
+                            "LogicalResourceId": k,
+                            "ResourceType": r["Type"],
+                            "Action": "Add",
+                        }
+                    }
+                    for k, r in self.template["Resources"].items()
+                ],
+            }
+        raise AssertionError((service, operation, args))
+
+    def phase(self, mode):
+        self.state["mode"] = "app-recover-" + mode
+        if mode != "review":
+            self.state["review_token"] = self.state["failed_app_recovery"].get(
+                "deletion_review_token"
+            )
+        self.op.recover_failed_app()
+
+    def writes(self):
+        return [c for c in self.calls if (c[0], c[1]) in o.WRITES]
+
+    def test_review_is_read_only_and_preserves_all_history(self):
+        self.phase("review")
+        self.assertFalse(self.writes())
+        self.assertEqual(self.state["stacks"], self.original["stacks"])
+        self.assertEqual(self.state["failed_app_recovery"]["original_checkpoint"], self.original)
+        self.assertEqual(len(self.report["review_token"]), 64)
+        self.assertIn("app_resources", self.report["app_recovery_readbacks"][0])
+
+    def test_separate_deletion_and_preparation_preserve_bucket_and_edge(self):
+        self.phase("review")
+        self.phase("delete")
+        self.assertEqual(self.report["status"], "failed_app_deleted_bucket_preserved")
+        self.phase("prepare")
+        self.assertEqual([x[1] for x in self.writes()], ["delete-stack", "create-change-set"])
+        self.assertEqual(self.report["status"], "change_set_review_required")
+        self.assertEqual(self.state["stacks"]["edge"], self.original["stacks"]["edge"])
+        self.assertTrue(self.state["failed_app_recovery"]["replacement_prepared"])
+        self.assertEqual(
+            self.state["failed_app_recovery"]["deleted_checkpoint"]["delete_response"],
+            {"request": "delete-acknowledged"},
+        )
+
+    def test_reject_surviving_or_extra_app_resource(self):
+        for change in ["status", "extra", "missing", "bucket"]:
+            with self.subTest(change=change):
+                original = deepcopy(self.resources["app"])
+                if change == "status":
+                    self.resources["app"][0]["ResourceStatus"] = "CREATE_COMPLETE"
+                if change == "extra":
+                    self.resources["app"].append(deepcopy(original[0]))
+                if change == "missing":
+                    self.resources["app"].pop()
+                if change == "bucket":
+                    next(
+                        r
+                        for r in self.resources["app"]
+                        if r["LogicalResourceId"] == "FrontendBucket"
+                    )["PhysicalResourceId"] = "foreign"
+                with self.assertRaises(RuntimeError):
+                    self.phase("review")
+                self.resources["app"] = original
+        self.assertFalse(self.writes())
+
+    def test_reject_foreign_stack_tags_template_and_role(self):
+        for key in ["StackId", "RoleARN", "Tags"]:
+            with self.subTest(key=key):
+                old = deepcopy(self.remote["app"][key])
+                self.remote["app"][key] = [] if key == "Tags" else "foreign"
+                with self.assertRaises(RuntimeError):
+                    self.phase("review")
+                self.remote["app"][key] = old
+        self.template["Description"] = "altered"
+        with self.assertRaises(RuntimeError):
+            self.phase("review")
+        self.assertFalse(self.writes())
+
+    def test_reject_changed_edge(self):
+        self.remote["edge"]["StackStatus"] = "UPDATE_COMPLETE"
+        with self.assertRaises(RuntimeError):
+            self.phase("review")
+        self.assertFalse(self.writes())
+
+    def test_reject_bucket_objects_versions_markers_or_uploads(self):
+        for operation, key in [
+            ("list-object-versions", "Versions"),
+            ("list-object-versions", "DeleteMarkers"),
+            ("list-multipart-uploads", "Uploads"),
+        ]:
+            self.bucket[operation][key] = [{"Key": "unreviewed"}]
+            with self.assertRaises(RuntimeError):
+                self.phase("review")
+            self.bucket[operation][key] = None
+        self.assertFalse(self.writes())
+
+    def test_reject_changed_bucket_tags_or_protection(self):
+        self.bucket["get-bucket-tagging"]["TagSet"][0]["Value"] = "foreign"
+        with self.assertRaises(RuntimeError):
+            self.phase("review")
+        self.bucket["get-bucket-tagging"]["TagSet"] = self.remote["app"]["Tags"]
+        self.bucket["get-public-access-block"]["PublicAccessBlockConfiguration"][
+            "BlockPublicAcls"
+        ] = False
+        with self.assertRaises(RuntimeError):
+            self.phase("review")
+        self.assertFalse(self.writes())
+
+    def test_delete_response_loss_reconciles_without_duplicate_write(self):
+        self.phase("review")
+        self.lose_delete = True
+        with self.assertRaisesRegex(RuntimeError, "lost delete"):
+            self.phase("delete")
+        self.phase("delete")
+        self.phase("delete")
+        self.assertEqual(len(self.writes()), 1)
+        self.assertTrue(self.state["failed_app_recovery"]["deleted"])
+        self.assertNotIn("delete_response_received", self.state["stacks"]["app"])
+
+    def test_uncertain_delete_never_retries_when_stack_unchanged(self):
+        self.phase("review")
+        self.lose_delete = True
+        with self.assertRaises(RuntimeError):
+            self.phase("delete")
+        self.remote["app"]["StackStatus"] = "ROLLBACK_COMPLETE"
+        for _ in range(2):
+            with self.assertRaises(RuntimeError):
+                self.phase("delete")
+        self.assertEqual(len(self.writes()), 1)
+
+    def test_pending_delete_cannot_prepare(self):
+        self.phase("review")
+        self.pending = True
+        self.phase("delete")
+        self.assertEqual(self.report["status"], "failed_app_deletion_pending")
+        with self.assertRaises(RuntimeError):
+            self.phase("prepare")
+        self.assertEqual(len(self.writes()), 1)
+
+    def test_create_response_loss_never_replays(self):
+        self.phase("review")
+        self.phase("delete")
+        self.lose_create = True
+        with self.assertRaises(RuntimeError):
+            self.phase("prepare")
+        with self.assertRaisesRegex(RuntimeError, "creation uncertain"):
+            self.phase("prepare")
+        self.assertEqual(len(self.writes()), 2)
+
+    def test_prepared_replacement_cannot_be_deleted(self):
+        self.phase("review")
+        self.phase("delete")
+        self.phase("prepare")
+        with self.assertRaises(RuntimeError):
+            self.phase("delete")
+        self.assertEqual(len(self.writes()), 2)
+
+    def test_changed_source_release_disposition_or_token_blocks_write(self):
+        self.phase("review")
+        recovery = self.state["failed_app_recovery"]
+        for key in ["replacement_release", "bucket_disposition", "deletion_review_token"]:
+            old = deepcopy(recovery[key])
+            recovery[key] = "altered"
+            with self.assertRaises(RuntimeError):
+                self.phase("delete")
+            recovery[key] = old
+        self.state["operator_commit"] = "e" * 40
+        with self.assertRaises(RuntimeError):
+            self.phase("delete")
+        self.assertFalse(self.writes())
+
+    def test_changed_acknowledged_intent_is_rejected(self):
+        self.phase("review")
+        self.state["stacks"]["app"]["execute_intent"] = {"foreign": True}
+        with self.assertRaises(RuntimeError):
+            self.phase("delete")
+        self.assertFalse(self.writes())
+
+    def test_lookup_grants_are_read_only_and_both_consumers_covered(self):
+        document = json.loads((o.ROOT / "test-github-hosting-role.json").read_text())
+        for role in ["CloudFormationRole", "HostingRole"]:
+            rows = document["Resources"][role]["Properties"]["Policies"][0]["PolicyDocument"][
+                "Statement"
+            ]
+            lookup = [r for r in rows if "wafv2:GetWebACLForResource" in r["Action"]]
+            self.assertEqual(len(lookup), 1)
+            self.assertEqual(
+                set(lookup[0]["Action"]), {"wafv2:GetWebACLForResource", "wafv2:GetWebACL"}
+            )
+            self.assertEqual(
+                lookup[0]["Resource"],
+                "arn:aws:wafv2:ap-southeast-1:418638389566:regional/webacl/*/*",
+            )
+            self.assertNotIn("s3:DeleteBucket", [a for r in rows for a in r["Action"]])
+
+    def test_app_write_guard_never_allows_edge_or_execution(self):
+        self.phase("review")
+        aws = o.HostingAWS({}, self.state, lambda: None)
+        for mode in ["app-recover-review", "app-recover-delete", "app-recover-prepare"]:
+            self.state["mode"] = mode
+            for operation in ["delete-stack", "create-change-set", "execute-change-set"]:
+                with self.assertRaises(RuntimeError):
+                    aws.guard_write(
+                        "cloudformation",
+                        operation,
+                        ["--stack-name", self.state["stacks"]["edge"]["stack_id"]],
+                        d.EDGE_REGION,
+                    )
+
+    def binding(self, *, mutate=None, owner="LimYouSheng", parent=None):
+        original = deepcopy(self.original)
+        if mutate:
+            mutate(original)
+        raw = json.dumps(original).encode()
+        files = {
+            "hosting/state.json": raw,
+            "hosting/receipt.json": json.dumps(
+                {"checkpoint": original, "status": "stopped"}
+            ).encode(),
+        }
+        pr = {
+            "number": 22,
+            "merged": True,
+            "merged_by": {"login": owner},
+            "merge_commit_sha": self.source,
+            "head": {
+                "ref": o.binding.APP_REPAIR_BRANCH,
+                "sha": "f" * 40,
+                "repo": {"full_name": o.binding.GITHUB_REPO},
+            },
+            "base": {"ref": "main", "repo": {"full_name": o.binding.GITHUB_REPO}},
+        }
+        commit = {
+            "sha": self.source,
+            "parents": [{"sha": parent or o.binding.APP_SOURCE}, {"sha": "f" * 40}],
+        }
+        with (
+            patch.object(o.binding.ExistingImage, "github", side_effect=[[pr], pr, commit]),
+            patch.object(
+                o.binding, "artifact", return_value=(files, {"sha256": o.binding.APP_ZIP_SHA})
+            ),
+            patch.object(o.binding, "APP_STATE_SHA", o.binding.sha(raw)),
+        ):
+            return o.binding.restore_failed_app(
+                o.binding.APP_RUN, o.binding.TRANSITION_OPERATION, self.source
+            )[0]
+
+    def test_binding_preserves_original_receipt_release_and_history(self):
+        state = self.binding()
+        self.assertEqual(state["failed_app_recovery"]["original_checkpoint"], self.original)
+        self.assertEqual(state["frontend"], self.original["frontend"])
+        self.assertFalse(state["execution_authorized"])
+        self.assertEqual(state["operator_commit"], self.source)
+
+    def test_binding_rejects_nonowner_or_advanced_main(self):
+        with self.assertRaises(RuntimeError):
+            self.binding(owner="someone-else")
+        with self.assertRaises(RuntimeError):
+            self.binding(parent="c" * 40)
+
+    def test_binding_rejects_foreign_operation_or_unacknowledged_execute(self):
+        with self.assertRaises(RuntimeError):
+            self.binding(mutate=lambda s: s.update(operation_id="0" * 32))
+        with self.assertRaises(RuntimeError):
+            self.binding(
+                mutate=lambda s: s["stacks"]["app"].update(execute_response_received=False)
+            )
+
+    def test_binding_rejects_wrong_run_before_network(self):
+        with patch.object(o.binding.ExistingImage, "github") as github:
+            with self.assertRaises(RuntimeError):
+                o.binding.restore_failed_app(1, o.binding.TRANSITION_OPERATION, self.source)
+            github.assert_not_called()
+
+    def test_app_entry_point_binds_new_release_and_stops_on_survivors(self):
+        from contextlib import ExitStack
+
+        release = {"artifact": {"run_id": 123}, "prefix": "new", "manifest": {}}
+        for survives in [False, True]:
+            with (
+                self.subTest(survives=survives),
+                tempfile.TemporaryDirectory() as tmp,
+                ExitStack() as mocks,
+            ):
+                if survives:
+                    self.resources["app"][0]["ResourceStatus"] = "CREATE_COMPLETE"
+                self.state["failed_app_recovery"].pop("reviewed", None)
+                for target in [
+                    "hosting_operator.pf.binding.actions_environment",
+                    "hosting_operator.pf.binding.collect_binding",
+                    "hosting_operator.binding.runtime_proof",
+                    "hosting_operator.pf.collect",
+                    "private_runtime.RuntimeOperator.verify_ecr_pull_policy",
+                ]:
+                    mocks.enter_context(patch(target))
+                mocks.enter_context(
+                    patch.object(
+                        o.pf.binding,
+                        "verify_main",
+                        side_effect=lambda report: report.update(operator_commit=self.source),
+                    )
+                )
+                restore = mocks.enter_context(
+                    patch.object(o.binding, "restore_failed_app", return_value=(self.state, {}))
+                )
+                mocks.enter_context(patch.object(o.binding, "release", return_value=release))
+                mocks.enter_context(
+                    patch.object(
+                        o.binding.EvidenceAWS, "environment", return_value="verified-identity"
+                    )
+                )
+
+                def operator(directory, state, report):
+                    self.op.directory, self.op.state, self.op.report = directory, state, report
+                    return self.op
+
+                mocks.enter_context(patch.object(o, "Operator", side_effect=operator))
+                directory = Path(tmp) / "receipt"
+                result = o.main(
+                    [
+                        "--mode",
+                        "app-recover-review",
+                        "--operation-id",
+                        self.state["operation_id"],
+                        "--directory",
+                        str(directory),
+                        "--resume-run",
+                        str(o.binding.APP_RUN),
+                        "--release-run",
+                        "123",
+                    ]
+                )
+                self.assertEqual(result, 1 if survives else 0)
+                restore.assert_called_once_with(
+                    o.binding.APP_RUN, self.state["operation_id"], self.source
+                )
+                receipt = json.loads((directory / "receipt.json").read_text())
+                self.assertEqual(receipt["cloud_writes"], [])
+                self.assertFalse(receipt["checkpoint"]["execution_authorized"])
+                self.assertEqual(
+                    receipt["status"],
+                    "stopped" if survives else "failed_app_disposition_review_required",
+                )
+
+    def test_app_flags_rejected_before_network(self):
+        for mode in ["app-recover-review", "app-recover-delete", "app-recover-prepare"]:
+            with (
+                tempfile.TemporaryDirectory() as tmp,
+                patch.object(o.pf.binding, "actions_environment") as env,
+            ):
+                result = o.main(
+                    [
+                        "--mode",
+                        mode,
+                        "--operation-id",
+                        "a" * 32,
+                        "--directory",
+                        str(Path(tmp) / "evidence"),
+                    ]
+                )
+                self.assertEqual(result, 1)
+                env.assert_not_called()
+
+    def test_resume_preserves_prior_provider_responses_and_rejects_mismatched_receipt(self):
+        self.phase("review")
+        self.state["operator_revision"] = "2026-10-08-test-hosting-1"
+        receipt = {"checkpoint": deepcopy(self.state), "calls": [{"response": {"ack": True}}]}
+        files = {
+            "hosting/state.json": json.dumps(self.state).encode(),
+            "hosting/receipt.json": json.dumps(receipt).encode(),
+        }
+        with patch.object(o.binding, "artifact", return_value=(files, {"artifact_id": 123})):
+            restored, _ = o.binding.restore(123, self.state["operation_id"], self.source)
+            history = restored["failed_app_recovery"]["history"]
+            self.assertEqual(history[0]["receipt"]["calls"], receipt["calls"])
+            receipt["checkpoint"]["review_token"] = "changed"
+            files["hosting/receipt.json"] = json.dumps(receipt).encode()
+            with self.assertRaises(RuntimeError):
+                o.binding.restore(123, self.state["operation_id"], self.source)
+            self.state["failed_app_recovery"]["reviewed"] = False
+            files["hosting/state.json"] = json.dumps(self.state).encode()
+            receipt["checkpoint"] = deepcopy(self.state)
+            files["hosting/receipt.json"] = json.dumps(receipt).encode()
+            with self.assertRaisesRegex(RuntimeError, "Recovery identity differs"):
+                o.binding.restore(123, self.state["operation_id"], self.source)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
