@@ -32,6 +32,13 @@ FAILED_SOURCE = "a57a54609f4a4b8ca875534636f78e30aa36ac05"
 FAILED_ARTIFACT = 11626367274
 FAILED_ZIP_SHA = "cf3accdda2f21d8dcf6314a409ad32b993fc99d5afea215755ba9afdd06bacc5"
 FAILED_STATE_SHA = "a86308eb6c55ed4571b5cd125d105308148e5dbe467404209b9141043dd03d1a"
+APP_RUN = 38207087613
+APP_SOURCE = "98dfd3c7b745554e58b2c1ab5739559f32f6e56e"
+APP_ARTIFACT = 11729018156
+APP_ZIP_SHA = "731778981c320bd29d4b006814448cf4129daa9bb5536c8a958dd34df3392567"
+APP_STATE_SHA = "4476e4a3f8671d9581b71d48e1409edc5cad512418547d328c5cbde5b64c67ba"
+APP_REPAIR_BRANCH = "repair/app-rollback-769df115"
+RETAINED_BUCKET = "fitfinity-test-login-frontendbucket-famdouidjpp2"
 
 
 class EvidenceAWS(preflight.EvidenceAWS):
@@ -214,6 +221,10 @@ def restore(run_id, operation, source):
         and state.get("operator_revision") == "2026-10-08-test-hosting-1"
         and state.get("image_digest") == runtime.DIGEST
         and (
+            not state.get("failed_app_recovery")
+            or state["failed_app_recovery"].get("reviewed") is True
+        )
+        and (
             not state.get("failed_edge_recovery")
             or state["failed_edge_recovery"].get("reviewed") is True
         )
@@ -222,6 +233,99 @@ def restore(run_id, operation, source):
             or state["source_transition"].get("reconciled") is True
         ),
         "Recovery identity differs",
+    )
+    if state.get("failed_app_recovery"):
+        receipt = json.loads(files["hosting/receipt.json"])
+        require(receipt.get("checkpoint") == state, "App recovery receipt/checkpoint differs")
+        state["failed_app_recovery"].setdefault("history", []).append(
+            {
+                "artifact": origin,
+                "receipt": {k: v for k, v in receipt.items() if k != "checkpoint"},
+            }
+        )
+    return state, origin
+
+
+def restore_failed_app(run_id, operation, source):
+    """Authenticate the exact failed checkpoint and the owner's repair merge."""
+    require(
+        run_id == APP_RUN and operation == TRANSITION_OPERATION,
+        "Unreviewed failed-app operation/run",
+    )
+    github = ExistingImage({}).github
+    prefix = f"repos/{GITHUB_REPO}"
+    associated = github(f"{prefix}/commits/{source}/pulls")
+    candidates = [
+        p
+        for p in associated
+        if p.get("merge_commit_sha") == source and p.get("head", {}).get("ref") == APP_REPAIR_BRANCH
+    ]
+    require(len(candidates) == 1, "Missing unique reviewed app repair")
+    pr = github(f"{prefix}/pulls/{candidates[0]['number']}")
+    commit = github(f"{prefix}/commits/{source}")
+    require(
+        re.fullmatch(r"[0-9a-f]{40}", source)
+        and source != APP_SOURCE
+        and pr.get("merged") is True
+        and pr.get("merged_by", {}).get("login") == "LimYouSheng"
+        and pr.get("merge_commit_sha") == source
+        and pr.get("head", {}).get("ref") == APP_REPAIR_BRANCH
+        and pr.get("base", {}).get("ref") == "main"
+        and all(
+            pr.get(k, {}).get("repo", {}).get("full_name") == GITHUB_REPO for k in ("base", "head")
+        )
+        and commit.get("sha") == source
+        and len(commit.get("parents", [])) == 2
+        and commit["parents"][0].get("sha") == APP_SOURCE
+        and commit["parents"][1].get("sha") == pr["head"].get("sha"),
+        "Failed-app transition requires exact owner merge on the failed checkpoint",
+    )
+    files, origin = artifact(
+        run_id,
+        "fitfinity-hosting-" + operation + "-{run}-{attempt}",
+        APP_SOURCE,
+        success=False,
+        artifact_id=APP_ARTIFACT,
+        checksum=APP_ZIP_SHA,
+    )
+    raw = files["hosting/state.json"]
+    require(sha(raw) == APP_STATE_SHA, "Failed-app checkpoint bytes differ")
+    state = json.loads(raw)
+    receipt = json.loads(files["hosting/receipt.json"])
+    app = state.get("stacks", {}).get("app", {})
+    require(
+        receipt.get("checkpoint") == state
+        and receipt.get("status") == "stopped"
+        and state.get("operator_commit") == APP_SOURCE
+        and state.get("operation_id") == operation
+        and state.get("image_digest") == runtime.DIGEST
+        and set(state.get("stacks", {})) == {"edge", "app"}
+        and state["stacks"]["edge"].get("complete") is True
+        and app.get("execute_response_received") is True
+        and app.get("execute_intent")
+        and not state.get("frontend_uploaded")
+        and not state.get("complete")
+        and not state.get("failed_app_recovery"),
+        "Failed-app original acknowledged checkpoint required",
+    )
+    original = deepcopy(state)
+    state.update(
+        operator_commit=source,
+        execution_authorized=False,
+        cleanup_authorized=False,
+        failed_app_recovery={
+            "review_pr": pr["number"],
+            "from_source": APP_SOURCE,
+            "to_source": source,
+            "artifact": origin,
+            "state_sha256": sha(raw),
+            "original_checkpoint": original,
+            "original_receipt": receipt,
+            "repair_review": pr,
+            "repair_merge": commit,
+            "retained_bucket": RETAINED_BUCKET,
+            "bucket_disposition": "preserve-unmodified-and-create-separate-bucket",
+        },
     )
     return state, origin
 

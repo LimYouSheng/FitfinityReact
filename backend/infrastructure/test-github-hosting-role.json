@@ -290,8 +290,7 @@
                     "wafv2:UntagResource",
                     "wafv2:ListTagsForResource",
                     "wafv2:AssociateWebACL",
-                    "wafv2:DisassociateWebACL",
-                    "wafv2:GetWebACLForResource"
+                    "wafv2:DisassociateWebACL"
                   ],
                   "Resource": [
                     "arn:aws:wafv2:ap-southeast-1:418638389566:regional/webacl/fitfinity-test-login-regional/*",
@@ -375,6 +374,15 @@
                     "arn:aws:wafv2:us-east-1:418638389566:global/managedruleset/*/*",
                     "arn:aws:wafv2:ap-southeast-1:418638389566:regional/managedruleset/*/*"
                   ]
+                },
+                {
+                  "Sid": "RegionalAssociationLookup",
+                  "Effect": "Allow",
+                  "Action": [
+                    "wafv2:GetWebACLForResource",
+                    "wafv2:GetWebACL"
+                  ],
+                  "Resource": "arn:aws:wafv2:ap-southeast-1:418638389566:regional/webacl/*/*"
                 }
               ]
             }
@@ -596,8 +604,7 @@
                 {
                   "Effect": "Allow",
                   "Action": [
-                    "wafv2:GetWebACL",
-                    "wafv2:GetWebACLForResource"
+                    "wafv2:GetWebACL"
                   ],
                   "Resource": [
                     "arn:aws:wafv2:ap-southeast-1:418638389566:regional/webacl/fitfinity-test-login-regional/*",
@@ -661,6 +668,25 @@
                       "s3:if-none-match": "false"
                     }
                   }
+                },
+                {
+                  "Sid": "RegionalAssociationLookup",
+                  "Effect": "Allow",
+                  "Action": [
+                    "wafv2:GetWebACLForResource",
+                    "wafv2:GetWebACL"
+                  ],
+                  "Resource": "arn:aws:wafv2:ap-southeast-1:418638389566:regional/webacl/*/*"
+                },
+                {
+                  "Sid": "RetainedAppBucketReadback",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetBucketTagging",
+                    "s3:ListBucketVersions",
+                    "s3:ListBucketMultipartUploads"
+                  ],
+                  "Resource": "arn:aws:s3:::fitfinity-test-login-frontendbucket-famdouidjpp2"
                 }
               ]
             }

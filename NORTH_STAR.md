@@ -14,12 +14,12 @@ Broader M6 functionality, populated-database recovery and production readiness r
 
 ## Current path
 
-PR #21 proposes a narrowly bounded TEST approval renewal ending **12 October 2026, 23:41:30 Singapore**, effective only after authentic owner merge. The old 11 October exception remains expired until then. The IAM correction and original failed-edge deletion are complete; replacement preparation was cancelled before hosting started. Resume from the pinned completed-deletion evidence through read-only source/release review, then separately approved preparation/execution. See the current runbook section; earlier repair checkpoints below are historical.
+Owner-merged PR #21 main is `98dfd3c7b745554e58b2c1ab5739559f32f6e56e`. The replacement edge stack succeeded. App execution run 38207087613 failed at WAF association lookup and rolled back, leaving one retained frontend bucket. The current repair isolates the documented WAF lookup permissions and adds app-specific recovery that preserves the edge and old bucket in the same operation. See the current runbook section for authenticated evidence, disposition and exact phase gates.
 
-1. Repair the evidenced WAF managed-rule permission gap and review recovery from the failed edge stack's `ROLLBACK_COMPLETE` state. PR #19 is merged; its source transition succeeded, but run 37946314992 attempted edge execution and rolled back. Preserve operation `769df115e6ea4f478426f75c8a283a32`, all original identities/intents and receipts. Require full final-SHA frontend/backend CI including macOS/WebKit and PostgreSQL for the repair.
-2. YS alone merges reviewed changes. Authenticate that merge and exact main; obtain its matching immutable GitHub frontend release and authenticate retained runtime/image provenance. Report main advancement before proceeding.
-3. Verify current permissions, owner-merged image approval, scan freshness, >=102 unreserved concurrency and the existing stack/change set. Reconcile the same operation read-only using the reviewed transition; present its concrete edge change set for execution approval.
-4. After the applicable explicit approvals, advance the existing operator through edge and app review/execution, immutable upload, public HTTPS/API smoke and YS's login/session/device acceptance. Diagnose evidenced blockers without replaying uncertain writes.
+1. Require a reviewed repair with full final-SHA frontend/backend CI. Preserve operation `769df115e6ea4f478426f75c8a283a32`, all original source/release/image records, acknowledged intents, provider responses and recovery history.
+2. YS alone merges. Authenticate that exact owner merge and obtain its new matching immutable API frontend release. Review and separately approve the IAM UPDATE stages.
+3. Separately review the retained-bucket disposition and authorize app-shell deletion, replacement preparation and exact new change-set execution. Preserve the successful edge and old bucket. Never replay uncertain writes or use generic cleanup.
+4. Continue immutable upload, HTTPS/API smoke and Owner login/session/device acceptance only through the current scan, approval, capacity, source and ownership gates. Hosting preparation or green CI does not finish this goal.
 
 ## Authority and iteration
 
@@ -27,7 +27,7 @@ One agent; reuse the existing checkout, dependencies, caches and valid receipts.
 
 YS is the sole merge authority. No merge, auto-merge, main/force push, account reset, bootstrap replay or replacement operation to evade reconciliation. AWS mutations, hosting execution, scan requests, IAM changes and approval renewal require applicable explicit authorization. Keep credentials outside coding work. Source binding, historical receipts, resource identities, write intents and ownership checks remain mandatory.
 
-Preserve image `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, original image source `33d124fcd59ffd3f9cb30d645660bdad99a21278` and the historical TEST exception expiry **11 October 2026, 20:41:44 Singapore**. PR #21 proposes the separately authorized bounded renewal above; historical receipts must not be rewritten. Stale scan evidence or expired approval blocks execution; never silently extend, transfer or weaken approval.
+Preserve image `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, original image source `33d124fcd59ffd3f9cb30d645660bdad99a21278` and the historical TEST exception expiry **11 October 2026, 20:41:44 Singapore**. Owner-merged PR #21 records the separately authorized bounded renewal ending 12 October 2026, 23:41:30 Singapore; historical receipts must not be rewritten. Stale scan evidence or expired approval blocks execution; never silently extend, transfer or weaken approval.
 
 ## Retained acceptance and limits
 
