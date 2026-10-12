@@ -14,12 +14,12 @@ Broader M6 functionality, populated-database recovery and production readiness r
 
 ## Current path
 
-Owner-merged PR #21 main is `98dfd3c7b745554e58b2c1ab5739559f32f6e56e`. The replacement edge stack succeeded. App execution run 38207087613 failed at WAF association lookup and rolled back, leaving one retained frontend bucket. The current repair isolates the documented WAF lookup permissions and adds app-specific recovery that preserves the edge and old bucket in the same operation. See the current runbook section for authenticated evidence, disposition and exact phase gates.
+Owner-merged PR #22 main is `58b771bd4e35f1ffb6c5ff1ccba1853f31796678`. The IAM repair completed. App deletion was acknowledged in run 38262560845; later owner readback confirms DELETE_COMPLETE, while the immutable workflow checkpoint remains pending. The successful edge and retained bucket are preserved. The fresh scan adds two glibc HIGHs to the existing zlib HIGH; YS authorized the explicit TEST-only three-finding renewal proposal ending 13 October 2026, 23:42:58 Singapore.
 
-1. Require a reviewed repair with full final-SHA frontend/backend CI. Preserve operation `769df115e6ea4f478426f75c8a283a32`, all original source/release/image records, acknowledged intents, provider responses and recovery history.
-2. YS alone merges. Authenticate that exact owner merge and obtain its new matching immutable API frontend release. Review and separately approve the IAM UPDATE stages.
-3. Separately review the retained-bucket disposition and authorize app-shell deletion, replacement preparation and exact new change-set execution. Preserve the successful edge and old bucket. Never replay uncertain writes or use generic cleanup.
-4. Continue immutable upload, HTTPS/API smoke and Owner login/session/device acceptance only through the current scan, approval, capacity, source and ownership gates. Hosting preparation or green CI does not finish this goal.
+1. Require the reviewed renewal/source-transition PR with full final-SHA frontend/backend CI. Preserve the original operation, image/proof, all source/release records, write intents and receipts.
+2. YS alone merges. Authenticate the exact owner merge and its matching immutable API release.
+3. Separately authorize read-only app-deletion reconciliation from run 38262560845. Require fresh provider evidence and unchanged edge/bucket; never replay deletion. Review the new token before replacement app preparation and exact change-set execution.
+4. Continue immutable upload, HTTPS/API smoke and Owner login/session/device acceptance through current scan, approval, capacity, source and ownership gates. A renewal or green CI does not complete the goal.
 
 ## Authority and iteration
 
@@ -27,7 +27,7 @@ One agent; reuse the existing checkout, dependencies, caches and valid receipts.
 
 YS is the sole merge authority. No merge, auto-merge, main/force push, account reset, bootstrap replay or replacement operation to evade reconciliation. AWS mutations, hosting execution, scan requests, IAM changes and approval renewal require applicable explicit authorization. Keep credentials outside coding work. Source binding, historical receipts, resource identities, write intents and ownership checks remain mandatory.
 
-Preserve image `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, original image source `33d124fcd59ffd3f9cb30d645660bdad99a21278` and the historical TEST exception expiry **11 October 2026, 20:41:44 Singapore**. Owner-merged PR #21 records the separately authorized bounded renewal ending 12 October 2026, 23:41:30 Singapore; historical receipts must not be rewritten. Stale scan evidence or expired approval blocks execution; never silently extend, transfer or weaken approval.
+Preserve image `sha256:861837230551824fdf37f868def500ca14abdbe489583f60ddacee932451eb5a`, original image source `33d124fcd59ffd3f9cb30d645660bdad99a21278` and the historical TEST exception expiry **11 October 2026, 20:41:44 Singapore**. Owner-merged PR #21 records the separately authorized bounded renewal ending 12 October 2026, 23:41:30 Singapore; historical receipts must not be rewritten. PR #23 proposes the separately authorized three-finding renewal ending 13 October 2026, 23:42:58 Singapore; only owner merge makes it effective. Stale scan evidence or expired approval blocks execution; never silently extend, transfer or weaken approval.
 
 ## Retained acceptance and limits
 
