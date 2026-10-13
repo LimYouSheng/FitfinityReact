@@ -1,4 +1,4 @@
-"""Read-only retained-calendar review; reactivation writes remain unavailable."""
+"""Read-only retained-calendar review shared by client and individual purchase restoration."""
 
 import hashlib
 import json
@@ -14,7 +14,7 @@ from app.api.client_matching import MatchRequest
 from app.api.directory import bounded
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
-from app.authorization import conflict
+from app.authorization import conflict, unavailable
 from app.models.people import Client, LifecycleEvent, Trainer
 from app.models.training import Acknowledgement, CreditDebit, PackagePurchase, TrainingSession
 from app.persistence import occupied_booking_clause
@@ -59,11 +59,21 @@ class ClientReactivationReview(Contract):
     packageError: str | None
 
 
-def review(session, principal, identity, body=None, *, write=False):
+class PackageReactivationReview(ClientReactivationReview):
+    packageId: UUID
+
+
+def review(session, principal, identity, body=None, *, write=False, package_id=None):
     principal.operations()
     client, purchases = target(session, identity, write=write)
-    if client.status != "inactive":
+    if client.status != ("active" if package_id is not None else "inactive"):
         raise conflict()
+    selected = next((p for p in purchases if p.id == package_id), None)
+    if package_id is not None:
+        if selected is None:
+            raise unavailable()
+        if selected.status != "inactive":
+            raise conflict()
     bookings = bounded(
         session,
         select(TrainingSession)
@@ -97,6 +107,8 @@ def review(session, principal, identity, body=None, *, write=False):
         and (event := events.get(p.lifecycle_event_id))
         and event.reason == "client"
     ]
+    if package_id is not None:
+        restoring = [selected]
     active_ids = {p.id for p in purchases if p.status == "active"} | {p.id for p in restoring}
     ids = {b.id for b in bookings}
     acknowledged = set(
@@ -138,12 +150,18 @@ def review(session, principal, identity, body=None, *, write=False):
         ],
         "trainers": [[str(t.id), t.version, t.status] for t in trainers.values()],
     }
+    if package_id is not None:
+        evidence["packageId"] = str(package_id)
     expected = hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest()
     if body is not None and body.expected != expected:
         raise conflict()
     dates = body.dates if body else {}
     retained = [
-        b for b in bookings if b.purchase_id in active_ids and b.status in {"scheduled", "planned"}
+        b
+        for b in bookings
+        if b.purchase_id in active_ids
+        and (package_id is None or b.purchase_id == package_id)
+        and b.status in {"scheduled", "planned"}
     ]
     if set(dates) - {b.id for b in retained}:
         raise AuthError("invalid_request", "Review only retained unfinished sessions.", 422)
@@ -212,7 +230,8 @@ def review(session, principal, identity, body=None, *, write=False):
                 error=error,
             )
         )
-    return ClientReactivationReview(
+    response = PackageReactivationReview if package_id is not None else ClientReactivationReview
+    return response(
         id=client.id,
         version=client.version,
         name=client.name,
@@ -220,4 +239,5 @@ def review(session, principal, identity, body=None, *, write=False):
         purchaseIds=[p.id for p in restoring],
         rows=rows,
         packageError=package_error,
+        **({"packageId": package_id} if package_id is not None else {}),
     )

@@ -6,7 +6,7 @@ const snapshot = () => empty
 
 // The same form object survives a temporary directory unmount. Late save responses
 // update only the original workflow version; retirement cannot revive a prior login.
-export default function useClientCreationForm(recovery, initial) {
+export default function useCreationForm(recovery, initial) {
   const [local, setLocal] = useState(initial)
   const stored = useSyncExternalStore(recovery?.subscribe ?? subscribe, recovery?.getSnapshot ?? snapshot)
   const form = recovery ? stored.form ?? local : local

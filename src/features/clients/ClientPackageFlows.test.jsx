@@ -10,6 +10,7 @@ import { useState } from 'react'
 import { PageState } from '../../hooks/usePageState.js'
 import RenewPackageDialog from './RenewPackageDialog.jsx'
 import ClientProfilePage from './ClientProfilePage.jsx'
+import ClientProfileTabs from './ClientProfileTabs.jsx'
 import TrainerProfilePage from '../trainers/TrainerProfilePage.jsx'
 import { GENDERS } from '../../app/contact.js'
 import TrainerDeactivationDialog from '../trainers/TrainerDeactivationDialog.jsx'
@@ -558,4 +559,22 @@ it('API renewal review failures provide an explicit retry without opening a fabr
   expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Retry package review' }))
   await waitFor(() => expect(review).toHaveBeenCalledTimes(2))
+})
+
+
+it('API package reactivation retains its reviewed confirmation when background purchase versions change', async () => {
+  const client = { ...structuredClone(seed.clients[0]), status: 'active', additionalPackages: [], packageHistory: [] }
+  client.package = { ...client.package, id: 'retained-purchase', version: 1, status: 'inactive' }
+  const reviewed = { id: client.id, name: client.name, version: 1, expected: 'a'.repeat(64), packageId: client.package.id, purchaseIds: [client.package.id], rows: [], packageError: null }
+  const workflow = { review: vi.fn().mockResolvedValue({ reviewed, dates: {}, uncertain: false }), preview: vi.fn(), save: vi.fn().mockRejectedValue(Object.assign(new Error('Review changed'), { status: 409 })), saved: vi.fn() }
+  const props = { tab: 'package', user: owner, client, clients: [client], trainers: seed.trainers, sessions: [], packages: seed.packages, policy: seed.settings, today: '2026-09-09', readOnly: true, packageReactivationWorkflow: () => workflow }
+  const { rerender } = render(<ClientProfileTabs {...props} />, { wrapper: Wrapper })
+  fireEvent.click(screen.getByRole('button', { name: 'Reactivate Package', exact: true }))
+  await screen.findByRole('dialog', { name: 'Reactivate Package?' })
+  rerender(<ClientProfileTabs {...props} client={{ ...client, version: 2, package: { ...client.package, version: 2 } }} />)
+  const dialog = screen.getByRole('dialog', { name: 'Reactivate Package?' })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Reactivate Package', exact: true }))
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent('Review changed')
+  expect(workflow.save).toHaveBeenCalledWith({ id: client.id, reviewed, dates: {} })
+  expect(workflow.saved).not.toHaveBeenCalled()
 })

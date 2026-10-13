@@ -4,7 +4,7 @@ import ClientDeactivationRecovery from './features/clients/ClientDeactivationRec
 import ClientRenewalRecovery from './features/clients/ClientRenewalRecovery.jsx'
 import MessageReadRecovery from './features/messages/MessageReadRecovery.jsx'
 import ApiContentWorkspace from './features/content/ApiContentWorkspace.jsx'
-import ClientCreationRecovery from './features/clients/ClientCreationRecovery.jsx'
+import CreationRecovery from './components/CreationRecovery.jsx'
 import CreateAdminDialog, { AdminCreationRecovery } from './features/staff/CreateAdminDialog.jsx'
 import { managesOperations, canViewRemuneration } from './app/permissions.js'
 import ContentManagementPage from './features/content/ContentManagementPage.jsx'
@@ -48,9 +48,9 @@ export default function App({ services }) {
 }
 
 function PortalRoot() {
-  const { snapshot, loading, refresh, services, adminCreation, clientCreation } = usePortalData()
+  const { snapshot, loading, refresh, services, adminCreation, clientCreation, trainerCreation } = usePortalData()
   if (loading) return <main className="account-entry"><p role="status">Loading staff portal…</p></main>
-  const workspaceUserId = snapshot?.user?.id ?? adminCreation?.ownerId ?? clientCreation?.ownerId
+  const workspaceUserId = snapshot?.user?.id ?? adminCreation?.ownerId ?? clientCreation?.ownerId ?? trainerCreation?.ownerId
   if (workspaceUserId) return <PortalWorkspace key={workspaceUserId} userId={workspaceUserId} />
   if (!snapshot) return <PortalUnavailable />
   const realAuth = snapshot.capabilities?.realAuthentication
@@ -62,12 +62,12 @@ function PortalRoot() {
 }
 
 function PortalUnavailable({ recovery = 'admin' }) {
-  const { error, refresh, adminCreation, clientCreation } = usePortalData()
-  return <main className="account-entry"><h1>Unable to load the portal</h1><p role="alert">{error}</p>{recovery === 'client' && clientCreation ? <ClientCreationRecovery creation={clientCreation} /> : adminCreation && <AdminCreationRecovery creation={adminCreation} />}<button className="primary-button" onClick={() => void refresh().catch(() => {})}>Retry</button></main>
+  const { error, refresh, adminCreation, clientCreation, trainerCreation } = usePortalData()
+  return <main className="account-entry"><h1>Unable to load the portal</h1><p role="alert">{error}</p>{recovery === 'trainer' && trainerCreation ? <CreationRecovery creation={trainerCreation} noun="trainer" /> : recovery === 'client' && clientCreation ? <CreationRecovery creation={clientCreation} /> : adminCreation && <AdminCreationRecovery creation={adminCreation} />}<button className="primary-button" onClick={() => void refresh().catch(() => {})}>Retry</button></main>
 }
 
 function PortalWorkspace({ userId }) {
-  const { snapshot, error, refresh, adminCreation, clientCreation } = usePortalData()
+  const { snapshot, error, refresh, adminCreation, clientCreation, trainerCreation } = usePortalData()
   // One history owner survives directory outages without retaining private data.
   const navigation = useAppNavigation(userId)
   const creatingAdmin = navigation.path === 'owner-profile/create-admin'
@@ -77,7 +77,10 @@ function PortalWorkspace({ userId }) {
   useEffect(() => {
     if (navigation.path !== 'clients/new' && !clientCreation?.getSnapshot().form?.submitted) clientCreation?.reset()
   }, [navigation.path, clientCreation])
-  if (!snapshot) return <PortalUnavailable recovery={navigation.path === 'clients/new' ? 'client' : 'admin'} />
+  useEffect(() => {
+    if (navigation.path !== 'trainers/new' && !trainerCreation?.getSnapshot().form?.submitted) trainerCreation?.reset()
+  }, [navigation.path, trainerCreation])
+  if (!snapshot) return <PortalUnavailable recovery={navigation.path === 'clients/new' ? 'client' : navigation.path === 'trainers/new' ? 'trainer' : 'admin'} />
   return <>{error && <div className="portal-load-error" role="alert">{error} <button onClick={() => void refresh().catch(() => {})}>Retry loading</button></div>}<StaffPortal navigation={navigation} /></>
 }
 
@@ -85,13 +88,14 @@ function StaffPortal({ navigation }) {
   useZoomLock()
   const { guardNavigation } = useEditGuard()
   const { runAction, notify, clear } = useNotifications()
-  const { snapshot, refresh: refreshData, services, today, adminCreation, clientCreation } = usePortalData()
+  const { snapshot, refresh: refreshData, services, today, adminCreation, clientCreation, trainerCreation } = usePortalData()
   // A committed save stays successful even if its follow-up refresh fails.
   // The provider keeps a retry banner; do not invite duplicate writes.
   const reload = () => refreshData().catch(() => null)
   const { user, data: db, policy } = snapshot
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
   const clientCreationEnabled = !directoryOnly || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
+  const trainerCreationEnabled = !directoryOnly || snapshot.capabilities?.trainerCreation === true
   const packageReadOnly = directoryOnly && snapshot.capabilities?.packageWrites !== true
   const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
@@ -230,7 +234,7 @@ function StaffPortal({ navigation }) {
 
   let page
 
-  if (directoryOnly && (!enabledRoutes.includes(route) || (creatingClient && !clientCreationEnabled) || creatingTrainer || (route === 'packages' && detailId === 'new' && packageReadOnly) || (route === 'clients' && parts[2]))) {
+  if (directoryOnly && (!enabledRoutes.includes(route) || (creatingClient && !clientCreationEnabled) || (creatingTrainer && !trainerCreationEnabled) || (route === 'packages' && detailId === 'new' && packageReadOnly) || (route === 'clients' && parts[2]))) {
     page = <UnavailablePage message="This workflow is not available yet." />
   } else if (creatingClient && managesOperations(user)) {
     page = (
@@ -256,6 +260,8 @@ function StaffPortal({ navigation }) {
     )
   } else if (route === 'clients' && directoryOnly && snapshot.clientRenewalPending) {
     page = <ClientRenewalRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientRenewalPending} services={services} />
+  } else if (route === 'clients' && directoryOnly && snapshot.packageReactivationPending) {
+    page = <ClientReactivationRecovery packageMode key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.packageReactivationPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientReactivationPending) {
     page = <ClientReactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientReactivationPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientDeactivationPending) {
@@ -281,16 +287,24 @@ function StaffPortal({ navigation }) {
   } else if (creatingTrainer && managesOperations(user)) {
     page = (
       <AddTrainerPage
+        recovery={directoryOnly ? trainerCreation : undefined}
+        realAuthentication={snapshot.capabilities?.realAuthentication === true}
         viewer={user}
         policy={policy}
         trainers={trainers}
         onCancel={() => goBack('trainers')}
         onCreate={async draft => {
           const created = await runAction(() => trainerService.create({ draft }), { message: 'Trainer created.' })
-          await reload()
+          if (!directoryOnly) await reload()
           return created
         }}
-        onCreated={id => navigate(`trainers/${id}`, { replace: true })}
+        onCreated={async (id, result) => {
+          navigate(`trainers/${id}`, { replace: true })
+          if (result.invitation === 'unknown') notify({ tone: 'warning', message: 'Trainer created. Invitation delivery is unconfirmed; contact support before sending another.' })
+          if (directoryOnly) {
+            try { await refreshData() } catch { notify({ tone: 'warning', message: 'Trainer created. Retry loading to view it.' }) }
+          }
+        }}
       />
     )
   } else if (
@@ -300,7 +314,7 @@ function StaffPortal({ navigation }) {
   ) {
     page = <TrainerProfileRoute key={selectedTrainer.id} trainer={selectedTrainer} ownerMode navigate={navigate} goBack={goBack} openClient={openClient} />
   } else if (route === 'trainers' && managesOperations(user)) {
-    page = <TrainersPage trainers={trainers} onOpen={openTrainer} onAdd={directoryOnly ? undefined : openAddTrainer} />
+    page = <TrainersPage trainers={trainers} onOpen={openTrainer} onAdd={trainerCreationEnabled ? openAddTrainer : undefined} />
   } else if (route === 'my-profile' && directoryOnly && snapshot.trainerAvailabilityPending) {
     page = <TrainerAvailabilityRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.trainerAvailabilityPending} services={services} />
   } else if (

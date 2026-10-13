@@ -1,4 +1,4 @@
-import useClientCreationForm from './useClientCreationForm.js'
+import useCreationForm from '../../hooks/useCreationForm.js'
 import useClientMatches from './useClientMatches.js'
 import SelectField from '../../components/SelectField.jsx'
 import ClientPackageFields from './ClientPackageFields.jsx'
@@ -51,7 +51,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
   const formSteps = [...steps, ONBOARDING_REVIEW_STEP]
   const confirmAction = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
-  const { form: creation, update: updateCreation, setter } = useClientCreationForm(recovery, () => {
+  const { form: creation, update: updateCreation, setter } = useCreationForm(recovery, () => {
     const initialDraft = { ...emptyDraft(policy), packageId: packages[0]?.id ?? '', ...packageDraft }
     return { initialDraft, draft: initialDraft, stepIndex: 0, returningToReview: false, activePerson: 0,
       reviewAssessment: null, selectedDays: [], from: policy.availability.from, to: policy.availability.to,

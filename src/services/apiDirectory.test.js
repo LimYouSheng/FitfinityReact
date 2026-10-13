@@ -105,3 +105,20 @@ it.each([{ status: 'active' }, { status: 'inactive' }, {}])('evaluates trainer a
   expect(trainer).toEqual(original)
   expect(fetchImpl.mock.calls.every(([url]) => url.endsWith('/me'))).toBe(true)
 })
+
+it('requires complete onboarding policy and keeps default financial values Owner-only', () => {
+  const raw = directoryData()
+  raw.trainerCreation = true
+  raw.personalMessages = true
+  raw.trainerProfilePolicy = { defaultCountryCode: '+65', trainerTypes: ['Strength & Conditioning', 'Personal Trainer'] }
+  expect(() => directorySnapshot(raw, staff)).toThrow('could not be verified')
+  raw.trainerOnboardingPolicy = { availability: { from: '18:00', to: '19:00' }, approvalDefaults: { availability: true, sessionTime: true, trainerReassignment: true, fixedWeeklySchedule: true }, trainerRates: { peak: 80, offPeak: 55 } }
+  expect(directorySnapshot(raw, staff).trainerCreation).toBe(true)
+  raw.trainers.forEach(row => { delete row.peak_rate_cents; delete row.off_peak_rate_cents })
+  const admin = { ...staff, role: 'admin' }
+  expect(() => directorySnapshot(raw, admin)).toThrow('could not be verified')
+  delete raw.trainerOnboardingPolicy.trainerRates
+  expect(directorySnapshot(raw, admin).trainerOnboardingPolicy).not.toHaveProperty('trainerRates')
+  raw.trainerOnboardingPolicy.approvalDefaults.availability = false
+  expect(() => directorySnapshot(raw, admin)).toThrow('could not be verified')
+})

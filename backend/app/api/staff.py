@@ -2,17 +2,19 @@
 
 import hashlib
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Request
 from sqlalchemy import func, select, text
 
+from app.api import trainer_creation
 from app.api.dependencies import authorized_transaction
 from app.api.routes import RequestKey
 from app.api.schemas import ERROR_RESPONSES
+from app.api.staff_provisioning import locked, provision
 from app.api.staff_schemas import AdminCreated, NewAdmin
 from app.auth.errors import AuthError
-from app.models.people import StaffIdentity, StaffUser, Trainer
+from app.models.people import StaffUser, Trainer
 from app.models.staff import AdminProfile, StaffInvitation
 
 router = APIRouter(prefix="/api/staff", tags=["staff access"], responses=ERROR_RESPONSES)
@@ -22,24 +24,6 @@ def result(user, invitation):
     return AdminCreated(
         id=user.id, name=user.name, email=user.email, role="admin", invitation=invitation.status
     )
-
-
-def locked(session, key, actor_id, digest):
-    invitation = session.scalar(
-        select(StaffInvitation).where(StaffInvitation.request_key == key).with_for_update()
-    )
-    if invitation and (invitation.actor_id != actor_id or invitation.request_sha256 != digest):
-        raise AuthError(
-            "idempotency_conflict", "Use the original account details for this request.", 409
-        )
-    return invitation
-
-
-def lease_check(invitation, lease):
-    if invitation.lease_id != lease or invitation.lease_until <= datetime.now(UTC):
-        raise AuthError(
-            "INVITATION_BUSY", "Account setup is still being checked. Try again shortly.", 409
-        )
 
 
 def active_admin(session, invitation):
@@ -128,68 +112,31 @@ def create_admin(body: NewAdmin, request: Request, key: RequestKey):
                 )
         invitation.lease_id, invitation.lease_until = lease, now + timedelta(seconds=60)
         user_id = user.id
-    try:
-        remote = provider.ensure(user_id, body.name, body.email)
-        with authorized_transaction(request) as (session, principal):
-            principal.owner()
-            invitation = locked(session, key, principal.user_id, digest)
-            lease_check(invitation, lease)
-            user = active_admin(session, invitation)
-            identity = session.scalar(
-                select(StaffIdentity).where(
-                    StaffIdentity.user_id == user.id,
-                    StaffIdentity.issuer == request.app.state.auth_settings.cognito_issuer,
-                )
-            )
-            if identity is None:
-                session.add(
-                    StaffIdentity(
-                        user_id=user.id,
-                        issuer=request.app.state.auth_settings.cognito_issuer,
-                        subject=remote["subject"],
-                        provider_username=remote["username"],
-                    )
-                )
-            elif (
-                identity.subject != remote["subject"]
-                or identity.provider_username != remote["username"]
-                or identity.status != "active"
-            ):
-                raise AuthError(
-                    "STAFF_IDENTITY_CONFLICT",
-                    "Account identity needs review. Contact support.",
-                    409,
-                )
-            if remote["status"] == "CONFIRMED":
-                invitation.status = "sent"
-                invitation.lease_id = invitation.lease_until = None
-                return result(user, invitation)
-            if remote["status"] != "FORCE_CHANGE_PASSWORD":
-                raise AuthError(
-                    "STAFF_IDENTITY_CONFLICT",
-                    "Account identity needs review. Contact support.",
-                    409,
-                )
-            invitation.status = "sending"
-        sent = provider.send(user_id, body.email)
-        with authorized_transaction(request) as (session, principal):
-            principal.owner()
-            invitation = locked(session, key, principal.user_id, digest)
-            lease_check(invitation, lease)
-            user = active_admin(session, invitation)
-            invitation.status = "sent" if sent else "unknown"
-            invitation.sent_at = datetime.now(UTC) if sent else None
-            invitation.lease_id = invitation.lease_until = None
-            return result(user, invitation)
-    except AuthError:
-        # Preserve account/identity on failures. Reconciliation may retry a suppressed create,
-        # but an uncertain email is never resent by replaying the creation request.
-        with request.app.state.database.transaction() as session:
-            invitation = session.scalar(
-                select(StaffInvitation).where(StaffInvitation.request_key == key).with_for_update()
-            )
-            if invitation and invitation.lease_id == lease:
-                if invitation.status == "sending":
-                    invitation.status = "unknown"
-                invitation.lease_id = invitation.lease_until = None
-        raise
+    return provision(
+        request,
+        key,
+        digest,
+        lease,
+        user_id,
+        body.name,
+        body.email,
+        authorize=lambda principal: principal.owner(),
+        active_target=active_admin,
+        project=lambda session, user, invitation: result(user, invitation),
+    )
+
+
+@router.post(
+    "/trainers", response_model=trainer_creation.TrainerCreated, operation_id="createTrainer"
+)
+def create_trainer(body: trainer_creation.NewTrainer, request: Request, key: RequestKey):
+    return trainer_creation.create(body, request, key)
+
+
+@router.get(
+    "/trainer-creations/{request_key}",
+    response_model=trainer_creation.TrainerCreated,
+    operation_id="reconcileTrainerCreation",
+)
+def reconcile_trainer_creation(request_key: UUID, request: Request):
+    return trainer_creation.reconcile(request, request_key)

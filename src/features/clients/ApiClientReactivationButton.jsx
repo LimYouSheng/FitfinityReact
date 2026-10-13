@@ -5,8 +5,10 @@ import Field from '../../components/OnboardingField.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { formatDate } from '../../utils/date.js'
 
-export default function ApiClientReactivationButton({ disabled, workflow, onEditing }) {
+export default function ApiClientReactivationButton({ disabled, workflow, onEditing, packageName }) {
   const { guardNavigation, activeEdit } = useEditGuard()
+  const target = packageName === undefined ? 'Client' : 'Package'
+  const actionLabel = `Reactivate ${target}`
   const locked = useRef(false)
   const [review, setReview] = useState(null)
   const [dates, setDates] = useState({})
@@ -54,12 +56,12 @@ export default function ApiClientReactivationButton({ disabled, workflow, onEdit
   const openCount = review?.rows.filter(r => r.scheduleState === 'open').length ?? 0
   if (saved) return null
   return <>
-    <button type="button" className="profile-menu-reactivate" disabled={disabled || busy} onClick={open}>{busy ? 'Checking Client…' : uncertain ? 'Check Reactivation' : 'Reactivate Client'}</button>
-    {review && <ConfirmDialog open title={`Reactivate ${review.name}?`} confirmLabel={busy ? 'Checking…' : uncertain ? 'Check Reactivation' : 'Reactivate Client'}
+    <button type="button" className={packageName === undefined ? 'profile-menu-reactivate' : 'secondary-button'} disabled={disabled || busy} onClick={open}>{busy ? `Checking ${target}…` : uncertain ? 'Check Reactivation' : actionLabel}</button>
+    {review && <ConfirmDialog open title={packageName === undefined ? `Reactivate ${review.name}?` : 'Reactivate Package?'} confirmLabel={busy ? 'Checking…' : uncertain ? 'Check Reactivation' : actionLabel}
       confirmDisabled={busy || (!uncertain && (Boolean(error) || Boolean(review.packageError) || review.rows.some(r => r.error)))} onConfirm={save}
       onCancel={() => { if (!busy) guardNavigation(close) }}>
       <div className="stack-gap">
-        <p>Packages disabled with this client and their retained sessions will become active again. Separately deactivated packages stay inactive. Deleted sessions are not recreated; used credits and purchased terms stay unchanged.</p>
+        {packageName !== undefined ? <p>{packageName} will become active again. Used credits and the expiry date stay the same. Deleted sessions are not recreated.</p> : <p>Packages disabled with this client and their retained sessions will become active again. Separately deactivated packages stay inactive. Deleted sessions are not recreated; used credits and purchased terms stay unchanged.</p>}
         <p>{openCount} open {openCount === 1 ? 'session' : 'sessions'} will remain unscheduled.</p>
         <p>{review.rows.length} retained sessions checked. Each conflicting session needs a free date. Its time, trainer and original package stay the same.</p>
         {rows.map(row => {
