@@ -3,6 +3,7 @@ import TrainerDeactivationDialog from './TrainerDeactivationDialog.jsx'
 import TrainerAvailabilityGrid from './TrainerAvailabilityGrid.jsx'
 import { managesOperations, canViewTrainerRates, canEditTrainerRates } from '../../app/permissions.js'
 import TrainerGeneralFields from './TrainerGeneralFields.jsx'
+import TrainerEmailEditor from './TrainerEmailEditor.jsx'
 import { trainerProfileDraft, trainerStepErrors } from '../../app/trainerOnboarding.js'
 import { phoneText } from '../../app/contact.js'
 import usePageState from '../../hooks/usePageState.js'
@@ -23,6 +24,7 @@ export default function TrainerProfilePage({
   readOnly = false,
   autonomyReadOnly = readOnly,
   ratesReadOnly = readOnly,
+  emailVerification,
   onRatesSaved,
   onAutonomySaved,
   activityAvailable = true,
@@ -73,7 +75,7 @@ export default function TrainerProfilePage({
   }, [activeEditor, trainer, policy])
 
   useEffect(() => {
-    const label = ({ general: 'Trainer information', rates: 'Trainer rates', autonomy: 'Autonomy controls', availability: 'Trainer availability' })[activeEditor] ?? null
+    const label = ({ general: 'Trainer information', email: 'Trainer email', rates: 'Trainer rates', autonomy: 'Autonomy controls', availability: 'Trainer availability' })[activeEditor] ?? null
     setActiveEdit(label)
     return () => setActiveEdit(null)
   }, [activeEditor, setActiveEdit])
@@ -209,7 +211,7 @@ export default function TrainerProfilePage({
 
       {tab === 'overview' && (
         <div className="profile-overview-stack">
-          <Panel className={activeEditor === 'general' ? 'editing-section' : ''}>
+          <Panel className={['general', 'email'].includes(activeEditor) ? 'editing-section' : ''}>
             <div className="section-head">
               <div><h2>General Information</h2></div>
               {!readOnly && isManager && (activeEditor !== 'general' ? (
@@ -238,6 +240,7 @@ export default function TrainerProfilePage({
               </div>)}
             </div>}
 
+            {emailVerification && isManager && <TrainerEmailEditor {...emailVerification} trainer={trainer} editing={activeEditor === 'email'} disabled={Boolean(activeEditor)} onEdit={() => setActiveEditor('email')} onClose={() => setActiveEditor(null)} />}
           </Panel>
 
           {canViewTrainerRates(viewer) && <Panel className={activeEditor === 'rates' ? 'editing-section' : ''}>

@@ -166,12 +166,14 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
         "packagePolicy",
         "trainerApprovalWrites",
         "trainerRateWrites",
+        "trainerEmailWrites",
         "clientPersonalWrites",
         "clientNoteWrites",
     }
     assert data["packagePolicy"] == {"minimum": 1, "maximum": 365, "sessions": 12, "days": 90}
     assert data["trainerApprovalWrites"] is True
     assert data["trainerRateWrites"] is True
+    assert data["trainerEmailWrites"] is True
     assert data["clientPersonalWrites"] is True
     assert data["clientNoteWrites"] is True
     assert data["timeZone"] == "Asia/Singapore"

@@ -14,7 +14,7 @@ from app.models.people import StaffIdentity, StaffUser, Trainer
 
 
 @contextmanager
-def authorized_transaction(request: Request):
+def authorized_transaction(request: Request, *, exclusive_user=False):
     auth = request.app.state.auth
     handle = _handle(request, csrf=request.method == "POST")
     _, verified = auth.principal(handle)
@@ -22,12 +22,16 @@ def authorized_transaction(request: Request):
         # Identity/status writers lock their row before invalidating AuthAccount. Match that
         # order, then hold the account barrier through the business commit. No AWS calls here.
         user = session.scalar(
-            select(StaffUser).where(StaffUser.id == verified.user_id).with_for_update(read=True)
+            select(StaffUser)
+            .where(StaffUser.id == verified.user_id)
+            .with_for_update(read=not exclusive_user)
         )
         trainer = None
         if user and user.role == "trainer":
             trainer = session.scalar(
-                select(Trainer).where(Trainer.user_id == user.id).with_for_update(read=True)
+                select(Trainer)
+                .where(Trainer.user_id == user.id)
+                .with_for_update(read=not exclusive_user)
             )
         identity = session.scalar(
             select(StaffIdentity)

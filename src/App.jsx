@@ -353,7 +353,7 @@ function StaffPortal({ navigation }) {
   } else if (route === 'content' && managesOperations(user)) {
     page = <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
   } else if (route === 'account' || (directoryOnly && route === 'dashboard')) {
-    page = <StaffAccountPage user={user} profile={route === 'account'} readOnly={directoryOnly} packageWrites={!packageReadOnly} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
+    page = <StaffAccountPage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} user={user} profile={route === 'account'} readOnly={directoryOnly} packageWrites={!packageReadOnly} emailVerification={snapshot.capabilities?.trainerEmailWrites && user.role === 'trainer' ? { auth: services.auth, onCompleted: reload } : undefined} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
   } else if (route === 'dashboard') {
     page = <DashboardPage
       renewals={<MessageInbox {...messageInboxProps} embedded category="renewals" onViewAll={() => navigate('messages/renewals')} />}

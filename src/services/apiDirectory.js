@@ -64,10 +64,11 @@ export function directorySnapshot(value, user) {
       if (p?.minimum !== 1 || p.maximum !== 365 || p.sessions !== 12 || p.days !== 90) fail()
       packagePolicy = { packageSessionCount: { minimum: p.minimum, maximum: p.maximum }, packageValidityRule: { sessions: p.sessions, days: p.days } }
     }
+    if (value.trainerEmailWrites !== undefined && typeof value.trainerEmailWrites !== 'boolean') fail()
     if (value.trainerRateWrites !== undefined && typeof value.trainerRateWrites !== 'boolean') fail()
     if (value.trainerApprovalWrites !== undefined && typeof value.trainerApprovalWrites !== 'boolean') fail()
     if (value.clientNoteWrites !== undefined && typeof value.clientNoteWrites !== 'boolean') fail()
     if (value.clientPersonalWrites !== undefined && typeof value.clientPersonalWrites !== 'boolean') fail()
-    return { trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
+    return { trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
   } catch (error) { if (error instanceof ApiError) throw error; fail() }
 }

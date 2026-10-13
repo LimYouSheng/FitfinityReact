@@ -1,4 +1,4 @@
-import { directoryData } from '../src/test/directory.js'
+import { directoryData, directoryId } from '../src/test/directory.js'
 import { expect, passwordSignIn, test, verifyAuthenticator } from './auth-api-fixture.js'
 
 async function profileTab(page, name) {
@@ -15,6 +15,54 @@ async function openDirectory(page, staffApi, legacy = false) {
   await passwordSignIn(page)
   await verifyAuthenticator(page)
 }
+
+test('API trainer email stays pending until account-holder verification and reconciles a lost result', async ({ page, staffApi }) => {
+  await openDirectory(page, staffApi)
+  staffApi.state.directory.trainerEmailWrites = true
+  await page.reload()
+  await page.getByRole('button', { name: 'View Trainers', exact: true }).click()
+  await page.getByRole('button', { name: 'View API Trainer', exact: true }).click()
+  await page.getByRole('button', { name: 'Change Login Email', exact: true }).click()
+  await page.getByLabel('New trainer login email', { exact: true }).fill('new@fixture.test')
+  const submit = async () => {
+    await page.getByRole('button', { name: 'Request Verification', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Request Verification', exact: true }).click()
+  }
+  staffApi.state.emailRequestUnknown = true
+  await submit()
+  await expect(page.getByRole('alert')).toHaveText('Staff service unavailable. Please retry.')
+  await submit()
+  await expect(page.getByText(/Awaiting the trainer’s verification/)).toBeVisible()
+  expect(staffApi.state.directory.trainers[0].email).toBe('trainer@fixture.test')
+  expect(staffApi.state.mutations.filter(m => m.path === `/api/trainers/${directoryId(1)}/email-change`)).toHaveLength(1)
+  await page.reload()
+  await expect(page.getByText(/Awaiting the trainer’s verification/)).toBeVisible()
+  await page.getByRole('button', { name: 'Home', exact: true }).click()
+  await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
+  staffApi.state.user = { id: directoryId(80), name: 'API Trainer', role: 'trainer', trainerId: directoryId(1), email: 'trainer@fixture.test' }
+  staffApi.state.directory.viewerId = directoryId(80)
+  staffApi.state.directory.packages = []
+  await page.getByLabel('Email', { exact: true }).fill('trainer@fixture.test')
+  await page.getByLabel('Password', { exact: true }).fill('initial-password')
+  await page.getByRole('button', { name: 'Sign In', exact: true }).click()
+  await verifyAuthenticator(page)
+  await page.getByRole('button', { name: 'Send Verification Code', exact: true }).click()
+  await page.getByLabel('Email verification code', { exact: true }).fill('123456')
+  staffApi.state.emailVerifyUnknown = true
+  await page.getByRole('button', { name: 'Verify New Email', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Verify New Email', exact: true })).toBeDisabled()
+  expect(staffApi.state.user.email).toBe('trainer@fixture.test')
+  await page.getByRole('button', { name: 'Check Verification Status', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  expect(staffApi.state.user.email).toBe('new@fixture.test')
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/verify'))).toHaveLength(1)
+  await page.getByLabel('Email', { exact: true }).fill('new@fixture.test')
+  await page.getByLabel('Password', { exact: true }).fill('initial-password')
+  await page.getByRole('button', { name: 'Sign In', exact: true }).click()
+  await verifyAuthenticator(page)
+  await expect(page.getByText('new@fixture.test', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Verify your new email', exact: true })).toHaveCount(0)
+})
 
 test('API directory searches clients and opens purchased terms with working Back', async ({ page, staffApi }) => {
   await openDirectory(page, staffApi)

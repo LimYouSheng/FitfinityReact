@@ -139,6 +139,23 @@ class Cognito:
             ProposedPassword=proposed,
         )
 
+    def request_email_change(self, access, email):
+        # The pool requires verification before updating email. Never set email_verified
+        # here or use an administrator override of the account holder's verification.
+        return self._call(
+            "update_user_attributes",
+            AccessToken=access,
+            UserAttributes=[{"Name": "email", "Value": email}],
+        )
+
+    def verify_email_change(self, access, code):
+        return self._call(
+            "verify_user_attribute",
+            AccessToken=access,
+            AttributeName="email",
+            Code=code,
+        )
+
     def forgot(self, username):
         return self._call(
             "forgot_password",

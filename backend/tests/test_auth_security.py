@@ -229,6 +229,42 @@ def test_provider_errors_never_echo_secrets(sdk, provider_error, status):
     assert "sentinel" not in str(error.value)
 
 
+def test_email_change_requires_user_token_and_provider_code(sdk):
+    with Stubber(sdk.client) as stub:
+        stub.add_response(
+            "update_user_attributes",
+            {"CodeDeliveryDetailsList": [{"AttributeName": "email", "DeliveryMedium": "EMAIL"}]},
+            {
+                "AccessToken": "account-holder-access",
+                "UserAttributes": [{"Name": "email", "Value": "new@example.test"}],
+            },
+        )
+        response = sdk.request_email_change("account-holder-access", "new@example.test")
+        assert response["CodeDeliveryDetailsList"][0]["DeliveryMedium"] == "EMAIL"
+        stub.add_response(
+            "verify_user_attribute",
+            {},
+            {"AccessToken": "account-holder-access", "AttributeName": "email", "Code": "123456"},
+        )
+        sdk.verify_email_change("account-holder-access", "123456")
+        stub.assert_no_pending_responses()
+
+
+@pytest.mark.parametrize("code", ["CodeMismatchException", "ExpiredCodeException"])
+def test_email_verification_rejects_invalid_codes_without_echoing_provider_values(sdk, code):
+    with Stubber(sdk.client) as stub:
+        stub.add_client_error(
+            "verify_user_attribute",
+            service_error_code=code,
+            service_message="private-email-and-code-sentinel",
+        )
+        with pytest.raises(AuthError) as error:
+            sdk.verify_email_change("account-holder-access", "123456")
+    assert error.value.code == "INVALID_CODE"
+    assert error.value.status == 400
+    assert "sentinel" not in str(error.value)
+
+
 @pytest.mark.parametrize(
     "headers,body,status",
     [

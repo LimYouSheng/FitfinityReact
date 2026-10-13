@@ -16,6 +16,7 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
       key={trainer.id}
       readOnly={directoryOnly}
       ratesReadOnly={directoryOnly && !snapshot.capabilities?.trainerRateWrites}
+      emailVerification={snapshot.capabilities?.trainerEmailWrites && ['owner', 'admin'].includes(user.role) ? { auth: services.auth, onRequest: (patch, expectedVersion) => trainerService.update({ id: trainer.id, patch, expectedVersion }) } : undefined}
       onRatesSaved={reload}
       autonomyReadOnly={directoryOnly && !snapshot.capabilities?.trainerApprovalWrites}
       onAutonomySaved={reload}

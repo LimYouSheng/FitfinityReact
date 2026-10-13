@@ -82,6 +82,11 @@ export const PORTAL_CONTRACTS = Object.freeze({
 })
 
 export const AUTH_CONTRACTS = Object.freeze({
+  pendingEmailChange: Object.freeze({ fields: Object.freeze({}), result: 'EmailChange | null', adapter: 'api' }),
+  pendingTrainerEmailChange: Object.freeze({ fields: Object.freeze({ id: 'string' }), result: 'EmailChange | null', adapter: 'api' }),
+  sendEmailCode: Object.freeze({ fields: Object.freeze({ id: 'string' }), result: 'EmailChange', adapter: 'api' }),
+  verifyEmailChange: Object.freeze({ fields: Object.freeze({ id: 'string', code: 'string' }), result: 'EmailChange', adapter: 'api' }),
+  reconcileEmailChange: Object.freeze({ fields: Object.freeze({ id: 'string' }), result: 'EmailChange', adapter: 'api' }),
   signIn: Object.freeze({ fields: Object.freeze({ 'identifier': 'string', 'password': 'string' }), result: 'User | AuthChallenge', adapter: 'both' }),
   challenge: Object.freeze({ fields: Object.freeze({ 'code?': 'string', 'newPassword?': 'string' }), result: 'AuthChallenge | AuthSession', adapter: 'api' }),
   forgotPassword: Object.freeze({ fields: Object.freeze({ 'identifier': 'string' }), result: 'PasswordRecovery', adapter: 'api' }),
