@@ -21,6 +21,8 @@ import { formatDate } from '../../utils/date.js'
 export default function TrainerProfilePage({
   policy,
   readOnly = false,
+  autonomyReadOnly = readOnly,
+  onAutonomySaved,
   activityAvailable = true,
   viewer,
   trainer,
@@ -46,6 +48,9 @@ export default function TrainerProfilePage({
   const generalFields = useRef(null)
   const [ratesDraft, setRatesDraft] = useState(trainer.rates)
   const [ratesErrors, setRatesErrors] = useState({})
+  const reviewedVersion = useRef(null)
+  const [autonomySaved, setAutonomySaved] = useState(false)
+  const [autonomyBusy, setAutonomyBusy] = useState(false)
   const [autonomyDraft, setAutonomyDraft] = useState(trainer.approvalNeeded)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
 
@@ -67,6 +72,12 @@ export default function TrainerProfilePage({
     setActiveEdit(label)
     return () => setActiveEdit(null)
   }, [activeEditor, setActiveEdit])
+
+  useEffect(() => {
+    if (!autonomySaved || activeEditor) return
+    setAutonomySaved(false)
+    onAutonomySaved?.()
+  }, [autonomySaved, activeEditor, onAutonomySaved])
 
   const supervised = Object.values(trainer.approvalNeeded).filter(Boolean).length
   const saveGeneral = async () => {
@@ -288,15 +299,17 @@ export default function TrainerProfilePage({
                 <h2>Owner Approval Needed</h2>
               </div>
 
-              {!readOnly && isManager && (activeEditor !== 'autonomy' ? (
-                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('autonomy')}>Edit</button>
+              {!autonomyReadOnly && isManager && (activeEditor !== 'autonomy' ? (
+                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { reviewedVersion.current = trainer.version; setActiveEditor('autonomy') }}>Edit</button>
               ) : (
                 <div className="inline-actions">
                   <button type="button" className="text-action muted-action" onClick={() => {
+                    if (autonomyBusy) return
                     setAutonomyDraft(trainer.approvalNeeded)
                     setActiveEditor(null)
                   }}>Cancel</button>
-                  <button type="button" className="text-action" onClick={async () => {
+                  <button type="button" className="text-action" disabled={autonomyBusy} onClick={async () => {
+                    if (autonomyReadOnly || !isManager || autonomyBusy) return
                     const confirmed = await confirmAction({
                       title: 'Save autonomy controls?',
                       message: 'This will change which trainer actions require owner approval.',
@@ -304,9 +317,12 @@ export default function TrainerProfilePage({
                     })
                     if (!confirmed) return
                     try {
-                      await onSaveAutonomy(autonomyDraft)
+                      setAutonomyBusy(true)
+                      await onSaveAutonomy(autonomyDraft, reviewedVersion.current)
                       setActiveEditor(null)
+                      setAutonomySaved(true)
                     } catch { /* The action banner reports failure; keep the draft open. */ }
+                    finally { setAutonomyBusy(false) }
                   }}>Save</button>
                 </div>
               ))}
@@ -318,7 +334,7 @@ export default function TrainerProfilePage({
                   key={field}
                   label={label}
                   checked={(activeEditor === 'autonomy' ? autonomyDraft : trainer.approvalNeeded)[field]}
-                  disabled={!isManager || activeEditor !== 'autonomy'}
+                  disabled={autonomyReadOnly || !isManager || activeEditor !== 'autonomy' || autonomyBusy}
                   onChange={checked => setAutonomyDraft(current => ({ ...current, [field]: checked }))}
                 />
               ))}

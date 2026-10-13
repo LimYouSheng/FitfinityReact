@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Header, Query, Request
 from sqlalchemy import select
 
-from app.api import assessments, directory, packages
+from app.api import assessments, directory, packages, trainer_approvals
 from app.api.dependencies import authorized_transaction
 from app.api.schemas import (
     ERROR_RESPONSES,
@@ -318,3 +318,25 @@ def package_save(request_key: UUID, request: Request):
     """Read only this actor's durable save receipt before retrying an uncertain command."""
     with authorized_transaction(request) as (session, principal):
         return packages.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/trainers/{trainer_id}/approvals",
+    response_model=trainer_approvals.ApprovalState,
+    operation_id="saveTrainerApprovals",
+)
+def save_trainer_approvals(
+    trainer_id: UUID, body: trainer_approvals.SaveApprovals, request: Request, key: RequestKey
+):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_approvals.save(session, principal, trainer_id, key, body)
+
+
+@router.get(
+    "/trainer-approval-saves/{request_key}",
+    response_model=trainer_approvals.ApprovalState,
+    operation_id="reconcileTrainerApprovals",
+)
+def reconcile_trainer_approvals(request_key: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_approvals.reconcile(session, principal, request_key)

@@ -15,6 +15,8 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
     <TrainerProfilePage
       key={trainer.id}
       readOnly={directoryOnly}
+      autonomyReadOnly={directoryOnly && !snapshot.capabilities?.trainerApprovalWrites}
+      onAutonomySaved={reload}
       activityAvailable={!directoryOnly}
         policy={policy}
       viewer={user}
@@ -28,9 +30,8 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
         await reload()
         return result
       }}
-      onSaveAutonomy={async settings => {
-        await runAction(() => trainerService.updateAutonomy({ id: trainer.id, approvalNeeded: settings }), { message: 'Approval settings saved.' })
-        await reload()
+      onSaveAutonomy={async (settings, expectedVersion) => {
+        return runAction(() => trainerService.updateAutonomy({ id: trainer.id, approvalNeeded: settings, ...(expectedVersion === undefined ? {} : { expectedVersion }) }), { message: 'Approval settings saved.' })
       }}
       onUpdate={async patch => {
         await runAction(() => trainerService.update({ id: trainer.id, patch }), { message: 'Trainer details saved.' })

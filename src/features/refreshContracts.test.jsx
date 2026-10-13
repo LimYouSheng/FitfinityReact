@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import { seed } from '../data/seed.js'
 import { ActionConfirmationProvider } from '../components/ActionConfirmationProvider.jsx'
 import { EditGuardProvider } from '../components/EditGuardProvider.jsx'
@@ -14,6 +14,22 @@ const Wrapper = ({ children }) => <ActionConfirmationProvider><EditGuardProvider
 beforeEach(() => vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 const general = () => within(screen.getByRole('heading', { name: 'General Information' }).closest('.panel'))
+
+it('approval edits retain the reviewed version across refresh and close before post-save reload', async () => {
+  const save = vi.fn().mockResolvedValue({ version: 2 })
+  const reloaded = vi.fn(() => expect(screen.queryByRole('button', { name: 'Save', exact: true })).not.toBeInTheDocument())
+  const props = { trainer: { ...seed.trainers[0], version: 1 }, viewer: owner, trainers: seed.trainers, clients: seed.clients, sessions: seed.sessions, policy: seed.settings, readOnly: true, autonomyReadOnly: false, onSaveAutonomy: save, onAutonomySaved: reloaded }
+  const { rerender } = render(<TrainerProfilePage {...props} />, { wrapper: Wrapper })
+  const section = () => within(screen.getByRole('heading', { name: 'Owner Approval Needed' }).closest('.panel'))
+  expect(general().queryByRole('button', { name: 'Edit', exact: true })).not.toBeInTheDocument()
+  fireEvent.click(section().getByRole('button', { name: 'Edit', exact: true }))
+  fireEvent.click(section().getByRole('checkbox', { name: 'Availability changes' }))
+  rerender(<TrainerProfilePage {...props} trainer={{ ...props.trainer, version: 9 }} />)
+  fireEvent.click(section().getByRole('button', { name: 'Save', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Save Controls', exact: true }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ ...props.trainer.approvalNeeded, availability: !props.trainer.approvalNeeded.availability }, 1))
+  await waitFor(() => expect(reloaded).toHaveBeenCalledTimes(1))
+})
 
 it('preserves an active client draft across snapshot and policy refreshes, then uses the latest saved record after Cancel', () => {
   function Client({ client, policy }) {

@@ -133,6 +133,7 @@ class RuntimeChecks(unittest.TestCase):
             "migrations/env.py",
             "app/persistence.py",
             "migrations/versions/20261013_0007_package_saves.py",
+            "migrations/versions/20261013_0008_trainer_approvals.py",
         ]:
             path = self.image_root / relative
             original = path.read_bytes()

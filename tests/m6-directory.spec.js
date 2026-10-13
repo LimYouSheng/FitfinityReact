@@ -111,3 +111,40 @@ test('API package setup reconciles interruption and retains a committed save thr
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Packages', exact: true })).toBeVisible()
 })
+
+test('API approval settings reconcile interrupted saves and survive refresh failure without unlocking other edits', async ({ page, staffApi }) => {
+  await openDirectory(page, staffApi)
+  staffApi.state.directory.trainerApprovalWrites = true
+  await page.reload()
+  await page.getByRole('button', { name: 'View Trainers', exact: true }).click()
+  await page.getByRole('button', { name: 'View API Trainer', exact: true }).click()
+  const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Owner Approval Needed' }) })
+  await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(1)
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await panel.getByRole('checkbox', { name: 'Availability changes' }).uncheck()
+  const save = async () => {
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Save Controls', exact: true }).click()
+  }
+  staffApi.state.approvalUnknown = true
+  await save()
+  await expect(page.getByText('Staff service unavailable. Please retry.', { exact: true })).toBeVisible()
+  await save()
+  await expect(panel.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  await expect(panel.getByRole('checkbox', { name: 'Availability changes' })).not.toBeChecked()
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/approvals'))).toHaveLength(1)
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await panel.getByRole('checkbox', { name: 'Session time changes' }).uncheck()
+  staffApi.state.approvalRefreshFailure = true
+  await save()
+  await expect(page.getByRole('heading', { name: 'Unable to load the portal' })).toBeVisible()
+  staffApi.state.unavailable = false
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(panel.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  await expect(panel.getByRole('checkbox', { name: 'Session time changes' })).not.toBeChecked()
+  await page.reload()
+  await expect(panel.getByRole('checkbox', { name: 'Availability changes' })).not.toBeChecked()
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/approvals'))).toHaveLength(2)
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Trainers', exact: true })).toBeVisible()
+})
