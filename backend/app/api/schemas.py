@@ -300,12 +300,20 @@ class DirectoryPackage(Contract):
     validity_days: int
 
 
+class PackagePolicy(Contract):
+    minimum: Literal[1] = 1
+    maximum: Literal[365] = 365
+    sessions: Literal[12] = 12
+    days: Literal[90] = 90
+
+
 class DirectorySnapshot(ServerClock):
     schemaVersion: Literal[1]
     viewerId: UUID
     clients: list[DirectoryClient]
     trainers: list[DirectoryTrainer | OperationalTrainer]
     packages: list[DirectoryPackage]
+    packagePolicy: PackagePolicy
 
 
 class SessionClient(Contract):

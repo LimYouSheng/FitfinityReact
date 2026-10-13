@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "infrastructure")]
 SUITES = {
     "verify-db-access.py": 151,
-    "verify-db-migrations.py": 41,
+    "verify-db-migrations.py": 42,
     "verify-auth-secrets.py": 37,
     "verify-foundation-plan.py": 9,
     "verify-foundation-execute.py": 12,

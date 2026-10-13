@@ -81,6 +81,7 @@ function StaffPortal({ navigation }) {
   const reload = () => refreshData().catch(() => null)
   const { user, data: db, policy } = snapshot
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
+  const packageReadOnly = directoryOnly && snapshot.capabilities?.packageWrites !== true
   const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(managesOperations(user) ? ['trainers', 'packages', ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
@@ -217,7 +218,7 @@ function StaffPortal({ navigation }) {
 
   let page
 
-  if (directoryOnly && (!enabledRoutes.includes(route) || creatingClient || creatingTrainer || (route === 'packages' && detailId === 'new') || (route === 'clients' && parts[2]))) {
+  if (directoryOnly && (!enabledRoutes.includes(route) || creatingClient || creatingTrainer || (route === 'packages' && detailId === 'new' && packageReadOnly) || (route === 'clients' && parts[2]))) {
     page = <UnavailablePage message="This workflow is not available yet." />
   } else if (creatingClient && managesOperations(user)) {
     page = (
@@ -335,11 +336,10 @@ function StaffPortal({ navigation }) {
       }}
     />
   } else if (route === 'packages' && managesOperations(user)) {
-    page = <PackagesPage readOnly={directoryOnly} policy={policy} key={detailId ?? 'list'} packages={packageDefinitions(db)} selectedId={detailId} onNavigate={navigate} onBack={() => goBack('packages')}
+    page = <PackagesPage readOnly={packageReadOnly} policy={policy} key={detailId ?? 'list'} packages={packageDefinitions(db)} selectedId={detailId} onNavigate={navigate} onBack={() => goBack('packages')} onSaved={reload}
       onSave={async options => {
         const saved = await runAction(() => packageService.save(options), { tone: options.draft.status === 'inactive' ? 'warning' : 'success',
           message: options.draft.status === 'inactive' ? 'Package deactivated.' : options.id ? 'Package saved.' : 'Package created.' })
-        await reload()
         return saved
       }} />
   } else if (route === 'packages') {
@@ -353,7 +353,7 @@ function StaffPortal({ navigation }) {
   } else if (route === 'content' && managesOperations(user)) {
     page = <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
   } else if (route === 'account' || (directoryOnly && route === 'dashboard')) {
-    page = <StaffAccountPage user={user} profile={route === 'account'} readOnly={directoryOnly} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
+    page = <StaffAccountPage user={user} profile={route === 'account'} readOnly={directoryOnly} packageWrites={!packageReadOnly} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
   } else if (route === 'dashboard') {
     page = <DashboardPage
       renewals={<MessageInbox {...messageInboxProps} embedded category="renewals" onViewAll={() => navigate('messages/renewals')} />}

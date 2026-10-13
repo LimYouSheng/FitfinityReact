@@ -7,9 +7,10 @@ async function profileTab(page, name) {
   if (!(await button.isVisible())) await menu.locator('summary').click()
   await button.click()
 }
-async function openDirectory(page, staffApi) {
+async function openDirectory(page, staffApi, legacy = false) {
   staffApi.state.step = 'SOFTWARE_TOKEN_MFA'
   staffApi.state.directory = directoryData()
+  if (legacy) delete staffApi.state.directory.packagePolicy
   await page.goto(staffApi.origin)
   await passwordSignIn(page)
   await verifyAuthenticator(page)
@@ -33,8 +34,8 @@ test('API directory searches clients and opens purchased terms with working Back
   await expect(page.getByLabel('Search client', { exact: true })).toHaveValue('API Client')
 })
 
-test('API trainer and package pages show stored data with mutation controls unavailable', async ({ page, staffApi }) => {
-  await openDirectory(page, staffApi)
+test('older API keeps trainer and package writes unavailable without the package policy', async ({ page, staffApi }) => {
+  await openDirectory(page, staffApi, true)
   await page.getByRole('button', { name: 'View Trainers', exact: true }).click()
   await page.getByRole('button', { name: 'View API Trainer', exact: true }).click()
   await expect(page.getByText('$80 / session', { exact: true })).toBeVisible()
@@ -70,4 +71,43 @@ test('API empty purchase and interrupted refresh never become fabricated or cach
   await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+})
+
+test('API package setup reconciles interruption and retains a committed save through refresh failure', async ({ page, staffApi }) => {
+  await openDirectory(page, staffApi)
+  await page.getByRole('button', { name: 'View Packages', exact: true }).click()
+  await page.getByRole('button', { name: 'Add Package', exact: true }).click()
+  await page.getByLabel('Package name', { exact: true }).fill('API Eighteen')
+  await page.getByLabel('Package session count', { exact: true }).fill('18')
+  const confirm = async name => {
+    await page.getByRole('button', { name, exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name, exact: true }).click()
+  }
+  staffApi.state.packageUnknown = true
+  await confirm('Create Package')
+  await expect(page.locator('.package-form [role="alert"]')).toBeVisible()
+  await confirm('Create Package')
+  await expect(page.getByRole('heading', { name: 'API Eighteen', exact: true })).toBeVisible()
+  await expect(page.getByText('135 days', { exact: true })).toBeVisible()
+  expect(staffApi.state.mutations.filter(m => m.path === '/api/packages')).toHaveLength(1)
+  await page.getByRole('button', { name: 'Edit Package', exact: true }).click()
+  await page.getByLabel('Package name', { exact: true }).fill('API Edited')
+  staffApi.state.packageRefreshFailure = true
+  await confirm('Save Package')
+  await expect(page.getByRole('heading', { name: 'Unable to load the portal' })).toBeVisible()
+  const saved = staffApi.state.directory.packages.find(p => p.name === 'API Edited')
+  expect(saved.version).toBe(2)
+  staffApi.state.unavailable = false
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'API Edited', exact: true })).toBeVisible()
+  await confirm('Deactivate Package')
+  await expect(page.getByRole('button', { name: 'Reactivate Package', exact: true })).toBeVisible()
+  await confirm('Reactivate Package')
+  await expect(page.getByRole('button', { name: 'Deactivate Package', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'API Edited', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Deactivate Package', exact: true })).toBeVisible()
+  expect(staffApi.state.directory.clients[0].purchases[0].name).toBe('Purchased Twelve')
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Packages', exact: true })).toBeVisible()
 })

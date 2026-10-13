@@ -29,7 +29,7 @@ from app.database import Base
 from app.migrations import migration_config
 
 CONTRACT = json.loads(globals()["FITFINITY_MIGRATION_CONTRACT"])  # supplied by the pinned bundle
-TARGET = "20260924_0006"
+TARGET = CONTRACT["revisions"][-1]  # Exact target from the source-bound contract, never "head".
 MIGRATOR = "fitfinity_migrator"
 APPLICATION = "fitfinity_app"
 STAGE = "initialization"

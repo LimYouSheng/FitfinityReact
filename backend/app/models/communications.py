@@ -153,6 +153,7 @@ class Message(ActorEvidence, Record, Base):
         ForeignKey("remuneration_approvals.id"), index=True
     )
     exercise_id: Mapped[UUID | None] = mapped_column(ForeignKey("exercises.id"))
+    package_template_id: Mapped[UUID | None] = mapped_column(ForeignKey("package_templates.id"))
     content_id: Mapped[UUID | None] = mapped_column(ForeignKey("content_entries.id"))
 
 

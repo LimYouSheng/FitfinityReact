@@ -108,6 +108,19 @@ class RuntimeChecks(unittest.TestCase):
         sql.assert_not_called()
         self.assertEqual(load_operator().contract(), self.pinned_contract)
 
+    def test_candidate_image_refuses_historical_schema_binding(self):
+        current = self.op.contract()
+        for key in ["revisions", "tables"]:
+            with (
+                self.subTest(binding=key),
+                patch.dict(self.runtime.CONTRACT, {key: self.pinned_contract[key]}),
+            ):
+                result = self.run_event()
+                self.assertFalse(result["ok"])
+                self.assertEqual(result["stage"], "image_migrations")
+        self.assertEqual(self.run_event()["target_revision"], current["revisions"][-1])
+        self.assertEqual(load_operator().contract(), self.pinned_contract)
+
     def test_app_preflight_uses_only_app_reference(self):
         self.env = {
             "FITFINITY_DB_ACCESS_MODE": "migration-app-probe",
@@ -116,7 +129,11 @@ class RuntimeChecks(unittest.TestCase):
         self.assertTrue(self.run_event()["ok"])
 
     def test_changed_migration_file_rejected(self):
-        for relative in ["migrations/env.py", "app/persistence.py"]:
+        for relative in [
+            "migrations/env.py",
+            "app/persistence.py",
+            "migrations/versions/20261013_0007_package_saves.py",
+        ]:
             path = self.image_root / relative
             original = path.read_bytes()
             for change in ["modified", "missing"]:
@@ -541,7 +558,7 @@ class OperatorChecks(unittest.TestCase):
                 ).json()
         self.assertTrue(result["ok"], result)
         self.assertTrue(result["preflight_only"])
-        self.assertEqual(result["target_revision"], "20260924_0006")
+        self.assertEqual(result["target_revision"], contract["revisions"][-1])
         self.assertEqual(load_operator().contract(), pinned_contract)
 
 

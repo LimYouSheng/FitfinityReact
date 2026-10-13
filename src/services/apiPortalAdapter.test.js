@@ -154,3 +154,70 @@ it('does not let a pending anonymous account read erase completed MFA', async ()
   await createPortalServices(adapter).forSession(current.sessionGeneration).staffService.createAdmin({ body: { name: 'Current' }, requestKey: 'current-key' })
   expect(fetch.mock.calls.filter(([url]) => url.endsWith('/auth/challenge'))).toHaveLength(1)
 })
+
+const packageDraft = { name: 'Custom', total: 18, status: 'active' }
+const packageRecord = { id: '10000000-0000-4000-8000-000000000099', version: 1, revision: 1, name: 'Custom', total_sessions: 18, validity_days: 135, status: 'active' }
+const savePackageRequest = draft => ({ service: 'packageService', operation: 'save', input: { draft: draft ?? packageDraft } })
+
+it.each(['owner', 'admin'])('saves a package for %s with CSRF and a stable server receipt key', async role => {
+  const fetch = vi.fn(async (url, options) => jsonResponse(options.method === 'POST' ? packageRecord : { ...sessionInfo(), user: { ...sessionInfo().user, role } }))
+  const result = await make(fetch).invoke(savePackageRequest())
+  expect(result).toMatchObject({ id: packageRecord.id, total: 18, validityDays: 135 })
+  const [, post] = fetch.mock.calls.at(-1)
+  expect(post.headers['X-CSRF-Token']).toBe(csrfToken)
+  expect(post.headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/)
+  expect(JSON.parse(post.body)).toEqual({ draft: packageDraft })
+})
+it('denies trainer package writes before a mutation', async () => {
+  const fetch = vi.fn(async () => jsonResponse({ ...sessionInfo(), user: { ...sessionInfo().user, role: 'trainer' } }))
+  await expect(make(fetch).invoke(savePackageRequest())).rejects.toMatchObject({ code: 'forbidden' })
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+it('binds package writes to the rendered login even when the cookie changes during preflight', async () => {
+  let token = csrfToken
+  const fetch = vi.fn(async url => jsonResponse(url.endsWith('/auth/policy') ? authPolicy : url.endsWith('/api/directory') ? emptyDirectory() : { ...sessionInfo(), csrfToken: token }))
+  const adapter = make(fetch), snapshot = await adapter.load()
+  token = 'b'.repeat(64)
+  await expect(adapter.invoke(savePackageRequest(), { expectedGeneration: snapshot.sessionGeneration })).rejects.toMatchObject({ code: 'SESSION_CHANGED' })
+  expect(fetch.mock.calls.some(([, options]) => options.method === 'POST')).toBe(false)
+})
+it('reconciles a lost package response without issuing a second mutation', async () => {
+  const fetch = vi.fn(async (url, options) => {
+    if (options.method === 'POST') throw new Error('Response lost after commit')
+    return jsonResponse(url.includes('/packages/saves/') ? packageRecord : sessionInfo())
+  })
+  const adapter = make(fetch)
+  await expect(adapter.invoke(savePackageRequest())).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  expect(await adapter.invoke(savePackageRequest())).toMatchObject({ id: packageRecord.id })
+  const posts = fetch.mock.calls.filter(([, options]) => options.method === 'POST')
+  expect(posts).toHaveLength(1)
+  expect(fetch.mock.calls.at(-1)[0]).toContain(posts[0][1].headers['Idempotency-Key'])
+})
+it('retries the identical package key only after a receipt read proves no committed save', async () => {
+  let posts = 0
+  const fetch = vi.fn(async (url, options) => {
+    if (url.includes('/packages/saves/')) return failure('not_found', 404)
+    if (options.method === 'POST') { if (++posts === 1) throw new Error('Not received'); return jsonResponse(packageRecord) }
+    return jsonResponse(sessionInfo())
+  })
+  const adapter = make(fetch)
+  await expect(adapter.invoke(savePackageRequest())).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  await adapter.invoke(savePackageRequest())
+  const keys = fetch.mock.calls.filter(([, options]) => options.method === 'POST').map(([, options]) => options.headers['Idempotency-Key'])
+  expect(keys).toHaveLength(2); expect(new Set(keys).size).toBe(1)
+  expect(fetch.mock.calls.at(-2)[0]).toContain('/packages/saves/')
+})
+it('blocks changed values while the previous package command is uncertain', async () => {
+  const fetch = vi.fn(async (url, options) => { if (options.method === 'POST') throw new Error('offline'); return jsonResponse(sessionInfo()) })
+  const adapter = make(fetch)
+  await expect(adapter.invoke(savePackageRequest())).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  await expect(adapter.invoke(savePackageRequest({ ...packageDraft, name: 'Another' }))).rejects.toMatchObject({ code: 'SAVE_UNCERTAIN' })
+  expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1)
+})
+it('does not accept malformed package evidence or resend an uncertain command', async () => {
+  const fetch = vi.fn(async (url, options) => jsonResponse(options.method === 'POST' ? { ...packageRecord, total_sessions: 0 } : url.includes('/packages/saves/') ? packageRecord : sessionInfo()))
+  const adapter = make(fetch)
+  await expect(adapter.invoke(savePackageRequest())).rejects.toMatchObject({ code: 'API_RESPONSE' })
+  expect(await adapter.invoke(savePackageRequest())).toMatchObject({ total: 18 })
+  expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1)
+})

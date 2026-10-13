@@ -1,5 +1,13 @@
 # AWS deployment runbook
 
+## API package candidate release boundary — 13 October 2026
+
+PR #24 source was owner-merged as `eed077e1500e09ca2b486d0a991f520b76ceeeb5` after both required final-head jobs passed (38352674116). The deployed application remains `b3a97897bc733c2ddbbbd17a40c1407b2a506649`; merging source does not deploy its MFA repair.
+
+The next package-catalogue candidate adds forward migration `20261013_0007`, package-save APIs/receipts and a message package target. Any eventual release needs reviewed new image provenance/security evidence, an update/migration/grant plan for the populated database (including append-only package receipt access), backup/recovery evidence and an appropriate live-app update mechanism. The historical `test-db-migration-contract.json` and all accepted source/image/runtime receipts remain unchanged. Candidate-only test manifests and deriving the runtime target from a bound contract do not authorize a new deployment contract or migration. Old source/image compatibility and six-revision bindings must continue rejecting the new bytes/schema.
+
+No AWS call, migration, image publication, scan, invitation/message delivery, exception renewal or resource teardown is authorized by this coding slice. Preserve the database/pool/Owner, live edge, buckets and completed operation history. Never replay first-create, deletion or replacement preparation. The current TEST exception still ends **13 October 2026 at 23:42:58 Singapore**, without automatic resource shutdown. `PROGRESS.md` owns source/CI and outstanding live acceptance.
+
 ## Live TEST login and MFA follow-up — 13 October 2026
 
 The owner merged PR #23 normally as `b3a97897bc733c2ddbbbd17a40c1407b2a506649`. API release 38311509067/artifact 11775664004 ZIP `04ac2203d4381b3e67d7a1e37d8aba0c0a9b9490d68612e79e4a524a980a209b` has 41 verified files. Read-only reconciliation 38322668762/artifact 11780968175 ZIP `d429cba6341521549df11c471b77ac672f09ff97bcfa3f250aebee8d03e1a0e1` reconciled deletion with zero writes. Preparation 38333380277/artifact 11784498960 ZIP `e370918edbf4bd6bc4a35f65d5144496b5b366cfa90247592aa4ab59337bc5d5` created the reviewed app change set with 20 additions and no modifications/deletions.
