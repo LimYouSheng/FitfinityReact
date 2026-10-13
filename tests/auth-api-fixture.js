@@ -1,3 +1,4 @@
+import { trainerRateApiFixture } from './trainer-rate-api-fixture.js'
 import { clientNoteApiFixture } from './client-note-api-fixture.js'
 import { packageApiFixture } from './package-api-fixture.js'
 import { trainerApprovalApiFixture } from './trainer-approval-api-fixture.js'
@@ -61,6 +62,7 @@ export const test = base.extend({
               return
             }
             if (packageApiFixture({ state, path, request, json, error })) return
+            if (trainerRateApiFixture({ state, path, request, json, error })) return
             if (trainerApprovalApiFixture({ state, path, request, json, error })) return
             if (clientNoteApiFixture({ state, path, request, json, error })) return
             if (clientDetailApiFixture({ state, path, request, json, error })) return
@@ -92,6 +94,7 @@ export const test = base.extend({
           }
           if (!state.signedIn || request.headers['x-csrf-token'] !== state.csrfToken || !request.headers.cookie?.includes('staff-session=browser-test')) { error('CSRF_REJECTED', 403); return }
           if (packageApiFixture({ state, path, request, body, json, error })) return
+          if (trainerRateApiFixture({ state, path, request, body, json, error })) return
           if (trainerApprovalApiFixture({ state, path, request, body, json, error })) return
           if (clientNoteApiFixture({ state, path, request, body, json, error })) return
           if (clientDetailApiFixture({ state, path, request, body, json, error })) return

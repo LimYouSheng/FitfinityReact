@@ -15,6 +15,8 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
     <TrainerProfilePage
       key={trainer.id}
       readOnly={directoryOnly}
+      ratesReadOnly={directoryOnly && !snapshot.capabilities?.trainerRateWrites}
+      onRatesSaved={reload}
       autonomyReadOnly={directoryOnly && !snapshot.capabilities?.trainerApprovalWrites}
       onAutonomySaved={reload}
       activityAvailable={!directoryOnly}
@@ -33,9 +35,9 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
       onSaveAutonomy={async (settings, expectedVersion) => {
         return runAction(() => trainerService.updateAutonomy({ id: trainer.id, approvalNeeded: settings, ...(expectedVersion === undefined ? {} : { expectedVersion }) }), { message: 'Approval settings saved.' })
       }}
-      onUpdate={async patch => {
-        await runAction(() => trainerService.update({ id: trainer.id, patch }), { message: 'Trainer details saved.' })
-        await reload()
+      onUpdate={async (patch, expectedVersion) => {
+        await runAction(() => trainerService.update({ id: trainer.id, patch, ...(directoryOnly ? { expectedVersion } : {}) }), { message: 'Trainer details saved.' })
+        if (!Object.hasOwn(patch, 'rates')) await reload()
       }}
       onDeactivate={ownerMode ? async replacements => {
         await runAction(() => trainerService.deactivate({ id: trainer.id, replacements }), { tone: 'warning', message: 'Trainer deactivated.' })

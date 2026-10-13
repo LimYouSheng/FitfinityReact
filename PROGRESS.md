@@ -1,5 +1,14 @@
 # Fitfinity current progress
 
+## Owner trainer rates — active dependent slice, 13 October 2026
+
+- Active branch `integration/trainer-rates-2026-10-13` starts at PR #29 head `0b5c7f2d5b5a9a54519c8b55948e6a1f233bde7c`. PR #29 run 38378731223 passed backend; frontend remains pending. PR #27 run 38375110460 is now fully successful; #28 run 38376140052 has successful backend and pending frontend at this checkpoint. PR #26 is fully green. No new merge/deployment approval exercised.
+- Owner-only rate saves use strict integer cents, reviewed trainer versions, serialized actor-scoped receipts and immutable before/after rate evidence. Notices contain no rate values. Admin and Trainer save/reconciliation denied; inactive target handling matches the prototype. The API UI enables only the Owner's rate section; general information, availability, lifecycle and approval controls keep separate gates.
+- `trainerService.update` remains partial: general profile/optional trainer contacts and verified email changes are still needed. Changing only the local email would leave Cognito recovery pointing at the old address, so that shortcut is not accepted. The count remains nine connected candidate operations, one local predicate and 45 incomplete operations (one partial, 44 others).
+- Migration 0012 is additive and refuses populated receipt downgrade; candidate-only fixture advances to twelve revisions. No deployed contract/grants change.
+- Focused validation: all 12 new PostgreSQL/API cases, 54 affected frontend cases plus the later rate-editor regression, all 27 affected browser cases on fresh root/Pages/API/PWA builds, lint/health and 45 quality checks passed. Exact inventory is 994 units/91 files and 870 browser cases. Complete final backend gate passed 527/527 PostgreSQL/backend tests, 633 infrastructure checks, Ruff/format and 39-operation OpenAPI. The first run’s sole stale GET-rates 404 expectation was updated to 405 for the newly implemented POST-only route, with an additional authenticated Admin POST-denial assertion. No financial-disclosure check was removed. Final-head full CI remains mandatory.
+- Logs: `/workspace/work/trainer-rates/`. One retained checkout/agent/test image and owned ephemeral test DB; no AWS mutation, live emails, scan, publication, exception renewal or merge.
+
 ## General health notes and remarks — current candidate, 13 October 2026
 
 - Active branch `integration/client-notes-2026-10-13` starts at PR #28 head `64db5d03db17993996e8e145b8db4f6e6b15efbb`, depending on #27 and #26. PR #28 is the optional-contact slice; its full CI run is 38376140052. Accepted main remains `e71b961`; no new merge or AWS approval exercised.

@@ -244,3 +244,29 @@ test('API general notes reconcile saves and survive reload without enabling asse
   await expect(page.getByLabel('Health / Limitation Notes', { exact: true })).toHaveValue('')
   expect(staffApi.state.mutations.filter(m => m.path.endsWith('/notes'))).toHaveLength(2)
 })
+
+test('API Owner rates reconcile uncertain saves and persist exact cents after reload', async ({ page, staffApi }) => {
+  await openDirectory(page, staffApi)
+  staffApi.state.directory.trainerRateWrites = true
+  await page.reload()
+  await page.getByRole('button', { name: 'View Trainers', exact: true }).click()
+  await page.getByRole('button', { name: 'View API Trainer', exact: true }).click()
+  const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Training & Rates', exact: true }) })
+  await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(1)
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Peak rate', { exact: true }).fill('65.43')
+  const save = async () => {
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Save Rates', exact: true }).click()
+  }
+  staffApi.state.rateUnknown = true
+  await save()
+  await expect(page.getByText('Staff service unavailable. Please retry.', { exact: true })).toBeVisible()
+  await save()
+  await expect(panel.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  await page.reload()
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await expect(page.getByLabel('Peak rate', { exact: true })).toHaveValue('65.43')
+  expect(staffApi.state.directory.trainers[0].peak_rate_cents).toBe(6543)
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/rates'))).toHaveLength(1)
+})

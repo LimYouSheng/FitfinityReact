@@ -132,3 +132,19 @@ it('general notes retain the reviewed version and draft through refresh and clos
   await waitFor(() => expect(save).toHaveBeenCalledWith('Draft', { expectedVersion: 2 }))
   await waitFor(() => expect(refreshed).toHaveBeenCalledTimes(1))
 })
+
+it('rate edits retain the reviewed version and close before reload while general information stays locked', async () => {
+  const save = vi.fn().mockResolvedValue({ version: 2 })
+  const reload = vi.fn(() => expect(screen.queryByRole('button', { name: 'Save', exact: true })).not.toBeInTheDocument())
+  const props = { trainer: { ...seed.trainers[0], version: 1 }, viewer: owner, trainers: seed.trainers, clients: seed.clients, sessions: seed.sessions, policy: seed.settings, readOnly: true, ratesReadOnly: false, onUpdate: save, onRatesSaved: reload }
+  const { rerender } = render(<TrainerProfilePage {...props} />, { wrapper: Wrapper })
+  const panel = within(screen.getByRole('heading', { name: 'Training & Rates' }).closest('.panel'))
+  expect(general().queryByRole('button', { name: 'Edit', exact: true })).not.toBeInTheDocument()
+  fireEvent.click(panel.getByRole('button', { name: 'Edit', exact: true }))
+  fireEvent.change(screen.getByLabelText('Peak rate'), { target: { value: '65.43' } })
+  rerender(<TrainerProfilePage {...props} trainer={{ ...props.trainer, version: 9 }} />)
+  fireEvent.click(panel.getByRole('button', { name: 'Save', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Save Rates', exact: true }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ rates: { ...props.trainer.rates, peak: 65.43 } }, 1))
+  await waitFor(() => expect(reload).toHaveBeenCalledTimes(1))
+})

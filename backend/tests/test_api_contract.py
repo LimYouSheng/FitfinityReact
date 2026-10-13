@@ -21,8 +21,8 @@ def test_generated_openapi_matches_reviewed_snapshot_without_network(monkeypatch
     monkeypatch.setattr(socket, "create_connection", blocked)
     schema = generate_contract()
     check_contract(schema)
-    assert len(schema["paths"]) == 34
-    assert sum(len(methods) for methods in schema["paths"].values()) == 37
+    assert len(schema["paths"]) == 36
+    assert sum(len(methods) for methods in schema["paths"].values()) == 39
     assert schema["paths"]["/auth/session"]["get"]["security"] == [{"StaffSession": []}]
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():

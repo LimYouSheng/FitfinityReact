@@ -315,6 +315,7 @@ class DirectorySnapshot(ServerClock):
     packages: list[DirectoryPackage]
     packagePolicy: PackagePolicy
     trainerApprovalWrites: Literal[True] = True
+    trainerRateWrites: Literal[True] = True
     clientPersonalWrites: Literal[True] = True
     clientNoteWrites: Literal[True] = True
 

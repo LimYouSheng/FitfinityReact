@@ -22,6 +22,8 @@ export default function TrainerProfilePage({
   policy,
   readOnly = false,
   autonomyReadOnly = readOnly,
+  ratesReadOnly = readOnly,
+  onRatesSaved,
   onAutonomySaved,
   activityAvailable = true,
   viewer,
@@ -48,6 +50,9 @@ export default function TrainerProfilePage({
   const generalFields = useRef(null)
   const [ratesDraft, setRatesDraft] = useState(trainer.rates)
   const [ratesErrors, setRatesErrors] = useState({})
+  const rateVersion = useRef(null)
+  const [ratesBusy, setRatesBusy] = useState(false)
+  const [ratesSaved, setRatesSaved] = useState(false)
   const reviewedVersion = useRef(null)
   const [autonomySaved, setAutonomySaved] = useState(false)
   const [autonomyBusy, setAutonomyBusy] = useState(false)
@@ -79,6 +84,12 @@ export default function TrainerProfilePage({
     onAutonomySaved?.()
   }, [autonomySaved, activeEditor, onAutonomySaved])
 
+  useEffect(() => {
+    if (!ratesSaved || activeEditor) return
+    setRatesSaved(false)
+    onRatesSaved?.()
+  }, [ratesSaved, activeEditor, onRatesSaved])
+
   const supervised = Object.values(trainer.approvalNeeded).filter(Boolean).length
   const saveGeneral = async () => {
     const errors = trainerStepErrors(generalDraft, 'general', { requireComplete: false })
@@ -109,7 +120,7 @@ export default function TrainerProfilePage({
   }, [generalErrors])
 
   const saveRates = async () => {
-    if (readOnly || !canEditRates) return
+    if (ratesReadOnly || !canEditRates || ratesBusy) return
     const errors = trainerStepErrors({ rates: ratesDraft }, 'rates')
     if (Object.keys(errors).length) { setRatesErrors(errors); return }
     setRatesErrors({})
@@ -120,14 +131,17 @@ export default function TrainerProfilePage({
     })
     if (!confirmed) return
     try {
+      setRatesBusy(true)
       await onUpdate({
         rates: {
           peak: Number(ratesDraft.peak),
           offPeak: Number(ratesDraft.offPeak),
         },
-      })
+      }, rateVersion.current)
       setActiveEditor(null)
+      setRatesSaved(true)
     } catch { /* The action banner reports failure; keep the draft open. */ }
+    finally { setRatesBusy(false) }
   }
 
   return (
@@ -230,13 +244,14 @@ export default function TrainerProfilePage({
             <div className="section-head">
               <h2>Training & Rates</h2>
 
-              {!readOnly && canEditRates && (activeEditor !== 'rates' ? (
-                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setRatesErrors({}); setActiveEditor('rates') }}>Edit</button>
+              {!ratesReadOnly && canEditRates && (activeEditor !== 'rates' ? (
+                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { rateVersion.current = trainer.version; setRatesErrors({}); setActiveEditor('rates') }}>Edit</button>
               ) : (
                 <div className="inline-actions">
                   <button
                     type="button"
                     className="text-action muted-action"
+                    disabled={ratesBusy}
                     onClick={() => {
                       setRatesDraft(trainer.rates)
                       setActiveEditor(null)
@@ -244,7 +259,7 @@ export default function TrainerProfilePage({
                   >
                     Cancel
                   </button>
-                  <button type="button" className="text-action" onClick={saveRates}>Save</button>
+                  <button type="button" className="text-action" disabled={ratesBusy} onClick={saveRates}>Save</button>
                 </div>
               ))}
             </div>
@@ -256,6 +271,7 @@ export default function TrainerProfilePage({
                   ? (
                     <input
                       aria-label="Peak rate"
+                      disabled={ratesBusy}
                       aria-invalid={Boolean(ratesErrors.peak)}
                       type="number"
                       min="0"
@@ -276,6 +292,7 @@ export default function TrainerProfilePage({
                   ? (
                     <input
                       aria-label="Off-peak rate"
+                      disabled={ratesBusy}
                       aria-invalid={Boolean(ratesErrors.offPeak)}
                       type="number"
                       min="0"

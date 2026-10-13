@@ -15,6 +15,7 @@ from app.api import (
     directory,
     packages,
     trainer_approvals,
+    trainer_rates,
 )
 from app.api.dependencies import authorized_transaction
 from app.api.schemas import (
@@ -404,3 +405,27 @@ def reconcile_client_notes(request_key: UUID, request: Request):
     """Current assigned authority is rechecked before returning actor-scoped receipts."""
     with authorized_transaction(request) as (session, principal):
         return client_notes.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/trainers/{trainer_id}/rates",
+    response_model=trainer_rates.RateState,
+    operation_id="saveTrainerRates",
+)
+def save_trainer_rates(
+    trainer_id: UUID, body: trainer_rates.SaveRates, request: Request, key: RequestKey
+):
+    """Owner-only integer-cent pay rates; no account, approval or schedule changes."""
+    with authorized_transaction(request) as (session, principal):
+        return trainer_rates.save(session, principal, trainer_id, key, body)
+
+
+@router.get(
+    "/trainer-rate-saves/{request_key}",
+    response_model=trainer_rates.RateState,
+    operation_id="reconcileTrainerRates",
+)
+def reconcile_trainer_rates(request_key: UUID, request: Request):
+    """Read the current Owner's original receipt before an explicit retry."""
+    with authorized_transaction(request) as (session, principal):
+        return trainer_rates.reconcile(session, principal, request_key)
