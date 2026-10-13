@@ -20,6 +20,8 @@ export default function ClientProfilePage({
   user,
   readOnly = false,
   personalReadOnly = readOnly,
+  notesReadOnly = readOnly,
+  onNotesSaved,
   onUpdateGeneral,
   onGeneralSaved,
   assessmentsAvailable = true,
@@ -69,7 +71,7 @@ export default function ClientProfilePage({
   }, [activeEditor, setActiveEdit])
 
   const ownerEditable = !readOnly && canEditClientGeneral(user, client)
-  const notesEditable = !readOnly && canEditClientCoachingNotes(user, client)
+  const notesEditable = !notesReadOnly && canEditClientCoachingNotes(user, client)
 
   const assignedTrainerEditable =
     user.role === 'trainer' &&
@@ -171,28 +173,32 @@ export default function ClientProfilePage({
               return onSaveAssessment({ personIndex, formId, record, expectedPerson: { name: person.name, birthday: person.birthday } })
             }} />
         </Panel>}
-        {client.healthNotes && <ClientEditableText
+        {(client.healthNotes || client.notesAvailable) && <ClientEditableText
           title="Health / Limitation Notes"
           value={client.healthNotes}
           editable={notesEditable}
+          version={client.version}
+          onSaved={onNotesSaved}
           multiline
           editing={activeEditor === 'health'}
           editDisabled={Boolean(activeEditor)}
           onBeginEdit={() => setActiveEditor('health')}
           onEndEdit={() => setActiveEditor(null)}
-          onSave={healthNotes => onUpdate({ healthNotes })}
+          onSave={(healthNotes, reviewed) => onUpdate({ healthNotes }, reviewed)}
         />}
 
         <ClientEditableText
           title="Remarks"
           value={client.remarks}
           editable={notesEditable}
+          version={client.version}
+          onSaved={onNotesSaved}
           multiline
           editing={activeEditor === 'remarks'}
           editDisabled={Boolean(activeEditor)}
           onBeginEdit={() => setActiveEditor('remarks')}
           onEndEdit={() => setActiveEditor(null)}
-          onSave={remarks => onUpdate({ remarks })}
+          onSave={(remarks, reviewed) => onUpdate({ remarks }, reviewed)}
         />
       </div>
       </>}

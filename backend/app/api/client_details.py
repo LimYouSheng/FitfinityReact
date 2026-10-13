@@ -1,4 +1,4 @@
-"""Owner/Admin personal-information edits; never accept assessments or health notes."""
+"""Owner/Admin personal edits and approved general notes; never accept assessment answers."""
 
 import hashlib
 import json
@@ -49,6 +49,7 @@ class PersonDetails(Contract):
     expectedVersion: StrictInt = Field(ge=1)
     name: StrictStr = Field(min_length=1, max_length=200)
     email: StrictStr = Field(max_length=320)
+    healthNotes: StrictStr | None = Field(default=None, max_length=10000)
     birthday: date | None
     gender: Literal["", "Female", "Male", "Other", "Prefer not to say"]
     phone: Phone
@@ -147,7 +148,11 @@ def save(session, principal, client_id, key, body):
         )
     ):
         raise conflict()
+    notes_changed = False
     for person, draft in zip(people, body.people, strict=True):
+        if draft.healthNotes is not None and draft.healthNotes.strip() != person.health_notes:
+            person.health_notes = draft.healthNotes.strip()
+            notes_changed = True
         person.name, person.email = draft.name, draft.email
         person.birthday, person.gender = draft.birthday, draft.gender
         person.phone_country_code, person.phone_number = draft.phone.countryCode, draft.phone.number
@@ -156,6 +161,15 @@ def save(session, principal, client_id, key, body):
         person.emergency_country_code = draft.emergencyContact.countryCode
         person.emergency_number = draft.emergencyContact.number
         person.version += 1
+    if notes_changed:
+        client.health_notes = "\n".join(
+            f"{p.name}: {p.health_notes}" if client.kind == "couple" else p.health_notes
+            for p in people
+            if p.health_notes
+        )
+        from app.api.client_notes import audit
+
+        audit(session, principal, client.id, "save")
     client.name = " & ".join(p.name for p in people)
     if len(client.name) > 400:
         raise AuthError("invalid_request", "The combined client name is too long.", 422)
@@ -182,10 +196,17 @@ def save(session, principal, client_id, key, body):
             actor_name=principal.name,
         )
     )
+    notify_saved(
+        session, principal, client, "Updated personal information, remarks and gender preference."
+    )
+    return result
+
+
+def notify_saved(session, principal, client, body):
     notice = Message(
         kind="saved_edit",
         title=f"Client details saved: {client.name}",
-        body="Updated personal information, remarks and gender preference.",
+        body=body,
         client_id=client.id,
         trainer_id=client.trainer_id,
         actor_id=principal.user_id,
@@ -201,4 +222,3 @@ def save(session, principal, client_id, key, body):
         )
     ):
         session.add(MessageReceipt(message_id=notice.id, user_id=user_id))
-    return result

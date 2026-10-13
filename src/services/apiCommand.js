@@ -3,11 +3,11 @@ import { ApiError } from './apiClient.js'
 
 // One uncertain command per rendered login. Reconciliation is a read;
 // it never resubmits a command automatically after a transport failure.
-export function reconciledCommand(http, actionSession, { path, receiptPath, validate, bodyFor = input => input, label }) {
+export function reconciledCommand(http, actionSession, { path, receiptPath, validate, bodyFor = input => input, label, roles = ['owner', 'admin'] }) {
   let pending = null
   return async (input, expectedGeneration) => {
     const { user, sessionGeneration } = await actionSession(expectedGeneration)
-    if (!['owner', 'admin'].includes(user.role)) throw new ApiError('forbidden', `${label} requires operational access.`, 403)
+    if (!roles.includes(user.role)) throw new ApiError('forbidden', `${label} is unavailable for this account.`, 403)
     if (pending?.generation !== sessionGeneration) pending = null
     const body = structuredClone(input)
     const fingerprint = JSON.stringify(body)

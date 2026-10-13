@@ -8,7 +8,14 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Header, Query, Request
 from sqlalchemy import select
 
-from app.api import assessments, client_details, directory, packages, trainer_approvals
+from app.api import (
+    assessments,
+    client_details,
+    client_notes,
+    directory,
+    packages,
+    trainer_approvals,
+)
 from app.api.dependencies import authorized_transaction
 from app.api.schemas import (
     ERROR_RESPONSES,
@@ -362,3 +369,38 @@ def save_client_details(
 def reconcile_client_details(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
         return client_details.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/notes",
+    response_model=client_notes.NoteView,
+    operation_id="getClientNotes",
+)
+def get_client_notes(client_id: UUID, request: Request):
+    """Audited general notes for operational staff or the current assigned Trainer only."""
+    with authorized_transaction(request) as (session, principal):
+        return client_notes.view(session, principal, client_id)
+
+
+@router.post(
+    "/clients/{client_id}/notes",
+    response_model=client_notes.NoteState,
+    operation_id="saveClientNotes",
+)
+def save_client_notes(
+    client_id: UUID, body: client_notes.SaveNotes, request: Request, key: RequestKey
+):
+    """Versioned general-note save; assessment fields are forbidden."""
+    with authorized_transaction(request) as (session, principal):
+        return client_notes.save(session, principal, client_id, key, body)
+
+
+@router.get(
+    "/client-note-saves/{request_key}",
+    response_model=client_notes.NoteState,
+    operation_id="reconcileClientNotes",
+)
+def reconcile_client_notes(request_key: UUID, request: Request):
+    """Current assigned authority is rechecked before returning actor-scoped receipts."""
+    with authorized_transaction(request) as (session, principal):
+        return client_notes.reconcile(session, principal, request_key)

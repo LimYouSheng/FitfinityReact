@@ -209,3 +209,38 @@ test('API client contact edits preserve purchases and reconcile before retrying 
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible()
 })
+
+
+test('API general notes reconcile saves and survive reload without enabling assessment forms', async ({ page, staffApi }) => {
+  await openDirectory(page, staffApi)
+  staffApi.state.directory.clientNoteWrites = true
+  await page.reload()
+  await page.getByRole('button', { name: 'View Clients', exact: true }).click()
+  await page.getByRole('button', { name: 'View API Client', exact: true }).click()
+  const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Health / Limitation Notes', exact: true }) })
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Health / Limitation Notes', { exact: true }).fill('General knee guidance')
+  const save = async () => {
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
+  }
+  staffApi.state.clientNoteUnknown = true
+  await save()
+  await expect(page.getByText('Staff service unavailable. Please retry.', { exact: true })).toBeVisible()
+  await save()
+  await expect(panel.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(panel.getByText('General knee guidance', { exact: true })).toBeVisible()
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/notes'))).toHaveLength(1)
+  await expect(page.getByRole('heading', { name: 'Initial Assessment', exact: true })).toHaveCount(0)
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Health / Limitation Notes', { exact: true }).fill('')
+  staffApi.state.clientNoteRefreshFailure = true
+  await save()
+  await expect(page.getByRole('heading', { name: 'Unable to load the portal' })).toBeVisible()
+  staffApi.state.unavailable = false
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await expect(page.getByLabel('Health / Limitation Notes', { exact: true })).toHaveValue('')
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/notes'))).toHaveLength(2)
+})

@@ -1,3 +1,4 @@
+import useClientNotes from './useClientNotes.js'
 import usePortalData from '../../hooks/usePortalData.js'
 import usePortalActions from '../../hooks/usePortalActions.js'
 import { useCallback } from 'react'
@@ -14,13 +15,18 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   const sessions = db.sessions ?? []
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
   const { clientService } = services
+  const notes = useClientNotes(selectedClient, Boolean(snapshot.capabilities?.clientNoteWrites), clientService, snapshot.sessionGeneration)
   const progressClientId = selectedClient.id
   const loadProgressReportHistory = useCallback(packageId =>
     clientService.progressReportHistory({ id: progressClientId, packageId }), [clientService, progressClientId])
+  if (notes.error) return <div role="alert"><p>{notes.error.message}</p><button type="button" onClick={notes.retry}>Retry client notes</button></div>
+  if (!notes.client) return <div role="status">Loading client notes…</div>
   return (
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
+      notesReadOnly={directoryOnly && !snapshot.capabilities?.clientNoteWrites}
+      onNotesSaved={reload}
       personalReadOnly={directoryOnly && !snapshot.capabilities?.clientPersonalWrites}
       onGeneralSaved={reload}
       onUpdateGeneral={async (patch, reviewed) => runAction(() => clientService.update({
@@ -58,16 +64,15 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
         return renewed
       }}
       user={user}
-      client={selectedClient}
+      client={notes.client}
       clients={db.clients}
       trainer={trainers.find(item => item.id === selectedClient.trainerId)}
       trainers={trainers}
       sessions={visibleSessionsForUser(user, sessions)}
       today={today}
       onOpenSession={openSession}
-      onUpdate={async patch => {
-        await runAction(() => clientService.update({ id: selectedClient.id, patch }), { message: 'Client details saved.' })
-        await reload()
+      onUpdate={async (patch, reviewed) => {
+        await runAction(() => clientService.update({ id: selectedClient.id, patch, ...(directoryOnly ? { reviewed } : {}) }), { message: 'Client details saved.' })
       }}
       onSaveAssessment={async options => {
         const saved = await runAction(() => clientService.saveAssessment({ id: selectedClient.id, assessment: options }), { message: 'Assessment saved.' })

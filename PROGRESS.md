@@ -1,5 +1,15 @@
 # Fitfinity current progress
 
+## General health notes and remarks — current candidate, 13 October 2026
+
+- Active branch `integration/client-notes-2026-10-13` starts at PR #28 head `64db5d03db17993996e8e145b8db4f6e6b15efbb`, depending on #27 and #26. PR #28 is the optional-contact slice; its full CI run is 38376140052. Accepted main remains `e71b961`; no new merge or AWS approval exercised.
+- Implemented the user's explicit general-note permission while preserving Owner/Admin-only initial assessment forms. Current assigned Trainers and operational staff can read/save general notes/remarks; historical/cover relationships do not grant access. Scoped route reads never add notes to the general directory. Actor-scoped receipts, version checks, access evidence and non-sensitive notices commit atomically. General/per-person note synchronization matches single/couple prototype behavior and preserves unchanged shared summaries.
+- Forward migration 0011 adds nullable general summary storage and two append-only evidence tables, with populated-downgrade refusal. Candidate-only manifest/grants advance to eleven migrations; deployed six-revision contract and image remain unchanged. Canonical model phone constraints now also match migration 0010 optional-number behavior.
+- Local evidence: all 24 affected browser cases and fresh root/Pages/API/PWA builds passed. Full frontend suite passed 982 units/89 files; two subsequently added client/login stale-response tests passed separately (final inventory 984/90). Final lint (326 files), health and 45 quality checks passed; full final-head CI remains pending. First full backend run passed 513/515; the only failures were old endpoint-count/capability expectations, now updated to exact 37 operations/34 paths and explicit clientNoteWrites. Complete final backend gate passed 515/515 PostgreSQL/backend tests, 633 infrastructure checks, Ruff/format and exact 37-operation OpenAPI; no test gate weakened.
+- Current source matrix records nine connected candidate operations, one genuinely local predicate and 45 domain operations remaining. Only seven are source-merged. Implementation is not deployment/live/device acceptance; the 55-operation goal remains active.
+- Next: finish final verification/draft PR, then continue core trainer records/availability and client onboarding/assignment dependencies. Evidence is `/workspace/work/client-notes/`.
+
+
 ## Optional client contacts and approved note boundary — 13 October 2026
 
 - Active source branch `integration/client-edit-parity-2026-10-13` depends on corrected PR #27 head `b712c44b48dbdaef94170d2c41b6ded32d391e37`, itself dependent on PR #26. Corrected unsupported-field validation order in PR #27 preserves the original no-HTTP forged-field rejection; new full CI run 38375110460 is pending. The older a79b937 run failed and is not acceptance evidence.

@@ -1,3 +1,4 @@
+import { clientNoteCommands, withClientNotes } from './apiClientNotes.js'
 import { clientDetailCommands } from './apiClientDetails.js'
 import { trainerApprovalCommands } from './apiTrainerApprovals.js'
 import { packageCommands } from './apiPackages.js'
@@ -30,6 +31,7 @@ export function createApiPortalAdapter(options = {}) {
     return session
   }
   const saveTrainerApprovals = trainerApprovalCommands(http, actionSession)
+  const saveClientNotes = clientNoteCommands(http, actionSession)
   const saveClientDetails = clientDetailCommands(http, actionSession)
   const savePackage = packageCommands(http, actionSession)
   const clearSession = result => { http.clear(); return result }
@@ -75,7 +77,7 @@ export function createApiPortalAdapter(options = {}) {
           const { user, sessionGeneration } = await http.session()
           verifiedIdentity = { id: user.id, role: user.role, sessionGeneration }
           const directory = directorySnapshot(await http.get('/api/directory', { expectedGeneration: sessionGeneration }), user)
-          return { ...snapshot, ...directory, user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
+          return { ...snapshot, ...directory, user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
         }
         catch (error) {
           if (error.code === 'SESSION_EXPIRED') return snapshot
@@ -97,7 +99,10 @@ export function createApiPortalAdapter(options = {}) {
     async invoke(request, { expectedGeneration = http.generation() } = {}) {
       const { service, operation, input } = portalRequest(request, 'api')
       if (service === 'trainerService' && operation === 'updateAutonomy') return saveTrainerApprovals(input, expectedGeneration)
-      if (service === 'clientService' && operation === 'update') return saveClientDetails(input, expectedGeneration)
+      if (service === 'clientService' && operation === 'update') {
+        if (input.patch && Object.keys(input.patch).length && Object.keys(input.patch).every(key => ['remarks', 'healthNotes'].includes(key))) return saveClientNotes(input, expectedGeneration)
+        return saveClientDetails(input, expectedGeneration)
+      }
       if (service === 'packageService') return savePackage(input, expectedGeneration)
       if (service === 'staffService' && operation === 'createAdmin') {
         const { user, sessionGeneration } = await actionSession(expectedGeneration)
@@ -107,9 +112,13 @@ export function createApiPortalAdapter(options = {}) {
         return result
       }
       const { user, sessionGeneration } = await http.session()
-      const { data } = directorySnapshot(await http.get('/api/directory', { expectedGeneration: sessionGeneration }), user)
+      const { data, clientNoteWrites } = directorySnapshot(await http.get('/api/directory', { expectedGeneration: sessionGeneration }), user)
       const rows = data[service === 'clientService' ? 'clients' : 'trainers']
-      if (operation === 'getById') return rows.find(row => row.id === input.id) ?? null
+      if (operation === 'getById') {
+        const row = rows.find(row => row.id === input.id) ?? null
+        if (row && service === 'clientService' && clientNoteWrites) return withClientNotes(row, await http.get(`/api/clients/${input.id}/notes`, { expectedGeneration: sessionGeneration }))
+        return row
+      }
       return operation === 'getActive' ? rows.filter(row => row.status === 'active') : rows
     },
     async reset() { throw new ApiError('OPERATION_UNAVAILABLE', 'Demo controls are unavailable for this account.') },

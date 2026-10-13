@@ -81,7 +81,7 @@ export default function ClientGeneralInformation({ client, trainer, policy, owne
             type="button"
             className="text-action"
             disabled={Boolean(activeEditor)}
-            onClick={() => { reviewed.current = { expectedVersion: client.version, people: (client.people ?? []).map(person => ({ id: person.id, expectedVersion: person.version })) }; setGeneralErrors({}); setActivePerson(0); setActiveEditor('general') }}
+            onClick={() => { reviewed.current = { ...(client.notesAvailable ? { notesEnabled: true } : {}), expectedVersion: client.version, people: (client.people ?? []).map(person => ({ id: person.id, expectedVersion: person.version })) }; setGeneralErrors({}); setActivePerson(0); setActiveEditor('general') }}
           >
             Edit
           </button>

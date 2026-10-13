@@ -1,3 +1,4 @@
+import ClientEditableText from './clients/ClientEditableText.jsx'
 import { useState } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
@@ -111,4 +112,23 @@ it('retains a loaded media preview across callback refreshes and uses the latest
   expect(revoke).toHaveBeenCalledWith('blob:first')
   unmount()
   expect(revoke).toHaveBeenCalledWith('blob:second')
+})
+
+
+it('general notes retain the reviewed version and draft through refresh and close before reload', async () => {
+  const save = vi.fn().mockResolvedValue({ version: 3 })
+  const refreshed = vi.fn(() => expect(screen.queryByRole('button', { name: 'Save', exact: true })).not.toBeInTheDocument())
+  function Notes({ version, value }) {
+    const [editing, setEditing] = useState(false)
+    return <ClientEditableText title="General notes" value={value} version={version} editable multiline editing={editing} onBeginEdit={() => setEditing(true)} onEndEdit={() => setEditing(false)} onSave={save} onSaved={refreshed} />
+  }
+  const { rerender } = render(<Notes version={2} value="Original" />, { wrapper: Wrapper })
+  fireEvent.click(screen.getByRole('button', { name: 'Edit', exact: true }))
+  fireEvent.change(screen.getByLabelText('General notes'), { target: { value: 'Draft' } })
+  rerender(<Notes version={9} value="Other editor" />)
+  expect(screen.getByLabelText('General notes')).toHaveValue('Draft')
+  fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Save Changes', exact: true }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith('Draft', { expectedVersion: 2 }))
+  await waitFor(() => expect(refreshed).toHaveBeenCalledTimes(1))
 })

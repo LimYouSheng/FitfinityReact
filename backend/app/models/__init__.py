@@ -27,14 +27,20 @@ for table in Base.metadata.tables.values():
         if prefix == "emergency":
             code = "emergency_country_code"
         if code in table.c and number in table.c:
+            number_check = (
+                f"{number} ~ '^[0-9 ()-]+$' "
+                f"AND length(regexp_replace({number}, '[^0-9]', '', 'g')) >= 6 "
+                f"AND length(regexp_replace({code} || {number}, '[^0-9]', '', 'g')) <= 15"
+            )
+            if table.name == "client_people":
+                number_check = f"({number} = '' OR ({number_check}))"
             table.append_constraint(
                 CheckConstraint(
-                    f"{code} ~ '^\\+[1-9][0-9]{{0,2}}$' AND {number} ~ '^[0-9 ()-]+$' "
-                    f"AND length(regexp_replace({number}, '[^0-9]', '', 'g')) >= 6 "
-                    f"AND length(regexp_replace({code} || {number}, '[^0-9]', '', 'g')) <= 15",
+                    f"{code} ~ '^\\+[1-9][0-9]{{0,2}}$' AND {number_check}",
                     name=f"{prefix}_format",
                 )
             )
+
 
 __all__ = [
     "api",

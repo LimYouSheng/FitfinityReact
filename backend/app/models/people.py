@@ -127,6 +127,7 @@ class Client(Versioned, Base):
     trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"), index=True)
     gender_preference: Mapped[str] = mapped_column(String(16), server_default="any")
     remarks: Mapped[str] = mapped_column(Text, server_default="")
+    health_notes: Mapped[str | None] = mapped_column(Text)
     lifecycle_event_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("lifecycle_events.id", use_alter=True)
     )
