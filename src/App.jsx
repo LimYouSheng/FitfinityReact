@@ -1,3 +1,4 @@
+import TrainerDeactivationRecovery from './features/trainers/TrainerDeactivationRecovery.jsx'
 import ClientAssignmentRecovery from './features/clients/ClientAssignmentRecovery.jsx'
 import TrainerAvailabilityRecovery from './features/trainers/TrainerAvailabilityRecovery.jsx'
 import ClientReactivationRecovery from './features/clients/ClientReactivationRecovery.jsx'
@@ -310,6 +311,8 @@ function StaffPortal({ navigation }) {
         }}
       />
     )
+  } else if (route === 'trainers' && directoryOnly && snapshot.trainerDeactivationPending) {
+    page = <TrainerDeactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.trainerDeactivationPending} services={services} />
   } else if (
     route === 'trainers' &&
     managesOperations(user) &&

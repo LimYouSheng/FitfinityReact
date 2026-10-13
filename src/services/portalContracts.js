@@ -36,7 +36,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     isSelectableForAvailability: contract({ 'trainer': 'object' }, 'authenticated', 'boolean', true),
     update: contract({ 'id': 'string', 'patch': 'object', 'expectedVersion?': 'number' }, 'trainerEdit', 'TrainerEditState', true),
     updateAutonomy: contract({ 'id': 'string', 'approvalNeeded': 'object', 'expectedVersion?': 'number' }, 'operations', 'TrainerApprovalState', true),
-    deactivate: contract({ 'id': 'string', 'replacements?': 'object' }, 'operations', 'Trainer'),
+    deactivate: contract({ 'id': 'string', 'replacements?': 'object', 'reviewed?': 'object' }, 'operations', 'Trainer | TrainerDeactivationState', true),
     reactivate: contract({ 'id': 'string', 'reviewed?': 'object' }, 'operations', 'TrainerReactivationState', true),
   }),
   sessionService: Object.freeze({

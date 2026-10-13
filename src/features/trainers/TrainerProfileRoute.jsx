@@ -15,6 +15,12 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
     <TrainerProfilePage
       key={trainer.id}
       readOnly={directoryOnly}
+      deactivationWorkflow={directoryOnly && snapshot.capabilities?.trainerDeactivationWrites ? {
+        review: () => runAction(() => services.reviewTrainerDeactivation({ id: trainer.id, expectedVersion: trainer.version })),
+        preview: input => runAction(() => services.previewTrainerDeactivation({ id: trainer.id, ...input })),
+        save: input => runAction(() => trainerService.deactivate({ id: trainer.id, ...input }), { tone: 'warning', message: 'Trainer deactivated.' }),
+        saved: async () => { const result = await reload(); if (result) navigate('trainers', { replace: true }); return result },
+      } : undefined}
       availabilityReadOnly={directoryOnly && !snapshot.capabilities?.trainerAvailabilityWrites}
       onAvailabilitySaved={reload}
       reactivationReadOnly={directoryOnly && !(snapshot.capabilities?.trainerReactivationWrites && services.previewTrainerReactivation)}

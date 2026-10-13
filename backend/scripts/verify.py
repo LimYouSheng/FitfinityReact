@@ -32,7 +32,7 @@ def main() -> None:
         or suites.findall(".//error")
     ):
         raise RuntimeError("Backend receipt must contain complete passing tests without skips")
-    expected = 904
+    expected = 923
     if len(cases) != expected:
         raise RuntimeError(f"Backend receipt must contain exactly {expected} passing cases")
     print(f"\033[32mPASS — {expected}/{expected} backend tests, including real PostgreSQL.\033[0m")

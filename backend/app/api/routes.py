@@ -30,6 +30,8 @@ from app.api import (
     request_cancellation,
     trainer_approvals,
     trainer_availability,
+    trainer_deactivation,
+    trainer_deactivation_save,
     trainer_details,
     trainer_rates,
     trainer_reactivation,
@@ -925,3 +927,53 @@ def save_client_trainer_assignment(
 def reconcile_client_trainer_assignment(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
         return client_assignment_save.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/trainers/{trainer_id}/deactivation-review",
+    response_model=trainer_deactivation.TrainerDeactivationReview,
+    operation_id="reviewTrainerDeactivation",
+)
+def review_trainer_deactivation(trainer_id: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_deactivation.review(session, principal, trainer_id)
+
+
+@router.post(
+    "/trainers/{trainer_id}/deactivation-review",
+    response_model=trainer_deactivation.TrainerDeactivationReview,
+    operation_id="previewTrainerDeactivation",
+)
+def preview_trainer_deactivation(
+    trainer_id: UUID,
+    body: trainer_deactivation.TrainerDeactivationSelection,
+    request: Request,
+    key: RequestKey,
+):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_deactivation.preview(session, principal, trainer_id, body)
+
+
+@router.post(
+    "/trainers/{trainer_id}/deactivation",
+    response_model=trainer_deactivation_save.TrainerDeactivationState,
+    operation_id="saveTrainerDeactivation",
+)
+def save_trainer_deactivation(
+    trainer_id: UUID,
+    body: trainer_deactivation.TrainerDeactivationSelection,
+    request: Request,
+    key: RequestKey,
+):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_deactivation_save.save(session, principal, trainer_id, key, body)
+
+
+@router.get(
+    "/trainer-deactivations/{request_key}",
+    response_model=trainer_deactivation_save.TrainerDeactivationState,
+    operation_id="reconcileTrainerDeactivation",
+)
+def reconcile_trainer_deactivation(request_key: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_deactivation_save.reconcile(session, principal, request_key)

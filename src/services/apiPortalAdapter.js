@@ -1,3 +1,4 @@
+import { trainerDeactivationCommands } from './apiTrainerDeactivation.js'
 import { clientAssignmentCommands } from './apiClientAssignment.js'
 import { trainerAvailabilityCommands } from './apiTrainerAvailability.js'
 import { clientReactivationCommands, packageReactivationCommands } from './apiClientReactivation.js'
@@ -46,6 +47,7 @@ export function createApiPortalAdapter(options = {}) {
     return session
   }
   const saveTrainerRates = trainerRateCommands(http, actionSession)
+  const trainerDeactivation = trainerDeactivationCommands(http, actionSession)
   const trainerReactivation = trainerReactivationCommands(http, actionSession)
   const saveTrainerDetails = trainerDetailCommands(http, actionSession)
   const { request: requestEmailChange, ...emailMethods } = emailCommands(http, actionSession)
@@ -116,6 +118,8 @@ export function createApiPortalAdapter(options = {}) {
     },
     async reviewClientRenewal(input, { expectedGeneration = http.generation() } = {}) { return clientRenewal.review(input, expectedGeneration) },
     async previewClientRenewalMatches(input, { expectedGeneration = http.generation() } = {}) { return clientRenewal.preview(input, expectedGeneration) },
+    async reviewTrainerDeactivation(input, { expectedGeneration = http.generation() } = {}) { return trainerDeactivation.review(input, expectedGeneration) },
+    async previewTrainerDeactivation(input, { expectedGeneration = http.generation() } = {}) { return trainerDeactivation.preview(input, expectedGeneration) },
     async previewClientAssignment(input, { expectedGeneration = http.generation() } = {}) { return clientAssignment.review(input, expectedGeneration) },
     async previewClientMatches(draft, { expectedGeneration = http.generation() } = {}) {
       return clientCreation.preview(draft, expectedGeneration)
@@ -130,6 +134,7 @@ export function createApiPortalAdapter(options = {}) {
         try {
           const { user, sessionGeneration } = await http.session()
           verifiedIdentity = { id: user.id, role: user.role, sessionGeneration }
+          const trainerDeactivationPending = await trainerDeactivation.reconcile(sessionGeneration)
           const clientAssignmentPending = await clientAssignment.reconcile(sessionGeneration)
           const packageReactivationPending = await packageReactivation.recover(sessionGeneration)
           const renewalRecovery = await clientRenewal.recover(sessionGeneration)
@@ -138,7 +143,7 @@ export function createApiPortalAdapter(options = {}) {
           const clientReactivationPending = await clientReactivation.recover(sessionGeneration)
           const clientDeactivationPending = await clientDeactivation.recover(sessionGeneration)
           const inbox = directory.personalMessages ? await personalMessages.read(sessionGeneration) : null
-          return { ...snapshot, ...directory, clientAssignmentPending, packageReactivationPending, clientRenewalPending: renewalRecovery.pending, clientRenewalRecovered: renewalRecovery.recovered, clientDeactivationPending, clientReactivationPending, trainerAvailabilityPending: availabilityRecovery.pending, trainerAvailabilityRecovered: availabilityRecovery.recovered, ...(inbox ? { data: { ...directory.data, messages: inbox.messages }, messageReadPending: inbox.pending, renewalDismissalPending: inbox.dismissalPending, requestCancellationPending: inbox.cancellationPending } : {}), user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy, ...directory.trainerProfilePolicy, ...directory.clientOnboardingPolicy, ...directory.trainerOnboardingPolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, clientAssignmentWrites: directory.clientAssignmentWrites && ['owner', 'admin'].includes(user.role), trainerCreation: directory.trainerCreation && ['owner', 'admin'].includes(user.role), packageReactivationWrites: directory.packageReactivationWrites && ['owner', 'admin'].includes(user.role), clientRenewalWrites: directory.clientRenewalWrites && ['owner', 'admin'].includes(user.role), clientReactivationWrites: directory.clientReactivationWrites && ['owner', 'admin'].includes(user.role), clientDeactivationWrites: directory.clientDeactivationWrites && ['owner', 'admin'].includes(user.role), personalMessages: directory.personalMessages, trainerAvailabilityWrites: directory.trainerAvailabilityWrites && user.role === 'trainer', requestCancellationWrites: directory.personalMessages && directory.requestCancellationWrites && user.role === 'trainer', renewalDismissalWrites: directory.personalMessages && directory.renewalDismissalWrites, contentWorkflows: directory.contentWorkflows && ['owner', 'admin'].includes(user.role), clientAssessmentWorkflows: directory.clientAssessmentWorkflows && ['owner', 'admin'].includes(user.role), clientCreation: directory.clientCreation && ['owner', 'admin'].includes(user.role), trainerReactivationWrites: directory.trainerReactivationWrites && ['owner', 'admin'].includes(user.role), trainerPersonalWrites: directory.trainerPersonalWrites && ['owner', 'admin'].includes(user.role), trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
+          return { ...snapshot, ...directory, trainerDeactivationPending, clientAssignmentPending, packageReactivationPending, clientRenewalPending: renewalRecovery.pending, clientRenewalRecovered: renewalRecovery.recovered, clientDeactivationPending, clientReactivationPending, trainerAvailabilityPending: availabilityRecovery.pending, trainerAvailabilityRecovered: availabilityRecovery.recovered, ...(inbox ? { data: { ...directory.data, messages: inbox.messages }, messageReadPending: inbox.pending, renewalDismissalPending: inbox.dismissalPending, requestCancellationPending: inbox.cancellationPending } : {}), user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy, ...directory.trainerProfilePolicy, ...directory.clientOnboardingPolicy, ...directory.trainerOnboardingPolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, trainerDeactivationWrites: directory.trainerDeactivationWrites && ['owner', 'admin'].includes(user.role), clientAssignmentWrites: directory.clientAssignmentWrites && ['owner', 'admin'].includes(user.role), trainerCreation: directory.trainerCreation && ['owner', 'admin'].includes(user.role), packageReactivationWrites: directory.packageReactivationWrites && ['owner', 'admin'].includes(user.role), clientRenewalWrites: directory.clientRenewalWrites && ['owner', 'admin'].includes(user.role), clientReactivationWrites: directory.clientReactivationWrites && ['owner', 'admin'].includes(user.role), clientDeactivationWrites: directory.clientDeactivationWrites && ['owner', 'admin'].includes(user.role), personalMessages: directory.personalMessages, trainerAvailabilityWrites: directory.trainerAvailabilityWrites && user.role === 'trainer', requestCancellationWrites: directory.personalMessages && directory.requestCancellationWrites && user.role === 'trainer', renewalDismissalWrites: directory.personalMessages && directory.renewalDismissalWrites, contentWorkflows: directory.contentWorkflows && ['owner', 'admin'].includes(user.role), clientAssessmentWorkflows: directory.clientAssessmentWorkflows && ['owner', 'admin'].includes(user.role), clientCreation: directory.clientCreation && ['owner', 'admin'].includes(user.role), trainerReactivationWrites: directory.trainerReactivationWrites && ['owner', 'admin'].includes(user.role), trainerPersonalWrites: directory.trainerPersonalWrites && ['owner', 'admin'].includes(user.role), trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
         }
         catch (error) {
           if (error.code === 'SESSION_EXPIRED') return snapshot
@@ -171,6 +176,7 @@ export function createApiPortalAdapter(options = {}) {
         await actionSession(expectedGeneration)
         return trainerSelectableForAvailability(input.trainer)
       }
+      if (service === 'trainerService' && operation === 'deactivate') return trainerDeactivation.save(input, expectedGeneration)
       if (service === 'trainerService' && operation === 'reactivate') return trainerReactivation.save(input, expectedGeneration)
       if (service === 'trainerService' && operation === 'update') {
         if (input.patch && Object.keys(input.patch).length === 1 && Object.hasOwn(input.patch, 'email')) return requestEmailChange(input, expectedGeneration)
