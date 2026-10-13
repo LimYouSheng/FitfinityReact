@@ -1,3 +1,4 @@
+import TrainerAvailabilityRecovery from './features/trainers/TrainerAvailabilityRecovery.jsx'
 import ClientReactivationRecovery from './features/clients/ClientReactivationRecovery.jsx'
 import ClientDeactivationRecovery from './features/clients/ClientDeactivationRecovery.jsx'
 import MessageReadRecovery from './features/messages/MessageReadRecovery.jsx'
@@ -297,6 +298,8 @@ function StaffPortal({ navigation }) {
     page = <TrainerProfileRoute key={selectedTrainer.id} trainer={selectedTrainer} ownerMode navigate={navigate} goBack={goBack} openClient={openClient} />
   } else if (route === 'trainers' && managesOperations(user)) {
     page = <TrainersPage trainers={trainers} onOpen={openTrainer} onAdd={directoryOnly ? undefined : openAddTrainer} />
+  } else if (route === 'my-profile' && directoryOnly && snapshot.trainerAvailabilityPending) {
+    page = <TrainerAvailabilityRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.trainerAvailabilityPending} services={services} />
   } else if (
     route === 'my-profile' &&
     user.role === 'trainer' &&

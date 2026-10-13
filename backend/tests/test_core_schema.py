@@ -54,7 +54,7 @@ def test_migration_matches_canonical_models(domain_db):
         )
         assert (
             connection.scalar(text("SELECT count(*) FROM pg_trigger WHERE tgname LIKE 'ff_%'"))
-            == 150
+            == 152
         )
 
 
@@ -64,7 +64,7 @@ def test_populated_downgrade_refuses_before_losing_any_data(domain_db, graph, mi
     with domain_db.transaction() as session:
         assert count(session, Client) == 1
         assert count(session, TrainingSession) == 2
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0024"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0025"
 
 
 def test_couple_has_two_people_in_one_atomic_transaction(domain_db, graph):

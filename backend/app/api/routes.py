@@ -24,6 +24,7 @@ from app.api import (
     renewal_dismissal,
     request_cancellation,
     trainer_approvals,
+    trainer_availability,
     trainer_details,
     trainer_rates,
     trainer_reactivation,
@@ -758,3 +759,27 @@ def reconcile_request_cancellation(request_key: UUID, request: Request):
     """Return only this actor's original cancellation receipt."""
     with authorized_transaction(request) as (session, principal):
         return request_cancellation.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/trainers/{trainer_id}/availability",
+    response_model=trainer_availability.AvailabilityState,
+    operation_id="saveTrainerAvailability",
+)
+def save_trainer_availability(
+    trainer_id: UUID, body: trainer_availability.SaveAvailability, request: Request, key: RequestKey
+):
+    """Apply the current Trainer's reviewed availability or retain its supervised proposal."""
+    with authorized_transaction(request, exclusive_user=True) as (session, principal):
+        return trainer_availability.save(session, principal, trainer_id, key, body)
+
+
+@router.get(
+    "/trainer-availability-saves/{request_key}",
+    response_model=trainer_availability.AvailabilityState,
+    operation_id="reconcileTrainerAvailability",
+)
+def reconcile_trainer_availability(request_key: UUID, request: Request):
+    """Reconcile this Trainer's original availability save without reapplying or sending notices."""
+    with authorized_transaction(request) as (session, principal):
+        return trainer_availability.reconcile(session, principal, request_key)
