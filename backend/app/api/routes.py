@@ -18,6 +18,7 @@ from app.api import (
     client_reactivation,
     client_reactivation_save,
     client_renewal,
+    client_renewal_save,
     content,
     directory,
     messages,
@@ -807,3 +808,27 @@ def preview_client_renewal_matches(
     """Recheck the client and trainer calendars; this preview does not create a purchase."""
     with authorized_transaction(request) as (session, principal):
         return client_renewal.matches(session, principal, client_id, body)
+
+
+@router.post(
+    "/clients/{client_id}/packages",
+    response_model=client_renewal_save.ClientRenewalState,
+    operation_id="renewClientPackage",
+)
+def renew_client_package(
+    client_id: UUID, body: client_renewal_save.RenewPackage, request: Request, key: RequestKey
+):
+    """Atomically add the reviewed purchase and sessions without changing current settings."""
+    with authorized_transaction(request) as (session, principal):
+        return client_renewal_save.save(session, principal, client_id, key, body)
+
+
+@router.get(
+    "/client-renewals/{request_key}",
+    response_model=client_renewal_save.ClientRenewalState,
+    operation_id="reconcileClientRenewal",
+)
+def reconcile_client_renewal(request_key: UUID, request: Request):
+    """Read this actor's original committed renewal before an explicit identical retry."""
+    with authorized_transaction(request) as (session, principal):
+        return client_renewal_save.reconcile(session, principal, request_key)
