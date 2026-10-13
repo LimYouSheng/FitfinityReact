@@ -10,6 +10,8 @@ from sqlalchemy import select
 
 from app.api import (
     assessments,
+    client_assignment,
+    client_assignment_save,
     client_creation,
     client_deactivation,
     client_details,
@@ -891,3 +893,35 @@ def reconcile_package_reactivation(request_key: UUID, request: Request):
     """Read only the current actor's original accepted purchase restoration."""
     with authorized_transaction(request) as (session, principal):
         return package_reactivation_save.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/trainer-assignment-review",
+    response_model=client_assignment.AssignmentReview,
+    operation_id="reviewClientTrainerAssignment",
+)
+def review_client_trainer_assignment(client_id: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return client_assignment.review(session, principal, client_id)
+
+
+@router.post(
+    "/clients/{client_id}/trainer-assignment",
+    response_model=client_assignment_save.AssignmentState,
+    operation_id="saveClientTrainerAssignment",
+)
+def save_client_trainer_assignment(
+    client_id: UUID, body: client_assignment_save.SaveAssignment, request: Request, key: RequestKey
+):
+    with authorized_transaction(request) as (session, principal):
+        return client_assignment_save.save(session, principal, client_id, key, body)
+
+
+@router.get(
+    "/client-trainer-assignments/{request_key}",
+    response_model=client_assignment_save.AssignmentState,
+    operation_id="reconcileClientTrainerAssignment",
+)
+def reconcile_client_trainer_assignment(request_key: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return client_assignment_save.reconcile(session, principal, request_key)

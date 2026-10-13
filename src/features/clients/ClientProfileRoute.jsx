@@ -27,6 +27,11 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
+      assignmentWorkflow={directoryOnly && snapshot.capabilities?.clientAssignmentWrites ? {
+        review: () => runAction(() => services.previewClientAssignment({ id: selectedClient.id, expectedVersion: selectedClient.version })),
+        save: draft => runAction(() => clientService.reassignTrainer({ id: selectedClient.id, draft }), { message: 'Trainer permanently reassigned.' }),
+        saved: reload,
+      } : undefined}
       packageReactivationWorkflow={directoryOnly && snapshot.capabilities?.packageReactivationWrites ? packageId => ({
         review: () => runAction(() => services.previewPackageReactivation({ id: selectedClient.id, packageId, expectedVersion: selectedClient.version })),
         preview: input => runAction(() => services.previewPackageReactivationDates({ ...input, packageId })),
