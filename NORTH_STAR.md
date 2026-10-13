@@ -16,7 +16,7 @@ Deliver the approved [GitHub Pages prototype](https://limyousheng.github.io/Fitf
 
 0. Authentication foundation: PR #24 final head `44373574c47f1452c185189a7066ac6d8da1b604` passed both required jobs in run 38352674116. YS merged it on 13 October 2026 at 14:29:47 Singapore as verified remote main `eed077e1500e09ca2b486d0a991f520b76ceeeb5`. Source entry gate is satisfied; repaired deployment and live acceptance remain pending.
 1. Inventory every prototype route and all named operations against existing frontend/backend/persistence/permissions/tests, recording exact comparison source. Classify connected, backend-only, missing orchestration or genuinely local before adding endpoints.
-2. Complete core client/trainer/package records, availability, assignment, renewal and history; preserve Admin onboarding protections. First slice: package catalogue creation/edit/lifecycle.
+2. Complete core client/trainer/package records, availability, assignment, renewal and history; preserve Admin onboarding protections. Package catalogue creation/edit/lifecycle is source-merged in PR #25; the next focused slice connects existing trainer approval controls. Client/trainer onboarding and the remaining core workflows stay queued.
 3. Connect real session/calendar and renewal reads, restoring existing dashboard and navigation only as contracts become functional.
 4. Complete fixed/open scheduling, postponement/reassignment, requests/approvals, plans/outcomes/summaries, acknowledgement and credit accounting.
 5. Complete durable assessment drafts/history, reports, exercise media and session videos with privacy, upload ownership, replacement/deletion and truthful export/share history.

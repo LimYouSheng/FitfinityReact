@@ -314,6 +314,7 @@ class DirectorySnapshot(ServerClock):
     trainers: list[DirectoryTrainer | OperationalTrainer]
     packages: list[DirectoryPackage]
     packagePolicy: PackagePolicy
+    trainerApprovalWrites: Literal[True] = True
 
 
 class SessionClient(Contract):
