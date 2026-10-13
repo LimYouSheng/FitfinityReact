@@ -442,3 +442,48 @@ test('API Owner rates reconcile uncertain saves and persist exact cents after re
   expect(staffApi.state.directory.trainers[0].peak_rate_cents).toBe(6543)
   expect(staffApi.state.mutations.filter(m => m.path.endsWith('/rates'))).toHaveLength(1)
 })
+
+
+async function inactiveApiTrainer(page, staffApi, admin = false) {
+  await openDirectory(page, staffApi)
+  staffApi.state.directory.trainerReactivationWrites = true
+  staffApi.state.directory.trainers[0].status = 'inactive'
+  if (admin) {
+    staffApi.state.user = { ...staffApi.state.user, role: 'admin', name: 'API Admin' }
+    delete staffApi.state.directory.trainers[0].peak_rate_cents
+    delete staffApi.state.directory.trainers[0].off_peak_rate_cents
+  }
+  await page.goto(`${staffApi.origin}/#/trainers/${directoryId(1)}`)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'API Trainer', exact: true })).toBeVisible()
+  const summary = page.locator('details.profile-menu > summary')
+  if (await summary.isVisible()) await summary.click()
+}
+
+test('API trainer reactivation reconciles an interrupted response and persists across reload', async ({ page, staffApi }) => {
+  await inactiveApiTrainer(page, staffApi)
+  staffApi.state.trainerReactivationUnknown = true
+  await page.getByRole('button', { name: 'Reactivate Trainer', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Reactivate API Trainer?', exact: true })
+  await expect(dialog).toContainText('A fresh sign-in is required')
+  await dialog.getByRole('button', { name: 'Reactivate Trainer', exact: true }).click()
+  await profileTab(page, 'Check Reactivation')
+  await expect(page.getByLabel('Trainer status', { exact: true })).toContainText('Active')
+  await page.reload()
+  await expect(page.getByLabel('Trainer status', { exact: true })).toContainText('Active')
+  await expect(page.getByRole('button', { name: 'Reactivate Trainer', exact: true })).toHaveCount(0)
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/reactivation'))).toHaveLength(1)
+})
+
+test('API Admin trainer reactivation remains successful after directory refresh failure', async ({ page, staffApi }) => {
+  await inactiveApiTrainer(page, staffApi, true)
+  staffApi.state.trainerReactivationRefreshFailure = true
+  await page.getByRole('button', { name: 'Reactivate Trainer', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Reactivate API Trainer?', exact: true }).getByRole('button', { name: 'Reactivate Trainer', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Unable to load the portal', exact: true })).toBeVisible()
+  staffApi.state.unavailable = false
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByLabel('Trainer status', { exact: true })).toContainText('Active')
+  await expect(page.getByRole('heading', { name: 'Pay Rates', exact: true })).toHaveCount(0)
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/reactivation'))).toHaveLength(1)
+})

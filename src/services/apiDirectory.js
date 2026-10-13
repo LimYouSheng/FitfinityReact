@@ -78,6 +78,7 @@ export function directorySnapshot(value, user) {
       if (p?.defaultCountryCode !== '+65' || !Array.isArray(p.trainerTypes) || p.trainerTypes.length !== 2 || p.trainerTypes[0] !== 'Strength & Conditioning' || p.trainerTypes[1] !== 'Personal Trainer') fail()
       trainerProfilePolicy = { defaultCountryCode: p.defaultCountryCode, trainerTypes: [...p.trainerTypes] }
     }
+    if (value.trainerReactivationWrites !== undefined && typeof value.trainerReactivationWrites !== 'boolean') fail()
     if (value.trainerPersonalWrites !== undefined && typeof value.trainerPersonalWrites !== 'boolean') fail()
     if (value.trainerPersonalWrites && !trainerProfilePolicy) fail()
     if (value.trainerEmailWrites !== undefined && typeof value.trainerEmailWrites !== 'boolean') fail()
@@ -85,6 +86,6 @@ export function directorySnapshot(value, user) {
     if (value.trainerApprovalWrites !== undefined && typeof value.trainerApprovalWrites !== 'boolean') fail()
     if (value.clientNoteWrites !== undefined && typeof value.clientNoteWrites !== 'boolean') fail()
     if (value.clientPersonalWrites !== undefined && typeof value.clientPersonalWrites !== 'boolean') fail()
-    return { clientOnboardingPolicy, clientCreation: value.clientCreation === true, trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
+    return { trainerReactivationWrites: value.trainerReactivationWrites === true, clientOnboardingPolicy, clientCreation: value.clientCreation === true, trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
   } catch (error) { if (error instanceof ApiError) throw error; fail() }
 }

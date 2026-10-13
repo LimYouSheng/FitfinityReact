@@ -1,6 +1,7 @@
 import { trainerSelectableForAvailability } from '../app/status.js'
 import { clientCreationCommands } from './apiClientCreation.js'
 import { emailCommands } from './apiEmailChanges.js'
+import { trainerReactivationCommands } from './apiTrainerReactivation.js'
 import { trainerDetailCommands } from './apiTrainerDetails.js'
 import { trainerRateCommands } from './apiTrainerRates.js'
 import { clientNoteCommands, withClientNotes } from './apiClientNotes.js'
@@ -36,6 +37,7 @@ export function createApiPortalAdapter(options = {}) {
     return session
   }
   const saveTrainerRates = trainerRateCommands(http, actionSession)
+  const trainerReactivation = trainerReactivationCommands(http, actionSession)
   const saveTrainerDetails = trainerDetailCommands(http, actionSession)
   const { request: requestEmailChange, ...emailMethods } = emailCommands(http, actionSession)
   const saveTrainerApprovals = trainerApprovalCommands(http, actionSession)
@@ -76,6 +78,9 @@ export function createApiPortalAdapter(options = {}) {
     },
   }
   return {
+    async previewTrainerReactivation(input, { expectedGeneration = http.generation() } = {}) {
+      return trainerReactivation.review(input, expectedGeneration)
+    },
     async previewClientMatches(draft, { expectedGeneration = http.generation() } = {}) {
       return clientCreation.preview(draft, expectedGeneration)
     },
@@ -90,7 +95,7 @@ export function createApiPortalAdapter(options = {}) {
           const { user, sessionGeneration } = await http.session()
           verifiedIdentity = { id: user.id, role: user.role, sessionGeneration }
           const directory = directorySnapshot(await http.get('/api/directory', { expectedGeneration: sessionGeneration }), user)
-          return { ...snapshot, ...directory, user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy, ...directory.trainerProfilePolicy, ...directory.clientOnboardingPolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, clientCreation: directory.clientCreation && ['owner', 'admin'].includes(user.role), trainerPersonalWrites: directory.trainerPersonalWrites && ['owner', 'admin'].includes(user.role), trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
+          return { ...snapshot, ...directory, user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy, ...directory.trainerProfilePolicy, ...directory.clientOnboardingPolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, clientCreation: directory.clientCreation && ['owner', 'admin'].includes(user.role), trainerReactivationWrites: directory.trainerReactivationWrites && ['owner', 'admin'].includes(user.role), trainerPersonalWrites: directory.trainerPersonalWrites && ['owner', 'admin'].includes(user.role), trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
         }
         catch (error) {
           if (error.code === 'SESSION_EXPIRED') return snapshot
@@ -116,6 +121,7 @@ export function createApiPortalAdapter(options = {}) {
         await actionSession(expectedGeneration)
         return trainerSelectableForAvailability(input.trainer)
       }
+      if (service === 'trainerService' && operation === 'reactivate') return trainerReactivation.save(input, expectedGeneration)
       if (service === 'trainerService' && operation === 'update') {
         if (input.patch && Object.keys(input.patch).length === 1 && Object.hasOwn(input.patch, 'email')) return requestEmailChange(input, expectedGeneration)
         if (input.patch && Object.hasOwn(input.patch, 'rates')) return saveTrainerRates(input, expectedGeneration)

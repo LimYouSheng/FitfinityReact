@@ -1,3 +1,4 @@
+import TrainerReactivationButton from './TrainerReactivationButton.jsx'
 import TrainerAssignedClients from './TrainerAssignedClients.jsx'
 import TrainerDeactivationDialog from './TrainerDeactivationDialog.jsx'
 import TrainerAvailabilityGrid from './TrainerAvailabilityGrid.jsx'
@@ -25,6 +26,8 @@ export default function TrainerProfilePage({
   autonomyReadOnly = readOnly,
   ratesReadOnly = readOnly,
   generalReadOnly = readOnly,
+  reactivationReadOnly = readOnly,
+  onReviewReactivation,
   onGeneralSaved,
   emailVerification,
   onRatesSaved,
@@ -207,19 +210,8 @@ export default function TrainerProfilePage({
             </button>
           )}
 
-          {!readOnly && isManager && trainer.status === 'inactive' && (
-            <button type="button" className="profile-menu-reactivate" disabled={Boolean(activeEditor)} onClick={async () => {
-              const confirmed = await confirmAction({
-                title: `Reactivate ${trainer.name}?`,
-                message: 'The trainer will return to active trainer lists and can be assigned to sessions again.',
-                confirmLabel: 'Reactivate Trainer',
-              })
-              if (confirmed) {
-                try { await onReactivate() } catch { /* Failure is shown in the action banner. */ }
-              }
-            }}>
-              Reactivate Trainer
-            </button>
+          {!reactivationReadOnly && isManager && trainer.status === 'inactive' && (
+            <TrainerReactivationButton trainer={trainer} disabled={Boolean(activeEditor)} onReview={onReviewReactivation} onReactivate={onReactivate} />
           )}
       </ProfileNavigation>
 

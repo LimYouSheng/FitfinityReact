@@ -8,6 +8,7 @@ export function createPortalServices(adapter, reportService = browserReportServi
   const context = sessionGeneration === undefined ? [] : [{ expectedGeneration: sessionGeneration }]
   const services = { forSession: generation => createPortalServices(adapter, reportService, generation), reportService, load: async () => adapter.load(), reset: async () => adapter.reset() }
   if (adapter.previewClientMatches) services.previewClientMatches = async draft => adapter.previewClientMatches(draft, ...context)
+  if (adapter.previewTrainerReactivation) services.previewTrainerReactivation = async input => adapter.previewTrainerReactivation(input, ...context)
   for (const [service, operations] of Object.entries(PORTAL_CONTRACTS)) {
     services[service] = Object.fromEntries(Object.keys(operations).map(operation =>
       [operation, async (input = {}) => adapter.invoke({ service, operation, input }, ...context)]))

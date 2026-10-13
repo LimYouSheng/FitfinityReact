@@ -341,6 +341,7 @@ class DirectorySnapshot(ServerClock):
     trainerRateWrites: Literal[True] = True
     trainerEmailWrites: Literal[True] = True
     trainerPersonalWrites: Literal[True] = True
+    trainerReactivationWrites: Literal[True] = True
     trainerProfilePolicy: TrainerProfilePolicy = Field(default_factory=TrainerProfilePolicy)
     clientPersonalWrites: Literal[True] = True
     clientNoteWrites: Literal[True] = True

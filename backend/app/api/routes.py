@@ -19,6 +19,7 @@ from app.api import (
     trainer_approvals,
     trainer_details,
     trainer_rates,
+    trainer_reactivation,
 )
 from app.api.dependencies import authorized_transaction
 from app.api.schemas import (
@@ -483,3 +484,44 @@ def create_client(body: client_creation.CreateClient, request: Request, key: Req
 def reconcile_client_creation(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
         return client_creation.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/trainers/{trainer_id}/reactivation",
+    response_model=trainer_reactivation.ReactivationReview,
+    operation_id="reviewTrainerReactivation",
+)
+def review_trainer_reactivation(trainer_id: UUID, request: Request):
+    """Review the current trainer and linked account before confirmation."""
+    with authorized_transaction(request) as (session, principal):
+        return trainer_reactivation.review(session, principal, trainer_id)
+
+
+@router.post(
+    "/trainers/{trainer_id}/reactivation",
+    response_model=trainer_reactivation.ReactivationState,
+    operation_id="reactivateTrainer",
+)
+def reactivate_trainer(
+    trainer_id: UUID,
+    body: trainer_reactivation.ReactivateTrainer,
+    request: Request,
+    key: RequestKey,
+):
+    """Reactivate the reviewed application account without reviving revoked sessions."""
+    with authorized_transaction(request) as (session, principal):
+        result = trainer_reactivation.save(session, principal, trainer_id, key, body)
+    if body.expectedAccountId:
+        request.app.state.auth.drain_revocations(user_id=body.expectedAccountId)
+    return result
+
+
+@router.get(
+    "/trainer-reactivations/{request_key}",
+    response_model=trainer_reactivation.ReactivationState,
+    operation_id="reconcileTrainerReactivation",
+)
+def reconcile_trainer_reactivation(request_key: UUID, request: Request):
+    """Read this actor's receipt before explicitly retrying the identical operation."""
+    with authorized_transaction(request) as (session, principal):
+        return trainer_reactivation.reconcile(session, principal, request_key)

@@ -15,6 +15,8 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
     <TrainerProfilePage
       key={trainer.id}
       readOnly={directoryOnly}
+      reactivationReadOnly={directoryOnly && !(snapshot.capabilities?.trainerReactivationWrites && services.previewTrainerReactivation)}
+      onReviewReactivation={directoryOnly ? () => runAction(() => services.previewTrainerReactivation({ id: trainer.id, expectedVersion: trainer.version })) : undefined}
       generalReadOnly={directoryOnly && !snapshot.capabilities?.trainerPersonalWrites}
       onGeneralSaved={reload}
       ratesReadOnly={directoryOnly && !snapshot.capabilities?.trainerRateWrites}
@@ -46,8 +48,8 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
         await reload()
         navigate('trainers', { replace: true })
       } : undefined}
-      onReactivate={ownerMode ? async () => {
-        await runAction(() => trainerService.reactivate({ id: trainer.id }), { message: 'Trainer reactivated.' })
+      onReactivate={ownerMode ? async reviewed => {
+        await runAction(() => trainerService.reactivate({ id: trainer.id, ...(directoryOnly ? { reviewed } : {}) }), { message: 'Trainer reactivated.' })
         await reload()
       } : undefined}
     />

@@ -168,6 +168,7 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
         "trainerRateWrites",
         "trainerEmailWrites",
         "trainerPersonalWrites",
+        "trainerReactivationWrites",
         "trainerProfilePolicy",
         "clientCreation",
         "clientOnboardingPolicy",
