@@ -1,3 +1,4 @@
+import { trainerSelectableForAvailability } from '../app/status.js'
 import { trainerRateCommands } from './apiTrainerRates.js'
 import { clientNoteCommands, withClientNotes } from './apiClientNotes.js'
 import { clientDetailCommands } from './apiClientDetails.js'
@@ -100,6 +101,10 @@ export function createApiPortalAdapter(options = {}) {
     },
     async invoke(request, { expectedGeneration = http.generation() } = {}) {
       const { service, operation, input } = portalRequest(request, 'api')
+      if (service === 'trainerService' && operation === 'isSelectableForAvailability') {
+        await actionSession(expectedGeneration)
+        return trainerSelectableForAvailability(input.trainer)
+      }
       if (service === 'trainerService' && operation === 'update') return saveTrainerRates(input, expectedGeneration)
       if (service === 'trainerService' && operation === 'updateAutonomy') return saveTrainerApprovals(input, expectedGeneration)
       if (service === 'clientService' && operation === 'update') {

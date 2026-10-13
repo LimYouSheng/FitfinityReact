@@ -92,3 +92,16 @@ it('rejects non-boolean public visibility values at the API boundary', () => {
     expect(() => directorySnapshot(raw, staff)).toThrow(expect.objectContaining({ code: 'API_RESPONSE' }))
   }
 })
+
+
+it.each([{ status: 'active' }, { status: 'inactive' }, {}])('evaluates trainer availability selection locally for %j after session verification', async trainer => {
+  const fetchImpl = vi.fn(async url => {
+    if (url.endsWith('/me')) return jsonResponse(sessionInfo())
+    throw new Error('Selection must not fetch a directory or call a domain endpoint')
+  })
+  const adapter = createApiPortalAdapter({ baseUrl: 'https://api.example', fetchImpl })
+  const original = structuredClone(trainer)
+  expect(await adapter.invoke({ service: 'trainerService', operation: 'isSelectableForAvailability', input: { trainer } })).toBe(trainer.status !== 'inactive')
+  expect(trainer).toEqual(original)
+  expect(fetchImpl.mock.calls.every(([url]) => url.endsWith('/me'))).toBe(true)
+})

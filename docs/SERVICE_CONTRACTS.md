@@ -469,3 +469,10 @@ The existing Training & Rates editor uses POST `/api/trainers/{id}/rates` and GE
 `trainerRateWrites` enables only the Owner rate section. Unknown outcomes reconcile before explicit identical retry; edits retain their reviewed version/draft through refresh and close before post-save reload. Forward migration 0012 refuses populated downgrade. No deployed schema/grants or historical migrations change.
 
 This does not complete `trainerService.update`. General profile editing, optional trainer contacts and a verified account-email change workflow remain open. An email change must keep sign-in and Cognito password recovery aligned; a local-only overwrite is not accepted parity. Candidate source remains nine connected operations, one local predicate, one partially connected trainer update and 44 other operations pending.
+
+
+### Availability selection predicate — genuinely local API behavior
+
+`trainerService.isSelectableForAvailability({ trainer })` now uses the same pure `trainerSelectableForAvailability` owner in both adapters, after verifying the current API login. It does not fetch the directory, call a domain endpoint, modify the argument or persist state. Active/missing legacy status is selectable; inactive status is not. This is a UI predicate only; future availability/scheduling writes must independently enforce current stored authority/status. Evidence: the three adapter cases in `apiDirectory.test.js` and retained status/domain tests. The existing local classification is now executable in API mode; it does not create a tenth server-backed operation.
+
+YS explicitly selected verification of the new address before switching trainer login/recovery email (13 October 2026). Preserve the current address until confirmation; no separate contact-email substitute. Implementation and provider acceptance remain pending.

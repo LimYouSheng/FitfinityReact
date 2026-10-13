@@ -1,5 +1,12 @@
 # Fitfinity current progress
 
+## Local trainer selection and verified-email decision — 13 October 2026
+
+- Active branch `integration/trainer-selection-2026-10-13` depends on PR #30 exact head `06b26a8b5ee1d2f27c6c9c2cd563e6b606004031`. PR #30 contains the verified Owner-rate slice; accepted main remains e71b961. No future merge is implied.
+- Enabled the existing genuinely local availability-selection predicate in API mode using its canonical pure owner after current-session verification. No directory/domain HTTP call or persistence, no argument mutation, and no server authority inferred from this presentation predicate. All 34 affected frontend checks passed, including three active/inactive/legacy-status API cases. Lint/health and 45 quality checks passed; exact inventory is 997 units/91 files, with unchanged 870 browser cases. Full final-head CI remains pending.
+- YS explicitly selected code verification of the new address before switching trainer login/recovery email. Current address stays active until confirmation. Recorded in the canonical rules/contracts; verified email orchestration is the next trainer-profile dependency, without live provider sending during source tests.
+- Evidence: `/workspace/work/trainer-selection/`. Backend bytes remain identical to PR #30's locally green 527/633 receipt; no repeat backend run is needed for this frontend-only predicate.
+
 ## Owner trainer rates — active dependent slice, 13 October 2026
 
 - Active branch `integration/trainer-rates-2026-10-13` starts at PR #29 head `0b5c7f2d5b5a9a54519c8b55948e6a1f233bde7c`. PR #29 run 38378731223 passed backend; frontend remains pending. PR #27 run 38375110460 is now fully successful; #28 run 38376140052 has successful backend and pending frontend at this checkpoint. PR #26 is fully green. No new merge/deployment approval exercised.

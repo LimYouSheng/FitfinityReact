@@ -33,7 +33,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     getAll: contract({}, 'authenticated', 'Trainer[]', true),
     getActive: contract({}, 'authenticated', 'Trainer[]', true),
     getById: contract({ 'id': 'string' }, 'authenticated', 'Trainer | null', true),
-    isSelectableForAvailability: contract({ 'trainer': 'object' }, 'authenticated', 'boolean'),
+    isSelectableForAvailability: contract({ 'trainer': 'object' }, 'authenticated', 'boolean', true),
     update: contract({ 'id': 'string', 'patch': 'object', 'expectedVersion?': 'number' }, 'trainerEdit', 'TrainerEditState', true),
     updateAutonomy: contract({ 'id': 'string', 'approvalNeeded': 'object', 'expectedVersion?': 'number' }, 'operations', 'TrainerApprovalState', true),
     deactivate: contract({ 'id': 'string', 'replacements?': 'object' }, 'operations', 'Trainer'),
