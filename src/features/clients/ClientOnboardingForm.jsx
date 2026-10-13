@@ -45,7 +45,7 @@ const emptyDraft = policy => ({
   trainerId: '',
 })
 
-export default function ClientOnboardingForm({ user, packages, policy, trainers, sessions = [], clients = [], onCancel, onCreate, onCreated, packageDraft, previewMatches, recovery }) {
+export default function ClientOnboardingForm({ user, packages, policy, trainers, sessions = [], clients = [], onCancel, onCreate, onCreated, packageDraft, previewMatches, matchBody, recovery }) {
   const addingPackage = Boolean(packageDraft)
   const steps = addingPackage ? CLIENT_ONBOARDING_STEPS.filter(step => !['general', 'assessments'].includes(step.key)) : CLIENT_ONBOARDING_STEPS
   const formSteps = [...steps, ONBOARDING_REVIEW_STEP]
@@ -112,7 +112,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
     [trainers, draft, selectedPack, sessions, clients, packageDraft?.clientId],
   )
   const remoteMatches = useClientMatches(previewMatches, { ...draft, packageVersion: selectedPack?.version }, trainers,
-    ['matching', 'review'].includes(step.key) && !submitted && !created && Boolean(selectedPack))
+    ['matching', 'review'].includes(step.key) && !submitted && !created && Boolean(selectedPack), matchBody)
   const visibleMatches = previewMatches ? remoteMatches.matches : localMatches
   const selectedMatch = visibleMatches.find(result => result.trainer.id === draft.trainerId)
   const selectedTrainer = submitted ? { id: submitted.trainerId, name: submitted.trainerName } : selectedMatch?.trainer ?? null
@@ -122,7 +122,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
   useEffect(() => {
     if (!previewMatches || remoteMatches.loading || remoteMatches.error || submitted || !['matching', 'review'].includes(step.key)) return
     if (visibleMatches.length && !visibleMatches.some(match => match.trainer.id === draft.trainerId)) {
-      updateCreation(current => ({ draft: { ...current.draft, trainerId: visibleMatches[0].trainer.id } }))
+      updateCreation(current => ({ draft: { ...current.draft, trainerId: visibleMatches[0].trainer.id, fixedWeeklySchedule: undefined } }))
     }
   }, [previewMatches, remoteMatches.loading, remoteMatches.error, submitted, step.key, visibleMatches, draft.trainerId, updateCreation])
 
@@ -134,7 +134,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
 
 
   const goToStep = index => {
-    if (formSteps[index].key === 'matching') {
+    if (!previewMatches && formSteps[index].key === 'matching') {
       setDraft(current => ({ ...current, trainerId: defaultMatchingTrainer(
         visibleMatches, current.clientPreferences, current.sessionsPerWeek, current.trainerId,
       ) }))
@@ -309,7 +309,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
           <div className="onboarding-step-actions">
             {!submitted && !returningToReview && previousStep && <button type="button" className="onboarding-button" disabled={saving} onClick={() => goToStep(stepIndex - 1)}>Back to {previousStep.title}</button>}
             <button type="submit" className="onboarding-button primary" disabled={saving}>
-              {saving ? 'Saving…' : submitted ? 'Check Client Creation' : reviewing ? (addingPackage ? 'Add Package' : 'Create Client') : returningToReview ? 'Return to Review & Confirm' : `Continue to ${nextStep.title}`}
+              {saving ? 'Saving…' : submitted ? (addingPackage ? 'Check Package Addition' : 'Check Client Creation') : reviewing ? (addingPackage ? 'Add Package' : 'Create Client') : returningToReview ? 'Return to Review & Confirm' : `Continue to ${nextStep.title}`}
             </button>
           </div>
         </Panel>

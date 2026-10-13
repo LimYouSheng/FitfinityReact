@@ -35,7 +35,7 @@ function client(row) {
   return { ...people[0], ...base(row), type, people, trainerId: identity(row.trainer_id), remarks: text(row.remarks),
     genderPreference: ({ any: 'No gender preference', female: 'Female trainer preferred', male: 'Male trainer preferred' })[choice(row.gender_preference, ['any', 'female', 'male'])],
     package: current, additionalPackages: purchases.filter(p => p.stage === 'queued'), packageHistory: purchases.filter(p => p.stage === 'archived'),
-    startDate: current?.startDate ?? null, fixedWeeklySchedule: current?.fixedWeeklySchedule ?? [] }
+    startDate: row.start_date == null ? current?.startDate ?? null : date(row.start_date), fixedWeeklySchedule: current?.fixedWeeklySchedule ?? [] }
 }
 function trainer(row, user) {
   if (user.role === 'admin' && ['peak_rate_cents', 'off_peak_rate_cents', 'rates'].some(key => Object.hasOwn(row, key))) fail()
@@ -70,6 +70,8 @@ export function directorySnapshot(value, user) {
       if (p?.defaultCountryCode !== '+65' || p.defaultRelationship !== 'Spouse' || JSON.stringify(p.weeklyFrequencies) !== '[1,2,3,4,5,6,7]' || p.freeGymMinimumFrequency !== 2 || p.availability?.from !== '18:00' || p.availability?.to !== '19:00') fail()
       clientOnboardingPolicy = structuredClone(p)
     }
+    if (value.clientRenewalWrites !== undefined && typeof value.clientRenewalWrites !== 'boolean') fail()
+    if (value.clientRenewalWrites && (!clientOnboardingPolicy || value.personalMessages !== true)) fail()
     if (value.clientReactivationWrites !== undefined && typeof value.clientReactivationWrites !== 'boolean') fail()
     if (value.clientDeactivationWrites !== undefined && typeof value.clientDeactivationWrites !== 'boolean') fail()
     if (value.trainerAvailabilityWrites !== undefined && typeof value.trainerAvailabilityWrites !== 'boolean') fail()
@@ -95,6 +97,6 @@ export function directorySnapshot(value, user) {
     if (value.trainerApprovalWrites !== undefined && typeof value.trainerApprovalWrites !== 'boolean') fail()
     if (value.clientNoteWrites !== undefined && typeof value.clientNoteWrites !== 'boolean') fail()
     if (value.clientPersonalWrites !== undefined && typeof value.clientPersonalWrites !== 'boolean') fail()
-    return { trainerAvailabilityWrites: value.trainerAvailabilityWrites === true, requestCancellationWrites: value.requestCancellationWrites === true, clientReactivationWrites: value.clientReactivationWrites === true, clientDeactivationWrites: value.clientDeactivationWrites === true, renewalDismissalWrites: value.renewalDismissalWrites === true, personalMessages: value.personalMessages === true, contentWorkflows: value.contentWorkflows === true, clientAssessmentWorkflows: value.clientAssessmentWorkflows === true, trainerReactivationWrites: value.trainerReactivationWrites === true, clientOnboardingPolicy, clientCreation: value.clientCreation === true, trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
+    return { clientRenewalWrites: value.clientRenewalWrites === true, trainerAvailabilityWrites: value.trainerAvailabilityWrites === true, requestCancellationWrites: value.requestCancellationWrites === true, clientReactivationWrites: value.clientReactivationWrites === true, clientDeactivationWrites: value.clientDeactivationWrites === true, renewalDismissalWrites: value.renewalDismissalWrites === true, personalMessages: value.personalMessages === true, contentWorkflows: value.contentWorkflows === true, clientAssessmentWorkflows: value.clientAssessmentWorkflows === true, trainerReactivationWrites: value.trainerReactivationWrites === true, clientOnboardingPolicy, clientCreation: value.clientCreation === true, trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
   } catch (error) { if (error instanceof ApiError) throw error; fail() }
 }

@@ -296,6 +296,7 @@ class DirectoryPurchase(Contract):
 
 
 class DirectoryClient(ClientSummary):
+    start_date: date | None = None
     gender_preference: str
     remarks: str
     people: list[DirectoryPerson]
@@ -379,6 +380,7 @@ class DirectorySnapshot(ServerClock):
     clientPersonalWrites: Literal[True] = True
     clientNoteWrites: Literal[True] = True
     clientCreation: Literal[True] = True
+    clientRenewalWrites: Literal[True] = True
     personalMessages: Literal[True] = True
     clientDeactivationWrites: Literal[True] = True
     clientReactivationWrites: Literal[True] = True

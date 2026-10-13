@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import Request
 from sqlalchemy import select
 
+from app.api.purchase_activation import activate_due
 from app.auth.errors import expired
 from app.auth.routes import _handle
 from app.authorization import Principal
@@ -18,6 +19,11 @@ def authorized_transaction(request: Request, *, exclusive_user=False):
     auth = request.app.state.auth
     handle = _handle(request, csrf=request.method == "POST")
     _, verified = auth.principal(handle)
+    # Due purchases are previously authorized settings, not a new caller command. Apply
+    # them before taking actor/Trainer locks so assignment policy reads current authority
+    # and maintenance always follows client -> purchase locking, independently of role.
+    with auth.db.transaction() as maintenance:
+        activate_due(maintenance)
     with auth.db.transaction() as session:
         # Identity/status writers lock their row before invalidating AuthAccount. Match that
         # order, then hold the account barrier through the business commit. No AWS calls here.

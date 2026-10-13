@@ -17,6 +17,8 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   const { clientService } = services
   const notes = useClientNotes(selectedClient, Boolean(snapshot.capabilities?.clientNoteWrites), clientService, snapshot.sessionGeneration)
   const progressClientId = selectedClient.id
+  const previewRenewal = useCallback(draft => services.previewClientRenewalMatches({ id: selectedClient.id, draft }), [services, selectedClient.id])
+  const reviewRenewal = useCallback(() => runAction(() => services.reviewClientRenewal({ id: selectedClient.id, expectedVersion: selectedClient.version })), [services, selectedClient.id, selectedClient.version, runAction])
   const loadProgressReportHistory = useCallback(packageId =>
     clientService.progressReportHistory({ id: progressClientId, packageId }), [clientService, progressClientId])
   if (notes.error) return <div role="alert"><p>{notes.error.message}</p><button type="button" onClick={notes.retry}>Retry client notes</button></div>
@@ -25,6 +27,8 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
+      renewalReadOnly={directoryOnly && !snapshot.capabilities?.clientRenewalWrites}
+      renewalWorkflow={directoryOnly && snapshot.capabilities?.clientRenewalWrites ? { review: reviewRenewal, preview: previewRenewal, saved: reload } : undefined}
       reactivationWorkflow={directoryOnly && snapshot.capabilities?.clientReactivationWrites ? {
         review: () => runAction(() => services.previewClientReactivation({ id: selectedClient.id, expectedVersion: selectedClient.version })),
         preview: input => runAction(() => services.previewClientReactivationDates(input)),
@@ -67,9 +71,18 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
         return updated
       }}
       onRenewPackage={async draft => {
-        const renewed = await runAction(() => clientService.renewPackage({ id: selectedClient.id, draft }), { message: 'Package added.' })
-        await reload()
-        return renewed
+        try {
+          const renewed = await runAction(() => clientService.renewPackage({ id: selectedClient.id, draft }), { message: 'Package added.' })
+          if (!directoryOnly) await reload()
+          return renewed
+        } catch (error) {
+          if (directoryOnly) {
+            const refreshed = await reload()
+            const recovered = refreshed?.clientRenewalRecovered
+            if (error.code !== 'SAVE_UNCERTAIN' && recovered?.input.id === selectedClient.id && recovered.input.draft.requestId === draft.requestId) return runAction(async () => recovered.result, { message: 'Package added.' })
+          }
+          throw error
+        }
       }}
       user={user}
       client={notes.client}

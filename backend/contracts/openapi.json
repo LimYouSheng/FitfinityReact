@@ -1223,6 +1223,18 @@
             "title": "Remarks",
             "type": "string"
           },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
           "status": {
             "enum": [
               "active",
@@ -1582,6 +1594,12 @@
             "const": true,
             "default": true,
             "title": "Clientreactivationwrites",
+            "type": "boolean"
+          },
+          "clientRenewalWrites": {
+            "const": true,
+            "default": true,
+            "title": "Clientrenewalwrites",
             "type": "boolean"
           },
           "clients": {

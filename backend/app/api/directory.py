@@ -170,7 +170,17 @@ def snapshot(session, principal):
         projected_clients.append(
             project(
                 DirectoryClient,
-                {**fields(client), "people": client_people, "purchases": client_purchases},
+                {
+                    **fields(client),
+                    "people": client_people,
+                    "purchases": client_purchases,
+                    "start_date": min(
+                        by_client[client.id],
+                        key=lambda p: (p["created_at"], p["start_date"], p["id"]),
+                    )["start_date"]
+                    if client_purchases
+                    else None,
+                },
             )
         )
     projected_trainers = [

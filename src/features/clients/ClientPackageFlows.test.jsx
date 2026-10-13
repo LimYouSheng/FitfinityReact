@@ -519,3 +519,43 @@ it('keeps reassignment selection after cancelled confirmation and a failed save'
   expect(screen.getByLabelText('New trainer')).toHaveValue('t2')
   expect(onClose).not.toHaveBeenCalled()
 })
+
+it('API renewal keeps the reviewed trainer and exact saved slots while remote matching loads', async () => {
+  const client = { ...seed.clients[0], version: 7 }
+  const trainers = seed.trainers.map(t => ({ ...t, version: 1 }))
+  const reviewed = { id: client.id, version: 7, name: client.name, trainerId: client.trainerId, genderPreference: client.genderPreference,
+    expected: 'a'.repeat(64), minimumStartDate: '2026-11-15', package: client.package, fixedWeeklySchedule: client.fixedWeeklySchedule,
+    clientPreferences: [{ days: ['Monday'], from: '17:00', to: '20:00' }] }
+  const preview = vi.fn(async query => {
+    expect(query.trainerId).toBe(client.trainerId)
+    expect(query.fixedWeeklySchedule).toEqual([{ day: 'Monday', from: '18:00', to: '19:00' }])
+    return [{ trainerId: client.trainerId, trainerVersion: 1, matches: 1, total: 1, schedule: [{ day: 'Monday', from: '18:00', to: '19:00' }] }]
+  })
+  const onSave = vi.fn().mockResolvedValue({ id: client.id }), onClose = vi.fn(), saved = vi.fn()
+  render(<RenewPackageDialog client={client} trainers={trainers} sessions={[]} packages={seed.packages} policy={seed.settings} today="2026-09-09"
+    onSave={onSave} onClose={onClose} renewalWorkflow={{ review: async () => reviewed, preview, saved }} />, { wrapper: Wrapper })
+  expect(await screen.findByLabelText('Start date')).toHaveValue('2026-11-16')
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Client Availability' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Trainer Matching' }))
+  await waitFor(() => expect(screen.getByLabelText('Matched trainer')).toHaveValue(client.trainerId))
+  expect(screen.getByLabelText('Fixed Weekly Schedule')).toHaveTextContent('18:00–19:00')
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Review & Confirm' }))
+  await waitFor(() => expect(screen.queryByText('Checking trainer availability…')).not.toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'Add Package', exact: true }))
+  const confirm = await screen.findByRole('dialog', { name: `Add package for ${client.name}?` })
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Add Package', exact: true }))
+  await waitFor(() => expect(saved).toHaveBeenCalledTimes(1))
+  expect(onClose).toHaveBeenCalledTimes(1)
+  expect(onSave.mock.calls[0][0]).toMatchObject({ renewalExpected: reviewed.expected, expectedVersion: 7, trainerId: client.trainerId,
+    fixedWeeklySchedule: [{ day: 'Monday', from: '18:00', to: '19:00' }] })
+})
+
+it('API renewal review failures provide an explicit retry without opening a fabricated draft', async () => {
+  const review = vi.fn().mockRejectedValue(new Error('Review service unavailable'))
+  render(<RenewPackageDialog client={seed.clients[0]} trainers={seed.trainers} sessions={[]} packages={seed.packages} policy={seed.settings} today="2026-09-09"
+    onSave={vi.fn()} onClose={vi.fn()} renewalWorkflow={{ review }} />, { wrapper: Wrapper })
+  expect(await screen.findByRole('alert')).toHaveTextContent('Review service unavailable')
+  expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Retry package review' }))
+  await waitFor(() => expect(review).toHaveBeenCalledTimes(2))
+})

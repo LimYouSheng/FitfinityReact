@@ -147,6 +147,7 @@ def image_fixture(source, pinned_contract):
         "app/api/client_renewal.py",
         "app/api/client_renewal_save.py",
         "app/api/purchase_creation.py",
+        "app/api/purchase_activation.py",
     ):
         contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
     contract["revisions"].append("20261013_0026")
