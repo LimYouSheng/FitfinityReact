@@ -90,6 +90,12 @@ def _record(
         answers, definition.definition, completed=event in {"completed", "correction"}
     )
     person = session.get(ClientPerson, assessment.client_person_id)
+    if (
+        person.birthday is None
+        and event != "voided"
+        and (previous is None or previous.status == "draft")
+    ):
+        raise PersistenceConflict("Review the client date of birth before saving the draft")
     revision = ClientAssessmentRevision(
         assessment_id=assessment.id,
         revision=assessment.version,

@@ -63,12 +63,15 @@ function AssessmentPaper({ definition, person, draft, errors, onChange, readOnly
   </div>
 }
 
-export function AssessmentDialog({ definition, person, record, onSave, onClose, readOnly, assessor, timeZone }) {
+export function AssessmentDialog({ definition, person, record, onSave, onSaveDraft, onClose, readOnly, assessor, timeZone,
+  saveLabel = 'Save', actions, guardUncertain = false }) {
   const confirmAction = useActionConfirmation()
   const [initial] = useState(() => record ?? { date: businessClock(new Date(), timeZone).date, assessor: assessor ?? '', answers: {} })
   const [draft, setDraft] = useState(initial)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
+  const [uncertain, setUncertain] = useState(false)
+  const submitted = useRef(null)
   const pendingSave = useRef(false)
   const body = useRef(null)
   const closing = useRef(false)
@@ -77,15 +80,19 @@ export function AssessmentDialog({ definition, person, record, onSave, onClose, 
     if (closing.current || pendingSave.current) return
     closing.current = true
     try {
+      if (uncertain) {
+        if (await confirmAction({ title: 'Leave this save unchecked?', message: 'The save may already be recorded. Reopening this client’s assessments will check its result.', confirmLabel: 'Leave Form' })) onClose()
+        return
+      }
       if (!readOnly && dirty && !await confirmAction({ title: 'Discard form changes?',
         message: 'The changes in this popup have not been saved. Your other forms will stay as they are.', confirmLabel: 'Discard Changes', danger: true })) return
       onClose()
     } finally { closing.current = false }
   }
   useSwipeBack({ enabled: true, onBack: close, surface: '.assessment-dialog', routeKey: definition.id })
-  const save = () => {
+  const save = (completed = true) => {
     if (pendingSave.current) return
-    const validation = assessmentErrors(definition.id, draft)
+    const validation = uncertain ? {} : assessmentErrors(definition.id, draft, { completed })
     setErrors(validation)
     if (Object.keys(validation).length) {
       // The alert remains visible even when the missing answer has no input.
@@ -95,11 +102,13 @@ export function AssessmentDialog({ definition, person, record, onSave, onClose, 
     const failed = error => {
       pendingSave.current = false
       setSaving(false)
+      if (guardUncertain) setUncertain(!(error.status >= 400 && error.status < 500) && !['SESSION_CHANGED', 'SESSION_EXPIRED', 'forbidden'].includes(error.code))
       setErrors({ save: error.message || 'The form could not be saved. Your answers are still here.' })
     }
     try {
       pendingSave.current = true
-      const result = onSave(saveAssessment(definition.id, draft))
+      if (!uncertain) submitted.current = { handler: completed ? onSave : onSaveDraft, record: saveAssessment(definition.id, draft, new Date().toISOString(), { completed }) }
+      const result = submitted.current.handler(submitted.current.record)
       if (result?.then) {
         setSaving(true)
         void result.then(onClose).catch(failed)
@@ -110,8 +119,8 @@ export function AssessmentDialog({ definition, person, record, onSave, onClose, 
     setDraft(current => ({ ...current, answers: { ...current.answers, [id]: value } }))
     setErrors(current => Object.keys(current).length ? {} : current)
   }, [])
-  return <ConfirmDialog open title={definition.title} className="assessment-dialog" confirmLabel={saving ? 'Saving…' : 'Save'} confirmDisabled={saving}
-    cancelLabel={readOnly ? 'Close' : 'Cancel'} hideConfirm={readOnly} onConfirm={save} onCancel={close}
+  return <ConfirmDialog open title={definition.title} className="assessment-dialog" confirmLabel={saving ? 'Saving…' : uncertain ? 'Check Assessment Save' : saveLabel} confirmDisabled={saving}
+    cancelLabel={readOnly ? 'Close' : 'Cancel'} hideConfirm={readOnly} onConfirm={() => save()} onCancel={close}
     onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); void close() } }}>
     <div ref={body} className="assessment-form">
       <div className="assessment-paper-heading"><div><h3 tabIndex={-1} data-modal-initial-focus>{definition.paperTitle}</h3><p className="assessment-person">{definition.subtitle}</p></div>
@@ -121,20 +130,22 @@ export function AssessmentDialog({ definition, person, record, onSave, onClose, 
       {!readOnly && <p className="onboarding-hint">The original paper layout is shown below. Leave unassessed items blank. Save returns to the form list.</p>}
       {definition.id === 'hurdle_step' && <p className="onboarding-hint">The hurdle-step pages contain the protocol and reference findings. {!readOnly && 'Tick only findings you observe in this client. '}Printed examples are not saved as results.</p>}
       {Object.keys(errors).length > 0 && <p className="onboarding-error" role="alert" tabIndex={-1}>{Object.values(errors)[0]}</p>}
+      {actions}
+      {!readOnly && onSaveDraft && <button type="button" className="secondary-button" disabled={saving || uncertain} onClick={() => save(false)}>Save Draft</button>}
       <div className="assessment-metadata" role="group" aria-label="Form details">
         <p className="assessment-answer"><strong>Name</strong><span>{person.name}</span></p>
         <p className="assessment-answer"><strong>Date of birth</strong><span>{person.birthday || 'Not recorded'}</span></p>
         <p className="assessment-answer"><strong>Assessment date</strong><span>{draft.date}</span></p>
         <p className="assessment-answer"><strong>Assessor</strong><span>{draft.assessor || 'Not available'}</span></p>
       </div>
-      <AssessmentPaper definition={definition} person={person} draft={draft} errors={errors} onChange={changeAnswer} readOnly={readOnly || saving} />
+      <AssessmentPaper definition={definition} person={person} draft={draft} errors={errors} onChange={changeAnswer} readOnly={readOnly || saving || uncertain} />
     </div>
   </ConfirmDialog>
 }
 
 /** One form grid and popup owner, shared by onboarding and saved profile viewing. */
 export default function ClientAssessments({ people, activePerson, setActivePerson, onChange, readOnly = false,
-  fillUnfilled = false, onSaveForm, onEditChange, disabled = false, assessor, timeZone }) {
+  fillUnfilled = false, onSaveForm, onEditChange, disabled = false, assessor, timeZone, renderForm, canOpenForm, hint }) {
   const [openForm, setOpenForm] = useState(null)
   const [announcement, setAnnouncement] = useState('')
   const person = people[activePerson] ?? people[0]
@@ -146,13 +157,14 @@ export default function ClientAssessments({ people, activePerson, setActivePerso
         className={activePerson === index ? 'active' : ''} onClick={() => { setActivePerson(index); setAnnouncement('') }}>Client {index + 1}</button>)}
     </div>}
     <div className="assessment-grid-heading"><strong>{person.name}</strong><span>{count} of {ASSESSMENT_FORMS.length} filled</span></div>
-    <p className="onboarding-hint">{fillUnfilled ? 'Choose an unfilled form to complete it. Filled forms open for viewing.' : readOnly ? 'Open a filled form to view the saved answers.' : 'Choose a form to fill in. You can continue with unfilled forms.'} Green means the form has been saved.</p>
+    <p className="onboarding-hint">{hint ?? (fillUnfilled ? 'Choose an unfilled form to complete it. Filled forms open for viewing.' : readOnly ? 'Open a filled form to view the saved answers.' : 'Choose a form to fill in. You can continue with unfilled forms.')} Green means the form has been saved.</p>
     {!readOnly && <p className="onboarding-hint">Forms stay in this draft until you select Create Client.</p>}
     <div className="assessment-grid" aria-label={`Assessment forms for ${person.name}`}>
       {ASSESSMENT_FORMS.map(definition => {
         const filled = records[definition.id]?.status === 'filled'
+        const status = filled ? 'Filled' : records[definition.id]?.status === 'draft' ? 'Draft' : records[definition.id]?.status === 'voided' ? 'Voided' : 'Not filled'
         return <button key={definition.id} type="button" className={`assessment-card${filled ? ' is-filled' : ''}`}
-          aria-label={`${definition.title} — ${filled ? 'Filled' : 'Not filled'}`} disabled={disabled || (readOnly && !filled && !fillUnfilled)}
+          aria-label={`${definition.title} — ${status}`} disabled={disabled || (canOpenForm ? !canOpenForm(person, definition, records[definition.id]) : readOnly && !filled && !fillUnfilled)}
           onClick={event => {
             // Touch browsers do not necessarily focus a tapped button. Give the shared modal owner a reliable return target.
             event.currentTarget.focus({ preventScroll: true })
@@ -160,12 +172,12 @@ export default function ClientAssessments({ people, activePerson, setActivePerso
             setOpenForm(definition)
           }}>
           <strong>{definition.title}</strong><span className="assessment-card-description">{definition.subtitle}</span>
-          <span className="assessment-status"><span aria-hidden="true">{filled ? '✓' : '○'}</span>{filled ? 'Filled' : 'Not filled'}</span>
+          <span className="assessment-status"><span aria-hidden="true">{filled ? '✓' : '○'}</span>{status}</span>
         </button>
       })}
     </div>
     <span className="visually-hidden" role="status" aria-live="polite">{announcement}</span>
-    {openForm && <AssessmentDialog key={`${activePerson}-${openForm.id}`} definition={openForm} person={person}
+    {openForm && (renderForm ? renderForm({ definition: openForm, person, record: records[openForm.id], onClose: () => { setOpenForm(null); onEditChange?.(false) } }) : <AssessmentDialog key={`${activePerson}-${openForm.id}`} definition={openForm} person={person}
       record={records[openForm.id]} readOnly={readOnly && !(fillUnfilled && records[openForm.id]?.status !== 'filled')}
       assessor={assessor} timeZone={timeZone} onClose={() => { setOpenForm(null); onEditChange?.(false) }} onSave={record => {
         if (fillUnfilled) return onSaveForm(activePerson, openForm.id, record).then(() => {
@@ -173,6 +185,6 @@ export default function ClientAssessments({ people, activePerson, setActivePerso
         })
         onChange(people.map((item, index) => index === activePerson ? { ...item, assessments: { ...records, [openForm.id]: record } } : item))
         setAnnouncement(`${openForm.title} saved for ${person.name}.`)
-      }} />}
+      }} />)}
   </div>
 }

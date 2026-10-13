@@ -1836,6 +1836,18 @@
             "title": "Event",
             "type": "string"
           },
+          "expectedClientId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expectedclientid"
+          },
           "expectedPersonVersion": {
             "exclusiveMinimum": 0.0,
             "title": "Expectedpersonversion",
@@ -3049,6 +3061,18 @@
             ],
             "title": "Event",
             "type": "string"
+          },
+          "expectedClientId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expectedclientid"
           },
           "expectedPersonVersion": {
             "anyOf": [

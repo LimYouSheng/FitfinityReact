@@ -1,3 +1,4 @@
+import { assessmentApiFixture } from './assessment-api-fixture.js'
 import { trainerReactivationApiFixture } from './trainer-reactivation-api-fixture.js'
 import { clientCreationApiFixture } from './client-creation-api-fixture.js'
 import { trainerRateApiFixture } from './trainer-rate-api-fixture.js'
@@ -65,6 +66,7 @@ export const test = base.extend({
               if (!response.destroyed) error('SESSION_EXPIRED')
               return
             }
+            if (assessmentApiFixture({ state, path, request, json, error })) return
             if (clientCreationApiFixture({ state, path, request, json, error })) return
             if (packageApiFixture({ state, path, request, json, error })) return
             if (trainerRateApiFixture({ state, path, request, json, error })) return
@@ -103,6 +105,7 @@ export const test = base.extend({
           if (!state.signedIn || request.headers['x-csrf-token'] !== state.csrfToken || !request.headers.cookie?.includes('staff-session=browser-test')) { error('CSRF_REJECTED', 403); return }
           if (packageApiFixture({ state, path, request, body, json, error })) return
           if (trainerRateApiFixture({ state, path, request, body, json, error })) return
+          if (assessmentApiFixture({ state, path, request, body, json, error })) return
           if (clientCreationApiFixture({ state, path, request, body, json, error })) return
           if (emailApiFixture({ state, path, request, body, json, error })) return
           if (trainerReactivationApiFixture({ state, path, request, body, json, error })) return

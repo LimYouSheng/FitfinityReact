@@ -55,7 +55,12 @@ def test_profile_draft_resume_complete_and_actor_receipt(api, domain_db, graph, 
     empty = overview(api, graph).json()
     assert empty["people"] == [{"id": str(person_id), "version": 1, "records": []}]
     key = uuid4()
-    draft = create(api, person_id, body(event="draft", answers={}), key)
+    draft = create(
+        api,
+        person_id,
+        body(event="draft", answers={}, expectedClientId=str(graph["client_id"])),
+        key,
+    )
     assert draft.status_code == 200, draft.text
     assert draft.json()["status"] == "draft" and draft.json()["answers"] == {}
     assert api.get(f"/api/assessment-saves/{key}").json() == draft.json()
@@ -145,6 +150,7 @@ def test_couple_overview_keeps_each_person_and_form_separate(api, domain_db, gra
         {"expectedPreviousVersion": 1},
         {"previousAssessmentId": str(uuid4())},
         {"expectedPersonVersion": 9},
+        {"expectedClientId": str(uuid4())},
     ],
 )
 def test_stale_reassessment_review_rejected(api, person_id, patch):
@@ -166,11 +172,27 @@ def test_incomplete_or_untyped_previous_review_rejected(api, person_id, patch):
 
 def test_reviewed_person_changes_block_draft_completion(api, domain_db, person_id):
     draft = create(api, person_id, body(event="draft", answers={})).json()
+    assert (
+        append(api, draft, answers={"eyes_open_1": 5}, expectedClientId=str(uuid4())).status_code
+        == 409
+    )
     with domain_db.transaction() as session:
         session.get(ClientPerson, person_id).name = "Renamed after review"
     assert (
         append(api, draft, answers={"eyes_open_1": 5}, expectedPersonVersion=1).status_code == 409
     )
+    assert api.get(f"/api/assessments/{draft['assessment_id']}").json() == draft
+
+
+@pytest.mark.parametrize("event", ["draft", "completed"])
+def test_cleared_birthday_rejects_draft_save_without_partial_revision(
+    api, domain_db, person_id, event
+):
+    draft = create(api, person_id, body(event="draft", answers={})).json()
+    with domain_db.transaction() as session:
+        session.get(ClientPerson, person_id).birthday = None
+    response = append(api, draft, answers={"eyes_open_1": 1}, event=event, expectedPersonVersion=2)
+    assert response.status_code == 409, response.text
     assert api.get(f"/api/assessments/{draft['assessment_id']}").json() == draft
 
 

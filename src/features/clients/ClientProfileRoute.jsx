@@ -32,7 +32,8 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
       onUpdateGeneral={async (patch, reviewed) => runAction(() => clientService.update({
         id: selectedClient.id, patch, ...(directoryOnly ? { reviewed } : {}),
       }), { message: 'Client details saved.' })}
-      assessmentsAvailable={!directoryOnly}
+      assessmentsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.clientAssessmentWorkflows)}
+      assessmentApi={directoryOnly && snapshot.capabilities?.clientAssessmentWorkflows ? { services, generation: snapshot.sessionGeneration } : undefined}
       sessionViewsAvailable={!directoryOnly}
       progressRoute={parts[2] === 'progress'}
       progressPackageId={parts[2] === 'progress' ? parts[3] : undefined}

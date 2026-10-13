@@ -62,7 +62,7 @@ def replay(session, principal, key: UUID, operation, target, body):
     # The auth-account lock serializes one actor's requests before checking this unique key.
     values = body.model_dump(mode="json")
     # Preserve hashes of existing receipts created before these optional review fields existed.
-    for field in ("previousAssessmentId", "expectedPreviousVersion"):
+    for field in ("previousAssessmentId", "expectedPreviousVersion", "expectedClientId"):
         if values.get(field) is None:
             values.pop(field, None)
     if operation == "assessment_save" and values.get("expectedPersonVersion") is None:
@@ -121,7 +121,9 @@ def create(session, principal, person_id, key, body):
         revision = session.get(ClientAssessmentRevision, previous.revision_id)
         audit(session, principal, person_id, "replay", revision.assessment_id)
         return AssessmentRevision.model_validate(revision)
-    if person.version != body.expectedPersonVersion:
+    if person.version != body.expectedPersonVersion or (
+        body.expectedClientId is not None and person.client_id != body.expectedClientId
+    ):
         raise conflict()
     previous_occasion = session.scalar(
         select(ClientAssessment)
@@ -178,6 +180,8 @@ def save(session, principal, assessment_id, key, body):
             session.get(ClientAssessmentRevision, previous.revision_id)
         )
     if body.expectedPersonVersion is not None and person.version != body.expectedPersonVersion:
+        raise conflict()
+    if body.expectedClientId is not None and person.client_id != body.expectedClientId:
         raise conflict()
     current = session.scalar(
         select(ClientAssessmentRevision).where(

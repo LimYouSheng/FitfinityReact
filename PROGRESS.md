@@ -1,5 +1,11 @@
 # Fitfinity current progress
 
+## Assessment UI — local checkpoint, 13 October 2026
+
+- Active branch `integration/client-assessment-ui-2026-10-13` builds on PR #37 head `283cb0d7edcaf98bea3d9f0534cccc83d8ed29d8`. Implemented Owner/Admin draft, completion, history and explicit reassessment through scoped API records and actor receipts. Initial forms stay unavailable to Trainers. Added selected-client and person-version binding and missing-birthday conflict handling.
+- Final backend passes 640 tests, 633 infrastructure checks, Ruff/format and exact OpenAPI. Earlier frontend passes 1065 tests/104 files; latest client-binding change still needs a clean frontend run. Browser evidence includes 18/18 role/paper regressions; subsequent broader run passed 38/39 with one existing tablet paper journey exceeding cumulative timeout. No timeout or assertion changes. Final local browser validation pending. Evidence: `/workspace/work/client-assessment-ui/`.
+- PR #35 full CI 38395831920 now passes. PR #36 run 38398554915 passed backend but failed 1/891 browsers: its test menu helper attempts to open a desktop-hidden summary while the recovery button still has its busy label. Fix will be committed on PR #36 and merged normally into descendants before publishing this UI slice. PR #37 run 38400091785 requires recheck. This local checkpoint permits clean branch switching; no PR, merge, deployment or operation-count increase claimed yet.
+
 ## Assessment profile reads and explicit reassessment — active source slice, 13 October 2026
 
 - Branch `integration/client-assessments-2026-10-13` starts clean at draft PR #36 exact head `8b061cd03e2e540660c92781067db519aba5ca65`. Its full CI run 38398554915 has passed backend with frontend pending; PR #35 run 38395831920 also has frontend pending. No merge or deployment.

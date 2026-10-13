@@ -182,6 +182,7 @@ class NewAssessment(Contract):
     formId: str = Field(min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_]*$")
     formVersion: int = Field(gt=0, strict=True)
     expectedPersonVersion: int = Field(gt=0, strict=True)
+    expectedClientId: UUID | None = None
     answers: Answers
     event: Literal["draft", "completed"] = "completed"
     previousAssessmentId: UUID | None = None
@@ -200,6 +201,7 @@ class SaveAssessment(Contract):
     event: Literal["draft", "completed", "correction", "voided"]
     reason: str | None = Field(default=None, min_length=1, max_length=2000)
     expectedPersonVersion: StrictInt | None = Field(default=None, ge=1)
+    expectedClientId: UUID | None = None
 
 
 class AssessmentRevision(Contract):

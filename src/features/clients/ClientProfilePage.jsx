@@ -1,3 +1,4 @@
+import ClientAssessmentWorkspace from './ClientAssessmentWorkspace.jsx'
 import ClientAssessments from './ClientAssessments.jsx'
 import ClientGeneralInformation from './ClientGeneralInformation.jsx'
 import ClientEditableText from './ClientEditableText.jsx'
@@ -5,7 +6,7 @@ import { clientProfileDraft } from '../../app/clientOnboarding.js'
 import ClientReactivationDialog from './ClientReactivationDialog.jsx'
 import ReassignTrainerDialog from './ReassignTrainerDialog.jsx'
 import usePageState from '../../hooks/usePageState.js'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
@@ -25,6 +26,7 @@ export default function ClientProfilePage({
   onUpdateGeneral,
   onGeneralSaved,
   assessmentsAvailable = true,
+  assessmentApi,
   sessionViewsAvailable = true,
   client,
   clients,
@@ -59,6 +61,7 @@ export default function ClientProfilePage({
   const requestedTab = progressRoute ? 'progress' : savedTab
   const tab = !sessionViewsAvailable && !['overview', 'package'].includes(requestedTab) ? 'overview' : requestedTab
   const [activeEditor, setActiveEditor] = useState(null)
+  const onAssessmentEditChange = useCallback(editing => setActiveEditor(editing ? 'assessment' : null), [])
   const [assessmentPerson, setAssessmentPerson] = useState(0)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
 
@@ -164,14 +167,16 @@ export default function ClientProfilePage({
       <div className="stack-gap">
         {assessmentsAvailable && <Panel>
           <div className="section-head"><h2>Health & Assessments</h2></div>
-          <ClientAssessments people={clientProfileDraft(client, policy).people} activePerson={assessmentPerson}
+          {assessmentApi ? <ClientAssessmentWorkspace client={client} viewer={user} services={assessmentApi.services}
+            generation={assessmentApi.generation} timeZone={timeZone} onEditChange={onAssessmentEditChange}
+            disabled={Boolean(activeEditor) && activeEditor !== 'assessment'} /> : <ClientAssessments people={clientProfileDraft(client, policy).people} activePerson={assessmentPerson}
             setActivePerson={setAssessmentPerson} readOnly fillUnfilled={ownerEditable && Boolean(onSaveAssessment)}
             disabled={Boolean(activeEditor) && activeEditor !== 'assessment'} assessor={user.name} timeZone={timeZone}
-            onEditChange={editing => setActiveEditor(editing ? 'assessment' : null)}
+            onEditChange={onAssessmentEditChange}
             onSaveForm={(personIndex, formId, record) => {
               const person = clientProfileDraft(client, policy).people[personIndex]
               return onSaveAssessment({ personIndex, formId, record, expectedPerson: { name: person.name, birthday: person.birthday } })
-            }} />
+            }} />}
         </Panel>}
         {(client.healthNotes || client.notesAvailable) && <ClientEditableText
           title="Health / Limitation Notes"
