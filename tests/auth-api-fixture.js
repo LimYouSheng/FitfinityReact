@@ -1,3 +1,4 @@
+import { clientWeeklyScheduleApiFixture } from './client-weekly-schedule-api-fixture.js'
 import { trainerDeactivationApiFixture } from './trainer-deactivation-api-fixture.js'
 import { clientAssignmentApiFixture } from './client-assignment-api-fixture.js'
 import { trainerCreationApiFixture } from './trainer-creation-api-fixture.js'
@@ -80,6 +81,7 @@ export const test = base.extend({
             }
             if (clientRenewalApiFixture({ state, path, request, json, error })) return
             if (trainerDeactivationApiFixture({ state, path, request, json, error })) return
+            if (clientWeeklyScheduleApiFixture({ state, path, request, json, error })) return
             if (clientAssignmentApiFixture({ state, path, request, json, error })) return
             if (trainerCreationApiFixture({ state, path, request, json, error })) return
             if (packageReactivationApiFixture({ state, path, request, json, error })) return
@@ -129,6 +131,7 @@ export const test = base.extend({
           if (!state.signedIn || request.headers['x-csrf-token'] !== state.csrfToken || !request.headers.cookie?.includes('staff-session=browser-test')) { error('CSRF_REJECTED', 403); return }
           if (clientRenewalApiFixture({ state, path, request, body, json, error })) return
           if (trainerDeactivationApiFixture({ state, path, request, body, json, error })) return
+          if (clientWeeklyScheduleApiFixture({ state, path, request, body, json, error })) return
           if (clientAssignmentApiFixture({ state, path, request, body, json, error })) return
           if (trainerCreationApiFixture({ state, path, request, body, json, error })) return
           if (packageReactivationApiFixture({ state, path, request, body, json, error })) return

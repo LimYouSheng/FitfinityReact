@@ -1,4 +1,5 @@
 import ApiClientAssignmentButton from './ApiClientAssignmentButton.jsx'
+import ApiFixedWeeklySchedule from './ApiFixedWeeklySchedule.jsx'
 import ApiClientReactivationButton from './ApiClientReactivationButton.jsx'
 import ClientDeactivationButton from './ClientDeactivationButton.jsx'
 import ClientAssessmentWorkspace from './ClientAssessmentWorkspace.jsx'
@@ -55,6 +56,7 @@ export default function ClientProfilePage({
   onSaveFixedWeeklySchedule,
   onReassignTrainer,
   assignmentWorkflow,
+  weeklyScheduleWorkflow,
   onDeactivate,
   onReactivate,
   packages,
@@ -164,7 +166,10 @@ export default function ClientProfilePage({
         <ClientGeneralInformation client={client} trainer={trainer} policy={policy}
           ownerEditable={ownerEditable} trainerAction={assignmentWorkflow && canEditClientGeneral(user, client) ? <ApiClientAssignmentButton client={client} workflow={assignmentWorkflow} timeZone={timeZone} disabled={Boolean(activeEditor)} onEditing={editing => setActiveEditor(editing ? 'trainer' : null)} /> : undefined} personalEditable={!personalReadOnly && canEditClientGeneral(user, client)} activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={onUpdateGeneral ?? onUpdate} onSaved={onGeneralSaved} />
 
-        <FixedWeeklySchedule
+        {weeklyScheduleWorkflow ? <ApiFixedWeeklySchedule client={client} workflow={weeklyScheduleWorkflow}
+          editable={client.status !== 'inactive' && (managesOperations(user) || assignedTrainerEditable)}
+          editing={activeEditor === 'schedule'} disabled={Boolean(activeEditor)}
+          onEditing={editing => setActiveEditor(editing ? 'schedule' : null)} /> : <FixedWeeklySchedule
           slots={client.fixedWeeklySchedule}
           editable={scheduleEditable}
           editing={activeEditor === 'schedule'}
@@ -172,7 +177,7 @@ export default function ClientProfilePage({
           onBeginEdit={() => setActiveEditor('schedule')}
           onEndEdit={() => setActiveEditor(null)}
           onSave={onSaveFixedWeeklySchedule}
-        />
+        />}
       </div>
 
       <div className="stack-gap">

@@ -21,6 +21,8 @@ from app.api import (
     client_reactivation_save,
     client_renewal,
     client_renewal_save,
+    client_weekly_schedule,
+    client_weekly_schedule_save,
     content,
     directory,
     messages,
@@ -977,3 +979,53 @@ def save_trainer_deactivation(
 def reconcile_trainer_deactivation(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
         return trainer_deactivation_save.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/weekly-schedule-review",
+    response_model=client_weekly_schedule.ClientWeeklyReview,
+    operation_id="reviewClientWeeklySchedule",
+)
+def review_client_weekly_schedule(client_id: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return client_weekly_schedule.review(session, principal, client_id)
+
+
+@router.post(
+    "/clients/{client_id}/weekly-schedule-review",
+    response_model=client_weekly_schedule.ClientWeeklyPreview,
+    operation_id="previewClientWeeklySchedule",
+)
+def preview_client_weekly_schedule(
+    client_id: UUID,
+    body: client_weekly_schedule.SaveClientWeeklySchedule,
+    request: Request,
+    key: RequestKey,
+):
+    with authorized_transaction(request) as (session, principal):
+        return client_weekly_schedule.preview(session, principal, client_id, body)
+
+
+@router.post(
+    "/clients/{client_id}/weekly-schedule",
+    response_model=client_weekly_schedule_save.ClientWeeklyState,
+    operation_id="saveClientWeeklySchedule",
+)
+def save_client_weekly_schedule(
+    client_id: UUID,
+    body: client_weekly_schedule.SaveClientWeeklySchedule,
+    request: Request,
+    key: RequestKey,
+):
+    with authorized_transaction(request) as (session, principal):
+        return client_weekly_schedule_save.save(session, principal, client_id, key, body)
+
+
+@router.get(
+    "/client-weekly-schedules/{request_key}",
+    response_model=client_weekly_schedule_save.ClientWeeklyState,
+    operation_id="reconcileClientWeeklySchedule",
+)
+def reconcile_client_weekly_schedule(request_key: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return client_weekly_schedule_save.reconcile(session, principal, request_key)

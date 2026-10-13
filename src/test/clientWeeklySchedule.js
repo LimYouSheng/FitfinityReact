@@ -1,0 +1,4 @@
+import { directoryId } from './directory.js'
+export const weeklyReview = (outcome = 'applied') => ({ id: directoryId(7), version: 2, name: 'API Client', purchaseId: directoryId(4), purchaseVersion: 1, trainerId: directoryId(1), trainerVersion: 1, outcome, expected: 'a'.repeat(64), slots: [{ id: directoryId(6), weekday: 0, startsAt: '10:00', endsAt: '11:00' }], sessions: [{ id: directoryId(30), version: 1, trainerId: directoryId(1), date: '2027-06-07', startsAt: '10:00', endsAt: '11:00', slotId: directoryId(6) }] })
+export const weeklyInput = (outcome = 'applied') => ({ id: directoryId(7), reviewed: weeklyReview(outcome), slots: [{ id: directoryId(6), day: 'Monday', from: '12:00', to: '13:00' }] })
+export const weeklyResult = (outcome = 'applied') => ({ outcome, client: { id: directoryId(7), version: outcome === 'applied' ? 3 : 2 }, requestId: outcome === 'requested' ? directoryId(40) : null, updatedSessions: outcome === 'applied' ? 1 : 0 })

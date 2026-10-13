@@ -27,6 +27,12 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
+      weeklyScheduleWorkflow={directoryOnly && snapshot.capabilities?.clientWeeklyScheduleWrites ? {
+        review: () => runAction(() => services.reviewClientWeeklySchedule({ id: selectedClient.id, expectedVersion: selectedClient.version })),
+        preview: input => runAction(() => services.previewClientWeeklySchedule({ id: selectedClient.id, ...input })),
+        save: input => runAction(() => clientService.saveFixedWeeklySchedule({ id: selectedClient.id, ...input }), result => scheduleNotification('Fixed weekly schedule', result)),
+        saved: reload,
+      } : undefined}
       assignmentWorkflow={directoryOnly && snapshot.capabilities?.clientAssignmentWrites ? {
         review: () => runAction(() => services.previewClientAssignment({ id: selectedClient.id, expectedVersion: selectedClient.version })),
         save: draft => runAction(() => clientService.reassignTrainer({ id: selectedClient.id, draft }), { message: 'Trainer permanently reassigned.' }),

@@ -13,20 +13,28 @@ export default function FixedWeeklySchedule({
   onBeginEdit,
   onEndEdit,
   onSave,
+  onReviewSave,
+  uncertain = false,
 }) {
   const confirmAction = useActionConfirmation()
   const [draft, setDraft] = useState(() => cloneSlots(slots))
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!editing) setDraft(cloneSlots(slots))
   }, [slots, editing])
 
-  const begin = () => {
+  const begin = async () => {
     setError('')
     setDraft(cloneSlots(slots))
-    onBeginEdit()
+    setLoading(true)
+    try {
+      const reviewed = await onBeginEdit()
+      if (reviewed?.slots) setDraft(cloneSlots(reviewed.slots))
+    } catch (failure) { setError(failure.message) }
+    finally { setLoading(false) }
   }
 
   const cancel = () => {
@@ -35,17 +43,17 @@ export default function FixedWeeklySchedule({
   }
 
   const save = async () => {
-    const confirmed = await confirmAction({
-      title: 'Save fixed weekly schedule?',
-      message: 'This will update the weekly times and all upcoming sessions, or send the change for owner approval when required.',
-      confirmLabel: 'Save Schedule',
-    })
-    if (!confirmed) return
-
+    if (saving) return
     setError('')
     setSaving(true)
-
     try {
+      const message = !uncertain && onReviewSave ? await onReviewSave(draft) : null
+      const confirmed = uncertain || await confirmAction({
+        title: 'Save fixed weekly schedule?',
+        message: message ?? 'This will update the weekly times and all upcoming sessions, or send the change for owner approval when required.',
+        confirmLabel: 'Save Schedule',
+      })
+      if (!confirmed) return
       const result = await onSave(draft)
 
       if (result?.outcome === 'requested') {
@@ -66,7 +74,7 @@ export default function FixedWeeklySchedule({
         <h2>Fixed Weekly Schedule</h2>
 
         {editable && (!editing ? (
-          <button type="button" className="text-action" disabled={editDisabled} onClick={begin}>Edit</button>
+          <button type="button" className="text-action" disabled={editDisabled || loading} onClick={begin}>{loading ? 'Checking…' : 'Edit'}</button>
         ) : (
           <div className="inline-actions">
             <button
@@ -84,7 +92,7 @@ export default function FixedWeeklySchedule({
               disabled={saving}
               onClick={save}
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? 'Saving…' : uncertain ? 'Check Schedule' : 'Save'}
             </button>
           </div>
         ))}
@@ -102,6 +110,7 @@ export default function FixedWeeklySchedule({
                   aria-label={`${slot.day} from`}
                   type="time"
                   value={slot.from}
+                  disabled={saving || uncertain}
                   onChange={event =>
                     setDraft(current =>
                       current.map((item, i) =>
@@ -117,6 +126,7 @@ export default function FixedWeeklySchedule({
                   aria-label={`${slot.day} to`}
                   type="time"
                   value={slot.to}
+                  disabled={saving || uncertain}
                   onChange={event =>
                     setDraft(current =>
                       current.map((item, i) =>

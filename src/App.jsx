@@ -1,3 +1,4 @@
+import ClientWeeklyScheduleRecovery from './features/clients/ClientWeeklyScheduleRecovery.jsx'
 import TrainerDeactivationRecovery from './features/trainers/TrainerDeactivationRecovery.jsx'
 import ClientAssignmentRecovery from './features/clients/ClientAssignmentRecovery.jsx'
 import TrainerAvailabilityRecovery from './features/trainers/TrainerAvailabilityRecovery.jsx'
@@ -262,6 +263,8 @@ function StaffPortal({ navigation }) {
     )
   } else if (route === 'clients' && directoryOnly && snapshot.clientRenewalPending) {
     page = <ClientRenewalRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientRenewalPending} services={services} />
+  } else if (route === 'clients' && directoryOnly && snapshot.clientWeeklySchedulePending) {
+    page = <ClientWeeklyScheduleRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientWeeklySchedulePending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientAssignmentPending) {
     page = <ClientAssignmentRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientAssignmentPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.packageReactivationPending) {
