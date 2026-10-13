@@ -16,7 +16,7 @@ const slot = row => ({ id: identity(row.id), day: days[choice(row.weekday, [0, 1
 function clockTime(value) { if (!/^([01]\d|2[0-3]):[0-5]\d(:00)?$/.test(text(value))) fail(); return value.slice(0, 5) }
 function unique(rows) { if (new Set(rows.map(row => row.id)).size !== rows.length) fail(); return rows }
 function person(row) {
-  return { id: identity(row.id), version: number(row.version) || fail(), name: text(row.name), email: text(row.email), birthday: date(row.birthday), gender: text(row.gender), phone: phone(row),
+  return { id: identity(row.id), version: number(row.version) || fail(), name: text(row.name), email: text(row.email), birthday: row.birthday === null ? '' : date(row.birthday), gender: text(row.gender), phone: phone(row),
     emergencyContact: { name: text(row.emergency_name), relationship: text(row.emergency_relationship), countryCode: text(row.emergency_country_code), number: text(row.emergency_number) } }
 }
 function purchase(row) {
@@ -41,7 +41,7 @@ function trainer(row, user) {
   if (user.role === 'admin' && ['peak_rate_cents', 'off_peak_rate_cents', 'rates'].some(key => Object.hasOwn(row, key))) fail()
   const availability = Object.fromEntries(days.map(day => [day, []]))
   for (const block of list(row.availability).map(slot)) availability[block.day].push([block.from, block.to])
-  return { ...base(row), email: text(row.email), phone: `${text(row.phone_country_code)} ${text(row.phone_number)}`, birthday: date(row.birthday), gender: text(row.gender),
+  return { ...base(row), email: text(row.email), phone: `${text(row.phone_country_code)} ${text(row.phone_number)}`, birthday: row.birthday === null ? '' : date(row.birthday), gender: text(row.gender),
     trainerType: text(row.trainer_type), qualifications: text(row.qualifications), publicProfile: flag(row.public_profile) ? 'Visible' : 'Hidden', availability,
     ...(user.role === 'admin' ? {} : { rates: { peak: number(row.peak_rate_cents) / 100, offPeak: number(row.off_peak_rate_cents) / 100 } }),
     approvalNeeded: { availability: flag(row.approve_availability), sessionTime: flag(row.approve_session_time), trainerReassignment: flag(row.approve_session_trainer), fixedWeeklySchedule: flag(row.approve_weekly_schedule) } }
@@ -64,7 +64,30 @@ export function directorySnapshot(value, user) {
       if (p?.minimum !== 1 || p.maximum !== 365 || p.sessions !== 12 || p.days !== 90) fail()
       packagePolicy = { packageSessionCount: { minimum: p.minimum, maximum: p.maximum }, packageValidityRule: { sessions: p.sessions, days: p.days } }
     }
+    let clientOnboardingPolicy
+    if (value.clientOnboardingPolicy !== undefined) {
+      const p = value.clientOnboardingPolicy
+      if (p?.defaultCountryCode !== '+65' || p.defaultRelationship !== 'Spouse' || JSON.stringify(p.weeklyFrequencies) !== '[1,2,3,4,5,6,7]' || p.freeGymMinimumFrequency !== 2 || p.availability?.from !== '18:00' || p.availability?.to !== '19:00') fail()
+      clientOnboardingPolicy = structuredClone(p)
+    }
+    if (value.contentWorkflows !== undefined && typeof value.contentWorkflows !== 'boolean') fail()
+    if (value.clientAssessmentWorkflows !== undefined && typeof value.clientAssessmentWorkflows !== 'boolean') fail()
+    if (value.clientCreation !== undefined && typeof value.clientCreation !== 'boolean') fail()
+    if (value.clientCreation && !clientOnboardingPolicy) fail()
+    let trainerProfilePolicy
+    if (value.trainerProfilePolicy !== undefined) {
+      const p = value.trainerProfilePolicy
+      if (p?.defaultCountryCode !== '+65' || !Array.isArray(p.trainerTypes) || p.trainerTypes.length !== 2 || p.trainerTypes[0] !== 'Strength & Conditioning' || p.trainerTypes[1] !== 'Personal Trainer') fail()
+      trainerProfilePolicy = { defaultCountryCode: p.defaultCountryCode, trainerTypes: [...p.trainerTypes] }
+    }
+    if (value.trainerReactivationWrites !== undefined && typeof value.trainerReactivationWrites !== 'boolean') fail()
+    if (value.trainerPersonalWrites !== undefined && typeof value.trainerPersonalWrites !== 'boolean') fail()
+    if (value.trainerPersonalWrites && !trainerProfilePolicy) fail()
+    if (value.trainerEmailWrites !== undefined && typeof value.trainerEmailWrites !== 'boolean') fail()
+    if (value.trainerRateWrites !== undefined && typeof value.trainerRateWrites !== 'boolean') fail()
     if (value.trainerApprovalWrites !== undefined && typeof value.trainerApprovalWrites !== 'boolean') fail()
-    return { trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
+    if (value.clientNoteWrites !== undefined && typeof value.clientNoteWrites !== 'boolean') fail()
+    if (value.clientPersonalWrites !== undefined && typeof value.clientPersonalWrites !== 'boolean') fail()
+    return { contentWorkflows: value.contentWorkflows === true, clientAssessmentWorkflows: value.clientAssessmentWorkflows === true, trainerReactivationWrites: value.trainerReactivationWrites === true, clientOnboardingPolicy, clientCreation: value.clientCreation === true, trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
   } catch (error) { if (error instanceof ApiError) throw error; fail() }
 }

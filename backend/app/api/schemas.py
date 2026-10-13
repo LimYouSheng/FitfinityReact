@@ -4,7 +4,15 @@ from datetime import date, datetime, time
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    model_validator,
+)
 
 
 class Contract(BaseModel):
@@ -134,7 +142,7 @@ class PersonSummary(Contract):
     version: int
     position: int
     name: str
-    birthday: date
+    birthday: date | None
 
 
 class ClientDetail(ClientSummary):
@@ -174,8 +182,17 @@ class NewAssessment(Contract):
     formId: str = Field(min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_]*$")
     formVersion: int = Field(gt=0, strict=True)
     expectedPersonVersion: int = Field(gt=0, strict=True)
+    expectedClientId: UUID | None = None
     answers: Answers
     event: Literal["draft", "completed"] = "completed"
+    previousAssessmentId: UUID | None = None
+    expectedPreviousVersion: StrictInt | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def reviewed_occasion(self):
+        if (self.previousAssessmentId is None) != (self.expectedPreviousVersion is None):
+            raise ValueError("Review the previous assessment before starting a new occasion")
+        return self
 
 
 class SaveAssessment(Contract):
@@ -183,6 +200,8 @@ class SaveAssessment(Contract):
     answers: Answers
     event: Literal["draft", "completed", "correction", "voided"]
     reason: str | None = Field(default=None, min_length=1, max_length=2000)
+    expectedPersonVersion: StrictInt | None = Field(default=None, ge=1)
+    expectedClientId: UUID | None = None
 
 
 class AssessmentRevision(Contract):
@@ -204,6 +223,19 @@ class AssessmentRevision(Contract):
     actor_name: str
     reason: str | None
     created_at: datetime
+
+
+class PersonAssessmentRecords(Contract):
+    id: UUID
+    version: int
+    records: list[AssessmentRevision]
+
+
+class ClientAssessmentRecords(Contract):
+    id: UUID
+    version: int
+    businessDate: date
+    people: list[PersonAssessmentRecords]
 
 
 class FormDefinition(Contract):
@@ -273,7 +305,7 @@ class OperationalTrainer(TrainerSummary):
     email: str
     phone_country_code: str
     phone_number: str
-    birthday: date
+    birthday: date | None
     gender: str
     trainer_type: str
     qualifications: str
@@ -307,6 +339,29 @@ class PackagePolicy(Contract):
     days: Literal[90] = 90
 
 
+class TrainerProfilePolicy(Contract):
+    defaultCountryCode: Literal["+65"] = "+65"
+    trainerTypes: tuple[Literal["Strength & Conditioning"], Literal["Personal Trainer"]] = (
+        "Strength & Conditioning",
+        "Personal Trainer",
+    )
+
+
+class OnboardingAvailability(Contract):
+    from_: Literal["18:00"] = Field(default="18:00", alias="from")
+    to: Literal["19:00"] = "19:00"
+
+
+class ClientOnboardingPolicy(Contract):
+    defaultCountryCode: Literal["+65"] = "+65"
+    defaultRelationship: Literal["Spouse"] = "Spouse"
+    weeklyFrequencies: tuple[
+        Literal[1], Literal[2], Literal[3], Literal[4], Literal[5], Literal[6], Literal[7]
+    ] = (1, 2, 3, 4, 5, 6, 7)
+    freeGymMinimumFrequency: Literal[2] = 2
+    availability: OnboardingAvailability = Field(default_factory=OnboardingAvailability)
+
+
 class DirectorySnapshot(ServerClock):
     schemaVersion: Literal[1]
     viewerId: UUID
@@ -315,6 +370,17 @@ class DirectorySnapshot(ServerClock):
     packages: list[DirectoryPackage]
     packagePolicy: PackagePolicy
     trainerApprovalWrites: Literal[True] = True
+    trainerRateWrites: Literal[True] = True
+    trainerEmailWrites: Literal[True] = True
+    trainerPersonalWrites: Literal[True] = True
+    trainerReactivationWrites: Literal[True] = True
+    trainerProfilePolicy: TrainerProfilePolicy = Field(default_factory=TrainerProfilePolicy)
+    clientPersonalWrites: Literal[True] = True
+    clientNoteWrites: Literal[True] = True
+    clientCreation: Literal[True] = True
+    contentWorkflows: Literal[True] = True
+    clientAssessmentWorkflows: Literal[True] = True
+    clientOnboardingPolicy: ClientOnboardingPolicy = Field(default_factory=ClientOnboardingPolicy)
 
 
 class SessionClient(Contract):

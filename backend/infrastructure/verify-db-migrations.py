@@ -134,6 +134,15 @@ class RuntimeChecks(unittest.TestCase):
             "app/persistence.py",
             "migrations/versions/20261013_0007_package_saves.py",
             "migrations/versions/20261013_0008_trainer_approvals.py",
+            "migrations/versions/20261013_0009_client_details.py",
+            "migrations/versions/20261013_0010_optional_contacts.py",
+            "migrations/versions/20261013_0011_client_notes.py",
+            "migrations/versions/20261013_0012_trainer_rates.py",
+            "migrations/versions/20261013_0013_verified_email.py",
+            "migrations/versions/20261013_0014_trainer_details.py",
+            "migrations/versions/20261013_0015_client_creation.py",
+            "migrations/versions/20261013_0016_trainer_reactivation.py",
+            "migrations/versions/20261013_0017_content_saves.py",
         ]:
             path = self.image_root / relative
             original = path.read_bytes()

@@ -1,3 +1,4 @@
+import ClientEditableText from './clients/ClientEditableText.jsx'
 import { useState } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
@@ -14,6 +15,25 @@ const Wrapper = ({ children }) => <ActionConfirmationProvider><EditGuardProvider
 beforeEach(() => vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 const general = () => within(screen.getByRole('heading', { name: 'General Information' }).closest('.panel'))
+
+it('personal client edits retain client/person versions and close before refresh without enabling assignment', async () => {
+  const save = vi.fn().mockResolvedValue({ version: 3 })
+  const refreshed = vi.fn(() => expect(screen.queryByRole('button', { name: 'Save', exact: true })).not.toBeInTheDocument())
+  const client = { ...seed.clients[0], version: 2, people: [{ ...seed.clients[0], id: 'person-one', version: 1 }] }
+  function Profile({ value }) {
+    const [activeEditor, setActiveEditor] = useState(null)
+    return <ClientGeneralInformation client={value} policy={seed.settings} ownerEditable={false} personalEditable activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={save} onSaved={refreshed} />
+  }
+  const { rerender } = render(<Profile value={client} />, { wrapper: Wrapper })
+  expect(screen.queryByRole('button', { name: 'Reassign Trainer' })).not.toBeInTheDocument()
+  fireEvent.click(general().getByRole('button', { name: 'Edit', exact: true }))
+  fireEvent.change(screen.getByLabelText('Client name'), { target: { value: 'Reviewed Name' } })
+  rerender(<Profile value={{ ...client, version: 9, people: [{ ...client.people[0], version: 8 }] }} />)
+  fireEvent.click(general().getByRole('button', { name: 'Save', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Save Changes', exact: true }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ people: [expect.objectContaining({ name: 'Reviewed Name' })] }), { expectedVersion: 2, people: [{ id: 'person-one', expectedVersion: 1 }] }))
+  await waitFor(() => expect(refreshed).toHaveBeenCalledTimes(1))
+})
 
 it('approval edits retain the reviewed version across refresh and close before post-save reload', async () => {
   const save = vi.fn().mockResolvedValue({ version: 2 })
@@ -92,4 +112,39 @@ it('retains a loaded media preview across callback refreshes and uses the latest
   expect(revoke).toHaveBeenCalledWith('blob:first')
   unmount()
   expect(revoke).toHaveBeenCalledWith('blob:second')
+})
+
+
+it('general notes retain the reviewed version and draft through refresh and close before reload', async () => {
+  const save = vi.fn().mockResolvedValue({ version: 3 })
+  const refreshed = vi.fn(() => expect(screen.queryByRole('button', { name: 'Save', exact: true })).not.toBeInTheDocument())
+  function Notes({ version, value }) {
+    const [editing, setEditing] = useState(false)
+    return <ClientEditableText title="General notes" value={value} version={version} editable multiline editing={editing} onBeginEdit={() => setEditing(true)} onEndEdit={() => setEditing(false)} onSave={save} onSaved={refreshed} />
+  }
+  const { rerender } = render(<Notes version={2} value="Original" />, { wrapper: Wrapper })
+  fireEvent.click(screen.getByRole('button', { name: 'Edit', exact: true }))
+  fireEvent.change(screen.getByLabelText('General notes'), { target: { value: 'Draft' } })
+  rerender(<Notes version={9} value="Other editor" />)
+  expect(screen.getByLabelText('General notes')).toHaveValue('Draft')
+  fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Save Changes', exact: true }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith('Draft', { expectedVersion: 2 }))
+  await waitFor(() => expect(refreshed).toHaveBeenCalledTimes(1))
+})
+
+it('rate edits retain the reviewed version and close before reload while general information stays locked', async () => {
+  const save = vi.fn().mockResolvedValue({ version: 2 })
+  const reload = vi.fn(() => expect(screen.queryByRole('button', { name: 'Save', exact: true })).not.toBeInTheDocument())
+  const props = { trainer: { ...seed.trainers[0], version: 1 }, viewer: owner, trainers: seed.trainers, clients: seed.clients, sessions: seed.sessions, policy: seed.settings, readOnly: true, ratesReadOnly: false, onUpdate: save, onRatesSaved: reload }
+  const { rerender } = render(<TrainerProfilePage {...props} />, { wrapper: Wrapper })
+  const panel = within(screen.getByRole('heading', { name: 'Training & Rates' }).closest('.panel'))
+  expect(general().queryByRole('button', { name: 'Edit', exact: true })).not.toBeInTheDocument()
+  fireEvent.click(panel.getByRole('button', { name: 'Edit', exact: true }))
+  fireEvent.change(screen.getByLabelText('Peak rate'), { target: { value: '65.43' } })
+  rerender(<TrainerProfilePage {...props} trainer={{ ...props.trainer, version: 9 }} />)
+  fireEvent.click(panel.getByRole('button', { name: 'Save', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Save Rates', exact: true }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith({ rates: { ...props.trainer.rates, peak: 65.43 } }, 1))
+  await waitFor(() => expect(reload).toHaveBeenCalledTimes(1))
 })

@@ -15,6 +15,13 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
     <TrainerProfilePage
       key={trainer.id}
       readOnly={directoryOnly}
+      reactivationReadOnly={directoryOnly && !(snapshot.capabilities?.trainerReactivationWrites && services.previewTrainerReactivation)}
+      onReviewReactivation={directoryOnly ? () => runAction(() => services.previewTrainerReactivation({ id: trainer.id, expectedVersion: trainer.version })) : undefined}
+      generalReadOnly={directoryOnly && !snapshot.capabilities?.trainerPersonalWrites}
+      onGeneralSaved={reload}
+      ratesReadOnly={directoryOnly && !snapshot.capabilities?.trainerRateWrites}
+      emailVerification={snapshot.capabilities?.trainerEmailWrites && ['owner', 'admin'].includes(user.role) ? { auth: services.auth, onRequest: (patch, expectedVersion) => trainerService.update({ id: trainer.id, patch, expectedVersion }) } : undefined}
+      onRatesSaved={reload}
       autonomyReadOnly={directoryOnly && !snapshot.capabilities?.trainerApprovalWrites}
       onAutonomySaved={reload}
       activityAvailable={!directoryOnly}
@@ -33,17 +40,16 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
       onSaveAutonomy={async (settings, expectedVersion) => {
         return runAction(() => trainerService.updateAutonomy({ id: trainer.id, approvalNeeded: settings, ...(expectedVersion === undefined ? {} : { expectedVersion }) }), { message: 'Approval settings saved.' })
       }}
-      onUpdate={async patch => {
-        await runAction(() => trainerService.update({ id: trainer.id, patch }), { message: 'Trainer details saved.' })
-        await reload()
+      onUpdate={async (patch, expectedVersion) => {
+        await runAction(() => trainerService.update({ id: trainer.id, patch, ...(directoryOnly ? { expectedVersion } : {}) }), { message: 'Trainer details saved.' })
       }}
       onDeactivate={ownerMode ? async replacements => {
         await runAction(() => trainerService.deactivate({ id: trainer.id, replacements }), { tone: 'warning', message: 'Trainer deactivated.' })
         await reload()
         navigate('trainers', { replace: true })
       } : undefined}
-      onReactivate={ownerMode ? async () => {
-        await runAction(() => trainerService.reactivate({ id: trainer.id }), { message: 'Trainer reactivated.' })
+      onReactivate={ownerMode ? async reviewed => {
+        await runAction(() => trainerService.reactivate({ id: trainer.id, ...(directoryOnly ? { reviewed } : {}) }), { message: 'Trainer reactivated.' })
         await reload()
       } : undefined}
     />

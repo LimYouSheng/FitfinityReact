@@ -210,8 +210,17 @@ def test_admin_signin_is_local_role_and_all_directory_responses_omit_rates(
         )
     data = api.get("/api/directory").json()
     assert len(data["clients"]) == len(data["trainers"]) == len(data["packages"]) == 1
-    for path in ["/api/remuneration", f"/api/trainers/{graph['trainer_id']}/rates"]:
-        assert api.get(path).status_code == 404
+    assert api.get("/api/remuneration").status_code == 404
+    # Rates now have a POST command, but no GET route. Admin cannot invoke it.
+    rates_path = f"/api/trainers/{graph['trainer_id']}/rates"
+    assert api.get(rates_path).status_code == 405
+    denied = api.post(
+        rates_path,
+        json={"expectedVersion": 1, "rates": {"peak": 1234, "offPeak": 1234}},
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert denied.status_code == 403
+    assert denied.json()["error"]["code"] == "forbidden"
     prior = list(invitations.calls)
     assert create_admin(api, patch={"email": "escalate@example.test"}).status_code == 403
     assert invitations.calls == prior

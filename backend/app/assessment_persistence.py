@@ -90,6 +90,12 @@ def _record(
         answers, definition.definition, completed=event in {"completed", "correction"}
     )
     person = session.get(ClientPerson, assessment.client_person_id)
+    if (
+        person.birthday is None
+        and event != "voided"
+        and (previous is None or previous.status == "draft")
+    ):
+        raise PersistenceConflict("Review the client date of birth before saving the draft")
     revision = ClientAssessmentRevision(
         assessment_id=assessment.id,
         revision=assessment.version,
@@ -124,7 +130,9 @@ def create_assessment(
     answers: object,
 ) -> ClientAssessmentRevision:
     require_transaction(session)
-    _active_person(session, person_id)
+    person = _active_person(session, person_id)
+    if person.birthday is None:
+        raise PersistenceConflict("Review the client date of birth before starting an assessment")
     if type(form_version) is not int or form_version < 1:
         raise ValueError("A positive form version is required")
     if session.get(AssessmentFormVersion, (form_id, form_version)) is None:

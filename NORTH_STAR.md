@@ -4,6 +4,7 @@ Deliver the approved [GitHub Pages prototype](https://limyousheng.github.io/Fitf
 
 ## Definition of done
 
+- [ ] All **55 named operations** in `src/services/portalContracts.js` have an explicit completed outcome in the existing `docs/SERVICE_CONTRACTS.md` matrix: connected durable behavior where persistence is required, or an evidenced genuinely local implementation. Authentication and route parity remain additional requirements. An API-enabled flag, endpoint, mock test or empty response alone does not complete an operation.
 - [ ] Every approved prototype workflow has an implementation and documented acceptance result for its applicable roles, with server-enforced identity, assignment and permissions.
 - [ ] Shared data persists across reload, sign-out, another browser/device and service restart. Browser/demo storage is not the production datastore.
 - [ ] Conflicts, duplicate submissions, interrupted requests and recovery behave correctly; writes are transactional, versioned and idempotent where required. A committed save remains successful if refresh fails.
@@ -27,11 +28,13 @@ This is dependency order, not permission to rewrite completed components. Each P
 
 ## Authority and invariants
 
-Use one agent, the existing checkout/caches and valid receipts. Continue routine investigation, implementation, focused tests, documentation and draft PR preparation autonomously. Do not inherit obsolete repair budgets. Stop at PR readiness, a concrete blocker or an applicable authorization boundary with the next action prepared.
+Use one agent, the existing checkout/caches and valid receipts. YS's 13 October instruction is to keep going until all 55 operations are complete. Continue routine investigation, implementation, focused tests, documentation and draft PR preparation autonomously; PR readiness is a checkpoint, not an automatic stop. Do not inherit obsolete repair budgets. Keep one focused slice per PR and one active branch at a time; dependent draft PRs may be stacked with their exact base/dependency recorded while earlier PRs await merge. Never claim an unmerged dependency is accepted main. Continue independent authorized work while CI or review is pending; stop only at a concrete blocker, required user decision or authorization boundary, with the next action prepared. This is an active-session work instruction, not an unattended background schedule.
+
+Maintain this file as the single North Star, `PROGRESS.md` as the single progress ledger, and the existing service-contract matrix as the operation/route evidence reference. Do not create a second North Star or competing checklist. Track implemented, full-CI-verified, merged, deployed and live/device-accepted states separately. The 55/55 implementation target does not waive the release and acceptance conditions above.
 
 YS alone merges. New AWS mutations, image publication, scans, deployment, IAM changes, security-exception renewal, real invitations/messages and destructive actions need applicable authorization. No auto-merge, main/force push, reset, bootstrap replay or replacement operation to evade reconciliation. Source binding, historical receipts, resource identities, write intents and ownership checks remain mandatory.
 
-Preserve Owner/Admin assessment access and restricted Trainer access, Owner-only rate management and remuneration approval, Admin financial restrictions, scheduling conflicts, validity/credit rules, completed-record immutability and current authority at commit. Never trust browser-supplied actors or fabricate WhatsApp/native-share sent/delivered states. Preserve test/security gates.
+Preserve Owner/Admin-only access to the initial 11 assessment forms; YS authorizes current assigned Trainers to read/edit general health notes separately (13 October 2026). Preserve Owner-only rate management and remuneration approval, Admin financial restrictions, scheduling conflicts, validity/credit rules, completed-record immutability and current authority at commit. Never trust browser-supplied actors or fabricate WhatsApp/native-share sent/delivered states. Preserve test/security gates.
 
 ## Preserved deployment and limits
 

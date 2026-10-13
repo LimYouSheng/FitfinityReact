@@ -12,11 +12,20 @@ const directoryDates = [
   ['purchase end', (raw, value) => { raw.clients[0].purchases[0].end_date = value }, result => result.data.clients[0].package.endDate],
 ]
 
-it.each(directoryDates)('rejects impossible or malformed %s with the directory response error', (_label, setDate) => {
+it.each(directoryDates)('rejects impossible or malformed %s with the directory response error', (_label, setDate, getDate) => {
   for (const value of ['2026-02-31', '2026-04-31', '2026-02-29', '1900-02-29', '2100-02-29', '2026-13-01', '2026-00-10', '2026-01-00', '2026-01-32', '2026-2-01', '2026-02-01T00:00:00Z', ' 2026-02-01', '', null, undefined, 20260201]) {
     const raw = directoryData(); setDate(raw, value)
-    expect(() => directorySnapshot(raw, staff)).toThrow(expect.objectContaining({ code: 'API_RESPONSE', message: 'The staff directory could not be verified. Please reload.' }))
+    if (['client birthday', 'trainer birthday'].includes(_label) && value === null) expect(getDate(directorySnapshot(raw, staff))).toBe('')
+    else expect(() => directorySnapshot(raw, staff)).toThrow(expect.objectContaining({ code: 'API_RESPONSE', message: 'The staff directory could not be verified. Please reload.' }))
   }
+})
+
+it('represents cleared client contacts as empty without inventing dates or emergency names', () => {
+  const raw = directoryData()
+  Object.assign(raw.clients[0].people[0], { birthday: null, email: '', gender: '', emergency_name: '', emergency_number: '', emergency_relationship: '' })
+  const client = directorySnapshot(raw, staff).data.clients[0]
+  expect(client).toMatchObject({ birthday: '', email: '', gender: '', emergencyContact: { name: '', number: '', relationship: '' } })
+  expect(client.people[0].birthday).toBe('')
 })
 
 it.each(directoryDates)('preserves real calendar dates and leap days in %s', (_label, setDate, getDate) => {
@@ -82,4 +91,17 @@ it('rejects non-boolean public visibility values at the API boundary', () => {
     const raw = directoryData(); raw.trainers[0].public_profile = value
     expect(() => directorySnapshot(raw, staff)).toThrow(expect.objectContaining({ code: 'API_RESPONSE' }))
   }
+})
+
+
+it.each([{ status: 'active' }, { status: 'inactive' }, {}])('evaluates trainer availability selection locally for %j after session verification', async trainer => {
+  const fetchImpl = vi.fn(async url => {
+    if (url.endsWith('/me')) return jsonResponse(sessionInfo())
+    throw new Error('Selection must not fetch a directory or call a domain endpoint')
+  })
+  const adapter = createApiPortalAdapter({ baseUrl: 'https://api.example', fetchImpl })
+  const original = structuredClone(trainer)
+  expect(await adapter.invoke({ service: 'trainerService', operation: 'isSelectableForAvailability', input: { trainer } })).toBe(trainer.status !== 'inactive')
+  expect(trainer).toEqual(original)
+  expect(fetchImpl.mock.calls.every(([url]) => url.endsWith('/me'))).toBe(true)
 })

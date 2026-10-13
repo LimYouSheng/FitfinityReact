@@ -229,7 +229,8 @@ def test_unchecked_hurdle_completion_and_couple_person_ids_stay_independent(api,
 
 
 def test_inactive_clients_retain_owner_history_and_reject_writes(api, domain_db, graph, person_id):
-    saved = create(api, person_id).json()
+    key = uuid4()
+    saved = create(api, person_id, key=key).json()
     with domain_db.transaction() as session:
         event = LifecycleEvent(
             client_id=graph["client_id"],
@@ -255,6 +256,10 @@ def test_inactive_clients_retain_owner_history_and_reject_writes(api, domain_db,
         client.status, client.lifecycle_event_id = "inactive", event.id
         purchase.status, purchase.lifecycle_event_id = "inactive", effect.id
     assert api.get(f"/api/assessments/{saved['assessment_id']}").status_code == 200
+    assert api.get(f"/api/assessment-saves/{key}").json() == saved
+    assert api.get(f"/api/clients/{graph['client_id']}/assessment-records").json()["people"][0][
+        "records"
+    ] == [saved]
     assert create(api, person_id, body(formId="hurdle_step", answers={})).status_code == 409
 
 

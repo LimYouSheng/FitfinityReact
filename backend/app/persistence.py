@@ -60,6 +60,23 @@ def add_client(session: Session, client: Client, people: Sequence[ClientPerson])
     require_transaction(session)
     if len(people) != (2 if client.kind == "couple" else 1):
         raise ValueError("Review every person's details")
+    # Existing profiles may clear optional contact fields, but onboarding still
+    # requires the complete identity/contact record required by the prototype.
+    if any(
+        not p.name
+        or not p.name.strip()
+        or not p.email
+        or not p.email.strip()
+        or p.birthday is None
+        or not p.gender
+        or not p.emergency_name
+        or not p.emergency_name.strip()
+        or not p.phone_number.strip()
+        or not p.emergency_number.strip()
+        or not p.emergency_relationship
+        for p in people
+    ):
+        raise ValueError("Complete each client's identity and emergency contact before onboarding")
     session.add(client)
     session.flush()
     for position, person in enumerate(people, 1):
@@ -86,6 +103,22 @@ def require_valid_session_schedule(
         or starts_at >= ends_at
     ):
         raise ValueError("Choose a valid date, start time and end time")
+
+
+def occupied_booking_clause():
+    """Completion retains its interval; inactive open purchases release theirs.
+
+    Callers join TrainingSession, PackagePurchase and Client. Preview and commit must
+    use the same occupancy rule, including completed sessions of inactive clients.
+    """
+    return or_(
+        TrainingSession.status == "completed",
+        and_(
+            Client.status == "active",
+            PackagePurchase.status == "active",
+            TrainingSession.status.in_(("scheduled", "planned")),
+        ),
+    )
 
 
 def add_purchase(
@@ -137,16 +170,7 @@ def add_purchase(
                 | (TrainingSession.client_id == client.id)
             ),
         )
-        .where(
-            or_(
-                TrainingSession.status == "completed",
-                and_(
-                    Client.status == "active",
-                    PackagePurchase.status == "active",
-                    TrainingSession.status.in_(("scheduled", "planned")),
-                ),
-            ),
-        )
+        .where(occupied_booking_clause())
         .limit(1)
     )
     if conflict is not None:

@@ -1,5 +1,14 @@
+import { contentApiFixture } from './content-api-fixture.js'
+import { assessmentApiFixture } from './assessment-api-fixture.js'
+import { trainerReactivationApiFixture } from './trainer-reactivation-api-fixture.js'
+import { clientCreationApiFixture } from './client-creation-api-fixture.js'
+import { trainerRateApiFixture } from './trainer-rate-api-fixture.js'
+import { emailApiFixture } from './email-api-fixture.js'
+import { trainerDetailApiFixture } from './trainer-detail-api-fixture.js'
+import { clientNoteApiFixture } from './client-note-api-fixture.js'
 import { packageApiFixture } from './package-api-fixture.js'
 import { trainerApprovalApiFixture } from './trainer-approval-api-fixture.js'
+import { clientDetailApiFixture } from './client-detail-api-fixture.js'
 import { emptyDirectory } from '../src/test/directory.js'
 // Controlled HTTP boundary for browser transport/UI coverage; not live Cognito acceptance.
 import { createServer } from 'node:http'
@@ -58,8 +67,17 @@ export const test = base.extend({
               if (!response.destroyed) error('SESSION_EXPIRED')
               return
             }
+            if (contentApiFixture({ state, path, request, json, error })) return
+            if (assessmentApiFixture({ state, path, request, json, error })) return
+            if (clientCreationApiFixture({ state, path, request, json, error })) return
             if (packageApiFixture({ state, path, request, json, error })) return
+            if (trainerRateApiFixture({ state, path, request, json, error })) return
+            if (emailApiFixture({ state, path, request, json, error })) return
+            if (trainerReactivationApiFixture({ state, path, request, json, error })) return
+            if (trainerDetailApiFixture({ state, path, request, json, error })) return
             if (trainerApprovalApiFixture({ state, path, request, json, error })) return
+            if (clientNoteApiFixture({ state, path, request, json, error })) return
+            if (clientDetailApiFixture({ state, path, request, json, error })) return
             if (path === '/api/directory') { if (state.accessExpired) error('TOKEN_EXPIRED'); else json(state.directory); return }
             if (path === '/auth/session') { json({ csrfToken: state.csrfToken, expiresAt: sessionInfo().expiresAt }); return }
             if (path === '/me') { if (state.accessExpired) error('TOKEN_EXPIRED'); else json(currentSession()); return }
@@ -87,8 +105,17 @@ export const test = base.extend({
             json(currentSession()); return
           }
           if (!state.signedIn || request.headers['x-csrf-token'] !== state.csrfToken || !request.headers.cookie?.includes('staff-session=browser-test')) { error('CSRF_REJECTED', 403); return }
+          if (contentApiFixture({ state, path, request, body, json, error })) return
           if (packageApiFixture({ state, path, request, body, json, error })) return
+          if (trainerRateApiFixture({ state, path, request, body, json, error })) return
+          if (assessmentApiFixture({ state, path, request, body, json, error })) return
+          if (clientCreationApiFixture({ state, path, request, body, json, error })) return
+          if (emailApiFixture({ state, path, request, body, json, error })) return
+          if (trainerReactivationApiFixture({ state, path, request, body, json, error })) return
+          if (trainerDetailApiFixture({ state, path, request, body, json, error })) return
           if (trainerApprovalApiFixture({ state, path, request, body, json, error })) return
+          if (clientNoteApiFixture({ state, path, request, body, json, error })) return
+          if (clientDetailApiFixture({ state, path, request, body, json, error })) return
           if (path === '/api/staff/admins') {
             if (state.user.role !== 'owner') { error('forbidden', 403); return }
             const key = request.headers['idempotency-key']

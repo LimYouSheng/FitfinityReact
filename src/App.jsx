@@ -1,3 +1,5 @@
+import ApiContentWorkspace from './features/content/ApiContentWorkspace.jsx'
+import ClientCreationRecovery from './features/clients/ClientCreationRecovery.jsx'
 import CreateAdminDialog, { AdminCreationRecovery } from './features/staff/CreateAdminDialog.jsx'
 import { managesOperations, canViewRemuneration } from './app/permissions.js'
 import ContentManagementPage from './features/content/ContentManagementPage.jsx'
@@ -41,9 +43,9 @@ export default function App({ services }) {
 }
 
 function PortalRoot() {
-  const { snapshot, loading, refresh, services, adminCreation } = usePortalData()
+  const { snapshot, loading, refresh, services, adminCreation, clientCreation } = usePortalData()
   if (loading) return <main className="account-entry"><p role="status">Loading staff portal…</p></main>
-  const workspaceUserId = snapshot?.user?.id ?? adminCreation?.ownerId
+  const workspaceUserId = snapshot?.user?.id ?? adminCreation?.ownerId ?? clientCreation?.ownerId
   if (workspaceUserId) return <PortalWorkspace key={workspaceUserId} userId={workspaceUserId} />
   if (!snapshot) return <PortalUnavailable />
   const realAuth = snapshot.capabilities?.realAuthentication
@@ -54,20 +56,23 @@ function PortalRoot() {
   return null
 }
 
-function PortalUnavailable() {
-  const { error, refresh, adminCreation } = usePortalData()
-  return <main className="account-entry"><h1>Unable to load the portal</h1><p role="alert">{error}</p>{adminCreation && <AdminCreationRecovery creation={adminCreation} />}<button className="primary-button" onClick={() => void refresh().catch(() => {})}>Retry</button></main>
+function PortalUnavailable({ recovery = 'admin' }) {
+  const { error, refresh, adminCreation, clientCreation } = usePortalData()
+  return <main className="account-entry"><h1>Unable to load the portal</h1><p role="alert">{error}</p>{recovery === 'client' && clientCreation ? <ClientCreationRecovery creation={clientCreation} /> : adminCreation && <AdminCreationRecovery creation={adminCreation} />}<button className="primary-button" onClick={() => void refresh().catch(() => {})}>Retry</button></main>
 }
 
 function PortalWorkspace({ userId }) {
-  const { snapshot, error, refresh, adminCreation } = usePortalData()
+  const { snapshot, error, refresh, adminCreation, clientCreation } = usePortalData()
   // One history owner survives directory outages without retaining private data.
   const navigation = useAppNavigation(userId)
   const creatingAdmin = navigation.path === 'owner-profile/create-admin'
   useEffect(() => {
     if (!creatingAdmin) adminCreation?.reset()
   }, [creatingAdmin, adminCreation])
-  if (!snapshot) return <PortalUnavailable />
+  useEffect(() => {
+    if (navigation.path !== 'clients/new' && !clientCreation?.getSnapshot().form?.submitted) clientCreation?.reset()
+  }, [navigation.path, clientCreation])
+  if (!snapshot) return <PortalUnavailable recovery={navigation.path === 'clients/new' ? 'client' : 'admin'} />
   return <>{error && <div className="portal-load-error" role="alert">{error} <button onClick={() => void refresh().catch(() => {})}>Retry loading</button></div>}<StaffPortal navigation={navigation} /></>
 }
 
@@ -75,14 +80,15 @@ function StaffPortal({ navigation }) {
   useZoomLock()
   const { guardNavigation } = useEditGuard()
   const { runAction, notify, clear } = useNotifications()
-  const { snapshot, refresh: refreshData, services, today, adminCreation } = usePortalData()
+  const { snapshot, refresh: refreshData, services, today, adminCreation, clientCreation } = usePortalData()
   // A committed save stays successful even if its follow-up refresh fails.
   // The provider keeps a retry banner; do not invite duplicate writes.
   const reload = () => refreshData().catch(() => null)
   const { user, data: db, policy } = snapshot
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
+  const clientCreationEnabled = !directoryOnly || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
   const packageReadOnly = directoryOnly && snapshot.capabilities?.packageWrites !== true
-  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(managesOperations(user) ? ['trainers', 'packages', ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
+  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
   const { clientService, trainerService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
@@ -218,7 +224,7 @@ function StaffPortal({ navigation }) {
 
   let page
 
-  if (directoryOnly && (!enabledRoutes.includes(route) || creatingClient || creatingTrainer || (route === 'packages' && detailId === 'new' && packageReadOnly) || (route === 'clients' && parts[2]))) {
+  if (directoryOnly && (!enabledRoutes.includes(route) || (creatingClient && !clientCreationEnabled) || creatingTrainer || (route === 'packages' && detailId === 'new' && packageReadOnly) || (route === 'clients' && parts[2]))) {
     page = <UnavailablePage message="This workflow is not available yet." />
   } else if (creatingClient && managesOperations(user)) {
     page = (
@@ -230,12 +236,16 @@ function StaffPortal({ navigation }) {
         packages={activePackages(db)}
         trainers={trainers}
         onCancel={() => goBack('clients')}
+        recovery={directoryOnly ? clientCreation : undefined}
+        previewMatches={directoryOnly ? services.previewClientMatches : undefined}
         onCreate={async draft => {
           const created = await runAction(() => clientService.create({ draft }), { message: 'Client created.' })
-          await reload()
           return created
         }}
-        onCreated={id => navigate(`clients/${id}`, { replace: true })}
+        onCreated={async id => {
+          navigate(`clients/${id}`, { replace: true })
+          try { await refreshData() } catch { notify({ tone: 'warning', message: 'Client created. Retry loading to view it.' }) }
+        }}
       />
     )
   } else if (route === 'clients' && selectedClient) {
@@ -253,7 +263,7 @@ function StaffPortal({ navigation }) {
         clients={clients}
         trainers={trainers}
         onOpen={openClient}
-        onAdd={directoryOnly ? undefined : openAddClient}
+        onAdd={clientCreationEnabled ? openAddClient : undefined}
       />
     )
   } else if (creatingTrainer && managesOperations(user)) {
@@ -351,9 +361,9 @@ function StaffPortal({ navigation }) {
   } else if (route === 'owner-profile') {
     page = <UnavailablePage message="This profile is available to the owner." />
   } else if (route === 'content' && managesOperations(user)) {
-    page = <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
+    page = directoryOnly ? <ApiContentWorkspace key={`${user.id}/${snapshot.sessionGeneration}`} services={services} generation={snapshot.sessionGeneration} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} /> : <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
   } else if (route === 'account' || (directoryOnly && route === 'dashboard')) {
-    page = <StaffAccountPage user={user} profile={route === 'account'} readOnly={directoryOnly} packageWrites={!packageReadOnly} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
+    page = <StaffAccountPage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} user={user} profile={route === 'account'} readOnly={directoryOnly} packageWrites={!packageReadOnly} emailVerification={snapshot.capabilities?.trainerEmailWrites && user.role === 'trainer' ? { auth: services.auth, onCompleted: reload } : undefined} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
   } else if (route === 'dashboard') {
     page = <DashboardPage
       renewals={<MessageInbox {...messageInboxProps} embedded category="renewals" onViewAll={() => navigate('messages/renewals')} />}

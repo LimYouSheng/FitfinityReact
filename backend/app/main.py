@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.api.email_changes import router as email_router
 from app.api.openapi import configure_openapi
 from app.api.routes import router as staff_router
 from app.api.schemas import ERROR_RESPONSES, Live, Ready
@@ -68,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(auth_router)
         app.include_router(staff_router)
         app.include_router(access_router)
+        app.include_router(email_router)
         app.add_middleware(AuthRequestMiddleware, settings=settings)
         app.add_middleware(
             CORSMiddleware,

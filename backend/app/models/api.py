@@ -56,3 +56,97 @@ class TrainerApprovalReceipt(ActorEvidence, Record, Base):
     trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"))
     previous: Mapped[dict] = mapped_column(JSONB)
     result: Mapped[dict] = mapped_column(JSONB)
+
+
+class ClientDetailReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "client_detail_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    client_id: Mapped[UUID] = mapped_column(ForeignKey("clients.id"))
+    result: Mapped[dict] = mapped_column(JSONB)
+
+
+class ClientNoteReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "client_note_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    client_id: Mapped[UUID] = mapped_column(ForeignKey("clients.id"))
+    result: Mapped[dict] = mapped_column(JSONB)
+
+
+class ClientNoteAccess(ActorEvidence, Record, Base):
+    __tablename__ = "client_note_access"
+    __table_args__ = (choices("action", "view", "save", "replay"),)
+    client_id: Mapped[UUID] = mapped_column(ForeignKey("clients.id"), index=True)
+    action: Mapped[str] = mapped_column(String(16))
+
+
+class TrainerRateReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "trainer_rate_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"))
+    previous: Mapped[dict] = mapped_column(JSONB)
+    rates: Mapped[dict] = mapped_column(JSONB)
+    result: Mapped[dict] = mapped_column(JSONB)
+
+
+class TrainerDetailReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "trainer_detail_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"))
+    result: Mapped[dict] = mapped_column(JSONB)
+
+
+class ClientCreateReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "client_create_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    client_id: Mapped[UUID] = mapped_column(ForeignKey("clients.id"))
+    result: Mapped[dict] = mapped_column(JSONB)
+
+
+class TrainerReactivationReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "trainer_reactivation_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"))
+    result: Mapped[dict] = mapped_column(JSONB)
+
+
+class ContentSaveReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "content_save_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    content_id: Mapped[UUID] = mapped_column(ForeignKey("content_entries.id"))
+    previous: Mapped[dict | None] = mapped_column(JSONB)
+    result: Mapped[dict] = mapped_column(JSONB)

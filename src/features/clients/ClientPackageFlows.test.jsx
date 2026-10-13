@@ -144,7 +144,26 @@ it('uses creation controls and validation for trainer profile details and decima
   fireEvent.change(screen.getByLabelText('Peak rate'), { target: { value: '80.25' } })
   fireEvent.click(rates.getByRole('button', { name: 'Save', exact: true }))
   fireEvent.click(within(await screen.findByRole('dialog', { name: 'Save trainer rates?' })).getByRole('button', { name: 'Save Rates' }))
-  await waitFor(() => expect(onUpdate).toHaveBeenCalledWith({ rates: { peak: 80.25, offPeak: seed.trainers[0].rates.offPeak } }))
+  await waitFor(() => expect(onUpdate).toHaveBeenCalledWith({ rates: { peak: 80.25, offPeak: seed.trainers[0].rates.offPeak } }, seed.trainers[0].version))
+})
+
+it('captures the API trainer profile version and closes before refresh while protecting login email', async () => {
+  const onUpdate = vi.fn().mockResolvedValue()
+  const onGeneralSaved = vi.fn(() => expect(screen.queryByLabelText('Trainer name')).not.toBeInTheDocument())
+  const props = { viewer: owner, trainers: seed.trainers, clients: seed.clients, sessions: seed.sessions,
+    policy: seed.settings, readOnly: true, generalReadOnly: false, onUpdate, onGeneralSaved }
+  const { rerender } = render(<TrainerProfilePage {...props} trainer={{ ...seed.trainers[0], version: 7 }} />, { wrapper: Wrapper })
+  const general = within(screen.getByRole('heading', { name: 'General Information' }).closest('.panel'))
+  fireEvent.click(general.getByRole('button', { name: 'Edit', exact: true }))
+  expect(screen.getByLabelText('Trainer email')).toHaveAttribute('readonly')
+  fireEvent.change(screen.getByLabelText('Trainer name'), { target: { value: 'Reviewed name' } })
+  fireEvent.change(screen.getByLabelText('Trainer phone number'), { target: { value: '' } })
+  rerender(<TrainerProfilePage {...props} trainer={{ ...seed.trainers[0], version: 8 }} />)
+  fireEvent.click(general.getByRole('button', { name: 'Save', exact: true }))
+  fireEvent.click(within(await screen.findByRole('dialog', { name: 'Save trainer information?' })).getByRole('button', { name: 'Save Changes' }))
+  await waitFor(() => expect(onGeneralSaved).toHaveBeenCalledTimes(1))
+  expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ name: 'Reviewed name', phone: { countryCode: '+65', number: '' } }), 7)
+  expect(onUpdate.mock.calls[0][0]).not.toHaveProperty('email')
 })
 
 it('exports and shares only the selected package through the same PDF renderer while preserving compact charts', async () => {

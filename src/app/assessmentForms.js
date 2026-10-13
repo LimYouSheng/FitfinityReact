@@ -628,7 +628,7 @@ const hasValue = value => value !== undefined && value !== null && String(value)
 const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value
 
-export function assessmentErrors(id, draft) {
+export function assessmentErrors(id, draft, { completed = true } = {}) {
   const definition = assessmentForm(id)
   if (!definition || !draft || typeof draft !== 'object') return { form: 'Choose a supported assessment form.' }
   const errors = {}
@@ -639,7 +639,7 @@ export function assessmentErrors(id, draft) {
   if (!answers || typeof answers !== 'object' || Array.isArray(answers)) return { ...errors, answers: 'Record at least one answer or observation.' }
   if (Object.keys(answers).some(key => !fields.some(field => field.id === key))) errors.answers = 'This form contains an unsupported field.'
   // This paper checklist has no free-answer slots; an explicitly saved unchecked checklist is valid.
-  if (id !== 'hurdle_step' && !fields.some(field => field.id !== 'side' && hasValue(answers[field.id]))) errors.answers = 'Record at least one answer or observation.'
+  if (completed && id !== 'hurdle_step' && !fields.some(field => field.id !== 'side' && hasValue(answers[field.id]))) errors.answers = 'Record at least one answer or observation.'
   for (const field of fields) {
     const value = answers[field.id]
     if (!hasValue(value)) continue
@@ -653,13 +653,13 @@ export function assessmentErrors(id, draft) {
   return errors
 }
 
-export function saveAssessment(id, draft, savedAt = new Date().toISOString()) {
-  const errors = assessmentErrors(id, draft)
+export function saveAssessment(id, draft, savedAt = new Date().toISOString(), { completed = true } = {}) {
+  const errors = assessmentErrors(id, draft, { completed })
   if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
   const definition = assessmentForm(id)
   const answers = Object.fromEntries(assessmentFields(definition).filter(field => hasValue(draft.answers[field.id])).map(field =>
     [field.id, field.type === 'number' ? Number(draft.answers[field.id]) : String(draft.answers[field.id]).trim()]))
-  return { formId: id, version: definition.version, status: 'filled', date: draft.date, assessor: draft.assessor.trim(), savedAt, answers }
+  return { formId: id, version: definition.version, status: completed ? 'filled' : 'draft', date: draft.date, assessor: draft.assessor.trim(), savedAt, answers }
 }
 
 export function normaliseAssessments(records = {}) {

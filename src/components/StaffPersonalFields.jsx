@@ -4,13 +4,13 @@ import Field from './OnboardingField.jsx'
 import { COUNTRY_CODES, GENDERS } from '../app/contact.js'
 
 /** Shared personal information controls; role-specific fields belong to their owning form. */
-export default function StaffPersonalFields({ draft, errors = {}, onChange: update, label = 'Staff', requireComplete = true }) {
+export default function StaffPersonalFields({ draft, errors = {}, onChange: update, label = 'Staff', requireComplete = true, emailReadOnly = false }) {
   return <>
     <Field label={`${label} name`} required error={errors.name}>
       <input aria-label={`${label} name`} autoComplete="name" maxLength={200} value={draft.name} onChange={event => update({ name: event.target.value })} />
     </Field>
     <Field label="Email" required error={errors.email}>
-      <input aria-label={`${label} email`} type="email" autoComplete="email" maxLength={320} value={draft.email} onChange={event => update({ email: event.target.value })} />
+      <input aria-label={`${label} email`} type="email" autoComplete="email" maxLength={320} value={draft.email} readOnly={emailReadOnly} onChange={event => update({ email: event.target.value })} />
     </Field>
     <Field label="Phone" required={requireComplete} group error={errors.phoneCountryCode || errors.phoneNumber}>
       <div className="onboarding-phone-grid">

@@ -1,4 +1,5 @@
 import { COUNTRY_CODES, GENDERS, validPhoneNumber } from './contact.js'
+import { createCreationState } from './creationState.js'
 
 export const createAdminDraft = () => ({ name: '', email: '', phone: { countryCode: '+65', number: '' }, birthday: '', gender: '' })
 
@@ -6,21 +7,7 @@ export const createAdminDraft = () => ({ name: '', email: '', phone: { countryCo
 // retiring the session or deliberately leaving the workflow invalidates late writes.
 export function createAdminCreationState(ownerId) {
   const empty = () => ({ draft: createAdminDraft(), errors: {}, saving: false, submitted: false, created: null, requestKey: null })
-  let state = empty(), version = 0, retired = false
-  const listeners = new Set()
-  const publish = () => listeners.forEach(listener => listener())
-  return {
-    ownerId,
-    getSnapshot: () => state,
-    subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener) },
-    version: () => version,
-    update(patch, expectedVersion = version) {
-      if (retired || expectedVersion !== version) return false
-      state = { ...state, ...patch }; publish(); return true
-    },
-    reset() { version++; state = empty(); publish() },
-    retire() { retired = true; version++; state = empty(); publish() },
-  }
+  return createCreationState(ownerId, empty)
 }
 
 export function adminErrors(draft, today) {

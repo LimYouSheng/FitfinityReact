@@ -1,3 +1,11 @@
+### Trainer login-email change decision — 13 October 2026
+
+YS selected: “Verify the new address with a code before switching login/recovery email.” The old address remains active until the new address is verified. Local staff/trainer email, Cognito verified recovery destination and the durable change state must agree; an unverified local-only overwrite or separate contact-email substitute does not meet this decision. Real provider sending remains separately authorized operational acceptance.
+
+### General health-note access decision — 13 October 2026
+
+YS explicitly authorizes the current assigned Trainer to read and edit general health/limitation notes. This does **not** grant Trainer access to the initial 11 assessment forms, their answers, drafts or history; those remain Owner/Admin only. Historical/cover assignment alone grants no general health-note access. Keep the two permissions separate in server projections and commands; never expose assessment data through general notes.
+
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Rules, Architecture and Design Philosophy
 
