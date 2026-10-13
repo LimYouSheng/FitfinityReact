@@ -5,7 +5,7 @@ import { managesOperations, canViewTrainerRates, canEditTrainerRates } from '../
 import TrainerGeneralFields from './TrainerGeneralFields.jsx'
 import TrainerEmailEditor from './TrainerEmailEditor.jsx'
 import { trainerProfileDraft, trainerStepErrors } from '../../app/trainerOnboarding.js'
-import { phoneText } from '../../app/contact.js'
+import { phoneDraft, phoneText } from '../../app/contact.js'
 import usePageState from '../../hooks/usePageState.js'
 import TrainerAvailabilityEditor from './TrainerAvailabilityEditor.jsx'
 import { useEffect, useRef, useState } from 'react'
@@ -24,6 +24,8 @@ export default function TrainerProfilePage({
   readOnly = false,
   autonomyReadOnly = readOnly,
   ratesReadOnly = readOnly,
+  generalReadOnly = readOnly,
+  onGeneralSaved,
   emailVerification,
   onRatesSaved,
   onAutonomySaved,
@@ -50,6 +52,9 @@ export default function TrainerProfilePage({
   const [generalDraft, setGeneralDraft] = useState(() => trainerProfileDraft(trainer, policy))
   const [generalErrors, setGeneralErrors] = useState({})
   const generalFields = useRef(null)
+  const generalVersion = useRef(null)
+  const [generalBusy, setGeneralBusy] = useState(false)
+  const [generalSaved, setGeneralSaved] = useState(false)
   const [ratesDraft, setRatesDraft] = useState(trainer.rates)
   const [ratesErrors, setRatesErrors] = useState({})
   const rateVersion = useRef(null)
@@ -93,7 +98,13 @@ export default function TrainerProfilePage({
   }, [ratesSaved, activeEditor, onRatesSaved])
 
   const supervised = Object.values(trainer.approvalNeeded).filter(Boolean).length
+  useEffect(() => {
+    if (!generalSaved || activeEditor) return
+    setGeneralSaved(false)
+    onGeneralSaved?.()
+  }, [generalSaved, activeEditor, onGeneralSaved])
   const saveGeneral = async () => {
+    if (generalReadOnly || !isManager || generalBusy) return
     const errors = trainerStepErrors(generalDraft, 'general', { requireComplete: false })
     if (Object.keys(errors).length) { setGeneralErrors(errors); return }
     const confirmed = await confirmAction({
@@ -103,18 +114,21 @@ export default function TrainerProfilePage({
     })
     if (!confirmed) return
     try {
+      setGeneralBusy(true)
       await onUpdate({
         name: generalDraft.name,
-        phone: phoneText(generalDraft.phone),
-        email: generalDraft.email,
+        phone: readOnly ? generalDraft.phone : phoneText(generalDraft.phone),
+        ...(!readOnly ? { email: generalDraft.email } : {}),
         birthday: generalDraft.birthday,
         gender: generalDraft.gender,
         trainerType: generalDraft.trainerType,
         qualifications: generalDraft.qualifications,
         publicProfile: generalDraft.publicProfile,
-      })
+      }, ...(readOnly ? [generalVersion.current] : []))
       setActiveEditor(null)
+      setGeneralSaved(true)
     } catch (error) { setGeneralErrors({ save: error.message || 'Trainer information could not be saved.' }) }
+    finally { setGeneralBusy(false) }
   }
 
   useEffect(() => {
@@ -214,29 +228,29 @@ export default function TrainerProfilePage({
           <Panel className={['general', 'email'].includes(activeEditor) ? 'editing-section' : ''}>
             <div className="section-head">
               <div><h2>General Information</h2></div>
-              {!readOnly && isManager && (activeEditor !== 'general' ? (
-                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setGeneralErrors({}); setActiveEditor('general') }}>Edit</button>
+              {!generalReadOnly && isManager && (activeEditor !== 'general' ? (
+                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { generalVersion.current = trainer.version; setGeneralErrors({}); setActiveEditor('general') }}>Edit</button>
               ) : (
                 <div className="inline-actions">
-                  <button type="button" className="text-action muted-action" onClick={() => {
+                  <button type="button" className="text-action muted-action" disabled={generalBusy} onClick={() => {
                     setGeneralDraft(trainerProfileDraft(trainer, policy))
                     setActiveEditor(null)
                   }}>Cancel</button>
-                  <button type="button" className="text-action" onClick={saveGeneral}>Save</button>
+                  <button type="button" className="text-action" disabled={generalBusy} onClick={saveGeneral}>Save</button>
                 </div>
               ))}
             </div>
 
-            {activeEditor === 'general' ? <div ref={generalFields}>
-              <TrainerGeneralFields draft={generalDraft} errors={generalErrors} policy={policy} trainers={trainers}
+            {activeEditor === 'general' ? <fieldset ref={generalFields} className="onboarding-step-body" disabled={generalBusy}>
+              <TrainerGeneralFields draft={generalDraft} errors={generalErrors} policy={policy} trainers={trainers} emailReadOnly={readOnly}
                 onChange={patch => { setGeneralDraft(current => ({ ...current, ...patch })); setGeneralErrors({}) }} />
               {generalErrors.save && <p role="alert">{generalErrors.save}</p>}
-            </div> : <div className="info-list profile-info-grid">
+            </fieldset> : <div className="info-list profile-info-grid">
               {[
                 ['Trainer name', 'name'], ['Mobile Number', 'phone'], ['Email', 'email'], ['Birthday', 'birthday'],
                 ['Gender', 'gender'], ['Trainer type', 'trainerType'], ['Qualifications', 'qualifications'], ['Public profile', 'publicProfile'],
               ].map(([label, key]) => <div className="info-row" key={key}><span>{label}</span>
-                <strong>{key === 'birthday' ? formatDate(trainer[key]) : trainer[key]}</strong>
+                <strong>{key === 'birthday' ? formatDate(trainer[key]) : key === 'phone' ? phoneText(phoneDraft(trainer.phone, policy.defaultCountryCode)) : trainer[key]}</strong>
               </div>)}
             </div>}
 

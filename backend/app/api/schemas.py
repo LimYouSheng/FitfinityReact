@@ -273,7 +273,7 @@ class OperationalTrainer(TrainerSummary):
     email: str
     phone_country_code: str
     phone_number: str
-    birthday: date
+    birthday: date | None
     gender: str
     trainer_type: str
     qualifications: str
@@ -307,6 +307,14 @@ class PackagePolicy(Contract):
     days: Literal[90] = 90
 
 
+class TrainerProfilePolicy(Contract):
+    defaultCountryCode: Literal["+65"] = "+65"
+    trainerTypes: tuple[Literal["Strength & Conditioning"], Literal["Personal Trainer"]] = (
+        "Strength & Conditioning",
+        "Personal Trainer",
+    )
+
+
 class DirectorySnapshot(ServerClock):
     schemaVersion: Literal[1]
     viewerId: UUID
@@ -317,6 +325,8 @@ class DirectorySnapshot(ServerClock):
     trainerApprovalWrites: Literal[True] = True
     trainerRateWrites: Literal[True] = True
     trainerEmailWrites: Literal[True] = True
+    trainerPersonalWrites: Literal[True] = True
+    trainerProfilePolicy: TrainerProfilePolicy = Field(default_factory=TrainerProfilePolicy)
     clientPersonalWrites: Literal[True] = True
     clientNoteWrites: Literal[True] = True
 

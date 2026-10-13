@@ -12,10 +12,10 @@ const directoryDates = [
   ['purchase end', (raw, value) => { raw.clients[0].purchases[0].end_date = value }, result => result.data.clients[0].package.endDate],
 ]
 
-it.each(directoryDates)('rejects impossible or malformed %s with the directory response error', (_label, setDate) => {
+it.each(directoryDates)('rejects impossible or malformed %s with the directory response error', (_label, setDate, getDate) => {
   for (const value of ['2026-02-31', '2026-04-31', '2026-02-29', '1900-02-29', '2100-02-29', '2026-13-01', '2026-00-10', '2026-01-00', '2026-01-32', '2026-2-01', '2026-02-01T00:00:00Z', ' 2026-02-01', '', null, undefined, 20260201]) {
     const raw = directoryData(); setDate(raw, value)
-    if (_label === 'client birthday' && value === null) expect(directorySnapshot(raw, staff).data.clients[0].birthday).toBe('')
+    if (['client birthday', 'trainer birthday'].includes(_label) && value === null) expect(getDate(directorySnapshot(raw, staff))).toBe('')
     else expect(() => directorySnapshot(raw, staff)).toThrow(expect.objectContaining({ code: 'API_RESPONSE', message: 'The staff directory could not be verified. Please reload.' }))
   }
 })

@@ -5,11 +5,11 @@ import { useMemo } from 'react'
 import Field from '../../components/OnboardingField.jsx'
 
 /** One owner for trainer personal controls in creation and profile editing. */
-export default function TrainerGeneralFields({ draft, errors = {}, policy, trainers, onChange: update, requireComplete = false }) {
+export default function TrainerGeneralFields({ draft, errors = {}, policy, trainers, onChange: update, requireComplete = false, emailReadOnly = false }) {
   const types = useMemo(() => [...new Set([...policy.trainerTypes, ...trainers.map(trainer => trainer.trainerType).filter(Boolean)])].sort(), [policy.trainerTypes, trainers])
   return (
     <div className="onboarding-grid">
-      <StaffPersonalFields label="Trainer" draft={draft} errors={errors} onChange={update} requireComplete={requireComplete} />
+      <StaffPersonalFields label="Trainer" draft={draft} errors={errors} onChange={update} requireComplete={requireComplete} emailReadOnly={emailReadOnly} />
       <Field label="Trainer type" required error={errors.trainerType}>
         <SuggestionField aria-label="Trainer type" options={types} value={draft.trainerType} onChange={event => update({ trainerType: event.target.value })} />
       </Field>
@@ -21,6 +21,7 @@ export default function TrainerGeneralFields({ draft, errors = {}, policy, train
       <Field label="Qualifications" className="onboarding-span-2">
         <textarea aria-label="Trainer qualifications" value={draft.qualifications} onChange={event => update({ qualifications: event.target.value })} />
       </Field>
+      {emailReadOnly && <p className="helper onboarding-span-2">Use Change Login Email after closing this edit to verify a new address.</p>}
     </div>
   )
 }

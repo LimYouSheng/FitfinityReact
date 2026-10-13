@@ -11,12 +11,12 @@ export function verifyTestResults(kind, logPath) {
   if (kind === 'unit') {
     const files = [...text.matchAll(/Test Files\s+(\d+) passed\s*\((\d+)\)/g)].at(-1)
     const tests = [...text.matchAll(/\bTests\s+(\d+) passed\s*\((\d+)\)/g)].at(-1)
-    if (!files || !tests || files[1] !== '94' || files[2] !== '94' || tests[1] !== '1008' || tests[2] !== '1008') fail('Unit totals must be exactly 1008 passed / 1008 in 94 passed / 94 files.')
+    if (!files || !tests || files[1] !== '95' || files[2] !== '95' || tests[1] !== '1015' || tests[2] !== '1015') fail('Unit totals must be exactly 1015 passed / 1015 in 95 passed / 94 files.')
   } else {
     const passed = [...text.matchAll(/(?:^|\n)\s*(\d+) passed(?:\s|$)/g)].at(-1)
-    if (!passed || passed[1] !== '873' || /\bError:|\b(?:Timed out waiting|No tests found)\b/.test(text)) fail('Browser gate must finish with exactly 873 passed and no errors.')
+    if (!passed || passed[1] !== '876' || /\bError:|\b(?:Timed out waiting|No tests found)\b/.test(text)) fail('Browser gate must finish with exactly 876 passed and no errors.')
   }
-  console.log(`\u001b[32m${kind === 'unit' ? '1008/1008 unit tests in 94 files' : '873/873 browser cases'} confirmed.\u001b[0m`)
+  console.log(`\u001b[32m${kind === 'unit' ? '1015/1015 unit tests in 95 files' : '876/876 browser cases'} confirmed.\u001b[0m`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

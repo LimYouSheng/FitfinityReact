@@ -33,7 +33,7 @@ for table in Base.metadata.tables.values():
                 f"AND length(regexp_replace({number}, '[^0-9]', '', 'g')) >= 6 "
                 f"AND length(regexp_replace({code} || {number}, '[^0-9]', '', 'g')) <= 15"
             )
-            if table.name == "client_people":
+            if table.name in {"client_people", "trainers"}:
                 number_check = f"({number} = '' OR ({number_check}))"
             table.append_constraint(
                 CheckConstraint(

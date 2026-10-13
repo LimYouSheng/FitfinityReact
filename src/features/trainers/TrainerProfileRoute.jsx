@@ -15,6 +15,8 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
     <TrainerProfilePage
       key={trainer.id}
       readOnly={directoryOnly}
+      generalReadOnly={directoryOnly && !snapshot.capabilities?.trainerPersonalWrites}
+      onGeneralSaved={reload}
       ratesReadOnly={directoryOnly && !snapshot.capabilities?.trainerRateWrites}
       emailVerification={snapshot.capabilities?.trainerEmailWrites && ['owner', 'admin'].includes(user.role) ? { auth: services.auth, onRequest: (patch, expectedVersion) => trainerService.update({ id: trainer.id, patch, expectedVersion }) } : undefined}
       onRatesSaved={reload}
@@ -38,7 +40,6 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
       }}
       onUpdate={async (patch, expectedVersion) => {
         await runAction(() => trainerService.update({ id: trainer.id, patch, ...(directoryOnly ? { expectedVersion } : {}) }), { message: 'Trainer details saved.' })
-        if (!Object.hasOwn(patch, 'rates')) await reload()
       }}
       onDeactivate={ownerMode ? async replacements => {
         await runAction(() => trainerService.deactivate({ id: trainer.id, replacements }), { tone: 'warning', message: 'Trainer deactivated.' })

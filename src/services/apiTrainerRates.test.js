@@ -37,10 +37,11 @@ it('reconciles uncertain rate writes before replay and rejects another pending v
   expect(await adapter.invoke(request())).toEqual(result)
   expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1)
 })
-it('keeps other trainer fields unavailable and requires the reviewed version', async () => {
+it('keeps lifecycle and mixed rate/profile writes unavailable and requires the reviewed version', async () => {
   const fetch = vi.fn()
   const adapter = make(fetch)
-  await expect(adapter.invoke(request({ ...input, patch: { name: 'Changed' } }))).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
+  await expect(adapter.invoke(request({ ...input, patch: { status: 'inactive' } }))).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
+  await expect(adapter.invoke(request({ ...input, patch: { ...input.patch, name: 'Changed' } }))).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
   await expect(adapter.invoke(request({ ...input, expectedVersion: undefined }))).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
   expect(fetch).not.toHaveBeenCalled()
 })

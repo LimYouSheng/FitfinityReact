@@ -41,7 +41,7 @@ function trainer(row, user) {
   if (user.role === 'admin' && ['peak_rate_cents', 'off_peak_rate_cents', 'rates'].some(key => Object.hasOwn(row, key))) fail()
   const availability = Object.fromEntries(days.map(day => [day, []]))
   for (const block of list(row.availability).map(slot)) availability[block.day].push([block.from, block.to])
-  return { ...base(row), email: text(row.email), phone: `${text(row.phone_country_code)} ${text(row.phone_number)}`, birthday: date(row.birthday), gender: text(row.gender),
+  return { ...base(row), email: text(row.email), phone: `${text(row.phone_country_code)} ${text(row.phone_number)}`, birthday: row.birthday === null ? '' : date(row.birthday), gender: text(row.gender),
     trainerType: text(row.trainer_type), qualifications: text(row.qualifications), publicProfile: flag(row.public_profile) ? 'Visible' : 'Hidden', availability,
     ...(user.role === 'admin' ? {} : { rates: { peak: number(row.peak_rate_cents) / 100, offPeak: number(row.off_peak_rate_cents) / 100 } }),
     approvalNeeded: { availability: flag(row.approve_availability), sessionTime: flag(row.approve_session_time), trainerReassignment: flag(row.approve_session_trainer), fixedWeeklySchedule: flag(row.approve_weekly_schedule) } }
@@ -64,11 +64,19 @@ export function directorySnapshot(value, user) {
       if (p?.minimum !== 1 || p.maximum !== 365 || p.sessions !== 12 || p.days !== 90) fail()
       packagePolicy = { packageSessionCount: { minimum: p.minimum, maximum: p.maximum }, packageValidityRule: { sessions: p.sessions, days: p.days } }
     }
+    let trainerProfilePolicy
+    if (value.trainerProfilePolicy !== undefined) {
+      const p = value.trainerProfilePolicy
+      if (p?.defaultCountryCode !== '+65' || !Array.isArray(p.trainerTypes) || p.trainerTypes.length !== 2 || p.trainerTypes[0] !== 'Strength & Conditioning' || p.trainerTypes[1] !== 'Personal Trainer') fail()
+      trainerProfilePolicy = { defaultCountryCode: p.defaultCountryCode, trainerTypes: [...p.trainerTypes] }
+    }
+    if (value.trainerPersonalWrites !== undefined && typeof value.trainerPersonalWrites !== 'boolean') fail()
+    if (value.trainerPersonalWrites && !trainerProfilePolicy) fail()
     if (value.trainerEmailWrites !== undefined && typeof value.trainerEmailWrites !== 'boolean') fail()
     if (value.trainerRateWrites !== undefined && typeof value.trainerRateWrites !== 'boolean') fail()
     if (value.trainerApprovalWrites !== undefined && typeof value.trainerApprovalWrites !== 'boolean') fail()
     if (value.clientNoteWrites !== undefined && typeof value.clientNoteWrites !== 'boolean') fail()
     if (value.clientPersonalWrites !== undefined && typeof value.clientPersonalWrites !== 'boolean') fail()
-    return { trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
+    return { trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
   } catch (error) { if (error instanceof ApiError) throw error; fail() }
 }

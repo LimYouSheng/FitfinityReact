@@ -1,5 +1,6 @@
 import { trainerSelectableForAvailability } from '../app/status.js'
 import { emailCommands } from './apiEmailChanges.js'
+import { trainerDetailCommands } from './apiTrainerDetails.js'
 import { trainerRateCommands } from './apiTrainerRates.js'
 import { clientNoteCommands, withClientNotes } from './apiClientNotes.js'
 import { clientDetailCommands } from './apiClientDetails.js'
@@ -34,6 +35,7 @@ export function createApiPortalAdapter(options = {}) {
     return session
   }
   const saveTrainerRates = trainerRateCommands(http, actionSession)
+  const saveTrainerDetails = trainerDetailCommands(http, actionSession)
   const { request: requestEmailChange, ...emailMethods } = emailCommands(http, actionSession)
   const saveTrainerApprovals = trainerApprovalCommands(http, actionSession)
   const saveClientNotes = clientNoteCommands(http, actionSession)
@@ -83,7 +85,7 @@ export function createApiPortalAdapter(options = {}) {
           const { user, sessionGeneration } = await http.session()
           verifiedIdentity = { id: user.id, role: user.role, sessionGeneration }
           const directory = directorySnapshot(await http.get('/api/directory', { expectedGeneration: sessionGeneration }), user)
-          return { ...snapshot, ...directory, user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
+          return { ...snapshot, ...directory, user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy, ...directory.trainerProfilePolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, trainerPersonalWrites: directory.trainerPersonalWrites && ['owner', 'admin'].includes(user.role), trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
         }
         catch (error) {
           if (error.code === 'SESSION_EXPIRED') return snapshot
@@ -110,7 +112,8 @@ export function createApiPortalAdapter(options = {}) {
       }
       if (service === 'trainerService' && operation === 'update') {
         if (input.patch && Object.keys(input.patch).length === 1 && Object.hasOwn(input.patch, 'email')) return requestEmailChange(input, expectedGeneration)
-        return saveTrainerRates(input, expectedGeneration)
+        if (input.patch && Object.hasOwn(input.patch, 'rates')) return saveTrainerRates(input, expectedGeneration)
+        return saveTrainerDetails(input, expectedGeneration)
       }
       if (service === 'trainerService' && operation === 'updateAutonomy') return saveTrainerApprovals(input, expectedGeneration)
       if (service === 'clientService' && operation === 'update') {

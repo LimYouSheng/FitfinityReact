@@ -17,7 +17,7 @@ def image_fixture(source, pinned_contract):
     """
     contract = copy.deepcopy(pinned_contract)
     # Explicit candidate-only schema extension. Never update the deployed contract;
-    # its six-revision/table binding must reject this thirteen-revision image.
+    # its six-revision/table binding must reject this fourteen-revision image.
     assert contract["revisions"][-1] == "20260924_0006"
     revision = "20261013_0007"
     migration = "migrations/versions/20261013_0007_package_saves.py"
@@ -61,6 +61,13 @@ def image_fixture(source, pinned_contract):
         contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
     contract["revisions"].append("20261013_0013")
     contract["tables"]["staff_email_changes"] = ["SELECT", "INSERT", "UPDATE"]
+    for relative in (
+        "migrations/versions/20261013_0014_trainer_details.py",
+        "app/api/trainer_details.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["revisions"].append("20261013_0014")
+    contract["tables"]["trainer_detail_receipts"] = ["SELECT", "INSERT"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

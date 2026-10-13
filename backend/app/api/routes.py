@@ -15,6 +15,7 @@ from app.api import (
     directory,
     packages,
     trainer_approvals,
+    trainer_details,
     trainer_rates,
 )
 from app.api.dependencies import authorized_transaction
@@ -57,6 +58,30 @@ RequestKey = Annotated[
         description="New UUID per save; retain the key and identical body for retries.",
     ),
 ]
+
+
+@router.post(
+    "/trainers/{trainer_id}/personal-details",
+    response_model=trainer_rates.RateState,
+    operation_id="saveTrainerDetails",
+)
+def save_trainer_details(
+    trainer_id: UUID, body: trainer_details.SaveTrainerDetails, request: Request, key: RequestKey
+):
+    """Save reviewed profile fields without changing email, pay or account lifecycle."""
+    with authorized_transaction(request, exclusive_user=True) as (session, principal):
+        return trainer_details.save(session, principal, trainer_id, key, body)
+
+
+@router.get(
+    "/trainer-detail-saves/{request_key}",
+    response_model=trainer_rates.RateState,
+    operation_id="reconcileTrainerDetails",
+)
+def reconcile_trainer_details(request_key: UUID, request: Request):
+    """Read this actor's immutable profile-save receipt before retrying an uncertain save."""
+    with authorized_transaction(request) as (session, principal):
+        return trainer_details.reconcile(session, principal, request_key)
 
 
 def page(session, statement, model, limit, offset):

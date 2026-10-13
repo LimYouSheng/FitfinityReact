@@ -87,7 +87,7 @@ class Trainer(Versioned, Base):
     email: Mapped[str] = mapped_column(String(320), unique=True)
     phone_country_code: Mapped[str] = mapped_column(String(4))
     phone_number: Mapped[str] = mapped_column(String(32))
-    birthday: Mapped[date] = mapped_column(Date)
+    birthday: Mapped[date | None] = mapped_column(Date)
     gender: Mapped[str] = mapped_column(String(24))
     trainer_type: Mapped[str] = mapped_column(String(120))
     qualifications: Mapped[str] = mapped_column(Text, server_default="")

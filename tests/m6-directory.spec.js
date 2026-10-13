@@ -16,6 +16,48 @@ async function openDirectory(page, staffApi, legacy = false) {
   await verifyAuthenticator(page)
 }
 
+test('API trainer profile saves preserve verified email and cleared optional contacts across reload', async ({ page, staffApi }) => {
+  await openDirectory(page, staffApi)
+  staffApi.state.directory.trainerPersonalWrites = true
+  staffApi.state.directory.trainerProfilePolicy = { defaultCountryCode: '+65', trainerTypes: ['Strength & Conditioning', 'Personal Trainer'] }
+  await page.reload()
+  await page.getByRole('button', { name: 'View Trainers', exact: true }).click()
+  await page.getByRole('button', { name: 'View API Trainer', exact: true }).click()
+  const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'General Information', exact: true }) })
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await expect(page.getByLabel('Trainer email', { exact: true })).toHaveAttribute('readonly', '')
+  await page.getByLabel('Trainer name', { exact: true }).fill('Updated Trainer')
+  await page.getByLabel('Trainer phone number', { exact: true }).fill('')
+  await page.getByLabel('Trainer birthday', { exact: true }).click()
+  await page.getByRole('dialog', { name: 'Trainer birthday calendar', exact: true }).getByRole('button', { name: 'Clear', exact: true }).click()
+  const save = async () => {
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
+  }
+  staffApi.state.trainerDetailUnknown = true
+  await save()
+  await expect(panel.getByRole('alert')).toHaveText('Staff service unavailable. Please retry.')
+  await save()
+  await expect(page.getByRole('heading', { name: 'Updated Trainer', exact: true })).toBeVisible()
+  await expect(panel.locator('.info-row').filter({ hasText: 'Mobile Number' }).locator('strong')).toHaveText('')
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/personal-details'))).toHaveLength(1)
+  await page.reload()
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await expect(page.getByLabel('Trainer phone number', { exact: true })).toHaveValue('')
+  await expect(page.getByLabel('Trainer birthday', { exact: true })).toHaveValue('')
+  await expect(page.getByLabel('Trainer email', { exact: true })).toHaveValue('trainer@fixture.test')
+  await page.getByLabel('Trainer qualifications', { exact: true }).fill('Revised credentials')
+  staffApi.state.trainerDetailRefreshFailure = true
+  await save()
+  await expect(page.getByRole('heading', { name: 'Unable to load the portal' })).toBeVisible()
+  staffApi.state.unavailable = false
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByText('Revised credentials', { exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  expect(staffApi.state.directory.trainers[0].peak_rate_cents).toBe(8000)
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/personal-details'))).toHaveLength(2)
+})
+
 test('API trainer email stays pending until account-holder verification and reconciles a lost result', async ({ page, staffApi }) => {
   await openDirectory(page, staffApi)
   staffApi.state.directory.trainerEmailWrites = true

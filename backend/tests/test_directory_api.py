@@ -167,6 +167,8 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
         "trainerApprovalWrites",
         "trainerRateWrites",
         "trainerEmailWrites",
+        "trainerPersonalWrites",
+        "trainerProfilePolicy",
         "clientPersonalWrites",
         "clientNoteWrites",
     }
@@ -174,6 +176,11 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
     assert data["trainerApprovalWrites"] is True
     assert data["trainerRateWrites"] is True
     assert data["trainerEmailWrites"] is True
+    assert data["trainerPersonalWrites"] is True
+    assert data["trainerProfilePolicy"] == {
+        "defaultCountryCode": "+65",
+        "trainerTypes": ["Strength & Conditioning", "Personal Trainer"],
+    }
     assert data["clientPersonalWrites"] is True
     assert data["clientNoteWrites"] is True
     assert data["timeZone"] == "Asia/Singapore"

@@ -1,5 +1,6 @@
 import { trainerRateApiFixture } from './trainer-rate-api-fixture.js'
 import { emailApiFixture } from './email-api-fixture.js'
+import { trainerDetailApiFixture } from './trainer-detail-api-fixture.js'
 import { clientNoteApiFixture } from './client-note-api-fixture.js'
 import { packageApiFixture } from './package-api-fixture.js'
 import { trainerApprovalApiFixture } from './trainer-approval-api-fixture.js'
@@ -65,6 +66,7 @@ export const test = base.extend({
             if (packageApiFixture({ state, path, request, json, error })) return
             if (trainerRateApiFixture({ state, path, request, json, error })) return
             if (emailApiFixture({ state, path, request, json, error })) return
+            if (trainerDetailApiFixture({ state, path, request, json, error })) return
             if (trainerApprovalApiFixture({ state, path, request, json, error })) return
             if (clientNoteApiFixture({ state, path, request, json, error })) return
             if (clientDetailApiFixture({ state, path, request, json, error })) return
@@ -98,6 +100,7 @@ export const test = base.extend({
           if (packageApiFixture({ state, path, request, body, json, error })) return
           if (trainerRateApiFixture({ state, path, request, body, json, error })) return
           if (emailApiFixture({ state, path, request, body, json, error })) return
+          if (trainerDetailApiFixture({ state, path, request, body, json, error })) return
           if (trainerApprovalApiFixture({ state, path, request, body, json, error })) return
           if (clientNoteApiFixture({ state, path, request, body, json, error })) return
           if (clientDetailApiFixture({ state, path, request, body, json, error })) return
