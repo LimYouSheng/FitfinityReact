@@ -5,6 +5,7 @@ const STATES = {
   approved: { label: 'Approved', tone: 'green' },
   rejected: { label: 'Rejected', tone: 'red' },
   cancelled: { label: 'Cancelled', tone: 'neutral' },
+  superseded: { label: 'Superseded', tone: 'neutral' },
   reversed: { label: 'Undone', tone: 'neutral' },
 }
 

@@ -1,3 +1,4 @@
+import ClientDeactivationButton from './ClientDeactivationButton.jsx'
 import ClientAssessmentWorkspace from './ClientAssessmentWorkspace.jsx'
 import ClientAssessments from './ClientAssessments.jsx'
 import ClientGeneralInformation from './ClientGeneralInformation.jsx'
@@ -20,6 +21,7 @@ import { managesOperations, canEditClientCoachingNotes, canEditClientGeneral } f
 export default function ClientProfilePage({
   user,
   readOnly = false,
+  onReviewDeactivation,
   personalReadOnly = readOnly,
   notesReadOnly = readOnly,
   onNotesSaved,
@@ -118,6 +120,7 @@ export default function ClientProfilePage({
         })}
       >
 
+          {onReviewDeactivation && managesOperations(user) && client.status !== 'inactive' && <ClientDeactivationButton disabled={Boolean(activeEditor)} onReview={onReviewDeactivation} onDeactivate={onDeactivate} />}
           {!readOnly && managesOperations(user) && client.status !== 'inactive' && (
             <button
               type="button"

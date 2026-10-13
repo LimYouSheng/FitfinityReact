@@ -6,7 +6,7 @@ import { createAdminCreationState } from '../app/adminOnboarding.js'
 import { createCreationState } from '../app/creationState.js'
 
 const identityScope = (user, sessionGeneration) => user ? `${user.id}/${user.role}/${sessionGeneration ?? 'demo'}` : null
-const authorityLost = error => ['SESSION_EXPIRED', 'SESSION_RECHECK', 'forbidden'].includes(error.code) || [401, 403].includes(error.status)
+const authorityLost = error => ['SESSION_EXPIRED', 'SESSION_RECHECK', 'SESSION_CHANGED', 'forbidden'].includes(error.code) || [401, 403].includes(error.status)
 
 export function PortalDataProvider({ services = portalServices, children }) {
   const [state, setState] = useState({ snapshot: null, error: '', loading: true })

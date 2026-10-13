@@ -11,18 +11,29 @@ from sqlalchemy import select
 from app.api import (
     assessments,
     client_creation,
+    client_deactivation,
     client_details,
     client_matching,
     client_notes,
+    client_reactivation,
     content,
     directory,
+    messages,
     packages,
+    renewal_dismissal,
     trainer_approvals,
     trainer_details,
     trainer_rates,
     trainer_reactivation,
 )
 from app.api.dependencies import authorized_transaction
+from app.api.message_schemas import (
+    DismissRenewal,
+    MessageReadState,
+    PersonalMessage,
+    RenewalState,
+    SaveMessageRead,
+)
 from app.api.schemas import (
     ERROR_RESPONSES,
     AssessmentRevision,
@@ -585,3 +596,115 @@ def reconcile_content(request_key: UUID, request: Request):
     """Read only this actor's original saved content after an interrupted response."""
     with authorized_transaction(request) as (session, principal):
         return content.reconcile(session, principal, request_key)
+
+
+@router.get("/messages", response_model=list[PersonalMessage], operation_id="personalMessages")
+def personal_messages(request: Request):
+    """Read this recipient's messages and personal read state, with Admin financial exclusions."""
+    with authorized_transaction(request) as (session, principal):
+        return messages.records(session, principal)
+
+
+@router.post(
+    "/messages/{message_id}/read-state",
+    response_model=MessageReadState,
+    operation_id="saveMessageReadState",
+)
+def save_message_read_state(
+    message_id: UUID, body: SaveMessageRead, request: Request, key: RequestKey
+):
+    """Save only the authenticated recipient's reviewed read state with a durable receipt."""
+    with authorized_transaction(request) as (session, principal):
+        return messages.save(session, principal, message_id, key, body)
+
+
+@router.get(
+    "/message-read-saves/{request_key}",
+    response_model=MessageReadState,
+    operation_id="reconcileMessageReadState",
+)
+def reconcile_message_read_state(request_key: UUID, request: Request):
+    """Reconcile this actor's original read-state command without changing newer read state."""
+    with authorized_transaction(request) as (session, principal):
+        return messages.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/messages/{message_id}/dismiss-renewal",
+    response_model=RenewalState,
+    operation_id="dismissRenewal",
+)
+def dismiss_renewal(message_id: UUID, body: DismissRenewal, request: Request, key: RequestKey):
+    """Recheck current assignment and remove only this follow-up, retaining immutable evidence."""
+    with authorized_transaction(request) as (session, principal):
+        return renewal_dismissal.save(session, principal, message_id, key, body)
+
+
+@router.get(
+    "/renewal-dismissal-saves/{request_key}",
+    response_model=RenewalState,
+    operation_id="reconcileRenewalDismissal",
+)
+def reconcile_renewal_dismissal(request_key: UUID, request: Request):
+    """Read this actor's original dismissal result without changing the reminder."""
+    with authorized_transaction(request) as (session, principal):
+        return renewal_dismissal.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/deactivation",
+    response_model=client_deactivation.DeactivationReview,
+    operation_id="reviewClientDeactivation",
+)
+def review_client_deactivation(client_id: UUID, request: Request):
+    """Review the exact client and purchases before deactivation."""
+    with authorized_transaction(request) as (session, principal):
+        return client_deactivation.review(session, principal, client_id)
+
+
+@router.post(
+    "/clients/{client_id}/deactivation",
+    response_model=client_deactivation.DeactivationState,
+    operation_id="deactivateClient",
+)
+def deactivate_client(
+    client_id: UUID, body: client_deactivation.DeactivateClient, request: Request, key: RequestKey
+):
+    """Atomically freeze the reviewed active client and purchases without deleting history."""
+    with authorized_transaction(request) as (session, principal):
+        return client_deactivation.save(session, principal, client_id, key, body)
+
+
+@router.get(
+    "/client-deactivations/{request_key}",
+    response_model=client_deactivation.DeactivationState,
+    operation_id="reconcileClientDeactivation",
+)
+def reconcile_client_deactivation(request_key: UUID, request: Request):
+    """Read only this actor's original committed deactivation result."""
+    with authorized_transaction(request) as (session, principal):
+        return client_deactivation.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/reactivation-review",
+    response_model=client_reactivation.ClientReactivationReview,
+    operation_id="reviewClientReactivation",
+)
+def review_client_reactivation(client_id: UUID, request: Request):
+    """Review retained bookings; this endpoint never reactivates records."""
+    with authorized_transaction(request) as (session, principal):
+        return client_reactivation.review(session, principal, client_id)
+
+
+@router.post(
+    "/clients/{client_id}/reactivation-review",
+    response_model=client_reactivation.ClientReactivationReview,
+    operation_id="previewClientReactivationDates",
+)
+def preview_client_reactivation_dates(
+    client_id: UUID, body: client_reactivation.ReactivationDates, request: Request, key: RequestKey
+):
+    """Check proposed dates against current occupancy without saving changes."""
+    with authorized_transaction(request) as (session, principal):
+        return client_reactivation.review(session, principal, client_id, body)

@@ -24,7 +24,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     reassignTrainer: contract({ 'id': 'string', 'draft': 'object' }, 'operations', 'Client'),
     recordProgressReportAction: contract({ 'id': 'string', 'action': 'object' }, 'reportClient', 'ProgressReportEvent'),
     progressReportHistory: contract({ 'id': 'string', 'packageId?': 'string' }, 'operations', 'ProgressReportEvent[]'),
-    deactivate: contract({ 'id': 'string' }, 'operations', 'Client'),
+    deactivate: contract({ 'id': 'string', 'reviewed?': 'object' }, 'operations', 'Client | ClientDeactivationState', true),
     reactivate: contract({ 'id': 'string', 'dates?': 'object', 'expected?': 'object' }, 'operations', 'Client'),
   }),
   trainerService: Object.freeze({
@@ -65,10 +65,10 @@ export const PORTAL_CONTRACTS = Object.freeze({
     save: contract({ 'id?': 'string', 'expectedVersion?': 'number', 'draft': 'object', 'mediaFile?': 'blob', 'removeMedia?': 'boolean' }, 'operations', 'LibraryExercise'),
   }),
   messageService: Object.freeze({
-    dismissRenewal: contract({ 'id': 'string' }, 'message', 'PersonalMessage'),
+    dismissRenewal: contract({ 'id': 'string', 'expectedClientVersion?': 'number' }, 'message', 'PersonalMessage | RenewalState', true),
     undo: contract({ 'id': 'string' }, 'message', 'SessionUndoResult'),
-    markRead: contract({ 'id': 'string' }, 'message', 'PersonalMessage'),
-    markUnread: contract({ 'id': 'string' }, 'message', 'PersonalMessage'),
+    markRead: contract({ 'id': 'string', 'expectedVersion?': 'number' }, 'message', 'PersonalMessage | MessageReadState', true),
+    markUnread: contract({ 'id': 'string', 'expectedVersion?': 'number' }, 'message', 'PersonalMessage | MessageReadState', true),
   }),
   requestService: Object.freeze({
     resolve: contract({ 'id': 'string', 'decision': 'string' }, 'operations', 'Message'),

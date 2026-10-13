@@ -1,3 +1,5 @@
+import ClientDeactivationRecovery from './features/clients/ClientDeactivationRecovery.jsx'
+import MessageReadRecovery from './features/messages/MessageReadRecovery.jsx'
 import ApiContentWorkspace from './features/content/ApiContentWorkspace.jsx'
 import ClientCreationRecovery from './features/clients/ClientCreationRecovery.jsx'
 import CreateAdminDialog, { AdminCreationRecovery } from './features/staff/CreateAdminDialog.jsx'
@@ -88,7 +90,7 @@ function StaffPortal({ navigation }) {
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
   const clientCreationEnabled = !directoryOnly || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
   const packageReadOnly = directoryOnly && snapshot.capabilities?.packageWrites !== true
-  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
+  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
   const { clientService, trainerService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
@@ -194,12 +196,12 @@ function StaffPortal({ navigation }) {
       await reload()
     },
     onDismissRenewal: async id => {
-      const result = await runAction(() => messageService.dismissRenewal({ id }), { message: 'Renewal follow-up removed.' })
+      const result = await runAction(() => messageService.dismissRenewal({ id, ...(directoryOnly ? { expectedClientVersion: clients.find(client => client.id === messages.find(message => message.id === id)?.clientId)?.version } : {}) }), { message: 'Renewal follow-up removed.' })
       try { await reload() } catch { notify({ tone: 'warning', message: 'Removed. Refresh to update the renewal list.' }) }
       return result
     },
     onMarkRead: async id => {
-      await runAction(() => messageService.markRead({ id }), null)
+      await runAction(() => messageService.markRead({ id, ...(directoryOnly ? { expectedVersion: messages.find(message => message.id === id)?.version } : {}) }), null)
       await reload()
     },
     onUndo: async id => {
@@ -208,7 +210,7 @@ function StaffPortal({ navigation }) {
       return result
     },
     onMarkUnread: async id => {
-      await runAction(() => messageService.markUnread({ id }), { tone: 'info', message: 'Message marked as unread.' })
+      await runAction(() => messageService.markUnread({ id, ...(directoryOnly ? { expectedVersion: messages.find(message => message.id === id)?.version } : {}) }), { tone: 'info', message: 'Message marked as unread.' })
       await reload()
     },
     onOpenRelated: ({ type, id }) => {
@@ -248,6 +250,8 @@ function StaffPortal({ navigation }) {
         }}
       />
     )
+  } else if (route === 'clients' && directoryOnly && snapshot.clientDeactivationPending) {
+    page = <ClientDeactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientDeactivationPending} services={services} />
   } else if (route === 'clients' && selectedClient) {
     page = (
       <ClientProfileRoute key={selectedClient.id} selectedClient={selectedClient}
@@ -312,9 +316,10 @@ function StaffPortal({ navigation }) {
       />
     )
   } else if (route === 'messages') {
-    page = (
+    page = directoryOnly && snapshot.renewalDismissalPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/renewal`} pending={snapshot.renewalDismissalPending} services={services} renewal /> : directoryOnly && snapshot.messageReadPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.messageReadPending} services={services} /> : (
       <MessagesPage
         {...messageInboxProps}
+        {...(directoryOnly ? { onResolveRequest: undefined, onCancelRequest: undefined, onUndo: undefined, ...(!snapshot.capabilities.renewalDismissalWrites ? { onDismissRenewal: undefined } : {}) } : {})}
         category={MESSAGE_CATEGORIES.some(item => item.key === detailId && (item.key !== 'remuneration' || canViewRemuneration(user))) ? detailId : 'all'}
         onCategoryChange={category => navigate(category === 'all' ? 'messages' : `messages/${category}`, { preserveView: true })}
       />

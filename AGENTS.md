@@ -21,7 +21,7 @@
 - Choose one ready task serving the North Star; define completion evidence first.
 - Inspect → implement → run affected checks → diagnose → update progress → checkpoint.
 - Reuse findings/caches and read changed sections. Retry only with a new diagnosis or material fix.
-- Respect the task's repair/time budget; stop at acceptance, a concrete blocker, the budget or PR readiness. CI may remain pending beyond the active-work budget. No unattended relaunch without explicit finite limits.
+- Follow the active North Star authority. YS asks to continue until all 55 operations are complete; PR readiness is a checkpoint. Continue independent authorized source work while CI runs. Stop for a concrete blocker or an applicable authorization boundary; do not imply unattended background work.
 
 ## 4. Verify
 
@@ -34,8 +34,8 @@
 
 - Update affected docs/progress; review the diff and stage exact intended paths.
 - Commit/push only the existing task branch and update its PR when access permits. Require complete `verify / frontend` and `verify / backend` results for the final commit; older green commits and focused smoke tests are not final acceptance.
-- Keep the PR draft while milestone acceptance is blocked. Only the user authorizes merge; never enable auto-merge.
-- Stop at PR-ready. Provide the PR, evidence, preview or blocker, and next action. Never merge, push to `main`, deploy or alter protected infrastructure in the loop.
+- Keep the PR draft while its source acceptance is blocked. YS authorizes routine source merges once complete final-head frontend/backend CI and GitHub requirements pass. Merge the tested head without another confirmation; preserve branch protections and never enable unattended auto-merge.
+- Record the PR, exact validation and merge result, then continue the North Star. Never directly push to `main`, bypass protection, deploy or alter protected infrastructure under source-merge authority.
 
 ## 6. Boundaries
 

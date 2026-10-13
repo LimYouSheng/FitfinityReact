@@ -91,6 +91,30 @@ def image_fixture(source, pinned_contract):
         contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
     contract["revisions"].append("20261013_0017")
     contract["tables"]["content_save_receipts"] = ["SELECT", "INSERT"]
+    for relative in (
+        "migrations/versions/20261013_0018_message_reads.py",
+        "app/api/messages.py",
+        "app/api/message_schemas.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["revisions"].append("20261013_0018")
+    contract["tables"]["message_read_receipts"] = ["SELECT", "INSERT"]
+    for relative in (
+        "migrations/versions/20261013_0019_renewal_dismissal.py",
+        "app/api/renewal_dismissal.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["revisions"].append("20261013_0019")
+    contract["tables"]["renewal_dismissals"] = ["SELECT", "INSERT"]
+    contract["tables"]["renewal_dismissal_receipts"] = ["SELECT", "INSERT"]
+    for relative in (
+        "migrations/versions/20261013_0020_client_deactivation.py",
+        "app/api/client_deactivation.py",
+        "app/api/client_reactivation.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["revisions"].append("20261013_0020")
+    contract["tables"]["client_deactivation_receipts"] = ["SELECT", "INSERT"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}
