@@ -27,6 +27,12 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
+      packageReactivationWorkflow={directoryOnly && snapshot.capabilities?.packageReactivationWrites ? packageId => ({
+        review: () => runAction(() => services.previewPackageReactivation({ id: selectedClient.id, packageId, expectedVersion: selectedClient.version })),
+        preview: input => runAction(() => services.previewPackageReactivationDates({ ...input, packageId })),
+        save: input => runAction(() => clientService.reactivatePackage({ id: selectedClient.id, options: { packageId, reviewed: input.reviewed, dates: input.dates } }), { message: 'Package reactivated.' }),
+        saved: reload,
+      }) : undefined}
       renewalReadOnly={directoryOnly && !snapshot.capabilities?.clientRenewalWrites}
       renewalWorkflow={directoryOnly && snapshot.capabilities?.clientRenewalWrites ? { review: reviewRenewal, preview: previewRenewal, saved: reload } : undefined}
       reactivationWorkflow={directoryOnly && snapshot.capabilities?.clientReactivationWrites ? {

@@ -16,7 +16,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     create: contract({ 'draft': 'object' }, 'operations', 'Client', true),
     renewPackage: contract({ 'id': 'string', 'draft': 'object' }, 'operations', 'Client | ClientRenewalState', true),
     deactivatePackage: contract({ 'id': 'string', 'options': 'object' }, 'operations', 'Client'),
-    reactivatePackage: contract({ 'id': 'string', 'options': 'object' }, 'operations', 'Client'),
+    reactivatePackage: contract({ 'id': 'string', 'options': 'object' }, 'operations', 'Client | PackageReactivationState', true),
     deletePackageSessions: contract({ 'id': 'string', 'options': 'object' }, 'operations', 'Client'),
     update: contract({ 'id': 'string', 'patch': 'object', 'reviewed?': 'object' }, 'clientEdit', 'ClientEditState', true),
     saveAssessment: contract({ 'id': 'string', 'assessment': 'object' }, 'operations', 'AssessmentRecord', true),

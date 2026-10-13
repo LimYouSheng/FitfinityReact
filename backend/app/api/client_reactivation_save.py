@@ -83,23 +83,7 @@ def save(session, principal, identity, key, body):
         session.flush()
         purchase.status, purchase.lifecycle_event_id = "active", effect.id
         purchase.version += 1
-    for row in viewed.rows:
-        if row.date == row.originalDate:
-            continue
-        booking = session.get(TrainingSession, row.id)
-        session.add(
-            SessionEvent(
-                session_id=booking.id,
-                session_version=booking.version,
-                kind="client_reactivation_date",
-                old_date=booking.training_date,
-                new_date=row.date,
-                actor_id=principal.user_id,
-                actor_name=principal.name,
-            )
-        )
-        booking.training_date = row.date
-        booking.version += 1
+    apply_dates(session, principal, viewed.rows, "client_reactivation_date")
     session.flush()
     result = ClientReactivationState(id=client.id, version=client.version)
     session.add(
@@ -135,3 +119,24 @@ def notify(session, principal, client):
     session.flush()
     if user_id:
         session.add(MessageReceipt(message_id=notice.id, user_id=user_id))
+
+
+def apply_dates(session, principal, rows, kind):
+    """Apply only reviewed date changes, preserving all other booking terms."""
+    for row in rows:
+        if row.date == row.originalDate:
+            continue
+        booking = session.get(TrainingSession, row.id)
+        session.add(
+            SessionEvent(
+                session_id=booking.id,
+                session_version=booking.version,
+                kind=kind,
+                old_date=booking.training_date,
+                new_date=row.date,
+                actor_id=principal.user_id,
+                actor_name=principal.name,
+            )
+        )
+        booking.training_date = row.date
+        booking.version += 1

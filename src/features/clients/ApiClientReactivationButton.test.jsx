@@ -60,3 +60,21 @@ it('shows an open session with an inactive trainer without inventing an editable
   expect(within(dialog).getByRole('button', { name: 'Reactivate Client' }).disabled).toBe(true)
   expect(workflow.save).not.toHaveBeenCalled()
 })
+
+it('restores one package through the shared guarded confirmation without client lifecycle copy', async () => {
+  const packageReview = { ...reviewed, packageId: reviewed.purchaseIds[0] }
+  const workflow = workflowFor({ review: vi.fn().mockResolvedValue({ reviewed: packageReview, dates: {}, uncertain: false }) })
+  function PackageHarness() {
+    const { setActiveEdit } = useEditGuard()
+    return <ApiClientReactivationButton packageName="Purchased Twelve" workflow={workflow} onEditing={editing => setActiveEdit(editing ? 'Package reactivation' : null)} />
+  }
+  render(<ActionConfirmationProvider><EditGuardProvider><PackageHarness /></EditGuardProvider></ActionConfirmationProvider>)
+  fireEvent.click(screen.getByRole('button', { name: 'Reactivate Package', exact: true }))
+  const dialog = await screen.findByRole('dialog', { name: 'Reactivate Package?' })
+  expect(dialog).toHaveTextContent('Purchased Twelve will become active again.')
+  expect(dialog).not.toHaveTextContent('Packages disabled with this client')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Reactivate Package', exact: true }))
+  await waitFor(() => expect(workflow.saved).toHaveBeenCalledTimes(1))
+  expect(workflow.save).toHaveBeenCalledWith({ id: reviewed.id, reviewed: packageReview, dates: {} })
+  expect(screen.queryByRole('dialog')).toBeNull()
+})

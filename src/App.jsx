@@ -256,6 +256,8 @@ function StaffPortal({ navigation }) {
     )
   } else if (route === 'clients' && directoryOnly && snapshot.clientRenewalPending) {
     page = <ClientRenewalRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientRenewalPending} services={services} />
+  } else if (route === 'clients' && directoryOnly && snapshot.packageReactivationPending) {
+    page = <ClientReactivationRecovery packageMode key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.packageReactivationPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientReactivationPending) {
     page = <ClientReactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientReactivationPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientDeactivationPending) {

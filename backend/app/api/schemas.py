@@ -381,6 +381,7 @@ class DirectorySnapshot(ServerClock):
     clientNoteWrites: Literal[True] = True
     clientCreation: Literal[True] = True
     clientRenewalWrites: Literal[True] = True
+    packageReactivationWrites: Literal[True] = True
     personalMessages: Literal[True] = True
     clientDeactivationWrites: Literal[True] = True
     clientReactivationWrites: Literal[True] = True

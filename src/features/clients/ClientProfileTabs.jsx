@@ -11,13 +11,16 @@ import { useState } from 'react'
 import PackageProgress from './PackageProgress.jsx'
 import RenewPackageDialog from './RenewPackageDialog.jsx'
 import ClientReactivationDialog from './ClientReactivationDialog.jsx'
+import ApiClientReactivationButton from './ApiClientReactivationButton.jsx'
+import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import DateFilterField from '../../components/DateFilterField.jsx'
 import { businessClock } from '../../app/clock.js'
 import { deletablePackageSessions, pastClientPackages, packageForRecord } from '../../app/clientPackages.js'
 
-function PackageTab({ readOnly = false, renewalReadOnly = readOnly, renewalWorkflow, client, clients, user, trainers, sessions, packages, policy, today, onRenewPackage, onDeactivatePackage, onReactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
+function PackageTab({ readOnly = false, renewalReadOnly = readOnly, renewalWorkflow, packageReactivationWorkflow, client, clients, user, trainers, sessions, packages, policy, today, onRenewPackage, onDeactivatePackage, onReactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
+  const { activeEdit, setActiveEdit } = useEditGuard()
   const [deletePackage, setDeletePackage] = useState(null)
   const [renewOpen, setRenewOpen] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(null)
@@ -90,6 +93,7 @@ function PackageTab({ readOnly = false, renewalReadOnly = readOnly, renewalWorkf
                   </span>)}
                   {!readOnly && managesOperations(user) && <button type="button" className="text-action" disabled={!eligibleCount(item)} onClick={() => { setDeactivationError(''); setDeletePackage(item) }}>Delete Upcoming Sessions ({eligibleCount(item)})</button>}
                   {!readOnly && managesOperations(user) && client.status !== 'inactive' && <button type="button" className="secondary-button" onClick={() => setReactivateOpen(item.id)}>Reactivate Package</button>}
+                  {packageReactivationWorkflow && managesOperations(user) && client.status !== 'inactive' && <ApiClientReactivationButton key={item.id} packageName={item.name ?? `${item.total} Sessions`} disabled={Boolean(activeEdit)} workflow={packageReactivationWorkflow(item.id)} onEditing={editing => setActiveEdit(editing ? 'Package reactivation' : null)} />}
                 </>}
               </div>
               <span>{item.used} / {item.total} used</span>
@@ -165,14 +169,14 @@ function SessionsTab({ title, history = false, client, sessions, trainers, empty
   )
 }
 
-export default function ClientProfileTabs({ readOnly = false, renewalReadOnly = readOnly, renewalWorkflow, progressPackageId, onOpenProgressPackage, tab, user, client, clients, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory, packages, policy, onRenewPackage, onDeactivatePackage, onReactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
+export default function ClientProfileTabs({ readOnly = false, renewalReadOnly = readOnly, renewalWorkflow, packageReactivationWorkflow, progressPackageId, onOpenProgressPackage, tab, user, client, clients, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory, packages, policy, onRenewPackage, onDeactivatePackage, onReactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
   const clientSessions = sessions.filter(session => session.clientId === client.id && (managesOperations(user) || session.trainerId === user.trainerId))
   const history = clientSessions
     .filter(session => isSessionHistory(session, today))
     .sort((a, b) => `${b.date}T${b.from}`.localeCompare(`${a.date}T${a.from}`))
   const upcoming = sortSessions(clientSessions.filter(session => !isSessionHistory(session, today)), today)
 
-  if (tab === 'package') return <PackageTab clients={clients} readOnly={readOnly} renewalReadOnly={renewalReadOnly} renewalWorkflow={renewalWorkflow} client={client} today={today} user={user} trainers={trainers} sessions={sessions} packages={packages} policy={policy} onRenewPackage={onRenewPackage} onDeactivatePackage={onDeactivatePackage} onReactivatePackage={onReactivatePackage} onDeletePackageSessions={onDeletePackageSessions} packageCreditTransactions={packageCreditTransactions} />
+  if (tab === 'package') return <PackageTab clients={clients} readOnly={readOnly} renewalReadOnly={renewalReadOnly} renewalWorkflow={renewalWorkflow} packageReactivationWorkflow={packageReactivationWorkflow} client={client} today={today} user={user} trainers={trainers} sessions={sessions} packages={packages} policy={policy} onRenewPackage={onRenewPackage} onDeactivatePackage={onDeactivatePackage} onReactivatePackage={onReactivatePackage} onDeletePackageSessions={onDeletePackageSessions} packageCreditTransactions={packageCreditTransactions} />
   if (tab === 'history') return <SessionsTab title="Session History" history client={client} sessions={history} trainers={trainers} emptyCopy="No session history." onOpenSession={onOpenSession} />
   if (tab === 'upcoming') return <SessionsTab title="Upcoming Sessions" client={client} sessions={upcoming} trainers={trainers} emptyCopy="No upcoming sessions." onOpenSession={onOpenSession} />
   if (tab === 'progress') return <PackageProgress packageId={progressPackageId} onOpenPackage={onOpenProgressPackage} client={client} sessions={sessions} user={user} timeZone={timeZone} onRecordAction={onRecordProgressReport} onLoadHistory={onLoadProgressReportHistory} />
