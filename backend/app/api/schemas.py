@@ -162,9 +162,10 @@ class SessionSummary(Contract):
     client_id: UUID
     purchase_id: UUID
     trainer_id: UUID
-    training_date: date
-    starts_at: time
-    ends_at: time
+    schedule_state: Literal["booked", "open"]
+    training_date: date | None
+    starts_at: time | None
+    ends_at: time | None
     status: Literal["scheduled", "planned", "completed", "cancelled"]
 
 
@@ -380,6 +381,7 @@ class DirectorySnapshot(ServerClock):
     clientCreation: Literal[True] = True
     personalMessages: Literal[True] = True
     clientDeactivationWrites: Literal[True] = True
+    clientReactivationWrites: Literal[True] = True
     renewalDismissalWrites: Literal[True] = True
     contentWorkflows: Literal[True] = True
     clientAssessmentWorkflows: Literal[True] = True

@@ -3,6 +3,7 @@
 import hashlib
 import json
 from datetime import date
+from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, field_validator
@@ -39,10 +40,11 @@ class RetainedSession(Contract):
     purchaseId: UUID
     trainerId: UUID
     trainerName: str
-    originalDate: date
-    date: date
-    startsAt: str
-    endsAt: str
+    scheduleState: Literal["booked", "open"]
+    originalDate: date | None
+    date: date | None
+    startsAt: str | None
+    endsAt: str | None
     locked: bool
     error: str | None
 
@@ -57,9 +59,9 @@ class ClientReactivationReview(Contract):
     packageError: str | None
 
 
-def review(session, principal, identity, body=None):
+def review(session, principal, identity, body=None, *, write=False):
     principal.operations()
-    client, purchases = target(session, identity)
+    client, purchases = target(session, identity, write=write)
     if client.status != "inactive":
         raise conflict()
     bookings = bounded(
@@ -67,7 +69,7 @@ def review(session, principal, identity, body=None):
         select(TrainingSession)
         .where(TrainingSession.client_id == identity)
         .order_by(TrainingSession.id)
-        .with_for_update(read=True),
+        .with_for_update(read=not write),
     )
     trainers = {
         t.id: t
@@ -76,7 +78,7 @@ def review(session, principal, identity, body=None):
             select(Trainer)
             .where(Trainer.id.in_({b.trainer_id for b in bookings}))
             .order_by(Trainer.id)
-            .with_for_update(read=True),
+            .with_for_update(read=not write),
         )
     }
     events = {
@@ -125,6 +127,7 @@ def review(session, principal, identity, body=None):
                 str(b.purchase_id),
                 str(b.trainer_id),
                 b.status,
+                b.schedule_state,
                 str(b.training_date),
                 str(b.starts_at),
                 str(b.ends_at),
@@ -169,16 +172,23 @@ def review(session, principal, identity, body=None):
     )
     rows = []
     for booking in retained:
-        day = dates.get(booking.id, booking.training_date)
+        day = (
+            None
+            if booking.schedule_state == "open"
+            else dates.get(booking.id, booking.training_date)
+        )
         trainer = trainers[booking.trainer_id]
         locked = booking.id in acknowledged or booking.id in debited
         error = None
-        if trainer.status != "active":
+        if booking.schedule_state == "open" and booking.id in dates:
+            error = "Schedule an open session through Change ad-hoc date/time after reactivation."
+        elif trainer.status != "active":
             error = "Reactivate the assigned trainer before restoring this session."
         elif locked and day != booking.training_date:
             error = "Acknowledged sessions cannot be rescheduled."
-        elif any(
-            other.id != booking.id
+        elif booking.schedule_state == "booked" and any(
+            other.schedule_state == "booked"
+            and other.id != booking.id
             and (other.trainer_id == booking.trainer_id or other.client_id == identity)
             and dates.get(other.id, other.training_date) == day
             and other.starts_at < booking.ends_at
@@ -193,10 +203,11 @@ def review(session, principal, identity, body=None):
                 purchaseId=booking.purchase_id,
                 trainerId=booking.trainer_id,
                 trainerName=trainer.name,
+                scheduleState=booking.schedule_state,
                 originalDate=booking.training_date,
                 date=day,
-                startsAt=booking.starts_at.strftime("%H:%M"),
-                endsAt=booking.ends_at.strftime("%H:%M"),
+                startsAt=booking.starts_at.strftime("%H:%M") if booking.starts_at else None,
+                endsAt=booking.ends_at.strftime("%H:%M") if booking.ends_at else None,
                 locked=locked,
                 error=error,
             )

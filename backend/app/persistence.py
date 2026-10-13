@@ -111,12 +111,15 @@ def occupied_booking_clause():
     Callers join TrainingSession, PackagePurchase and Client. Preview and commit must
     use the same occupancy rule, including completed sessions of inactive clients.
     """
-    return or_(
-        TrainingSession.status == "completed",
-        and_(
-            Client.status == "active",
-            PackagePurchase.status == "active",
-            TrainingSession.status.in_(("scheduled", "planned")),
+    return and_(
+        TrainingSession.schedule_state == "booked",
+        or_(
+            TrainingSession.status == "completed",
+            and_(
+                Client.status == "active",
+                PackagePurchase.status == "active",
+                TrainingSession.status.in_(("scheduled", "planned")),
+            ),
         ),
     )
 
@@ -267,7 +270,11 @@ def acknowledge(
     ):
         raise PersistenceConflict("Active client, purchase and stored actor required")
     today = session.scalar(text("SELECT (clock_timestamp() AT TIME ZONE 'Asia/Singapore')::date"))
-    if booking.training_date > today or booking.status == "cancelled":
+    if (
+        booking.schedule_state == "open"
+        or booking.training_date > today
+        or booking.status == "cancelled"
+    ):
         raise PersistenceConflict("Session is not eligible for completion")
     signature = digest = None
     if method == "signature":

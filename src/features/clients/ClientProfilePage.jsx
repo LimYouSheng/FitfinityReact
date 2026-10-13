@@ -1,3 +1,4 @@
+import ApiClientReactivationButton from './ApiClientReactivationButton.jsx'
 import ClientDeactivationButton from './ClientDeactivationButton.jsx'
 import ClientAssessmentWorkspace from './ClientAssessmentWorkspace.jsx'
 import ClientAssessments from './ClientAssessments.jsx'
@@ -22,6 +23,7 @@ export default function ClientProfilePage({
   user,
   readOnly = false,
   onReviewDeactivation,
+  reactivationWorkflow,
   personalReadOnly = readOnly,
   notesReadOnly = readOnly,
   onNotesSaved,
@@ -120,6 +122,7 @@ export default function ClientProfilePage({
         })}
       >
 
+          {reactivationWorkflow && managesOperations(user) && client.status === 'inactive' && <ApiClientReactivationButton disabled={Boolean(activeEditor)} workflow={reactivationWorkflow} onEditing={editing => { setActiveEditor(editing ? 'reactivation' : null); setActiveEdit(editing ? 'Client reactivation' : null) }} />}
           {onReviewDeactivation && managesOperations(user) && client.status !== 'inactive' && <ClientDeactivationButton disabled={Boolean(activeEditor)} onReview={onReviewDeactivation} onDeactivate={onDeactivate} />}
           {!readOnly && managesOperations(user) && client.status !== 'inactive' && (
             <button
