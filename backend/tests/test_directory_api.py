@@ -171,6 +171,8 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
         "trainerReactivationWrites",
         "trainerProfilePolicy",
         "clientCreation",
+        "trainerCreation",
+        "trainerOnboardingPolicy",
         "clientRenewalWrites",
         "packageReactivationWrites",
         "clientAssessmentWorkflows",
@@ -187,6 +189,17 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
     }
     assert data["packagePolicy"] == {"minimum": 1, "maximum": 365, "sessions": 12, "days": 90}
     assert data["trainerApprovalWrites"] is True
+    assert data["trainerCreation"] is True
+    assert data["trainerOnboardingPolicy"] == {
+        "availability": {"from": "18:00", "to": "19:00"},
+        "approvalDefaults": {
+            "availability": True,
+            "sessionTime": True,
+            "trainerReassignment": True,
+            "fixedWeeklySchedule": True,
+        },
+        "trainerRates": {"peak": 80, "offPeak": 55},
+    }
     assert data["trainerRateWrites"] is True
     assert data["trainerEmailWrites"] is True
     assert data["trainerPersonalWrites"] is True

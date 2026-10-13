@@ -1,5 +1,6 @@
 import { canEditTrainerRates } from '../../app/permissions.js'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
+import useCreationForm from '../../hooks/useCreationForm.js'
 import Panel from '../../components/Panel.jsx'
 import OnboardingReview from '../../components/OnboardingReview.jsx'
 import { ONBOARDING_REVIEW_STEP, trainerReviewSections, firstIncompleteSection } from '../../app/onboardingReview.js'
@@ -13,25 +14,23 @@ import TrainerGeneralFields from './TrainerGeneralFields.jsx'
 import { DAYS, availabilityBlockError } from '../../app/availability.js'
 import { TRAINER_ONBOARDING_STEPS, createTrainerDraft, trainerStepErrors } from '../../app/trainerOnboarding.js'
 
-export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onCreate, onCreated }) {
+export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onCreate, onCreated, recovery, realAuthentication = false }) {
   const includeRates = canEditTrainerRates(viewer)
   const creationSteps = TRAINER_ONBOARDING_STEPS.filter(step => step.key !== 'rates' || includeRates)
   const formSteps = [...creationSteps, ONBOARDING_REVIEW_STEP]
   const confirmAction = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
-  const [initialDraft] = useState(() => createTrainerDraft(policy, { includeRates }))
-  const [draft, setDraft] = useState(initialDraft)
-  const [stepIndex, setStepIndex] = useState(0)
-  const [returningToReview, setReturningToReview] = useState(false)
-  const [selectedDays, setSelectedDays] = useState([])
-  const [from, setFrom] = useState(policy.availability.from)
-  const [to, setTo] = useState(policy.availability.to)
-  const [errors, setErrors] = useState({})
-  const [saving, setSaving] = useState(false)
-  const [created, setCreated] = useState(null)
+  const { form: creation, update: updateCreation, setter } = useCreationForm(recovery, () => {
+    const initialDraft = { ...createTrainerDraft(policy, { includeRates }), ...(realAuthentication ? { requestId: crypto.randomUUID() } : {}) }
+    return { initialDraft, draft: initialDraft, stepIndex: 0, returningToReview: false, selectedDays: [],
+      from: policy.availability.from, to: policy.availability.to, errors: {}, saving: false, created: null, submitted: null }
+  })
+  const { initialDraft, draft, stepIndex, returningToReview, selectedDays, from, to, errors, saving, created, submitted } = creation
+  const setDraft = setter('draft'), setStepIndex = setter('stepIndex'), setReturningToReview = setter('returningToReview')
+  const setSelectedDays = setter('selectedDays'), setFrom = setter('from'), setTo = setter('to'), setErrors = setter('errors')
   const submissionPending = useRef(false)
   const navigationCompleted = useRef(false)
-  const nextBlockId = useRef(1)
+  const nextBlockId = useRef(1 + draft.availabilityBlocks.reduce((max, block) => Math.max(max, Number(block.id?.match(/^trainer-block-(\d+)$/)?.[1] ?? 0)), 0))
   const formRef = useRef(null)
   const headingRef = useRef(null)
   const previousIndex = useRef(0)
@@ -49,7 +48,7 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
   useEffect(() => {
     if (!created || activeEdit || navigationCompleted.current) return
     navigationCompleted.current = true
-    onCreated(created.id)
+    onCreated(created.id, created)
   }, [activeEdit, created, onCreated])
 
   useEffect(() => {
@@ -79,9 +78,25 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
     update({ availabilityBlocks: [] })
   }
 
+  const save = async original => {
+    const version = recovery?.version()
+    if (!updateCreation({ saving: true, submitted: realAuthentication ? original : null, errors: {} }, version)) return
+    try {
+      const result = await onCreate(original)
+      updateCreation({ created: result, submitted: null, saving: false }, version)
+    } catch (error) {
+      updateCreation({ saving: false, ...(error.status >= 400 && error.status < 500 ? { submitted: null } : {}),
+        errors: { save: error instanceof Error ? error.message : 'Trainer creation failed. Please try again.' } }, version)
+    }
+  }
   const submit = async event => {
     event.preventDefault()
     if (submissionPending.current || saving || created) return
+    if (submitted) {
+      submissionPending.current = true
+      try { await save(submitted) } finally { submissionPending.current = false }
+      return
+    }
     const validation = trainerStepErrors(draft, step.key)
     if (step.key === 'availability' && selectedDays.length) {
       validation.availability = 'Select Add Time to include these days before continuing.'
@@ -99,14 +114,12 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
     try {
       const confirmed = await confirmAction({
         title: `Create ${draft.name.trim()}?`,
-        message: includeRates ? 'Create the trainer profile with these rates, approved availability and approval controls? This is a mock account; no login invitation is sent.' : 'Create the trainer profile with approved availability and approval controls? Owner-configured default rates will apply. This is a mock account; no login invitation is sent.',
+        message: realAuthentication ? 'Create this trainer account with the reviewed profile, approved availability and approval controls, and request a login invitation?' : includeRates ? 'Create the trainer profile with these rates, approved availability and approval controls? This is a mock account; no login invitation is sent.' : 'Create the trainer profile with approved availability and approval controls? Owner-configured default rates will apply. This is a mock account; no login invitation is sent.',
         confirmLabel: 'Create Trainer',
       })
       if (!confirmed) return
-      setSaving(true)
-      setCreated(await onCreate(draft))
+      await save(structuredClone(draft))
     } catch (error) {
-      setSaving(false)
       setErrors({ save: error instanceof Error ? error.message : 'Trainer creation failed. Please try again.' })
     } finally {
       submissionPending.current = false
@@ -115,7 +128,7 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
 
   const editReviewSection = key => {
     const index = creationSteps.findIndex(item => item.key === key)
-    if (index < 0 || saving || submissionPending.current) return
+    if (index < 0 || saving || submitted || submissionPending.current) return
     setReturningToReview(true)
     goTo(index)
   }
@@ -132,7 +145,7 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
             <h2 ref={headingRef} tabIndex={-1}>{step.title}</h2>
             <span className="onboarding-step-count" aria-label="Creation progress">Step {stepIndex + 1} of {formSteps.length}</span>
           </div>
-          <fieldset className="onboarding-step-body" disabled={saving}>
+          <fieldset className="onboarding-step-body" disabled={saving || Boolean(submitted)}>
             <legend className="visually-hidden">{step.title}</legend>
             {step.key === 'general' && (
               <TrainerGeneralFields requireComplete draft={draft} errors={errors} policy={policy} trainers={trainers} onChange={update} />
@@ -171,9 +184,9 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
           </fieldset>
           {Object.keys(errors).length > 0 && <p className="onboarding-error" role="alert">{Object.values(errors)[0]}</p>}
           <div className="onboarding-step-actions">
-            {!returningToReview && previous && <button type="button" className="onboarding-button" disabled={saving} onClick={() => goTo(stepIndex - 1)}>Back to {previous.title}</button>}
+            {!returningToReview && previous && <button type="button" className="onboarding-button" disabled={saving || Boolean(submitted)} onClick={() => goTo(stepIndex - 1)}>Back to {previous.title}</button>}
             <button type="submit" className="onboarding-button primary" disabled={saving}>
-              {saving ? 'Creating…' : reviewing ? 'Create Trainer' : returningToReview ? 'Return to Review & Confirm' : `Continue to ${next.title}`}
+              {saving ? 'Creating…' : submitted ? 'Check Trainer Creation' : reviewing ? 'Create Trainer' : returningToReview ? 'Return to Review & Confirm' : `Continue to ${next.title}`}
             </button>
           </div>
         </Panel>

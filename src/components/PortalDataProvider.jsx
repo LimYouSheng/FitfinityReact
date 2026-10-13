@@ -15,6 +15,7 @@ export function PortalDataProvider({ services = portalServices, children }) {
   const mounted = useRef(false)
   const adminRecovery = useRef(null)
   const clientRecovery = useRef(null)
+  const trainerRecovery = useRef(null)
   const sessionScope = useRef(null)
   const retireAdminCreation = useCallback(() => {
     adminRecovery.current?.retire()
@@ -24,7 +25,11 @@ export function PortalDataProvider({ services = portalServices, children }) {
     clientRecovery.current?.retire()
     clientRecovery.current = null
   }, [])
-  const retireWorkflows = useCallback(() => { retireAdminCreation(); retireClientCreation() }, [retireAdminCreation, retireClientCreation])
+  const retireTrainerCreation = useCallback(() => {
+    trainerRecovery.current?.retire()
+    trainerRecovery.current = null
+  }, [])
+  const retireWorkflows = useCallback(() => { retireAdminCreation(); retireClientCreation(); retireTrainerCreation() }, [retireAdminCreation, retireClientCreation, retireTrainerCreation])
   const invalidateRequests = useCallback(() => { ++generation.current }, [])
   const refresh = useCallback(async () => {
     const request = ++generation.current
@@ -40,8 +45,11 @@ export function PortalDataProvider({ services = portalServices, children }) {
         const clientOwner = ['owner', 'admin'].includes(snapshot.user?.role) && snapshot.capabilities?.clientCreation ? snapshot.user.id : null
         if (clientRecovery.current?.ownerId !== clientOwner) retireClientCreation()
         if (clientOwner && !clientRecovery.current) clientRecovery.current = createCreationState(clientOwner)
+        const trainerOwner = ['owner', 'admin'].includes(snapshot.user?.role) && snapshot.capabilities?.trainerCreation ? snapshot.user.id : null
+        if (trainerRecovery.current?.ownerId !== trainerOwner) retireTrainerCreation()
+        if (trainerOwner && !trainerRecovery.current) trainerRecovery.current = createCreationState(trainerOwner)
         if (!snapshot.user) window.dispatchEvent(new Event(PORTAL_SESSION_ENDED))
-        setState({ snapshot, adminCreation: adminRecovery.current, clientCreation: clientRecovery.current, error: '', loading: false })
+        setState({ snapshot, adminCreation: adminRecovery.current, clientCreation: clientRecovery.current, trainerCreation: trainerRecovery.current, error: '', loading: false })
       }
       return snapshot
     } catch (error) {
@@ -51,11 +59,11 @@ export function PortalDataProvider({ services = portalServices, children }) {
         sessionScope.current = nextScope
         if (authorityLost(error) || changedIdentity) retireWorkflows()
         if (error.code === 'SESSION_EXPIRED') window.dispatchEvent(new Event(PORTAL_SESSION_ENDED))
-        setState(current => ({ ...current, adminCreation: adminRecovery.current, clientCreation: clientRecovery.current, snapshot: error.code === 'SESSION_EXPIRED' && current.snapshot ? { ...current.snapshot, user: null, data: null } : current.snapshot?.capabilities?.realAuthentication ? null : current.snapshot, error: error.message || 'Unable to load the portal.', loading: false }))
+        setState(current => ({ ...current, adminCreation: adminRecovery.current, clientCreation: clientRecovery.current, trainerCreation: trainerRecovery.current, snapshot: error.code === 'SESSION_EXPIRED' && current.snapshot ? { ...current.snapshot, user: null, data: null } : current.snapshot?.capabilities?.realAuthentication ? null : current.snapshot, error: error.message || 'Unable to load the portal.', loading: false }))
       }
       throw error
     }
-  }, [services, retireAdminCreation, retireClientCreation, retireWorkflows])
+  }, [services, retireAdminCreation, retireClientCreation, retireTrainerCreation, retireWorkflows])
   useEffect(() => {
     mounted.current = true
     void refresh().catch(() => {})
@@ -79,10 +87,10 @@ export function PortalDataProvider({ services = portalServices, children }) {
       retireWorkflows()
       // Let the active navigation owner retire its route before private UI unmounts.
       window.dispatchEvent(new Event(PORTAL_SESSION_ENDED))
-      setState(current => ({ ...current, adminCreation: null, clientCreation: null, snapshot: current.snapshot ? { ...current.snapshot, user: null, data: null } : null, error: '', loading: false }))
+      setState(current => ({ ...current, adminCreation: null, clientCreation: null, trainerCreation: null, snapshot: current.snapshot ? { ...current.snapshot, user: null, data: null } : null, error: '', loading: false }))
     }
     const wrap = (operation, clearSession = false, creationType = null) => async (...args) => {
-      const recovery = () => creationType === 'client' ? clientRecovery.current : adminRecovery.current
+      const recovery = () => creationType === 'client' ? clientRecovery.current : creationType === 'trainer' ? trainerRecovery.current : adminRecovery.current
       const recoveryAtStart = recovery()
       const scopeAtStart = renderedScope
       const isCurrent = () => mounted.current && scopeAtStart === sessionScope.current
@@ -91,19 +99,19 @@ export function PortalDataProvider({ services = portalServices, children }) {
         if (error.code === 'SESSION_CHANGED' && isCurrent()) {
           retireWorkflows()
           invalidateRequests()
-          setState(current => ({ ...current, adminCreation: null, clientCreation: null, snapshot: null, error: error.message, loading: false }))
+          setState(current => ({ ...current, adminCreation: null, clientCreation: null, trainerCreation: null, snapshot: null, error: error.message, loading: false }))
           void refresh().catch(() => {})
         } else if (error.code === 'SESSION_EXPIRED' && isCurrent()) {
           signOutSnapshot()
         } else if (creationType && recoveryAtStart === recovery() && authorityLost(error) && isCurrent()) {
           retireWorkflows()
           invalidateRequests()
-          setState(current => ({ ...current, adminCreation: null, clientCreation: null, snapshot: null, error: error.message, loading: false }))
+          setState(current => ({ ...current, adminCreation: null, clientCreation: null, trainerCreation: null, snapshot: null, error: error.message, loading: false }))
         }
         throw error
       }
     }
-    return Object.fromEntries(Object.entries(scopedServices).filter(([key]) => key !== 'forSession').map(([key, value]) => [key, key === 'reportService' ? value : typeof value === 'function' ? wrap(value) : Object.fromEntries(Object.entries(value).map(([method, operation]) => [method, wrap(operation, key === 'auth' && method === 'signOut', key === 'staffService' && method === 'createAdmin' ? 'admin' : key === 'clientService' && method === 'create' ? 'client' : null)]))]))
+    return Object.fromEntries(Object.entries(scopedServices).filter(([key]) => key !== 'forSession').map(([key, value]) => [key, key === 'reportService' ? value : typeof value === 'function' ? wrap(value) : Object.fromEntries(Object.entries(value).map(([method, operation]) => [method, wrap(operation, key === 'auth' && method === 'signOut', key === 'staffService' && method === 'createAdmin' ? 'admin' : key === 'clientService' && method === 'create' ? 'client' : key === 'trainerService' && method === 'create' ? 'trainer' : null)]))]))
   }, [services, renderedScope, renderedGeneration, refresh, invalidateRequests, retireWorkflows])
   const today = state.snapshot?.businessDate ?? businessClock(clock, state.snapshot?.policy.timeZone).date
   return <PortalData.Provider value={{ ...state, services: guardedServices, refresh, today }}>{children}</PortalData.Provider>

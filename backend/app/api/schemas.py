@@ -354,6 +354,27 @@ class OnboardingAvailability(Contract):
     to: Literal["19:00"] = "19:00"
 
 
+class TrainerApprovalDefaults(Contract):
+    availability: Literal[True] = True
+    sessionTime: Literal[True] = True
+    trainerReassignment: Literal[True] = True
+    fixedWeeklySchedule: Literal[True] = True
+
+
+class TrainerDefaultRates(Contract):
+    peak: Literal[80] = 80
+    offPeak: Literal[55] = 55
+
+
+class TrainerOnboardingPolicy(Contract):
+    availability: OnboardingAvailability = Field(default_factory=OnboardingAvailability)
+    approvalDefaults: TrainerApprovalDefaults = Field(default_factory=TrainerApprovalDefaults)
+
+
+class OwnerTrainerOnboardingPolicy(TrainerOnboardingPolicy):
+    trainerRates: TrainerDefaultRates = Field(default_factory=TrainerDefaultRates)
+
+
 class ClientOnboardingPolicy(Contract):
     defaultCountryCode: Literal["+65"] = "+65"
     defaultRelationship: Literal["Spouse"] = "Spouse"
@@ -380,6 +401,8 @@ class DirectorySnapshot(ServerClock):
     clientPersonalWrites: Literal[True] = True
     clientNoteWrites: Literal[True] = True
     clientCreation: Literal[True] = True
+    trainerCreation: Literal[True] = True
+    trainerOnboardingPolicy: OwnerTrainerOnboardingPolicy | TrainerOnboardingPolicy
     clientRenewalWrites: Literal[True] = True
     packageReactivationWrites: Literal[True] = True
     personalMessages: Literal[True] = True

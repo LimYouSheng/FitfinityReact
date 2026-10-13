@@ -91,6 +91,15 @@ export function directorySnapshot(value, user) {
       if (p?.defaultCountryCode !== '+65' || !Array.isArray(p.trainerTypes) || p.trainerTypes.length !== 2 || p.trainerTypes[0] !== 'Strength & Conditioning' || p.trainerTypes[1] !== 'Personal Trainer') fail()
       trainerProfilePolicy = { defaultCountryCode: p.defaultCountryCode, trainerTypes: [...p.trainerTypes] }
     }
+    let trainerOnboardingPolicy
+    if (value.trainerOnboardingPolicy !== undefined) {
+      const p = value.trainerOnboardingPolicy
+      if (p?.availability?.from !== '18:00' || p.availability.to !== '19:00' || ['availability', 'sessionTime', 'trainerReassignment', 'fixedWeeklySchedule'].some(key => p.approvalDefaults?.[key] !== true)) fail()
+      if (user.role === 'owner' ? p.trainerRates?.peak !== 80 || p.trainerRates?.offPeak !== 55 : Object.hasOwn(p, 'trainerRates')) fail()
+      trainerOnboardingPolicy = structuredClone(p)
+    }
+    if (value.trainerCreation !== undefined && typeof value.trainerCreation !== 'boolean') fail()
+    if (value.trainerCreation && (!trainerOnboardingPolicy || !trainerProfilePolicy || value.personalMessages !== true)) fail()
     if (value.trainerReactivationWrites !== undefined && typeof value.trainerReactivationWrites !== 'boolean') fail()
     if (value.trainerPersonalWrites !== undefined && typeof value.trainerPersonalWrites !== 'boolean') fail()
     if (value.trainerPersonalWrites && !trainerProfilePolicy) fail()
@@ -99,6 +108,6 @@ export function directorySnapshot(value, user) {
     if (value.trainerApprovalWrites !== undefined && typeof value.trainerApprovalWrites !== 'boolean') fail()
     if (value.clientNoteWrites !== undefined && typeof value.clientNoteWrites !== 'boolean') fail()
     if (value.clientPersonalWrites !== undefined && typeof value.clientPersonalWrites !== 'boolean') fail()
-    return { packageReactivationWrites: value.packageReactivationWrites === true, clientRenewalWrites: value.clientRenewalWrites === true, trainerAvailabilityWrites: value.trainerAvailabilityWrites === true, requestCancellationWrites: value.requestCancellationWrites === true, clientReactivationWrites: value.clientReactivationWrites === true, clientDeactivationWrites: value.clientDeactivationWrites === true, renewalDismissalWrites: value.renewalDismissalWrites === true, personalMessages: value.personalMessages === true, contentWorkflows: value.contentWorkflows === true, clientAssessmentWorkflows: value.clientAssessmentWorkflows === true, trainerReactivationWrites: value.trainerReactivationWrites === true, clientOnboardingPolicy, clientCreation: value.clientCreation === true, trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
+    return { trainerCreation: value.trainerCreation === true, trainerOnboardingPolicy, packageReactivationWrites: value.packageReactivationWrites === true, clientRenewalWrites: value.clientRenewalWrites === true, trainerAvailabilityWrites: value.trainerAvailabilityWrites === true, requestCancellationWrites: value.requestCancellationWrites === true, clientReactivationWrites: value.clientReactivationWrites === true, clientDeactivationWrites: value.clientDeactivationWrites === true, renewalDismissalWrites: value.renewalDismissalWrites === true, personalMessages: value.personalMessages === true, contentWorkflows: value.contentWorkflows === true, clientAssessmentWorkflows: value.clientAssessmentWorkflows === true, trainerReactivationWrites: value.trainerReactivationWrites === true, clientOnboardingPolicy, clientCreation: value.clientCreation === true, trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
   } catch (error) { if (error instanceof ApiError) throw error; fail() }
 }

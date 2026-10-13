@@ -3,7 +3,7 @@ import { ApiError } from './apiClient.js'
 
 // One uncertain command per rendered login. Reconciliation is a read;
 // it never resubmits a command automatically after a transport failure.
-export function reconciledCommand(http, actionSession, { path, receiptPath, validate, bodyFor = input => input, label, roles = ['owner', 'admin'], keyFor = () => crypto.randomUUID() }) {
+export function reconciledCommand(http, actionSession, { path, receiptPath, validate, bodyFor = input => input, label, roles = ['owner', 'admin'], keyFor = () => crypto.randomUUID(), complete = () => true, definitiveRejection = error => error.status >= 400 && error.status < 500 }) {
   let pending = null
   const sessionFor = async expectedGeneration => {
     const { user, sessionGeneration } = await actionSession(expectedGeneration)
@@ -11,13 +11,16 @@ export function reconciledCommand(http, actionSession, { path, receiptPath, vali
     if (pending?.generation !== sessionGeneration) pending = null
     return sessionGeneration
   }
-  const accept = (attempt, value) => {
-    const saved = validate(value, attempt.body)
+  const accept = (attempt, saved) => {
+    if (!complete(saved)) throw new ApiError('SAVE_PENDING', `${label} is still being checked. Check the original request again.`)
     if (pending === attempt) pending = null
     return saved
   }
   const readReceipt = async (attempt, generation) => {
-    try { return { found: true, result: accept(attempt, await http.get(`${receiptPath}/${attempt.key}`, { expectedGeneration: generation })) } }
+    try {
+      const value = validate(await http.get(`${receiptPath}/${attempt.key}`, { expectedGeneration: generation }), attempt.body)
+      return complete(value) ? { found: true, result: accept(attempt, value) } : { found: false }
+    }
     catch (error) { if (error.code !== 'not_found') throw error; return { found: false } }
   }
   const command = async (input, expectedGeneration) => {
@@ -29,14 +32,14 @@ export function reconciledCommand(http, actionSession, { path, receiptPath, vali
     if (pending) {
       const receipt = await readReceipt(attempt, sessionGeneration)
       if (receipt.found) return receipt.result
-      // A serialized read proved no committed receipt. An explicit retry may now
-      // send the same immutable command/key; a late arrival remains idempotent.
+      // A serialized read found no final receipt. An explicit retry may resume
+      // the same immutable command/key; a late arrival remains idempotent.
     }
     pending = attempt
-    try { return accept(attempt, await http.post(path(attempt.body), bodyFor(attempt.body), { csrf: true, idempotencyKey: attempt.key, expectedGeneration: sessionGeneration })) }
+    try { return accept(attempt, validate(await http.post(path(attempt.body), bodyFor(attempt.body), { csrf: true, idempotencyKey: attempt.key, expectedGeneration: sessionGeneration }), attempt.body)) }
     catch (error) {
       // A definitive rejection cannot have committed. Unknown outcomes retain the command.
-      if (error.status >= 400 && error.status < 500 && pending === attempt) pending = null
+      if (definitiveRejection(error) && pending === attempt) pending = null
       throw error
     }
   }

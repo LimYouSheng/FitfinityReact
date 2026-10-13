@@ -6,7 +6,13 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 
-from app.api.schemas import DirectoryPackage, DirectorySnapshot, PackagePolicy
+from app.api.schemas import (
+    DirectoryPackage,
+    DirectorySnapshot,
+    OwnerTrainerOnboardingPolicy,
+    PackagePolicy,
+    TrainerOnboardingPolicy,
+)
 from app.auth.errors import AuthError
 from app.models.people import Client, ClientPerson, Trainer, TrainerAvailability
 from app.models.training import (
@@ -201,4 +207,9 @@ def snapshot(session, principal):
         trainers=projected_trainers,
         packages=packages,
         packagePolicy=PackagePolicy(),
+        trainerOnboardingPolicy=(
+            OwnerTrainerOnboardingPolicy()
+            if principal.role == "owner"
+            else TrainerOnboardingPolicy()
+        ),
     )

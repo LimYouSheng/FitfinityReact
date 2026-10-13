@@ -28,7 +28,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     reactivate: contract({ 'id': 'string', 'dates?': 'object', 'expected?': 'object', 'reviewed?': 'object' }, 'operations', 'Client | ClientReactivationState', true),
   }),
   trainerService: Object.freeze({
-    create: contract({ 'draft': 'object' }, 'trainerCreate', 'Trainer'),
+    create: contract({ 'draft': 'object' }, 'trainerCreate', 'Trainer | TrainerCreated', true),
     saveAvailability: contract({ 'id': 'string', 'blocks': 'array', 'expectedVersion?': 'number' }, 'assignedTrainer', 'ScheduleResult<Trainer> | AvailabilityState', true),
     getAll: contract({}, 'authenticated', 'Trainer[]', true),
     getActive: contract({}, 'authenticated', 'Trainer[]', true),
