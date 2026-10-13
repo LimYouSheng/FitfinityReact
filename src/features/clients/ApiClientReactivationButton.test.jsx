@@ -26,7 +26,7 @@ it('requires confirmation and blocks duplicate saves until successful close', as
   expect(workflow.save).toHaveBeenCalledTimes(1)
   finish()
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  expect(workflow.saved).toHaveBeenCalledTimes(1)
+  await waitFor(() => expect(workflow.saved).toHaveBeenCalledTimes(1))
 })
 it('retains an uncertain command and retries its exact reviewed values', async () => {
   const workflow = workflowFor({ save: vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({}) })
