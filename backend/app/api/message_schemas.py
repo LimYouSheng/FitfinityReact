@@ -29,6 +29,11 @@ class MessageRequestSlot(Contract):
     ends_at: time
 
 
+class RequestResolutionActor(Contract):
+    id: UUID
+    name: str
+
+
 class MessageRequest(Contract):
     id: UUID
     version: int
@@ -50,6 +55,7 @@ class MessageRequest(Contract):
     new_end: time | None
     resolved_at: datetime | None
     resolution_note: str
+    resolved_by: RequestResolutionActor | None = None
     slots: list[MessageRequestSlot]
 
 

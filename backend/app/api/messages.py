@@ -14,11 +14,18 @@ from app.api.message_schemas import (
     MessageRequest,
     MessageRequestSlot,
     PersonalMessage,
+    RequestResolutionActor,
 )
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import MessageReadReceipt, RenewalDismissal
-from app.models.communications import ChangeRequest, Message, MessageReceipt, RequestSlot
+from app.models.communications import (
+    ChangeRequest,
+    Message,
+    MessageReceipt,
+    RequestEvent,
+    RequestSlot,
+)
 from app.models.evidence import RemunerationApproval
 from app.models.people import StaffUser
 from app.models.training import PackagePurchase
@@ -78,12 +85,24 @@ def records(session, principal):
         28000,
     ):
         slots[row.request_id].append(MessageRequestSlot.model_validate(row))
+    resolutions = {
+        row.request_id: RequestResolutionActor(id=row.actor_id, name=row.actor_name)
+        for row in session.scalars(
+            select(RequestEvent).where(
+                RequestEvent.request_id.in_(request_ids), RequestEvent.sequence == 2
+            )
+        )
+    }
     requests = {}
     for row in session.scalars(select(ChangeRequest).where(ChangeRequest.id.in_(request_ids))):
         fields = {
-            name: getattr(row, name) for name in MessageRequest.model_fields if name != "slots"
+            name: getattr(row, name)
+            for name in MessageRequest.model_fields
+            if name not in {"slots", "resolved_by"}
         }
-        requests[row.id] = MessageRequest(**fields, slots=slots[row.id])
+        requests[row.id] = MessageRequest(
+            **fields, slots=slots[row.id], resolved_by=resolutions.get(row.id)
+        )
     cycles = dict(
         session.execute(
             select(RemunerationApproval.id, RemunerationApproval.cycle_key).where(

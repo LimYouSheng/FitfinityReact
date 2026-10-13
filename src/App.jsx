@@ -193,8 +193,9 @@ function StaffPortal({ navigation }) {
       await reload()
     },
     onCancelRequest: async id => {
-      await runAction(() => requestService.cancel({ id }), { message: 'Request cancelled.' })
-      await reload()
+      const result = await runAction(() => requestService.cancel({ id, ...(directoryOnly ? { expectedVersion: messages.find(message => message.requestId === id)?.requestVersion } : {}) }), { message: 'Request cancelled.' })
+      try { await reload() } catch { notify({ tone: 'warning', message: 'Cancelled. Refresh to update the request list.' }) }
+      return result
     },
     onDismissRenewal: async id => {
       const result = await runAction(() => messageService.dismissRenewal({ id, ...(directoryOnly ? { expectedClientVersion: clients.find(client => client.id === messages.find(message => message.id === id)?.clientId)?.version } : {}) }), { message: 'Renewal follow-up removed.' })
@@ -319,10 +320,10 @@ function StaffPortal({ navigation }) {
       />
     )
   } else if (route === 'messages') {
-    page = directoryOnly && snapshot.renewalDismissalPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/renewal`} pending={snapshot.renewalDismissalPending} services={services} renewal /> : directoryOnly && snapshot.messageReadPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.messageReadPending} services={services} /> : (
+    page = directoryOnly && snapshot.requestCancellationPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/cancellation`} pending={snapshot.requestCancellationPending} services={services} cancellation /> : directoryOnly && snapshot.renewalDismissalPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/renewal`} pending={snapshot.renewalDismissalPending} services={services} renewal /> : directoryOnly && snapshot.messageReadPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.messageReadPending} services={services} /> : (
       <MessagesPage
         {...messageInboxProps}
-        {...(directoryOnly ? { onResolveRequest: undefined, onCancelRequest: undefined, onUndo: undefined, ...(!snapshot.capabilities.renewalDismissalWrites ? { onDismissRenewal: undefined } : {}) } : {})}
+        {...(directoryOnly ? { onResolveRequest: undefined, ...(!snapshot.capabilities.requestCancellationWrites ? { onCancelRequest: undefined } : {}), onUndo: undefined, ...(!snapshot.capabilities.renewalDismissalWrites ? { onDismissRenewal: undefined } : {}) } : {})}
         category={MESSAGE_CATEGORIES.some(item => item.key === detailId && (item.key !== 'remuneration' || canViewRemuneration(user))) ? detailId : 'all'}
         onCategoryChange={category => navigate(category === 'all' ? 'messages' : `messages/${category}`, { preserveView: true })}
       />

@@ -72,7 +72,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
   }),
   requestService: Object.freeze({
     resolve: contract({ 'id': 'string', 'decision': 'string' }, 'operations', 'Message'),
-    cancel: contract({ 'id': 'string' }, 'authenticated', 'Message'),
+    cancel: contract({ 'id': 'string', 'expectedVersion?': 'number' }, 'authenticated', 'Message | CancellationState', true),
   }),
   remunerationService: Object.freeze({
     list: contract({}, 'remuneration', 'RemunerationCycle[]'),

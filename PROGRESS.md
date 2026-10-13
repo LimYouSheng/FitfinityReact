@@ -1,5 +1,14 @@
 # Fitfinity current progress
 
+## Request cancellation — active source, 13 October 2026
+
+- Branch `integration/request-cancellation-2026-10-13` started clean at PR #45 head `34da57f687f451871b5b7ce2a632276b8ca3841a`. #45 remains fixed on main, with backend green and frontend running in 38432613716; it aggregates #44. Merge automatically once both final-head jobs and GitHub requirements pass.
+- Trainer-owned pending cancellation now has a strict reviewed-version command, actor-scoped immutable receipts, atomic decision history and the existing Owner/requesting-Trainer in-app notices. Terminal/stale/foreign requests cannot be overwritten; concurrent/new-key retries return the original evidence without duplicate events or notices. Proposed changes and personal read states remain unchanged. Resolution projection uses the historical event actor, not a later renamed account.
+- Existing Messages UI confirms cancellation, offers explicit checking after an unknown response, retains uncommitted intent through focus reload and preserves a confirmed result when refresh fails. Candidate migration 0023 adds immutable receipt storage; expected schema is 150 triggers and 73 OpenAPI operations/64 paths. Previous OpenAPI paths are structurally unchanged.
+- Focused backend checks pass 31; corrected focused frontend checks pass 27. The initial frontend fixture wrongly included a package catalogue for a Trainer and was corrected. Full backend validation exposed the expected route inventory still set to 71/62; its assertion now tracks the two new routes. The full backend run finished 763 passed / one stale inventory assertion; all 27 corrected contract tests then passed. No runtime source changed after that run. All 633 infrastructure checks passed. Full frontend units passed 1144/1144 in 112 files; 39 affected desktop/phone/tablet browser cases passed on fresh root/Pages/API/PWA builds. Full browser inventory is 981/34 files. Lint, source health and all 45 quality checks pass. Logs: `/workspace/work/request-cancellation-*`. Complete final-head CI remains required; these combined local checks are not represented as a single green full backend run.
+- Keep source coverage at 19/55: cancellation supports the four existing durable proposal kinds, but postponed-session proposal storage/projection must follow before complete parity. Trainer update also remains partial; 34 other operations are backend-only/missing. No deployed/live/device acceptance is claimed.
+
+
 ## Messages and deactivation aggregate merged — 13 October 2026, 16:39 UTC
 
 - PR #43 merged after full CI run 38425974170 passed both complete jobs at exact head `f3acee1b99382d648d69d83955ffb55b0d8082db`. Verified main is `0cffe76a8396da2a138404f4fee32fcc7a75f04d`. GitHub also marks #40, #41 and #42 MERGED. No protection bypass or additional confirmation was used.

@@ -22,6 +22,7 @@ from app.api import (
     messages,
     packages,
     renewal_dismissal,
+    request_cancellation,
     trainer_approvals,
     trainer_details,
     trainer_rates,
@@ -733,3 +734,27 @@ def reconcile_client_reactivation(request_key: UUID, request: Request):
     """Reconcile only this actor's original successful command."""
     with authorized_transaction(request) as (session, principal):
         return client_reactivation_save.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/requests/{request_id}/cancel",
+    response_model=request_cancellation.CancellationState,
+    operation_id="cancelOwnedRequest",
+)
+def cancel_owned_request(
+    request_id: UUID, body: request_cancellation.CancelRequest, request: Request, key: RequestKey
+):
+    """Withdraw only this active Trainer's reviewed pending proposal."""
+    with authorized_transaction(request) as (session, principal):
+        return request_cancellation.save(session, principal, request_id, key, body)
+
+
+@router.get(
+    "/request-cancellations/{request_key}",
+    response_model=request_cancellation.CancellationState,
+    operation_id="reconcileRequestCancellation",
+)
+def reconcile_request_cancellation(request_key: UUID, request: Request):
+    """Return only this actor's original cancellation receipt."""
+    with authorized_transaction(request) as (session, principal):
+        return request_cancellation.reconcile(session, principal, request_key)

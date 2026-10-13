@@ -56,3 +56,14 @@ it('coalesces cancellation clicks, keeps service failures retryable and removes 
   view.rerender(<ActionConfirmationProvider><RequestReview message={{ ...message, status: 'cancelled' }} trainers={[]} sessions={[]} onCancel={cancel} /></ActionConfirmationProvider>)
   expect(screen.queryByRole('button', { name: 'Cancel Request' })).not.toBeInTheDocument()
 })
+
+it('API unknown cancellation offers explicit checking without another confirmation and retires a confirmed action', async () => {
+  const cancel = vi.fn().mockRejectedValueOnce(Object.assign(new Error('Response interrupted'), { code: 'NETWORK_ERROR' })).mockResolvedValue({ status: 'cancelled' })
+  render(<ActionConfirmationProvider><RequestReview message={{ ...message, requestVersion: 1 }} trainers={[]} sessions={[]} onCancel={cancel} /></ActionConfirmationProvider>)
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel Request' }))
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel Request' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Check Cancellation' }))
+  expect(cancel).toHaveBeenCalledTimes(2)
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Cancel Request' })).not.toBeInTheDocument()
+})
