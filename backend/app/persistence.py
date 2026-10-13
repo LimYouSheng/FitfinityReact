@@ -60,6 +60,23 @@ def add_client(session: Session, client: Client, people: Sequence[ClientPerson])
     require_transaction(session)
     if len(people) != (2 if client.kind == "couple" else 1):
         raise ValueError("Review every person's details")
+    # Existing profiles may clear optional contact fields, but onboarding still
+    # requires the complete identity/contact record required by the prototype.
+    if any(
+        not p.name
+        or not p.name.strip()
+        or not p.email
+        or not p.email.strip()
+        or p.birthday is None
+        or not p.gender
+        or not p.emergency_name
+        or not p.emergency_name.strip()
+        or not p.phone_number.strip()
+        or not p.emergency_number.strip()
+        or not p.emergency_relationship
+        for p in people
+    ):
+        raise ValueError("Complete each client's identity and emergency contact before onboarding")
     session.add(client)
     session.flush()
     for position, person in enumerate(people, 1):

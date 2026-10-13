@@ -124,7 +124,9 @@ def create_assessment(
     answers: object,
 ) -> ClientAssessmentRevision:
     require_transaction(session)
-    _active_person(session, person_id)
+    person = _active_person(session, person_id)
+    if person.birthday is None:
+        raise PersistenceConflict("Review the client date of birth before starting an assessment")
     if type(form_version) is not int or form_version < 1:
         raise ValueError("A positive form version is required")
     if session.get(AssessmentFormVersion, (form_id, form_version)) is None:

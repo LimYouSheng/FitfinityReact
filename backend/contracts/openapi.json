@@ -624,9 +624,16 @@
         "additionalProperties": false,
         "properties": {
           "birthday": {
-            "format": "date",
-            "title": "Birthday",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthday"
           },
           "email": {
             "title": "Email",
@@ -1065,7 +1072,6 @@
           },
           "name": {
             "maxLength": 200,
-            "minLength": 1,
             "title": "Name",
             "type": "string"
           },
@@ -1076,6 +1082,7 @@
           },
           "relationship": {
             "enum": [
+              "",
               "Spouse",
               "Parent",
               "Sibling",
@@ -1763,9 +1770,16 @@
         "additionalProperties": false,
         "properties": {
           "birthday": {
-            "format": "date",
-            "title": "Birthday",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthday"
           },
           "email": {
             "maxLength": 320,
@@ -1782,6 +1796,7 @@
           },
           "gender": {
             "enum": [
+              "",
               "Female",
               "Male",
               "Other",
@@ -1822,9 +1837,16 @@
         "additionalProperties": false,
         "properties": {
           "birthday": {
-            "format": "date",
-            "title": "Birthday",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthday"
           },
           "id": {
             "format": "uuid",

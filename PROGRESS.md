@@ -1,5 +1,15 @@
 # Fitfinity current progress
 
+## Optional client contacts and approved note boundary — 13 October 2026
+
+- Active source branch `integration/client-edit-parity-2026-10-13` depends on corrected PR #27 head `b712c44b48dbdaef94170d2c41b6ded32d391e37`, itself dependent on PR #26. Corrected unsupported-field validation order in PR #27 preserves the original no-HTTP forged-field rejection; new full CI run 38375110460 is pending. The older a79b937 run failed and is not acceptance evidence.
+- PR #26 exact head `eb058168c11509d650532b885362bef0b577da38` passed both complete required jobs in run 38370191934. PR #25 remains the latest verified merged source; no further merge/deploy approval exercised.
+- Optional profile contacts now retain empty email/gender/phone/emergency fields and nullable birthday, without fabricated dates. Forward migration 0010 preserves supplied-number validation and refuses downgrade if cleared values exist. Onboarding remains complete; new assessments require birthday, while existing assessment correction snapshots retain original identity.
+- Local verification: 974 frontend units / 88 files, 21 affected browser cases across desktop/phone/tablet, fresh root/Pages/API builds and PWA checks passed. Lint and source health pass. Complete retained-container backend gate passed: 498 PostgreSQL/backend cases, 633 infrastructure checks, Ruff/format and 34-operation exact OpenAPI. Final-head full CI remains pending; no 55-operation completion claim.
+- YS explicitly clarified: “the initial 11 form no. but the general health notes yes.” Current assigned Trainers may read/edit general health/limitation notes; initial assessment forms/answers/history remain Owner/Admin only. Canonical rules and North Star record this separate authorization. Next source work connects scoped general notes and standalone remarks; clientService.update remains partial until those flows pass.
+- Evidence: `/workspace/work/client-edit-parity/`. No new dependency/image installation, live data, AWS mutation, publication, scan, environment approval or exception renewal.
+
+
 ## Client personal-information edits — dependent slice, 13 October 2026
 
 - Active branch `integration/client-details-2026-10-13` starts at exact PR #26 head `eb058168c11509d650532b885362bef0b577da38`; accepted main remains PR #25 merge `e71b961`. The next draft PR must explicitly depend on PR #26, with final-head CI before acceptance. No parent merge is implied.

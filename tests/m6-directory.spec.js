@@ -149,6 +149,28 @@ test('API approval settings reconcile interrupted saves and survive refresh fail
   await expect(page.getByRole('heading', { name: 'Trainers', exact: true })).toBeVisible()
 })
 
+test('API client optional contacts stay cleared after saving and reloading', async ({ page, staffApi }) => {
+  await openDirectory(page, staffApi)
+  staffApi.state.directory.clientPersonalWrites = true
+  await page.reload()
+  await page.getByRole('button', { name: 'View Clients', exact: true }).click()
+  await page.getByRole('button', { name: 'View API Client', exact: true }).click()
+  const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'General Information' }) })
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Client email', { exact: true }).fill('')
+  await page.getByLabel('Client birthday', { exact: true }).click()
+  await page.getByRole('dialog', { name: 'Client birthday calendar', exact: true }).getByRole('button', { name: 'Clear', exact: true }).click()
+  await panel.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
+  await expect(panel.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  await page.reload()
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await expect(page.getByLabel('Client email', { exact: true })).toHaveValue('')
+  await expect(page.getByLabel('Client birthday', { exact: true })).toHaveValue('')
+  expect(staffApi.state.directory.clients[0].people[0].birthday).toBeNull()
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/personal-details'))).toHaveLength(1)
+})
+
 test('API client contact edits preserve purchases and reconcile before retrying an interrupted save', async ({ page, staffApi }) => {
   await openDirectory(page, staffApi)
   staffApi.state.directory.clientPersonalWrites = true

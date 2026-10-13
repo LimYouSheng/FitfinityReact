@@ -34,7 +34,7 @@ Maintain this file as the single North Star, `PROGRESS.md` as the single progres
 
 YS alone merges. New AWS mutations, image publication, scans, deployment, IAM changes, security-exception renewal, real invitations/messages and destructive actions need applicable authorization. No auto-merge, main/force push, reset, bootstrap replay or replacement operation to evade reconciliation. Source binding, historical receipts, resource identities, write intents and ownership checks remain mandatory.
 
-Preserve Owner/Admin assessment access and restricted Trainer access, Owner-only rate management and remuneration approval, Admin financial restrictions, scheduling conflicts, validity/credit rules, completed-record immutability and current authority at commit. Never trust browser-supplied actors or fabricate WhatsApp/native-share sent/delivered states. Preserve test/security gates.
+Preserve Owner/Admin-only access to the initial 11 assessment forms; YS authorizes current assigned Trainers to read/edit general health notes separately (13 October 2026). Preserve Owner-only rate management and remuneration approval, Admin financial restrictions, scheduling conflicts, validity/credit rules, completed-record immutability and current authority at commit. Never trust browser-supplied actors or fabricate WhatsApp/native-share sent/delivered states. Preserve test/security gates.
 
 ## Preserved deployment and limits
 

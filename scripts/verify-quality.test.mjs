@@ -81,14 +81,14 @@ function receipt(kind, contents, valid) {
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 }
 test('complete unit and browser receipts pass exact inventory validation', () => {
-  receipt('unit', 'Test Files 88 passed (88)\nTests 973 passed (973)', true)
-  receipt('browser', '861 passed (1m)', true)
+  receipt('unit', 'Test Files 88 passed (88)\nTests 974 passed (974)', true)
+  receipt('browser', '864 passed (1m)', true)
 })
 test('unit receipt rejects old totals, missing files, truncation and skipped tests', () => {
-  for (const text of ['Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 872 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 88 passed (88)\nTests 973 passed (973)\n1 skipped']) receipt('unit', text, false)
+  for (const text of ['Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 872 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 88 passed (88)\nTests 974 passed (974)\n1 skipped']) receipt('unit', text, false)
 })
 test('browser receipt rejects partial totals, retries, skipped tests and errors', () => {
-  for (const text of ['849 passed', '837 passed', '819 passed', '810 passed', '804 passed', '792 passed', '789 passed', '765 passed', '788 passed', '723 passed', '717 passed', '714 passed', '711 passed', '708 passed', '696 passed', '707 passed', '861 passed\n(retry #1)', '861 passed\n1 skipped', '861 passed\nError: incomplete']) receipt('browser', text, false)
+  for (const text of ['849 passed', '837 passed', '819 passed', '810 passed', '804 passed', '792 passed', '789 passed', '765 passed', '788 passed', '723 passed', '717 passed', '714 passed', '711 passed', '708 passed', '696 passed', '707 passed', '864 passed\n(retry #1)', '864 passed\n1 skipped', '864 passed\nError: incomplete']) receipt('browser', text, false)
 })
 
 

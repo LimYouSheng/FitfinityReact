@@ -137,15 +137,15 @@ class ClientPerson(Versioned, Base):
     __table_args__ = (
         UniqueConstraint("client_id", "position"),
         CheckConstraint("position IN (1, 2)", name="person_position"),
-        choices("gender", "Female", "Male", "Other", "Prefer not to say"),
+        choices("gender", "", "Female", "Male", "Other", "Prefer not to say"),
+        CheckConstraint("length(btrim(name)) > 0", name="names_required"),
         CheckConstraint(
-            "length(btrim(name)) > 0 AND length(btrim(emergency_name)) > 0", name="names_required"
-        ),
-        CheckConstraint(
-            "email = lower(btrim(email)) AND position('@' in email) > 1", name="email_normalized"
+            "email = '' OR (email = lower(btrim(email)) AND position('@' in email) > 1)",
+            name="email_normalized",
         ),
         choices(
             "emergency_relationship",
+            "",
             "Spouse",
             "Parent",
             "Sibling",
@@ -162,7 +162,7 @@ class ClientPerson(Versioned, Base):
     email: Mapped[str] = mapped_column(String(320), index=True)
     phone_country_code: Mapped[str] = mapped_column(String(4))
     phone_number: Mapped[str] = mapped_column(String(32))
-    birthday: Mapped[date] = mapped_column(Date)
+    birthday: Mapped[date | None] = mapped_column(Date)
     gender: Mapped[str] = mapped_column(String(24))
     health_notes: Mapped[str] = mapped_column(Text, server_default="")
     emergency_name: Mapped[str] = mapped_column(String(200))

@@ -1,3 +1,7 @@
+### General health-note access decision — 13 October 2026
+
+YS explicitly authorizes the current assigned Trainer to read and edit general health/limitation notes. This does **not** grant Trainer access to the initial 11 assessment forms, their answers, drafts or history; those remain Owner/Admin only. Historical/cover assignment alone grants no general health-note access. Keep the two permissions separate in server projections and commands; never expose assessment data through general notes.
+
 <!-- FITFINITY-DOCS-SPLIT-2026-09-10 -->
 # Fitfinity — Rules, Architecture and Design Philosophy
 

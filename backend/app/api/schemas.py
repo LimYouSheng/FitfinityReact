@@ -134,7 +134,7 @@ class PersonSummary(Contract):
     version: int
     position: int
     name: str
-    birthday: date
+    birthday: date | None
 
 
 class ClientDetail(ClientSummary):

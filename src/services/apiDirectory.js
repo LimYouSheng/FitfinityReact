@@ -16,7 +16,7 @@ const slot = row => ({ id: identity(row.id), day: days[choice(row.weekday, [0, 1
 function clockTime(value) { if (!/^([01]\d|2[0-3]):[0-5]\d(:00)?$/.test(text(value))) fail(); return value.slice(0, 5) }
 function unique(rows) { if (new Set(rows.map(row => row.id)).size !== rows.length) fail(); return rows }
 function person(row) {
-  return { id: identity(row.id), version: number(row.version) || fail(), name: text(row.name), email: text(row.email), birthday: date(row.birthday), gender: text(row.gender), phone: phone(row),
+  return { id: identity(row.id), version: number(row.version) || fail(), name: text(row.name), email: text(row.email), birthday: row.birthday === null ? '' : date(row.birthday), gender: text(row.gender), phone: phone(row),
     emergencyContact: { name: text(row.emergency_name), relationship: text(row.emergency_relationship), countryCode: text(row.emergency_country_code), number: text(row.emergency_number) } }
 }
 function purchase(row) {

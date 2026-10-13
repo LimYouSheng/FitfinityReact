@@ -38,9 +38,9 @@ class Phone(Contract):
 
 
 class Emergency(Phone):
-    name: StrictStr = Field(min_length=1, max_length=200)
+    name: StrictStr = Field(max_length=200)
     relationship: Literal[
-        "Spouse", "Parent", "Sibling", "Child", "Partner", "Friend", "Guardian", "Other"
+        "", "Spouse", "Parent", "Sibling", "Child", "Partner", "Friend", "Guardian", "Other"
     ]
 
 
@@ -49,8 +49,8 @@ class PersonDetails(Contract):
     expectedVersion: StrictInt = Field(ge=1)
     name: StrictStr = Field(min_length=1, max_length=200)
     email: StrictStr = Field(max_length=320)
-    birthday: date
-    gender: Literal["Female", "Male", "Other", "Prefer not to say"]
+    birthday: date | None
+    gender: Literal["", "Female", "Male", "Other", "Prefer not to say"]
     phone: Phone
     emergencyContact: Emergency
 
@@ -65,13 +65,15 @@ class PersonDetails(Contract):
     @classmethod
     def valid_email(cls, value):
         value = value.strip().lower()
-        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+        if value and not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
             raise ValueError("Enter a valid email address")
         return value
 
     @field_validator("birthday", mode="before")
     @classmethod
     def exact_date(cls, value):
+        if value is None or value == "":
+            return None
         if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
             raise ValueError("A calendar date is required")
         return value
@@ -150,8 +152,6 @@ def save(session, principal, client_id, key, body):
         person.birthday, person.gender = draft.birthday, draft.gender
         person.phone_country_code, person.phone_number = draft.phone.countryCode, draft.phone.number
         person.emergency_name = draft.emergencyContact.name.strip()
-        if not person.emergency_name:
-            raise AuthError("invalid_request", "An emergency contact name is required.", 422)
         person.emergency_relationship = draft.emergencyContact.relationship
         person.emergency_country_code = draft.emergencyContact.countryCode
         person.emergency_number = draft.emergencyContact.number

@@ -14,7 +14,7 @@ export function clientDetailApiFixture({ state, path, request, body, json, error
   if (!key || !client || client.version !== body.expectedVersion || body.people.some((p, i) => client.people[i]?.id !== p.id || client.people[i]?.version !== p.expectedVersion)) { error('state_conflict', 409); return true }
   for (const [i, person] of body.people.entries()) {
     Object.assign(client.people[i], {
-      name: person.name, email: person.email, birthday: person.birthday, gender: person.gender,
+      name: person.name, email: person.email, birthday: person.birthday || null, gender: person.gender,
       phone_country_code: person.phone.countryCode, phone_number: person.phone.number,
       emergency_name: person.emergencyContact.name, emergency_relationship: person.emergencyContact.relationship,
       emergency_country_code: person.emergencyContact.countryCode, emergency_number: person.emergencyContact.number,
