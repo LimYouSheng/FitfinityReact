@@ -60,7 +60,8 @@ it('denies mock reset, identity switching and unimplemented domains without any 
   const fetch = vi.fn(), adapter = make(fetch)
   await expect(adapter.reset()).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
   await expect(adapter.session({ operation: 'switchDemoIdentity', input: { userId: 'owner' } })).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
-  await expect(adapter.invoke({ service: 'clientService', operation: 'deactivate', input: { id: 'unavailable' } })).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
+  await expect(adapter.invoke({ service: 'clientService', operation: 'reactivate', input: { id: 'unavailable' } })).rejects.toMatchObject({ code: 'OPERATION_UNAVAILABLE' })
+  await expect(adapter.invoke({ service: 'clientService', operation: 'deactivate', input: { id: 'unavailable' } })).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
   expect(fetch).not.toHaveBeenCalled()
 })
 it('coalesces initial loads and recovers from a failed policy request', async () => {

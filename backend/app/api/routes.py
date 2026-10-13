@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.api import (
     assessments,
     client_creation,
+    client_deactivation,
     client_details,
     client_matching,
     client_notes,
@@ -647,3 +648,38 @@ def reconcile_renewal_dismissal(request_key: UUID, request: Request):
     """Read this actor's original dismissal result without changing the reminder."""
     with authorized_transaction(request) as (session, principal):
         return renewal_dismissal.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/deactivation",
+    response_model=client_deactivation.DeactivationReview,
+    operation_id="reviewClientDeactivation",
+)
+def review_client_deactivation(client_id: UUID, request: Request):
+    """Review the exact client and purchases before deactivation."""
+    with authorized_transaction(request) as (session, principal):
+        return client_deactivation.review(session, principal, client_id)
+
+
+@router.post(
+    "/clients/{client_id}/deactivation",
+    response_model=client_deactivation.DeactivationState,
+    operation_id="deactivateClient",
+)
+def deactivate_client(
+    client_id: UUID, body: client_deactivation.DeactivateClient, request: Request, key: RequestKey
+):
+    """Atomically freeze the reviewed active client and purchases without deleting history."""
+    with authorized_transaction(request) as (session, principal):
+        return client_deactivation.save(session, principal, client_id, key, body)
+
+
+@router.get(
+    "/client-deactivations/{request_key}",
+    response_model=client_deactivation.DeactivationState,
+    operation_id="reconcileClientDeactivation",
+)
+def reconcile_client_deactivation(request_key: UUID, request: Request):
+    """Read only this actor's original committed deactivation result."""
+    with authorized_transaction(request) as (session, principal):
+        return client_deactivation.reconcile(session, principal, request_key)

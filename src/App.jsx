@@ -1,3 +1,4 @@
+import ClientDeactivationRecovery from './features/clients/ClientDeactivationRecovery.jsx'
 import MessageReadRecovery from './features/messages/MessageReadRecovery.jsx'
 import ApiContentWorkspace from './features/content/ApiContentWorkspace.jsx'
 import ClientCreationRecovery from './features/clients/ClientCreationRecovery.jsx'
@@ -249,6 +250,8 @@ function StaffPortal({ navigation }) {
         }}
       />
     )
+  } else if (route === 'clients' && directoryOnly && snapshot.clientDeactivationPending) {
+    page = <ClientDeactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientDeactivationPending} services={services} />
   } else if (route === 'clients' && selectedClient) {
     page = (
       <ClientProfileRoute key={selectedClient.id} selectedClient={selectedClient}

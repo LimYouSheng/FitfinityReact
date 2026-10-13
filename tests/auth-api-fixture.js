@@ -1,3 +1,4 @@
+import { clientDeactivationApiFixture } from './client-deactivation-api-fixture.js'
 import { renewalDismissalApiFixture } from './renewal-dismissal-api-fixture.js'
 import { messageApiFixture } from './message-api-fixture.js'
 import { contentApiFixture } from './content-api-fixture.js'
@@ -69,6 +70,7 @@ export const test = base.extend({
               if (!response.destroyed) error('SESSION_EXPIRED')
               return
             }
+            if (clientDeactivationApiFixture({ state, path, request, json, error })) return
             if (renewalDismissalApiFixture({ state, path, request, json, error })) return
             if (messageApiFixture({ state, path, request, json, error })) return
             if (contentApiFixture({ state, path, request, json, error })) return
@@ -109,6 +111,7 @@ export const test = base.extend({
             json(currentSession()); return
           }
           if (!state.signedIn || request.headers['x-csrf-token'] !== state.csrfToken || !request.headers.cookie?.includes('staff-session=browser-test')) { error('CSRF_REJECTED', 403); return }
+          if (clientDeactivationApiFixture({ state, path, request, body, json, error })) return
           if (renewalDismissalApiFixture({ state, path, request, body, json, error })) return
           if (messageApiFixture({ state, path, request, body, json, error })) return
           if (contentApiFixture({ state, path, request, body, json, error })) return

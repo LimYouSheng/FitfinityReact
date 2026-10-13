@@ -25,6 +25,7 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
+      onReviewDeactivation={directoryOnly && snapshot.capabilities?.clientDeactivationWrites && services.previewClientDeactivation ? () => runAction(() => services.previewClientDeactivation({ id: selectedClient.id, expectedVersion: selectedClient.version })) : undefined}
       notesReadOnly={directoryOnly && !snapshot.capabilities?.clientNoteWrites}
       onNotesSaved={reload}
       personalReadOnly={directoryOnly && !snapshot.capabilities?.clientPersonalWrites}
@@ -97,10 +98,10 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
         await reload()
         return result
       }}
-      onDeactivate={async () => {
-        await runAction(() => clientService.deactivate({ id: selectedClient.id }), { tone: 'warning', message: 'Client deactivated.' })
-        await reload()
+      onDeactivate={async reviewed => {
+        await runAction(() => clientService.deactivate({ id: selectedClient.id, ...(directoryOnly ? { reviewed } : {}) }), { tone: 'warning', message: 'Client deactivated.' })
         navigate('clients', { replace: true })
+        await reload()
       }}
       onReactivate={async ({ dates, expected }) => {
         try {
