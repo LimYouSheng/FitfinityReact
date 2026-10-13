@@ -18,13 +18,20 @@ from app.api import (
     directory,
     messages,
     packages,
+    renewal_dismissal,
     trainer_approvals,
     trainer_details,
     trainer_rates,
     trainer_reactivation,
 )
 from app.api.dependencies import authorized_transaction
-from app.api.message_schemas import MessageReadState, PersonalMessage, SaveMessageRead
+from app.api.message_schemas import (
+    DismissRenewal,
+    MessageReadState,
+    PersonalMessage,
+    RenewalState,
+    SaveMessageRead,
+)
 from app.api.schemas import (
     ERROR_RESPONSES,
     AssessmentRevision,
@@ -618,3 +625,25 @@ def reconcile_message_read_state(request_key: UUID, request: Request):
     """Reconcile this actor's original read-state command without changing newer read state."""
     with authorized_transaction(request) as (session, principal):
         return messages.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/messages/{message_id}/dismiss-renewal",
+    response_model=RenewalState,
+    operation_id="dismissRenewal",
+)
+def dismiss_renewal(message_id: UUID, body: DismissRenewal, request: Request, key: RequestKey):
+    """Recheck current assignment and remove only this follow-up, retaining immutable evidence."""
+    with authorized_transaction(request) as (session, principal):
+        return renewal_dismissal.save(session, principal, message_id, key, body)
+
+
+@router.get(
+    "/renewal-dismissal-saves/{request_key}",
+    response_model=RenewalState,
+    operation_id="reconcileRenewalDismissal",
+)
+def reconcile_renewal_dismissal(request_key: UUID, request: Request):
+    """Read this actor's original dismissal result without changing the reminder."""
+    with authorized_transaction(request) as (session, principal):
+        return renewal_dismissal.reconcile(session, principal, request_key)

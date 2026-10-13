@@ -59,15 +59,26 @@ function proposal(value) {
 export function personalMessage(value, user) {
   const state = messageReadState(value, false)
   const links = ['clientId', 'purchaseId', 'sessionId', 'trainerId', 'requestId', 'exerciseId', 'packageId', 'contentId']
-  const keys = ['id', 'version', 'read', 'readAt', 'recipientUserId', 'kind', 'title', 'body', 'createdAt', 'actorId', 'actorName', ...links, 'remunerationCycle', 'request', 'renewalStatus']
+  const keys = ['id', 'version', 'read', 'readAt', 'recipientUserId', 'kind', 'title', 'body', 'createdAt', 'actorId', 'actorName', ...links, 'remunerationCycle', 'request', 'renewalStatus', 'renewalDismissal']
   if (Object.keys(value).some(key => !keys.includes(key)) || value.recipientUserId !== user.id
     || !uuid(value.actorId) || !['kind', 'title', 'actorName'].every(key => typeof value[key] === 'string' && value[key].trim())
     || typeof value.body !== 'string' || !timestamp(value.createdAt) || !links.every(key => value[key] === null || uuid(value[key]))
     || (value.remunerationCycle !== null && !/^\d{4}-(0[1-9]|1[0-2])$/.test(value.remunerationCycle))
-    || (value.kind === 'renewal' ? !['active', 'renewed'].includes(value.renewalStatus) : value.renewalStatus !== null)
+    || (value.kind === 'renewal' ? !['active', 'renewed', 'removed'].includes(value.renewalStatus) : value.renewalStatus !== null)
     || (user.role === 'admin' && !adminMessageAllowed(value))) fail()
+  if (value.renewalStatus === 'removed' ? !validDismissal(value.renewalDismissal) : value.renewalDismissal !== null) fail()
   if (value.requestId ? value.request?.id !== value.requestId : value.request !== null) fail()
   return { ...value, ...state, ...(value.request ? { request: proposal(value.request), status: value.request.status } : {}) }
+}
+
+const validDismissal = value => value && timestamp(value.at) && uuid(value.by?.id) && typeof value.by.name === 'string' && value.by.name.trim()
+  && Object.keys(value).every(key => ['at', 'by'].includes(key)) && Object.keys(value.by).every(key => ['id', 'name'].includes(key))
+
+export function renewalState(value) {
+  if (!value || !uuid(value.id) || !['removed', 'renewed'].includes(value.renewalStatus)
+    || Object.keys(value).some(key => !['id', 'renewalStatus', 'renewalDismissal'].includes(key))
+    || (value.renewalStatus === 'removed' ? !validDismissal(value.renewalDismissal) : value.renewalDismissal !== null)) fail()
+  return value
 }
 
 export function messageCommands(http, actionSession) {
@@ -81,7 +92,17 @@ export function messageCommands(http, actionSession) {
       return result
     },
   })
+  const dismiss = reconciledCommand(http, actionSession, {
+    label: 'Renewal dismissal', roles: ['owner', 'admin', 'trainer'],
+    path: input => `/api/messages/${input.id}/dismiss-renewal`, receiptPath: '/api/renewal-dismissal-saves',
+    bodyFor: ({ expectedClientVersion }) => ({ expectedClientVersion }),
+    validate(value, input) { const result = renewalState(value); if (result.id !== input.id) fail(); return result },
+  })
   return {
+    dismiss(input, generation) {
+      if (!uuid(input.id) || !version(input.expectedClientVersion) || !input.expectedClientVersion) throw new ApiError('INVALID_REQUEST', 'Reload the client before removing this renewal follow-up.')
+      return dismiss(input, generation)
+    },
     save({ id, expectedVersion }, read, generation) {
       if (!uuid(id) || !version(expectedVersion)) throw new ApiError('INVALID_REQUEST', 'Reload the message before changing its read state.')
       return save({ id, expectedVersion, read }, generation)
@@ -89,11 +110,12 @@ export function messageCommands(http, actionSession) {
     async read(generation) {
       const session = await actionSession(generation)
       if (save.pendingInput(session.sessionGeneration)) await save.reconcile(session.sessionGeneration)
+      if (dismiss.pendingInput(session.sessionGeneration)) await dismiss.reconcile(session.sessionGeneration)
       const value = await http.get('/api/messages', { expectedGeneration: session.sessionGeneration })
       if (!Array.isArray(value) || value.length > 2000) fail()
       const messages = value.map(row => personalMessage(row, session.user))
       if (new Set(messages.map(row => row.id)).size !== messages.length) fail()
-      return { messages, pending: save.pendingInput(session.sessionGeneration) }
+      return { messages, pending: save.pendingInput(session.sessionGeneration), dismissalPending: dismiss.pendingInput(session.sessionGeneration) }
     },
   }
 }

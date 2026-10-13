@@ -63,7 +63,7 @@ def test_migration_preserves_populated_m53_and_legacy_notes(domain_db, graph, mi
         assert session.scalar(select(func.count()).select_from(AssessmentFormVersion)) == 11
         assert session.scalar(select(func.count()).select_from(ClientAssessment)) == 0
         assert session.scalar(text("SELECT count(*) FROM training_sessions")) == 2
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0018"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0019"
 
 
 def test_saved_assessment_prevents_destructive_downgrade(domain_db, assessment, migrate):
@@ -73,7 +73,7 @@ def test_saved_assessment_prevents_destructive_downgrade(domain_db, assessment, 
         assert session.get(ClientAssessmentRevision, assessment["first"]).answers == {
             "eyes_open_1": 0
         }
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0018"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0019"
 
 
 def test_draft_completion_correction_preserves_submitted_names_and_values(

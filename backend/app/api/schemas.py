@@ -379,6 +379,7 @@ class DirectorySnapshot(ServerClock):
     clientNoteWrites: Literal[True] = True
     clientCreation: Literal[True] = True
     personalMessages: Literal[True] = True
+    renewalDismissalWrites: Literal[True] = True
     contentWorkflows: Literal[True] = True
     clientAssessmentWorkflows: Literal[True] = True
     clientOnboardingPolicy: ClientOnboardingPolicy = Field(default_factory=ClientOnboardingPolicy)

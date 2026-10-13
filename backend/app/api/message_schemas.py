@@ -53,6 +53,26 @@ class MessageRequest(Contract):
     slots: list[MessageRequestSlot]
 
 
+class DismissalActor(Contract):
+    id: UUID
+    name: str
+
+
+class DismissalEvidence(Contract):
+    at: datetime
+    by: DismissalActor
+
+
+class RenewalState(Contract):
+    id: UUID
+    renewalStatus: Literal["removed", "renewed"]
+    renewalDismissal: DismissalEvidence | None
+
+
+class DismissRenewal(Contract):
+    expectedClientVersion: StrictInt = Field(ge=1)
+
+
 class PersonalMessage(MessageReadState):
     recipientUserId: UUID
     kind: str
@@ -71,4 +91,5 @@ class PersonalMessage(MessageReadState):
     contentId: UUID | None
     remunerationCycle: str | None
     request: MessageRequest | None
-    renewalStatus: Literal["active", "renewed"] | None
+    renewalStatus: Literal["active", "renewed", "removed"] | None
+    renewalDismissal: DismissalEvidence | None

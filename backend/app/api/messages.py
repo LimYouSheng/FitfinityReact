@@ -9,6 +9,7 @@ from sqlalchemy import and_, exists, or_, select, text
 
 from app.api.directory import bounded
 from app.api.message_schemas import (
+    DismissalEvidence,
     MessageReadState,
     MessageRequest,
     MessageRequestSlot,
@@ -16,7 +17,7 @@ from app.api.message_schemas import (
 )
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
-from app.models.api import MessageReadReceipt
+from app.models.api import MessageReadReceipt, RenewalDismissal
 from app.models.communications import ChangeRequest, Message, MessageReceipt, RequestSlot
 from app.models.evidence import RemunerationApproval
 from app.models.people import StaffUser
@@ -109,6 +110,12 @@ def records(session, principal):
             PackagePurchase.status == "active",
         ),
     )
+    dismissals = {
+        row.message_id: dismissal_evidence(row)
+        for row in session.scalars(
+            select(RenewalDismissal).where(RenewalDismissal.message_id.in_(ids))
+        )
+    }
     result = []
     for row in messages:
         purchase = purchases.get(row.purchase_id)
@@ -145,7 +152,8 @@ def records(session, principal):
                 contentId=row.content_id,
                 remunerationCycle=cycles.get(row.remuneration_id),
                 request=requests.get(row.request_id),
-                renewalStatus=renewal,
+                renewalStatus="removed" if row.id in dismissals else renewal,
+                renewalDismissal=dismissals.get(row.id),
             )
         )
     return result
@@ -219,3 +227,7 @@ def save(session, principal, message_id, key, body):
         )
     )
     return result
+
+
+def dismissal_evidence(row):
+    return DismissalEvidence(at=row.created_at, by={"id": row.actor_id, "name": row.actor_name})
