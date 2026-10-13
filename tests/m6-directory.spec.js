@@ -148,3 +148,42 @@ test('API approval settings reconcile interrupted saves and survive refresh fail
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Trainers', exact: true })).toBeVisible()
 })
+
+test('API client contact edits preserve purchases and reconcile before retrying an interrupted save', async ({ page, staffApi }) => {
+  await openDirectory(page, staffApi)
+  staffApi.state.directory.clientPersonalWrites = true
+  const purchases = structuredClone(staffApi.state.directory.clients[0].purchases)
+  await page.reload()
+  await page.getByRole('button', { name: 'View Clients', exact: true }).click()
+  await page.getByRole('button', { name: 'View API Client', exact: true }).click()
+  const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'General Information' }) })
+  await expect(page.getByRole('button', { name: 'Reassign Trainer' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(1)
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Client name', { exact: true }).fill('Updated API Client')
+  const save = async () => {
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
+  }
+  staffApi.state.clientDetailUnknown = true
+  await save()
+  await expect(panel.getByRole('alert')).toHaveText('Staff service unavailable. Please retry.')
+  await save()
+  await expect(page.getByRole('heading', { name: 'Updated API Client', exact: true })).toBeVisible()
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/personal-details'))).toHaveLength(1)
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Client email', { exact: true }).fill('updated@fixture.test')
+  staffApi.state.clientDetailRefreshFailure = true
+  await save()
+  await expect(page.getByRole('heading', { name: 'Unable to load the portal' })).toBeVisible()
+  staffApi.state.unavailable = false
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByText('updated@fixture.test', { exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('updated@fixture.test', { exact: true })).toBeVisible()
+  expect(staffApi.state.directory.clients[0].purchases).toEqual(purchases)
+  expect(staffApi.state.mutations.filter(m => m.path.endsWith('/personal-details'))).toHaveLength(2)
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Clients', exact: true })).toBeVisible()
+})

@@ -16,12 +16,15 @@ function displayEmergency(contact) {
   return [contact.name, contact.relationship, displayPhone(contact)].filter(Boolean).join(' · ')
 }
 
-export default function ClientGeneralInformation({ client, trainer, policy, ownerEditable, activeEditor, setActiveEditor, onUpdate }) {
+export default function ClientGeneralInformation({ client, trainer, policy, ownerEditable, personalEditable = ownerEditable, activeEditor, setActiveEditor, onUpdate, onSaved }) {
   const confirmAction = useActionConfirmation()
   const [draft, setDraft] = useState(() => clientProfileDraft(client, policy))
   const [activePerson, setActivePerson] = useState(0)
   const [generalErrors, setGeneralErrors] = useState({})
   const generalFields = useRef(null)
+  const reviewed = useRef(null)
+  const [saved, setSaved] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   const draftIdentity = useRef({ id: client.id, status: client.status })
   useEffect(() => {
@@ -31,7 +34,14 @@ export default function ClientGeneralInformation({ client, trainer, policy, owne
     draftIdentity.current = { id: client.id, status: client.status }
   }, [activeEditor, client, policy])
 
+  useEffect(() => {
+    if (!saved || activeEditor) return
+    setSaved(false)
+    onSaved?.()
+  }, [saved, activeEditor, onSaved])
+
   const saveGeneral = async () => {
+    if (!personalEditable || busy) return
     const errors = clientStepErrors(draft, 'general', { requireComplete: false })
     if (Object.keys(errors).length) {
       setGeneralErrors(errors)
@@ -45,13 +55,16 @@ export default function ClientGeneralInformation({ client, trainer, policy, owne
     })
     if (!confirmed) return
     try {
+      setBusy(true)
       await onUpdate({
         people: draft.people,
         remarks: draft.remarks,
         genderPreference: draft.genderPreference,
-      })
+      }, reviewed.current)
       setActiveEditor(null)
+      setSaved(true)
     } catch (error) { setGeneralErrors({ save: error.message || 'Client information could not be saved.' }) }
+    finally { setBusy(false) }
   }
 
   useEffect(() => {
@@ -63,12 +76,12 @@ export default function ClientGeneralInformation({ client, trainer, policy, owne
       <div className="section-head">
         <h2>General Information</h2>
 
-        {ownerEditable && (activeEditor !== 'general' ? (
+        {personalEditable && (activeEditor !== 'general' ? (
           <button
             type="button"
             className="text-action"
             disabled={Boolean(activeEditor)}
-            onClick={() => { setGeneralErrors({}); setActivePerson(0); setActiveEditor('general') }}
+            onClick={() => { reviewed.current = { expectedVersion: client.version, people: (client.people ?? []).map(person => ({ id: person.id, expectedVersion: person.version })) }; setGeneralErrors({}); setActivePerson(0); setActiveEditor('general') }}
           >
             Edit
           </button>
@@ -77,6 +90,7 @@ export default function ClientGeneralInformation({ client, trainer, policy, owne
             <button
               type="button"
               className="text-action muted-action"
+              disabled={busy}
               onClick={() => {
                 setDraft(clientProfileDraft(client, policy))
                 setActiveEditor(null)
@@ -84,7 +98,7 @@ export default function ClientGeneralInformation({ client, trainer, policy, owne
             >
               Cancel
             </button>
-            <button type="button" className="text-action" onClick={saveGeneral}>Save</button>
+            <button type="button" className="text-action" disabled={busy} onClick={saveGeneral}>Save</button>
           </div>
         ))}
       </div>

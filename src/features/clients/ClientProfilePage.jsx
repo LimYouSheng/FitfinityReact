@@ -19,6 +19,9 @@ import { managesOperations, canEditClientCoachingNotes, canEditClientGeneral } f
 export default function ClientProfilePage({
   user,
   readOnly = false,
+  personalReadOnly = readOnly,
+  onUpdateGeneral,
+  onGeneralSaved,
   assessmentsAvailable = true,
   sessionViewsAvailable = true,
   client,
@@ -143,7 +146,7 @@ export default function ClientProfilePage({
       {tab === 'overview' && <>
       <div className="profile-overview-stack">
         <ClientGeneralInformation client={client} trainer={trainer} policy={policy}
-          ownerEditable={ownerEditable} activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={onUpdate} />
+          ownerEditable={ownerEditable} personalEditable={!personalReadOnly && canEditClientGeneral(user, client)} activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={onUpdateGeneral ?? onUpdate} onSaved={onGeneralSaved} />
 
         <FixedWeeklySchedule
           slots={client.fixedWeeklySchedule}

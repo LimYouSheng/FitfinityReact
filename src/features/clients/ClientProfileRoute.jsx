@@ -21,6 +21,11 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
+      personalReadOnly={directoryOnly && !snapshot.capabilities?.clientPersonalWrites}
+      onGeneralSaved={reload}
+      onUpdateGeneral={async (patch, reviewed) => runAction(() => clientService.update({
+        id: selectedClient.id, patch, ...(directoryOnly ? { reviewed } : {}),
+      }), { message: 'Client details saved.' })}
       assessmentsAvailable={!directoryOnly}
       sessionViewsAvailable={!directoryOnly}
       progressRoute={parts[2] === 'progress'}

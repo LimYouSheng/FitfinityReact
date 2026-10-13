@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Header, Query, Request
 from sqlalchemy import select
 
-from app.api import assessments, directory, packages, trainer_approvals
+from app.api import assessments, client_details, directory, packages, trainer_approvals
 from app.api.dependencies import authorized_transaction
 from app.api.schemas import (
     ERROR_RESPONSES,
@@ -340,3 +340,25 @@ def save_trainer_approvals(
 def reconcile_trainer_approvals(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
         return trainer_approvals.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/clients/{client_id}/personal-details",
+    response_model=client_details.ClientDetailState,
+    operation_id="saveClientPersonalDetails",
+)
+def save_client_details(
+    client_id: UUID, body: client_details.SaveClientDetails, request: Request, key: RequestKey
+):
+    with authorized_transaction(request) as (session, principal):
+        return client_details.save(session, principal, client_id, key, body)
+
+
+@router.get(
+    "/client-detail-saves/{request_key}",
+    response_model=client_details.ClientDetailState,
+    operation_id="reconcileClientPersonalDetails",
+)
+def reconcile_client_details(request_key: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return client_details.reconcile(session, principal, request_key)

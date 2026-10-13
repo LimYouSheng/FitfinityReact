@@ -15,6 +15,25 @@ beforeEach(() => vi.stubGlobal('matchMedia', () => ({ matches: true, addEventLis
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 const general = () => within(screen.getByRole('heading', { name: 'General Information' }).closest('.panel'))
 
+it('personal client edits retain client/person versions and close before refresh without enabling assignment', async () => {
+  const save = vi.fn().mockResolvedValue({ version: 3 })
+  const refreshed = vi.fn(() => expect(screen.queryByRole('button', { name: 'Save', exact: true })).not.toBeInTheDocument())
+  const client = { ...seed.clients[0], version: 2, people: [{ ...seed.clients[0], id: 'person-one', version: 1 }] }
+  function Profile({ value }) {
+    const [activeEditor, setActiveEditor] = useState(null)
+    return <ClientGeneralInformation client={value} policy={seed.settings} ownerEditable={false} personalEditable activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={save} onSaved={refreshed} />
+  }
+  const { rerender } = render(<Profile value={client} />, { wrapper: Wrapper })
+  expect(screen.queryByRole('button', { name: 'Reassign Trainer' })).not.toBeInTheDocument()
+  fireEvent.click(general().getByRole('button', { name: 'Edit', exact: true }))
+  fireEvent.change(screen.getByLabelText('Client name'), { target: { value: 'Reviewed Name' } })
+  rerender(<Profile value={{ ...client, version: 9, people: [{ ...client.people[0], version: 8 }] }} />)
+  fireEvent.click(general().getByRole('button', { name: 'Save', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Save Changes', exact: true }))
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ people: [expect.objectContaining({ name: 'Reviewed Name' })] }), { expectedVersion: 2, people: [{ id: 'person-one', expectedVersion: 1 }] }))
+  await waitFor(() => expect(refreshed).toHaveBeenCalledTimes(1))
+})
+
 it('approval edits retain the reviewed version across refresh and close before post-save reload', async () => {
   const save = vi.fn().mockResolvedValue({ version: 2 })
   const reloaded = vi.fn(() => expect(screen.queryByRole('button', { name: 'Save', exact: true })).not.toBeInTheDocument())
