@@ -25,7 +25,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     recordProgressReportAction: contract({ 'id': 'string', 'action': 'object' }, 'reportClient', 'ProgressReportEvent'),
     progressReportHistory: contract({ 'id': 'string', 'packageId?': 'string' }, 'operations', 'ProgressReportEvent[]'),
     deactivate: contract({ 'id': 'string', 'reviewed?': 'object' }, 'operations', 'Client | ClientDeactivationState', true),
-    reactivate: contract({ 'id': 'string', 'dates?': 'object', 'expected?': 'object' }, 'operations', 'Client'),
+    reactivate: contract({ 'id': 'string', 'dates?': 'object', 'expected?': 'object', 'reviewed?': 'object' }, 'operations', 'Client | ClientReactivationState', true),
   }),
   trainerService: Object.freeze({
     create: contract({ 'draft': 'object' }, 'trainerCreate', 'Trainer'),

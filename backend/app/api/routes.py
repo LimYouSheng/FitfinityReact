@@ -16,6 +16,7 @@ from app.api import (
     client_matching,
     client_notes,
     client_reactivation,
+    client_reactivation_save,
     content,
     directory,
     messages,
@@ -708,3 +709,27 @@ def preview_client_reactivation_dates(
     """Check proposed dates against current occupancy without saving changes."""
     with authorized_transaction(request) as (session, principal):
         return client_reactivation.review(session, principal, client_id, body)
+
+
+@router.post(
+    "/clients/{client_id}/reactivation",
+    response_model=client_reactivation_save.ClientReactivationState,
+    operation_id="reactivateClient",
+)
+def reactivate_client(
+    client_id: UUID, body: client_reactivation.ReactivationDates, request: Request, key: RequestKey
+):
+    """Restore the reviewed client, causal purchases and conflict-free retained calendar."""
+    with authorized_transaction(request) as (session, principal):
+        return client_reactivation_save.save(session, principal, client_id, key, body)
+
+
+@router.get(
+    "/client-reactivations/{request_key}",
+    response_model=client_reactivation_save.ClientReactivationState,
+    operation_id="reconcileClientReactivation",
+)
+def reconcile_client_reactivation(request_key: UUID, request: Request):
+    """Reconcile only this actor's original successful command."""
+    with authorized_transaction(request) as (session, principal):
+        return client_reactivation_save.reconcile(session, principal, request_key)

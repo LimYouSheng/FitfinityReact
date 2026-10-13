@@ -380,6 +380,7 @@ class DirectorySnapshot(ServerClock):
     clientCreation: Literal[True] = True
     personalMessages: Literal[True] = True
     clientDeactivationWrites: Literal[True] = True
+    clientReactivationWrites: Literal[True] = True
     renewalDismissalWrites: Literal[True] = True
     contentWorkflows: Literal[True] = True
     clientAssessmentWorkflows: Literal[True] = True

@@ -25,6 +25,12 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
+      reactivationWorkflow={directoryOnly && snapshot.capabilities?.clientReactivationWrites ? {
+        review: () => runAction(() => services.previewClientReactivation({ id: selectedClient.id, expectedVersion: selectedClient.version })),
+        preview: input => runAction(() => services.previewClientReactivationDates(input)),
+        save: input => runAction(() => clientService.reactivate(input), { message: 'Client reactivated.' }),
+        saved: async () => { navigate('clients', { replace: true }); await reload() },
+      } : undefined}
       onReviewDeactivation={directoryOnly && snapshot.capabilities?.clientDeactivationWrites && services.previewClientDeactivation ? () => runAction(() => services.previewClientDeactivation({ id: selectedClient.id, expectedVersion: selectedClient.version })) : undefined}
       notesReadOnly={directoryOnly && !snapshot.capabilities?.clientNoteWrites}
       onNotesSaved={reload}

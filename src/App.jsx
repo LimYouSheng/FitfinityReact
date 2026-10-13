@@ -1,3 +1,4 @@
+import ClientReactivationRecovery from './features/clients/ClientReactivationRecovery.jsx'
 import ClientDeactivationRecovery from './features/clients/ClientDeactivationRecovery.jsx'
 import MessageReadRecovery from './features/messages/MessageReadRecovery.jsx'
 import ApiContentWorkspace from './features/content/ApiContentWorkspace.jsx'
@@ -250,6 +251,8 @@ function StaffPortal({ navigation }) {
         }}
       />
     )
+  } else if (route === 'clients' && directoryOnly && snapshot.clientReactivationPending) {
+    page = <ClientReactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientReactivationPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientDeactivationPending) {
     page = <ClientDeactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientDeactivationPending} services={services} />
   } else if (route === 'clients' && selectedClient) {

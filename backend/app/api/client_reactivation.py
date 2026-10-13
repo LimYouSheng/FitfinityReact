@@ -57,9 +57,9 @@ class ClientReactivationReview(Contract):
     packageError: str | None
 
 
-def review(session, principal, identity, body=None):
+def review(session, principal, identity, body=None, *, write=False):
     principal.operations()
-    client, purchases = target(session, identity)
+    client, purchases = target(session, identity, write=write)
     if client.status != "inactive":
         raise conflict()
     bookings = bounded(
@@ -67,7 +67,7 @@ def review(session, principal, identity, body=None):
         select(TrainingSession)
         .where(TrainingSession.client_id == identity)
         .order_by(TrainingSession.id)
-        .with_for_update(read=True),
+        .with_for_update(read=not write),
     )
     trainers = {
         t.id: t
@@ -76,7 +76,7 @@ def review(session, principal, identity, body=None):
             select(Trainer)
             .where(Trainer.id.in_({b.trainer_id for b in bookings}))
             .order_by(Trainer.id)
-            .with_for_update(read=True),
+            .with_for_update(read=not write),
         )
     }
     events = {
