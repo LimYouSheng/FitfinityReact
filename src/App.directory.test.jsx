@@ -49,7 +49,8 @@ it('shows real client/package details through existing pages and preserves Back 
   await screen.findByRole('heading', { name: 'Clients', exact: true })
 })
 it('shows real trainer availability and template details without enabling mutations', async () => {
-  show(`trainers/${directoryId(1)}`)
+  const legacy = directoryData(); delete legacy.packagePolicy
+  show(`trainers/${directoryId(1)}`, legacy)
   await screen.findByRole('heading', { name: 'API Trainer' })
   expect(screen.getByText('$80 / session')).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Edit', exact: true })).not.toBeInTheDocument()

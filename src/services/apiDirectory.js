@@ -47,13 +47,23 @@ function trainer(row, user) {
     approvalNeeded: { availability: flag(row.approve_availability), sessionTime: flag(row.approve_session_time), trainerReassignment: flag(row.approve_session_trainer), fixedWeeklySchedule: flag(row.approve_weekly_schedule) } }
 }
 
+export function directoryPackage(row) {
+  return { ...base(row), revision: number(row.revision) || fail(), total: number(row.total_sessions) || fail(), validityDays: number(row.validity_days) || fail() }
+}
+
 export function directorySnapshot(value, user) {
   try {
     if (value.schemaVersion !== 1 || value.viewerId !== user.id || value.timeZone !== 'Asia/Singapore' || !Number.isFinite(Date.parse(value.serverAt))) fail()
     const clients = unique(list(value.clients).map(client)), trainers = unique(list(value.trainers).map(row => trainer(row, user)))
-    const packages = unique(list(value.packages).map(row => ({ ...base(row), revision: number(row.revision) || fail(), total: number(row.total_sessions) || fail(), validityDays: number(row.validity_days) || fail() })))
+    const packages = unique(list(value.packages).map(directoryPackage))
     if (clients.some(row => !trainers.some(t => t.id === row.trainerId))) fail()
     if (user.role === 'trainer' && (clients.some(row => row.trainerId !== user.trainerId) || trainers.some(row => row.id !== user.trainerId) || packages.length)) fail()
-    return { data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
+    let packagePolicy
+    if (value.packagePolicy !== undefined) {
+      const p = value.packagePolicy
+      if (p?.minimum !== 1 || p.maximum !== 365 || p.sessions !== 12 || p.days !== 90) fail()
+      packagePolicy = { packageSessionCount: { minimum: p.minimum, maximum: p.maximum }, packageValidityRule: { sessions: p.sessions, days: p.days } }
+    }
+    return { packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
   } catch (error) { if (error instanceof ApiError) throw error; fail() }
 }

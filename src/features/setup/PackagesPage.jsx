@@ -7,12 +7,13 @@ import { useActionConfirmation } from '../../components/ActionConfirmationProvid
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { packageErrors, packageValidityDays } from '../../app/packages.js'
 
-export default function PackagesPage({ readOnly = false, packages, policy, selectedId, onNavigate, onBack, onSave }) {
+export default function PackagesPage({ readOnly = false, packages, policy, selectedId, onNavigate, onBack, onSave, onSaved }) {
   const current = packages.find(item => item.id === selectedId)
   const confirm = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
   const [editing, setEditing] = useState(!readOnly && selectedId === 'new')
   const [draft, setDraft] = useState(() => ({ name: current?.name ?? '', total: current?.total ?? '' }))
+  const [reviewedVersion, setReviewedVersion] = useState(current?.version)
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(null)
@@ -26,13 +27,15 @@ export default function PackagesPage({ readOnly = false, packages, policy, selec
   useEffect(() => {
     if (saved && !activeEdit) {
       setSaved(null)
-      onNavigate(`packages/${saved.id}`, { replace: true })
+      void Promise.resolve(onNavigate(`packages/${saved.id}`, { replace: true })).then(() => onSaved?.())
     }
-  }, [activeEdit, onNavigate, saved])
+  }, [activeEdit, onNavigate, onSaved, saved])
 
   const save = async (status = current?.status ?? 'active') => {
     if (pending.current) return
-    const nextErrors = packageErrors(draft, policy)
+    const values = editing ? draft : { name: current.name, total: current.total }
+    const expectedVersion = editing ? reviewedVersion : current?.version
+    const nextErrors = packageErrors(values, policy)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
     pending.current = true
@@ -40,10 +43,10 @@ export default function PackagesPage({ readOnly = false, packages, policy, selec
     try {
       const action = current && status !== current.status ? (status === 'active' ? 'Reactivate Package' : 'Deactivate Package') : current ? 'Save Package' : 'Create Package'
       const accepted = await confirm({ title: `${action}?`,
-        message: `${draft.name.trim()} · ${draft.total} sessions · ${packageValidityDays(draft.total, policy)} days. Existing client packages keep their purchased terms.`,
+        message: `${values.name.trim()} · ${values.total} sessions · ${packageValidityDays(values.total, policy)} days. Existing client packages keep their purchased terms.`,
         confirmLabel: action })
       if (!accepted) return
-      const result = await onSave({ id: current?.id, expectedVersion: current?.version, draft: { ...draft, total: Number(draft.total), status } })
+      const result = await onSave({ id: current?.id, expectedVersion, draft: { ...values, total: Number(values.total), status } })
       setEditing(false)
       setSaved(result)
     } catch (error) { setErrors({ form: error.message }) }
@@ -67,7 +70,7 @@ export default function PackagesPage({ readOnly = false, packages, policy, selec
       </Panel> : current ? <Panel>
         <div className="section-head"><h2>Package details</h2><StatusBadge tone={current.status === 'active' ? 'green' : 'amber'}>{current.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge></div>
         <dl className="package-details"><div><dt>Sessions</dt><dd>{current.total}</dd></div><div><dt>Validity</dt><dd>{current.validityDays} days</dd></div></dl>
-        {!readOnly && <div className="inline-actions"><button className="onboarding-button" onClick={() => { setSaved(null); setDraft({ name: current.name, total: current.total }); setEditing(true) }}>Edit Package</button><button className="onboarding-button" disabled={busy} onClick={() => void save(current.status === 'active' ? 'inactive' : 'active')}>{current.status === 'active' ? 'Deactivate Package' : 'Reactivate Package'}</button></div>}
+        {!readOnly && <div className="inline-actions"><button className="onboarding-button" onClick={() => { setSaved(null); setReviewedVersion(current.version); setDraft({ name: current.name, total: current.total }); setEditing(true) }}>Edit Package</button><button className="onboarding-button" disabled={busy} onClick={() => void save(current.status === 'active' ? 'inactive' : 'active')}>{current.status === 'active' ? 'Deactivate Package' : 'Reactivate Package'}</button></div>}
         {errors.form && <p className="validation-copy" role="alert">{errors.form}</p>}
       </Panel> : <Panel><div className="package-list" aria-label="Package list">{pagination.items.map(item => <div className="package-row" key={item.id}>
         <div><strong>{item.name}</strong><span>{item.total} sessions · {item.validityDays} days</span></div><StatusBadge tone={item.status === 'active' ? 'green' : 'amber'}>{item.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge><button className="secondary-button small" aria-label={`View package ${item.name}`} onClick={() => onNavigate(`packages/${item.id}`)}>View</button>

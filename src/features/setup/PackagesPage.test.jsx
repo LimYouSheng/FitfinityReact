@@ -71,3 +71,25 @@ it('retains values after a failed edit and retries with the same optimistic vers
   expect(onSave).toHaveBeenCalledTimes(2)
   expect(onSave.mock.calls[1][0]).toMatchObject({ id: 'package-12', expectedVersion: 1, draft: { name: 'Changed package', total: 12 } })
 })
+
+
+it('retains the reviewed edit version across refresh and uses current terms for a lifecycle action', async () => {
+  const user = userEvent.setup(), onSave = vi.fn().mockRejectedValue(new Error('Record changed'))
+  const original = { ...DEFAULT_PACKAGES[0], version: 1 }
+  const props = { selectedId: original.id, onSave, onNavigate: () => {} }
+  const view = packages => <ActionConfirmationProvider><EditGuardProvider><PackagesPage policy={mockPolicy} {...props} packages={packages} /></EditGuardProvider></ActionConfirmationProvider>
+  const { rerender } = render(view([original]))
+  await user.click(screen.getByRole('button', { name: 'Edit Package', exact: true }))
+  const name = screen.getByLabelText('Package name')
+  await user.clear(name); await user.type(name, 'My reviewed edit')
+  rerender(view([{ ...original, version: 2, name: 'Remote update', total: 24 }]))
+  await user.click(screen.getByRole('button', { name: 'Save Package', exact: true }))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save Package', exact: true }))
+  expect(onSave.mock.calls[0][0]).toMatchObject({ expectedVersion: 1, draft: { name: 'My reviewed edit' } })
+  await screen.findByRole('alert')
+  await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+  rerender(view([{ ...original, version: 3, name: 'Latest terms', total: 36 }]))
+  await user.click(screen.getByRole('button', { name: 'Deactivate Package', exact: true }))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Deactivate Package', exact: true }))
+  expect(onSave.mock.calls[1][0]).toMatchObject({ expectedVersion: 3, draft: { name: 'Latest terms', total: 36, status: 'inactive' } })
+})

@@ -8,13 +8,14 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Header, Query, Request
 from sqlalchemy import select
 
-from app.api import assessments, directory
+from app.api import assessments, directory, packages
 from app.api.dependencies import authorized_transaction
 from app.api.schemas import (
     ERROR_RESPONSES,
     AssessmentRevision,
     ClientDetail,
     ClientSummary,
+    DirectoryPackage,
     DirectorySnapshot,
     FormDefinition,
     NewAssessment,
@@ -299,3 +300,21 @@ def session_client(session_id: UUID, request: Request):
                 )
             ),
         )
+
+
+@router.post("/packages", response_model=DirectoryPackage, operation_id="savePackage")
+def save_package(body: packages.SavePackage, request: Request, request_key: RequestKey):
+    """Owner/Admin catalogue save with reviewed versions and actor-scoped durable receipts."""
+    with authorized_transaction(request) as (session, principal):
+        return packages.save(session, principal, request_key, body)
+
+
+@router.get(
+    "/packages/saves/{request_key}",
+    response_model=DirectoryPackage,
+    operation_id="reconcilePackageSave",
+)
+def package_save(request_key: UUID, request: Request):
+    """Read only this actor's durable save receipt before retrying an uncertain command."""
+    with authorized_transaction(request) as (session, principal):
+        return packages.reconcile(session, principal, request_key)

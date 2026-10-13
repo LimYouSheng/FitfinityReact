@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -30,3 +31,15 @@ class AssessmentAccess(ActorEvidence, Record, Base):
     assessment_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("client_assessments.id"), index=True
     )
+
+
+class PackageSaveReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "package_save_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    template_id: Mapped[UUID] = mapped_column(ForeignKey("package_templates.id"))
+    result: Mapped[dict] = mapped_column(JSONB)

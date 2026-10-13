@@ -6,7 +6,7 @@ import ProfileAvatar from '../../components/ProfileAvatar.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 
 // Presentation only: App owns account-scoped routes, Back/swipe and session lifecycle.
-export default function StaffAccountPage({ user, profile = false, readOnly = true, onNavigate, onSignOut, busy }) {
+export default function StaffAccountPage({ user, profile = false, readOnly = true, packageWrites = false, onNavigate, onSignOut, busy }) {
   if (profile && user.role === 'admin') return <>
     <div className="page-head profile-identity-card">
       <div className="profile-identity-main">
@@ -33,7 +33,7 @@ export default function StaffAccountPage({ user, profile = false, readOnly = tru
   return <Panel>
     <span className="eyebrow">Staff portal</span><h1>Your account</h1>
     <dl><dt>Name</dt><dd>{user.name}</dd><dt>Email</dt><dd>{user.email}</dd><dt>Role</dt><dd>{staffRoleLabel(user)}</dd></dl>
-    {readOnly && <p className="helper">Client, trainer and package information is available to view. Changes and other workflows will be available in a later release.</p>}
+    {readOnly && <p className="helper">{packageWrites ? 'Client and trainer information is available to view. Package setup is available under Packages. Other workflows will be available in a later release.' : 'Client, trainer and package information is available to view. Changes and other workflows will be available in a later release.'}</p>}
     <div className="inline-actions"><button className="secondary-button" onClick={() => onNavigate('clients')}>View Clients</button>
       {managesOperations(user) && <><button className="secondary-button" onClick={() => onNavigate('trainers')}>View Trainers</button><button className="secondary-button" onClick={() => onNavigate('packages')}>View Packages</button></>}
       <button className="secondary-button" onClick={() => onNavigate('change-password')}>Change Password</button><button className="primary-button" disabled={busy} onClick={onSignOut}>Sign Out</button></div>

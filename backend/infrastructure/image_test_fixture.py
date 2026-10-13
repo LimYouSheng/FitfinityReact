@@ -16,6 +16,17 @@ def image_fixture(source, pinned_contract):
     Later file changes must still fail the runtime's real SHA-256 comparisons.
     """
     contract = copy.deepcopy(pinned_contract)
+    # Explicit candidate-only schema extension. Never update the deployed contract;
+    # its six-revision/table binding must reject this seven-revision image.
+    assert contract["revisions"][-1] == "20260924_0006"
+    revision = "20261013_0007"
+    migration = "migrations/versions/20261013_0007_package_saves.py"
+    contract["files"][migration] = hashlib.sha256((source / migration).read_bytes()).hexdigest()
+    contract["files"]["app/api/packages.py"] = hashlib.sha256(
+        (source / "app/api/packages.py").read_bytes()
+    ).hexdigest()
+    contract["revisions"] = [*contract["revisions"], revision]
+    contract["tables"]["package_save_receipts"] = ["SELECT", "INSERT"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

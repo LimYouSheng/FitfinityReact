@@ -57,7 +57,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     acknowledge: contract({ 'sessionId': 'string', 'acknowledgement': 'object' }, 'session', 'AcknowledgementResult'),
   }),
   packageService: Object.freeze({
-    save: contract({ 'id?': 'string', 'expectedVersion?': 'number', 'draft': 'object' }, 'operations', 'PackageDefinition'),
+    save: contract({ 'id?': 'string', 'expectedVersion?': 'number', 'draft': 'object' }, 'operations', 'PackageDefinition', true),
   }),
   exerciseLibraryService: Object.freeze({
     loadMedia: contract({ 'id': 'string' }, 'authenticated', 'Blob | null'),

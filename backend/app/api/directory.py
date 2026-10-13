@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 
-from app.api.schemas import DirectoryPackage, DirectorySnapshot
+from app.api.schemas import DirectoryPackage, DirectorySnapshot, PackagePolicy
 from app.auth.errors import AuthError
 from app.models.people import Client, ClientPerson, Trainer, TrainerAvailability
 from app.models.training import (
@@ -190,4 +190,5 @@ def snapshot(session, principal):
         clients=projected_clients,
         trainers=projected_trainers,
         packages=packages,
+        packagePolicy=PackagePolicy(),
     )
