@@ -4,7 +4,15 @@ from datetime import date, datetime, time
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    model_validator,
+)
 
 
 class Contract(BaseModel):
@@ -176,6 +184,14 @@ class NewAssessment(Contract):
     expectedPersonVersion: int = Field(gt=0, strict=True)
     answers: Answers
     event: Literal["draft", "completed"] = "completed"
+    previousAssessmentId: UUID | None = None
+    expectedPreviousVersion: StrictInt | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def reviewed_occasion(self):
+        if (self.previousAssessmentId is None) != (self.expectedPreviousVersion is None):
+            raise ValueError("Review the previous assessment before starting a new occasion")
+        return self
 
 
 class SaveAssessment(Contract):
@@ -183,6 +199,7 @@ class SaveAssessment(Contract):
     answers: Answers
     event: Literal["draft", "completed", "correction", "voided"]
     reason: str | None = Field(default=None, min_length=1, max_length=2000)
+    expectedPersonVersion: StrictInt | None = Field(default=None, ge=1)
 
 
 class AssessmentRevision(Contract):
@@ -204,6 +221,19 @@ class AssessmentRevision(Contract):
     actor_name: str
     reason: str | None
     created_at: datetime
+
+
+class PersonAssessmentRecords(Contract):
+    id: UUID
+    version: int
+    records: list[AssessmentRevision]
+
+
+class ClientAssessmentRecords(Contract):
+    id: UUID
+    version: int
+    businessDate: date
+    people: list[PersonAssessmentRecords]
 
 
 class FormDefinition(Contract):
@@ -346,6 +376,7 @@ class DirectorySnapshot(ServerClock):
     clientPersonalWrites: Literal[True] = True
     clientNoteWrites: Literal[True] = True
     clientCreation: Literal[True] = True
+    clientAssessmentWorkflows: Literal[True] = True
     clientOnboardingPolicy: ClientOnboardingPolicy = Field(default_factory=ClientOnboardingPolicy)
 
 

@@ -7,7 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
-from app.api.schemas import AssessmentRevision
+from app.api.schemas import AssessmentRevision, ClientAssessmentRecords, PersonAssessmentRecords
 from app.assessment_persistence import create_assessment, save_assessment
 from app.auth.errors import AuthError
 from app.authorization import client_record, conflict, unavailable
@@ -60,8 +60,15 @@ def audit(session, principal, person_id, action, assessment_id=None):
 
 def replay(session, principal, key: UUID, operation, target, body):
     # The auth-account lock serializes one actor's requests before checking this unique key.
+    values = body.model_dump(mode="json")
+    # Preserve hashes of existing receipts created before these optional review fields existed.
+    for field in ("previousAssessmentId", "expectedPreviousVersion"):
+        if values.get(field) is None:
+            values.pop(field, None)
+    if operation == "assessment_save" and values.get("expectedPersonVersion") is None:
+        values.pop("expectedPersonVersion", None)
     payload = json.dumps(
-        {"operation": operation, "target": str(target), "body": body.model_dump(mode="json")},
+        {"operation": operation, "target": str(target), "body": values},
         sort_keys=True,
         separators=(",", ":"),
         allow_nan=False,
@@ -116,16 +123,33 @@ def create(session, principal, person_id, key, body):
         return AssessmentRevision.model_validate(revision)
     if person.version != body.expectedPersonVersion:
         raise conflict()
-    if session.scalar(
-        select(ClientAssessment.id)
+    previous_occasion = session.scalar(
+        select(ClientAssessment)
         .where(
             ClientAssessment.client_person_id == person_id, ClientAssessment.form_id == body.formId
         )
+        .order_by(ClientAssessment.created_at.desc(), ClientAssessment.id.desc())
         .limit(1)
-    ):
-        raise AuthError(
-            "assessment_exists", "This form already has a record. Open its saved history.", 409
+    )
+    if previous_occasion:
+        if body.previousAssessmentId is None:
+            raise AuthError(
+                "assessment_exists", "This form already has a record. Open its saved history.", 409
+            )
+        previous_revision = session.scalar(
+            select(ClientAssessmentRevision).where(
+                ClientAssessmentRevision.assessment_id == previous_occasion.id,
+                ClientAssessmentRevision.revision == previous_occasion.version,
+            )
         )
+        if (
+            previous_occasion.id != body.previousAssessmentId
+            or previous_occasion.version != body.expectedPreviousVersion
+            or previous_revision.status == "draft"
+        ):
+            raise conflict()
+    elif body.previousAssessmentId is not None:
+        raise conflict()
     day = session.scalar(text("SELECT (clock_timestamp() AT TIME ZONE 'Asia/Singapore')::date"))
     revision = create_assessment(
         session, person_id, body.formId, body.formVersion, principal.user_id, day, body.answers
@@ -153,6 +177,8 @@ def save(session, principal, assessment_id, key, body):
         return AssessmentRevision.model_validate(
             session.get(ClientAssessmentRevision, previous.revision_id)
         )
+    if body.expectedPersonVersion is not None and person.version != body.expectedPersonVersion:
+        raise conflict()
     current = session.scalar(
         select(ClientAssessmentRevision).where(
             ClientAssessmentRevision.assessment_id == record.id,
@@ -171,3 +197,64 @@ def save(session, principal, assessment_id, key, body):
     )
     audit(session, principal, person.id, "save", record.id)
     return remember(session, principal, key, "assessment_save", digest, revision)
+
+
+def reconcile(session, principal, key):
+    principal.operations()
+    # authorized_transaction holds this actor's auth-account lock, serializing writes and reads.
+    previous = session.scalar(
+        select(ApiReceipt).where(
+            ApiReceipt.actor_id == principal.user_id,
+            ApiReceipt.request_key == key,
+        )
+    )
+    if previous is None:
+        raise unavailable()
+    revision = session.get(ClientAssessmentRevision, previous.revision_id)
+    person, record = assessment_record(session, principal, revision.assessment_id)
+    audit(session, principal, person.id, "replay", record.id)
+    return AssessmentRevision.model_validate(revision)
+
+
+def current_records(session, principal, client_id):
+    principal.operations()
+    client = client_record(session, principal, client_id)
+    people = session.scalars(
+        select(ClientPerson)
+        .where(
+            ClientPerson.client_id == client_id,
+        )
+        .order_by(ClientPerson.position)
+        .with_for_update(read=True)
+    ).all()
+    result = []
+    for person in people:
+        # One current revision per form's newest occasion. Later corrections to an older
+        # occasion cannot replace the newest occasion in the profile overview.
+        records = session.scalars(
+            select(ClientAssessmentRevision)
+            .join(
+                ClientAssessment,
+                (ClientAssessment.id == ClientAssessmentRevision.assessment_id)
+                & (ClientAssessment.version == ClientAssessmentRevision.revision),
+            )
+            .where(ClientAssessment.client_person_id == person.id)
+            .distinct(ClientAssessment.form_id)
+            .order_by(
+                ClientAssessment.form_id,
+                ClientAssessment.created_at.desc(),
+                ClientAssessment.id.desc(),
+            )
+        ).all()
+        audit(session, principal, person.id, "list")
+        result.append(
+            PersonAssessmentRecords(
+                id=person.id,
+                version=person.version,
+                records=[AssessmentRevision.model_validate(record) for record in records],
+            )
+        )
+    day = session.scalar(text("SELECT (clock_timestamp() AT TIME ZONE 'Asia/Singapore')::date"))
+    return ClientAssessmentRecords(
+        id=client.id, version=client.version, businessDate=day, people=result
+    )

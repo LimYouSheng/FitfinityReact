@@ -362,6 +362,40 @@
         "title": "ChangePassword",
         "type": "object"
       },
+      "ClientAssessmentRecords": {
+        "additionalProperties": false,
+        "properties": {
+          "businessDate": {
+            "format": "date",
+            "title": "Businessdate",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/PersonAssessmentRecords"
+            },
+            "title": "People",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "businessDate",
+          "people"
+        ],
+        "title": "ClientAssessmentRecords",
+        "type": "object"
+      },
       "ClientDetail": {
         "additionalProperties": false,
         "properties": {
@@ -1059,6 +1093,12 @@
             "format": "date",
             "title": "Businessdate",
             "type": "string"
+          },
+          "clientAssessmentWorkflows": {
+            "const": true,
+            "default": true,
+            "title": "Clientassessmentworkflows",
+            "type": "boolean"
           },
           "clientCreation": {
             "const": true,
@@ -1801,6 +1841,18 @@
             "title": "Expectedpersonversion",
             "type": "integer"
           },
+          "expectedPreviousVersion": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expectedpreviousversion"
+          },
           "formId": {
             "maxLength": 64,
             "minLength": 1,
@@ -1812,6 +1864,18 @@
             "exclusiveMinimum": 0.0,
             "title": "Formversion",
             "type": "integer"
+          },
+          "previousAssessmentId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previousassessmentid"
           }
         },
         "required": [
@@ -2428,6 +2492,34 @@
         "title": "PendingEmail",
         "type": "object"
       },
+      "PersonAssessmentRecords": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/AssessmentRevision"
+            },
+            "title": "Records",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "records"
+        ],
+        "title": "PersonAssessmentRecords",
+        "type": "object"
+      },
       "PersonDetails": {
         "additionalProperties": false,
         "properties": {
@@ -2957,6 +3049,18 @@
             ],
             "title": "Event",
             "type": "string"
+          },
+          "expectedPersonVersion": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expectedpersonversion"
           },
           "expectedVersion": {
             "exclusiveMinimum": 0.0,
@@ -4097,6 +4201,432 @@
           }
         ],
         "summary": "Definitions",
+        "tags": [
+          "staff records",
+          "assessments"
+        ]
+      }
+    },
+    "/api/assessment-saves/{request_key}": {
+      "get": {
+        "description": "Read this actor's original immutable revision after an interrupted create or save.",
+        "operationId": "reconcileAssessmentSave",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_key",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentRevision"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Ambiguous or invalid request",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Session or access credentials expired",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Operation, origin or CSRF denied",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource unavailable for this account",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Method unavailable",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "State, version or idempotency conflict; review before retrying",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request exceeds the body limit",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON is required",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "validation_error",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid input; answer and credential values are never echoed",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit reached",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request failed safely",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Dependency unavailable",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Reconcile Assessment Save",
         "tags": [
           "staff records",
           "assessments"
@@ -8469,6 +8999,432 @@
         ]
       }
     },
+    "/api/clients/{client_id}/assessment-records": {
+      "get": {
+        "description": "Owner/Admin latest occasions per form, with reviewed client/person versions.",
+        "operationId": "getClientAssessmentRecords",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Client Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientAssessmentRecords"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Ambiguous or invalid request",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Session or access credentials expired",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Operation, origin or CSRF denied",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource unavailable for this account",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Method unavailable",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "State, version or idempotency conflict; review before retrying",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request exceeds the body limit",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON is required",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "validation_error",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid input; answer and credential values are never echoed",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit reached",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request failed safely",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": {
+                    "code": "request_rejected",
+                    "message": "Request rejected.",
+                    "requestId": "example-support-id"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Dependency unavailable",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store",
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-generated support ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StaffSession": []
+          }
+        ],
+        "summary": "Client Assessment Records",
+        "tags": [
+          "staff records",
+          "assessments"
+        ]
+      }
+    },
     "/api/clients/{client_id}/notes": {
       "get": {
         "description": "Audited general notes for operational staff or the current assigned Trainer only.",
@@ -11545,6 +12501,24 @@
               "title": "Offset",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "formId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "pattern": "^[a-z][a-z0-9_]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Formid"
+            }
           }
         ],
         "responses": {
@@ -11957,7 +12931,7 @@
         ]
       },
       "post": {
-        "description": "Owner/Admin records an unfilled form with an atomic save and retry receipt.\n\nExisting occasions are never overwritten. Reassessment UI and its explicit new-occasion\ncontract belong to M6.1. Empty hurdle completion is valid; other forms need an answer.",
+        "description": "Owner/Admin records an unfilled form with an atomic save and retry receipt.\n\nExisting occasions are never overwritten. A reassessment requires the current completed\nor voided occasion ID/version; an unfinished draft must be resumed.\nEmpty hurdle completion is valid; other forms need an answer.",
         "operationId": "createPersonAssessment",
         "parameters": [
           {

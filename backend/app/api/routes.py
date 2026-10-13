@@ -25,6 +25,7 @@ from app.api.dependencies import authorized_transaction
 from app.api.schemas import (
     ERROR_RESPONSES,
     AssessmentRevision,
+    ClientAssessmentRecords,
     ClientDetail,
     ClientSummary,
     DirectoryPackage,
@@ -200,7 +201,13 @@ def definitions(request: Request, limit: Limit = 25, offset: Offset = 0):
     operation_id="listPersonAssessments",
     tags=["assessments"],
 )
-def person_assessments(person_id: UUID, request: Request, limit: Limit = 25, offset: Offset = 0):
+def person_assessments(
+    person_id: UUID,
+    request: Request,
+    limit: Limit = 25,
+    offset: Offset = 0,
+    formId: Annotated[str | None, Query(max_length=64, pattern=r"^[a-z][a-z0-9_]*$")] = None,
+):
     """Owner/Admin current records for one person, including inactive clients; audited reads."""
     with authorized_transaction(request) as (session, principal):
         assessments.person_record(session, principal, person_id)
@@ -213,8 +220,10 @@ def person_assessments(person_id: UUID, request: Request, limit: Limit = 25, off
                 & (ClientAssessment.version == ClientAssessmentRevision.revision),
             )
             .where(ClientAssessment.client_person_id == person_id)
-            .order_by(ClientAssessment.id)
+            .order_by(ClientAssessment.created_at.desc(), ClientAssessment.id.desc())
         )
+        if formId is not None:
+            query = query.where(ClientAssessment.form_id == formId)
         return page(session, query, AssessmentRevision, limit, offset)
 
 
@@ -227,8 +236,9 @@ def person_assessments(person_id: UUID, request: Request, limit: Limit = 25, off
 def create_assessment(person_id: UUID, body: NewAssessment, request: Request, key: RequestKey):
     """Owner/Admin records an unfilled form with an atomic save and retry receipt.
 
-    Existing occasions are never overwritten. Reassessment UI and its explicit new-occasion
-    contract belong to M6.1. Empty hurdle completion is valid; other forms need an answer.
+    Existing occasions are never overwritten. A reassessment requires the current completed
+    or voided occasion ID/version; an unfinished draft must be resumed.
+    Empty hurdle completion is valid; other forms need an answer.
     """
     with authorized_transaction(request) as (session, principal):
         return assessments.create(session, principal, person_id, key, body)
@@ -525,3 +535,27 @@ def reconcile_trainer_reactivation(request_key: UUID, request: Request):
     """Read this actor's receipt before explicitly retrying the identical operation."""
     with authorized_transaction(request) as (session, principal):
         return trainer_reactivation.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/assessment-records",
+    response_model=ClientAssessmentRecords,
+    operation_id="getClientAssessmentRecords",
+    tags=["assessments"],
+)
+def client_assessment_records(client_id: UUID, request: Request):
+    """Owner/Admin latest occasions per form, with reviewed client/person versions."""
+    with authorized_transaction(request) as (session, principal):
+        return assessments.current_records(session, principal, client_id)
+
+
+@router.get(
+    "/assessment-saves/{request_key}",
+    response_model=AssessmentRevision,
+    operation_id="reconcileAssessmentSave",
+    tags=["assessments"],
+)
+def reconcile_assessment_save(request_key: UUID, request: Request):
+    """Read this actor's original immutable revision after an interrupted create or save."""
+    with authorized_transaction(request) as (session, principal):
+        return assessments.reconcile(session, principal, request_key)

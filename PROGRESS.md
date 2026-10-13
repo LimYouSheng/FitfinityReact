@@ -1,5 +1,13 @@
 # Fitfinity current progress
 
+## Assessment profile reads and explicit reassessment — active source slice, 13 October 2026
+
+- Branch `integration/client-assessments-2026-10-13` starts clean at draft PR #36 exact head `8b061cd03e2e540660c92781067db519aba5ca65`. Its full CI run 38398554915 has passed backend with frontend pending; PR #35 run 38395831920 also has frontend pending. No merge or deployment.
+- Added scoped Owner/Admin current-record reads, actor-only save-receipt reconciliation, newest-occasion pagination/filtering, explicit reviewed reassessment and optional person-version checks when resuming. Drafts must be resumed; a new occasion requires the latest completed/voided root ID/version. Correcting old history does not replace a newer profile occasion. The initial 11 forms remain inaccessible to Trainers, including the currently assigned Trainer; general-note policy is unchanged.
+- Preserved old idempotency hashes when new optional review fields are absent. Existing receipt, history, immutable snapshot and actor-audit storage is reused; no migration or historical image-contract change. Reviewed OpenAPI adds two reads (56 operations/50 paths), expands the existing per-person list query and the assessment write models; unrelated paths remain structurally unchanged. The directory advertises the workflow capability for the next UI slice.
+- All 17 new PostgreSQL/HTTP cases pass, including couple isolation and voided-occasion retention; retained inactive-record coverage now also checks receipt/overview reads. Full backend gate passes 637/637 tests, 633 infrastructure cases, Ruff/format and exact OpenAPI. Frontend bytes and exact 1040-unit/101-file, 891-browser/27-file inventories remain unchanged from PR #36; these are retained evidence, not new final-head CI. Logs: `/workspace/work/client-assessments/`.
+- Candidate operation count remains eleven server-connected plus one local predicate, with 43 incomplete. Assessment UI draft/resume/first-fill/history/reassessment work follows this backend checkpoint; no operation completion or live/device acceptance claim.
+
 ## Trainer reactivation — active source slice, 13 October 2026
 
 - Branch `integration/trainer-reactivation-2026-10-13` starts clean at draft PR #35 exact head `2f16106feefc9710703c938d0502366900beeb61`. Its full CI run 38395831920 has passed backend and has pending frontend. PR #34 run 38391015345 now passes both complete jobs at `2be43a84ebe13340221c3715e39c4fefcc9abbc1`; its draft body records that result. No merge, AWS mutation or deployment.
