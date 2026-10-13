@@ -4041,13 +4041,27 @@
         "additionalProperties": false,
         "properties": {
           "date": {
-            "format": "date",
-            "title": "Date",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
           },
           "endsAt": {
-            "title": "Endsat",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endsat"
           },
           "error": {
             "anyOf": [
@@ -4070,18 +4084,40 @@
             "type": "boolean"
           },
           "originalDate": {
-            "format": "date",
-            "title": "Originaldate",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Originaldate"
           },
           "purchaseId": {
             "format": "uuid",
             "title": "Purchaseid",
             "type": "string"
           },
-          "startsAt": {
-            "title": "Startsat",
+          "scheduleState": {
+            "enum": [
+              "booked",
+              "open"
+            ],
+            "title": "Schedulestate",
             "type": "string"
+          },
+          "startsAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startsat"
           },
           "trainerId": {
             "format": "uuid",
@@ -4103,6 +4139,7 @@
           "purchaseId",
           "trainerId",
           "trainerName",
+          "scheduleState",
           "originalDate",
           "date",
           "startsAt",
@@ -4534,9 +4571,16 @@
             "type": "string"
           },
           "ends_at": {
-            "format": "time",
-            "title": "Ends At",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
           },
           "id": {
             "format": "uuid",
@@ -4548,10 +4592,25 @@
             "title": "Purchase Id",
             "type": "string"
           },
-          "starts_at": {
-            "format": "time",
-            "title": "Starts At",
+          "schedule_state": {
+            "enum": [
+              "booked",
+              "open"
+            ],
+            "title": "Schedule State",
             "type": "string"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
           },
           "status": {
             "enum": [
@@ -4569,9 +4628,16 @@
             "type": "string"
           },
           "training_date": {
-            "format": "date",
-            "title": "Training Date",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Training Date"
           },
           "version": {
             "title": "Version",
@@ -4584,6 +4650,7 @@
           "client_id",
           "purchase_id",
           "trainer_id",
+          "schedule_state",
           "training_date",
           "starts_at",
           "ends_at",

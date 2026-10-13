@@ -162,9 +162,10 @@ class SessionSummary(Contract):
     client_id: UUID
     purchase_id: UUID
     trainer_id: UUID
-    training_date: date
-    starts_at: time
-    ends_at: time
+    schedule_state: Literal["booked", "open"]
+    training_date: date | None
+    starts_at: time | None
+    ends_at: time | None
     status: Literal["scheduled", "planned", "completed", "cancelled"]
 
 

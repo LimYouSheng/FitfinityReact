@@ -48,3 +48,15 @@ it('does not turn a confirmed save into an uncertain retry when the following re
   expect(screen.queryByRole('button', { name: 'Check Reactivation' })).toBeNull()
   expect(workflow.save).toHaveBeenCalledTimes(1)
 })
+
+it('shows an open session with an inactive trainer without inventing an editable date', async () => {
+  const open = { ...reviewed, rows: reviewed.rows.map(row => ({ ...row, scheduleState: 'open', originalDate: null, date: null, startsAt: null, endsAt: null, error: 'Reactivate the assigned trainer before restoring this session.' })) }
+  const workflow = workflowFor({ review: vi.fn().mockResolvedValue({ reviewed: open, dates: {}, uncertain: false }) })
+  show(workflow)
+  fireEvent.click(screen.getByRole('button', { name: 'Reactivate Client' }))
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByText('Open session · No date or time assigned.')).toBeTruthy()
+  expect(within(dialog).queryByRole('textbox')).toBeNull()
+  expect(within(dialog).getByRole('button', { name: 'Reactivate Client' }).disabled).toBe(true)
+  expect(workflow.save).not.toHaveBeenCalled()
+})

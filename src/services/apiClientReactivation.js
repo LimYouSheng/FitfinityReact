@@ -12,16 +12,18 @@ export function validReactivationReview(value) {
     && typeof value.name === 'string' && value.name.trim() && typeof value.expected === 'string' && /^[0-9a-f]{64}$/.test(value.expected) && optionalError(value.packageError)
     && Array.isArray(value.purchaseIds) && value.purchaseIds.length <= 2000 && value.purchaseIds.every(uuid) && new Set(value.purchaseIds).size === value.purchaseIds.length
     && Array.isArray(value.rows) && value.rows.length <= 2000 && new Set(value.rows.map(r => r?.id)).size === value.rows.length
-    && value.rows.every(r => keys(r, ['id', 'version', 'purchaseId', 'trainerId', 'trainerName', 'originalDate', 'date', 'startsAt', 'endsAt', 'locked', 'error'])
+    && value.rows.every(r => keys(r, ['id', 'version', 'purchaseId', 'trainerId', 'trainerName', 'scheduleState', 'originalDate', 'date', 'startsAt', 'endsAt', 'locked', 'error'])
       && uuid(r.id) && version(r.version) && uuid(r.purchaseId) && uuid(r.trainerId) && typeof r.trainerName === 'string' && r.trainerName.trim()
-      && date(r.originalDate) && date(r.date) && time(r.startsAt) && time(r.endsAt) && r.startsAt < r.endsAt && typeof r.locked === 'boolean' && optionalError(r.error))
+      && typeof r.locked === 'boolean' && optionalError(r.error)
+      && (r.scheduleState === 'open' ? !r.locked && [r.originalDate, r.date, r.startsAt, r.endsAt].every(v => v === null)
+        : r.scheduleState === 'booked' && date(r.originalDate) && date(r.date) && time(r.startsAt) && time(r.endsAt) && r.startsAt < r.endsAt))
 }
 export function clientReactivationCommands(http, actionSession) {
   const validate = (value, input) => {
     if (!validReactivationReview(value) || value.id !== input.id || value.version !== input.reviewed.version || value.expected !== input.reviewed.expected
       || value.rows.length !== input.reviewed.rows.length || value.rows.some(row => {
         const before = input.reviewed.rows.find(r => r.id === row.id)
-        return !before || row.date !== (input.dates[row.id] ?? before.originalDate) || ['version', 'purchaseId', 'trainerId', 'trainerName', 'originalDate', 'startsAt', 'endsAt', 'locked'].some(key => row[key] !== before[key])
+        return !before || row.date !== (input.dates[row.id] ?? before.originalDate) || ['version', 'purchaseId', 'trainerId', 'trainerName', 'scheduleState', 'originalDate', 'startsAt', 'endsAt', 'locked'].some(key => row[key] !== before[key])
       }) || JSON.stringify(value.purchaseIds) !== JSON.stringify(input.reviewed.purchaseIds)) throw new ApiError('API_RESPONSE', 'The retained calendar could not be verified.')
     return value
   }
@@ -40,7 +42,7 @@ export function clientReactivationCommands(http, actionSession) {
   }
   const inputFor = input => {
     if (!validReactivationReview(input.reviewed) || input.reviewed.id !== input.id || !input.dates || Array.isArray(input.dates) || typeof input.dates !== 'object'
-      || Object.entries(input.dates).some(([id, day]) => !input.reviewed.rows.some(r => r.id === id) || !date(day))) throw new ApiError('INVALID_REQUEST', 'Review the client and retained calendar before reactivating.')
+      || Object.entries(input.dates).some(([id, day]) => !input.reviewed.rows.some(r => r.id === id && r.scheduleState === 'booked') || !date(day))) throw new ApiError('INVALID_REQUEST', 'Review the client and retained calendar before reactivating.')
     return input
   }
   return {

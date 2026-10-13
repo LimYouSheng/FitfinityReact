@@ -159,8 +159,15 @@ class TrainingSession(Versioned, Base):
         UniqueConstraint("purchase_id", "session_number"),
         UniqueConstraint("id", "purchase_id", "client_id"),
         choices("status", "scheduled", "planned", "completed", "cancelled"),
+        choices("schedule_state", "booked", "open"),
         CheckConstraint(
-            "session_number BETWEEN 1 AND 365 AND starts_at < ends_at", name="valid_session"
+            "(schedule_state = 'open' AND session_number IS NULL AND training_date IS NULL "
+            "AND starts_at IS NULL AND ends_at IS NULL AND schedule_slot_id IS NULL "
+            "AND status <> 'completed') OR "
+            "(schedule_state = 'booked' AND session_number IS NOT NULL "
+            "AND session_number BETWEEN 1 AND 365 AND training_date IS NOT NULL "
+            "AND starts_at IS NOT NULL AND ends_at IS NOT NULL AND starts_at < ends_at)",
+            name="valid_session",
         ),
         CheckConstraint("whatsapp_open_count >= 0", name="handoff_count"),
         Index("ix_session_trainer_calendar", "trainer_id", "training_date", "starts_at"),
@@ -170,10 +177,11 @@ class TrainingSession(Versioned, Base):
     purchase_id: Mapped[UUID] = mapped_column(index=True)
     trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"), index=True)
     schedule_slot_id: Mapped[UUID | None] = mapped_column()
-    session_number: Mapped[int] = mapped_column(Integer)
-    training_date: Mapped[date] = mapped_column(Date)
-    starts_at: Mapped[time] = mapped_column(Time)
-    ends_at: Mapped[time] = mapped_column(Time)
+    schedule_state: Mapped[str] = mapped_column(String(16), server_default="booked")
+    session_number: Mapped[int | None] = mapped_column(Integer)
+    training_date: Mapped[date | None] = mapped_column(Date)
+    starts_at: Mapped[time | None] = mapped_column(Time)
+    ends_at: Mapped[time | None] = mapped_column(Time)
     status: Mapped[str] = mapped_column(String(16), server_default="scheduled")
     trainer_comments: Mapped[str] = mapped_column(Text, server_default="")
     client_summary: Mapped[str] = mapped_column(Text, server_default="")

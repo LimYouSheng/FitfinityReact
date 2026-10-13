@@ -64,7 +64,7 @@ def test_populated_downgrade_refuses_before_losing_any_data(domain_db, graph, mi
     with domain_db.transaction() as session:
         assert count(session, Client) == 1
         assert count(session, TrainingSession) == 2
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0021"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0022"
 
 
 def test_couple_has_two_people_in_one_atomic_transaction(domain_db, graph):

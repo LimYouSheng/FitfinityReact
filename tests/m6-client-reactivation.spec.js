@@ -102,3 +102,18 @@ test('API client reactivation rejects a stale reviewed client without changing p
   expect(staffApi.state.directory.clients[0].purchases[0].status).toBe('inactive')
   expect(staffApi.state.clientReactivationReceipts.size).toBe(0)
 })
+
+test('API client reactivation retains open sessions without assigning calendar slots', async ({ page, staffApi }) => {
+  await openClient(page, staffApi)
+  staffApi.state.reactivationOpen = true
+  await clientAction(page, 'Reactivate Client')
+  const dialog = page.getByRole('dialog', { name: 'Reactivate API Client?', exact: true })
+  await expect(dialog).toContainText('1 open session will remain unscheduled.')
+  await expect(dialog.getByRole('textbox')).toHaveCount(0)
+  await confirm(page)
+  await expect(page).toHaveURL(/#\/clients$/)
+  expect(staffApi.state.clientReactivationAttempts).toHaveLength(1)
+  expect(staffApi.state.clientReactivationAttempts[0].body.dates).toEqual({})
+  expect(staffApi.state.reactivationOpen).toBe(true)
+  await retainedClient(page, staffApi)
+})

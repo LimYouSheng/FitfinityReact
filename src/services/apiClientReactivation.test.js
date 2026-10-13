@@ -73,3 +73,25 @@ it('rejects unreviewed input before contacting transport', async () => {
   await expect(servicesFor(fetch).clientService.reactivate({ id: input.id })).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
   expect(fetch).not.toHaveBeenCalled()
 })
+
+const openReview = () => ({ ...reviewed, rows: reviewed.rows.map(row => ({ ...row, scheduleState: 'open', originalDate: null, date: null, startsAt: null, endsAt: null })) })
+it('retains open-session identity without fabricated dates in review and save', async () => {
+  const open = openReview()
+  const fetch = transport((_url, options) => jsonResponse(options.method === 'POST' ? result : open))
+  const services = servicesFor(fetch)
+  expect((await services.previewClientReactivation({ id: open.id, expectedVersion: open.version })).reviewed).toEqual(open)
+  expect(await services.clientService.reactivate({ id: open.id, reviewed: open, dates: {} })).toEqual(result)
+  expect(JSON.parse(fetch.mock.calls.find(([, o]) => o.method === 'POST')[1].body).dates).toEqual({})
+})
+it('rejects date changes to an open session before transport', async () => {
+  const fetch = vi.fn(), open = openReview()
+  await expect(servicesFor(fetch).clientService.reactivate({ id: open.id, reviewed: open, dates: { [open.rows[0].id]: '2026-09-08' } })).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
+  expect(fetch).not.toHaveBeenCalled()
+})
+it.each(['invented-date', 'incomplete-booking', 'unknown-state'])('rejects malformed scheduling evidence: %s', async mutation => {
+  const bad = openReview()
+  if (mutation === 'invented-date') bad.rows[0].date = '2026-09-08'
+  if (mutation === 'incomplete-booking') bad.rows[0].scheduleState = 'booked'
+  if (mutation === 'unknown-state') bad.rows[0].scheduleState = 'unknown'
+  await expect(servicesFor(transport(() => jsonResponse(bad))).previewClientReactivation({ id: bad.id, expectedVersion: bad.version })).rejects.toMatchObject({ code: 'API_RESPONSE' })
+})

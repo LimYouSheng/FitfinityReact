@@ -14,6 +14,7 @@ export function clientReactivationApiFixture({ state, path, request, body, json,
   const reviewed = reactivationReview({ id: client.id, name: client.name, version: client.version,
     expected: (client.version + client.purchases.reduce((n, p) => n + p.version, 0)).toString(16).padStart(64, '0') })
   reviewed.rows = reviewed.rows.map(r => ({ ...r, error: state.reactivationConflict ? 'Conflicts with another booking for this trainer or client. Choose a free date.' : null }))
+  if (state.reactivationOpen) reviewed.rows.push({ ...reviewed.rows[0], id: '10000000-0000-4000-8000-000000000021', scheduleState: 'open', date: null, originalDate: null, startsAt: null, endsAt: null, error: null })
   if (request.method === 'GET') {
     if (client.status !== 'inactive') { error('state_conflict', 409); return true }
     json(reviewed); return true

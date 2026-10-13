@@ -51,6 +51,7 @@ export default function ApiClientReactivationButton({ disabled, workflow, onEdit
     finally { locked.current = false; setBusy(false) }
   }
   const rows = review?.rows.filter(r => r.error || initialConflicts.includes(r.id) || Object.hasOwn(dates, r.id)) ?? []
+  const openCount = review?.rows.filter(r => r.scheduleState === 'open').length ?? 0
   if (saved) return null
   return <>
     <button type="button" className="profile-menu-reactivate" disabled={disabled || busy} onClick={open}>{busy ? 'Checking Client…' : uncertain ? 'Check Reactivation' : 'Reactivate Client'}</button>
@@ -59,11 +60,12 @@ export default function ApiClientReactivationButton({ disabled, workflow, onEdit
       onCancel={() => { if (!busy) guardNavigation(close) }}>
       <div className="stack-gap">
         <p>Packages disabled with this client and their retained sessions will become active again. Separately deactivated packages stay inactive. Deleted sessions are not recreated; used credits and purchased terms stay unchanged.</p>
+        <p>{openCount} open {openCount === 1 ? 'session' : 'sessions'} will remain unscheduled.</p>
         <p>{review.rows.length} retained sessions checked. Each conflicting session needs a free date. Its time, trainer and original package stay the same.</p>
         {rows.map(row => {
-          const label = `Session ${review.rows.findIndex(r => r.id === row.id) + 1} · ${formatDate(row.originalDate)} · ${row.startsAt}–${row.endsAt}`
+          const label = row.scheduleState === 'open' ? 'Open session' : `Session ${review.rows.findIndex(r => r.id === row.id) + 1} · ${formatDate(row.originalDate)} · ${row.startsAt}–${row.endsAt}`
           return <div key={row.id} className="stack-gap">
-            <Field label={label} required><DateField aria-label={label} value={dates[row.id] ?? row.date} disabled={busy || uncertain || row.locked} onChange={event => preview(row.id, event.target.value)} /></Field>
+            {row.scheduleState === 'open' ? <p>Open session · No date or time assigned.</p> : <Field label={label} required><DateField aria-label={label} value={dates[row.id] ?? row.date} disabled={busy || uncertain || row.locked} onChange={event => preview(row.id, event.target.value)} /></Field>}
             <p className="helper">Trainer: {row.trainerName}</p>
             <p className={row.error ? 'onboarding-error' : 'helper'}>{row.error || 'No scheduling conflict.'}{row.locked && ' This acknowledged session is locked.'}</p>
           </div>
