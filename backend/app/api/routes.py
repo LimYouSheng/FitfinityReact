@@ -17,6 +17,7 @@ from app.api import (
     client_notes,
     client_reactivation,
     client_reactivation_save,
+    client_renewal,
     content,
     directory,
     messages,
@@ -783,3 +784,26 @@ def reconcile_trainer_availability(request_key: UUID, request: Request):
     """Reconcile this Trainer's original availability save without reapplying or sending notices."""
     with authorized_transaction(request) as (session, principal):
         return trainer_availability.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/renewal-review",
+    response_model=client_renewal.RenewalReview,
+    operation_id="reviewClientPackageRenewal",
+)
+def review_client_package_renewal(client_id: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return client_renewal.review(session, principal, client_id)
+
+
+@router.post(
+    "/clients/{client_id}/renewal-matches",
+    response_model=client_matching.MatchResult,
+    operation_id="previewClientRenewalMatches",
+)
+def preview_client_renewal_matches(
+    client_id: UUID, body: client_renewal.RenewalMatchRequest, request: Request, key: RequestKey
+):
+    """Recheck the client and trainer calendars; this preview does not create a purchase."""
+    with authorized_transaction(request) as (session, principal):
+        return client_renewal.matches(session, principal, client_id, body)

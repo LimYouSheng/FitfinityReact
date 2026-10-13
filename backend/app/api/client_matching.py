@@ -7,7 +7,7 @@ from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, StrictInt, StrictStr, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.api.directory import MAX_RECORDS, bounded
 from app.api.schemas import Contract
@@ -21,7 +21,15 @@ from app.models.training import (
     TrainingSession,
 )
 from app.persistence import occupied_booking_clause
-from app.purchase_schedule import DatedSlot, WeeklySlot, matching_schedule
+from app.purchase_schedule import (
+    CadenceUnavailable,
+    DatedSlot,
+    WeeklySlot,
+    covered,
+    generated_dates,
+    matching_schedule,
+    overlaps,
+)
 
 DAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 Day = Literal["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -102,7 +110,9 @@ def package_terms(session, body):
     return terms
 
 
-def preview(session, principal, body):
+def preview(
+    session, principal, body, *, client_id=None, retained_trainer=None, retained_slots=None
+):
     principal.operations()
     terms = package_terms(session, body)
     try:
@@ -127,6 +137,7 @@ def preview(session, principal, body):
     trainers = bounded(session, query.with_for_update(read=True))
     ids = [t.id for t in trainers]
     availability, occupied = defaultdict(list), defaultdict(list)
+    client_occupied = []
     for slot in bounded(
         session,
         select(TrainerAvailability).where(TrainerAvailability.trainer_id.in_(ids)),
@@ -139,34 +150,57 @@ def preview(session, principal, body):
         .join(PackagePurchase, TrainingSession.purchase_id == PackagePurchase.id)
         .join(Client, TrainingSession.client_id == Client.id)
         .where(
-            TrainingSession.trainer_id.in_(ids),
+            or_(
+                TrainingSession.trainer_id.in_(ids),
+                TrainingSession.client_id == client_id if client_id else False,
+            ),
             TrainingSession.training_date.between(body.startDate, end),
             occupied_booking_clause(),
         ),
         MAX_RECORDS * 365,
     ):
-        occupied[booking.trainer_id].append(
-            DatedSlot(
-                booking.training_date,
-                WeeklySlot(booking.training_date.weekday(), booking.starts_at, booking.ends_at),
-            )
+        interval = DatedSlot(
+            booking.training_date,
+            WeeklySlot(booking.training_date.weekday(), booking.starts_at, booking.ends_at),
         )
+        if booking.client_id == client_id:
+            client_occupied.append(interval)
+        else:
+            occupied[booking.trainer_id].append(interval)
     preferences = [slot for block in body.clientPreferences for slot in block.slots()]
     matches = []
-    from app.purchase_schedule import covered
 
     for trainer in trainers:
         hours = availability[trainer.id]
         try:
-            schedule = matching_schedule(
-                body.startDate,
-                terms.total_sessions,
-                terms.validity_days,
-                body.sessionsPerWeek,
-                preferences,
-                hours,
-                occupied[trainer.id],
-            )
+            occupied_dates = [*occupied[trainer.id], *client_occupied]
+            if retained_slots is not None and trainer.id == retained_trainer:
+                # An existing cadence is either still valid exactly or unavailable. Never
+                # silently replace it with another time from a wider preference window.
+                schedule = retained_slots
+                if len(schedule) != body.sessionsPerWeek or any(
+                    not covered(slot, hours) or not covered(slot, preferences) for slot in schedule
+                ):
+                    schedule = []
+                if schedule:
+                    try:
+                        dates = generated_dates(
+                            body.startDate, terms.total_sessions, terms.validity_days, schedule
+                        )
+                        if any(overlaps(booking, occupied_dates) for booking in dates):
+                            schedule = []
+                    except CadenceUnavailable:
+                        schedule = []
+            else:
+                schedule = matching_schedule(
+                    body.startDate,
+                    terms.total_sessions,
+                    terms.validity_days,
+                    body.sessionsPerWeek,
+                    preferences,
+                    hours,
+                    occupied_dates,
+                )
         except ValueError:
             raise AuthError("invalid_request", "Review the package schedule.", 422) from None
         if schedule:
