@@ -14,8 +14,9 @@ export function clientDetailCommands(http, actionSession) {
   })
   return (input, generation) => {
     const { id, patch, reviewed } = input
+    if (!patch || Object.keys(patch).some(key => !['people', 'remarks', 'genderPreference'].includes(key))) throw new ApiError('OPERATION_UNAVAILABLE', 'Use the dedicated workflow for these client fields.')
     if (!identity(id) || !version(reviewed?.expectedVersion) || !Array.isArray(patch.people) || !Array.isArray(reviewed.people) || patch.people.length !== reviewed.people.length || ![1, 2].includes(patch.people.length) || reviewed.people.some(p => !identity(p.id) || !version(p.expectedVersion))) throw new ApiError('INVALID_REQUEST', 'Reload and review each client’s details before saving.')
-    if (Object.keys(patch).some(key => !['people', 'remarks', 'genderPreference'].includes(key)) || patch.people.some(person => person.healthNotes)) throw new ApiError('OPERATION_UNAVAILABLE', 'Health and coaching edits require their separate workflow.')
+    if (patch.people.some(person => person.healthNotes)) throw new ApiError('OPERATION_UNAVAILABLE', 'Health and coaching edits require their separate workflow.')
     const people = patch.people.map((person, index) => ({
       ...reviewed.people[index], name: person.name, email: person.email, birthday: person.birthday, gender: person.gender,
       phone: person.phone, emergencyContact: person.emergencyContact,
