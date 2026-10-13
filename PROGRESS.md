@@ -1,5 +1,10 @@
 # Fitfinity current progress
 
+## Renewal aggregate CI correction — 13 October 2026
+
+- PR #51 aggregates #49–#50 over main `f355f9af52e79806904bcab3223767bdfbe021a3`. Published head `2ea397cf7314b8fef2580f64c90e9df1989a364a` preserved tested source tree `a61fe0cb0b70db6c2d1fdeff1a3ca104ddae60a5`. CI run 38452668578 failed frontend at 1176/1177 units: `ApiClientReactivationButton.test.jsx` asserted the saved callback synchronously after dialog removal, before the post-edit-guard effect. Backend was still running at diagnosis.
+- Wait for the exact-once callback assertion using the existing default `waitFor`; preserve duplicate-save and closed-dialog assertions. No runtime, test count, timeout or retry setting changes. All 10 focused reactivation/renewal recovery units pass. Fresh complete final-head CI is required; the failed head cannot merge. CLI log/artifact redirect downloads were unavailable; the GitHub connector supplied the completed job log.
+
 ## Client renewal activation and UI — active source, 13 October 2026
 
 - Branch `integration/client-renewal-integration-2026-10-13` began clean at corrected PR #50 head `abe50b59fc1dbb595fe5c447ad0bd6f39403f205`. #49 and #50 now target main for the next aggregate; their final-head CI runs 38445287723 and 38447052660 have backend green and frontend pending. Main is verified at `f355f9af52e79806904bcab3223767bdfbe021a3` after #48; GitHub also marks #46–#47 merged at 18:44:12 UTC.
