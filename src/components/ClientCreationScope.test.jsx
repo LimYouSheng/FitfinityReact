@@ -42,3 +42,22 @@ it('forbidden creation retires the private workflow and removes the directory', 
   expect(current.snapshot).toBeNull()
   expect(original.getSnapshot()).toEqual({})
 })
+
+it('retires private creation drafts when a later snapshot read discovers a changed login', async () => {
+  let current, changed = false
+  const services = { load: vi.fn(async () => {
+    if (changed) throw Object.assign(new Error('Login changed during Messages read'), { code: 'SESSION_CHANGED', verifiedIdentity: { id: 'verified-owner', role: 'owner', sessionGeneration: 0 } })
+    return snapshot()
+  }) }
+  function Probe() { current = usePortalData(); return null }
+  render(<PortalDataProvider services={services}><Probe /></PortalDataProvider>)
+  await waitFor(() => expect(current.clientCreation).toBeTruthy())
+  const original = current.clientCreation, version = original.version()
+  original.update({ form: { draft: { name: 'Private client' } } })
+  changed = true
+  await act(async () => { await current.refresh().catch(() => {}) })
+  expect(current.snapshot).toBeNull()
+  expect(current.clientCreation).toBeNull()
+  expect(original.getSnapshot()).toEqual({})
+  expect(original.update({ form: { draft: { name: 'Late result' } } }, version)).toBe(false)
+})

@@ -16,6 +16,7 @@ from app.api import (
     client_notes,
     content,
     directory,
+    messages,
     packages,
     trainer_approvals,
     trainer_details,
@@ -23,6 +24,7 @@ from app.api import (
     trainer_reactivation,
 )
 from app.api.dependencies import authorized_transaction
+from app.api.message_schemas import MessageReadState, PersonalMessage, SaveMessageRead
 from app.api.schemas import (
     ERROR_RESPONSES,
     AssessmentRevision,
@@ -585,3 +587,34 @@ def reconcile_content(request_key: UUID, request: Request):
     """Read only this actor's original saved content after an interrupted response."""
     with authorized_transaction(request) as (session, principal):
         return content.reconcile(session, principal, request_key)
+
+
+@router.get("/messages", response_model=list[PersonalMessage], operation_id="personalMessages")
+def personal_messages(request: Request):
+    """Read this recipient's messages and personal read state, with Admin financial exclusions."""
+    with authorized_transaction(request) as (session, principal):
+        return messages.records(session, principal)
+
+
+@router.post(
+    "/messages/{message_id}/read-state",
+    response_model=MessageReadState,
+    operation_id="saveMessageReadState",
+)
+def save_message_read_state(
+    message_id: UUID, body: SaveMessageRead, request: Request, key: RequestKey
+):
+    """Save only the authenticated recipient's reviewed read state with a durable receipt."""
+    with authorized_transaction(request) as (session, principal):
+        return messages.save(session, principal, message_id, key, body)
+
+
+@router.get(
+    "/message-read-saves/{request_key}",
+    response_model=MessageReadState,
+    operation_id="reconcileMessageReadState",
+)
+def reconcile_message_read_state(request_key: UUID, request: Request):
+    """Reconcile this actor's original read-state command without changing newer read state."""
+    with authorized_transaction(request) as (session, principal):
+        return messages.reconcile(session, principal, request_key)
