@@ -29,7 +29,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
   }),
   trainerService: Object.freeze({
     create: contract({ 'draft': 'object' }, 'trainerCreate', 'Trainer'),
-    saveAvailability: contract({ 'id': 'string', 'blocks': 'array' }, 'assignedTrainer', 'ScheduleResult<Trainer>'),
+    saveAvailability: contract({ 'id': 'string', 'blocks': 'array', 'expectedVersion?': 'number' }, 'assignedTrainer', 'ScheduleResult<Trainer> | AvailabilityState', true),
     getAll: contract({}, 'authenticated', 'Trainer[]', true),
     getActive: contract({}, 'authenticated', 'Trainer[]', true),
     getById: contract({ 'id': 'string' }, 'authenticated', 'Trainer | null', true),
@@ -72,7 +72,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
   }),
   requestService: Object.freeze({
     resolve: contract({ 'id': 'string', 'decision': 'string' }, 'operations', 'Message'),
-    cancel: contract({ 'id': 'string' }, 'authenticated', 'Message'),
+    cancel: contract({ 'id': 'string', 'expectedVersion?': 'number' }, 'authenticated', 'Message | CancellationState', true),
   }),
   remunerationService: Object.freeze({
     list: contract({}, 'remuneration', 'RemunerationCycle[]'),

@@ -9,3 +9,5 @@ export function directoryData() {
     packages: [{ id: directoryId(5), version: 1, revision: 2, name: 'Current Template', total_sessions: 24, validity_days: 180, status: 'active' }] }
 }
 export const emptyDirectory = () => ({ ...directoryData(), clients: [], trainers: [], packages: [] })
+
+export const onboardingPolicy = { defaultCountryCode: '+65', defaultRelationship: 'Spouse', weeklyFrequencies: [1, 2, 3, 4, 5, 6, 7], freeGymMinimumFrequency: 2, availability: { from: '18:00', to: '19:00' } }

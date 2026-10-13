@@ -22,7 +22,9 @@ from app.api import (
     messages,
     packages,
     renewal_dismissal,
+    request_cancellation,
     trainer_approvals,
+    trainer_availability,
     trainer_details,
     trainer_rates,
     trainer_reactivation,
@@ -733,3 +735,51 @@ def reconcile_client_reactivation(request_key: UUID, request: Request):
     """Reconcile only this actor's original successful command."""
     with authorized_transaction(request) as (session, principal):
         return client_reactivation_save.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/requests/{request_id}/cancel",
+    response_model=request_cancellation.CancellationState,
+    operation_id="cancelOwnedRequest",
+)
+def cancel_owned_request(
+    request_id: UUID, body: request_cancellation.CancelRequest, request: Request, key: RequestKey
+):
+    """Withdraw only this active Trainer's reviewed pending proposal."""
+    with authorized_transaction(request) as (session, principal):
+        return request_cancellation.save(session, principal, request_id, key, body)
+
+
+@router.get(
+    "/request-cancellations/{request_key}",
+    response_model=request_cancellation.CancellationState,
+    operation_id="reconcileRequestCancellation",
+)
+def reconcile_request_cancellation(request_key: UUID, request: Request):
+    """Return only this actor's original cancellation receipt."""
+    with authorized_transaction(request) as (session, principal):
+        return request_cancellation.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/trainers/{trainer_id}/availability",
+    response_model=trainer_availability.AvailabilityState,
+    operation_id="saveTrainerAvailability",
+)
+def save_trainer_availability(
+    trainer_id: UUID, body: trainer_availability.SaveAvailability, request: Request, key: RequestKey
+):
+    """Apply the current Trainer's reviewed availability or retain its supervised proposal."""
+    with authorized_transaction(request, exclusive_user=True) as (session, principal):
+        return trainer_availability.save(session, principal, trainer_id, key, body)
+
+
+@router.get(
+    "/trainer-availability-saves/{request_key}",
+    response_model=trainer_availability.AvailabilityState,
+    operation_id="reconcileTrainerAvailability",
+)
+def reconcile_trainer_availability(request_key: UUID, request: Request):
+    """Reconcile this Trainer's original availability save without reapplying or sending notices."""
+    with authorized_transaction(request) as (session, principal):
+        return trainer_availability.reconcile(session, principal, request_key)

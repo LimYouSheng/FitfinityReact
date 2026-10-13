@@ -30,6 +30,7 @@ class ChangeRequest(ActorEvidence, Versioned, Base):
             "kind",
             "session_time",
             "session_trainer",
+            "session_postpone",
             "fixed_weekly_schedule",
             "trainer_availability",
         ),
@@ -47,7 +48,8 @@ class ChangeRequest(ActorEvidence, Versioned, Base):
         ),
         CheckConstraint("expected_version > 0", name="review_version"),
         CheckConstraint(
-            "(kind IN ('session_time', 'session_trainer') AND session_id IS NOT NULL AND "
+            "(kind IN ('session_time', 'session_trainer', 'session_postpone') "
+            "AND session_id IS NOT NULL AND "
             "purchase_id IS NOT NULL AND client_id IS NOT NULL) OR (kind = "
             "'fixed_weekly_schedule' AND session_id IS NULL AND purchase_id IS NOT NULL AND "
             "client_id IS NOT NULL) OR (kind = 'trainer_availability' AND session_id IS NULL "
@@ -55,10 +57,15 @@ class ChangeRequest(ActorEvidence, Versioned, Base):
             name="typed_target",
         ),
         CheckConstraint(
-            "(kind = 'session_time' AND old_date IS NOT NULL AND new_date IS NOT NULL AND "
-            "old_start IS NOT NULL AND old_end IS NOT NULL AND new_start IS NOT NULL AND "
-            "new_end IS NOT NULL AND old_start < old_end AND new_start < new_end) OR (kind <> "
-            "'session_time' AND num_nonnulls(old_date, new_date, old_start, old_end, "
+            "(kind = 'session_time' AND new_date IS NOT NULL AND new_start IS NOT NULL "
+            "AND new_end IS NOT NULL AND new_start < new_end AND "
+            "(num_nonnulls(old_date, old_start, old_end) = 0 OR (old_date IS NOT NULL "
+            "AND old_start IS NOT NULL AND old_end IS NOT NULL AND old_start < old_end))) OR "
+            "(kind = 'session_postpone' AND old_date IS NOT NULL AND old_start IS NOT NULL "
+            "AND old_end IS NOT NULL AND old_start < old_end AND "
+            "num_nonnulls(new_date, new_start, new_end) = 0) OR (kind NOT IN "
+            "('session_time', 'session_postpone') AND "
+            "num_nonnulls(old_date, new_date, old_start, old_end, "
             "new_start, new_end) = 0)",
             name="typed_times",
         ),

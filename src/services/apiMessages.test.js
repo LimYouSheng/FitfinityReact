@@ -114,3 +114,73 @@ it('a later Messages preflight detects account changes before requesting private
   await expect(createApiPortalAdapter({ fetchImpl: fetch }).load()).rejects.toMatchObject({ code: 'SESSION_CHANGED' })
   expect(fetch.mock.calls.some(([url]) => url.endsWith('/api/messages'))).toBe(false)
 })
+
+const trainer = { ...staff, role: 'trainer', trainerId: directoryId(1) }
+const cancellationInput = { id: directoryId(91), expectedVersion: 1 }
+const cancellation = { id: directoryId(91), version: 2, status: 'cancelled', at: '2026-10-13T16:00:00Z', by: { id: trainer.id, name: trainer.name } }
+function cancellationTransport(handler) {
+  return vi.fn(async (url, options) => {
+    if (url.endsWith('/auth/policy')) return jsonResponse(authPolicy)
+    if (url.endsWith('/me')) return jsonResponse({ ...sessionInfo(), user: trainer })
+    if (url.endsWith('/api/directory')) return jsonResponse({ ...directoryData(), packages: [], personalMessages: true, requestCancellationWrites: true })
+    if (url.endsWith('/api/messages')) return jsonResponse([])
+    return handler(url, options)
+  })
+}
+it('cancellation retains its version and historical actor in personal messages', () => {
+  const request = messageRequest({ status: 'cancelled', version: 2, resolved_at: cancellation.at, resolved_by: cancellation.by })
+  expect(personalMessage(personalNotice({ requestId: request.id, request }), trainer)).toMatchObject({ requestVersion: 2, status: 'cancelled', cancelledAt: cancellation.at, cancelledBy: cancellation.by })
+  expect(() => personalMessage(personalNotice({ requestId: request.id, request: { ...request, resolved_by: { ...cancellation.by, email: 'private@example.test' } } }), trainer)).toThrow()
+})
+it('an interrupted committed cancellation reconciles before any retry and never cancels twice', async () => {
+  const fetch = cancellationTransport((_url, options) => {
+    if (options.method === 'POST') throw new Error('offline')
+    return jsonResponse(cancellation)
+  })
+  const services = createPortalServices(createApiPortalAdapter({ fetchImpl: fetch }))
+  await expect(services.requestService.cancel(cancellationInput)).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  expect(await services.requestService.cancel(cancellationInput)).toEqual(cancellation)
+  const posts = fetch.mock.calls.filter(([, options]) => options.method === 'POST')
+  expect(posts).toHaveLength(1)
+  expect(JSON.parse(posts[0][1].body)).toEqual({ expectedVersion: 1 })
+})
+it('an absent cancellation receipt preserves original input and key until explicit retry', async () => {
+  let writes = 0
+  const fetch = cancellationTransport((_url, options) => {
+    if (options.method === 'POST') { if (++writes === 1) throw new Error('offline'); return jsonResponse(cancellation) }
+    return failure('not_found', 404)
+  })
+  const services = createPortalServices(createApiPortalAdapter({ fetchImpl: fetch }))
+  await expect(services.requestService.cancel(cancellationInput)).rejects.toThrow()
+  const snapshot = await services.load()
+  expect(snapshot.requestCancellationPending).toEqual(cancellationInput)
+  expect(snapshot.capabilities.requestCancellationWrites).toBe(true)
+  await expect(services.requestService.cancel({ ...cancellationInput, expectedVersion: 2 })).rejects.toMatchObject({ code: 'SAVE_UNCERTAIN' })
+  await services.requestService.cancel(cancellationInput)
+  const posts = fetch.mock.calls.filter(([, options]) => options.method === 'POST').map(([, options]) => options)
+  expect(posts).toHaveLength(2)
+  expect(posts[0].body).toBe(posts[1].body)
+  expect(posts[0].headers['Idempotency-Key']).toBe(posts[1].headers['Idempotency-Key'])
+})
+it('owners and invalid versions cannot issue cancellation commands', async () => {
+  const fetch = transport(() => { throw new Error('No command allowed') })
+  const services = createPortalServices(createApiPortalAdapter({ fetchImpl: fetch }))
+  await expect(services.requestService.cancel(cancellationInput)).rejects.toMatchObject({ code: 'forbidden' })
+  await expect(services.requestService.cancel({ ...cancellationInput, expectedVersion: 0 })).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
+  expect(fetch.mock.calls.some(([, options]) => options.method === 'POST')).toBe(false)
+})
+
+it('retains a single postponed-session comparison without inventing a replacement booking', () => {
+  const request = messageRequest({ kind: 'session_postpone', client_id: directoryId(7), purchase_id: directoryId(4), session_id: directoryId(5), old_date: '2026-10-14', old_start: '10:00:00', old_end: '11:00:00', slots: [] })
+  const row = personalMessage(personalNotice({ requestId: request.id, request }), staff)
+  expect(row.request.changes).toEqual([{ sessionId: directoryId(5), before: { scheduleState: 'scheduled', date: '2026-10-14', from: '10:00', to: '11:00' }, next: { scheduleState: 'open', date: '', from: '', to: '' } }])
+  for (const patch of [{ new_date: '2026-10-20' }, { old_date: null }, { old_end: '09:00:00' }]) expect(() => personalMessage(personalNotice({ requestId: request.id, request: { ...request, ...patch } }), staff)).toThrow()
+})
+
+it('retains Open as the original state when a pending request proposes booking it', () => {
+  const request = messageRequest({ kind: 'session_time', client_id: directoryId(7), purchase_id: directoryId(4), session_id: directoryId(5), new_date: '2026-10-14', new_start: '10:00:00', new_end: '11:00:00', slots: [] })
+  const row = personalMessage(personalNotice({ requestId: request.id, request }), staff)
+  expect(row.request.previous).toEqual({ scheduleState: 'open', date: '', from: '', to: '' })
+  expect(row.request.next).toEqual({ date: '2026-10-14', from: '10:00', to: '11:00' })
+  expect(() => personalMessage(personalNotice({ requestId: request.id, request: { ...request, old_start: '09:00:00' } }), staff)).toThrow()
+})

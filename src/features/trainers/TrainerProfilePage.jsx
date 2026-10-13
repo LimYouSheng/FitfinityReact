@@ -23,6 +23,8 @@ import { formatDate } from '../../utils/date.js'
 export default function TrainerProfilePage({
   policy,
   readOnly = false,
+  availabilityReadOnly = readOnly,
+  onAvailabilitySaved,
   autonomyReadOnly = readOnly,
   ratesReadOnly = readOnly,
   generalReadOnly = readOnly,
@@ -55,6 +57,8 @@ export default function TrainerProfilePage({
   const [generalDraft, setGeneralDraft] = useState(() => trainerProfileDraft(trainer, policy))
   const [generalErrors, setGeneralErrors] = useState({})
   const generalFields = useRef(null)
+  const availabilityVersion = useRef(null)
+  const [availabilitySaved, setAvailabilitySaved] = useState(false)
   const generalVersion = useRef(null)
   const [generalBusy, setGeneralBusy] = useState(false)
   const [generalSaved, setGeneralSaved] = useState(false)
@@ -99,6 +103,12 @@ export default function TrainerProfilePage({
     setRatesSaved(false)
     onRatesSaved?.()
   }, [ratesSaved, activeEditor, onRatesSaved])
+
+  useEffect(() => {
+    if (!availabilitySaved || activeEditor) return
+    setAvailabilitySaved(false)
+    onAvailabilitySaved?.()
+  }, [availabilitySaved, activeEditor, onAvailabilitySaved])
 
   const supervised = Object.values(trainer.approvalNeeded).filter(Boolean).length
   useEffect(() => {
@@ -375,13 +385,14 @@ export default function TrainerProfilePage({
             <TrainerAvailabilityEditor policy={policy} availability={trainer.availability} approvalNeeded={trainer.approvalNeeded?.availability !== false}
               onCancel={() => setActiveEditor(null)}
               onSave={async blocks => {
-                await onSaveAvailability(blocks)
+                await onSaveAvailability(blocks, ...(readOnly ? [availabilityVersion.current] : []))
                 setActiveEditor(null)
+                setAvailabilitySaved(true)
               }} />
           ) : <>
             <div className="section-head">
               <h2>Approved Availability</h2>
-              {!readOnly && !isManager && viewer.trainerId === trainer.id && trainer.status === 'active' && <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { setActiveEditor('availability') }}>{trainer.approvalNeeded?.availability !== false ? 'Request Change' : 'Edit'}</button>}
+              {!availabilityReadOnly && !isManager && viewer.trainerId === trainer.id && trainer.status === 'active' && <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { availabilityVersion.current = trainer.version; setActiveEditor('availability') }}>{trainer.approvalNeeded?.availability !== false ? 'Request Change' : 'Edit'}</button>}
             </div>
             <TrainerAvailabilityGrid availability={trainer.availability} />
           </>}

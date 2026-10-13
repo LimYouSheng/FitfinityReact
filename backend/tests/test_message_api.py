@@ -138,80 +138,113 @@ def test_admin_owner_notice_visibility_excludes_financial_content_and_keeps_pers
         assert owner.version == 2 and owner.read_at is not None
 
 
+def seed_request(session, graph, kind, **overrides):
+    fields = (
+        {}
+        if kind == "trainer_availability"
+        else {"client_id": graph["client_id"], "purchase_id": graph["purchase_id"]}
+    )
+    if kind == "session_time":
+        fields.update(
+            session_id=graph["session_id"],
+            old_date=graph["start_date"],
+            new_date=graph["start_date"],
+            old_start=time(10),
+            old_end=time(11),
+            new_start=time(11),
+            new_end=time(12),
+        )
+    if kind == "session_postpone":
+        fields.update(
+            session_id=graph["session_id"],
+            old_date=graph["start_date"],
+            old_start=time(10),
+            old_end=time(11),
+        )
+    if kind == "session_trainer":
+        source = session.get(Trainer, graph["trainer_id"])
+        replacement = Trainer(
+            **{
+                c.name: getattr(source, c.name)
+                for c in Trainer.__table__.columns
+                if c.name not in {"id", "user_id", "email", "created_at", "updated_at", "version"}
+            }
+        )
+        replacement.email = "replacement@example.test"
+        session.add(replacement)
+        session.flush()
+        fields.update(session_id=graph["session_id"], replacement_trainer_id=replacement.id)
+    fields.update(overrides)
+    request = ChangeRequest(
+        kind=kind,
+        trainer_id=graph["trainer_id"],
+        expected_version=1,
+        actor_id=graph["user_id"],
+        actor_name="Trainer",
+        **fields,
+    )
+    session.add(request)
+    session.flush()
+    session.add(
+        RequestEvent(
+            request_id=request.id,
+            sequence=1,
+            status="pending",
+            actor_id=graph["user_id"],
+            actor_name="Trainer",
+        )
+    )
+    if kind in {"trainer_availability", "fixed_weekly_schedule"}:
+        slot_id = uuid4()
+        for side, hour in [("old", 10), ("new", 11)]:
+            session.add(
+                RequestSlot(
+                    request_id=request.id,
+                    side=side,
+                    slot_identity=slot_id,
+                    weekday=0,
+                    starts_at=time(hour),
+                    ends_at=time(hour + 1),
+                )
+            )
+    identity = notice(
+        session,
+        graph,
+        [graph["owner_id"], graph["user_id"]],
+        request_id=request.id,
+        trainer_id=graph["trainer_id"],
+    )
+    return request.id, identity
+
+
 @pytest.mark.parametrize(
-    "kind", ["trainer_availability", "fixed_weekly_schedule", "session_time", "session_trainer"]
+    "kind",
+    [
+        "trainer_availability",
+        "fixed_weekly_schedule",
+        "session_time",
+        "session_trainer",
+        "session_postpone",
+    ],
 )
 def test_request_projections_keep_exact_old_new_proposal_and_current_status(
     api, domain_db, graph, kind
 ):
     with domain_db.transaction() as session:
-        fields = (
-            {}
-            if kind == "trainer_availability"
-            else {"client_id": graph["client_id"], "purchase_id": graph["purchase_id"]}
-        )
-        if kind == "session_time":
-            fields.update(
-                session_id=graph["session_id"],
-                old_date=graph["start_date"],
-                new_date=graph["start_date"],
-                old_start=time(10),
-                old_end=time(11),
-                new_start=time(11),
-                new_end=time(12),
-            )
-        if kind == "session_trainer":
-            source = session.get(Trainer, graph["trainer_id"])
-            replacement = Trainer(
-                **{
-                    c.name: getattr(source, c.name)
-                    for c in Trainer.__table__.columns
-                    if c.name
-                    not in {"id", "user_id", "email", "created_at", "updated_at", "version"}
-                }
-            )
-            replacement.email = "replacement@example.test"
-            session.add(replacement)
-            session.flush()
-            fields.update(session_id=graph["session_id"], replacement_trainer_id=replacement.id)
-        request = ChangeRequest(
-            kind=kind,
-            trainer_id=graph["trainer_id"],
-            expected_version=1,
-            actor_id=graph["user_id"],
-            actor_name="Trainer",
-            **fields,
-        )
-        session.add(request)
-        session.flush()
-        session.add(
-            RequestEvent(
-                request_id=request.id,
-                sequence=1,
-                status="pending",
-                actor_id=graph["user_id"],
-                actor_name="Trainer",
-            )
-        )
-        if kind in {"trainer_availability", "fixed_weekly_schedule"}:
-            slot_id = uuid4()
-            for side, hour in [("old", 10), ("new", 11)]:
-                session.add(
-                    RequestSlot(
-                        request_id=request.id,
-                        side=side,
-                        slot_identity=slot_id,
-                        weekday=0,
-                        starts_at=time(hour),
-                        ends_at=time(hour + 1),
-                    )
-                )
-        identity = notice(session, graph, request_id=request.id, trainer_id=graph["trainer_id"])
+        _, identity = seed_request(session, graph, kind)
     row = next(row for row in api.get("/api/messages").json() if row["id"] == str(identity))
     assert row["request"]["kind"] == kind and row["request"]["status"] == "pending"
     if kind == "session_time":
         assert (
             row["request"]["old_start"] == "10:00:00" and row["request"]["new_start"] == "11:00:00"
+        )
+    elif kind == "session_postpone":
+        assert row["request"]["old_date"] == str(graph["start_date"])
+        assert row["request"]["old_start"] == "10:00:00"
+        assert (
+            row["request"]["new_date"] is None
+            and row["request"]["new_start"] is None
+            and row["request"]["new_end"] is None
         )
     elif kind == "session_trainer":
         assert row["request"]["replacement_trainer_id"] is not None

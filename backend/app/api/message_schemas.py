@@ -29,11 +29,20 @@ class MessageRequestSlot(Contract):
     ends_at: time
 
 
+class RequestResolutionActor(Contract):
+    id: UUID
+    name: str
+
+
 class MessageRequest(Contract):
     id: UUID
     version: int
     kind: Literal[
-        "session_time", "session_trainer", "fixed_weekly_schedule", "trainer_availability"
+        "session_time",
+        "session_trainer",
+        "session_postpone",
+        "fixed_weekly_schedule",
+        "trainer_availability",
     ]
     status: Literal["pending", "approved", "rejected", "cancelled", "superseded"]
     trainer_id: UUID
@@ -50,6 +59,7 @@ class MessageRequest(Contract):
     new_end: time | None
     resolved_at: datetime | None
     resolution_note: str
+    resolved_by: RequestResolutionActor | None = None
     slots: list[MessageRequestSlot]
 
 

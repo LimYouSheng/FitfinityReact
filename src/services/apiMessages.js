@@ -20,12 +20,14 @@ export function messageReadState(value, strict = true) {
 function proposal(value) {
   if (!value || !uuid(value.id) || !uuid(value.trainer_id) || !version(value.version) || !value.version
     || !version(value.expected_version) || !value.expected_version
-    || !['session_time', 'session_trainer', 'fixed_weekly_schedule', 'trainer_availability'].includes(value.kind)
+    || !['session_time', 'session_trainer', 'session_postpone', 'fixed_weekly_schedule', 'trainer_availability'].includes(value.kind)
     || !['pending', 'approved', 'rejected', 'cancelled', 'superseded'].includes(value.status)
     || !['client_id', 'purchase_id', 'session_id', 'replacement_trainer_id'].every(key => value[key] === null || uuid(value[key]))
     || typeof value.resolution_note !== 'string' || (value.status === 'pending' ? value.resolved_at !== null : !timestamp(value.resolved_at))
-    || Object.keys(value).some(key => !['id', 'version', 'kind', 'status', 'trainer_id', 'client_id', 'purchase_id', 'session_id', 'expected_version', 'replacement_trainer_id', 'old_date', 'old_start', 'old_end', 'new_date', 'new_start', 'new_end', 'resolved_at', 'resolution_note', 'slots'].includes(key))
+    || Object.keys(value).some(key => !['id', 'version', 'kind', 'status', 'trainer_id', 'client_id', 'purchase_id', 'session_id', 'expected_version', 'replacement_trainer_id', 'old_date', 'old_start', 'old_end', 'new_date', 'new_start', 'new_end', 'resolved_at', 'resolution_note', 'resolved_by', 'slots'].includes(key))
     || !Array.isArray(value.slots)) fail()
+  if (value.resolved_by != null && !validActor(value.resolved_by)) fail()
+  if (value.status === 'pending' && value.resolved_by != null) fail()
   const slots = value.slots.map(slot => {
     if (!slot || Object.keys(slot).some(key => !['side', 'slot_identity', 'weekday', 'starts_at', 'ends_at'].includes(key)) || !['old', 'new'].includes(slot.side) || !uuid(slot.slot_identity) || !Number.isInteger(slot.weekday) || !days[slot.weekday]) fail()
     const from = clock(slot.starts_at), to = clock(slot.ends_at)
@@ -42,11 +44,19 @@ function proposal(value) {
     if (!result.oldSlots.length || result.oldSlots.length !== result.newSlots.length) fail()
   } else {
     if (!value.session_id || !value.client_id || !value.purchase_id) fail()
-    if (value.kind === 'session_time') {
-      if (!validSessionDate(value.old_date) || !validSessionDate(value.new_date)) fail()
-      result.previous = { date: value.old_date, from: clock(value.old_start), to: clock(value.old_end) }
+    if (value.kind === 'session_postpone') {
+      if (!validSessionDate(value.old_date) || [value.new_date, value.new_start, value.new_end].some(field => field !== null)) fail()
+      const before = { scheduleState: 'scheduled', date: value.old_date, from: clock(value.old_start), to: clock(value.old_end) }
+      if (before.from >= before.to) fail()
+      result.previous = before
+      result.changes = [{ sessionId: value.session_id, before, next: { scheduleState: 'open', date: '', from: '', to: '' } }]
+    } else if (value.kind === 'session_time') {
+      if (!validSessionDate(value.new_date)) fail()
+      const previousOpen = [value.old_date, value.old_start, value.old_end].every(field => field === null)
+      if (!previousOpen && !validSessionDate(value.old_date)) fail()
+      result.previous = previousOpen ? { scheduleState: 'open', date: '', from: '', to: '' } : { date: value.old_date, from: clock(value.old_start), to: clock(value.old_end) }
       result.next = { date: value.new_date, from: clock(value.new_start), to: clock(value.new_end) }
-      if (result.previous.from >= result.previous.to || result.next.from >= result.next.to) fail()
+      if ((!previousOpen && result.previous.from >= result.previous.to) || result.next.from >= result.next.to) fail()
     } else {
       if (!value.replacement_trainer_id || value.replacement_trainer_id === value.trainer_id) fail()
       result.previousTrainerId = value.trainer_id
@@ -68,7 +78,14 @@ export function personalMessage(value, user) {
     || (user.role === 'admin' && !adminMessageAllowed(value))) fail()
   if (value.renewalStatus === 'removed' ? !validDismissal(value.renewalDismissal) : value.renewalDismissal !== null) fail()
   if (value.requestId ? value.request?.id !== value.requestId : value.request !== null) fail()
-  return { ...value, ...state, ...(value.request ? { request: proposal(value.request), status: value.request.status } : {}) }
+  return { ...value, ...state, ...(value.request ? { request: proposal(value.request), status: value.request.status, requestVersion: value.request.version, ...(value.request.status === 'cancelled' && value.request.resolved_by ? { cancelledAt: value.request.resolved_at, cancelledBy: value.request.resolved_by } : {}) } : {}) }
+}
+
+const validActor = value => value && uuid(value.id) && typeof value.name === 'string' && value.name.trim() && Object.keys(value).every(key => ['id', 'name'].includes(key))
+
+export function cancellationState(value) {
+  if (!value || !uuid(value.id) || !version(value.version) || !value.version || value.status !== 'cancelled' || !timestamp(value.at) || !validActor(value.by) || Object.keys(value).some(key => !['id', 'version', 'status', 'at', 'by'].includes(key))) fail()
+  return value
 }
 
 const validDismissal = value => value && timestamp(value.at) && uuid(value.by?.id) && typeof value.by.name === 'string' && value.by.name.trim()
@@ -98,7 +115,17 @@ export function messageCommands(http, actionSession) {
     bodyFor: ({ expectedClientVersion }) => ({ expectedClientVersion }),
     validate(value, input) { const result = renewalState(value); if (result.id !== input.id) fail(); return result },
   })
+  const cancel = reconciledCommand(http, actionSession, {
+    label: 'Request cancellation', roles: ['trainer'],
+    path: input => `/api/requests/${input.id}/cancel`, receiptPath: '/api/request-cancellations',
+    bodyFor: ({ expectedVersion }) => ({ expectedVersion }),
+    validate(value, input) { const result = cancellationState(value); if (result.id !== input.id || ![input.expectedVersion, input.expectedVersion + 1].includes(result.version)) fail(); return result },
+  })
   return {
+    cancel(input, generation) {
+      if (!uuid(input.id) || !version(input.expectedVersion) || !input.expectedVersion) throw new ApiError('INVALID_REQUEST', 'Reload the request before cancelling it.')
+      return cancel(input, generation)
+    },
     dismiss(input, generation) {
       if (!uuid(input.id) || !version(input.expectedClientVersion) || !input.expectedClientVersion) throw new ApiError('INVALID_REQUEST', 'Reload the client before removing this renewal follow-up.')
       return dismiss(input, generation)
@@ -111,11 +138,12 @@ export function messageCommands(http, actionSession) {
       const session = await actionSession(generation)
       if (save.pendingInput(session.sessionGeneration)) await save.reconcile(session.sessionGeneration)
       if (dismiss.pendingInput(session.sessionGeneration)) await dismiss.reconcile(session.sessionGeneration)
+      if (cancel.pendingInput(session.sessionGeneration)) await cancel.reconcile(session.sessionGeneration)
       const value = await http.get('/api/messages', { expectedGeneration: session.sessionGeneration })
       if (!Array.isArray(value) || value.length > 2000) fail()
       const messages = value.map(row => personalMessage(row, session.user))
       if (new Set(messages.map(row => row.id)).size !== messages.length) fail()
-      return { messages, pending: save.pendingInput(session.sessionGeneration), dismissalPending: dismiss.pendingInput(session.sessionGeneration) }
+      return { messages, cancellationPending: cancel.pendingInput(session.sessionGeneration), pending: save.pendingInput(session.sessionGeneration), dismissalPending: dismiss.pendingInput(session.sessionGeneration) }
     },
   }
 }

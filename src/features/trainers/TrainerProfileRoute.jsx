@@ -15,6 +15,8 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
     <TrainerProfilePage
       key={trainer.id}
       readOnly={directoryOnly}
+      availabilityReadOnly={directoryOnly && !snapshot.capabilities?.trainerAvailabilityWrites}
+      onAvailabilitySaved={reload}
       reactivationReadOnly={directoryOnly && !(snapshot.capabilities?.trainerReactivationWrites && services.previewTrainerReactivation)}
       onReviewReactivation={directoryOnly ? () => runAction(() => services.previewTrainerReactivation({ id: trainer.id, expectedVersion: trainer.version })) : undefined}
       generalReadOnly={directoryOnly && !snapshot.capabilities?.trainerPersonalWrites}
@@ -32,10 +34,17 @@ export default function TrainerProfileRoute({ trainer, ownerMode, navigate, open
       clients={clients}
       sessions={sessions}
       onOpenClient={openClient}
-      onSaveAvailability={async blocks => {
-        const result = await runAction(() => trainerService.saveAvailability({ id: trainer.id, blocks }), result => scheduleNotification('Availability', result))
-        await reload()
-        return result
+      onSaveAvailability={async (blocks, expectedVersion) => {
+        try {
+          return await runAction(() => trainerService.saveAvailability({ id: trainer.id, blocks, ...(directoryOnly ? { expectedVersion } : {}) }), result => scheduleNotification('Availability', result))
+        } catch (error) {
+          if (directoryOnly && (!error.status || error.status >= 500)) {
+            const refreshed = await reload()
+            const recovered = refreshed?.trainerAvailabilityRecovered
+            if (error.code !== 'SAVE_UNCERTAIN' && recovered?.trainer.id === trainer.id) return runAction(async () => recovered, result => scheduleNotification('Availability', result))
+          }
+          throw error
+        }
       }}
       onSaveAutonomy={async (settings, expectedVersion) => {
         return runAction(() => trainerService.updateAutonomy({ id: trainer.id, approvalNeeded: settings, ...(expectedVersion === undefined ? {} : { expectedVersion }) }), { message: 'Approval settings saved.' })

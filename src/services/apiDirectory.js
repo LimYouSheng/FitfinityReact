@@ -72,6 +72,9 @@ export function directorySnapshot(value, user) {
     }
     if (value.clientReactivationWrites !== undefined && typeof value.clientReactivationWrites !== 'boolean') fail()
     if (value.clientDeactivationWrites !== undefined && typeof value.clientDeactivationWrites !== 'boolean') fail()
+    if (value.trainerAvailabilityWrites !== undefined && typeof value.trainerAvailabilityWrites !== 'boolean') fail()
+    if (value.trainerAvailabilityWrites && (!clientOnboardingPolicy || value.personalMessages !== true)) fail()
+    if (value.requestCancellationWrites !== undefined && typeof value.requestCancellationWrites !== 'boolean') fail()
     if (value.renewalDismissalWrites !== undefined && typeof value.renewalDismissalWrites !== 'boolean') fail()
     if (value.personalMessages !== undefined && typeof value.personalMessages !== 'boolean') fail()
     if (value.contentWorkflows !== undefined && typeof value.contentWorkflows !== 'boolean') fail()
@@ -92,6 +95,6 @@ export function directorySnapshot(value, user) {
     if (value.trainerApprovalWrites !== undefined && typeof value.trainerApprovalWrites !== 'boolean') fail()
     if (value.clientNoteWrites !== undefined && typeof value.clientNoteWrites !== 'boolean') fail()
     if (value.clientPersonalWrites !== undefined && typeof value.clientPersonalWrites !== 'boolean') fail()
-    return { clientReactivationWrites: value.clientReactivationWrites === true, clientDeactivationWrites: value.clientDeactivationWrites === true, renewalDismissalWrites: value.renewalDismissalWrites === true, personalMessages: value.personalMessages === true, contentWorkflows: value.contentWorkflows === true, clientAssessmentWorkflows: value.clientAssessmentWorkflows === true, trainerReactivationWrites: value.trainerReactivationWrites === true, clientOnboardingPolicy, clientCreation: value.clientCreation === true, trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
+    return { trainerAvailabilityWrites: value.trainerAvailabilityWrites === true, requestCancellationWrites: value.requestCancellationWrites === true, clientReactivationWrites: value.clientReactivationWrites === true, clientDeactivationWrites: value.clientDeactivationWrites === true, renewalDismissalWrites: value.renewalDismissalWrites === true, personalMessages: value.personalMessages === true, contentWorkflows: value.contentWorkflows === true, clientAssessmentWorkflows: value.clientAssessmentWorkflows === true, trainerReactivationWrites: value.trainerReactivationWrites === true, clientOnboardingPolicy, clientCreation: value.clientCreation === true, trainerProfilePolicy, trainerPersonalWrites: value.trainerPersonalWrites === true, trainerEmailWrites: value.trainerEmailWrites === true, trainerRateWrites: value.trainerRateWrites === true, clientNoteWrites: value.clientNoteWrites === true, clientPersonalWrites: value.clientPersonalWrites === true, trainerApprovalWrites: value.trainerApprovalWrites === true, packagePolicy, data: { clients, trainers, packages }, serverAt: value.serverAt, businessDate: date(value.businessDate) }
   } catch (error) { if (error instanceof ApiError) throw error; fail() }
 }
