@@ -10,7 +10,9 @@ from sqlalchemy import select
 
 from app.api import (
     assessments,
+    client_creation,
     client_details,
+    client_matching,
     client_notes,
     directory,
     packages,
@@ -454,3 +456,30 @@ def reconcile_trainer_rates(request_key: UUID, request: Request):
     """Read the current Owner's original receipt before an explicit retry."""
     with authorized_transaction(request) as (session, principal):
         return trainer_rates.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/client-onboarding/matches",
+    response_model=client_matching.MatchResult,
+    operation_id="previewClientTrainerMatches",
+)
+def preview_client_matches(body: client_matching.MatchRequest, request: Request, key: RequestKey):
+    """Owner/Admin preview; every eventual creation must recheck availability at commit."""
+    with authorized_transaction(request) as (session, principal):
+        return client_matching.preview(session, principal, body)
+
+
+@router.post("/clients", response_model=client_creation.CreatedClient, operation_id="createClient")
+def create_client(body: client_creation.CreateClient, request: Request, key: RequestKey):
+    with authorized_transaction(request) as (session, principal):
+        return client_creation.create(session, principal, key, body)
+
+
+@router.get(
+    "/client-creations/{request_key}",
+    response_model=client_creation.CreatedClient,
+    operation_id="reconcileClientCreation",
+)
+def reconcile_client_creation(request_key: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return client_creation.reconcile(session, principal, request_key)

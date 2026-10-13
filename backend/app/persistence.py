@@ -105,6 +105,22 @@ def require_valid_session_schedule(
         raise ValueError("Choose a valid date, start time and end time")
 
 
+def occupied_booking_clause():
+    """Completion retains its interval; inactive open purchases release theirs.
+
+    Callers join TrainingSession, PackagePurchase and Client. Preview and commit must
+    use the same occupancy rule, including completed sessions of inactive clients.
+    """
+    return or_(
+        TrainingSession.status == "completed",
+        and_(
+            Client.status == "active",
+            PackagePurchase.status == "active",
+            TrainingSession.status.in_(("scheduled", "planned")),
+        ),
+    )
+
+
 def add_purchase(
     session: Session,
     purchase: PackagePurchase,
@@ -154,16 +170,7 @@ def add_purchase(
                 | (TrainingSession.client_id == client.id)
             ),
         )
-        .where(
-            or_(
-                TrainingSession.status == "completed",
-                and_(
-                    Client.status == "active",
-                    PackagePurchase.status == "active",
-                    TrainingSession.status.in_(("scheduled", "planned")),
-                ),
-            ),
-        )
+        .where(occupied_booking_clause())
         .limit(1)
     )
     if conflict is not None:

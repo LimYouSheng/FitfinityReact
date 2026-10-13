@@ -113,3 +113,15 @@ class TrainerDetailReceipt(ActorEvidence, Record, Base):
     request_sha256: Mapped[str] = mapped_column(String(64))
     trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"))
     result: Mapped[dict] = mapped_column(JSONB)
+
+
+class ClientCreateReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "client_create_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    client_id: Mapped[UUID] = mapped_column(ForeignKey("clients.id"))
+    result: Mapped[dict] = mapped_column(JSONB)

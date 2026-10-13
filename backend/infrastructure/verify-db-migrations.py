@@ -140,6 +140,7 @@ class RuntimeChecks(unittest.TestCase):
             "migrations/versions/20261013_0012_trainer_rates.py",
             "migrations/versions/20261013_0013_verified_email.py",
             "migrations/versions/20261013_0014_trainer_details.py",
+            "migrations/versions/20261013_0015_client_creation.py",
         ]:
             path = self.image_root / relative
             original = path.read_bytes()
