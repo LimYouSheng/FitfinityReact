@@ -1,6 +1,7 @@
 import TrainerAvailabilityRecovery from './features/trainers/TrainerAvailabilityRecovery.jsx'
 import ClientReactivationRecovery from './features/clients/ClientReactivationRecovery.jsx'
 import ClientDeactivationRecovery from './features/clients/ClientDeactivationRecovery.jsx'
+import ClientRenewalRecovery from './features/clients/ClientRenewalRecovery.jsx'
 import MessageReadRecovery from './features/messages/MessageReadRecovery.jsx'
 import ApiContentWorkspace from './features/content/ApiContentWorkspace.jsx'
 import ClientCreationRecovery from './features/clients/ClientCreationRecovery.jsx'
@@ -253,6 +254,8 @@ function StaffPortal({ navigation }) {
         }}
       />
     )
+  } else if (route === 'clients' && directoryOnly && snapshot.clientRenewalPending) {
+    page = <ClientRenewalRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientRenewalPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientReactivationPending) {
     page = <ClientReactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientReactivationPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientDeactivationPending) {

@@ -12,6 +12,11 @@ export function clientMatchBody(draft) {
     clientPreferences: draft.clientPreferences.map(({ days, from, to }) => ({ days, from, to })) }
 }
 
+export function decodeClientMatches(value, draft) {
+  if (!value || Object.keys(value).some(key => key !== 'matches') || !Array.isArray(value.matches) || new Set(value.matches.map(m => m.trainerId)).size !== value.matches.length || value.matches.some(m => !uuid(m.trainerId) || !Number.isSafeInteger(m.trainerVersion) || m.trainerVersion < 1 || !Number.isSafeInteger(m.matches) || m.matches < 1 || m.total !== draft.clientPreferences.length || m.matches > m.total || !Array.isArray(m.schedule) || m.schedule.length !== Number(draft.sessionsPerWeek) || new Set(m.schedule.map(s => s.day)).size !== m.schedule.length || m.schedule.some(s => !interval(s)) || Object.keys(m).some(key => !['trainerId', 'trainerVersion', 'matches', 'total', 'schedule'].includes(key)))) throw new ApiError('API_RESPONSE', 'Trainer matching could not be verified. Try again.')
+  return value.matches
+}
+
 export function clientCreationCommands(http, actionSession) {
   const save = reconciledCommand(http, actionSession, {
     label: 'Client creation', path: () => '/api/clients', receiptPath: '/api/client-creations',
@@ -25,8 +30,7 @@ export function clientCreationCommands(http, actionSession) {
       const { user, sessionGeneration } = await actionSession(generation)
       if (!['owner', 'admin'].includes(user.role)) throw new ApiError('forbidden', 'Only the owner or Admin can match clients.', 403)
       const value = await http.post('/api/client-onboarding/matches', clientMatchBody(draft), { csrf: true, idempotencyKey: crypto.randomUUID(), expectedGeneration: sessionGeneration })
-      if (!value || Object.keys(value).some(key => key !== 'matches') || !Array.isArray(value.matches) || new Set(value.matches.map(m => m.trainerId)).size !== value.matches.length || value.matches.some(m => !uuid(m.trainerId) || !Number.isSafeInteger(m.trainerVersion) || m.trainerVersion < 1 || !Number.isSafeInteger(m.matches) || m.matches < 1 || m.total !== draft.clientPreferences.length || m.matches > m.total || !Array.isArray(m.schedule) || m.schedule.length !== Number(draft.sessionsPerWeek) || new Set(m.schedule.map(s => s.day)).size !== m.schedule.length || m.schedule.some(s => !interval(s)) || Object.keys(m).some(key => !['trainerId', 'trainerVersion', 'matches', 'total', 'schedule'].includes(key)))) throw new ApiError('API_RESPONSE', 'Trainer matching could not be verified. Try again.')
-      return value.matches
+      return decodeClientMatches(value, draft)
     },
     create({ draft }, generation) {
       if (!draft || !Array.isArray(draft.people) || !Array.isArray(draft.clientPreferences) || !Array.isArray(draft.fixedWeeklySchedule)) throw new ApiError('INVALID_REQUEST', 'Review the complete client creation form.')

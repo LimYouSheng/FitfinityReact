@@ -3,31 +3,25 @@
 import hashlib
 import json
 import re
-from datetime import date, time, timedelta
+from datetime import date
 from typing import Literal
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import Field, StrictInt, StrictStr, field_validator, model_validator
 from sqlalchemy import select, text
 
 from app.api.assessments import audit, safe_answers
 from app.api.client_details import Emergency, Phone
-from app.api.client_matching import DAYS, MatchedSlot, MatchRequest, package_terms
+from app.api.client_matching import MatchedSlot, MatchRequest
+from app.api.purchase_creation import persist_purchase, prepare_purchase
 from app.api.schemas import Contract
 from app.assessment_persistence import create_assessment, save_assessment
 from app.auth.errors import AuthError
-from app.authorization import conflict, unavailable
+from app.authorization import unavailable
 from app.models.api import ClientCreateReceipt
 from app.models.communications import Message, MessageReceipt
-from app.models.people import Client, ClientPerson, StaffUser, Trainer, TrainerAvailability
-from app.models.training import (
-    PackagePurchase,
-    PurchasePreference,
-    PurchaseScheduleSlot,
-    TrainingSession,
-)
-from app.persistence import add_client, add_purchase
-from app.purchase_schedule import WeeklySlot, covered, generated_dates
+from app.models.people import Client, ClientPerson, StaffUser
+from app.persistence import add_client
 
 
 class InitialAssessment(Contract):
@@ -127,39 +121,8 @@ def create(session, principal, key, body):
         if previous.request_sha256 != digest:
             raise AuthError("idempotency_conflict", "Review this request before retrying.", 409)
         return CreatedClient.model_validate(previous.result)
-    terms = package_terms(session, body)
-    trainer = session.scalar(select(Trainer).where(Trainer.id == body.trainerId).with_for_update())
-    expected_gender = {"Female trainer preferred": "Female", "Male trainer preferred": "Male"}.get(
-        body.genderPreference
-    )
-    if (
-        trainer is None
-        or trainer.status != "active"
-        or trainer.version != body.trainerVersion
-        or (expected_gender and trainer.gender != expected_gender)
-    ):
-        raise conflict()
-    hours = [
-        WeeklySlot(s.weekday, s.starts_at, s.ends_at)
-        for s in session.scalars(
-            select(TrainerAvailability).where(TrainerAvailability.trainer_id == trainer.id)
-        )
-    ]
-    preferences = list(
-        dict.fromkeys(slot for block in body.clientPreferences for slot in block.slots())
-    )
-    slots = [
-        WeeklySlot(DAYS.index(s.day), time.fromisoformat(s.from_), time.fromisoformat(s.to))
-        for s in body.fixedWeeklySchedule
-    ]
-    if any(slot not in preferences or not covered(slot, hours) for slot in slots):
-        raise conflict()
-    dates = generated_dates(body.startDate, terms.total_sessions, terms.validity_days, slots)
-    gender_preference = {
-        "No gender preference": "any",
-        "Female trainer preferred": "female",
-        "Male trainer preferred": "male",
-    }[body.genderPreference]
+    prepared = prepare_purchase(session, body)
+    trainer, gender_preference = prepared.trainer, prepared.gender_preference
     people = [
         ClientPerson(
             name=p.name,
@@ -187,57 +150,7 @@ def create(session, principal, key, body):
         ),
         people,
     )
-    purchase = PackagePurchase(
-        client_id=client.id,
-        template_id=terms.template_id,
-        template_revision=terms.revision,
-        name=terms.name,
-        total_sessions=terms.total_sessions,
-        validity_days=terms.validity_days,
-        sessions_per_week=body.sessionsPerWeek,
-        free_gym=body.sessionsPerWeek >= 2,
-        start_date=body.startDate,
-        end_date=body.startDate + timedelta(days=terms.validity_days - 1),
-        purchased_trainer_id=trainer.id,
-        trainer_id=trainer.id,
-        gender_preference=gender_preference,
-        stage="current",
-    )
-    saved_slots = {
-        slot: PurchaseScheduleSlot(
-            id=uuid4(),
-            weekday=slot.weekday,
-            starts_at=slot.starts_at,
-            ends_at=slot.ends_at,
-            purchased_weekday=slot.weekday,
-            purchased_starts_at=slot.starts_at,
-            purchased_ends_at=slot.ends_at,
-        )
-        for slot in slots
-    }
-    bookings = [
-        TrainingSession(
-            client_id=client.id,
-            trainer_id=trainer.id,
-            schedule_slot_id=saved_slots[d.slot].id,
-            session_number=index,
-            training_date=d.training_date,
-            starts_at=d.slot.starts_at,
-            ends_at=d.slot.ends_at,
-        )
-        for index, d in enumerate(dates, 1)
-    ]
-    add_purchase(
-        session,
-        purchase,
-        list(saved_slots.values()),
-        [
-            PurchasePreference(weekday=p.weekday, starts_at=p.starts_at, ends_at=p.ends_at)
-            for p in preferences
-        ],
-        bookings,
-        expected_client_version=client.version,
-    )
+    purchase = persist_purchase(session, client, body, prepared, stage="current")
     for person, draft in zip(people, body.people, strict=True):
         for assessment in draft.assessments:
             revision = create_assessment(

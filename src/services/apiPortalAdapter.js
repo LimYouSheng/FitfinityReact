@@ -6,6 +6,7 @@ import { contentCommands } from './apiContent.js'
 import { assessmentCommands } from './apiAssessments.js'
 import { trainerSelectableForAvailability } from '../app/status.js'
 import { clientCreationCommands } from './apiClientCreation.js'
+import { clientRenewalCommands } from './apiClientRenewal.js'
 import { emailCommands } from './apiEmailChanges.js'
 import { trainerReactivationCommands } from './apiTrainerReactivation.js'
 import { trainerDetailCommands } from './apiTrainerDetails.js'
@@ -57,6 +58,7 @@ export function createApiPortalAdapter(options = {}) {
   const savePackage = packageCommands(http, actionSession)
   const clientAssessments = assessmentCommands(http, actionSession)
   const clientCreation = clientCreationCommands(http, actionSession)
+  const clientRenewal = clientRenewalCommands(http, actionSession)
   const clearSession = result => { http.clear(); return result }
   const methods = {
     ...emailMethods,
@@ -105,6 +107,8 @@ export function createApiPortalAdapter(options = {}) {
     async previewTrainerReactivation(input, { expectedGeneration = http.generation() } = {}) {
       return trainerReactivation.review(input, expectedGeneration)
     },
+    async reviewClientRenewal(input, { expectedGeneration = http.generation() } = {}) { return clientRenewal.review(input, expectedGeneration) },
+    async previewClientRenewalMatches(input, { expectedGeneration = http.generation() } = {}) { return clientRenewal.preview(input, expectedGeneration) },
     async previewClientMatches(draft, { expectedGeneration = http.generation() } = {}) {
       return clientCreation.preview(draft, expectedGeneration)
     },
@@ -118,12 +122,13 @@ export function createApiPortalAdapter(options = {}) {
         try {
           const { user, sessionGeneration } = await http.session()
           verifiedIdentity = { id: user.id, role: user.role, sessionGeneration }
+          const renewalRecovery = await clientRenewal.recover(sessionGeneration)
           const directory = directorySnapshot(await http.get('/api/directory', { expectedGeneration: sessionGeneration }), user)
           const availabilityRecovery = await trainerAvailability.recover(sessionGeneration)
           const clientReactivationPending = await clientReactivation.recover(sessionGeneration)
           const clientDeactivationPending = await clientDeactivation.recover(sessionGeneration)
           const inbox = directory.personalMessages ? await personalMessages.read(sessionGeneration) : null
-          return { ...snapshot, ...directory, clientDeactivationPending, clientReactivationPending, trainerAvailabilityPending: availabilityRecovery.pending, trainerAvailabilityRecovered: availabilityRecovery.recovered, ...(inbox ? { data: { ...directory.data, messages: inbox.messages }, messageReadPending: inbox.pending, renewalDismissalPending: inbox.dismissalPending, requestCancellationPending: inbox.cancellationPending } : {}), user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy, ...directory.trainerProfilePolicy, ...directory.clientOnboardingPolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, clientReactivationWrites: directory.clientReactivationWrites && ['owner', 'admin'].includes(user.role), clientDeactivationWrites: directory.clientDeactivationWrites && ['owner', 'admin'].includes(user.role), personalMessages: directory.personalMessages, trainerAvailabilityWrites: directory.trainerAvailabilityWrites && user.role === 'trainer', requestCancellationWrites: directory.personalMessages && directory.requestCancellationWrites && user.role === 'trainer', renewalDismissalWrites: directory.personalMessages && directory.renewalDismissalWrites, contentWorkflows: directory.contentWorkflows && ['owner', 'admin'].includes(user.role), clientAssessmentWorkflows: directory.clientAssessmentWorkflows && ['owner', 'admin'].includes(user.role), clientCreation: directory.clientCreation && ['owner', 'admin'].includes(user.role), trainerReactivationWrites: directory.trainerReactivationWrites && ['owner', 'admin'].includes(user.role), trainerPersonalWrites: directory.trainerPersonalWrites && ['owner', 'admin'].includes(user.role), trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
+          return { ...snapshot, ...directory, clientRenewalPending: renewalRecovery.pending, clientRenewalRecovered: renewalRecovery.recovered, clientDeactivationPending, clientReactivationPending, trainerAvailabilityPending: availabilityRecovery.pending, trainerAvailabilityRecovered: availabilityRecovery.recovered, ...(inbox ? { data: { ...directory.data, messages: inbox.messages }, messageReadPending: inbox.pending, renewalDismissalPending: inbox.dismissalPending, requestCancellationPending: inbox.cancellationPending } : {}), user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy, ...directory.trainerProfilePolicy, ...directory.clientOnboardingPolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, clientRenewalWrites: directory.clientRenewalWrites && ['owner', 'admin'].includes(user.role), clientReactivationWrites: directory.clientReactivationWrites && ['owner', 'admin'].includes(user.role), clientDeactivationWrites: directory.clientDeactivationWrites && ['owner', 'admin'].includes(user.role), personalMessages: directory.personalMessages, trainerAvailabilityWrites: directory.trainerAvailabilityWrites && user.role === 'trainer', requestCancellationWrites: directory.personalMessages && directory.requestCancellationWrites && user.role === 'trainer', renewalDismissalWrites: directory.personalMessages && directory.renewalDismissalWrites, contentWorkflows: directory.contentWorkflows && ['owner', 'admin'].includes(user.role), clientAssessmentWorkflows: directory.clientAssessmentWorkflows && ['owner', 'admin'].includes(user.role), clientCreation: directory.clientCreation && ['owner', 'admin'].includes(user.role), trainerReactivationWrites: directory.trainerReactivationWrites && ['owner', 'admin'].includes(user.role), trainerPersonalWrites: directory.trainerPersonalWrites && ['owner', 'admin'].includes(user.role), trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
         }
         catch (error) {
           if (error.code === 'SESSION_EXPIRED') return snapshot
@@ -147,6 +152,7 @@ export function createApiPortalAdapter(options = {}) {
       if (service === 'clientService' && operation === 'saveAssessment') return clientAssessments.save(input, expectedGeneration)
       if (service === 'clientService' && operation === 'reactivate') return clientReactivation.save(input, expectedGeneration)
       if (service === 'clientService' && operation === 'deactivate') return clientDeactivation.save(input, expectedGeneration)
+      if (service === 'clientService' && operation === 'renewPackage') return clientRenewal.save(input, expectedGeneration)
       if (service === 'clientService' && operation === 'create') return clientCreation.create(input, expectedGeneration)
       if (service === 'trainerService' && operation === 'isSelectableForAvailability') {
         await actionSession(expectedGeneration)

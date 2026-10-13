@@ -1,3 +1,4 @@
+import { clientRenewalApiFixture } from './client-renewal-api-fixture.js'
 import { trainerAvailabilityApiFixture } from './trainer-availability-api-fixture.js'
 import { requestCancellationApiFixture } from './request-cancellation-api-fixture.js'
 import { clientReactivationApiFixture } from './client-reactivation-api-fixture.js'
@@ -73,6 +74,7 @@ export const test = base.extend({
               if (!response.destroyed) error('SESSION_EXPIRED')
               return
             }
+            if (clientRenewalApiFixture({ state, path, request, json, error })) return
             if (clientReactivationApiFixture({ state, path, request, json, error })) return
             if (clientDeactivationApiFixture({ state, path, request, json, error })) return
             if (trainerAvailabilityApiFixture({ state, path, request, json, error })) return
@@ -117,6 +119,7 @@ export const test = base.extend({
             json(currentSession()); return
           }
           if (!state.signedIn || request.headers['x-csrf-token'] !== state.csrfToken || !request.headers.cookie?.includes('staff-session=browser-test')) { error('CSRF_REJECTED', 403); return }
+          if (clientRenewalApiFixture({ state, path, request, body, json, error })) return
           if (clientReactivationApiFixture({ state, path, request, body, json, error })) return
           if (clientDeactivationApiFixture({ state, path, request, body, json, error })) return
           if (trainerAvailabilityApiFixture({ state, path, request, body, json, error })) return

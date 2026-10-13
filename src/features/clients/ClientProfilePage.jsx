@@ -22,6 +22,8 @@ import { managesOperations, canEditClientCoachingNotes, canEditClientGeneral } f
 export default function ClientProfilePage({
   user,
   readOnly = false,
+  renewalReadOnly = readOnly,
+  renewalWorkflow,
   onReviewDeactivation,
   reactivationWorkflow,
   personalReadOnly = readOnly,
@@ -218,6 +220,8 @@ export default function ClientProfilePage({
         <ClientProfileTabs
           clients={clients}
           readOnly={readOnly}
+          renewalReadOnly={renewalReadOnly}
+          renewalWorkflow={renewalWorkflow}
           progressPackageId={progressPackageId}
           onOpenProgressPackage={onOpenProgressPackage}
           packages={packages}

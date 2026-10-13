@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { clientMatchBody } from '../../services/apiClientCreation.js'
 
-export default function useClientMatches(preview, draft, trainers, enabled) {
+export default function useClientMatches(preview, draft, trainers, enabled, matchBody = clientMatchBody) {
   const [result, setResult] = useState({ request: null, matches: [], error: '' })
   const [attempt, setAttempt] = useState(0)
-  const query = preview && enabled ? JSON.stringify(clientMatchBody(draft)) : null
+  const query = preview && enabled ? JSON.stringify(matchBody(draft)) : null
   const request = query ? JSON.stringify([query, attempt, trainers.map(t => [t.id, t.version, t.status])]) : null
   useEffect(() => {
     if (!request) return

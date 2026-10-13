@@ -3,7 +3,7 @@ import { ApiError } from './apiClient.js'
 
 // One uncertain command per rendered login. Reconciliation is a read;
 // it never resubmits a command automatically after a transport failure.
-export function reconciledCommand(http, actionSession, { path, receiptPath, validate, bodyFor = input => input, label, roles = ['owner', 'admin'] }) {
+export function reconciledCommand(http, actionSession, { path, receiptPath, validate, bodyFor = input => input, label, roles = ['owner', 'admin'], keyFor = () => crypto.randomUUID() }) {
   let pending = null
   const sessionFor = async expectedGeneration => {
     const { user, sessionGeneration } = await actionSession(expectedGeneration)
@@ -25,7 +25,7 @@ export function reconciledCommand(http, actionSession, { path, receiptPath, vali
     const body = structuredClone(input)
     const fingerprint = JSON.stringify(body)
     if (pending && pending.fingerprint !== fingerprint) throw new ApiError('SAVE_UNCERTAIN', `Check the previous ${label.toLowerCase()} save with its original values before making another change.`)
-    const attempt = pending ?? { fingerprint, body, key: crypto.randomUUID(), generation: sessionGeneration }
+    const attempt = pending ?? { fingerprint, body, key: keyFor(body), generation: sessionGeneration }
     if (pending) {
       const receipt = await readReceipt(attempt, sessionGeneration)
       if (receipt.found) return receipt.result
