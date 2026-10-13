@@ -83,6 +83,8 @@ class FakeCognito:
         self.auth_time = int(time.time())
         self.db = None
         self.before_refresh = None
+        self.activate_totp = False
+        self.after_enable_totp = None
 
     def _call(self, name):
         # Assert the real SQLAlchemy pool is released before each external provider step.
@@ -142,6 +144,13 @@ class FakeCognito:
         if self.before_refresh:
             self.before_refresh()
         return self.tokens()
+
+    def enable_totp(self, access):
+        self._call("enable_totp")
+        if self.activate_totp:
+            self.user_changes["UserMFASettingList"] = ["SOFTWARE_TOKEN_MFA"]
+        if self.after_enable_totp:
+            self.after_enable_totp()
 
     def revoke(self, refresh):
         self._call("revoke")
