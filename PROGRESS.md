@@ -1,5 +1,10 @@
 # Fitfinity current progress
 
+## Reactivation CI correction — 13 October 2026
+
+- PR #35 run 38395831920 passes both complete jobs at its recorded head. PR #36 run 38398554915 passes backend and 890/891 browsers; PR #37 run 38400091785 passes backend and 889/891 browsers. Both browser failures target the same recovery test helper: a transient busy button label was mistaken for a closed menu, causing a click on the desktop/tablet-hidden summary.
+- The helper now checks the summary visibility and actual details open state, then waits for the requested button normally. Six affected browser cases pass on fresh root/Pages/API/PWA builds, including interrupted-save recovery and post-commit refresh failure on all three profiles. No runtime, timeout, retry, assertion, inventory or runner changes. Full final-head CI will be rerun on each corrected branch. Evidence: `/workspace/work/trainer-reactivation/browser-ci-correction.log`.
+
 ## Trainer reactivation — active source slice, 13 October 2026
 
 - Branch `integration/trainer-reactivation-2026-10-13` starts clean at draft PR #35 exact head `2f16106feefc9710703c938d0502366900beeb61`. Its full CI run 38395831920 has passed backend and has pending frontend. PR #34 run 38391015345 now passes both complete jobs at `2be43a84ebe13340221c3715e39c4fefcc9abbc1`; its draft body records that result. No merge, AWS mutation or deployment.

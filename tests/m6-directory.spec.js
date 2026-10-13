@@ -5,7 +5,8 @@ import { fillClientRequiredFields } from './fixtures.js'
 async function profileTab(page, name) {
   const menu = page.locator('details.profile-menu')
   const button = menu.getByRole('button', { name, exact: true })
-  if (!(await button.isVisible())) await menu.locator('summary').click()
+  const summary = menu.locator('summary')
+  if (await summary.isVisible() && await menu.getAttribute('open') === null) await summary.click()
   await button.click()
 }
 async function openDirectory(page, staffApi, legacy = false) {
