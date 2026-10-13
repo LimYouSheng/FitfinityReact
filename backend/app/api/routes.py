@@ -832,3 +832,33 @@ def reconcile_client_renewal(request_key: UUID, request: Request):
     """Read this actor's original committed renewal before an explicit identical retry."""
     with authorized_transaction(request) as (session, principal):
         return client_renewal_save.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/packages/{purchase_id}/reactivation-review",
+    response_model=client_reactivation.PackageReactivationReview,
+    operation_id="reviewPackageReactivation",
+)
+def review_package_reactivation(client_id: UUID, purchase_id: UUID, request: Request):
+    """Review only the selected inactive purchase of an active client; never write."""
+    with authorized_transaction(request) as (session, principal):
+        return client_reactivation.review(session, principal, client_id, package_id=purchase_id)
+
+
+@router.post(
+    "/clients/{client_id}/packages/{purchase_id}/reactivation-review",
+    response_model=client_reactivation.PackageReactivationReview,
+    operation_id="previewPackageReactivationDates",
+)
+def preview_package_reactivation_dates(
+    client_id: UUID,
+    purchase_id: UUID,
+    body: client_reactivation.ReactivationDates,
+    request: Request,
+    key: RequestKey,
+):
+    """Check selected-purchase replacement dates against the complete occupied calendar."""
+    with authorized_transaction(request) as (session, principal):
+        return client_reactivation.review(
+            session, principal, client_id, body, package_id=purchase_id
+        )

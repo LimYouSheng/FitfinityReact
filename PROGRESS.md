@@ -1,5 +1,10 @@
 # Fitfinity current progress
 
+## Package reactivation review — active source, 13 October 2026
+
+- Branch `integration/package-reactivation-review-2026-10-13` starts clean at PR #51 head `2ea397cf7314b8fef2580f64c90e9df1989a364a`. #51 aggregates #49–#50 over verified main `f355f9af52e79806904bcab3223767bdfbe021a3`; the normal merge preserved tested tree `a61fe0cb0b70db6c2d1fdeff1a3ca104ddae60a5`. Full final-head CI run 38452668578 failed its frontend unit gate at 1176/1177: an existing client-reactivation test checked its saved callback synchronously after dialog disappearance, before the edit-guard release effect. Backend remains running. Preserve this review slice in a local checkpoint, correct the asynchronous assertion on #51, then require fresh full final-head CI before merge.
+- Next slice extends the canonical retained-calendar review to one inactive purchase of an active client. Acceptance must prove exact selected-purchase scope, real client/trainer occupancy including other active purchases, stale/scope-bound review rejection, locked/completed/open-session handling, Owner/Admin authority and no review writes. Initial focused checks passed 67/68; the Open-session fixture omitted clearing its session number and slot reference, and is corrected. Corrected focused checks are running. Command/receipt/frontend integration follows; coverage stays 22/55 candidate and 21/55 merged until complete operation acceptance.
+
 ## Client renewal activation and UI — active source, 13 October 2026
 
 - Branch `integration/client-renewal-integration-2026-10-13` began clean at corrected PR #50 head `abe50b59fc1dbb595fe5c447ad0bd6f39403f205`. #49 and #50 now target main for the next aggregate; their final-head CI runs 38445287723 and 38447052660 have backend green and frontend pending. Main is verified at `f355f9af52e79806904bcab3223767bdfbe021a3` after #48; GitHub also marks #46–#47 merged at 18:44:12 UTC.
