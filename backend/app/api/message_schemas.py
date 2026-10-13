@@ -38,7 +38,11 @@ class MessageRequest(Contract):
     id: UUID
     version: int
     kind: Literal[
-        "session_time", "session_trainer", "fixed_weekly_schedule", "trainer_availability"
+        "session_time",
+        "session_trainer",
+        "session_postpone",
+        "fixed_weekly_schedule",
+        "trainer_availability",
     ]
     status: Literal["pending", "approved", "rejected", "cancelled", "superseded"]
     trainer_id: UUID

@@ -44,7 +44,14 @@ def seed(domain_db, graph, kind="trainer_availability"):
 
 
 @pytest.mark.parametrize(
-    "kind", ["trainer_availability", "fixed_weekly_schedule", "session_time", "session_trainer"]
+    "kind",
+    [
+        "trainer_availability",
+        "fixed_weekly_schedule",
+        "session_time",
+        "session_trainer",
+        "session_postpone",
+    ],
 )
 def test_owned_cancellation_is_atomic_idempotent_and_never_applies_proposal(
     requesting_trainer, domain_db, graph, kind

@@ -138,7 +138,7 @@ def test_admin_owner_notice_visibility_excludes_financial_content_and_keeps_pers
         assert owner.version == 2 and owner.read_at is not None
 
 
-def seed_request(session, graph, kind):
+def seed_request(session, graph, kind, **overrides):
     fields = (
         {}
         if kind == "trainer_availability"
@@ -154,6 +154,13 @@ def seed_request(session, graph, kind):
             new_start=time(11),
             new_end=time(12),
         )
+    if kind == "session_postpone":
+        fields.update(
+            session_id=graph["session_id"],
+            old_date=graph["start_date"],
+            old_start=time(10),
+            old_end=time(11),
+        )
     if kind == "session_trainer":
         source = session.get(Trainer, graph["trainer_id"])
         replacement = Trainer(
@@ -167,6 +174,7 @@ def seed_request(session, graph, kind):
         session.add(replacement)
         session.flush()
         fields.update(session_id=graph["session_id"], replacement_trainer_id=replacement.id)
+    fields.update(overrides)
     request = ChangeRequest(
         kind=kind,
         trainer_id=graph["trainer_id"],
@@ -210,7 +218,14 @@ def seed_request(session, graph, kind):
 
 
 @pytest.mark.parametrize(
-    "kind", ["trainer_availability", "fixed_weekly_schedule", "session_time", "session_trainer"]
+    "kind",
+    [
+        "trainer_availability",
+        "fixed_weekly_schedule",
+        "session_time",
+        "session_trainer",
+        "session_postpone",
+    ],
 )
 def test_request_projections_keep_exact_old_new_proposal_and_current_status(
     api, domain_db, graph, kind
@@ -222,6 +237,14 @@ def test_request_projections_keep_exact_old_new_proposal_and_current_status(
     if kind == "session_time":
         assert (
             row["request"]["old_start"] == "10:00:00" and row["request"]["new_start"] == "11:00:00"
+        )
+    elif kind == "session_postpone":
+        assert row["request"]["old_date"] == str(graph["start_date"])
+        assert row["request"]["old_start"] == "10:00:00"
+        assert (
+            row["request"]["new_date"] is None
+            and row["request"]["new_start"] is None
+            and row["request"]["new_end"] is None
         )
     elif kind == "session_trainer":
         assert row["request"]["replacement_trainer_id"] is not None

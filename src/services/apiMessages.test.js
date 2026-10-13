@@ -169,3 +169,18 @@ it('owners and invalid versions cannot issue cancellation commands', async () =>
   await expect(services.requestService.cancel({ ...cancellationInput, expectedVersion: 0 })).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
   expect(fetch.mock.calls.some(([, options]) => options.method === 'POST')).toBe(false)
 })
+
+it('retains a single postponed-session comparison without inventing a replacement booking', () => {
+  const request = messageRequest({ kind: 'session_postpone', client_id: directoryId(7), purchase_id: directoryId(4), session_id: directoryId(5), old_date: '2026-10-14', old_start: '10:00:00', old_end: '11:00:00', slots: [] })
+  const row = personalMessage(personalNotice({ requestId: request.id, request }), staff)
+  expect(row.request.changes).toEqual([{ sessionId: directoryId(5), before: { scheduleState: 'scheduled', date: '2026-10-14', from: '10:00', to: '11:00' }, next: { scheduleState: 'open', date: '', from: '', to: '' } }])
+  for (const patch of [{ new_date: '2026-10-20' }, { old_date: null }, { old_end: '09:00:00' }]) expect(() => personalMessage(personalNotice({ requestId: request.id, request: { ...request, ...patch } }), staff)).toThrow()
+})
+
+it('retains Open as the original state when a pending request proposes booking it', () => {
+  const request = messageRequest({ kind: 'session_time', client_id: directoryId(7), purchase_id: directoryId(4), session_id: directoryId(5), new_date: '2026-10-14', new_start: '10:00:00', new_end: '11:00:00', slots: [] })
+  const row = personalMessage(personalNotice({ requestId: request.id, request }), staff)
+  expect(row.request.previous).toEqual({ scheduleState: 'open', date: '', from: '', to: '' })
+  expect(row.request.next).toEqual({ date: '2026-10-14', from: '10:00', to: '11:00' })
+  expect(() => personalMessage(personalNotice({ requestId: request.id, request: { ...request, old_start: '09:00:00' } }), staff)).toThrow()
+})

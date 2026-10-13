@@ -1,5 +1,13 @@
 # Fitfinity current progress
 
+## Booking-state request storage — active source, 13 October 2026
+
+- Branch `integration/postponement-request-storage-2026-10-13` starts clean at PR #46 head `db88f46efd05b9c04aa0033f3626860028c0033f`. #46 is draft over #45; full CI run 38435927023 is running. #45 remains the fixed aggregate for #44–#45, awaiting its final frontend job in 38432613716. Continue and merge tested heads when all requirements pass.
+- Migration 0024 adds the retained single-session postponement proposal: a complete original booking and an explicitly empty target interval. It also permits the complete empty original interval for a request to book an Open session. Partial intervals, dated postponement targets and invalid times reject. Immutable proposal/history guards remain; either new shape prevents lossy downgrade. Creating or cancelling a proposal never applies its proposed schedule.
+- Personal message projections and the existing comparison UI show the original booking/Open state and requested state without invented dates. Cancellation now covers all five prototype request kinds, including Open-to-booked time proposals. Creating, approving, applying and undoing those scheduling changes remain distinct incomplete operations.
+- Focused backend validation passes 42 checks; focused message units pass 24. Initial preflight caught only SQL line wrapping and import-order lint, corrected before executing the passing database run. Full units pass 1146/1146 in 112 files; full backend/PostgreSQL passes 775/775, infrastructure 633/633, and all 33 affected desktop/phone/tablet browser cases pass on fresh root/Pages/API/PWA builds. Lint, source health and all 45 quality checks pass. Logs: `/workspace/work/postponement-requests-*`. Complete inventory: 775 backend, 633 infrastructure, 987 browser cases/34 files, schema 0024/150 triggers and unchanged 73 OpenAPI operations/64 paths. Only the MessageRequest schema changes; previous OpenAPI paths remain unchanged. Candidate source reaches 20/55 (nineteen server-connected operations plus one local predicate); full final-head CI, source merge and live/device acceptance remain separate; Trainer update remains partial and 34 other operations remain incomplete.
+
+
 ## Request cancellation — active source, 13 October 2026
 
 - Branch `integration/request-cancellation-2026-10-13` started clean at PR #45 head `34da57f687f451871b5b7ce2a632276b8ca3841a`. #45 remains fixed on main, with backend green and frontend running in 38432613716; it aggregates #44. Merge automatically once both final-head jobs and GitHub requirements pass.

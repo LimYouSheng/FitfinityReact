@@ -20,7 +20,7 @@ export function messageReadState(value, strict = true) {
 function proposal(value) {
   if (!value || !uuid(value.id) || !uuid(value.trainer_id) || !version(value.version) || !value.version
     || !version(value.expected_version) || !value.expected_version
-    || !['session_time', 'session_trainer', 'fixed_weekly_schedule', 'trainer_availability'].includes(value.kind)
+    || !['session_time', 'session_trainer', 'session_postpone', 'fixed_weekly_schedule', 'trainer_availability'].includes(value.kind)
     || !['pending', 'approved', 'rejected', 'cancelled', 'superseded'].includes(value.status)
     || !['client_id', 'purchase_id', 'session_id', 'replacement_trainer_id'].every(key => value[key] === null || uuid(value[key]))
     || typeof value.resolution_note !== 'string' || (value.status === 'pending' ? value.resolved_at !== null : !timestamp(value.resolved_at))
@@ -44,11 +44,19 @@ function proposal(value) {
     if (!result.oldSlots.length || result.oldSlots.length !== result.newSlots.length) fail()
   } else {
     if (!value.session_id || !value.client_id || !value.purchase_id) fail()
-    if (value.kind === 'session_time') {
-      if (!validSessionDate(value.old_date) || !validSessionDate(value.new_date)) fail()
-      result.previous = { date: value.old_date, from: clock(value.old_start), to: clock(value.old_end) }
+    if (value.kind === 'session_postpone') {
+      if (!validSessionDate(value.old_date) || [value.new_date, value.new_start, value.new_end].some(field => field !== null)) fail()
+      const before = { scheduleState: 'scheduled', date: value.old_date, from: clock(value.old_start), to: clock(value.old_end) }
+      if (before.from >= before.to) fail()
+      result.previous = before
+      result.changes = [{ sessionId: value.session_id, before, next: { scheduleState: 'open', date: '', from: '', to: '' } }]
+    } else if (value.kind === 'session_time') {
+      if (!validSessionDate(value.new_date)) fail()
+      const previousOpen = [value.old_date, value.old_start, value.old_end].every(field => field === null)
+      if (!previousOpen && !validSessionDate(value.old_date)) fail()
+      result.previous = previousOpen ? { scheduleState: 'open', date: '', from: '', to: '' } : { date: value.old_date, from: clock(value.old_start), to: clock(value.old_end) }
       result.next = { date: value.new_date, from: clock(value.new_start), to: clock(value.new_end) }
-      if (result.previous.from >= result.previous.to || result.next.from >= result.next.to) fail()
+      if ((!previousOpen && result.previous.from >= result.previous.to) || result.next.from >= result.next.to) fail()
     } else {
       if (!value.replacement_trainer_id || value.replacement_trainer_id === value.trainer_id) fail()
       result.previousTrainerId = value.trainer_id
