@@ -62,7 +62,8 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
       }), { message: 'Client details saved.' })}
       assessmentsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.clientAssessmentWorkflows)}
       assessmentApi={directoryOnly && snapshot.capabilities?.clientAssessmentWorkflows ? { services, generation: snapshot.sessionGeneration } : undefined}
-      sessionViewsAvailable={!directoryOnly}
+      progressViewsAvailable={!directoryOnly}
+      sessionViewsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.sessionReads)}
       progressRoute={parts[2] === 'progress'}
       progressPackageId={parts[2] === 'progress' ? parts[3] : undefined}
       onOpenProgressPackage={id => navigate(`clients/${selectedClient.id}/progress/${id}`, { preserveView: true })}

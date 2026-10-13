@@ -185,6 +185,8 @@ def image_fixture(source, pinned_contract):
         contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
     contract["revisions"].append("20261013_0030")
     contract["tables"]["client_weekly_schedule_receipts"] = ["SELECT", "INSERT"]
+    for relative in ("app/api/session_reads.py", "app/api/session_read_schemas.py"):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

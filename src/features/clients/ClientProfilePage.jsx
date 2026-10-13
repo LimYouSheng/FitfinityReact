@@ -37,6 +37,7 @@ export default function ClientProfilePage({
   assessmentsAvailable = true,
   assessmentApi,
   sessionViewsAvailable = true,
+  progressViewsAvailable = sessionViewsAvailable,
   client,
   clients,
   trainer,
@@ -70,7 +71,7 @@ export default function ClientProfilePage({
   const { guardNavigation, setActiveEdit } = useEditGuard()
   const [savedTab, setTab] = usePageState(`client.${client.id}.tab`, 'overview')
   const requestedTab = progressRoute ? 'progress' : savedTab
-  const tab = !sessionViewsAvailable && !['overview', 'package'].includes(requestedTab) ? 'overview' : requestedTab
+  const tab = (!sessionViewsAvailable && !['overview', 'package'].includes(requestedTab)) || (!progressViewsAvailable && requestedTab === 'progress') ? 'overview' : requestedTab
   const [activeEditor, setActiveEditor] = useState(null)
   const onAssessmentEditChange = useCallback(editing => setActiveEditor(editing ? 'assessment' : null), [])
   const [assessmentPerson, setAssessmentPerson] = useState(0)
@@ -119,7 +120,8 @@ export default function ClientProfilePage({
         items={[
             ['overview', 'Overview'],
             ['package', 'Package'],
-            ...(sessionViewsAvailable ? [['history', 'Session History'], ['upcoming', 'Upcoming Sessions'], ['progress', 'Progress']] : []),
+            ...(sessionViewsAvailable ? [['history', 'Session History'], ['upcoming', 'Upcoming Sessions']] : []),
+            ...(progressViewsAvailable ? [['progress', 'Progress']] : []),
         ]}
         activeKey={tab}
         onSelect={key => guardNavigation(() => {

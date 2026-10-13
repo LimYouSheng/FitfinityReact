@@ -19,7 +19,11 @@ import { exerciseResultsFor } from '../../app/progress.js'
 import { formatDate, formatTimestamp } from '../../utils/date.js'
 import ExercisePlanEditor from './ExercisePlanEditor.jsx'
 
+const READ_DEFAULTS = Object.freeze({ reps: '', rounds: '', rest: '' })
+const READ_CATALOG = Object.freeze([])
+
 export default function SessionDetailsPage({
+  readOnly = false,
   policy,
   today = businessClock(new Date(), policy?.timeZone).date,
   user,
@@ -48,8 +52,8 @@ export default function SessionDetailsPage({
   const { setActiveEdit } = useEditGuard()
   const outcome = useMemo(() => ({
     trainerComments: '', ...session.outcome,
-    durationMinutes: sessionDurationMinutes(session), exerciseResults: exerciseResultsFor(session),
-  }), [session])
+    durationMinutes: sessionDurationMinutes(session), exerciseResults: readOnly ? session.exerciseResults ?? [] : exerciseResultsFor(session),
+  }), [session, readOnly])
   const displayedSummary = session.clientSummary || automaticClientSummary(session, outcome)
 
   const [activeEditor, setActiveEditor] = useState(null)
@@ -101,11 +105,11 @@ export default function SessionDetailsPage({
   const purchased = packageForRecord(client, session)
   const packageInactive = purchased?.status === 'inactive'
   const recordInactive = clientInactive || packageInactive
-  const sessionEditable = !recordInactive && !['completed', 'cancelled'].includes(session.status)
+  const sessionEditable = !readOnly && !recordInactive && !['completed', 'cancelled'].includes(session.status)
   const canEditPlan = (isOwner || assignedTrainer) && sessionEditable
-  const canEditNotes = !recordInactive && (isOwner || assignedTrainer)
+  const canEditNotes = !readOnly && !recordInactive && (isOwner || assignedTrainer)
   const signed = session.acknowledgement?.method === 'signature'
-  const canAcknowledge = !recordInactive && (isOwner || assignedTrainer) && !signed
+  const canAcknowledge = !readOnly && !recordInactive && (isOwner || assignedTrainer) && !signed
   const acknowledgementHistory = session.acknowledgementHistory?.length ? session.acknowledgementHistory : session.acknowledgement ? [session.acknowledgement] : []
   const replacementTrainers = trainers.filter(item => item.status !== 'inactive' && item.id !== session.trainerId)
   const dateError = sessionActionError(session, today)
@@ -162,12 +166,12 @@ export default function SessionDetailsPage({
       {detailsError && !requestKind && <p className="validation-copy" role="alert">{detailsError}</p>}
 
       <Panel className={`top-gap exercise-plan-panel ${activeEditor === 'exercise' ? 'editing-section' : ''}`}>
-        <ExercisePlanEditor defaults={policy.exerciseDefaults}
-          catalog={exerciseCatalog}
+        <ExercisePlanEditor defaults={policy.exerciseDefaults ?? READ_DEFAULTS}
+          catalog={exerciseCatalog ?? READ_CATALOG}
           items={session.exercisePlan ?? []}
           sessionId={session.id}
           canEdit={canEditPlan && (!activeEditor || activeEditor === 'exercise')}
-          canViewVideo={(isOwner || assignedTrainer) && !activeEditor}
+          canViewVideo={!readOnly && (isOwner || assignedTrainer) && !activeEditor}
           timeZone={policy.timeZone}
           editing={activeEditor === 'exercise'}
           onBeginEdit={() => setActiveEditor('exercise')}
@@ -217,7 +221,7 @@ export default function SessionDetailsPage({
         )}
 
         <SessionSummaryExport client={client} session={session} displayedSummary={displayedSummary}
-          recordInactive={recordInactive} activeEditor={activeEditor} requestKind={requestKind}
+          recordInactive={recordInactive || readOnly} activeEditor={activeEditor} requestKind={requestKind}
           dateError={dateError} checkTrainingDate={checkTrainingDate} saving={saving} setSaving={setSaving} />
       </div>
 

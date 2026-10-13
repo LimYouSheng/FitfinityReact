@@ -30,6 +30,8 @@ from app.api import (
     packages,
     renewal_dismissal,
     request_cancellation,
+    session_read_schemas,
+    session_reads,
     trainer_approvals,
     trainer_availability,
     trainer_deactivation,
@@ -1029,3 +1031,23 @@ def save_client_weekly_schedule(
 def reconcile_client_weekly_schedule(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
         return client_weekly_schedule_save.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/session-calendar",
+    response_model=session_read_schemas.SessionCalendar,
+    operation_id="readSessionCalendar",
+)
+def read_session_calendar(request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return session_reads.calendar(session, principal)
+
+
+@router.get(
+    "/sessions/{session_id}/details",
+    response_model=session_read_schemas.SessionDetailRead,
+    operation_id="readSessionDetails",
+)
+def read_session_details(session_id: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return session_reads.detail(session, principal, session_id)

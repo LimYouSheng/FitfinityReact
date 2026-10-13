@@ -1,3 +1,4 @@
+import { sessionReadsApiFixture } from './session-reads-api-fixture.js'
 import { clientWeeklyScheduleApiFixture } from './client-weekly-schedule-api-fixture.js'
 import { trainerDeactivationApiFixture } from './trainer-deactivation-api-fixture.js'
 import { clientAssignmentApiFixture } from './client-assignment-api-fixture.js'
@@ -81,6 +82,7 @@ export const test = base.extend({
             }
             if (clientRenewalApiFixture({ state, path, request, json, error })) return
             if (trainerDeactivationApiFixture({ state, path, request, json, error })) return
+            if (sessionReadsApiFixture({ state, path, json, error })) return
             if (clientWeeklyScheduleApiFixture({ state, path, request, json, error })) return
             if (clientAssignmentApiFixture({ state, path, request, json, error })) return
             if (trainerCreationApiFixture({ state, path, request, json, error })) return
