@@ -1,5 +1,19 @@
 # Fitfinity current progress
 
+## Approved aggregate merged — 13 October 2026, 15:52 UTC
+
+- PR #39 merged after run 38419167682 passed both complete frontend/backend jobs at exact head `b31b4361fdb9b6099090a9ec5a6e3d1c9b2f8cec`. Verified main is `3c1ee997aee3ac32ceb6fd19026b9e9e736bcba5`; GitHub also marks every constituent PR #27–#38 MERGED at 15:52:13 UTC. Together with earlier #26, the complete originally approved #26–#39 stack has landed without a protection bypass.
+- Main now contains thirteen server-connected operations plus one local predicate: 14/55 source coverage. Candidate #40–#42 adds personal read/unread, renewal dismissal and client deactivation, reaching 18/55. Source merge does not deploy or establish live/device acceptance.
+- #40 passes full CI at its original head. Its dependency base has now merged; the next approved aggregate will include #40–#42 plus the focused reactivation-review foundation and current main, with complete CI required at that actual combined head. This preserves strict up-to-date protection while avoiding a separate serial main-update CI cycle for every dependent PR. Keep later source outside that aggregate until its own full gate passes.
+
+## Client reactivation review — active source, 13 October 2026
+
+- Branch `integration/client-reactivation-review-2026-10-13` starts clean at PR #42 head `c70ef370f01f079f9f9cf1a936320aa9445dfe4e`. PR #42 full CI run 38423955880 is in progress. #40 is fully green at its recorded head and marked ready; #39 aggregate and #41 still await frontend completion. Standing authorization covers these merges after final-head gates and current branch requirements.
+- Added Owner/Admin-only complete retained-calendar review and read-only proposed-date validation. Client, every purchase, every retained session and trainer evidence form the reviewed digest. Stale evidence and unknown/completed date targets reject; fresh competing occupancy includes completed bookings of inactive clients/purchases. Mutual proposed conflicts and inactive trainers are reported; touching intervals stay free. Separately inactive purchases and completed/cancelled sessions are excluded from restoration. Responses omit competing client identities and clinical data.
+- This is backend review foundation only. Reactivation writes/UI, immutable date history and actor receipt recovery remain incomplete; no operation count increases (still 18/55 candidate source). The current database requires dated sessions; open-session persistence remains part of later complete scheduling acceptance. No empty API calendar is treated as proof of availability.
+- All 14 focused real PostgreSQL/HTTP cases pass, including unchanged domain rows after previews. Full backend verification passes 718/718 PostgreSQL/backend cases, 633 infrastructure checks, Ruff/format and exact OpenAPI. Evidence: `/workspace/work/client-reactivation-review-backend.log`. No migration or frontend bytes changed; existing unit/browser inventories remain 1120/110 files and 948/32 files. Two new API operations on one new path yield 69 operations/60 paths; earlier path definitions are structurally unchanged after disambiguating the new schema name from Trainer reactivation.
+- Updated AGENTS.md to match YS's standing merge/continuation instructions rather than retaining contradictory stop-at-PR rules. The TEST exception expired at 15:42:58 UTC; this source/CI work does not renew it, deploy, stop resources or change AWS.
+
 ## Client deactivation — candidate source, 13 October 2026
 
 - Branch `integration/client-deactivation-2026-10-13` starts at PR #41 exact head `dbac59d64b039d5983f5eaa5525af8221ade975f`. PR #40 full CI 38415088313 now passes both complete jobs; #41 run 38419639509 and aggregate #39 run 38419167682 have backend green and frontend pending. Standing merge authority below applies when their actual final-head gates and GitHub requirements pass.

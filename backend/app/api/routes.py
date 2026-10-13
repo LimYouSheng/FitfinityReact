@@ -15,6 +15,7 @@ from app.api import (
     client_details,
     client_matching,
     client_notes,
+    client_reactivation,
     content,
     directory,
     messages,
@@ -683,3 +684,27 @@ def reconcile_client_deactivation(request_key: UUID, request: Request):
     """Read only this actor's original committed deactivation result."""
     with authorized_transaction(request) as (session, principal):
         return client_deactivation.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/reactivation-review",
+    response_model=client_reactivation.ClientReactivationReview,
+    operation_id="reviewClientReactivation",
+)
+def review_client_reactivation(client_id: UUID, request: Request):
+    """Review retained bookings; this endpoint never reactivates records."""
+    with authorized_transaction(request) as (session, principal):
+        return client_reactivation.review(session, principal, client_id)
+
+
+@router.post(
+    "/clients/{client_id}/reactivation-review",
+    response_model=client_reactivation.ClientReactivationReview,
+    operation_id="previewClientReactivationDates",
+)
+def preview_client_reactivation_dates(
+    client_id: UUID, body: client_reactivation.ReactivationDates, request: Request, key: RequestKey
+):
+    """Check proposed dates against current occupancy without saving changes."""
+    with authorized_transaction(request) as (session, principal):
+        return client_reactivation.review(session, principal, client_id, body)
