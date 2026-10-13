@@ -144,7 +144,7 @@ it('uses creation controls and validation for trainer profile details and decima
   fireEvent.change(screen.getByLabelText('Peak rate'), { target: { value: '80.25' } })
   fireEvent.click(rates.getByRole('button', { name: 'Save', exact: true }))
   fireEvent.click(within(await screen.findByRole('dialog', { name: 'Save trainer rates?' })).getByRole('button', { name: 'Save Rates' }))
-  await waitFor(() => expect(onUpdate).toHaveBeenCalledWith({ rates: { peak: 80.25, offPeak: seed.trainers[0].rates.offPeak } }))
+  await waitFor(() => expect(onUpdate).toHaveBeenCalledWith({ rates: { peak: 80.25, offPeak: seed.trainers[0].rates.offPeak } }, seed.trainers[0].version))
 })
 
 it('exports and shares only the selected package through the same PDF renderer while preserving compact charts', async () => {

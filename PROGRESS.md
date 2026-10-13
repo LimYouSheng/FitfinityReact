@@ -1,5 +1,10 @@
 # Fitfinity current progress
 
+## Rate CI correction — 13 October 2026
+
+- PR #30 run 38380660489 passed backend but failed one of 994 frontend units; dependent PR #31 run 38381143045 inherited the same failure (996/997 passed). The existing combined profile test still expected a one-argument rate callback after the editor began passing its captured version. Updated the exact assertion to include the reviewed version; all 20 tests in that suite now pass. Existing version-conflict/editor regressions remain intact. New final-head CI is required; the earlier runs are not accepted.
+- PR #28 exact head 64db5d03db17993996e8e145b8db4f6e6b15efbb passed both complete jobs in run 38376140052. Its draft PR now records that result. No merge/deployment performed. Verified-email source work follows propagation of this correction through the dependent branches.
+
 ## Owner trainer rates — active dependent slice, 13 October 2026
 
 - Active branch `integration/trainer-rates-2026-10-13` starts at PR #29 head `0b5c7f2d5b5a9a54519c8b55948e6a1f233bde7c`. PR #29 run 38378731223 passed backend; frontend remains pending. PR #27 run 38375110460 is now fully successful; #28 run 38376140052 has successful backend and pending frontend at this checkpoint. PR #26 is fully green. No new merge/deployment approval exercised.
