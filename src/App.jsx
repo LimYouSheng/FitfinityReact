@@ -1,3 +1,4 @@
+import ApiContentWorkspace from './features/content/ApiContentWorkspace.jsx'
 import ClientCreationRecovery from './features/clients/ClientCreationRecovery.jsx'
 import CreateAdminDialog, { AdminCreationRecovery } from './features/staff/CreateAdminDialog.jsx'
 import { managesOperations, canViewRemuneration } from './app/permissions.js'
@@ -87,7 +88,7 @@ function StaffPortal({ navigation }) {
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
   const clientCreationEnabled = !directoryOnly || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
   const packageReadOnly = directoryOnly && snapshot.capabilities?.packageWrites !== true
-  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(managesOperations(user) ? ['trainers', 'packages', ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
+  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
   const { clientService, trainerService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
@@ -360,7 +361,7 @@ function StaffPortal({ navigation }) {
   } else if (route === 'owner-profile') {
     page = <UnavailablePage message="This profile is available to the owner." />
   } else if (route === 'content' && managesOperations(user)) {
-    page = <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
+    page = directoryOnly ? <ApiContentWorkspace key={`${user.id}/${snapshot.sessionGeneration}`} services={services} generation={snapshot.sessionGeneration} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} /> : <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
   } else if (route === 'account' || (directoryOnly && route === 'dashboard')) {
     page = <StaffAccountPage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} user={user} profile={route === 'account'} readOnly={directoryOnly} packageWrites={!packageReadOnly} emailVerification={snapshot.capabilities?.trainerEmailWrites && user.role === 'trainer' ? { auth: services.auth, onCompleted: reload } : undefined} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
   } else if (route === 'dashboard') {

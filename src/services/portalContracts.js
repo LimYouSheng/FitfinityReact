@@ -8,7 +8,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     createAdmin: contract({ 'body': 'object', 'requestKey': 'string' }, 'owner', 'AdminInvitation', true),
   }),
   contentService: Object.freeze({
-    save: contract({ 'id?': 'string', 'expectedVersion?': 'number', 'draft': 'object' }, 'operations', 'ContentEntry'),
+    save: contract({ 'id?': 'string', 'expectedVersion?': 'number', 'draft': 'object' }, 'operations', 'ContentEntry', true),
   }),
   clientService: Object.freeze({
     getAll: contract({}, 'authenticated', 'Client[]', true),
