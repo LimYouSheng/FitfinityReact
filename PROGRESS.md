@@ -1,5 +1,12 @@
 # Fitfinity current progress
 
+## Approved stack merge — active, 13 October 2026
+
+- YS explicitly approved merging the listed #26–#39 stack. PR #26 merged at 15:02:33 UTC as main `287697cc91d383055917d389a474bbe34dba5286`, after both complete jobs passed at its exact approved head. Main now has eight server-connected operations. PR #40 and later source were excluded from this merge approval because #40 was explicitly held for pending frontend CI.
+- GitHub refused the next #27 merge because its branch was not up to date with main. No administrator bypass, auto-merge or protection change was used. Verified every exact approved #27–#38 head is an ancestor of #39. Retargeted the approved PRs to main and marked them ready; #39 is now the aggregate merge for the remaining approved stack.
+- A normal main update produced #39 head `b31b4361fdb9b6099090a9ec5a6e3d1c9b2f8cec`. Its source tree `a1a30f94b91cccd994c5d95c673b49b6529fbb8d` is identical to the original approved #39 head. Full CI run 38419167682 is pending on the new head; prior green CI cannot substitute for it. Merge #39 only after both complete jobs pass, then verify #27–#38 and main. No #40/#41 code is included. The branch-protection details read returned integration HTTP 403; the actual GitHub merge rejection supplied the up-to-date requirement.
+- Source work continues while that required CI runs. No AWS/protected release approval was granted or used; normal repository workflows triggered by approved merges are tracked separately from live backend acceptance.
+
 ## Renewal dismissal — candidate source, 13 October 2026
 
 - Branch `integration/renewal-dismissal-2026-10-13` starts clean at draft PR #40 exact head `f0f9c84b26b55b6aabf811a7325346ea63b7db61`. Its full CI run 38415088313 has backend green and frontend pending; PR #39 run 38410303753 now passes both complete jobs at its recorded final head. No merge or deployment.
