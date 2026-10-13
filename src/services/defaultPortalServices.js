@@ -11,7 +11,7 @@ export function createConfiguredPortalServices({ mode = 'demo', baseUrl = '', ..
     }
     return adapter
   }
-  return createPortalServices(Object.fromEntries(['load', 'session', 'invoke', 'reset'].map(method => [method, async (...args) => (await resolve())[method](...args)])))
+  return createPortalServices(Object.fromEntries(['load', 'session', 'invoke', 'reset', ...(mode === 'api' ? ['previewClientMatches'] : [])].map(method => [method, async (...args) => (await resolve())[method](...args)])))
 }
 
 export const portalServices = createConfiguredPortalServices({ mode: import.meta.env.VITE_PORTAL_MODE ?? 'demo', baseUrl: import.meta.env.VITE_API_BASE_URL ?? '' })

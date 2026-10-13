@@ -1,4 +1,5 @@
 import { trainerSelectableForAvailability } from '../app/status.js'
+import { clientCreationCommands } from './apiClientCreation.js'
 import { emailCommands } from './apiEmailChanges.js'
 import { trainerDetailCommands } from './apiTrainerDetails.js'
 import { trainerRateCommands } from './apiTrainerRates.js'
@@ -41,6 +42,7 @@ export function createApiPortalAdapter(options = {}) {
   const saveClientNotes = clientNoteCommands(http, actionSession)
   const saveClientDetails = clientDetailCommands(http, actionSession)
   const savePackage = packageCommands(http, actionSession)
+  const clientCreation = clientCreationCommands(http, actionSession)
   const clearSession = result => { http.clear(); return result }
   const methods = {
     ...emailMethods,
@@ -74,6 +76,9 @@ export function createApiPortalAdapter(options = {}) {
     },
   }
   return {
+    async previewClientMatches(draft, { expectedGeneration = http.generation() } = {}) {
+      return clientCreation.preview(draft, expectedGeneration)
+    },
     async load() {
       if (loading && loadingGeneration === http.generation()) return loading
       loadingGeneration = http.generation()
@@ -85,7 +90,7 @@ export function createApiPortalAdapter(options = {}) {
           const { user, sessionGeneration } = await http.session()
           verifiedIdentity = { id: user.id, role: user.role, sessionGeneration }
           const directory = directorySnapshot(await http.get('/api/directory', { expectedGeneration: sessionGeneration }), user)
-          return { ...snapshot, ...directory, user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy, ...directory.trainerProfilePolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, trainerPersonalWrites: directory.trainerPersonalWrites && ['owner', 'admin'].includes(user.role), trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
+          return { ...snapshot, ...directory, user, sessionGeneration, policy: { ...snapshot.policy, ...directory.packagePolicy, ...directory.trainerProfilePolicy, ...directory.clientOnboardingPolicy }, capabilities: { ...snapshot.capabilities, staffWorkflows: true, directoryReadOnly: true, clientCreation: directory.clientCreation && ['owner', 'admin'].includes(user.role), trainerPersonalWrites: directory.trainerPersonalWrites && ['owner', 'admin'].includes(user.role), trainerEmailWrites: directory.trainerEmailWrites, trainerRateWrites: directory.trainerRateWrites && user.role === 'owner', clientNoteWrites: directory.clientNoteWrites, clientPersonalWrites: directory.clientPersonalWrites && ['owner', 'admin'].includes(user.role), trainerApprovalWrites: directory.trainerApprovalWrites && ['owner', 'admin'].includes(user.role), packageWrites: Boolean(directory.packagePolicy) && ['owner', 'admin'].includes(user.role) } }
         }
         catch (error) {
           if (error.code === 'SESSION_EXPIRED') return snapshot
@@ -106,6 +111,7 @@ export function createApiPortalAdapter(options = {}) {
     },
     async invoke(request, { expectedGeneration = http.generation() } = {}) {
       const { service, operation, input } = portalRequest(request, 'api')
+      if (service === 'clientService' && operation === 'create') return clientCreation.create(input, expectedGeneration)
       if (service === 'trainerService' && operation === 'isSelectableForAvailability') {
         await actionSession(expectedGeneration)
         return trainerSelectableForAvailability(input.trainer)

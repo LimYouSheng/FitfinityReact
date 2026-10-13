@@ -1,5 +1,6 @@
 import { directoryData, directoryId } from '../src/test/directory.js'
 import { expect, passwordSignIn, test, verifyAuthenticator } from './auth-api-fixture.js'
+import { fillClientRequiredFields } from './fixtures.js'
 
 async function profileTab(page, name) {
   const menu = page.locator('details.profile-menu')
@@ -15,6 +16,87 @@ async function openDirectory(page, staffApi, legacy = false) {
   await passwordSignIn(page)
   await verifyAuthenticator(page)
 }
+
+async function beginApiClient(page, staffApi, admin = false) {
+  await openDirectory(page, staffApi)
+  Object.assign(staffApi.state.directory, { clientCreation: true, clientOnboardingPolicy: {
+    defaultCountryCode: '+65', defaultRelationship: 'Spouse', weeklyFrequencies: [1, 2, 3, 4, 5, 6, 7], freeGymMinimumFrequency: 2, availability: { from: '18:00', to: '19:00' },
+  } })
+  if (admin) {
+    staffApi.state.user = { ...staffApi.state.user, role: 'admin', name: 'API Admin' }
+    delete staffApi.state.directory.trainers[0].peak_rate_cents
+    delete staffApi.state.directory.trainers[0].off_peak_rate_cents
+  }
+  await page.reload()
+  await page.getByRole('button', { name: 'View Clients', exact: true }).click()
+  await page.getByRole('button', { name: 'Add New Client', exact: true }).click()
+  await page.getByLabel('Client name', { exact: true }).fill('Created API Client')
+  await fillClientRequiredFields(page)
+  await page.getByRole('button', { name: 'Continue to Health & Assessments', exact: true }).click()
+  await page.getByRole('button', { name: /^Static Balance — / }).click()
+  const assessment = page.getByRole('dialog', { name: 'Static Balance', exact: true })
+  await assessment.getByLabel('Eyes open — trial 1 (seconds)', { exact: true }).fill('10')
+  await assessment.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByRole('button', { name: 'Continue to Package & Preferences', exact: true }).click()
+  await page.getByLabel('Start date', { exact: true }).fill('2027-06-07')
+  await page.getByRole('button', { name: 'Continue to Client Availability', exact: true }).click()
+  await page.getByRole('button', { name: 'Monday', exact: true }).click()
+  await page.getByRole('button', { name: 'Add Time', exact: true }).click()
+  await page.getByRole('button', { name: 'Continue to Trainer Matching', exact: true }).click()
+}
+
+test('API client creation retries matching and recovers the original save through a directory outage', async ({ page, staffApi }) => {
+  staffApi.state.clientMatchFailure = true
+  await beginApiClient(page, staffApi)
+  await page.getByRole('button', { name: 'Retry Matching', exact: true }).click()
+  await expect(page.getByLabel('Matched trainer', { exact: true })).toHaveValue(directoryId(1))
+  await page.getByRole('button', { name: 'Continue to Review & Confirm', exact: true }).click()
+  staffApi.state.clientCreateUnknown = true
+  await page.getByRole('button', { name: 'Create Client', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Create Created API Client?', exact: true }).getByRole('button', { name: 'Create Client', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Check Client Creation', exact: true })).toBeVisible()
+  staffApi.state.unavailable = true
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect(page.getByRole('heading', { name: 'Unable to load the portal', exact: true })).toBeVisible()
+  await expect(page.getByText(/Your client creation progress is retained/)).toBeVisible()
+  staffApi.state.unavailable = false
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await page.getByRole('button', { name: 'Check Client Creation', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`#/clients/${directoryId(100)}$`))
+  await expect(page.getByRole('heading', { name: 'Created API Client', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Created API Client', exact: true })).toBeVisible()
+  expect(staffApi.state.mutations.filter(m => m.path === '/api/clients')).toHaveLength(1)
+  expect(staffApi.state.directory.clients.filter(c => c.name === 'Created API Client')).toHaveLength(1)
+  expect(staffApi.state.clientCreationBody.people[0].assessments[0].answers).toEqual({ eyes_open_1: 10 })
+  expect(staffApi.state.clientCreationBody.people[0].assessments[0]).not.toHaveProperty('assessor')
+})
+
+test('API Admin client creation remains successful when the follow-up directory read fails', async ({ page, staffApi }) => {
+  await beginApiClient(page, staffApi, true)
+  await expect(page.getByLabel('Matched trainer', { exact: true })).toHaveValue(directoryId(1))
+  await page.getByRole('button', { name: 'Continue to Review & Confirm', exact: true }).click()
+  staffApi.state.clientCreateRefreshFailure = true
+  await page.getByRole('button', { name: 'Create Client', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Create Created API Client?', exact: true }).getByRole('button', { name: 'Create Client', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Unable to load the portal', exact: true })).toBeVisible()
+  staffApi.state.unavailable = false
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`#/clients/${directoryId(100)}$`))
+  await expect(page.getByRole('heading', { name: 'Created API Client', exact: true })).toBeVisible()
+  expect(staffApi.state.mutations.filter(m => m.path === '/api/clients')).toHaveLength(1)
+})
+
+test('API client onboarding keeps creation blocked when the server finds no free cadence', async ({ page, staffApi }) => {
+  staffApi.state.clientNoMatches = true
+  await beginApiClient(page, staffApi)
+  await expect(page.getByLabel('Matched trainer', { exact: true })).toBeDisabled()
+  await expect(page.getByText(/No active trainer is free for every session/)).toBeVisible()
+  await page.getByRole('button', { name: 'Continue to Review & Confirm', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveText('Choose a matched trainer.')
+  await expect(page.getByRole('button', { name: 'Create Client', exact: true })).toHaveCount(0)
+  expect(staffApi.state.mutations.filter(m => m.path === '/api/clients')).toHaveLength(0)
+})
 
 test('API trainer profile saves preserve verified email and cleared optional contacts across reload', async ({ page, staffApi }) => {
   await openDirectory(page, staffApi)

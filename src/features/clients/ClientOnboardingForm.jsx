@@ -1,7 +1,9 @@
+import useClientCreationForm from './useClientCreationForm.js'
+import useClientMatches from './useClientMatches.js'
 import SelectField from '../../components/SelectField.jsx'
 import ClientPackageFields from './ClientPackageFields.jsx'
 import { freeGymEligible } from '../../app/packages.js'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import Panel from '../../components/Panel.jsx'
 import OnboardingReview from '../../components/OnboardingReview.jsx'
 import { ONBOARDING_REVIEW_STEP, clientReviewSections, firstIncompleteSection } from '../../app/onboardingReview.js'
@@ -43,30 +45,29 @@ const emptyDraft = policy => ({
   trainerId: '',
 })
 
-export default function ClientOnboardingForm({ user, packages, policy, trainers, sessions = [], clients = [], onCancel, onCreate, onCreated, packageDraft }) {
+export default function ClientOnboardingForm({ user, packages, policy, trainers, sessions = [], clients = [], onCancel, onCreate, onCreated, packageDraft, previewMatches, recovery }) {
   const addingPackage = Boolean(packageDraft)
   const steps = addingPackage ? CLIENT_ONBOARDING_STEPS.filter(step => !['general', 'assessments'].includes(step.key)) : CLIENT_ONBOARDING_STEPS
   const formSteps = [...steps, ONBOARDING_REVIEW_STEP]
   const confirmAction = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
-  const [initialDraft] = useState(() => ({ ...emptyDraft(policy), packageId: packages[0]?.id ?? '', ...packageDraft }))
-  const [draft, setDraft] = useState(initialDraft)
-  const [stepIndex, setStepIndex] = useState(0)
-  const [returningToReview, setReturningToReview] = useState(false)
-  const [activePerson, setActivePerson] = useState(0)
-  const [reviewAssessment, setReviewAssessment] = useState(null)
-  const [selectedDays, setSelectedDays] = useState([])
-  const [from, setFrom] = useState(policy.availability.from)
-  const [to, setTo] = useState(policy.availability.to)
-  const [errors, setErrors] = useState({})
-  const [saving, setSaving] = useState(false)
-  const [created, setCreated] = useState(null)
+  const { form: creation, update: updateCreation, setter } = useClientCreationForm(recovery, () => {
+    const initialDraft = { ...emptyDraft(policy), packageId: packages[0]?.id ?? '', ...packageDraft }
+    return { initialDraft, draft: initialDraft, stepIndex: 0, returningToReview: false, activePerson: 0,
+      reviewAssessment: null, selectedDays: [], from: policy.availability.from, to: policy.availability.to,
+      errors: {}, saving: false, created: null, submitted: null }
+  })
+  const { initialDraft, draft, stepIndex, returningToReview, activePerson, reviewAssessment, selectedDays,
+    from, to, errors, saving, created, submitted } = creation
+  const setDraft = setter('draft'), setStepIndex = setter('stepIndex'), setReturningToReview = setter('returningToReview')
+  const setActivePerson = setter('activePerson'), setReviewAssessment = setter('reviewAssessment'), setSelectedDays = setter('selectedDays')
+  const setFrom = setter('from'), setTo = setter('to'), setErrors = setter('errors')
   const submissionPending = useRef(false)
   const navigationCompleted = useRef(false)
   const stepHeading = useRef(null)
   const previousStepIndex = useRef(0)
   const formRef = useRef(null)
-  const nextBlockId = useRef(1 + initialDraft.clientPreferences.reduce((max, block) => Math.max(max, Number(block.id?.match(/^client-preference-(\d+)$/)?.[1] ?? 0)), 0))
+  const nextBlockId = useRef(1 + draft.clientPreferences.reduce((max, block) => Math.max(max, Number(block.id?.match(/^client-preference-(\d+)$/)?.[1] ?? 0)), 0))
 
   const validateStep = (value, key) => ({ ...clientStepErrors(value, key),
     ...(key === 'package' && !packages.some(item => item.id === value.packageId) ? { packageId: 'Choose an active PT package.' } : {}) })
@@ -78,7 +79,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
   const nextStep = formSteps[stepIndex + 1]
   const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft) || selectedDays.length > 0 || from !== policy.availability.from || to !== policy.availability.to
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setActiveEdit(dirty && !created ? (addingPackage ? 'New package' : 'New client') : null)
     return () => setActiveEdit(null)
   }, [addingPackage, created, dirty, setActiveEdit])
@@ -104,16 +105,26 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
   }, [activePerson, errors])
 
   const selectedPack = packages.find(item => item.id === draft.packageId)
-  const visibleMatches = useMemo(
+  const localMatches = useMemo(
     () => matchTrainers(trainers, draft.clientPreferences, draft.genderPreference, {
       ...draft, definition: selectedPack, sessions, clients, clientId: packageDraft?.clientId,
     }),
     [trainers, draft, selectedPack, sessions, clients, packageDraft?.clientId],
   )
+  const remoteMatches = useClientMatches(previewMatches, { ...draft, packageVersion: selectedPack?.version }, trainers,
+    ['matching', 'review'].includes(step.key) && !submitted && !created && Boolean(selectedPack))
+  const visibleMatches = previewMatches ? remoteMatches.matches : localMatches
   const selectedMatch = visibleMatches.find(result => result.trainer.id === draft.trainerId)
-  const selectedTrainer = selectedMatch?.trainer ?? null
-  const fixedWeeklySchedule = selectedMatch?.schedule ?? []
-  const completeDraft = { ...draft, packageVersion: selectedPack?.version, packageName: selectedPack?.name, packageDefinition: selectedPack, trainerId: selectedTrainer?.id ?? '', fixedWeeklySchedule }
+  const selectedTrainer = submitted ? { id: submitted.trainerId, name: submitted.trainerName } : selectedMatch?.trainer ?? null
+  const fixedWeeklySchedule = submitted?.fixedWeeklySchedule ?? selectedMatch?.schedule ?? []
+  const completeDraft = submitted ?? { ...draft, packageVersion: selectedPack?.version, packageName: selectedPack?.name, packageDefinition: selectedPack, trainerId: selectedTrainer?.id ?? '', trainerName: selectedTrainer?.name, trainerVersion: selectedMatch?.trainerVersion ?? selectedTrainer?.version, fixedWeeklySchedule }
+
+  useEffect(() => {
+    if (!previewMatches || remoteMatches.loading || remoteMatches.error || submitted || !['matching', 'review'].includes(step.key)) return
+    if (visibleMatches.length && !visibleMatches.some(match => match.trainer.id === draft.trainerId)) {
+      updateCreation(current => ({ draft: { ...current.draft, trainerId: visibleMatches[0].trainer.id } }))
+    }
+  }, [previewMatches, remoteMatches.loading, remoteMatches.error, submitted, step.key, visibleMatches, draft.trainerId, updateCreation])
 
   const update = (patch, invalidateMatching = false) => {
     setDraft(current => ({ ...current, ...patch, ...(invalidateMatching ? { trainerId: '', fixedWeeklySchedule: undefined } : {}) }))
@@ -153,6 +164,22 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
   const handleSubmit = async event => {
     event.preventDefault()
     if (submissionPending.current || saving || created) return
+    if (submitted) {
+      submissionPending.current = true
+      const version = recovery?.version()
+      updateCreation({ saving: true, errors: {} }, version)
+      try {
+        const result = await onCreate(submitted)
+        updateCreation({ created: result, submitted: null, saving: false }, version)
+      } catch (error) {
+        updateCreation({ saving: false, errors: { save: error.message }, ...((error.status >= 400 && error.status < 500) ? { submitted: null } : {}) }, version)
+      } finally { submissionPending.current = false }
+      return
+    }
+    if (previewMatches && ['matching', 'review'].includes(step.key) && (remoteMatches.loading || remoteMatches.error)) {
+      setErrors({ save: remoteMatches.error || 'Wait for trainer matching to finish.' })
+      return
+    }
     const validation = validateStep(completeDraft, step.key)
     if (step.key === 'availability' && selectedDays.length) {
       validation.availability = 'Select Add Time to include these days before continuing.'
@@ -182,6 +209,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
     }
 
     submissionPending.current = true
+    const creationVersion = recovery?.version()
     try {
       const displayName = (draft.type === 'Couple' ? draft.people : draft.people.slice(0, 1)).map(person => person.name.trim()).join(' & ')
       const confirmed = await confirmAction({
@@ -190,12 +218,11 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
         confirmLabel: addingPackage ? 'Add Package' : 'Create Client',
       })
       if (!confirmed) return
-      setSaving(true)
+      if (!updateCreation({ saving: true, submitted: previewMatches ? structuredClone(completeDraft) : null }, creationVersion)) return
       const result = await onCreate(completeDraft)
-      setCreated(result)
+      updateCreation({ created: result, submitted: null, saving: false }, creationVersion)
     } catch (error) {
-      setSaving(false)
-      setErrors({ save: error instanceof Error ? error.message : 'Client creation failed. Please try again.' })
+      updateCreation({ saving: false, errors: { save: error instanceof Error ? error.message : 'Client creation failed. Please try again.' }, ...((error.status >= 400 && error.status < 500) ? { submitted: null } : {}) }, creationVersion)
     } finally {
       submissionPending.current = false
     }
@@ -203,7 +230,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
 
   const editReviewSection = key => {
     const index = steps.findIndex(item => item.key === key)
-    if (index < 0 || saving || submissionPending.current) return
+    if (index < 0 || saving || submitted || submissionPending.current) return
     setReturningToReview(true)
     if (key === 'general' || key === 'assessments') setActivePerson(0)
     goToStep(index)
@@ -222,7 +249,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
             <h2 ref={stepHeading} tabIndex={-1}>{step.title}</h2>
             <span className="onboarding-step-count" aria-label="Creation progress">Step {stepIndex + 1} of {formSteps.length}</span>
           </div>
-          <fieldset className="onboarding-step-body" disabled={saving}>
+          <fieldset className="onboarding-step-body" disabled={saving || Boolean(submitted)}>
             <legend className="visually-hidden">{step.title}</legend>
 
             {step.key === 'general' && (
@@ -257,7 +284,9 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
                     {visibleMatches.map(result => <option key={result.trainer.id} value={result.trainer.id}>{result.trainer.name}</option>)}
                   </SelectField>
                 </Field>
-                {!visibleMatches.length && <p className="onboarding-hint" role="status">No active trainer is free for every session on these days and times. Go back to adjust the start date, availability or preference.</p>}
+                {previewMatches && remoteMatches.loading && <p role="status">Checking trainer availability…</p>}
+                {previewMatches && remoteMatches.error && <><p role="alert">{remoteMatches.error}</p><button type="button" className="onboarding-button" onClick={remoteMatches.retry}>Retry Matching</button></>}
+                {!visibleMatches.length && !remoteMatches.loading && !remoteMatches.error && <p className="onboarding-hint" role="status">No active trainer is free for every session on these days and times. Go back to adjust the start date, availability or preference.</p>}
                 {visibleMatches.length > 0 && (
                   <>
                     <div className="onboarding-schedule-preview" aria-label="Fixed Weekly Schedule">
@@ -278,9 +307,9 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
           </fieldset>
           {Object.keys(errors).length > 0 && <p className="onboarding-error" role="alert">{Object.values(errors)[0]}</p>}
           <div className="onboarding-step-actions">
-            {!returningToReview && previousStep && <button type="button" className="onboarding-button" disabled={saving} onClick={() => goToStep(stepIndex - 1)}>Back to {previousStep.title}</button>}
+            {!submitted && !returningToReview && previousStep && <button type="button" className="onboarding-button" disabled={saving} onClick={() => goToStep(stepIndex - 1)}>Back to {previousStep.title}</button>}
             <button type="submit" className="onboarding-button primary" disabled={saving}>
-              {saving ? 'Saving…' : reviewing ? (addingPackage ? 'Add Package' : 'Create Client') : returningToReview ? 'Return to Review & Confirm' : `Continue to ${nextStep.title}`}
+              {saving ? 'Saving…' : submitted ? 'Check Client Creation' : reviewing ? (addingPackage ? 'Add Package' : 'Create Client') : returningToReview ? 'Return to Review & Confirm' : `Continue to ${nextStep.title}`}
             </button>
           </div>
         </Panel>

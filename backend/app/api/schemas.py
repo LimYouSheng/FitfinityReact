@@ -315,6 +315,21 @@ class TrainerProfilePolicy(Contract):
     )
 
 
+class OnboardingAvailability(Contract):
+    from_: Literal["18:00"] = Field(default="18:00", alias="from")
+    to: Literal["19:00"] = "19:00"
+
+
+class ClientOnboardingPolicy(Contract):
+    defaultCountryCode: Literal["+65"] = "+65"
+    defaultRelationship: Literal["Spouse"] = "Spouse"
+    weeklyFrequencies: tuple[
+        Literal[1], Literal[2], Literal[3], Literal[4], Literal[5], Literal[6], Literal[7]
+    ] = (1, 2, 3, 4, 5, 6, 7)
+    freeGymMinimumFrequency: Literal[2] = 2
+    availability: OnboardingAvailability = Field(default_factory=OnboardingAvailability)
+
+
 class DirectorySnapshot(ServerClock):
     schemaVersion: Literal[1]
     viewerId: UUID
@@ -329,6 +344,8 @@ class DirectorySnapshot(ServerClock):
     trainerProfilePolicy: TrainerProfilePolicy = Field(default_factory=TrainerProfilePolicy)
     clientPersonalWrites: Literal[True] = True
     clientNoteWrites: Literal[True] = True
+    clientCreation: Literal[True] = True
+    clientOnboardingPolicy: ClientOnboardingPolicy = Field(default_factory=ClientOnboardingPolicy)
 
 
 class SessionClient(Contract):

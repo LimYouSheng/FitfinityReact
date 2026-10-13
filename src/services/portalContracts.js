@@ -13,7 +13,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
   clientService: Object.freeze({
     getAll: contract({}, 'authenticated', 'Client[]', true),
     getById: contract({ 'id': 'string' }, 'authenticated', 'Client | null', true),
-    create: contract({ 'draft': 'object' }, 'operations', 'Client'),
+    create: contract({ 'draft': 'object' }, 'operations', 'Client', true),
     renewPackage: contract({ 'id': 'string', 'draft': 'object' }, 'operations', 'Client'),
     deactivatePackage: contract({ 'id': 'string', 'options': 'object' }, 'operations', 'Client'),
     reactivatePackage: contract({ 'id': 'string', 'options': 'object' }, 'operations', 'Client'),

@@ -447,6 +447,79 @@
         "title": "ClientDetailState",
         "type": "object"
       },
+      "ClientOnboardingPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "availability": {
+            "$ref": "#/components/schemas/OnboardingAvailability"
+          },
+          "defaultCountryCode": {
+            "const": "+65",
+            "default": "+65",
+            "title": "Defaultcountrycode",
+            "type": "string"
+          },
+          "defaultRelationship": {
+            "const": "Spouse",
+            "default": "Spouse",
+            "title": "Defaultrelationship",
+            "type": "string"
+          },
+          "freeGymMinimumFrequency": {
+            "const": 2,
+            "default": 2,
+            "title": "Freegymminimumfrequency",
+            "type": "integer"
+          },
+          "weeklyFrequencies": {
+            "default": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "maxItems": 7,
+            "minItems": 7,
+            "prefixItems": [
+              {
+                "const": 1,
+                "type": "integer"
+              },
+              {
+                "const": 2,
+                "type": "integer"
+              },
+              {
+                "const": 3,
+                "type": "integer"
+              },
+              {
+                "const": 4,
+                "type": "integer"
+              },
+              {
+                "const": 5,
+                "type": "integer"
+              },
+              {
+                "const": 6,
+                "type": "integer"
+              },
+              {
+                "const": 7,
+                "type": "integer"
+              }
+            ],
+            "title": "Weeklyfrequencies",
+            "type": "array"
+          }
+        },
+        "title": "ClientOnboardingPolicy",
+        "type": "object"
+      },
       "ClientSummary": {
         "additionalProperties": false,
         "properties": {
@@ -987,11 +1060,20 @@
             "title": "Businessdate",
             "type": "string"
           },
+          "clientCreation": {
+            "const": true,
+            "default": true,
+            "title": "Clientcreation",
+            "type": "boolean"
+          },
           "clientNoteWrites": {
             "const": true,
             "default": true,
             "title": "Clientnotewrites",
             "type": "boolean"
+          },
+          "clientOnboardingPolicy": {
+            "$ref": "#/components/schemas/ClientOnboardingPolicy"
           },
           "clientPersonalWrites": {
             "const": true,
@@ -1885,6 +1967,25 @@
           "people"
         ],
         "title": "NoteView",
+        "type": "object"
+      },
+      "OnboardingAvailability": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "const": "18:00",
+            "default": "18:00",
+            "title": "From",
+            "type": "string"
+          },
+          "to": {
+            "const": "19:00",
+            "default": "19:00",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "title": "OnboardingAvailability",
         "type": "object"
       },
       "OperationalTrainer": {

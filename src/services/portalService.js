@@ -7,6 +7,7 @@ export function createPortalServices(adapter, reportService = browserReportServi
   // A local concurrency guard, never a server identity or authorization input.
   const context = sessionGeneration === undefined ? [] : [{ expectedGeneration: sessionGeneration }]
   const services = { forSession: generation => createPortalServices(adapter, reportService, generation), reportService, load: async () => adapter.load(), reset: async () => adapter.reset() }
+  if (adapter.previewClientMatches) services.previewClientMatches = async draft => adapter.previewClientMatches(draft, ...context)
   for (const [service, operations] of Object.entries(PORTAL_CONTRACTS)) {
     services[service] = Object.fromEntries(Object.keys(operations).map(operation =>
       [operation, async (input = {}) => adapter.invoke({ service, operation, input }, ...context)]))
