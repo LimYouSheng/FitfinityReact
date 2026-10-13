@@ -1,5 +1,11 @@
 # Portal service contracts
 
+## MFA preference reconciliation — 13 October 2026 repair
+
+After Cognito successfully completes MFA_SETUP or SOFTWARE_TOKEN_MFA and returns tokens, the service verifies the access token and provider subject/username/verified-email. When the provider's MFA method list is absent, null or empty, a fresh completed flow may reconcile the software-token preference only after validating the active local account, issuer/subject link, username, flow epoch and authentication time. The token-authorized SetUserMFAPreference call runs outside the DB transaction; strict provider readback and a second local authority check precede application-session creation. Already enabled factors require no write. Failed proof, denied/uncertain preference write, unchanged readback or changed identity cannot create a session. Refresh and ordinary credential checks retain the strict read-only requirement; they never re-enable a factor. Lost-key recovery remains separate.
+
+The GitHub Pages dashboard is the expected product interface. Current API mode deliberately selects StaffAccountPage for Dashboard because only directory reads and Owner Admin creation are integrated. Connecting the prototype calendar, renewal inbox and domain actions requires real API data/contracts; no demo fallback or fabricated empty schedule is accepted as parity.
+
 ## Open-session scheduling contract — 7 October 2026
 
 **SESSION-OPEN-01: accepted for the demo; PR/main CI passed and YS confirmed all postponement physical checks on 7 October 2026. Journey records the receipt. Live API/media acceptance remains separate.** This supersedes the version-3 automatic replacement-slot and no-renumber contract. Historical acceptance below is retained.

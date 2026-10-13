@@ -185,7 +185,27 @@ class AuthService:
                 if current.step == "ended":
                     current.provider_state = None
 
-    def _credentials(self, access):
+    def _login_identity(self, session, flow, claims):
+        account = self._account(session, flow.user_id)
+        current = session.scalar(select(AuthFlow).where(AuthFlow.id == flow.id).with_for_update())
+        self._usable(session, account, current)
+        if (
+            current.step != "processing"
+            or claims["auth_time"] < int(flow.created_at.timestamp()) - 30
+        ):
+            raise expired()
+        identity = session.scalar(
+            select(StaffIdentity).where(
+                StaffIdentity.user_id == flow.user_id,
+                StaffIdentity.issuer == claims["iss"],
+                StaffIdentity.subject == claims["sub"],
+            )
+        )
+        if not identity or identity.status != "active" or flow.username != claims["username"]:
+            raise AuthError()
+        return account, current, identity
+
+    def _credentials(self, access, completed_mfa_flow=None):
         claims = self.verifier.verify(access)
         remote = self.provider.user(
             access
@@ -195,9 +215,18 @@ class AuthService:
             attributes.get("sub") != claims["sub"]
             or attributes.get("email_verified") != "true"
             or remote.get("Username") != claims["username"]
-            or "SOFTWARE_TOKEN_MFA" not in remote.get("UserMFASettingList", [])
         ):
             raise AuthError()
+        if "SOFTWARE_TOKEN_MFA" not in (remote.get("UserMFASettingList") or []):
+            if completed_mfa_flow is None:
+                raise AuthError()
+            # Only a just-completed TOTP challenge may reconcile the preference.
+            # Validate the local identity before the token-authorized provider write,
+            # release the DB connection, then require a fresh strict readback.
+            with self.db.transaction() as session:
+                self._login_identity(session, completed_mfa_flow, claims)
+            self.provider.enable_totp(access)
+            return self._credentials(access)
         return claims
 
     def _advance(self, flow, reply, mfa_complete=False):
@@ -210,32 +239,10 @@ class AuthService:
             access, refresh = tokens.get("AccessToken"), tokens.get("RefreshToken")
             if not refresh:
                 raise AuthError()
-            claims = self._credentials(access)
+            claims = self._credentials(access, completed_mfa_flow=flow)
             handle = new_handle()
             with self.db.transaction() as session:
-                account = self._account(session, flow.user_id)
-                current = session.scalar(
-                    select(AuthFlow).where(AuthFlow.id == flow.id).with_for_update()
-                )
-                self._usable(session, account, current)
-                if (
-                    current.step != "processing"
-                    or claims["auth_time"] < int(flow.created_at.timestamp()) - 30
-                ):
-                    raise expired()
-                identity = session.scalar(
-                    select(StaffIdentity).where(
-                        StaffIdentity.user_id == flow.user_id,
-                        StaffIdentity.issuer == claims["iss"],
-                        StaffIdentity.subject == claims["sub"],
-                    )
-                )
-                if (
-                    not identity
-                    or identity.status != "active"
-                    or flow.username != claims["username"]
-                ):
-                    raise AuthError()
+                account, current, identity = self._login_identity(session, flow, claims)
                 digest = handle_hash(handle)
                 authenticated = datetime.fromtimestamp(claims["auth_time"], UTC)
                 expires_at = authenticated + timedelta(hours=self.settings.auth_session_hours)

@@ -1,5 +1,20 @@
 # AWS deployment runbook
 
+## Live TEST login and MFA follow-up — 13 October 2026
+
+The owner merged PR #23 normally as `b3a97897bc733c2ddbbbd17a40c1407b2a506649`. API release 38311509067/artifact 11775664004 ZIP `04ac2203d4381b3e67d7a1e37d8aba0c0a9b9490d68612e79e4a524a980a209b` has 41 verified files. Read-only reconciliation 38322668762/artifact 11780968175 ZIP `d429cba6341521549df11c471b77ac672f09ff97bcfa3f250aebee8d03e1a0e1` reconciled deletion with zero writes. Preparation 38333380277/artifact 11784498960 ZIP `e370918edbf4bd6bc4a35f65d5144496b5b366cfa90247592aa4ab59337bc5d5` created the reviewed app change set with 20 additions and no modifications/deletions.
+
+Execution 38340492199/artifact 11788346033 ZIP `4e181227297a1585499fc83348d996ee35e6aaead08ed7c75dbe0f4b0e53fd9a` records one acknowledged execution of change set ending `2996f47b-7fea-489d-a4c1-3ae43fc8ff55` and 41 uploads. New app stack ends `4e7cd8d0-c6ae-11f1-adbd-02d09a33b3b9`; new bucket is `fitfinity-test-login-frontendbucket-phk1iwdryrvj`, distribution `E6V29VW6HUUSU`. Frontend file hashes, health/readiness/auth-policy and signed-out protected-route smoke passed. Status is `hosting_deployed_sign_in_acceptance_pending`, completed 13 October 11:55:50 Singapore. URL: https://d21430zmxp3m5m.cloudfront.net. Original retained bucket and edge remain preserved. These create/recovery phases are completed history, not instructions to replay.
+
+YS subsequently reported login success after enabling the existing Owner's software-token MFA preference. The uploaded CloudShell transcript confirms matching deployed pool/client and absent user MFA preference fields; it contains safe request summaries, not provider error detail. Do not claim it proves a specific internal 401 cause. Do not mistake absent preference metadata for proof that no authenticator is associated. The earlier proposed disable helper stopped without changing AWS; required pool MFA must not be disabled for recovery. Password resets do not replace authenticator keys. No new account or bootstrap is needed.
+
+The source repair uses [SetUserMFAPreference](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_SetUserMFAPreference.html), authorized by the user's freshly issued access token only after completed TOTP and matching active identity checks. It then requires a strict GetUser readback. This enables the existing verified factor; it does not reset/recover a lost factor or expose tokens to the browser. No Cognito administrator IAM permission is added to the runtime.
+
+The repair changes backend bytes. Require a new reviewed image/build/scan and deployment path; keep current image provenance and proof unchanged. The first-create hosting operator is not an authorized update mechanism for this live app. Current exception expiry remains **13 October 2026, 23:42:58 Singapore**; expiry does not stop resources or billing. No new build, scan, renewal, publication, deployment or teardown is authorized by this source repair.
+
+GitHub Pages remains the prototype target. API mode currently supplies a read-only directory/account landing page rather than the prototype calendar/renewal dashboard. Prototype parity requires real data/workflow integration, not a demo-mode switch. Owner report establishes initial login only; refresh, sign-out, expiry and physical-device acceptance are still pending.
+
+
 ## Three-finding TEST renewal and app-deletion reconciliation — PR #23
 
 YS authorized this proposal after reviewing the two new glibc HIGH findings on 12 October 2026. It becomes effective only through the existing authenticated LimYouSheng merge check. The proposed TEST exception expires **13 October 2026, 23:42:58 Singapore** (`2026-10-13T15:42:58Z`). The prior exception expired on 12 October at 23:41:30 Singapore; no authority bridges that gap. Production and deployment authorization remain excluded. Preserve the unchanged image digest, original source/provenance, historical runtime proof and operation `769df115e6ea4f478426f75c8a283a32`.

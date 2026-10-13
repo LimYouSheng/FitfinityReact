@@ -14,12 +14,12 @@ Broader M6 functionality, populated-database recovery and production readiness r
 
 ## Current path
 
-Owner-merged PR #22 main is `58b771bd4e35f1ffb6c5ff1ccba1853f31796678`. The IAM repair completed. App deletion was acknowledged in run 38262560845; later owner readback confirms DELETE_COMPLETE, while the immutable workflow checkpoint remains pending. The successful edge and retained bucket are preserved. The fresh scan adds two glibc HIGHs to the existing zlib HIGH; YS authorized the explicit TEST-only three-finding renewal proposal ending 13 October 2026, 23:42:58 Singapore.
+Owner-merged PR #23 main is `b3a97897bc733c2ddbbbd17a40c1407b2a506649`. Deployment run 38340492199 passed with exact immutable frontend/public smoke evidence at https://d21430zmxp3m5m.cloudfront.net. YS reports Owner login succeeded after an account-specific MFA preference correction. Live session lifecycle/device acceptance and full prototype/API integration are still incomplete.
 
-1. Require the reviewed renewal/source-transition PR with full final-SHA frontend/backend CI. Preserve the original operation, image/proof, all source/release records, write intents and receipts.
-2. YS alone merges. Authenticate the exact owner merge and its matching immutable API release.
-3. Separately authorize read-only app-deletion reconciliation from run 38262560845. Require fresh provider evidence and unchanged edge/bucket; never replay deletion. Review the new token before replacement app preparation and exact change-set execution.
-4. Continue immutable upload, HTTPS/API smoke and Owner login/session/device acceptance through current scan, approval, capacity, source and ownership gates. A renewal or green CI does not complete the goal.
+1. Fix the missing MFA-preference reconciliation after successful TOTP verification, preserving provider/local identity checks and testing failure paths. Deliver a reviewed PR before a new image/deployment.
+2. Use GitHub Pages as the expected product interface. The current API dashboard is an account placeholder; map the real session/renewal reads and domain writes needed to use the prototype components without fabricated demo data.
+3. YS alone merges. A backend repair requires new image provenance/security review and an explicitly reviewed deployment; do not relabel the accepted image or replay first-create recovery operations against the now-live app.
+4. Complete fresh Owner login/session/reload/sign-out and agreed desktop/Samsung/iPad acceptance after the repaired deployment. Preserve the existing account, database, edge, retained bucket, operation history and credentials boundary.
 
 ## Authority and iteration
 

@@ -395,6 +395,15 @@ def test_cognito_mfa_setup_password_and_recovery_operations(sdk):
         )
         assert sdk.verify_totp(state, "123456") == state
         stub.add_response(
+            "set_user_mfa_preference",
+            {},
+            {
+                "AccessToken": "fresh-access-token",
+                "SoftwareTokenMfaSettings": {"Enabled": True, "PreferredMfa": True},
+            },
+        )
+        sdk.enable_totp("fresh-access-token")
+        stub.add_response(
             "respond_to_auth_challenge",
             {},
             {

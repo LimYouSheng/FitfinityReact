@@ -111,6 +111,13 @@ class Cognito:
     def user(self, access):
         return self._call("get_user", AccessToken=access)
 
+    def enable_totp(self, access):
+        return self._call(
+            "set_user_mfa_preference",
+            AccessToken=access,
+            SoftwareTokenMfaSettings={"Enabled": True, "PreferredMfa": True},
+        )
+
     def refresh(self, refresh):
         return self._call(
             "get_tokens_from_refresh_token",

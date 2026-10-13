@@ -78,6 +78,121 @@ def test_bad_codes_exhaust_the_durable_attempt_limit(auth_service, fake_cognito)
     assert count(auth_service, AuthSession) == 0
 
 
+@pytest.mark.parametrize("step", ["MFA_SETUP", "SOFTWARE_TOKEN_MFA"])
+@pytest.mark.parametrize("setting", [None, [], "absent"])
+def test_completed_totp_reconciles_missing_preference_before_session(
+    auth_service, fake_cognito, step, setting
+):
+    fake_cognito.begin_step = step
+    fake_cognito.user_changes["UserMFASettingList"] = setting
+    fake_cognito.activate_totp = True
+    if setting == "absent":
+        original_user = fake_cognito.user
+
+        def without_setting(access):
+            result = original_user(access)
+            if result.get("UserMFASettingList") == "absent":
+                result.pop("UserMFASettingList")
+            return result
+
+        fake_cognito.user = without_setting
+    first = auth_service.sign_in("owner@example.test", "password")
+    assert count(auth_service, AuthSession) == 0
+    done = auth_service.challenge(first.flow_handle, code="123456")
+    assert done.session_handle and count(auth_service, AuthSession) == 1
+    assert fake_cognito.calls[-3:] == ["user", "enable_totp", "user"]
+    assert "AccessToken" not in done.body
+    # Subsequent login reads the enabled preference without another write.
+    fake_cognito.begin_step = "SOFTWARE_TOKEN_MFA"
+    again = auth_service.sign_in("owner@example.test", "password")
+    assert auth_service.challenge(again.flow_handle, code="123456").session_handle
+    assert fake_cognito.calls.count("enable_totp") == 1
+
+
+@pytest.mark.parametrize("failure", ["provider", "readback", "changed_identity"])
+def test_totp_preference_failure_never_creates_session(auth_service, fake_cognito, failure):
+    fake_cognito.user_changes["UserMFASettingList"] = []
+    if failure == "provider":
+        fake_cognito.errors["enable_totp"] = AuthError("AUTH_UNAVAILABLE", "Unavailable", 503)
+    elif failure == "changed_identity":
+        fake_cognito.activate_totp = True
+        fake_cognito.after_enable_totp = lambda: fake_cognito.user_changes.update(
+            Username="different-user"
+        )
+    first = auth_service.sign_in("owner@example.test", "password")
+    with pytest.raises(AuthError):
+        auth_service.challenge(first.flow_handle, code="123456")
+    assert count(auth_service, AuthSession) == 0
+    assert fake_cognito.calls.count("enable_totp") == 1
+    with pytest.raises(AuthError):
+        auth_service.challenge(first.flow_handle, code="123456")
+    assert fake_cognito.calls.count("enable_totp") == 1
+
+
+@pytest.mark.parametrize("operation", ["verify_totp", "answer"])
+def test_rejected_totp_never_enables_preference(auth_service, fake_cognito, operation):
+    fake_cognito.begin_step = "MFA_SETUP"
+    fake_cognito.user_changes["UserMFASettingList"] = []
+    fake_cognito.errors[operation] = AuthError("INVALID_CODE", "Invalid code", 400)
+    first = auth_service.sign_in("owner@example.test", "password")
+    with pytest.raises(AuthError):
+        auth_service.challenge(first.flow_handle, code="123456")
+    assert "enable_totp" not in fake_cognito.calls
+    assert count(auth_service, AuthSession) == 0
+
+
+@pytest.mark.parametrize("change", ["inactive", "unmapped", "username", "subject", "email"])
+def test_totp_reconciliation_requires_matching_active_identity(
+    auth_service, fake_cognito, graph, change
+):
+    first = auth_service.sign_in("owner@example.test", "password")
+    fake_cognito.user_changes["UserMFASettingList"] = []
+    fake_cognito.activate_totp = True
+    if change in {"inactive", "unmapped"}:
+        with auth_service.db.transaction() as session:
+            if change == "inactive":
+                session.get(StaffUser, graph["owner_id"]).status = "inactive"
+            else:
+                session.scalar(select(StaffIdentity)).status = "inactive"
+    elif change == "username":
+        fake_cognito.claims["username"] = "different-user"
+        fake_cognito.user_changes["Username"] = "different-user"
+    else:
+        fake_cognito.user_changes["UserAttributes"] = [
+            {"Name": "sub", "Value": "other" if change == "subject" else "identity-subject-one"},
+            {"Name": "email_verified", "Value": "false" if change == "email" else "true"},
+        ]
+    with pytest.raises(AuthError):
+        auth_service.challenge(first.flow_handle, code="123456")
+    assert "enable_totp" not in fake_cognito.calls
+    assert count(auth_service, AuthSession) == 0
+
+
+def test_totp_reconciliation_rechecks_local_identity_after_provider_write(
+    auth_service, fake_cognito
+):
+    fake_cognito.user_changes["UserMFASettingList"] = []
+    fake_cognito.activate_totp = True
+
+    def disable_identity():
+        with auth_service.db.transaction() as session:
+            session.scalar(select(StaffIdentity)).status = "inactive"
+
+    fake_cognito.after_enable_totp = disable_identity
+    first = auth_service.sign_in("owner@example.test", "password")
+    with pytest.raises(AuthError):
+        auth_service.challenge(first.flow_handle, code="123456")
+    assert count(auth_service, AuthSession) == 0
+
+
+def test_credentials_without_fresh_mfa_cannot_reenable_preference(auth_service, fake_cognito):
+    fake_cognito.user_changes["UserMFASettingList"] = []
+    fake_cognito.activate_totp = True
+    with pytest.raises(AuthError):
+        auth_service._credentials(fake_cognito.tokens()["AuthenticationResult"]["AccessToken"])
+    assert "enable_totp" not in fake_cognito.calls
+
+
 def test_expired_challenge_does_not_contact_provider(auth_service, fake_cognito):
     first = auth_service.sign_in("owner@example.test", "password")
     now = auth_service.clock()
