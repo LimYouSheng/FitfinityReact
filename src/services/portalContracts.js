@@ -21,7 +21,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     update: contract({ 'id': 'string', 'patch': 'object', 'reviewed?': 'object' }, 'clientEdit', 'ClientEditState', true),
     saveAssessment: contract({ 'id': 'string', 'assessment': 'object' }, 'operations', 'AssessmentRecord', true),
     saveFixedWeeklySchedule: contract({ 'id': 'string', 'slots': 'array' }, 'assignedClient', 'ScheduleResult<Client>'),
-    reassignTrainer: contract({ 'id': 'string', 'draft': 'object' }, 'operations', 'Client'),
+    reassignTrainer: contract({ 'id': 'string', 'draft': 'object' }, 'operations', 'Client | AssignmentState', true),
     recordProgressReportAction: contract({ 'id': 'string', 'action': 'object' }, 'reportClient', 'ProgressReportEvent'),
     progressReportHistory: contract({ 'id': 'string', 'packageId?': 'string' }, 'operations', 'ProgressReportEvent[]'),
     deactivate: contract({ 'id': 'string', 'reviewed?': 'object' }, 'operations', 'Client | ClientDeactivationState', true),
@@ -36,7 +36,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     isSelectableForAvailability: contract({ 'trainer': 'object' }, 'authenticated', 'boolean', true),
     update: contract({ 'id': 'string', 'patch': 'object', 'expectedVersion?': 'number' }, 'trainerEdit', 'TrainerEditState', true),
     updateAutonomy: contract({ 'id': 'string', 'approvalNeeded': 'object', 'expectedVersion?': 'number' }, 'operations', 'TrainerApprovalState', true),
-    deactivate: contract({ 'id': 'string', 'replacements?': 'object' }, 'operations', 'Trainer'),
+    deactivate: contract({ 'id': 'string', 'replacements?': 'object', 'reviewed?': 'object' }, 'operations', 'Trainer | TrainerDeactivationState', true),
     reactivate: contract({ 'id': 'string', 'reviewed?': 'object' }, 'operations', 'TrainerReactivationState', true),
   }),
   sessionService: Object.freeze({

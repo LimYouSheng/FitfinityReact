@@ -10,6 +10,8 @@ from sqlalchemy import select
 
 from app.api import (
     assessments,
+    client_assignment,
+    client_assignment_save,
     client_creation,
     client_deactivation,
     client_details,
@@ -28,6 +30,8 @@ from app.api import (
     request_cancellation,
     trainer_approvals,
     trainer_availability,
+    trainer_deactivation,
+    trainer_deactivation_save,
     trainer_details,
     trainer_rates,
     trainer_reactivation,
@@ -891,3 +895,85 @@ def reconcile_package_reactivation(request_key: UUID, request: Request):
     """Read only the current actor's original accepted purchase restoration."""
     with authorized_transaction(request) as (session, principal):
         return package_reactivation_save.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/clients/{client_id}/trainer-assignment-review",
+    response_model=client_assignment.AssignmentReview,
+    operation_id="reviewClientTrainerAssignment",
+)
+def review_client_trainer_assignment(client_id: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return client_assignment.review(session, principal, client_id)
+
+
+@router.post(
+    "/clients/{client_id}/trainer-assignment",
+    response_model=client_assignment_save.AssignmentState,
+    operation_id="saveClientTrainerAssignment",
+)
+def save_client_trainer_assignment(
+    client_id: UUID, body: client_assignment_save.SaveAssignment, request: Request, key: RequestKey
+):
+    with authorized_transaction(request) as (session, principal):
+        return client_assignment_save.save(session, principal, client_id, key, body)
+
+
+@router.get(
+    "/client-trainer-assignments/{request_key}",
+    response_model=client_assignment_save.AssignmentState,
+    operation_id="reconcileClientTrainerAssignment",
+)
+def reconcile_client_trainer_assignment(request_key: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return client_assignment_save.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/trainers/{trainer_id}/deactivation-review",
+    response_model=trainer_deactivation.TrainerDeactivationReview,
+    operation_id="reviewTrainerDeactivation",
+)
+def review_trainer_deactivation(trainer_id: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_deactivation.review(session, principal, trainer_id)
+
+
+@router.post(
+    "/trainers/{trainer_id}/deactivation-review",
+    response_model=trainer_deactivation.TrainerDeactivationReview,
+    operation_id="previewTrainerDeactivation",
+)
+def preview_trainer_deactivation(
+    trainer_id: UUID,
+    body: trainer_deactivation.TrainerDeactivationSelection,
+    request: Request,
+    key: RequestKey,
+):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_deactivation.preview(session, principal, trainer_id, body)
+
+
+@router.post(
+    "/trainers/{trainer_id}/deactivation",
+    response_model=trainer_deactivation_save.TrainerDeactivationState,
+    operation_id="saveTrainerDeactivation",
+)
+def save_trainer_deactivation(
+    trainer_id: UUID,
+    body: trainer_deactivation.TrainerDeactivationSelection,
+    request: Request,
+    key: RequestKey,
+):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_deactivation_save.save(session, principal, trainer_id, key, body)
+
+
+@router.get(
+    "/trainer-deactivations/{request_key}",
+    response_model=trainer_deactivation_save.TrainerDeactivationState,
+    operation_id="reconcileTrainerDeactivation",
+)
+def reconcile_trainer_deactivation(request_key: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        return trainer_deactivation_save.reconcile(session, principal, request_key)

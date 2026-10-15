@@ -19,6 +19,7 @@ import ProfileNavigation from '../../components/ProfileNavigation.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { formatDate } from '../../utils/date.js'
+import ApiTrainerDeactivationButton from './ApiTrainerDeactivationButton.jsx'
 
 export default function TrainerProfilePage({
   policy,
@@ -29,6 +30,7 @@ export default function TrainerProfilePage({
   ratesReadOnly = readOnly,
   generalReadOnly = readOnly,
   reactivationReadOnly = readOnly,
+  deactivationWorkflow,
   onReviewReactivation,
   onGeneralSaved,
   emailVerification,
@@ -214,6 +216,7 @@ export default function TrainerProfilePage({
         })}
       >
 
+          {deactivationWorkflow && isManager && trainer.status !== 'inactive' && <ApiTrainerDeactivationButton trainer={trainer} workflow={deactivationWorkflow} disabled={Boolean(activeEditor)} onEditing={editing => setActiveEditor(editing ? 'deactivation' : null)} />}
           {!readOnly && isManager && trainer.status !== 'inactive' && (
             <button type="button" className="profile-menu-danger" disabled={Boolean(activeEditor)} onClick={() => setDeactivateOpen(true)}>
               Deactivate Trainer

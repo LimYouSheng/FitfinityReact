@@ -1,3 +1,4 @@
+import ApiClientAssignmentButton from './ApiClientAssignmentButton.jsx'
 import ApiClientReactivationButton from './ApiClientReactivationButton.jsx'
 import ClientDeactivationButton from './ClientDeactivationButton.jsx'
 import ClientAssessmentWorkspace from './ClientAssessmentWorkspace.jsx'
@@ -53,6 +54,7 @@ export default function ClientProfilePage({
   onLoadProgressReportHistory,
   onSaveFixedWeeklySchedule,
   onReassignTrainer,
+  assignmentWorkflow,
   onDeactivate,
   onReactivate,
   packages,
@@ -160,7 +162,7 @@ export default function ClientProfilePage({
       {tab === 'overview' && <>
       <div className="profile-overview-stack">
         <ClientGeneralInformation client={client} trainer={trainer} policy={policy}
-          ownerEditable={ownerEditable} personalEditable={!personalReadOnly && canEditClientGeneral(user, client)} activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={onUpdateGeneral ?? onUpdate} onSaved={onGeneralSaved} />
+          ownerEditable={ownerEditable} trainerAction={assignmentWorkflow && canEditClientGeneral(user, client) ? <ApiClientAssignmentButton client={client} workflow={assignmentWorkflow} timeZone={timeZone} disabled={Boolean(activeEditor)} onEditing={editing => setActiveEditor(editing ? 'trainer' : null)} /> : undefined} personalEditable={!personalReadOnly && canEditClientGeneral(user, client)} activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={onUpdateGeneral ?? onUpdate} onSaved={onGeneralSaved} />
 
         <FixedWeeklySchedule
           slots={client.fixedWeeklySchedule}

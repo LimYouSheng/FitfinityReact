@@ -401,6 +401,8 @@ class DirectorySnapshot(ServerClock):
     clientPersonalWrites: Literal[True] = True
     clientNoteWrites: Literal[True] = True
     clientCreation: Literal[True] = True
+    trainerDeactivationWrites: Literal[True] = True
+    clientAssignmentWrites: Literal[True] = True
     trainerCreation: Literal[True] = True
     trainerOnboardingPolicy: OwnerTrainerOnboardingPolicy | TrainerOnboardingPolicy
     clientRenewalWrites: Literal[True] = True
