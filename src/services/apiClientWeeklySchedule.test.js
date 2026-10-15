@@ -16,7 +16,7 @@ it('forwards configured review/preview/save with scoped digest, CSRF and stable 
   for (const [, o] of posts) {
     expect(JSON.parse(o.body)).toEqual({ expected: 'a'.repeat(64), slots: [{ id: directoryId(6), weekday: 0, startsAt: '12:00', endsAt: '13:00' }] })
     expect(o.headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/)
-    expect(o.headers['X-CSRF-Token']).toBeTruthy()
+    expect(o.headers['X-CSRF-Token']).toBe(sessionInfo().csrfToken)
   }
 })
 it('reconciles an interrupted committed save without replaying the write', async () => {

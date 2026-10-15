@@ -44,6 +44,8 @@ const mutations = [
   ['image acceptance outside main', setup => { delete setup.acceptance.jobs.accept.if }],
   ['image acceptance write credentials', setup => { delete setup.acceptance.jobs.accept.steps.find(step => step.uses?.startsWith('aws-actions/')).with['inline-session-policy'] }],
   ['suppressed image acceptance failure', setup => { setup.acceptance.jobs.accept.steps.find(step => step.run?.includes('image-accept --actions'))['continue-on-error'] = true }],
+  ['missing real API browser verification', setup => { delete setup.verify.jobs['api-browser'] }],
+  ['optional real API browser verification', setup => { setup.verify.jobs['api-browser'].steps.find(step => step.run?.includes('npm run test:api-browser'))['continue-on-error'] = true }],
   ['missing PR verification', setup => { delete setup.pages.on.pull_request }],
   ['path-filtered PR checks', setup => { setup.pages.on.pull_request.paths = ['backend/**'] }],
   ['optional shared verification', setup => { setup.pages.jobs.verify.if = 'false' }],
@@ -81,13 +83,15 @@ function receipt(kind, contents, valid) {
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 }
 test('complete unit and browser receipts pass exact inventory validation', () => {
-  receipt('unit', 'Test Files 127 passed (127)\nTests 1245 passed (1245)', true)
+  receipt('unit', 'Test Files 128 passed (128)\nTests 1247 passed (1247)', true)
   receipt('browser', '1152 passed (1m)', true)
+  receipt('api-browser', '12 passed (1m)', true)
 })
 test('unit receipt rejects old totals, missing files, truncation and skipped tests', () => {
-  for (const text of ['Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 872 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 127 passed (127)\nTests 1245 passed (1245)\n1 skipped']) receipt('unit', text, false)
+  for (const text of ['Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 872 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 128 passed (128)\nTests 1247 passed (1247)\n1 skipped']) receipt('unit', text, false)
 })
 test('browser receipt rejects partial totals, retries, skipped tests and errors', () => {
+  for (const text of ['11 passed', '12 passed\n1 skipped', '12 passed\n(retry #1)', '12 passed\nError: incomplete']) receipt('api-browser', text, false)
   for (const text of ['849 passed', '837 passed', '819 passed', '810 passed', '804 passed', '792 passed', '791 passed', '765 passed', '791 passed', '723 passed', '717 passed', '714 passed', '711 passed', '708 passed', '696 passed', '707 passed', '1152 passed\n(retry #1)', '1152 passed\n1 skipped', '1152 passed\nError: incomplete']) receipt('browser', text, false)
 })
 

@@ -18,7 +18,7 @@ it('connects configured review, batch preview and minimal save with CSRF', async
   expect(posts).toHaveLength(2)
   for (const [, options] of posts) {
     expect(JSON.parse(options.body)).toEqual({ expected: 'a'.repeat(64), replacements: input().replacements })
-    expect(options.headers['X-CSRF-Token']).toBeTruthy()
+    expect(options.headers['X-CSRF-Token']).toBe(sessionInfo().csrfToken)
   }
 })
 it('reconciles committed interrupted deactivation without repeating a write', async () => {

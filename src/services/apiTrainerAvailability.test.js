@@ -24,7 +24,8 @@ it.each([applied, requested])('maps availability blocks to strict server windows
   const post = fetch.mock.calls.find(([, options]) => options.method === 'POST')
   expect(post[0]).toContain(`/api/trainers/${input.id}/availability`)
   expect(JSON.parse(post[1].body)).toEqual({ expectedVersion: 1, slots: [{ weekday: 1, startsAt: '09:00', endsAt: '10:00' }] })
-  expect(post[1].headers['Idempotency-Key']).toBeTruthy()
+  expect(post[1].headers['X-CSRF-Token']).toBe(sessionInfo().csrfToken)
+  expect(post[1].headers['Idempotency-Key']).toMatch(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i)
 })
 it('reconciles a committed unknown submission on reload without duplicating the proposal', async () => {
   const { services, fetch } = setup((_url, options) => {

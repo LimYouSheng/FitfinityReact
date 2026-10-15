@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "npm run build && npm run build:pages-test && npm run build:api-test && npm run verify:pwa -- dist / && npm run verify:pwa -- dist-pages /FitfinityReact/ && npm run verify:pwa -- dist-api-test / && playwright test",
+    "test:api-browser": "npm run build:api-test && node scripts/verify-api-browser.mjs",
     "verify:health": "node scripts/verify-code-health.mjs",
     "verify:health-checker": "node --test --test-reporter=spec scripts/verify-code-health.test.mjs",
     "verify:backend": "node scripts/verify-backend.mjs",

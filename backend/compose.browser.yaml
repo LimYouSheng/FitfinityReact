@@ -1,0 +1,30 @@
+# Additional isolated real-API browser service; never starts the local/prod API.
+services:
+  browser-api:
+    profiles: [browser]
+    image: ${FITFINITY_BROWSER_BACKEND_IMAGE:-fitfinity-browser-backend:local}
+    build:
+      context: .
+      target: test
+    user: "${FITFINITY_BROWSER_UID:-10001}:${FITFINITY_BROWSER_GID:-10001}"
+    command: [python, -m, tests.browser_server]
+    environment:
+      FITFINITY_ENVIRONMENT: test
+      FITFINITY_TEST_DATABASE_URL: postgresql+psycopg://fitfinity_test:fitfinity-test-only@test-db:5432/fitfinity_test
+      AWS_EC2_METADATA_DISABLED: 'true'
+    volumes:
+      - .:/app:ro
+      - ../dist-api-test:/browser-site:ro
+    ports: ['127.0.0.1:4180:4180']
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      test-db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4180/health/ready', timeout=6)"]
+      interval: 2s
+      timeout: 8s
+      retries: 15
