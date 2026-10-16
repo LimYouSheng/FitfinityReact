@@ -1,5 +1,10 @@
 # Fitfinity current progress
 
+## Merge sequence checkpoint — 16 October 2026 (Singapore)
+
+- Verified #57 final head `2e38903c3464c63b9318ccd36e466bf39fb8f600` passed full frontend/backend CI38820138715 and GitHub reported CLEAN/MERGEABLE. Merged normally under standing approval; main is `f1b9941a073f9e601285a9ae1df63c29da2cbe9b`. #56 is fully contained in main (ancestry verified; GitHub confirms no new commits), so closed as superseded rather than merging into its obsolete feature base.
+- #58 head `6da6de007383165e66a2d075071bc34d118851cb` passed full frontend/backend and new real-API browser CI38824090136, including authoritative macOS browser acceptance. The five earlier Linux baseline failures remain historical local evidence. Retargeted #58 to main; GitHub requires branch currency. Normal merge of main preserved its exact source tree; only this ledger receipt adds content. Push and run complete final-head CI again; keep #58 draft pending acceptance. Sequence is now #57 completed (includes #56), then #58. No feature work or manual deployment resumed.
+
 ## Test-quality pass and real API browser adaptation — 16 October 2026 (Singapore)
 
 - Published draft [PR #58](https://github.com/LimYouSheng/FitfinityReact/pull/58), implementation commit `441a06b`, stacked on updated #57. The dependency merge changes ancestry only; source tree is unchanged. Local audit and focused adaptation checks are complete. Dispatch full final-head CI after this receipt; keep draft until all acceptance gates pass. Stop at this bounded checkpoint without resuming feature work.
