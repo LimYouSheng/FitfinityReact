@@ -37,6 +37,8 @@ export function verifyQualitySetup({ pages, verify, infrastructure, image, accep
     if (job.if != null || job['continue-on-error'] || job.environment || job.secrets || Object.entries(job.permissions ?? {}).some(([key, value]) => key !== 'contents' || value !== 'read')) fail('verification jobs must be unconditional without deployment credentials')
     if ((job.steps ?? []).some(step => /configure-aws-credentials|deploy-pages/.test(step.uses ?? ''))) fail('deployment action in verification')
   }
+  requireGate(verify.jobs?.['api-browser'], 'npm run test:api-browser')
+  requireGate(verify.jobs?.['api-browser'], 'node scripts/verify-test-results.mjs api-browser')
   const frontend = verify.jobs?.frontend, backend = verify.jobs?.backend
   if (frontend?.['runs-on'] !== 'macos-15') fail('browser gates require the reviewed macOS WebKit runner')
   for (const command of ['npm ci', 'npm run verify:lint', 'npm run verify:quality-checker', 'npm test -- --reporter=verbose', 'node scripts/verify-test-results.mjs unit', 'npx playwright install --with-deps chromium webkit', 'npm run test:e2e -- --reporter=list', 'node scripts/verify-test-results.mjs browser', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(frontend, command)

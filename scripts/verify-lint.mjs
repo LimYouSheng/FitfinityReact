@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 
 export async function verifyLint(cwd = process.cwd()) {
   const engine = new ESLint({ cwd })
-  const results = await engine.lintFiles(['src', 'scripts', 'tests', '*.js', 'public/**/*.js'])
+  const results = await engine.lintFiles(['src', 'scripts', 'tests', 'tests-api', '*.js', 'public/**/*.js'])
   const formatter = await engine.loadFormatter('stylish')
   const diagnostics = formatter.format(results)
   if (diagnostics) console.log(diagnostics)

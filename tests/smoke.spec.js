@@ -24,16 +24,8 @@ async function openNavIfNeeded(page, label = 'Messages') {
   if (!(await menu.isVisible())) return
 
   const sidebar = page.locator('.sidebar')
-  await page.waitForTimeout(300)
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (await navIsOnScreen(sidebar)) return
-    await menu.click()
-    await page.waitForTimeout(300)
-    if (await navIsOnScreen(sidebar)) return
-  }
-
-  throw new Error('Mobile navigation drawer did not remain on screen after reopening')
+  await expect(menu).toHaveAttribute('aria-expanded', 'true')
+  await expect.poll(() => navIsOnScreen(sidebar)).toBe(true)
 }
 
 async function clickNav(page, name) {
@@ -311,7 +303,6 @@ test('trainer profile keeps status in the name card and account status leaves ra
 test('trainer sidebar exposes Messages and Profile under System', async ({ page }) => {
   await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
-  await page.waitForTimeout(350)
   await openNavIfNeeded(page)
 
   const sidebar = page.locator('.sidebar')
@@ -351,7 +342,6 @@ test('client status is visible at the card edge and lifecycle action is last', a
 test('assigned supervised trainer can edit fixed weekly schedule and submits request', async ({ page }) => {
   await selectDemoIdentity(page, 'u-marcus')
   await expect(page.getByRole('heading', { name: 'Trainer Dashboard' })).toBeVisible()
-  await page.waitForTimeout(350)
 
   await clickNav(page, 'Clients')
   await page.getByRole('button', { name: 'View Amanda Lim' }).click()
