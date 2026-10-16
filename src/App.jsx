@@ -1,3 +1,5 @@
+import ApiSessionDetailsRoute from './features/sessions/ApiSessionDetailsRoute.jsx'
+import ClientWeeklyScheduleRecovery from './features/clients/ClientWeeklyScheduleRecovery.jsx'
 import TrainerDeactivationRecovery from './features/trainers/TrainerDeactivationRecovery.jsx'
 import ClientAssignmentRecovery from './features/clients/ClientAssignmentRecovery.jsx'
 import TrainerAvailabilityRecovery from './features/trainers/TrainerAvailabilityRecovery.jsx'
@@ -99,7 +101,7 @@ function StaffPortal({ navigation }) {
   const clientCreationEnabled = !directoryOnly || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
   const trainerCreationEnabled = !directoryOnly || snapshot.capabilities?.trainerCreation === true
   const packageReadOnly = directoryOnly && snapshot.capabilities?.packageWrites !== true
-  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
+  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.sessionReads ? ['sessions'] : []), ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
   const { clientService, trainerService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
@@ -131,6 +133,8 @@ function StaffPortal({ navigation }) {
   const clients = db.clients
   const trainers = db.trainers
   const sessions = useMemo(() => db.sessions ?? [], [db.sessions])
+  const sessionClients = useMemo(() => [...clients, ...(db.sessionClients ?? []).filter(c => !clients.some(full => full.id === c.id))], [clients, db.sessionClients])
+  const sessionTrainers = useMemo(() => [...trainers, ...(db.sessionTrainers ?? []).filter(t => !trainers.some(full => full.id === t.id))], [trainers, db.sessionTrainers])
   const messages = db.messages ?? []
 
   const parts = path.split('/').filter(Boolean)
@@ -262,6 +266,8 @@ function StaffPortal({ navigation }) {
     )
   } else if (route === 'clients' && directoryOnly && snapshot.clientRenewalPending) {
     page = <ClientRenewalRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientRenewalPending} services={services} />
+  } else if (route === 'clients' && directoryOnly && snapshot.clientWeeklySchedulePending) {
+    page = <ClientWeeklyScheduleRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientWeeklySchedulePending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientAssignmentPending) {
     page = <ClientAssignmentRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientAssignmentPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.packageReactivationPending) {
@@ -330,7 +336,7 @@ function StaffPortal({ navigation }) {
   ) {
     page = <TrainerProfileRoute key={selfTrainer.id} trainer={selfTrainer} ownerMode={false} navigate={navigate} goBack={goBack} openClient={openClient} />
   } else if (route === 'sessions' && selectedSession) {
-    page = <SessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession}
+    page = directoryOnly ? <ApiSessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession} navigate={navigate} openClient={openClient} /> : <SessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession}
       navigate={navigate} openClient={openClient} />
   } else if (route === 'sessions' && detailId) {
     page = <UnavailablePage message="This session is unavailable for your account." />
@@ -340,8 +346,8 @@ function StaffPortal({ navigation }) {
         today={today}
         user={user}
         sessions={sessions}
-        clients={clients}
-        trainers={trainers}
+        clients={sessionClients}
+        trainers={sessionTrainers}
         onOpen={openSession}
       />
     )
@@ -397,13 +403,13 @@ function StaffPortal({ navigation }) {
     page = <UnavailablePage message="This profile is available to the owner." />
   } else if (route === 'content' && managesOperations(user)) {
     page = directoryOnly ? <ApiContentWorkspace key={`${user.id}/${snapshot.sessionGeneration}`} services={services} generation={snapshot.sessionGeneration} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} /> : <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
-  } else if (route === 'account' || (directoryOnly && route === 'dashboard')) {
+  } else if (route === 'account' || (directoryOnly && !snapshot.capabilities?.sessionReads && route === 'dashboard')) {
     page = <StaffAccountPage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} user={user} profile={route === 'account'} readOnly={directoryOnly} packageWrites={!packageReadOnly} emailVerification={snapshot.capabilities?.trainerEmailWrites && user.role === 'trainer' ? { auth: services.auth, onCompleted: reload } : undefined} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
   } else if (route === 'dashboard') {
     page = <DashboardPage
       renewals={<MessageInbox {...messageInboxProps} embedded category="renewals" onViewAll={() => navigate('messages/renewals')} />}
       state={calendarState} onState={setCalendarState} user={user}
-      sessions={visibleSessionsForUser(user, sessions)} clients={clients} trainers={trainers}
+      sessions={visibleSessionsForUser(user, sessions)} clients={sessionClients} trainers={sessionTrainers}
       selectedDay={calendarDay} onOpenDay={day => navigate(`dashboard/day/${day}`, { preserveView: true })} onCloseDay={() => goBack('dashboard')}
       today={today} onOpenSession={id => navigate(`sessions/${id}`, { replace: Boolean(calendarDay) })}
       onAddClient={openAddClient} onAddTrainer={openAddTrainer}

@@ -591,7 +591,7 @@ def test_saved_auth_state_blocks_downgrade(auth_service, login, migrate):
         migrate("downgrade", "20260915_0002")
     assert count(auth_service, AuthSession) == 1
     with auth_service.db.transaction() as session:
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0029"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261013_0030"
 
 
 def test_session_identity_foreign_key_rejects_cross_account_link(auth_service, login, graph):

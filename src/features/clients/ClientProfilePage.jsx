@@ -1,4 +1,5 @@
 import ApiClientAssignmentButton from './ApiClientAssignmentButton.jsx'
+import ApiFixedWeeklySchedule from './ApiFixedWeeklySchedule.jsx'
 import ApiClientReactivationButton from './ApiClientReactivationButton.jsx'
 import ClientDeactivationButton from './ClientDeactivationButton.jsx'
 import ClientAssessmentWorkspace from './ClientAssessmentWorkspace.jsx'
@@ -36,6 +37,7 @@ export default function ClientProfilePage({
   assessmentsAvailable = true,
   assessmentApi,
   sessionViewsAvailable = true,
+  progressViewsAvailable = sessionViewsAvailable,
   client,
   clients,
   trainer,
@@ -55,6 +57,7 @@ export default function ClientProfilePage({
   onSaveFixedWeeklySchedule,
   onReassignTrainer,
   assignmentWorkflow,
+  weeklyScheduleWorkflow,
   onDeactivate,
   onReactivate,
   packages,
@@ -68,7 +71,7 @@ export default function ClientProfilePage({
   const { guardNavigation, setActiveEdit } = useEditGuard()
   const [savedTab, setTab] = usePageState(`client.${client.id}.tab`, 'overview')
   const requestedTab = progressRoute ? 'progress' : savedTab
-  const tab = !sessionViewsAvailable && !['overview', 'package'].includes(requestedTab) ? 'overview' : requestedTab
+  const tab = (!sessionViewsAvailable && !['overview', 'package'].includes(requestedTab)) || (!progressViewsAvailable && requestedTab === 'progress') ? 'overview' : requestedTab
   const [activeEditor, setActiveEditor] = useState(null)
   const onAssessmentEditChange = useCallback(editing => setActiveEditor(editing ? 'assessment' : null), [])
   const [assessmentPerson, setAssessmentPerson] = useState(0)
@@ -117,7 +120,8 @@ export default function ClientProfilePage({
         items={[
             ['overview', 'Overview'],
             ['package', 'Package'],
-            ...(sessionViewsAvailable ? [['history', 'Session History'], ['upcoming', 'Upcoming Sessions'], ['progress', 'Progress']] : []),
+            ...(sessionViewsAvailable ? [['history', 'Session History'], ['upcoming', 'Upcoming Sessions']] : []),
+            ...(progressViewsAvailable ? [['progress', 'Progress']] : []),
         ]}
         activeKey={tab}
         onSelect={key => guardNavigation(() => {
@@ -164,7 +168,10 @@ export default function ClientProfilePage({
         <ClientGeneralInformation client={client} trainer={trainer} policy={policy}
           ownerEditable={ownerEditable} trainerAction={assignmentWorkflow && canEditClientGeneral(user, client) ? <ApiClientAssignmentButton client={client} workflow={assignmentWorkflow} timeZone={timeZone} disabled={Boolean(activeEditor)} onEditing={editing => setActiveEditor(editing ? 'trainer' : null)} /> : undefined} personalEditable={!personalReadOnly && canEditClientGeneral(user, client)} activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={onUpdateGeneral ?? onUpdate} onSaved={onGeneralSaved} />
 
-        <FixedWeeklySchedule
+        {weeklyScheduleWorkflow ? <ApiFixedWeeklySchedule client={client} workflow={weeklyScheduleWorkflow}
+          editable={client.status !== 'inactive' && (managesOperations(user) || assignedTrainerEditable)}
+          editing={activeEditor === 'schedule'} disabled={Boolean(activeEditor)}
+          onEditing={editing => setActiveEditor(editing ? 'schedule' : null)} /> : <FixedWeeklySchedule
           slots={client.fixedWeeklySchedule}
           editable={scheduleEditable}
           editing={activeEditor === 'schedule'}
@@ -172,7 +179,7 @@ export default function ClientProfilePage({
           onBeginEdit={() => setActiveEditor('schedule')}
           onEndEdit={() => setActiveEditor(null)}
           onSave={onSaveFixedWeeklySchedule}
-        />
+        />}
       </div>
 
       <div className="stack-gap">

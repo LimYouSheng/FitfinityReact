@@ -70,7 +70,7 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
           <div className="session-overview-value">
             <strong>{client.name}</strong>
             {clientInactive && <StatusBadge tone="amber">Client inactive</StatusBadge>}
-            {activeEditor !== 'details' && <button type="button" className="secondary-button small" aria-label="View Client" onClick={onOpenClient}>View</button>}
+            {activeEditor !== 'details' && <button type="button" className="secondary-button small" aria-label="View Client" disabled={!onOpenClient} onClick={onOpenClient}>View</button>}
           </div>
         </div>
 
@@ -82,7 +82,7 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
                 {trainers.filter(item => item.status !== 'inactive').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
               </SelectField>
             ) : <strong>{trainer.name}</strong>}
-            {activeEditor !== 'details' && <button type="button" className="secondary-button small" aria-label="View Trainer" onClick={onOpenTrainer}>View</button>}
+            {activeEditor !== 'details' && <button type="button" className="secondary-button small" aria-label="View Trainer" disabled={!onOpenTrainer} onClick={onOpenTrainer}>View</button>}
           </div>
         </div>
 

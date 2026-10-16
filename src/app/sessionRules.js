@@ -17,6 +17,7 @@ const STATUS = {
   not_planned: { label: 'Not Planned', tone: 'amber' },
   planned: { label: 'Planned', tone: 'blue' },
   completed: { label: 'Completed', tone: 'green' },
+  cancelled: { label: 'Cancelled', tone: 'amber' },
 }
 
 export function sessionStatus(status) {
@@ -32,7 +33,7 @@ export function sessionDurationMinutes(session) {
 
 export function visibleSessionsForUser(user, sessions) {
   if (managesOperations(user)) return [...sessions]
-  return sessions.filter(session => session.trainerId === user.trainerId)
+  return sessions.filter(session => Boolean(user.trainerId) && (session.trainerId === user.trainerId || session.readableByTrainerId === user.trainerId))
 }
 
 export const isOpenSession = session => session.scheduleState === 'open'
