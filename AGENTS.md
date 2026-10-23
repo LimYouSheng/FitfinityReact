@@ -1,48 +1,37 @@
 # Fitfinity engineering
 
-See [README](README.md) for reading order and unique document ownership. Historical receipts do not renew authority or override current instructions.
+## Authority and document ownership
 
-## 1. Start
+This file owns engineering instructions. User instructions take precedence. Old Journey, Rules & Architecture, CODEX_CLOUD, runbook and history-folder references are superseded; do not recreate those files.
 
-- Use the existing isolated checkout; no worktree unless the user requests one.
-- Read `NORTH_STAR.md` and `PROGRESS.md`; verify the requested repository/branch/HEAD, clean starting tree and required ancestry before editing. Stop on a checkpoint mismatch; record runtime versions.
-- After source cutover, GitHub is canonical. Preserve unknown edits.
-- Read `docs/Architecture/README.md` and its diagrams; search relevant current rules in `docs/SERVICE_CONTRACTS.md`. Read only the relevant dated decisions under `docs/history/` when needed.
-- Commands/cutover: `docs/CODEX_CLOUD.md`. AWS evidence: `docs/AWS_DEPLOYMENT_RUNBOOK.md`.
-- Follow the saved Start skill and reuse valid dependencies, caches and receipts. Installation/full backend validation belongs to initial setup or relevant changes, not every task startup.
+| File | Unique purpose |
+| --- | --- |
+| [README](README.md) | Development prerequisites, configuration and commands |
+| [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
+| [North Star](NORTH_STAR.md) | Current outcome and priority |
+| [Progress](PROGRESS.md) | Current revision, evidence, blockers, next actions and hardening backlog |
+| [Architecture explanation](docs/Architecture/README.md) | Component responsibilities and interactions |
+| [Architecture diagram](docs/Architecture/diagram.md) | Component topology and connections |
+| [Service Contracts](docs/SERVICE_CONTRACTS.md) | Part 1: business rules, design decisions, operation matrix and acceptance criteria; Part 2: full dated history |
 
-## 2. Build
+Read North Star, Progress, Architecture and relevant Service Contracts before work. Verify local branch/HEAD/index, remote main, open PRs and CI; GitHub is canonical but the checkout may differ. Use the existing checkout and one active feature branch; preserve unknown edits and original evidence. No new worktree or agents unless requested. Update each owning document and link to it elsewhere. Historical instructions, approvals and counts do not govern current work.
 
-- Use one cloud feature branch. Edit canonical owners; remove superseded logic and avoid duplicate implementations.
-- Separate UI, business rules, persistence and infrastructure. Production authority stays server-side.
-- Preserve unrelated behaviour. Add meaningful coverage for changed behaviour.
-- Fix routine failures autonomously; escalate requirement, business-rule, architecture, security or material-cost decisions.
+## Implement
 
-## 3. Ralph loop
+Edit canonical component/domain/service/style owners and remove superseded logic. Preserve approved presentation and unrelated behavior; avoid duplicate implementations and speculative abstractions. Apply Service Contracts at every affected path. Never modify applied migrations or expose credentials/customer data.
 
-- Choose one ready task serving the North Star; define completion evidence first.
-- Inspect → implement → run affected checks → diagnose → update progress → checkpoint.
-- Reuse findings/caches and read changed sections. Retry only with a new diagnosis or material fix.
-- Follow the active North Star authority. YS asks to continue until all 55 operations are complete; PR readiness is a checkpoint. Continue independent authorized source work while CI runs. Stop for a concrete blocker or an applicable authorization boundary; do not imply unattended background work.
+Give substantial new JavaScript/Python functions a short purpose or constraint summary; avoid redundant comments and generated-code churn. Inspect → implement → review test impact → run affected checks → diagnose → update owning documents → checkpoint. Continue the authorized North Star during the active session; PR readiness is a checkpoint. Dependent draft PRs may be stacked with exact dependencies recorded. Respect the user's current priority and stop only for a concrete blocker, decision or authority boundary.
 
-## 4. Verify
+## Verify and publish
 
-- Review affected services, browser/backend tests, fixtures and inventories after each logical change. Document major new functions with a short purpose/constraint summary; do not bulk-rewrite comments or generated code.
-- Every integrated server operation needs actual API tests against isolated PostgreSQL, with UI write/reload evidence, meaningful permission/conflict/recovery checks and foreign records. Simulator tests remain supplementary; Cognito substitutes and live acceptance are explicitly separate.
-- Run focused checks while iterating. Codex may prepare browsers, run Playwright and inspect internal previews.
-- Full final GitHub Actions validation remains authoritative, including macOS WebKit and real PostgreSQL.
-- Never weaken assertions, skip coverage, lower required counts, add retries, raise timeouts or alter runner settings to obtain green results.
-- Record SHA, command, environment and result. Separate cloud/CI, visual/device and live-AWS evidence; blocked is not passed.
+Every integrated server operation needs actual API tests against isolated PostgreSQL. New writes require UI save/reload or fresh-login persistence, unauthorized/foreign records, stale conflicts and interrupted-write recovery. Simulator coverage is supplementary. Record command, source, environment and result; retain first failures. Real Cognito, service restart, devices and deployed acceptance remain distinct.
 
-## 5. Deliver
+After a logical change, inspect affected services, tests, fixtures and inventories. Run meaningful focused checks using [README](README.md#verification-commands); reuse complete receipts only when relevant inputs match. Never weaken assertions, skip coverage, lower counts, add retries, force interactions or raise timeouts to manufacture green results. Codex may run Playwright and inspect internal previews; macOS CI and physical acceptance remain separate. Documentation-only edits need structure, preservation, link and diagram checks, not repeated full local application runs.
 
-- Update affected docs/progress; review the diff and stage exact intended paths.
-- Commit/push only the existing task branch and update its PR when access permits. Require complete `verify / frontend`, `verify / backend` and `verify / api-browser` results for the final commit; older green commits and focused smoke tests are not final acceptance.
-- Keep the PR draft while its source acceptance is blocked. YS authorizes routine source merges once complete final-head frontend/backend CI and GitHub requirements pass. Merge the tested head without another confirmation; preserve branch protections and never enable unattended auto-merge.
-- Record the PR, exact validation and merge result, then continue the North Star. Never directly push to `main`, bypass protection, deploy or alter protected infrastructure under source-merge authority.
+Review the diff and stage exact intended paths. Commit/push the task branch and prepare a draft PR. Source acceptance requires complete `verify / frontend`, `verify / backend` and `verify / api-browser` for the exact final head plus GitHub requirements. The user authorizes routine eligible source merges without another confirmation; merge only the tested head, never bypass protection or enable unattended auto-merge. Record merge evidence in Contracts history and current status in Progress, then continue authorized work.
 
-## 6. Boundaries
+## Execution environment and boundaries
 
-- No reset, force push, destructive cleanup, real customer data, credential export or applied-migration edits.
-- Keep AWS/production credentials outside coding tasks; connected tools grant no extra authority.
-- One North Star, one ledger, relevant context. No speculative tooling, background agents or duplicated full test runs.
+Follow README for tools and commands. Reuse valid dependencies/caches; do not rerun installers at every startup. Preserve network proxy/CA settings and TLS checks. Check credential presence without printing values. Synthetic Docker tests must never connect to production PostgreSQL or real provider/customer accounts. Preserve exit status when capturing logs and clean up only resources owned by the invocation.
+
+No direct main push, reset, force push, destructive cleanup or credential export. Source merge does not authorize AWS changes, image publication/scans, deployment, IAM changes, exception renewal, real invitations/messages or customer/provider actions. Prepare concrete release work before seeking any required separate approval. Historical first-create, deletion and recovery operations must not be replayed. Connected tools grant no additional authority; no background agents or standing service.
