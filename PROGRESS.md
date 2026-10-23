@@ -8,7 +8,7 @@ Last verified accepted main is `c68a7ac4ddd43da480ee278066a772eeb90f6656` (PR67)
 
 | Acceptance | Evidence and limit |
 | --- | --- |
-| Documentation | Current priority: consolidate into seven files in the exact requested layout; preserve full history in Contracts Part 2. PR63's earlier refactor did not meet this requirement. |
+| Documentation | Draft [PR69](https://github.com/LimYouSheng/FitfinityReact/pull/69) consolidates seven files, preserves full history and restores explicit comprehensive engineering safeguards in AGENTS. Local documentation checks passed; the updated final head still requires all three CI gates. PR63's earlier refactor did not meet this requirement. |
 | Previous Plan | Draft [PR68](https://github.com/LimYouSheng/FitfinityReact/pull/68), final head `191d960f8b6b1b89aaf82ca45898ccb70a363683`; [run39924725607](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39924725607) has API-browser success, a cancelled backend job and frontend still running at the latest check; it is not merge-eligible. Two candidate operations are not counted. Runtime e39aa04 passed 1,309 units, 1,109 backend, 633 infrastructure and 141 real-API browser cases locally. |
 | Outcome candidate | Paused on `feat/session-outcome-api`; committed checkpoint plus uncommitted backend/frontend/tests preserved. Focused tests are partial evidence; the initial focused browser invocation failed and needs diagnosis after documentation. No operation increment or complete validation claimed. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; Cognito substitute only. No production PostgreSQL or Lambda redeployment needed. |
@@ -16,7 +16,7 @@ Last verified accepted main is `c68a7ac4ddd43da480ee278066a772eeb90f6656` (PR67)
 
 ## Remaining work
 
-1. Validate the seven-document structure, retained rules/history, links and Mermaid diagrams; review and publish the documentation correction without including unfinished outcome changes.
+1. Complete final-head CI and review for documentation PR69, then merge when eligible; keep unfinished outcome changes separate.
 2. Reconcile PR68's exact final-head CI and GitHub requirements; merge only when eligible, then update the matrix and history.
 3. Resume the preserved outcome candidate and diagnose its failed browser receipt. Complete real PostgreSQL/UI persistence, permission, conflict and recovery acceptance before counting it.
 4. Follow the matrix through remaining plans/outcomes/summaries/acknowledgement/credits, assessment/report/media, messaging/Undo/remuneration/content/profile gaps. Do not redo accepted operations.

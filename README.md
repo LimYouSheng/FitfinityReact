@@ -21,6 +21,8 @@ Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies 
 | `CI=true npm run test:e2e -- --reporter=list` | Root/Pages/API-fixture builds, PWA and simulator browser suite |
 | `npm run test:api-browser` | Real frontend/FastAPI/migrations/PostgreSQL browser suite |
 
+The [full-suite diagram](docs/Architecture/diagram.md#full-verification-suite) explains existing test scopes and planned mutation, performance, security, telemetry and operational verification. Planned suites have no executable command here until implemented.
+
 Required CI and evidence rules belong to [AGENTS](AGENTS.md#verify-and-publish). Test inventories are defined by the verifiers, not historical counts in documentation.
 
 ## Configuration

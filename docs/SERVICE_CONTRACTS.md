@@ -164,6 +164,14 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 23 October 2026 — Planned architecture and full verification map
+
+The user requested the future Grafana, Dependabot and other hardening work in the architecture explanation and diagrams, plus a third diagram for the full test suite. Architecture now shows selected runtime/delivery with planned observability, supply-chain/security and operations; the isolated test environment with planned measurement; and existing versus planned verification suites. Mutation/performance, expanded resilience, telemetry validation, scanning and recovery drills are explicitly planned, not installed or CI-accepted. Backlog ownership remains Progress → Remaining work and command ownership remains README. No tooling activation, AWS change or production test is authorized by these diagrams.
+
+### 23 October 2026 — Restore explicit engineering safeguards
+
+The user requested a comprehensive engineering guide suitable as a starting structure for future projects. Comparison with pre-consolidation AGENTS, North Star and cloud instructions found safeguards had become implicit: checkpoint/ancestry and runtime verification, completion evidence before implementation, diagnosis before retries, runner-setting protection and explicit blocked/draft status. These are restored to active AGENTS alongside test-impact review, source/CI/release distinctions and handoff requirements. Project-specific technology and permissions must be re-established when adapting the guide; Fitfinity merge/browser authority does not transfer. The seven-document layout, business rules, operation count and full retained history are unchanged. No runtime or deployment change is included.
+
 ### 23 October 2026 — Seven-document consolidation
 
 The user requires exactly four root documents and three files under docs, using SoccerBot's format. Current business rules and design decisions precede this full history ledger. Extra guides, journey, compatibility and history files are removed only after their content is retained here. Exact repeated paragraphs are stored once across the retained records below; no unique original paragraph is discarded. Original source links preserve each complete snapshot and ordering. Old current-status labels, permissions, candidate claims and approvals are historical; Part 1 and current AGENTS govern. The operation matrix above is the sole current matrix; earlier inventories below are dated evidence.
