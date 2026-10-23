@@ -34,6 +34,7 @@ from app.api import (
     session_booking_review,
     session_booking_save,
     session_changes,
+    session_plans,
     session_postponement,
     session_read_schemas,
     session_reads,
@@ -1227,3 +1228,35 @@ def reconcile_trainer_session_change(request_key: UUID, request: Request):
         principal,
     ):
         return session_changes.reconcile(session, principal, request_key)
+
+
+@router.get("/sessions/{session_id}/plan-review", response_model=session_plans.PlanReview)
+def review_session_plan(session_id: UUID, request: Request):
+    """Review only a currently editable plan; bind scope and stored item versions."""
+    with authorized_transaction(request, advisory_lock=session_plans.PLAN_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_plans.review(session, principal, session_id)
+
+
+@router.post("/sessions/{session_id}/plan", response_model=session_plans.PlanSaved)
+def save_session_plan(
+    session_id: UUID, body: session_plans.SavePlan, request: Request, key: RequestKey
+):
+    """Replace the reviewed plan atomically without deleting result/media identities."""
+    with authorized_transaction(request, advisory_lock=session_plans.PLAN_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_plans.save(session, principal, session_id, key, body)
+
+
+@router.get("/session-plans/{request_key}", response_model=session_plans.PlanSaved)
+def reconcile_session_plan(request_key: UUID, request: Request):
+    """Return only the authenticated actor's original plan receipt."""
+    with authorized_transaction(request, advisory_lock=session_plans.PLAN_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_plans.reconcile(session, principal, request_key)

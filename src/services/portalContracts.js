@@ -48,7 +48,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     updateDetails: contract({ 'sessionId': 'string', 'patch': 'object', 'reviewed?': 'object' }, 'operationsSession', 'Session | SessionBookingState', true),
     requestTimeChange: contract({ 'sessionId': 'string', 'patch': 'object', 'reviewed?': 'object' }, 'session', 'ScheduleResult<Session> | SessionChangeState', true),
     requestTrainerChange: contract({ 'sessionId': 'string', 'replacementTrainerId': 'string', 'reviewed?': 'object' }, 'session', 'ScheduleResult<Session> | SessionChangeState', true),
-    saveExercisePlan: contract({ 'sessionId': 'string', 'items': 'array' }, 'session', 'Session'),
+    saveExercisePlan: contract({ 'sessionId': 'string', 'items': 'array', 'reviewed?': 'object' }, 'session', 'Session | PlanSaved', true),
     previousPlanFor: contract({ 'sessionId': 'string' }, 'session', 'ExercisePlanItem[]'),
     copyPreviousPlan: contract({ 'sessionId': 'string' }, 'session', 'Session'),
     saveOutcome: contract({ 'sessionId': 'string', 'outcome': 'object' }, 'session', 'Session'),

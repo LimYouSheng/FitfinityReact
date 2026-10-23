@@ -57,6 +57,11 @@ class SessionCalendar(Contract):
     purchases: list[SessionPurchaseLabel]
 
 
+class SessionPlanDetailRead(Contract):
+    id: str
+    value: str
+
+
 class SessionPlanRead(Contract):
     id: UUID
     version: int
@@ -66,6 +71,7 @@ class SessionPlanRead(Contract):
     rounds: str
     rest: str
     notes: str
+    customDetails: list[SessionPlanDetailRead]
     videoAttached: bool
 
 
@@ -105,6 +111,7 @@ class SessionDetailRead(Contract):
     trainer: SessionTrainerLabel
     purchase: SessionPurchaseLabel
     exercisePlan: list[SessionPlanRead]
+    retiredPlanItemIds: list[UUID]
     exerciseResults: list[SessionResultRead]
     acknowledgementHistory: list[SessionAcknowledgementRead]
     trainerComments: str

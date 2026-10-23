@@ -24,6 +24,9 @@ const READ_CATALOG = Object.freeze([])
 
 export default function SessionDetailsPage({
   readOnly = false,
+  planEditable = false,
+  planUncertain = false,
+  onBeginPlan,
   bookingEditable = false,
   requestEditable = false,
   onBeginRequest,
@@ -112,7 +115,7 @@ export default function SessionDetailsPage({
   const packageInactive = purchased?.status === 'inactive'
   const recordInactive = clientInactive || packageInactive
   const sessionEditable = !readOnly && !recordInactive && !['completed', 'cancelled'].includes(session.status)
-  const canEditPlan = (isOwner || assignedTrainer) && sessionEditable
+  const canEditPlan = (isOwner || assignedTrainer) && (sessionEditable || (readOnly && planEditable && !recordInactive && !['completed', 'cancelled'].includes(session.status)))
   const canEditNotes = !readOnly && !recordInactive && (isOwner || assignedTrainer)
   const signed = session.acknowledgement?.method === 'signature'
   const canAcknowledge = !readOnly && !recordInactive && (isOwner || assignedTrainer) && !signed
@@ -179,10 +182,12 @@ export default function SessionDetailsPage({
           items={session.exercisePlan ?? []}
           sessionId={session.id}
           canEdit={canEditPlan && (!activeEditor || activeEditor === 'exercise')}
+          mediaEditable={!readOnly && canEditPlan}
+          uncertain={planUncertain}
           canViewVideo={!readOnly && (isOwner || assignedTrainer) && !activeEditor}
           timeZone={policy.timeZone}
           editing={activeEditor === 'exercise'}
-          onBeginEdit={() => setActiveEditor('exercise')}
+          onBeginEdit={async () => { const items = onBeginPlan ? await onBeginPlan() : undefined; setActiveEditor('exercise'); return items }}
           onEndEdit={() => setActiveEditor(null)}
           onSave={onSavePlan}
           onLoadVideo={onLoadVideo}

@@ -877,6 +877,7 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:#d
   border-radius:8px;
   background:#0d0f14;
 }
+.exercise-editor-fields{border:0;margin:0;padding:0;min-width:0}
 .exercise-editor-list{display:grid;gap:8px}
 
 .exercise-display-row{

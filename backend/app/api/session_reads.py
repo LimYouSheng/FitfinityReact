@@ -26,6 +26,7 @@ from app.models.people import Client, Trainer
 from app.models.training import (
     Acknowledgement,
     CreditDebit,
+    ExercisePlanDetail,
     ExercisePlanItem,
     ExerciseResult,
     PackagePurchase,
@@ -121,14 +122,40 @@ def detail(session, principal, identity):
     plan = bounded(
         session,
         select(ExercisePlanItem)
-        .where(ExercisePlanItem.session_id == identity)
+        .where(ExercisePlanItem.session_id == identity, ExercisePlanItem.retired_at.is_(None))
         .order_by(ExercisePlanItem.position, ExercisePlanItem.id),
     )
+    details = bounded(
+        session,
+        select(ExercisePlanDetail)
+        .join(ExercisePlanItem, ExercisePlanDetail.plan_item_id == ExercisePlanItem.id)
+        .where(ExercisePlanItem.session_id == identity, ExercisePlanItem.retired_at.is_(None))
+        .order_by(ExercisePlanDetail.position, ExercisePlanDetail.id),
+        MAX_RECORDS * 100,
+    )
+    detail_rows = {}
+    for entry in details:
+        detail_rows.setdefault(entry.plan_item_id, []).append(
+            {"id": entry.detail_key, "value": entry.value}
+        )
     results = bounded(
         session,
         select(ExerciseResult)
         .where(ExerciseResult.session_id == identity)
         .order_by(ExerciseResult.id),
+    )
+    # Only referenced retired identities are needed to validate result relationships;
+    # repeated plan edits must not expand the current-plan response with its whole archive.
+    retired_ids = list(
+        session.scalars(
+            select(ExercisePlanItem.id)
+            .where(
+                ExercisePlanItem.session_id == identity,
+                ExercisePlanItem.retired_at.is_not(None),
+                ExercisePlanItem.id.in_([r.plan_item_id for r in results if r.plan_item_id]),
+            )
+            .order_by(ExercisePlanItem.id)
+        )
     )
     acknowledgements = bounded(
         session,
@@ -192,10 +219,13 @@ def detail(session, principal, identity):
                 rounds=p.rounds,
                 rest=p.rest,
                 notes=p.notes,
+                customDetails=detail_rows.get(p.id, [])
+                or ([{"id": f"{p.id}/notes", "value": p.notes}] if p.notes else []),
                 videoAttached=p.id in videos,
             )
             for p in plan
         ],
+        retiredPlanItemIds=retired_ids,
         exerciseResults=[
             SessionResultRead(
                 id=r.id,

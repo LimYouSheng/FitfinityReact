@@ -1,3 +1,4 @@
+import SessionPlanRecovery from './features/sessions/SessionPlanRecovery.jsx'
 import SessionChangeRecovery from './features/sessions/SessionChangeRecovery.jsx'
 import ApiSessionDetailsRoute from './features/sessions/ApiSessionDetailsRoute.jsx'
 import ClientWeeklyScheduleRecovery from './features/clients/ClientWeeklyScheduleRecovery.jsx'
@@ -338,6 +339,8 @@ function StaffPortal({ navigation }) {
     selfTrainer
   ) {
     page = <TrainerProfileRoute key={selfTrainer.id} trainer={selfTrainer} ownerMode={false} navigate={navigate} goBack={goBack} openClient={openClient} />
+  } else if (route === 'sessions' && directoryOnly && snapshot.sessionPlanPending) {
+    page = <SessionPlanRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionPlanPending} services={services} />
   } else if (route === 'sessions' && directoryOnly && snapshot.sessionChangePending) {
     page = <SessionChangeRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionChangePending} services={services} />
   } else if (route === 'sessions' && selectedSession) {
