@@ -1,6 +1,6 @@
 # North Star: persistent API-backed Fitfinity prototype parity
 
-Deliver the approved [GitHub Pages prototype](https://limyousheng.github.io/FitfinityReact/) as a fully functioning persistent application backed by FastAPI, PostgreSQL and Cognito. Preserve its appearance, navigation, workflows and Owner/Admin/Trainer behaviour. A login, green CI, read-only directory or deployment is an intermediate checkpoint, not completion. `PROGRESS.md` is the only task ledger; `docs/SERVICE_CONTRACTS.md` owns the route/operation coverage matrix. No exclusions are accepted without YS's explicit agreement.
+Deliver the approved [GitHub Pages prototype](https://limyousheng.github.io/FitfinityReact/) as a fully functioning persistent application backed by FastAPI, PostgreSQL and Cognito. Preserve its appearance, navigation, workflows and Owner/Admin/Trainer behaviour. A login, green CI, read-only directory or deployment is an intermediate checkpoint, not completion. `PROGRESS.md` is the only task ledger; `docs/SERVICE_CONTRACTS.md` owns the route/operation coverage matrix. No exclusions are accepted without YS's explicit agreement. The approved public website and website-specific content management remain deferred until the staff portal is complete; staff-portal acceptance does not deliver that separate scope.
 
 ## Definition of done
 
@@ -9,26 +9,22 @@ Deliver the approved [GitHub Pages prototype](https://limyousheng.github.io/Fitf
 - [ ] Shared data persists across reload, sign-out, another browser/device and service restart. Browser/demo storage is not the production datastore.
 - [ ] Conflicts, duplicate submissions, interrupted requests and recovery behave correctly; writes are transactional, versioned and idempotent where required. A committed save remains successful if refresh fails.
 - [ ] Equivalent controlled test data demonstrates prototype layout, navigation, filters, pagination, Back behaviour, responsiveness and accessibility. No unintended account-placeholder dashboard, demo fallback, fabricated schedules or silently missing workflows remain.
-- [ ] Full final-commit frontend/backend CI passes, including required browser/macOS WebKit and real PostgreSQL coverage.
+- [ ] Full final-commit frontend/backend/api-browser CI passes, including macOS WebKit and real PostgreSQL. Every integrated server operation has traceable real-database tests; simulator results alone never satisfy integration acceptance.
 - [ ] Real enrollment, repeat login, refresh, expiry, sign-out, account lifecycle and separately specified secure lost-authenticator recovery pass. YS's desktop, Samsung and iPad checks are recorded separately.
 - [ ] Deployment/update and populated-data recovery procedures are reviewed and evidenced. Final source/artifacts/image provenance, costs and remaining security limits are recorded.
 
-## Dependency order
+## Current execution order
 
-0. Authentication foundation: PR #24 final head `44373574c47f1452c185189a7066ac6d8da1b604` passed both required jobs in run 38352674116. YS merged it on 13 October 2026 at 14:29:47 Singapore as verified remote main `eed077e1500e09ca2b486d0a991f520b76ceeeb5`. Source entry gate is satisfied; repaired deployment and live acceptance remain pending.
-1. Inventory every prototype route and all named operations against existing frontend/backend/persistence/permissions/tests, recording exact comparison source. Classify connected, backend-only, missing orchestration or genuinely local before adding endpoints.
-2. Complete core client/trainer/package records, availability, assignment, renewal and history; preserve Admin onboarding protections. Package catalogue creation/edit/lifecycle is source-merged in PR #25; the next focused slice connects existing trainer approval controls. Client/trainer onboarding and the remaining core workflows stay queued.
-3. Connect real session/calendar and renewal reads, restoring existing dashboard and navigation only as contracts become functional.
-4. Complete fixed/open scheduling, postponement/reassignment, requests/approvals, plans/outcomes/summaries, acknowledgement and credit accounting.
-5. Complete durable assessment drafts/history, reports, exercise media and session videos with privacy, upload ownership, replacement/deletion and truthful export/share history.
-6. Complete personal messages/read receipts, permitted Undo, resolution/cancellation, remuneration/approvals, content, profiles and remaining approved workflows.
-7. Review/deploy updates and demonstrate end-to-end persistence, recovery, role and physical-device acceptance.
+1. Reconcile source and evidence; refactor documentation using relevant current SoccerBot practices.
+2. Complete real API coverage against isolated PostgreSQL for every integrated server operation. Cover UI writes and reload/fresh-login persistence, conflicts, unknown outcomes and unauthorized/foreign records. Resolve the test-build Lambda-adapter dependency needed to run these checks. The local predicate needs local evidence, not an invented endpoint.
+3. Resume incomplete session scheduling/writes and request decisions; then plans/outcomes/summaries/acknowledgement/credits; assessment/report/media gaps; remaining messaging/Undo/remuneration/content/profile parity.
+4. Validate final-head CI, merge eligible source, and separately prepare release and live/provider/device acceptance.
 
-This is dependency order, not permission to rewrite completed components. Each PR contains one focused dependency-ready integration slice. Source work can advance after the merged entry gate; it cannot stand in for the live authentication release.
+[Progress](PROGRESS.md) owns tasks, dependencies and evidence. Hardening items start as planned work; do not provision tools or paid services merely because they are listed.
 
 ## Authority and invariants
 
-Use one agent, the existing checkout/caches and valid receipts. YS's 13 October instruction is to keep going until all 55 operations are complete. Continue routine investigation, implementation, focused tests, documentation and draft PR preparation autonomously; PR readiness is a checkpoint, not an automatic stop. Do not inherit obsolete repair budgets. Keep one focused slice per PR and one active branch at a time; dependent draft PRs may be stacked with their exact base/dependency recorded while earlier PRs await merge. Never claim an unmerged dependency is accepted main. Continue independent authorized work while CI or review is pending; stop only at a concrete blocker, required user decision or authorization boundary, with the next action prepared. This is an active-session work instruction, not an unattended background schedule. YS subsequently requested stopping at the next checkpoint and a summary; finish the current session/calendar-read checkpoint, then pause until resumed.
+Use one agent, the existing checkout/caches and valid receipts. YS's 13 October instruction is to keep going until all 55 operations are complete. Continue routine investigation, implementation, focused tests, documentation and draft PR preparation autonomously; PR readiness is a checkpoint, not an automatic stop. Do not inherit obsolete repair budgets. Keep one focused slice per PR and one active branch at a time; dependent draft PRs may be stacked with their exact base/dependency recorded while earlier PRs await merge. Never claim an unmerged dependency is accepted main. Continue independent authorized work while CI or review is pending; stop only at a concrete blocker, required user decision or authorization boundary, with the next action prepared. This is an active-session work instruction, not an unattended background schedule. YS resumed on 23 October with the execution order above. Source progress continues under the existing authority; deployment remains separate.
 
 Maintain this file as the single North Star, `PROGRESS.md` as the single progress ledger, and the existing service-contract matrix as the operation/route evidence reference. Do not create a second North Star or competing checklist. Track implemented, full-CI-verified, merged, deployed and live/device-accepted states separately. The 55/55 implementation target does not waive the release and acceptance conditions above.
 
@@ -38,7 +34,7 @@ Preserve Owner/Admin-only access to the initial 11 assessment forms; YS authoriz
 
 ## Preserved deployment and limits
 
-Current deployed source is `b3a97897bc733c2ddbbbd17a40c1407b2a506649`, frontend release 38311509067, deployment 38340492199, artifact 11788346033, ZIP SHA-256 `4e181227297a1585499fc83348d996ee35e6aaead08ed7c75dbe0f4b0e53fd9a`. Forty-one frontend files, public health/readiness and signed-out rejection were verified at https://d21430zmxp3m5m.cloudfront.net. YS reported Owner login after an account-specific MFA correction. The application repair is not deployed; historical logs do not identify every rejection cause.
+Last recorded frontend deployment (not reverified in this task) is source `b3a97897bc733c2ddbbbd17a40c1407b2a506649`, frontend release 38311509067, deployment 38340492199, artifact 11788346033, ZIP SHA-256 `4e181227297a1585499fc83348d996ee35e6aaead08ed7c75dbe0f4b0e53fd9a`. Forty-one frontend files, public health/readiness and signed-out rejection were verified at https://d21430zmxp3m5m.cloudfront.net. YS reported Owner login after an account-specific MFA correction. The application repair is not deployed; historical logs do not identify every rejection cause.
 
 Preserve the database, Cognito pool, Owner, successful edge and retained buckets. Completed deletion/replacement preparation/first-create execution are historical and must not be replayed. New backend bytes require a new reviewed image and appropriate update path; prior image/runtime proof cannot represent them.
 

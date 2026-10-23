@@ -1,4 +1,4 @@
-FROM python:3.12.14-slim-trixie AS runtime
+FROM python:3.12.14-slim-trixie AS application
 
 # Refresh Debian security fixes before installing the locked Python dependencies.
 # Fail the build if the critical Perl/OpenSSL fixes reviewed on 2026-09-22
@@ -21,7 +21,6 @@ COPY requirements.lock /app/requirements.lock
 RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock \
     && groupadd --gid 10001 fitfinity \
     && useradd --uid 10001 --gid 10001 --no-create-home fitfinity
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.1 /lambda-adapter /opt/extensions/lambda-adapter
 COPY app /app/app
 COPY alembic.ini /app/alembic.ini
 COPY migrations /app/migrations
@@ -30,7 +29,10 @@ USER 10001:10001
 EXPOSE 8080
 CMD ["python", "-m", "uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080", "--no-access-log", "--no-proxy-headers"]
 
-FROM runtime AS test
+FROM application AS runtime
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.1 /lambda-adapter /opt/extensions/lambda-adapter
+
+FROM application AS test
 ENV RUFF_CACHE_DIR=/tmp/ruff-cache
 USER root
 COPY requirements-test.lock /app/requirements-test.lock

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { test, expect, signIn, read, confirm, post } from './fixtures.js'
+import { test, expect, signIn, read, confirm, post, account, freshContext } from './fixtures.js'
 
 for (const role of ['owner', 'admin']) test(`${role} package edits persist through a fresh login without changing purchased terms`, async ({ page, browser }) => {
-  await signIn(page, role)
+  await signIn(page, role, account('catalogue', role))
   const before = await read(page, '/api/directory')
   const name = `Browser ${randomUUID()}`
   await page.goto('/#/packages/new')
@@ -19,17 +19,17 @@ for (const role of ['owner', 'admin']) test(`${role} package edits persist throu
   await expect(page.getByText('98 days', { exact: true })).toBeVisible()
   await confirm(page, 'Deactivate Package')
   await expect(page.getByRole('button', { name: 'Reactivate Package', exact: true })).toBeVisible()
-  const fresh = await browser.newContext({ baseURL: new URL(page.url()).origin })
+  const fresh = await freshContext(browser, page)
   try {
     const second = await fresh.newPage()
-    await signIn(second, role)
+    await signIn(second, role, account('catalogue', role))
     await second.goto(`/#/packages/${created.id}`)
     await expect(second.getByRole('heading', { name, exact: true })).toBeVisible()
     await expect(second.getByText('98 days', { exact: true })).toBeVisible()
     await expect(second.getByRole('button', { name: 'Reactivate Package', exact: true })).toBeVisible()
     const after = await read(second, '/api/directory')
     expect(after.packages.find(p => p.id === created.id)).toMatchObject({ total_sessions: 13, validity_days: 98, status: 'inactive', version: 3 })
-    expect(after.clients).toEqual(before.clients)
+    expect(after.clients.filter(c => ['Browser Client', 'Other Client'].includes(c.name))).toEqual(before.clients.filter(c => ['Browser Client', 'Other Client'].includes(c.name)))
     if (role === 'admin') for (const trainer of after.trainers) {
       expect(trainer).not.toHaveProperty('peak_rate_cents')
       expect(trainer).not.toHaveProperty('off_peak_rate_cents')
@@ -38,7 +38,7 @@ for (const role of ['owner', 'admin']) test(`${role} package edits persist throu
 })
 
 test('server rejects stale and conflicting retry writes without changing the committed package', async ({ page }) => {
-  await signIn(page)
+  await signIn(page, 'owner', account('retry'))
   const key = randomUUID(), draft = { name: `Retry ${randomUUID()}`, total: 12, status: 'active' }
   const first = await post(page, '/api/packages', { draft }, key)
   expect(first.status()).toBe(200)
@@ -64,7 +64,7 @@ test('Trainer reads persisted assigned sessions but cannot mutate packages or ac
   expect(directory.packages).toEqual([])
   expect(directory.clients.map(c => c.name)).toEqual(['Browser Client'])
   // Include a real foreign record: an empty/single-client fixture cannot prove scoping.
-  const observer = await browser.newContext({ baseURL: new URL(page.url()).origin })
+  const observer = await freshContext(browser, page)
   let foreign
   try {
     const admin = await observer.newPage()

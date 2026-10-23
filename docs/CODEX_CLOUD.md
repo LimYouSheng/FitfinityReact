@@ -1,40 +1,10 @@
-# Fitfinity Codex Cloud workflow
+# Fitfinity development commands and environment
 
-Current task authority: `NORTH_STAR.md` now owns complete persistent prototype/API parity, and `PROGRESS.md` owns the active feature branch/checkpoint. The October 6–7 branch and bounded CLOUD-01 examples below are historical setup receipts, not instructions to switch away from the current authorized slice or restore its obsolete exclusions/budget. Reuse the verified caches and canonical checks; final-head CI/live/device evidence remain separate.
+[AGENTS](../AGENTS.md) owns execution rules; [Progress](../PROGRESS.md) owns current branch, evidence and blockers. Use the existing checkout and preserve unknown edits. A restored image may contain stale source: verify remote main and local HEAD before reuse. Old receipts are reusable only when relevant inputs match.
 
-Updated 7 October 2026 (Singapore). Accepted main for AWS-HOSTING-PREFLIGHT-01: `c66acf9032b9bf7b9b71fcf118f375e8bb6e9fd1`, PR #11 merged by LimYouSheng. This task uses authorized `docs/aws-test-hosting-preflight-2026-10-07`; image acceptance is verified separately from hosting/runtime acceptance. Future tasks must use their own explicitly authorized branch/checkpoint. Fresh-task runtime validation passed at `8945ca17121b3742a25aea4f16dffef190cbbf06`; normal cloud development can resume. Full CI for each new candidate, public-preview acceptance and device acceptance remain separate. [PROGRESS.md](../PROGRESS.md) owns exact receipts and blockers.
+Historical setup, source cutover, preview failures and private-runtime receipts remain in [the pre-refactor guide](https://github.com/LimYouSheng/FitfinityReact/blob/df9cbbb75373eb7e57b31187eeb93077ea35cec8/docs/CODEX_CLOUD.md) and [AWS runbook](AWS_DEPLOYMENT_RUNBOOK.md). Their old branches, budgets and authorizations do not govern new work. No setup republishing or AWS credentials are required for ordinary source testing.
 
-**9 October continuation:** the owner redirected the obsolete PR #12 starting instruction to open draft PR #18, branch `feat/aws-test-scan-review-2026-10-09`, entry SHA `33075090a1fa601447b9b830d79e8426c4ff50c4`. PR #12 is merged/closed. The clean checkout, remote/PR head and main ancestry matched; no branch switch, worktree or setup replacement was needed. Current environment observations show no configured AWS identity, secrets or runtime variables, so quota reads require the documented authorized CloudShell fallback. Preserve retained setup; no login, installation, tunnel or environment republishing is needed for documentation preparation.
-
-## 1. Canonical files
-
-| File | Owns |
-| --- | --- |
-| [AGENTS.md](../AGENTS.md) | Short instructions loaded by Codex |
-| [NORTH_STAR.md](../NORTH_STAR.md) | Persistent outcome, acceptance and authority boundaries; individual bounded tasks belong in PROGRESS |
-| [PROGRESS.md](../PROGRESS.md) | Current task ledger, results, blockers and next action |
-| [Rules and Architecture](FITFINITY_RULES_AND_ARCHITECTURE.md) | Current product rules, architecture and engineering principles |
-| [Service Contracts](SERVICE_CONTRACTS.md) | Existing operation/service contract reference |
-| [Journey](FITFINITY_JOURNEY.md) | Historical decisions and completed milestone evidence |
-| [AWS Deployment Runbook](AWS_DEPLOYMENT_RUNBOOK.md) | Proven AWS calls, evidence, corrections and deployment blockers |
-| This guide | Cloud setup, verification commands and source cutover |
-
-Do not add a competing `ENGINEERING_RULES.md` or second task list. Existing canonical owners serve those roles. Read relevant sections using search; the large Rules/Journey files are not mandatory full-context input on every loop.
-
-## 2. Accepted source and experiment branch
-
-- Fresh user Git output confirmed local and remote main at `d2e8a4b7e44c1554b1f31b5337b87014e6446fdf`, with no tracked changes or unpublished commits. Only `docs/AWS_DEPLOYMENT_RUNBOOK.md` was untracked; its user-confirmed blob was `041d15c2e68e8b878d71455c30299a9b5b755ff4`.
-- PR #9 preserved that exact file. Both required PR checks passed; the user merged it on 6 October at 22:46:11 Singapore as `7970f65b5975a6554c46eb521c7ca118939e4bb9`. Main contains the accepted local checkpoint. Post-merge verification remains a separate receipt; see `PROGRESS.md`.
-- Earlier ` 2` duplicate entries were absent from the latest user inventory. This task did not delete them or infer that they were disposable. Preserve any newly discovered unknown local work and inspect it separately.
-- PR #8 merged as `40e8bb36868958e56813e2daa27c6ff074b9aced`; its demo milestone is accepted. Use the current task's authorized branch and exact source checkpoint. Create a new branch only when authorized, after fetching/verifying main and a clean checkout; stop if main advanced. Never merge to obtain a preview.
-- Confirm the actual branch and HEAD at setup and every fresh cloud task; instructions and source guards must match the current authorized task. Read its `AGENTS.md`, `NORTH_STAR.md` and `PROGRESS.md` before work.
-- GitHub is canonical for this accepted checkpoint. Optional Mac use must preserve new edits and pull reviewed GitHub state; Mac installers and local AWS login are no longer routine development prerequisites. No `git add .`, reset, stash, clean, force push or direct main push as a shortcut.
-
-The October hosting operator has an exact source manifest and saved state. A newer docs commit cannot silently become its accepted release baseline. Retain its original evidence; separately review any replacement release manifest/operator before resuming deployment.
-
-## 3. Cloud environment setup
-
-Use the current **Codex Cloud** environment flow: select the Fitfinity repository, ask Codex to prepare and test its setup, review the report, then publish. A new task starts from the published environment; setup changes need republishing. Current configuration uses an **Install script** and **Start skill**. The older setup/maintenance-script UI belongs to the legacy environment flow. [Official environment guide](https://learn.chatgpt.com/docs/environments/cloud-environments)
+## Environment and commands
 
 ### Repository requirements
 
@@ -52,7 +22,7 @@ Use the current **Codex Cloud** environment flow: select the Fitfinity repositor
 
 Use the existing isolated checkout; no worktree unless explicitly requested. **Install script contains Bash; Start skill contains prose.** The saved Install script uses `npm ci`, downloads the lockfile's Chromium/WebKit, prepares container libraries and cloud-only backend trust, then runs initial lint, browser/build/PWA and full backend validation. Do not execute installation or full backend validation on every task startup. Preserve signatures, TLS and dependency hashes.
 
-For initial C3 validation, explicitly supply `FITFINITY_EXPECTED_HEAD=16eea945f9324b6f20610d0a0b98b1a1cb6014e9` when running the saved Install script; it compares full HEAD with the supplied value before installation. Later validation uses that task's authorized checkpoint, not this historical SHA. Browser preparation traps exit to remove only its owned temporary container and preserves the original failure status. Startup remains prose, with each task's agreed budget.
+Supply the current task checkpoint through `FITFINITY_EXPECTED_HEAD` when running the saved Install script; never reuse a historical pin. Browser preparation traps exit to remove only its owned temporary container and preserves the original failure status. Startup remains prose, with each task's agreed budget.
 
 Read the canonical rules/goal/ledger/guide at entry and compare the requested checkpoint before editing. Run these lightweight guards; also require equality with the task's explicit HEAD when supplied. A historical receipt SHA is not a permanent starting HEAD for future tasks.
 
@@ -87,7 +57,7 @@ Reuse valid dependencies, npm/buildx caches, pinned engines and prepared images.
 
 ### Prepared Linux browser runtime
 
-The non-root host lacks WebKit library registration. Retained image `fitfinity-browser-runtime:node24-pw1.62.1` uses Node 24/Debian trixie and Playwright-installed system libraries. The saved Install script recreates it from a pinned official Node image when missing; an engine-version change requires a matching runtime. Engine archives stay in the workspace path above. Do not bypass dependency checks or change Playwright settings.
+The non-root host lacks WebKit library registration. Retained image `fitfinity-browser-runtime:node24-pw1.64.1` uses Node 24/Debian trixie and Playwright-installed system libraries. The saved Install script recreates it from a pinned official Node image when missing; an engine-version change requires a matching runtime. Engine archives stay in the workspace path above. Do not bypass dependency checks or change Playwright settings.
 
 Run this canonical restoration smoke in the prepared container. It retains fresh root/Pages/API-fixture builds, PWA checks and all three projects. Later iterations substitute a real affected spec/filter; full local suites run only when warranted by the change.
 
@@ -166,44 +136,12 @@ npm run preview -- --host 0.0.0.0 --port 4173
 - Existing `.github/workflows/pages.yml` deploys the main-branch staff demo after verification. It does **not** deploy PR previews. A new preview hosting workflow needs its own reviewed scope; never merge just to obtain a preview.
 - Public preview remains **blocked** after the authorized Cloudflare trial: direct DNS registration failed and HTTPS-proxy provisioning returned `403 — Your request was blocked`. No public URL was created. Do not retry without new network evidence, represent internal addresses as accessible links or close this criterion. A saved network draft is not working connectivity.
 
-## 5. Efficient Ralph runs
-
-| Phase | Work and completion evidence |
-| --- | --- |
-| Initial preparation | Saved Install script prepares and validates locked dependencies, services and canonical gates; report setup/restoration separately from publication. |
-| Task entry | Saved Start skill reads rules/goal/ledger, guards the requested source/runtime and reuses valid setup. Lightweight guards do not trigger full installation/backend tests. |
-| Ralph iteration | Select one ready ledger task, define evidence, inspect/implement at canonical owners, run affected section-4 checks, diagnose, update progress and checkpoint. Retry only after a material correction/new diagnosis. |
-| Feature-branch publication | Review diff, validate affected behavior/docs, commit/push only the existing branch and update its draft PR. Existing PR CI runs the full normal gates for the final candidate. Require both `verify / frontend` and `verify / backend`, retaining macOS coverage; stop for user review, never merge. |
-
-`PROGRESS.md` is the only queue; `NORTH_STAR.md` supplies the bounded goal. Reuse matching receipts and CI runs, not older green status for a changed final candidate. Record concrete blockers. This guarded-workflow task allows **3 repair iterations or 30 minutes of active work**; CI may continue afterward and remains pending until completed. No duplicate full local suites, indefinite polling, scheduler or unattended relaunch is required.
-
-Use one working agent unless delegation is explicitly requested. A future unattended orchestrator requires explicit finite run/time/spend limits and stopping conditions; no numeric billing enforcement is claimed here.
-
-## 6. Review and release boundary
-
-- Review intended source/docs and checks, checkpoint the feature branch, then open or update its PR. Keep it draft while acceptance or required evidence is blocked.
-- A full-green PR remains subject to user review/merge. Verify the resulting main commit separately. Main changes can trigger existing Pages/image workflows; do not treat a merge as a harmless development step.
-- Never broaden GitHub permissions, change branch protection, enable release flags or alter AWS resources simply to finish a coding task.
-- AWS automation should reuse proven repository operators and the runbook with separate least-privilege roles, source/digest binding, reviewable changes, idempotency and recovery evidence. Successful CLI history is the input to that work, not proof that unattended deployment is ready.
-- The existing image/verification OIDC roles do not establish a complete application deployment role. Routine cloud development does not depend on native `aws login`; any unfinished AWS operator transition remains a release workstream.
-- Historical AWS hosting stopped on quota; authenticated October 8 runtime records total/unreserved capacity 1000/1000 and accepted two-subnet proof/cleanup. First Owner creation is historically accepted; persistent hosting/login remain unaccepted. Review the canonical hosting adaptation and recheck applied capacity before future execution; do not resubmit the quota request.
-
-## 7. Completion receipt
-
-Record the tested source SHA, scope/diff, actual commands/results, reused-receipt provenance, evidence locations, preview revision/mode and unresolved limitations in `PROGRESS.md` and the PR. Record the new final commit's full-CI links/status in the PR and delivery report after publication; do not create another commit solely to record its own successful CI. Move the completed milestone summary to Journey once accepted. A new cloud task must be able to continue from these files without rereading chat history.
-
-Official behaviour checked on 6 October 2026: [Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments), [AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md). Repository instructions remain concise; detailed guidance is loaded by relevance.
-
-
-### Private runtime completed; hosting preparation next
-
-`AWS-PRIVATE-RUNTIME-01` completed in authenticated run 37721383277 on operator main `087f744884f7ed0d3374aa8e4e2ba1e9ddbf3932`, with exact-image two-subnet proof and owned cleanup. See the [AWS runbook](AWS_DEPLOYMENT_RUNBOOK.md#aws-private-runtime-01-completed--8-october-2026-singapore) for immutable evidence and recovery boundaries. Runtime role/workflow remains dedicated to temporary probes; it is not a hosting role. The reviewed hosting source is recovered and adapted into `deploy.py hosting`, a separate proposed hosting authority/manual workflow and immutable API-mode release builder. Its runbook records concrete review/recovery commands; live hosting/sign-in/recovery remain pending. Preserve 416 PostgreSQL/backend and all 486 previous infrastructure cases plus the hosting regression suite, full final macOS/WebKit CI, and separate live hosting/sign-in/recovery acceptance. Ordinary coding needs no AWS credentials and does not rerun completed proofs.
 
 ## Test quality review and real API browsers — 16 October 2026
 
 The existing `tests/` suite has two distinct purposes: demo/prototype behavior and frontend HTTP-contract behavior against `auth-api-fixture.js`. The latter hosts a Node HTTP simulator, not FastAPI. Its successful writes do not demonstrate SQL constraints, server authorization or persistence across backend processes. Keep its deliberate transport-failure injection; use the new `tests-api/` suite for integrated behavior.
 
-`npm run test:api-browser` builds API mode and runs the actual FastAPI application over HTTP with an isolated PostgreSQL database, real migrations, auth-session cookies, CSRF, production JWT verification and domain routes. Only the external Cognito boundary uses a local provider with generated RSA keys. The test harness is under backend tests, is absent from the production runtime image, and adds no reset/test routes or production auth bypass. It refuses a control database other than `fitfinity_test`. Each invocation owns a unique Compose project and database; cleanup targets only those resources. Browser contexts authenticate through the UI and do not inject demo storage or fulfill application requests.
+`npm run test:api-browser` builds API mode and runs the actual FastAPI application over HTTP with an isolated PostgreSQL database, real migrations, auth-session cookies, CSRF, production JWT verification and domain routes. Only the external Cognito boundary uses a local provider with generated RSA keys and local invitation provisioning/delivery. No real email is sent. The test harness is under backend tests, is absent from the production runtime image, and adds no reset/test routes or production auth bypass. It refuses any control connection except the `postgresql+psycopg` driver, `test-db` host, default PostgreSQL port, `fitfinity_test` user/database, and no query parameters. This check runs before connecting. Each invocation owns a unique Compose project. A test-only dispatcher gives each browser worker its own migrated PostgreSQL database and real application; the worker header never grants authentication or domain permissions. Fresh-login contexts retain that worker scope. This prevents unrelated parallel tests changing global catalogue review versions; runner concurrency and stale-review assertions remain intact. Cleanup targets only databases created by this invocation and its Compose resources. Browser contexts authenticate through the UI with scenario-specific seeded accounts; production authentication limits remain unchanged. They do not inject demo storage or fulfill application requests. The interrupted-content-save case wraps native fetch before application initialization, waits for the real server to return a successful committed response, then discards that response at the client transport boundary. It checks the durable receipt, verifies exactly one write and reloads. This avoids WebKit service-worker routing differences; it is deterministic response-loss evidence, not a physical network outage drill.
 
 The initial suite covers Owner/Admin package create/edit/deactivation and persistence through an independently authenticated browser context; immutable purchased terms; stale-version/conflicting-idempotency rejection; assigned Trainer session reads and server-enforced package/initial-assessment denial. Read returned identities and business dates; use unique names for parallel writes. The real API suite supplements the unchanged macOS prototype/HTTP-fixture CI gate and runs as an unconditional verification job. It does not certify real Cognito delivery, AWS or physical devices.
 

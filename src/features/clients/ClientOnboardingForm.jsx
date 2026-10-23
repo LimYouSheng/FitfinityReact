@@ -122,7 +122,10 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
   useEffect(() => {
     if (!previewMatches || remoteMatches.loading || remoteMatches.error || submitted || !['matching', 'review'].includes(step.key)) return
     if (visibleMatches.length && !visibleMatches.some(match => match.trainer.id === draft.trainerId)) {
-      updateCreation(current => ({ draft: { ...current.draft, trainerId: visibleMatches[0].trainer.id, fixedWeeklySchedule: undefined } }))
+      // Matching may finish just before a user chooses. Recheck the live draft
+      // inside the update so an older effect cannot overwrite that selection.
+      updateCreation(current => visibleMatches.some(match => match.trainer.id === current.draft.trainerId)
+        ? {} : { draft: { ...current.draft, trainerId: visibleMatches[0].trainer.id, fixedWeeklySchedule: undefined } })
     }
   }, [previewMatches, remoteMatches.loading, remoteMatches.error, submitted, step.key, visibleMatches, draft.trainerId, updateCreation])
 
