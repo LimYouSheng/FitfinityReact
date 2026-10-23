@@ -11,7 +11,7 @@ from app.api import session_booking_save as booking_save
 from app.api import session_postponement as postponement
 from app.api import trainer_availability as availability
 from app.authorization import conflict
-from app.models.communications import RequestSlot, SessionEvent
+from app.models.communications import RequestSlot
 from app.models.people import Trainer, TrainerAvailability
 
 
@@ -166,22 +166,9 @@ def apply(session, principal, request, viewed):
     if replacement is None:
         raise conflict()
     if booking.schedule_state == "open" and request.kind == "session_trainer":
-        session.add(
-            SessionEvent(
-                session_id=booking.id,
-                session_version=booking.version,
-                kind="session_trainer",
-                note="Approved reassignment of an undated Open session.",
-                old_trainer_id=booking.trainer_id,
-                new_trainer_id=trainer_id,
-                actor_id=principal.user_id,
-                actor_name=principal.name,
-            )
+        booking_save.apply_open_reassignment(
+            session, principal, booking, client, purchase, trainer_id
         )
-        booking.trainer_id = trainer_id
-        booking.version += 1
-        client.version += 1
-        purchase.version += 1
         return
     body = booking_review.SaveSessionBooking(
         expected=view.expected,

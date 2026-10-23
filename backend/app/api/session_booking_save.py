@@ -160,3 +160,23 @@ def apply_booking(session, principal, booking, client, purchase, bookings, train
     trainer = next(t for t in trainers if t.id == body.trainerId)
     message_id = notify(session, principal, booking, client, trainer)
     return message_id
+
+
+def apply_open_reassignment(session, principal, booking, client, purchase, trainer_id):
+    """Retain undated identity and credit history when changing an Open session Trainer."""
+    session.add(
+        SessionEvent(
+            session_id=booking.id,
+            session_version=booking.version,
+            kind="session_trainer",
+            note="Reassignment of an undated Open session.",
+            old_trainer_id=booking.trainer_id,
+            new_trainer_id=trainer_id,
+            actor_id=principal.user_id,
+            actor_name=principal.name,
+        )
+    )
+    booking.trainer_id = trainer_id
+    booking.version += 1
+    client.version += 1
+    purchase.version += 1

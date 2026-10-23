@@ -33,6 +33,7 @@ from app.api import (
     request_resolution,
     session_booking_review,
     session_booking_save,
+    session_changes,
     session_postponement,
     session_read_schemas,
     session_reads,
@@ -1164,3 +1165,65 @@ def reconcile_request_resolution(request_key: UUID, request: Request):
         principal,
     ):
         return request_resolution.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/sessions/{session_id}/change-review",
+    response_model=session_changes.SessionChangeReview,
+    operation_id="reviewTrainerSessionChange",
+)
+def review_trainer_session_change(
+    session_id: UUID, kind: session_changes.ChangeKind, request: Request
+):
+    """Review only the assigned Trainer's booking and current approval requirement."""
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_changes.review(session, principal, session_id, kind)
+
+
+@router.post(
+    "/sessions/{session_id}/time-change",
+    response_model=session_changes.SessionChangeState,
+    operation_id="requestSessionTimeChange",
+)
+def request_session_time_change(
+    session_id: UUID, body: session_changes.ChangeTime, request: Request, key: RequestKey
+):
+    """Apply autonomous time changes or persist the exact supervised proposal."""
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_changes.save(session, principal, session_id, key, "time", body)
+
+
+@router.post(
+    "/sessions/{session_id}/trainer-change",
+    response_model=session_changes.SessionChangeState,
+    operation_id="requestSessionTrainerChange",
+)
+def request_session_trainer_change(
+    session_id: UUID, body: session_changes.ChangeTrainer, request: Request, key: RequestKey
+):
+    """Retain current assignment until policy permits the reviewed replacement."""
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_changes.save(session, principal, session_id, key, "trainer", body)
+
+
+@router.get(
+    "/session-changes/{request_key}",
+    response_model=session_changes.SessionChangeState,
+    operation_id="reconcileTrainerSessionChange",
+)
+def reconcile_trainer_session_change(request_key: UUID, request: Request):
+    """Recover the originating Trainer's immutable result after reassignment or transport loss."""
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_changes.reconcile(session, principal, request_key)

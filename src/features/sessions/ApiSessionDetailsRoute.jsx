@@ -5,12 +5,13 @@ import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { managesOperations } from '../../app/permissions.js'
 
-export default function ApiSessionDetailsRoute({ selectedSession, navigate, openClient }) {
+export default function ApiSessionDetailsRoute({ selectedSession, navigate, openClient, onChangeSaved }) {
   const { snapshot, services, today, refresh } = usePortalData()
   const { user, policy, sessionGeneration, serverAt, data } = snapshot
   const { activeEdit } = useEditGuard()
   const [booking, setBooking] = useState(null), [saved, setSaved] = useState(false)
   const [postponement, setPostponement] = useState(null), [postponementNotice, setPostponementNotice] = useState('')
+  const [change, setChange] = useState(null), [changeNotice, setChangeNotice] = useState('')
   const finishing = useRef(false)
   useEffect(() => {
     if (!saved || activeEdit || finishing.current) return
@@ -67,10 +68,25 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
     setSaved(true)
     return result
   }
-  return <><SessionDetailsPage readOnly postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
-    trainers={booking?.reviewed.trainers ?? data.sessionTrainers ?? data.trainers} messages={data.messages ?? []}
+  const beginRequest = async kind => {
+    const viewed = await services.reviewSessionChange({ id, kind, expectedVersion: session.version })
+    setChange(viewed)
+    return viewed
+  }
+  const requestChange = async (kind, patch) => {
+    const input = { sessionId: id, reviewed: change.reviewed, ...(kind === 'time' ? { patch } : { replacementTrainerId: patch }) }
+    const result = await services.sessionService[kind === 'time' ? 'requestTimeChange' : 'requestTrainerChange'](input)
+    const message = result.outcome === 'requested' ? 'Change requested. The booking stays unchanged until approved.' : 'Session change saved.'
+    if (onChangeSaved) onChangeSaved(message)
+    else setChangeNotice(message)
+    setSaved(true)
+    return result
+  }
+  return <><SessionDetailsPage readOnly requestEditable={Boolean(snapshot.capabilities?.sessionChangeWrites && !saved)} onBeginRequest={beginRequest} onRequestTimeChange={patch => requestChange('time', patch)} onRequestTrainerChange={id => requestChange('trainer', id)} postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
+    trainers={change?.reviewed.trainers ?? booking?.reviewed.trainers ?? data.sessionTrainers ?? data.trainers} messages={data.messages ?? []}
     onOpenClient={fullClient ? () => openClient(client.id) : canLimited && !clientBusy ? openLimited : undefined}
     onOpenTrainer={fullTrainer ? () => navigate(managesOperations(user) ? `trainers/${trainer.id}` : 'my-profile') : undefined} />
+    {changeNotice && <p role="status">{changeNotice}</p>}
     {postponementNotice && <p role="status">{postponementNotice}</p>}
     {clientError && <p role="alert">{clientError}</p>}
     <ConfirmDialog open={Boolean(canLimited && limited)} title="Session Client" hideConfirm cancelLabel="Close" onCancel={() => setLimited(null)}>

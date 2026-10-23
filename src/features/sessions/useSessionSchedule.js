@@ -5,7 +5,7 @@ import { sessionTimeChangeError } from '../../app/scheduleChanges.js'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { createUuid } from '../../utils/uuid.js'
 
-export default function useSessionSchedule({ session, policy, setActiveEditor, setDetailsError, setSaving, onBeginDetails, onSaveDetails, onRequestTimeChange, onRequestTrainerChange, onPreviewPostponement, onPostpone }) {
+export default function useSessionSchedule({ session, policy, setActiveEditor, setDetailsError, setSaving, onBeginRequest, onBeginDetails, onSaveDetails, onRequestTimeChange, onRequestTrainerChange, onPreviewPostponement, onPostpone }) {
   const confirmAction = useActionConfirmation()
   const [detailsDraft, setDetailsDraft] = useState({
     date: session.date ?? '',
@@ -21,6 +21,8 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
   })
   const [trainerRequestId, setTrainerRequestId] = useState('')
   const [postponement, setPostponement] = useState(null)
+  const requestLock = useRef(false), uncertainRequest = useRef(false)
+  const [requestUncertain, setRequestUncertain] = useState(false)
   const postponeLock = useRef(false)
   const postponementKey = useRef(null)
   const mounted = useRef(false)
@@ -50,6 +52,7 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
   }
 
   useEffect(() => {
+    if (requestLock.current || uncertainRequest.current) return
     setDetailsDraft({
       date: session.date ?? '',
       from: session.from ?? '',
@@ -107,70 +110,59 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
     }
   }
 
-  const submitTimeRequest = async () => {
-    if (!validSchedule(timeRequestDraft)) {
-      setDetailsError('Choose a valid date, start time and end time.')
-      return
-    }
-    if (!checkTimeRequest(timeRequestDraft)) return
-
-    setRequestKind(null)
-    const confirmed = await confirmAction({
-      title: 'Submit time-change request?',
-      message: 'This will either send the proposed date and time to the owner for approval or apply it immediately under trainer autonomy.',
-      confirmLabel: 'Submit Request',
-    })
-    if (!confirmed) {
-      setRequestKind('time')
-      return
-    }
-    if (!checkTimeRequest(timeRequestDraft)) {
-      setRequestKind('time')
-      return
-    }
-
-    setSaving(true)
-    setDetailsError('')
+  const openRequest = async kind => {
+    if (requestLock.current) return
+    requestLock.current = true; setSaving(true); setDetailsError('')
     try {
-      await onRequestTimeChange(timeRequestDraft)
-      setRequestKind(null)
-    } catch (failure) {
-      setRequestKind('time')
-      setDetailsError(failure.message || 'Could not complete this action. Try again.')
-    } finally {
-      setSaving(false)
-    }
+      const viewed = onBeginRequest ? await onBeginRequest(kind) : null
+      if (!mounted.current) return
+      uncertainRequest.current = Boolean(viewed?.uncertain)
+      setRequestUncertain(uncertainRequest.current)
+      if (kind === 'time') setTimeRequestDraft(viewed?.draft ?? { date: session.date ?? '', from: session.from ?? '', to: session.to ?? '' })
+      else setTrainerRequestId(viewed?.draft.replacementTrainerId ?? '')
+      setRequestKind(kind)
+    } catch (error) { if (mounted.current) setDetailsError(error.message) }
+    finally { requestLock.current = false; if (mounted.current) setSaving(false) }
   }
 
-  const submitTrainerRequest = async () => {
-    if (!trainerRequestId) {
-      setDetailsError('Choose a replacement trainer.')
-      return
+  const submitRequest = async kind => {
+    if (requestLock.current) return
+    if (!requestUncertain) {
+      if (kind === 'time' && (!validSchedule(timeRequestDraft) || !checkTimeRequest(timeRequestDraft))) {
+        if (!validSchedule(timeRequestDraft)) setDetailsError('Choose a valid date, start time and end time.')
+        return
+      }
+      if (kind === 'trainer' && !trainerRequestId) { setDetailsError('Choose a replacement trainer.'); return }
     }
-
-    setRequestKind(null)
-    const confirmed = await confirmAction({
-      title: 'Submit trainer-change request?',
-      message: 'This will either ask the owner to approve the selected replacement or apply the change immediately under trainer autonomy.',
-      confirmLabel: 'Submit Request',
-    })
-    if (!confirmed) {
-      setRequestKind('trainer')
-      return
-    }
-
-    setSaving(true)
-    setDetailsError('')
+    requestLock.current = true
     try {
-      await onRequestTrainerChange(trainerRequestId)
-      setRequestKind(null)
-    } catch (failure) {
-      setRequestKind('trainer')
-      setDetailsError(failure.message || 'Could not complete this action. Try again.')
-    } finally {
-      setSaving(false)
-    }
+      if (!requestUncertain) {
+        setRequestKind(null)
+        const confirmed = await confirmAction({
+          title: kind === 'time' ? 'Submit time-change request?' : 'Submit trainer-change request?',
+          message: kind === 'time' ? 'This will either send the proposed date and time to the owner for approval or apply it immediately under trainer autonomy.' : 'This will either ask the owner to approve the selected replacement or apply the change immediately under trainer autonomy.',
+          confirmLabel: 'Submit Request',
+        })
+        if (!mounted.current) return
+        if (!confirmed || (kind === 'time' && !checkTimeRequest(timeRequestDraft))) { setRequestKind(kind); return }
+      }
+      setSaving(true); setDetailsError('')
+      try {
+        if (kind === 'time') await onRequestTimeChange(timeRequestDraft)
+        else await onRequestTrainerChange(trainerRequestId)
+        uncertainRequest.current = false
+        if (mounted.current) { setRequestUncertain(false); setRequestKind(null) }
+      } catch (failure) {
+        uncertainRequest.current = Boolean(onBeginRequest) && !(failure.status >= 400 && failure.status < 500)
+        if (mounted.current) {
+          setRequestUncertain(uncertainRequest.current); setRequestKind(kind)
+          setDetailsError(failure.message || 'Could not complete this action. Try again.')
+        }
+      }
+    } finally { requestLock.current = false; if (mounted.current) setSaving(false) }
   }
+  const submitTimeRequest = () => submitRequest('time')
+  const submitTrainerRequest = () => submitRequest('trainer')
 
-  return { beginDetails, detailsDraft, setDetailsDraft, requestKind, setRequestKind, timeRequestDraft, setTimeRequestDraft, trainerRequestId, setTrainerRequestId, clock, timeChangeError, timeRequestError, checkTimeRequest, validSchedule, saveDetails, submitTimeRequest, submitTrainerRequest, postponement, openPostponement, submitPostponement }
+  return { openRequest, requestUncertain, beginDetails, detailsDraft, setDetailsDraft, requestKind, setRequestKind, timeRequestDraft, setTimeRequestDraft, trainerRequestId, setTrainerRequestId, clock, timeChangeError, timeRequestError, checkTimeRequest, validSchedule, saveDetails, submitTimeRequest, submitTrainerRequest, postponement, openPostponement, submitPostponement }
 }

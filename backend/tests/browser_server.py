@@ -239,6 +239,12 @@ def seed(db, settings):
         # Distinct real accounts isolate authentication rate budgets between scenarios.
         # Production rate limits remain intact; each fresh-context check still signs in via UI.
         scopes = (
+            "changetime",
+            "changetimesupervised",
+            "changetrainer",
+            "changetrainersupervised",
+            "changeloss",
+            "changestale",
             "resolveavailability",
             "resolveweekly",
             "resolvepostpone",
@@ -295,6 +301,12 @@ def seed(db, settings):
         # Dedicated project/workflow aggregates keep independent browser writers isolated.
         for project in ("desktop-chromium", "phone", "tablet"):
             for purpose in (
+                "changetime",
+                "changetimesupervised",
+                "changetrainer",
+                "changetrainersupervised",
+                "changeloss",
+                "changestale",
                 "resolveavailability",
                 "resolveweekly",
                 "resolvepostpone",
@@ -334,7 +346,7 @@ def seed(db, settings):
                     peak_rate_cents=8000,
                     off_peak_rate_cents=5500,
                 )
-                if purpose.startswith("resolve") or purpose in {
+                if purpose.startswith(("resolve", "change")) or purpose in {
                     "availability",
                     "postponeauto",
                     "postponesupervised",
@@ -354,8 +366,15 @@ def seed(db, settings):
                     )
                     cohort_trainer.user_id = account.id
                     cohort_trainer.email = account.email
-                if purpose == "postponeauto":
+                if purpose in {
+                    "postponeauto",
+                    "changetime",
+                    "changetrainer",
+                    "changeloss",
+                    "changestale",
+                }:
                     cohort_trainer.approve_session_time = False
+                    cohort_trainer.approve_session_trainer = False
                 session.add(cohort_trainer)
                 session.flush()
                 for weekday in range(7):
@@ -365,6 +384,35 @@ def seed(db, settings):
                             weekday=weekday,
                             starts_at=clock_time(8),
                             ends_at=clock_time(20),
+                        )
+                    )
+                if purpose.startswith("change"):
+                    alias = f"{project}-{purpose}-replacement"
+                    allowed_users.add(alias)
+                    replacement_user = StaffUser(
+                        name=label + " Replacement", email=f"{alias}@example.test", role="trainer"
+                    )
+                    session.add(replacement_user)
+                    session.flush()
+                    session.add(
+                        StaffIdentity(
+                            user_id=replacement_user.id,
+                            issuer=settings.cognito_issuer,
+                            subject=f"browser-{alias}",
+                            provider_username=alias,
+                        )
+                    )
+                    session.add(
+                        Trainer(
+                            name=replacement_user.name,
+                            email=replacement_user.email,
+                            user_id=replacement_user.id,
+                            gender="Other",
+                            phone_country_code="+65",
+                            phone_number="91234568",
+                            trainer_type="Strength",
+                            peak_rate_cents=8000,
+                            off_peak_rate_cents=5500,
                         )
                     )
                 cohort_person = person(label)
