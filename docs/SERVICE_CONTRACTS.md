@@ -158,13 +158,18 @@ Applied migrations are immutable. Additive schema changes must tolerate existing
 
 ### Milestones and retained acceptance criteria
 
-The [full milestone roadmap in Progress](../PROGRESS.md#full-milestone-roadmap) owns M0–M9 scope, current status and milestone exit criteria. This section owns the cross-cutting acceptance requirements. The 55-operation matrix does not replace later event/media, public-site, staging or launch acceptance.
+The [full milestone roadmap in Progress](../PROGRESS.md#full-milestone-roadmap) owns M0–M10 scope, current status and milestone exit criteria. This section owns the cross-cutting acceptance requirements. The 55-operation matrix does not replace later event/media, public-site, staging or launch acceptance.
 
 The staff-portal goal is all 55 matrix operations, plus authentication and route parity. Completion needs durable behavior, server permissions, prototype parity and meaningful real-database evidence, not an endpoint or API-enabled flag. Shared data must survive reload, sign-out, another browser/device and service restart. Conflict, idempotency and unknown-write recovery must preserve intent and exactly-once effects. Equivalent data must demonstrate layout, navigation, filters, pagination, Back behavior, accessibility and responsive parity without fabricated schedules or missing workflows.
 
 All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in Part 2; no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
 
 ## Part 2 — Dated changes and evidence
+
+### 23 October 2026 — Add M10 operational hardening and observability
+
+The user adds M10 to the active Progress roadmap for Grafana/observability, migration/recovery, backups and related engineering hardening. Existing H1–H7 tasks become its work packages, retaining dependencies, acceptance evidence and rollout boundaries. M8/M9 launch-critical security and recovery requirements remain prerequisites; M10 is planned and does not authorize tooling activation, paid services or production operations. Architecture links these planned capabilities to M10 without duplicating its task ledger.
+
 
 ### 23 October 2026 — Restore the active milestone roadmap
 

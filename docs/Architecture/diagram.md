@@ -2,7 +2,7 @@
 
 [One-page explanation](README.md) · [Current rules](../SERVICE_CONTRACTS.md#part-1--current-system-rules) · [Implementation status and backlog](../../PROGRESS.md)
 
-Solid connections describe existing source responsibilities or the selected hosting topology; they do not certify deployment. Dashed connections and **Planned** labels identify future work. No diagram authorizes provisioning, paid ingestion or production testing.
+Solid connections describe existing source responsibilities or the selected hosting topology; they do not certify deployment. Dashed connections and **Planned** labels identify future work. Planned hardening belongs to [M10](../../PROGRESS.md#m10-work-packages--planned); launch-critical checks remain required before launch. No diagram authorizes provisioning, paid ingestion or production testing.
 
 ## Application, delivery and planned operations
 
@@ -26,7 +26,7 @@ flowchart TB
     Supply["Planned: Dependabot, vulnerability triage, SBOM and provenance assessment"]
     Security["Planned: secret scanning, static security analysis and rate-limit hardening"]
   end
-  subgraph Operations["Planned observability and operations"]
+  subgraph Operations["M10: planned observability and operations"]
     OTel["OpenTelemetry: correlated traces, metrics and structured logs"]
     Privacy["Redaction, sampling, retention and cost controls"]
     Grafana["Grafana: dashboards, SLOs and actionable alerts"]
@@ -93,7 +93,7 @@ flowchart TB
     Forms["Assessment paper-form parity"]
     Build["Build and PWA verification"]
   end
-  subgraph Future["Planned suites and maintenance gates"]
+  subgraph Future["M10: planned suites and maintenance gates"]
     Mutation["Mutation: critical JS and Python rules; surviving-mutant review"]
     Performance["Performance: p50/p95/p99, throughput, errors, resources and browser vitals"]
     Resilience["Expanded resilience: rate limits, provider faults, restart and interrupted writes"]

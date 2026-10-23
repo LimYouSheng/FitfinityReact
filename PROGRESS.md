@@ -39,8 +39,9 @@ This is the current roadmap owner. Original numbering is retained, including the
 | **M7 — Durable events and media processing** | Pending full acceptance | Backend events and scheduled notifications; protected cloud media processing, transcoding, captions and retention; any agreed real messaging integration. | Production event/media behavior no longer depends on an open browser. Durable delivery/retry/cleanup and failure recovery are evidenced; real-provider actions require separate authorization and actual delivery evidence. M6.5 API integration alone does not close M7. |
 | **Public/client-facing website — after staff portal** | Pending after portal | Approved public pages, Glofox purchase handoff, website content management and agreed member access. Keep this deliverable separate without renumbering M6/M7. | Owner acceptance of design/content/mobile behavior, routes and handoffs, agreed entitlement checks and an authorized publishing receipt. |
 | **M8 / M9 — Staging, UAT and launch** | Pending full acceptance | Retained sequence: production-like staging and Owner/Trainer UAT, then launch, monitoring, backups and operating procedures. | Environment-specific UAT and release evidence, reviewed deployment/recovery, monitoring and backup/restore readiness; no launch claim from source CI or the demo. Detailed execution remains separately scoped and authorized. |
+| **M10 — Operational hardening and observability** | Planned; not implemented or accepted as a milestone | OpenTelemetry/Grafana, SLOs/alerts, mutation and performance testing, Dependabot/supply-chain and security maintenance, safe migrations, rollback/recovery, backup/restore drills, synthetic monitoring, incident response and capacity/cost controls. | Complete the H1–H7 work packages below with measured baselines, justified gates, tested redaction/export controls, reviewed dependency updates, populated migration/restore exercises and measured RPO/RTO. Record operational ownership and environment-specific acceptance; separately authorize paid services and production activation. |
 
-The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; no new numbering or completed acceptance is inferred. Hardening tasks below support these milestones without independently closing them.
+The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; their scope remains unchanged. M10 is the newly requested milestone and owns the H1–H7 hardening backlog. Its numbering does not defer launch-critical security, backup, migration or recovery checks required by M8/M9. Local/source preparation can proceed earlier when dependencies are ready; production activation remains separately authorized.
 
 ## Remaining work
 
@@ -52,9 +53,9 @@ Follow the milestone roadmap above; M6 remains in progress. Priorities below sel
 4. Follow the matrix through remaining plans/outcomes/summaries/acknowledgement/credits, assessment/report/media, messaging/Undo/remuneration/content/profile gaps. Do not redo accepted operations.
 5. Prepare separate release/provider/restart/device acceptance; public website and its content management follow staff-portal completion.
 
-### Engineering hardening — planned
+### M10 work packages — planned
 
-This is the only task ledger. Priorities below follow integrated-operation evidence; introduce tools only in a scoped implementation task. No paid services, AWS changes or deployment are authorized merely by this list.
+M10 depends on stable domain contracts and isolated test evidence; environment-specific rollout also depends on the relevant M8/M9 release preparation. This is the only task ledger. Priorities below follow integrated-operation evidence; introduce tools only in a scoped implementation task. No paid services, AWS changes or deployment are authorized merely by this list.
 
 | ID / priority | Scope | Dependencies | Acceptance evidence | Rollout boundary |
 | --- | --- | --- | --- | --- |
