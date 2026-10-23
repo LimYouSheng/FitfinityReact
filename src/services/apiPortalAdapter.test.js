@@ -223,3 +223,35 @@ it('does not accept malformed package evidence or resend an uncertain command', 
   expect(await adapter.invoke(savePackageRequest())).toMatchObject({ total: 18 })
   expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1)
 })
+
+it.each([false, true])('post-write refresh cannot reuse a snapshot begun before the write (lost response: %s)', async lost => {
+  let releaseOld, signalStarted, directoryReads = 0, writes = 0
+  const started = new Promise(resolve => { signalStarted = resolve })
+  const fetch = vi.fn(async (url, options) => {
+    if (url.endsWith('/auth/policy')) return jsonResponse(authPolicy)
+    if (url.endsWith('/me')) return jsonResponse(sessionInfo())
+    if (url.endsWith('/api/directory')) {
+      if (++directoryReads === 1) return new Promise(resolve => { releaseOld = () => resolve(jsonResponse(emptyDirectory())); signalStarted() })
+      return jsonResponse({ ...emptyDirectory(), packages: [packageRecord] })
+    }
+    if (options.method === 'POST' && url.endsWith('/api/packages')) {
+      writes++
+      if (lost) throw new Error('Lost committed response')
+      return jsonResponse(packageRecord)
+    }
+    throw new Error(`Unexpected request: ${url}`)
+  })
+  const services = createPortalServices(make(fetch))
+  const beforeWrite = services.load()
+  await started
+  const save = services.packageService.save({ draft: packageDraft })
+  if (lost) await expect(save).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  else await expect(save).resolves.toMatchObject({ id: packageRecord.id })
+  const afterWrite = services.load()
+  releaseOld()
+  const [old, fresh] = await Promise.all([beforeWrite, afterWrite])
+  expect(old.data.packages).toEqual([])
+  expect(fresh.data.packages).toEqual([expect.objectContaining({ id: packageRecord.id, name: packageRecord.name })])
+  expect(directoryReads).toBe(2)
+  expect(writes).toBe(1)
+})

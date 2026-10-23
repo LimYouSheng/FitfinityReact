@@ -96,39 +96,9 @@ def save(session, principal, identity, key, body):
     changed = validate_change(session, view, booking, trainers, pending, body)
     message_id = None
     if changed:
-        session.add(
-            SessionEvent(
-                session_id=booking.id,
-                session_version=booking.version,
-                kind="session_details",
-                note="Session date, time or assigned Trainer changed.",
-                old_date=booking.training_date,
-                new_date=date.fromisoformat(body.date),
-                old_start=booking.starts_at,
-                old_end=booking.ends_at,
-                new_start=time.fromisoformat(body.startsAt),
-                new_end=time.fromisoformat(body.endsAt),
-                old_trainer_id=booking.trainer_id,
-                new_trainer_id=body.trainerId,
-                actor_id=principal.user_id,
-                actor_name=principal.name,
-            )
+        message_id = apply_booking(
+            session, principal, booking, client, purchase, bookings, trainers, body
         )
-        if booking.schedule_state == "open":
-            booking.session_number = 1 + sum(row.schedule_state == "booked" for row in bookings)
-        booking.schedule_state = "booked"
-        booking.training_date = date.fromisoformat(body.date)
-        booking.starts_at, booking.ends_at = (
-            time.fromisoformat(body.startsAt),
-            time.fromisoformat(body.endsAt),
-        )
-        booking.trainer_id = body.trainerId
-        booking.version += 1
-        client.version += 1
-        purchase.version += 1
-        renumber_purchase(session, purchase.id)
-        trainer = next(t for t in trainers if t.id == body.trainerId)
-        message_id = notify(session, principal, booking, client, trainer)
     session.flush()
     result = SessionBookingState(
         session=position(booking),
@@ -152,3 +122,41 @@ def save(session, principal, identity, key, body):
         )
     )
     return result
+
+
+def apply_booking(session, principal, booking, client, purchase, bookings, trainers, body):
+    """Apply an already validated change inside the caller-owned transaction."""
+    session.add(
+        SessionEvent(
+            session_id=booking.id,
+            session_version=booking.version,
+            kind="session_details",
+            note="Session date, time or assigned Trainer changed.",
+            old_date=booking.training_date,
+            new_date=date.fromisoformat(body.date),
+            old_start=booking.starts_at,
+            old_end=booking.ends_at,
+            new_start=time.fromisoformat(body.startsAt),
+            new_end=time.fromisoformat(body.endsAt),
+            old_trainer_id=booking.trainer_id,
+            new_trainer_id=body.trainerId,
+            actor_id=principal.user_id,
+            actor_name=principal.name,
+        )
+    )
+    if booking.schedule_state == "open":
+        booking.session_number = 1 + sum(row.schedule_state == "booked" for row in bookings)
+    booking.schedule_state = "booked"
+    booking.training_date = date.fromisoformat(body.date)
+    booking.starts_at, booking.ends_at = (
+        time.fromisoformat(body.startsAt),
+        time.fromisoformat(body.endsAt),
+    )
+    booking.trainer_id = body.trainerId
+    booking.version += 1
+    client.version += 1
+    purchase.version += 1
+    renumber_purchase(session, purchase.id)
+    trainer = next(t for t in trainers if t.id == body.trainerId)
+    message_id = notify(session, principal, booking, client, trainer)
+    return message_id

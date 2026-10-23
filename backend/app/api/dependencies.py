@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from uuid import UUID
 
 from fastapi import Request
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.api.purchase_activation import activate_due
 from app.auth.errors import expired
@@ -15,7 +15,7 @@ from app.models.people import StaffIdentity, StaffUser, Trainer
 
 
 @contextmanager
-def authorized_transaction(request: Request, *, exclusive_user=False):
+def authorized_transaction(request: Request, *, exclusive_user=False, advisory_lock=None):
     auth = request.app.state.auth
     handle = _handle(request, csrf=request.method == "POST")
     _, verified = auth.principal(handle)
@@ -25,6 +25,10 @@ def authorized_transaction(request: Request, *, exclusive_user=False):
     with auth.db.transaction() as maintenance:
         activate_due(maintenance)
     with auth.db.transaction() as session:
+        # Competing request decisions serialize before actor/Trainer row locks. Taking
+        # this later could deadlock cancellation against approval's domain locks.
+        if advisory_lock is not None:
+            session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": advisory_lock})
         # Identity/status writers lock their row before invalidating AuthAccount. Match that
         # order, then hold the account barrier through the business commit. No AWS calls here.
         user = session.scalar(

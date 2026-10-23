@@ -16,6 +16,8 @@ from app.models.api import RequestCancellationReceipt
 from app.models.communications import ChangeRequest, Message, MessageReceipt, RequestEvent
 from app.models.people import StaffUser
 
+DECISION_LOCK = 714602045
+
 
 class CancelRequest(Contract):
     expectedVersion: StrictInt = Field(ge=1)
@@ -40,7 +42,7 @@ def allowed(principal):
 
 
 def receipt(session, principal, key):
-    session.execute(text("SELECT pg_advisory_xact_lock(714602045)"))
+    session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DECISION_LOCK})
     return session.scalar(
         select(RequestCancellationReceipt).where(
             RequestCancellationReceipt.actor_id == principal.user_id,

@@ -239,6 +239,11 @@ def seed(db, settings):
         # Distinct real accounts isolate authentication rate budgets between scenarios.
         # Production rate limits remain intact; each fresh-context check still signs in via UI.
         scopes = (
+            "resolveavailability",
+            "resolveweekly",
+            "resolvepostpone",
+            "resolveloss",
+            "resolvestale",
             "postpone",
             "postponeloss",
             "postponeauto",
@@ -290,6 +295,11 @@ def seed(db, settings):
         # Dedicated project/workflow aggregates keep independent browser writers isolated.
         for project in ("desktop-chromium", "phone", "tablet"):
             for purpose in (
+                "resolveavailability",
+                "resolveweekly",
+                "resolvepostpone",
+                "resolveloss",
+                "resolvestale",
                 "postpone",
                 "postponeloss",
                 "postponeauto",
@@ -324,7 +334,11 @@ def seed(db, settings):
                     peak_rate_cents=8000,
                     off_peak_rate_cents=5500,
                 )
-                if purpose in {"availability", "postponeauto", "postponesupervised"}:
+                if purpose.startswith("resolve") or purpose in {
+                    "availability",
+                    "postponeauto",
+                    "postponesupervised",
+                }:
                     alias = f"{project}-{purpose}"
                     allowed_users.add(alias)
                     account = StaffUser(name=label, email=f"{alias}@example.test", role="trainer")

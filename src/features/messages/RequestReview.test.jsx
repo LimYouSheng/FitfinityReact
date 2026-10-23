@@ -67,3 +67,16 @@ it('API unknown cancellation offers explicit checking without another confirmati
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Cancel Request' })).not.toBeInTheDocument()
 })
+
+it.each([['approved', 'Approve Request', 'Check Approval', 'Reject Request'], ['rejected', 'Reject Request', 'Check Rejection', 'Approve Request']])('retains an uncertain %s decision and its reviewed version', async (decision, label, check, opposite) => {
+  const resolve = vi.fn().mockRejectedValueOnce(new Error('Response interrupted')).mockResolvedValue({ status: decision })
+  const view = render(<ActionConfirmationProvider><RequestReview message={{ ...message, requestVersion: 1 }} trainers={[]} sessions={[]} onResolve={resolve} /></ActionConfirmationProvider>)
+  await userEvent.click(screen.getByRole('button', { name: label }))
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: label }))
+  expect(await screen.findByRole('button', { name: opposite })).toBeDisabled()
+  view.rerender(<ActionConfirmationProvider><RequestReview message={{ ...message, requestVersion: 2 }} trainers={[]} sessions={[]} onResolve={resolve} /></ActionConfirmationProvider>)
+  await userEvent.click(screen.getByRole('button', { name: check }))
+  expect(resolve.mock.calls).toEqual([['r1', decision, 1], ['r1', decision, 1]])
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: opposite })).not.toBeInTheDocument()
+})

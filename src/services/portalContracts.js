@@ -71,7 +71,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     markUnread: contract({ 'id': 'string', 'expectedVersion?': 'number' }, 'message', 'PersonalMessage | MessageReadState', true),
   }),
   requestService: Object.freeze({
-    resolve: contract({ 'id': 'string', 'decision': 'string' }, 'operations', 'Message'),
+    resolve: contract({ 'id': 'string', 'decision': 'string', 'expectedVersion?': 'number' }, 'operations', 'Message | RequestResolutionState', true),
     cancel: contract({ 'id': 'string', 'expectedVersion?': 'number' }, 'authenticated', 'Message | CancellationState', true),
   }),
   remunerationService: Object.freeze({

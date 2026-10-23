@@ -29,14 +29,14 @@ Errors retain a readable message and stable error code. Session expiry clears pr
 - Purchased package terms are immutable snapshots. Standard validity is 12 sessions/90 days, 24/180 and 36/270; inclusive end is start plus validity minus one. Catalogue edits do not rewrite purchased/custom terms, used credits or prior evidence.
 - Add Client/Add Package share the reviewed matching wizard: Continue/Back/Edit do not persist. Revalidate active/versioned package, preference, availability, full cadence, validity and client/Trainer conflicts at final save. Queued purchases do not overlap existing eligible purchase validity and activate in Singapore business time under the retained lifecycle rules.
 - Open sessions have stable identity but no date/time or chronological session number. Scheduling preserves purchase identity, purchased validity and credits. Postponement returns only the eligible target to Open; subsequent positions may change without moving other bookings. Scheduling reads do not complete scheduling writes.
-- Supervised Trainer changes require an Owner decision; autonomous changes still require current assignment, policy and conflicts. Permanent reassignment and fixed weekly edits retain their separate scopes and reviewed evidence.
+- Supervised Trainer changes require an Owner/Admin operations decision; autonomous changes still require current assignment, policy and conflicts. Permanent reassignment and fixed weekly edits retain their separate scopes and reviewed evidence.
 - Completed/acknowledged evidence is immutable under its domain rules. Acknowledgement and package Add/Deactivate do not have generic Undo. The distinct Delete Upcoming Sessions action retains its permitted 24-hour reversal without reactivating the purchase. Reactivation preserves expiry, credits and completed history and does not recreate deleted sessions.
 - Plans, outcomes, summaries, credit accounting, remuneration, reports and media require their own durable workflows; database models alone do not complete them. Never fabricate WhatsApp/native-share sent or delivered states.
 - Preserve approved prototype appearance, navigation and workflow parity. Account-scoped Back/Forward/view state uses one navigation owner; editable drafts stay local and guarded. Client/person, couple identity, onboarding fields, signatures and detailed display decisions are retained in the [product decision history](history/rules-and-architecture-2026-10-23.md#frontend-architecture); later explicit decisions take precedence.
 
 ## Domain operation inventory
 
-**27/55 accepted in merged source: 26 server-connected and one local predicate.** Trainer update is partial; 27 operations are not yet accepted; three scheduling operations have unmerged candidates. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
+**30/55 accepted in merged source: 29 server-connected and one local predicate.** 25 remain unaccepted, including partial Trainer update. Request resolution is an unmerged candidate. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
 
 Each connected server row names actual PostgreSQL/HTTP and real-API browser evidence owners. Browser scenarios can cover several operations. Simulator tests supplement these tests; they do not establish persistence. Local execution uses temporary Docker PostgreSQL, synthetic records and a local signed-token Cognito substitute. Real Cognito, restart, physical devices and deployment acceptance remain separate.
 
@@ -69,12 +69,12 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `trainerService.updateAutonomy` | Connected | Owner/Admin only | [`test_trainer_approvals.py`](../backend/tests/test_trainer_approvals.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `trainerService.deactivate` | Connected | Owner/Admin only; all remaining active-client/purchase sessions require available replacements | [`test_trainer_deactivation.py`](../backend/tests/test_trainer_deactivation.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `trainerService.reactivate` | Connected | Owner/Admin | [`test_trainer_reactivation.py`](../backend/tests/test_trainer_reactivation.py); [`records.spec.js`](../tests-api/records.spec.js) |
-| `sessionService.previewPostponement` | Candidate; acceptance pending | session | [backend](../backend/tests/test_session_postponement_api.py); [browser](../tests-api/session-postponement.spec.js); see Progress |
-| `sessionService.postpone` | Candidate; acceptance pending | session | [backend](../backend/tests/test_session_postponement_api.py); [browser](../tests-api/session-postponement.spec.js); see Progress |
+| `sessionService.previewPostponement` | Connected | session | [backend](../backend/tests/test_session_postponement_api.py); [browser](../tests-api/session-postponement.spec.js); see Progress |
+| `sessionService.postpone` | Connected | session | [backend](../backend/tests/test_session_postponement_api.py); [browser](../tests-api/session-postponement.spec.js); see Progress |
 | `sessionService.loadVideo` | Missing | session | Pending API acceptance |
 | `sessionService.saveVideo` | Missing | session | Pending API acceptance |
 | `sessionService.removeVideo` | Missing | session | Pending API acceptance |
-| `sessionService.updateDetails` | Candidate; acceptance pending | operationsSession | [backend](../backend/tests/test_session_booking_api.py); [browser](../tests-api/session-booking.spec.js); see Progress |
+| `sessionService.updateDetails` | Connected | operationsSession | [backend](../backend/tests/test_session_booking_api.py); [browser](../tests-api/session-booking.spec.js); see Progress |
 | `sessionService.requestTimeChange` | Missing | session | Pending API acceptance |
 | `sessionService.requestTrainerChange` | Missing | session | Pending API acceptance |
 | `sessionService.saveExercisePlan` | Missing | session | Pending API acceptance |
@@ -92,7 +92,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `messageService.undo` | Missing | message | Pending API acceptance |
 | `messageService.markRead` | Connected | current message visibility; independent recipient state | [`test_message_api.py`](../backend/tests/test_message_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `messageService.markUnread` | Connected | current message visibility; independent recipient state | [`test_message_api.py`](../backend/tests/test_message_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
-| `requestService.resolve` | Missing | operations | Pending API acceptance |
+| `requestService.resolve` | Candidate; final API acceptance pending | Owner/Admin; atomic current-state approval or rejection | [`test_request_resolution.py`](../backend/tests/test_request_resolution.py); [`request-resolution.spec.js`](../tests-api/request-resolution.spec.js); not accepted main |
 | `requestService.cancel` | Connected | active requesting Trainer | [`test_request_cancellation.py`](../backend/tests/test_request_cancellation.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `remunerationService.list` | Missing | remuneration | Pending API acceptance |
 | `remunerationService.detail` | Missing | remuneration | Pending API acceptance |

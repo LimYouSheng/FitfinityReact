@@ -197,12 +197,14 @@ function StaffPortal({ navigation }) {
     clients,
     trainers,
     sessions,
-    onResolveRequest: async (id, decision) => {
-      await runAction(() => requestService.resolve({ id, decision }), {
+    onResolveRequest: async (id, decision, expectedVersion) => {
+      const message = messages.find(row => row.id === id)
+      const result = await runAction(() => requestService.resolve({ id: directoryOnly ? message?.requestId : id, decision, ...(directoryOnly ? { expectedVersion: expectedVersion ?? message?.requestVersion } : {}) }), {
         tone: decision === 'approved' ? 'success' : 'warning',
         message: decision === 'approved' ? 'Request approved.' : 'Request rejected.',
       })
-      await reload()
+      try { await reload() } catch { notify({ tone: 'warning', message: 'Decision saved. Refresh to update the request list.' }) }
+      return result
     },
     onCancelRequest: async id => {
       const result = await runAction(() => requestService.cancel({ id, ...(directoryOnly ? { expectedVersion: messages.find(message => message.requestId === id)?.requestVersion } : {}) }), { message: 'Request cancelled.' })
@@ -352,10 +354,10 @@ function StaffPortal({ navigation }) {
       />
     )
   } else if (route === 'messages') {
-    page = directoryOnly && snapshot.requestCancellationPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/cancellation`} pending={snapshot.requestCancellationPending} services={services} cancellation /> : directoryOnly && snapshot.renewalDismissalPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/renewal`} pending={snapshot.renewalDismissalPending} services={services} renewal /> : directoryOnly && snapshot.messageReadPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.messageReadPending} services={services} /> : (
+    page = directoryOnly && snapshot.requestResolutionPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/resolution`} pending={snapshot.requestResolutionPending} services={services} resolution /> : directoryOnly && snapshot.requestCancellationPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/cancellation`} pending={snapshot.requestCancellationPending} services={services} cancellation /> : directoryOnly && snapshot.renewalDismissalPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/renewal`} pending={snapshot.renewalDismissalPending} services={services} renewal /> : directoryOnly && snapshot.messageReadPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.messageReadPending} services={services} /> : (
       <MessagesPage
         {...messageInboxProps}
-        {...(directoryOnly ? { onResolveRequest: undefined, ...(!snapshot.capabilities.requestCancellationWrites ? { onCancelRequest: undefined } : {}), onUndo: undefined, ...(!snapshot.capabilities.renewalDismissalWrites ? { onDismissRenewal: undefined } : {}) } : {})}
+        {...(directoryOnly ? { ...(!snapshot.capabilities.requestResolutionWrites ? { onResolveRequest: undefined } : {}), ...(!snapshot.capabilities.requestCancellationWrites ? { onCancelRequest: undefined } : {}), onUndo: undefined, ...(!snapshot.capabilities.renewalDismissalWrites ? { onDismissRenewal: undefined } : {}) } : {})}
         category={MESSAGE_CATEGORIES.some(item => item.key === detailId && (item.key !== 'remuneration' || canViewRemuneration(user))) ? detailId : 'all'}
         onCategoryChange={category => navigate(category === 'all' ? 'messages' : `messages/${category}`, { preserveView: true })}
       />
