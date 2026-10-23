@@ -578,3 +578,23 @@ it('API package reactivation retains its reviewed confirmation when background p
   expect(workflow.save).toHaveBeenCalledWith({ id: client.id, reviewed, dates: {} })
   expect(workflow.saved).not.toHaveBeenCalled()
 })
+
+it('remote onboarding preserves an explicit non-default trainer when matching settles', async () => {
+  const trainers = seed.trainers.slice(0, 2).map(t => ({ ...t, version: 1 }))
+  const packageDraft = { clientName: 'Selected trainer', clientId: 'c1', packageId: 'package-12',
+    startDate: '2027-06-07', sessionsPerWeek: 1, genderPreference: 'No gender preference', trainerId: '',
+    clientPreferences: [{ days: ['Monday'], from: '18:00', to: '19:00' }] }
+  const preview = vi.fn(async () => trainers.map(trainer => ({ trainerId: trainer.id, trainerVersion: 1,
+    matches: 1, total: 1, schedule: [{ day: 'Monday', from: '18:00', to: '19:00' }] })))
+  render(<ClientOnboardingForm user={owner} packageDraft={packageDraft} packages={seed.packages}
+    trainers={trainers} policy={seed.settings} previewMatches={preview} onCreate={vi.fn()} onCancel={vi.fn()} />, { wrapper: Wrapper })
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Client Availability' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Trainer Matching' }))
+  const select = await screen.findByRole('combobox', { name: 'Matched trainer' })
+  await waitFor(() => expect(within(select).getByRole('option', { name: trainers[1].name })).toBeInTheDocument())
+  fireEvent.change(select, { target: { value: trainers[1].id } })
+  await waitFor(() => expect(select).toHaveValue(trainers[1].id))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to Review & Confirm' }))
+  expect(await screen.findByRole('heading', { name: 'Review & Confirm', exact: true })).toBeVisible()
+  expect(screen.getByText(trainers[1].name, { exact: true })).toBeVisible()
+})

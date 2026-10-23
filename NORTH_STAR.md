@@ -34,7 +34,7 @@ Preserve Owner/Admin-only access to the initial 11 assessment forms; YS authoriz
 
 ## Preserved deployment and limits
 
-Current deployed source is `b3a97897bc733c2ddbbbd17a40c1407b2a506649`, frontend release 38311509067, deployment 38340492199, artifact 11788346033, ZIP SHA-256 `4e181227297a1585499fc83348d996ee35e6aaead08ed7c75dbe0f4b0e53fd9a`. Forty-one frontend files, public health/readiness and signed-out rejection were verified at https://d21430zmxp3m5m.cloudfront.net. YS reported Owner login after an account-specific MFA correction. The application repair is not deployed; historical logs do not identify every rejection cause.
+Last recorded frontend deployment (not reverified in this task) is source `b3a97897bc733c2ddbbbd17a40c1407b2a506649`, frontend release 38311509067, deployment 38340492199, artifact 11788346033, ZIP SHA-256 `4e181227297a1585499fc83348d996ee35e6aaead08ed7c75dbe0f4b0e53fd9a`. Forty-one frontend files, public health/readiness and signed-out rejection were verified at https://d21430zmxp3m5m.cloudfront.net. YS reported Owner login after an account-specific MFA correction. The application repair is not deployed; historical logs do not identify every rejection cause.
 
 Preserve the database, Cognito pool, Owner, successful edge and retained buckets. Completed deletion/replacement preparation/first-create execution are historical and must not be replayed. New backend bytes require a new reviewed image and appropriate update path; prior image/runtime proof cannot represent them.
 

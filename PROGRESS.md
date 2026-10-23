@@ -4,20 +4,20 @@
 
 Verified GitHub main is `df9cbbb75373eb7e57b31187eeb93077ea35cec8` (PR58). The restored checkout was clean but stale at `8945ca1`; fetched main and created `test/integrated-real-api-postgres` in the existing checkout. No unknown edits were discarded. Node24.19.0, Python3.12.14 and Docker28.4.0 are available; restored dependency/image receipts require input checks before reuse.
 
-**27/55 source-complete: 26 server-connected operations plus one local predicate.** Trainer update remains partial and 27 other operations are incomplete. [Service Contracts](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) owns the only operation matrix. Reconciliation: its 25 connected rows plus the local predicate previously excluded Trainer deactivation; PR55's final CI subsequently passed and it merged. PR57 includes fixed weekly scheduling and session reads. Read routes do not add named operations. Counts of endpoints or browser cases are different inventories.
+**27/55 integrated in merged source: 26 server-connected operations plus one local predicate.** Trainer update remains partial and 27 other operations are incomplete. [Service Contracts](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) owns the only operation matrix. Reconciliation: its 25 connected rows plus the local predicate previously excluded Trainer deactivation; PR55's final CI subsequently passed and it merged. PR57 includes fixed weekly scheduling and session reads. Read routes do not add named operations. Counts of endpoints or browser cases are different inventories.
 
 | Acceptance level | Verified evidence / limit |
 | --- | --- |
 | Implemented / merged | PR55 (including54), PR57 (including56), PR58 merged; main above |
 | Final PR CI | [PR55 run38476697547](https://github.com/LimYouSheng/FitfinityReact/actions/runs/38476697547), [PR57 run38820138715](https://github.com/LimYouSheng/FitfinityReact/actions/runs/38820138715), [PR58 run38834044790](https://github.com/LimYouSheng/FitfinityReact/actions/runs/38834044790) succeeded; PR58 includes frontend/backend/api-browser |
-| Real API browser | Baseline12/12 covers catalogue lifecycle/retry/roles and assigned session reads; not comprehensive coverage of all integrated operations |
-| Backend | Existing PostgreSQL/HTTP tests cover integrated domains; current expected full inventory966; new matching-source run pending |
+| Real API browser | Candidate desktop21/21 passed after the onboarding selection fix, using isolated PostgreSQL per worker. Full63-case acceptance remains blocked pending final CI; prior local isolated run53/63 retained unresolved WebKit failures |
+| Backend | Full local gate passed970/970 backend and633/633 offline infrastructure cases. Subsequent worker-isolation harness changes passed13/13 focused tests; candidate backend inventory975 requires final-head CI |
 | Simulator / demo | 18 HTTP simulator spec files; existing browser inventory1152. These do not prove browser→FastAPI→PostgreSQL persistence |
-| Current candidate | Documentation refactor in progress; no new final-head CI or merge claimed |
+| Current candidate | Documentation ownership/backlog refactor committed locally as `e433661`; operation evidence map and63-case real-browser expansion are prepared for draft PR validation; no new final-head CI or merge claimed |
 | Independent main CI | Historical ECR429 reported in handoff; connector returned no main-SHA runs during this audit. Do not infer a pass or repair |
 | Deployment / provider | No AWS query or deployment this task. Retained runbook source/image remains historical; new integrations are not live-accepted |
 
-Draft [PR59](https://github.com/LimYouSheng/FitfinityReact/pull/59) removes one historical fixture and updates the old ledger; head `01ef52916ca576cad3ebd76e5253b06127759620`, CI39881298542 was in progress when inspected. Preserve its intended cleanup; reconcile its ledger when integrating. Do not approve obsolete image workflow78 to unblock a queue.
+Draft [PR59](https://github.com/LimYouSheng/FitfinityReact/pull/59) removes one historical fixture and updates the old ledger; head `01ef52916ca576cad3ebd76e5253b06127759620`, CI39881298542 now has successful frontend/backend jobs but its api-browser job was cancelled during browser installation; that is not complete final-head acceptance. Preserve its intended cleanup; reconcile its ledger when integrating. Do not approve obsolete image workflow78 to unblock a queue.
 
 ## Active sequence and acceptance
 
@@ -30,6 +30,14 @@ Draft [PR59](https://github.com/LimYouSheng/FitfinityReact/pull/59) removes one 
 | 3 | Plans/outcomes/summary/acknowledgement/credits | Scheduling dependencies | Durable histories, finality and exactly-once credit evidence |
 | 4 | Remaining assessment/report/media and messaging/Undo/remuneration/profile gaps | Relevant owning operations | Permission, storage/recovery and full workflow evidence; Trainer email verification remains required |
 | 5 | Release and live acceptance | Tested merged source; reviewed deployment plan | Separate authorization for AWS/image/provider actions; real Cognito, restart/recovery and devices distinct |
+
+## Candidate validation and remaining work
+
+- Docker test and runtime builds passed locally with the environment's public CA trust configuration. Test image omits the Lambda adapter; runtime retains it, UID10001 and the existing launch command, and excludes test code. No image was published.
+- Every connected matrix row now links its real PostgreSQL/HTTP test owners. The local directory predicate has23 passing directory-unit cases, including its role variants; it is not a database operation.
+- Browser candidate:21 scenarios across three projects (63 cases). Readiness/responsive navigation fixes and deterministic real-response-loss injection addressed browser harness failures. The next run passed62/63, exposing a legitimate stale Trainer-catalogue review from unrelated parallel tests. Worker-specific databases now isolate those scenarios without changing concurrency or relaxing conflicts; the isolated run finished53/63. It exposed an onboarding default-selection race (candidate fix and form regression added) and unresolved WebKit reload/fresh-context stalls with automation-context warnings. These failures remain failures; the final desktop run passed21/21 after the selection fix; full CI remains pending. Failure traces remain outside the checkout under `/workspace/work/fitfinity-handoff/`; temporary diagnostics were removed.
+- Full unit gate1248/1248 in128 files passed after the onboarding selection fix; lint456 files, health222 reachable runtime modules and47 quality-checker tests passed. Temporary diagnostics are removed. Final frontend/backend/api-browser CI remains required.
+- The backend harness rejects non-isolated database URLs before connecting. All data is synthetic, Compose projects/databases are temporary, Cognito signing/provisioning/delivery are local substitutes, and no production PostgreSQL/AWS resources are used.
 
 ## Engineering-hardening backlog (planned, not provisioned)
 
