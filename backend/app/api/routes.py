@@ -30,6 +30,7 @@ from app.api import (
     packages,
     renewal_dismissal,
     request_cancellation,
+    request_resolution,
     session_booking_review,
     session_booking_save,
     session_postponement,
@@ -760,7 +761,10 @@ def cancel_owned_request(
     request_id: UUID, body: request_cancellation.CancelRequest, request: Request, key: RequestKey
 ):
     """Withdraw only this active Trainer's reviewed pending proposal."""
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return request_cancellation.save(session, principal, request_id, key, body)
 
 
@@ -771,7 +775,10 @@ def cancel_owned_request(
 )
 def reconcile_request_cancellation(request_key: UUID, request: Request):
     """Return only this actor's original cancellation receipt."""
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return request_cancellation.reconcile(session, principal, request_key)
 
 
@@ -1127,3 +1134,33 @@ def reconcile_session_postponement(request_key: UUID, request: Request):
     """Recover only this actor's original postponement outcome without resubmitting it."""
     with authorized_transaction(request) as (session, principal):
         return session_postponement.reconcile(session, principal, request_key)
+
+
+@router.post(
+    "/requests/{request_id}/resolve",
+    response_model=request_resolution.ResolutionState,
+    operation_id="resolveStaffRequest",
+)
+def resolve_staff_request(
+    request_id: UUID, body: request_resolution.ResolveRequest, request: Request, key: RequestKey
+):
+    """Apply or reject an operations-reviewed proposal atomically."""
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return request_resolution.save(session, principal, request_id, key, body)
+
+
+@router.get(
+    "/request-resolutions/{request_key}",
+    response_model=request_resolution.ResolutionState,
+    operation_id="reconcileRequestResolution",
+)
+def reconcile_request_resolution(request_key: UUID, request: Request):
+    """Reconcile only the current operations actor's original decision."""
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return request_resolution.reconcile(session, principal, request_key)

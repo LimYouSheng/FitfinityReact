@@ -151,36 +151,7 @@ def save(session, principal, identity, key, body):
     if viewed.outcome == "requested":
         request_id = proposal(session, principal, client, purchase, trainer, slots, body)
     else:
-        after = {s.id: s for s in body.slots}
-        for slot in slots:
-            start, end = (
-                time.fromisoformat(after[slot.id].startsAt),
-                time.fromisoformat(after[slot.id].endsAt),
-            )
-            if (slot.starts_at, slot.ends_at) != (start, end):
-                slot.starts_at, slot.ends_at, slot.version = start, end, slot.version + 1
-        for booking, start, end in planned:
-            session.add(
-                SessionEvent(
-                    session_id=booking.id,
-                    session_version=booking.version,
-                    kind="fixed_weekly_schedule",
-                    note="Current purchase weekly times changed.",
-                    old_date=booking.training_date,
-                    new_date=booking.training_date,
-                    old_start=booking.starts_at,
-                    old_end=booking.ends_at,
-                    new_start=start,
-                    new_end=end,
-                    actor_id=principal.user_id,
-                    actor_name=principal.name,
-                )
-            )
-            booking.starts_at, booking.ends_at = start, end
-            booking.version += 1
-        purchase.version += 1
-        client.version += 1
-        notify(session, principal, client, trainer, None, len(planned))
+        apply_weekly(session, principal, client, purchase, trainer, slots, planned, body)
     session.flush()
     result = ClientWeeklyState(
         outcome=viewed.outcome,
@@ -234,3 +205,37 @@ def notify(session, principal, client, trainer, request_id, count):
         session.flush()
         for user_id in ids:
             session.add(MessageReceipt(message_id=notice.id, user_id=user_id))
+
+
+def apply_weekly(session, principal, client, purchase, trainer, slots, planned, body):
+    """Apply an already validated change inside the caller-owned transaction."""
+    after = {s.id: s for s in body.slots}
+    for slot in slots:
+        start, end = (
+            time.fromisoformat(after[slot.id].startsAt),
+            time.fromisoformat(after[slot.id].endsAt),
+        )
+        if (slot.starts_at, slot.ends_at) != (start, end):
+            slot.starts_at, slot.ends_at, slot.version = start, end, slot.version + 1
+    for booking, start, end in planned:
+        session.add(
+            SessionEvent(
+                session_id=booking.id,
+                session_version=booking.version,
+                kind="fixed_weekly_schedule",
+                note="Current purchase weekly times changed.",
+                old_date=booking.training_date,
+                new_date=booking.training_date,
+                old_start=booking.starts_at,
+                old_end=booking.ends_at,
+                new_start=start,
+                new_end=end,
+                actor_id=principal.user_id,
+                actor_name=principal.name,
+            )
+        )
+        booking.starts_at, booking.ends_at = start, end
+        booking.version += 1
+    purchase.version += 1
+    client.version += 1
+    notify(session, principal, client, trainer, None, len(planned))

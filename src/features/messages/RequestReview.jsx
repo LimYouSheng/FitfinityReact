@@ -7,9 +7,10 @@ export default function RequestReview({ message, trainers, sessions, onResolve, 
   const confirm = useActionConfirmation()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [uncertain, setUncertain] = useState(false)
+  const [uncertain, setUncertain] = useState(null)
   const [settled, setSettled] = useState(false)
   const locked = useRef(false)
+  const attempt = useRef(null)
   const request = message.request
   const name = id => trainers.find(trainer => trainer.id === id)?.name ?? id
   const stamp = value => value?.scheduleState === 'open' ? 'Open session · Date/time not set' : value ? `${weekday(value.date)}, ${formatDate(value.date)} · ${value.from}–${value.to}` : 'Session no longer available'
@@ -18,20 +19,32 @@ export default function RequestReview({ message, trainers, sessions, onResolve, 
   const isPostponement = request.type === 'session_postpone'
   const session = sessions.find(item => item.id === request.sessionId)
   const decide = async decision => {
-    if (locked.current) return
+    if (locked.current || (uncertain && uncertain !== decision)) return
     locked.current = true
     setBusy(true)
     setError('')
     try {
       const approved = decision === 'approved'
       const cancelled = decision === 'cancelled'
-      if ((cancelled && uncertain) || await confirm({ title: cancelled ? 'Cancel this request?' : approved ? 'Approve request?' : 'Reject request?',
+      if ((uncertain === decision) || await confirm({ title: cancelled ? 'Cancel this request?' : approved ? 'Approve request?' : 'Reject request?',
         confirmLabel: cancelled ? 'Cancel Request' : approved ? 'Approve Request' : 'Reject Request',
         message: cancelled ? 'Cancel this pending request and notify the owner? Other requests are unchanged.' : approved ? 'Apply the reviewed change and notify the affected trainer(s)?' : 'Reject the proposed change and notify the requesting trainer?' })) {
-        if (cancelled) { await onCancel(message.requestId ?? message.id); setUncertain(false); if (message.requestVersion) setSettled(true) }
-        else await onResolve(message.id, decision)
+        if (cancelled) { await onCancel(message.requestId ?? message.id); setUncertain(null); if (message.requestVersion) setSettled(true) }
+        else {
+          if (message.requestVersion) {
+            attempt.current ??= { id: message.id, version: message.requestVersion }
+            await onResolve(attempt.current.id, decision, attempt.current.version)
+          } else await onResolve(message.id, decision)
+          setUncertain(null)
+          if (message.requestVersion) setSettled(true)
+        }
       }
-    } catch (failure) { setError(failure.message); if (decision === 'cancelled' && message.requestVersion) setUncertain(!(failure.status >= 400 && failure.status < 500)) }
+    } catch (failure) {
+      const rejected = failure.status >= 400 && failure.status < 500
+      if (rejected) attempt.current = null
+      setError(failure.message)
+      if (message.requestVersion) setUncertain(rejected ? null : decision)
+    }
     finally { locked.current = false; setBusy(false) }
   }
   const labels = ['Current at request', 'Requested']
@@ -66,8 +79,8 @@ export default function RequestReview({ message, trainers, sessions, onResolve, 
       {!settled && message.status === 'pending' && (onResolve || onCancel) && <div className="request-decision-actions">
         {onCancel && <button type="button" className="onboarding-button request-reject" disabled={busy} onClick={() => decide('cancelled')}>{uncertain ? 'Check Cancellation' : 'Cancel Request'}</button>}
         {onResolve && <>
-          <button type="button" className="onboarding-button request-reject" disabled={busy} onClick={() => decide('rejected')}>Reject Request</button>
-          <button type="button" className="onboarding-button request-approve" disabled={busy} onClick={() => decide('approved')}>Approve Request</button>
+          <button type="button" className="onboarding-button request-reject" disabled={busy || Boolean(uncertain && uncertain !== 'rejected')} onClick={() => decide('rejected')}>{uncertain === 'rejected' ? 'Check Rejection' : 'Reject Request'}</button>
+          <button type="button" className="onboarding-button request-approve" disabled={busy || Boolean(uncertain && uncertain !== 'approved')} onClick={() => decide('approved')}>{uncertain === 'approved' ? 'Check Approval' : 'Approve Request'}</button>
         </>}
       </div>}
     </section>

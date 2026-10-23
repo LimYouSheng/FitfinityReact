@@ -415,6 +415,7 @@ class DirectorySnapshot(ServerClock):
     clientDeactivationWrites: Literal[True] = True
     clientReactivationWrites: Literal[True] = True
     trainerAvailabilityWrites: Literal[True] = True
+    requestResolutionWrites: Literal[True] = True
     requestCancellationWrites: Literal[True] = True
     renewalDismissalWrites: Literal[True] = True
     contentWorkflows: Literal[True] = True

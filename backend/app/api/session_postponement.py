@@ -45,7 +45,7 @@ class PostponementState(Contract):
     changedPositions: int
 
 
-def review_context(session, principal, identity, *, write=False):
+def review_context(session, principal, identity, *, write=False, resolving=None):
     """Only operations staff or the current assigned Trainer may release this booking."""
     view, booking, client, purchase, bookings, trainers, pending, previous = inspect(
         session, principal, identity, write=write, allow_assigned=True
@@ -74,7 +74,7 @@ def review_context(session, principal, identity, *, write=False):
         .limit(1)
         .with_for_update(read=not write)
     )
-    if pending or weekly:
+    if any(row.id != resolving for row in pending) or weekly:
         raise AuthError(
             "pending_request", "Resolve the pending schedule or Trainer request first.", 409
         )
@@ -190,28 +190,7 @@ def save(session, principal, identity, key, body):
             )
         )
     else:
-        session.add(
-            SessionEvent(
-                session_id=booking.id,
-                session_version=booking.version,
-                kind="session_postpone",
-                note="Booking released; the same session remains open without a date or time.",
-                old_date=booking.training_date,
-                old_start=booking.starts_at,
-                old_end=booking.ends_at,
-                old_trainer_id=booking.trainer_id,
-                new_trainer_id=booking.trainer_id,
-                actor_id=principal.user_id,
-                actor_name=principal.name,
-            )
-        )
-        booking.schedule_state = "open"
-        booking.training_date = booking.starts_at = booking.ends_at = None
-        booking.session_number = booking.schedule_slot_id = None
-        booking.version += 1
-        client.version += 1
-        purchase.version += 1
-        changed = renumber_purchase(session, purchase.id)
+        changed = apply_postponement(session, principal, booking, client, purchase)
     message_id = notify(session, principal, booking, client, trainer, request_id)
     session.flush()
     result = PostponementState(
@@ -237,3 +216,30 @@ def save(session, principal, identity, key, body):
         )
     )
     return result
+
+
+def apply_postponement(session, principal, booking, client, purchase):
+    """Apply an already validated change inside the caller-owned transaction."""
+    session.add(
+        SessionEvent(
+            session_id=booking.id,
+            session_version=booking.version,
+            kind="session_postpone",
+            note="Booking released; the same session remains open without a date or time.",
+            old_date=booking.training_date,
+            old_start=booking.starts_at,
+            old_end=booking.ends_at,
+            old_trainer_id=booking.trainer_id,
+            new_trainer_id=booking.trainer_id,
+            actor_id=principal.user_id,
+            actor_name=principal.name,
+        )
+    )
+    booking.schedule_state = "open"
+    booking.training_date = booking.starts_at = booking.ends_at = None
+    booking.session_number = booking.schedule_slot_id = None
+    booking.version += 1
+    client.version += 1
+    purchase.version += 1
+    changed = renumber_purchase(session, purchase.id)
+    return changed

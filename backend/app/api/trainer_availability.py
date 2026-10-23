@@ -194,20 +194,7 @@ def save(session, principal, trainer_id, key, body):
                     )
             notify(session, principal, trainer, request_id)
     else:
-        session.execute(
-            delete(TrainerAvailability).where(TrainerAvailability.trainer_id == trainer.id)
-        )
-        for slot in after:
-            session.add(
-                TrainerAvailability(
-                    trainer_id=trainer.id,
-                    weekday=slot["weekday"],
-                    starts_at=time.fromisoformat(slot["startsAt"]),
-                    ends_at=time.fromisoformat(slot["endsAt"]),
-                )
-            )
-        trainer.version += 1
-        notify(session, principal, trainer, None)
+        apply_availability(session, principal, trainer, after)
     result = AvailabilityState(
         outcome="requested" if request_id else "applied",
         trainer=AvailabilityTrainer(id=trainer.id, version=trainer.version),
@@ -254,5 +241,21 @@ def notify(session, principal, trainer, request_id):
         )
         session.add(notice)
         session.flush()
-        for identity in ids:
+        for identity in set(ids):
             session.add(MessageReceipt(message_id=notice.id, user_id=identity))
+
+
+def apply_availability(session, principal, trainer, after):
+    """Apply an already validated change inside the caller-owned transaction."""
+    session.execute(delete(TrainerAvailability).where(TrainerAvailability.trainer_id == trainer.id))
+    for slot in after:
+        session.add(
+            TrainerAvailability(
+                trainer_id=trainer.id,
+                weekday=slot["weekday"],
+                starts_at=time.fromisoformat(slot["startsAt"]),
+                ends_at=time.fromisoformat(slot["endsAt"]),
+            )
+        )
+    trainer.version += 1
+    notify(session, principal, trainer, None)

@@ -88,6 +88,11 @@ export function cancellationState(value) {
   return value
 }
 
+export function resolutionState(value) {
+  if (!value || !uuid(value.id) || !version(value.version) || !value.version || !['approved', 'rejected'].includes(value.status) || !timestamp(value.at) || !validActor(value.by) || Object.keys(value).some(key => !['id', 'version', 'status', 'at', 'by'].includes(key))) fail()
+  return value
+}
+
 const validDismissal = value => value && timestamp(value.at) && uuid(value.by?.id) && typeof value.by.name === 'string' && value.by.name.trim()
   && Object.keys(value).every(key => ['at', 'by'].includes(key)) && Object.keys(value.by).every(key => ['id', 'name'].includes(key))
 
@@ -121,7 +126,21 @@ export function messageCommands(http, actionSession) {
     bodyFor: ({ expectedVersion }) => ({ expectedVersion }),
     validate(value, input) { const result = cancellationState(value); if (result.id !== input.id || ![input.expectedVersion, input.expectedVersion + 1].includes(result.version)) fail(); return result },
   })
+  const resolve = reconciledCommand(http, actionSession, {
+    label: 'Request decision', roles: ['owner', 'admin'],
+    path: input => `/api/requests/${input.id}/resolve`, receiptPath: '/api/request-resolutions',
+    bodyFor: ({ expectedVersion, decision }) => ({ expectedVersion, decision }),
+    validate(value, input) {
+      const result = resolutionState(value)
+      if (result.id !== input.id || result.version !== input.expectedVersion + 1 || result.status !== input.decision) fail()
+      return result
+    },
+  })
   return {
+    resolve(input, generation) {
+      if (!uuid(input.id) || !version(input.expectedVersion) || !input.expectedVersion || !['approved', 'rejected'].includes(input.decision)) throw new ApiError('INVALID_REQUEST', 'Reload the request before deciding it.')
+      return resolve(input, generation)
+    },
     cancel(input, generation) {
       if (!uuid(input.id) || !version(input.expectedVersion) || !input.expectedVersion) throw new ApiError('INVALID_REQUEST', 'Reload the request before cancelling it.')
       return cancel(input, generation)
@@ -138,12 +157,13 @@ export function messageCommands(http, actionSession) {
       const session = await actionSession(generation)
       if (save.pendingInput(session.sessionGeneration)) await save.reconcile(session.sessionGeneration)
       if (dismiss.pendingInput(session.sessionGeneration)) await dismiss.reconcile(session.sessionGeneration)
+      if (resolve.pendingInput(session.sessionGeneration)) await resolve.reconcile(session.sessionGeneration)
       if (cancel.pendingInput(session.sessionGeneration)) await cancel.reconcile(session.sessionGeneration)
       const value = await http.get('/api/messages', { expectedGeneration: session.sessionGeneration })
       if (!Array.isArray(value) || value.length > 2000) fail()
       const messages = value.map(row => personalMessage(row, session.user))
       if (new Set(messages.map(row => row.id)).size !== messages.length) fail()
-      return { messages, cancellationPending: cancel.pendingInput(session.sessionGeneration), pending: save.pendingInput(session.sessionGeneration), dismissalPending: dismiss.pendingInput(session.sessionGeneration) }
+      return { messages, resolutionPending: resolve.pendingInput(session.sessionGeneration), cancellationPending: cancel.pendingInput(session.sessionGeneration), pending: save.pendingInput(session.sessionGeneration), dismissalPending: dismiss.pendingInput(session.sessionGeneration) }
     },
   }
 }
