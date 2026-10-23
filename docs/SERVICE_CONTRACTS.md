@@ -37,7 +37,7 @@ Errors retain a readable message and stable error code. Session expiry clears pr
 
 ## Domain operation inventory
 
-**31/55 accepted in merged source: 30 server-connected and one local predicate.** 24 remain unaccepted, including partial Trainer update. Trainer time-change/reassignment requests remain unmerged candidates. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
+**33/55 accepted in merged source: 32 server-connected and one local predicate.** 22 remain unaccepted, including partial Trainer update. Exercise-plan saving remains an unmerged candidate. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
 
 Each connected server row names actual PostgreSQL/HTTP and real-API browser evidence owners. Browser scenarios can cover several operations. Simulator tests supplement these tests; they do not establish persistence. Local execution uses temporary Docker PostgreSQL, synthetic records and a local signed-token Cognito substitute. Real Cognito, restart, physical devices and deployment acceptance remain separate.
 
@@ -76,8 +76,8 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `sessionService.saveVideo` | Missing | session | Pending API acceptance |
 | `sessionService.removeVideo` | Missing | session | Pending API acceptance |
 | `sessionService.updateDetails` | Connected | operationsSession | [backend](../backend/tests/test_session_booking_api.py); [browser](../tests-api/session-booking.spec.js); see Progress |
-| `sessionService.requestTimeChange` | Candidate | Current assigned active Trainer; server approval policy | [backend](../backend/tests/test_session_changes_api.py); [browser](../tests-api/session-changes.spec.js); not accepted main |
-| `sessionService.requestTrainerChange` | Candidate | Current assigned active Trainer; active replacement and server approval policy | [backend](../backend/tests/test_session_changes_api.py); [browser](../tests-api/session-changes.spec.js); not accepted main |
+| `sessionService.requestTimeChange` | Connected | Current assigned active Trainer; server approval policy | [backend](../backend/tests/test_session_changes_api.py); [browser](../tests-api/session-changes.spec.js); see Progress |
+| `sessionService.requestTrainerChange` | Connected | Current assigned active Trainer; active replacement and server approval policy | [backend](../backend/tests/test_session_changes_api.py); [browser](../tests-api/session-changes.spec.js); see Progress |
 | `sessionService.saveExercisePlan` | Candidate | Owner/Admin or current assigned active Trainer; active editable session | [backend](../backend/tests/test_session_plans_api.py); [browser](../tests-api/session-plans.spec.js); not accepted main |
 | `sessionService.previousPlanFor` | Missing | session | Pending API acceptance |
 | `sessionService.copyPreviousPlan` | Missing | session | Pending API acceptance |
