@@ -1,5 +1,7 @@
 # Fitfinity engineering
 
+See [README](README.md) for reading order and unique document ownership. Historical receipts do not renew authority or override current instructions.
+
 ## 1. Start
 
 - Use the existing isolated checkout; no worktree unless the user requests one.
@@ -25,6 +27,8 @@
 
 ## 4. Verify
 
+- Review affected services, browser/backend tests, fixtures and inventories after each logical change. Document major new functions with a short purpose/constraint summary; do not bulk-rewrite comments or generated code.
+- Every integrated server operation needs actual API tests against isolated PostgreSQL, with UI write/reload evidence, meaningful permission/conflict/recovery checks and foreign records. Simulator tests remain supplementary; Cognito substitutes and live acceptance are explicitly separate.
 - Run focused checks while iterating. Codex may prepare browsers, run Playwright and inspect internal previews.
 - Full final GitHub Actions validation remains authoritative, including macOS WebKit and real PostgreSQL.
 - Never weaken assertions, skip coverage, lower required counts, add retries, raise timeouts or alter runner settings to obtain green results.
@@ -33,7 +37,7 @@
 ## 5. Deliver
 
 - Update affected docs/progress; review the diff and stage exact intended paths.
-- Commit/push only the existing task branch and update its PR when access permits. Require complete `verify / frontend` and `verify / backend` results for the final commit; older green commits and focused smoke tests are not final acceptance.
+- Commit/push only the existing task branch and update its PR when access permits. Require complete `verify / frontend`, `verify / backend` and `verify / api-browser` results for the final commit; older green commits and focused smoke tests are not final acceptance.
 - Keep the PR draft while its source acceptance is blocked. YS authorizes routine source merges once complete final-head frontend/backend CI and GitHub requirements pass. Merge the tested head without another confirmation; preserve branch protections and never enable unattended auto-merge.
 - Record the PR, exact validation and merge result, then continue the North Star. Never directly push to `main`, bypass protection, deploy or alter protected infrastructure under source-merge authority.
 
