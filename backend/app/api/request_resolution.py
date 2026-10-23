@@ -60,7 +60,7 @@ def notify(session, principal, request):
         else None
     )
     affected_users = {principal.user_id, trainer.user_id}
-    if replacement is not None:
+    if replacement is not None and request.status == "approved":
         affected_users.add(replacement.user_id)
     affected_users.discard(None)
     recipients = set(

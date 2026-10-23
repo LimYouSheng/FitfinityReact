@@ -182,6 +182,16 @@ def test_decision_is_atomic_idempotent_and_applies_only_approved_intent(
             )
             == 1
         )
+        notice = session.scalar(select(Message).where(Message.kind == "request_decision"))
+        recipients = set(
+            session.scalars(
+                select(MessageReceipt.user_id).where(MessageReceipt.message_id == notice.id)
+            )
+        )
+        expected_recipients = {graph["owner_id"], graph["user_id"]}
+        if decision == "approved" and kind == "session_trainer":
+            expected_recipients.add(session.get(Trainer, replacement).user_id)
+        assert recipients == expected_recipients
         booking = session.get(TrainingSession, graph["session_id"])
         purchase = session.get(PackagePurchase, graph["purchase_id"])
         assert purchase.total_sessions == 2 and purchase.end_date == graph["end_date"]
@@ -256,10 +266,15 @@ def test_trainer_cannot_decide_or_read_operations_receipts(
     api, domain_db, graph, future, auth_settings, auth_service, fake_cognito
 ):
     identity = seed(domain_db, graph, "session_postpone")
+    before = bookings(domain_db)
     trainer_login(api, domain_db, graph, auth_settings, auth_service, fake_cognito)
     assert resolve(api, identity).status_code == 403
     assert resolve(api, identity, "rejected").status_code == 403
     assert api.get(f"/api/request-resolutions/{uuid4()}").status_code == 403
+    assert bookings(domain_db) == before
+    with domain_db.transaction() as session:
+        assert session.get(ChangeRequest, identity).status == "pending"
+        assert session.scalar(select(func.count()).select_from(RequestResolutionReceipt)) == 0
 
 
 def test_admin_can_decide_but_cannot_read_owner_receipt(
