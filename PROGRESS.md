@@ -41,6 +41,14 @@ Draft [PR59](https://github.com/LimYouSheng/FitfinityReact/pull/59) removes one 
 - Full unit gate1248/1248 in128 files passed after the onboarding selection fix; lint456 files, health222 reachable runtime modules and47 quality-checker tests passed. Temporary diagnostics are removed. Final frontend/backend/api-browser CI remains required.
 - The backend harness rejects non-isolated database URLs before connecting. All data is synthetic, Compose projects/databases are temporary, Cognito signing/provisioning/delivery are local substitutes, and no production PostgreSQL/AWS resources are used.
 
+## Next scheduling prerequisite — not an integrated operation
+
+`feat/session-booking-persistence` is based on PR60 head `09c0596818e21c3136d424216dfb2346e9ebba38`; that dependency is not yet merged. PR60 final-head backend and63-case API-browser CI passed in [run39890050639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39890050639); frontend acceptance is still pending.
+
+The candidate adds forward migration `20261023_0031` and a transaction-owned chronological-numbering helper. The database permits valid chronological position swaps with deferred uniqueness, retains invalid-number rejection, and preserves existing capacity/completed-booking guards. Eight real-PostgreSQL cases cover swaps/no-op stability, Open records, rollback, completed acknowledgement/credit evidence, purchase isolation, duplicate rejection at commit and populated downgrade/upgrade. The affected137-case baseline and the expanded8-case focused suite passed. The first full gate exposed a stale candidate-only image fixture; it now includes the new revision and tamper checks while the historical deployment manifest remains unchanged. Full983-case backend acceptance is pending.
+
+This prerequisite does not expose a scheduling route, enable UI writes or increase27/55. Next: reviewed Owner/Admin session-detail commands, immutable receipts and notices, current conflict/permission checks, atomic numbering, permitted Undo integration and real-browser write/reload/recovery evidence. No production migration or deployment is authorized by this source work.
+
 ## Engineering-hardening backlog (planned, not provisioned)
 
 This is the only task ledger. Priorities below follow integrated-operation evidence; introduce tools only in a scoped implementation task. No paid services, AWS changes or deployment are authorized merely by this list.
