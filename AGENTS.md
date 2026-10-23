@@ -7,7 +7,7 @@ See [README](README.md) for reading order and unique document ownership. Histori
 - Use the existing isolated checkout; no worktree unless the user requests one.
 - Read `NORTH_STAR.md` and `PROGRESS.md`; verify the requested repository/branch/HEAD, clean starting tree and required ancestry before editing. Stop on a checkpoint mismatch; record runtime versions.
 - After source cutover, GitHub is canonical. Preserve unknown edits.
-- Search relevant sections of `docs/FITFINITY_RULES_AND_ARCHITECTURE.md` and `docs/SERVICE_CONTRACTS.md`; do not load all history.
+- Read `docs/Architecture/README.md` and its diagrams; search relevant current rules in `docs/SERVICE_CONTRACTS.md`. Read only the relevant dated decisions under `docs/history/` when needed.
 - Commands/cutover: `docs/CODEX_CLOUD.md`. AWS evidence: `docs/AWS_DEPLOYMENT_RUNBOOK.md`.
 - Follow the saved Start skill and reuse valid dependencies, caches and receipts. Installation/full backend validation belongs to initial setup or relevant changes, not every task startup.
 
