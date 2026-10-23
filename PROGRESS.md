@@ -16,6 +16,8 @@ Last verified accepted main is `c68a7ac4ddd43da480ee278066a772eeb90f6656` (PR67)
 
 ## Remaining work
 
+The [active M6–M9 roadmap](docs/SERVICE_CONTRACTS.md#milestones-and-retained-acceptance-criteria) retains M6.1–M6.5 domain integration, M7 events/media processing and M8/M9 staging/UAT/launch. M6 is in progress; no blanket M6, M7 or M8/M9 completion is claimed. The public website remains a separate post-portal deliverable.
+
 1. Complete final-head CI and review for documentation PR69, then merge when eligible; keep unfinished outcome changes separate.
 2. Reconcile PR68's exact final-head CI and GitHub requirements; merge only when eligible, then update the matrix and history.
 3. Resume the preserved outcome candidate and diagnose its failed browser receipt. Complete real PostgreSQL/UI persistence, permission, conflict and recovery acceptance before counting it.
