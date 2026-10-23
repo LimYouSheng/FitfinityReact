@@ -32,7 +32,7 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
     try {
       const preview = await onPreviewPostponement()
       if (!mounted.current) return
-      postponementKey.current = createUuid()
+      postponementKey.current = preview.requestKey ?? createUuid()
       setPostponement(preview); setRequestKind('postpone')
     } catch (error) { if (mounted.current) setDetailsError(error.message) }
     finally { postponeLock.current = false; if (mounted.current) setSaving(false) }

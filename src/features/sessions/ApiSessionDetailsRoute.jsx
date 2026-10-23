@@ -10,6 +10,7 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
   const { user, policy, sessionGeneration, serverAt, data } = snapshot
   const { activeEdit } = useEditGuard()
   const [booking, setBooking] = useState(null), [saved, setSaved] = useState(false)
+  const [postponement, setPostponement] = useState(null), [postponementNotice, setPostponementNotice] = useState('')
   const finishing = useRef(false)
   useEffect(() => {
     if (!saved || activeEdit || finishing.current) return
@@ -21,7 +22,7 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
   const id = selectedSession.id, version = selectedSession.version
   useEffect(() => {
     let current = true
-    setState(null)
+    // Keep same-session drafts mounted while refreshing; identity/generation checks below still hide stale scope.
     services.readSessionDetails({ id }).then(value => {
       if (current) setState({ id, generation: sessionGeneration, value })
     }).catch(error => { if (current) setState({ id, generation: sessionGeneration, error }) })
@@ -55,10 +56,22 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
       throw error
     }
   }
-  return <><SessionDetailsPage readOnly bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
+  const previewPostponement = async () => {
+    const viewed = await services.sessionService.previewPostponement({ sessionId: id })
+    setPostponement(viewed)
+    return viewed
+  }
+  const postpone = async (expected, requestKey) => {
+    const result = await services.sessionService.postpone({ sessionId: id, expected, requestKey, reviewed: postponement.reviewed })
+    setPostponementNotice(result.outcome === 'requested' ? 'Postponement requested. The booking stays unchanged until approved.' : 'Session postponed.')
+    setSaved(true)
+    return result
+  }
+  return <><SessionDetailsPage readOnly postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
     trainers={booking?.reviewed.trainers ?? data.sessionTrainers ?? data.trainers} messages={data.messages ?? []}
     onOpenClient={fullClient ? () => openClient(client.id) : canLimited && !clientBusy ? openLimited : undefined}
     onOpenTrainer={fullTrainer ? () => navigate(managesOperations(user) ? `trainers/${trainer.id}` : 'my-profile') : undefined} />
+    {postponementNotice && <p role="status">{postponementNotice}</p>}
     {clientError && <p role="alert">{clientError}</p>}
     <ConfirmDialog open={Boolean(canLimited && limited)} title="Session Client" hideConfirm cancelLabel="Close" onCancel={() => setLimited(null)}>
       {limited && <><p>{limited.name}</p><ul>{limited.person_names.map((name, index) => <li key={index}>{name}</li>)}</ul></>}

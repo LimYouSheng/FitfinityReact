@@ -7,11 +7,11 @@ const version = v => Number.isSafeInteger(v) && v > 0
 const keys = (v, fields) => v && Object.keys(v).length === fields.length && fields.every(k => Object.hasOwn(v, k))
 const time = v => typeof v === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v)
 const fail = () => { throw new ApiError('API_RESPONSE', 'The session booking could not be verified. Check the original save again.') }
-const validPosition = v => keys(v, ['id', 'version', 'sessionNumber', 'scheduleState', 'date', 'startsAt', 'endsAt', 'trainerId', 'slotId']) && uuid(v.id) && version(v.version) && uuid(v.trainerId) && (v.slotId === null || uuid(v.slotId))
+export const validBookingPosition = v => keys(v, ['id', 'version', 'sessionNumber', 'scheduleState', 'date', 'startsAt', 'endsAt', 'trainerId', 'slotId']) && uuid(v.id) && version(v.version) && uuid(v.trainerId) && (v.slotId === null || uuid(v.slotId))
   && (v.scheduleState === 'open' ? v.sessionNumber === null && v.date === null && v.startsAt === null && v.endsAt === null && v.slotId === null : v.scheduleState === 'booked' && version(v.sessionNumber) && validSessionDate(v.date) && time(v.startsAt) && time(v.endsAt) && v.startsAt < v.endsAt)
 export const bookingDraft = reviewed => ({ date: reviewed.session.date ?? '', from: reviewed.session.startsAt ?? '', to: reviewed.session.endsAt ?? '', trainerId: reviewed.session.trainerId })
 export const validBookingReview = v => keys(v, ['id', 'version', 'clientId', 'clientVersion', 'purchaseId', 'purchaseVersion', 'expected', 'session', 'trainers']) && uuid(v.id) && version(v.version) && uuid(v.clientId) && version(v.clientVersion) && uuid(v.purchaseId) && version(v.purchaseVersion) && /^[0-9a-f]{64}$/.test(v.expected)
-  && validPosition(v.session) && v.session.id === v.id && v.session.version === v.version && Array.isArray(v.trainers) && v.trainers.length <= 2000 && new Set(v.trainers.map(t => t?.id)).size === v.trainers.length
+  && validBookingPosition(v.session) && v.session.id === v.id && v.session.version === v.version && Array.isArray(v.trainers) && v.trainers.length <= 2000 && new Set(v.trainers.map(t => t?.id)).size === v.trainers.length
   && v.trainers.every(t => keys(t, ['id', 'version', 'name']) && uuid(t.id) && version(t.version) && typeof t.name === 'string' && t.name.trim())
 const validDraft = v => keys(v, ['date', 'from', 'to', 'trainerId']) && validSessionDate(v.date) && time(v.from) && time(v.to) && v.from < v.to && uuid(v.trainerId)
 
@@ -22,11 +22,11 @@ export function sessionBookingCommands(http, actionSession) {
     bodyFor: ({ reviewed, patch }) => ({ expected: reviewed.expected, date: patch.date, startsAt: patch.from, endsAt: patch.to, trainerId: patch.trainerId }),
     validate(value, input) {
       const { reviewed, patch } = input
-      if (!keys(value, ['session', 'client', 'purchase', 'positions', 'messageId']) || !validPosition(value.session) || value.session.id !== input.sessionId || value.session.version < reviewed.version
+      if (!keys(value, ['session', 'client', 'purchase', 'positions', 'messageId']) || !validBookingPosition(value.session) || value.session.id !== input.sessionId || value.session.version < reviewed.version
         || value.session.date !== patch.date || value.session.startsAt !== patch.from || value.session.endsAt !== patch.to || value.session.trainerId !== patch.trainerId
         || !keys(value.client, ['id', 'version']) || value.client.id !== reviewed.clientId || !version(value.client.version) || value.client.version < reviewed.clientVersion
         || !keys(value.purchase, ['id', 'version']) || value.purchase.id !== reviewed.purchaseId || !version(value.purchase.version) || value.purchase.version < reviewed.purchaseVersion
-        || (value.messageId !== null && !uuid(value.messageId)) || !Array.isArray(value.positions) || !value.positions.length || value.positions.length > 365 || !value.positions.every(validPosition)
+        || (value.messageId !== null && !uuid(value.messageId)) || !Array.isArray(value.positions) || !value.positions.length || value.positions.length > 365 || !value.positions.every(validBookingPosition)
         || new Set(value.positions.map(p => p.id)).size !== value.positions.length || !value.positions.some(p => JSON.stringify(p) === JSON.stringify(value.session))) fail()
       return value
     },

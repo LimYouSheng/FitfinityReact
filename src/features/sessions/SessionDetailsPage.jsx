@@ -25,6 +25,7 @@ const READ_CATALOG = Object.freeze([])
 export default function SessionDetailsPage({
   readOnly = false,
   bookingEditable = false,
+  postponementEditable = false,
   bookingUncertain = false,
   onBeginDetails,
   policy,
@@ -163,6 +164,7 @@ export default function SessionDetailsPage({
       <SessionOverview session={session} client={client} trainer={trainer} trainers={trainers}
         purchased={purchased} clientInactive={clientInactive} packageInactive={packageInactive}
         status={status} pendingChanges={pendingChanges} isOwner={isOwner} sessionEditable={sessionEditable}
+        postponementEditable={(sessionEditable || postponementEditable) && !recordInactive && !['completed', 'cancelled'].includes(session.status)}
         bookingEditable={(sessionEditable || bookingEditable) && !recordInactive && !['completed', 'cancelled'].includes(session.status)} bookingUncertain={bookingUncertain}
         activeEditor={activeEditor} setActiveEditor={setActiveEditor} saving={saving}
         setDetailsError={setDetailsError} schedule={schedule} onOpenClient={onOpenClient} onOpenTrainer={onOpenTrainer} />

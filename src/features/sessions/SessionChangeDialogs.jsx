@@ -12,6 +12,7 @@ export default function SessionChangeDialogs({ schedule, saving, detailsError, s
             confirmLabel={saving ? 'Saving…' : 'Confirm Postponement'} confirmDisabled={saving || !schedule.postponement}
             onCancel={() => { if (!saving) { setRequestKind(null); setDetailsError('') } }} onConfirm={schedule.submitPostponement}>
             <p>When applied, this session becomes open with date/time not set. Its old booking is released. Other bookings, package credits and validity stay unchanged. Dated sessions are renumbered chronologically.</p>
+            {schedule.postponement?.outcome === 'requested' && <p>Owner approval is required. The current booking stays unchanged until approved.</p>}
             <table className="postponement-preview"><thead><tr><th>Current slot</th><th>New state</th></tr></thead><tbody>
               {schedule.postponement?.changes.map(change => <tr key={change.sessionId}><td>{formatDate(change.before.date)}<br />{change.before.from}–{change.before.to}</td><td>Open session · Date/time not set</td></tr>)}
             </tbody></table>

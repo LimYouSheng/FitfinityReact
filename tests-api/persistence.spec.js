@@ -82,7 +82,10 @@ test('Trainer reads persisted assigned sessions but cannot mutate packages or ac
   const session = calendar.sessions[0]
   await page.goto(`/#/sessions/${session.id}`)
   await expect(page.locator('main')).toContainText('Browser Client')
-  await expect(page.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Postpone', exact: true }).click()
+  const postponement = page.getByRole('dialog', { name: 'Postpone this session?', exact: true })
+  await expect(postponement).toContainText('Owner approval is required. The current booking stays unchanged until approved.')
+  await postponement.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.reload()
   await expect(page.locator('main')).toContainText('Browser Client')
   const denied = await post(page, '/api/packages', { draft: { name: `Denied ${randomUUID()}`, total: 12, status: 'active' } })

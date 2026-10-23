@@ -40,8 +40,8 @@ export const PORTAL_CONTRACTS = Object.freeze({
     reactivate: contract({ 'id': 'string', 'reviewed?': 'object' }, 'operations', 'TrainerReactivationState', true),
   }),
   sessionService: Object.freeze({
-    previewPostponement: contract({ 'sessionId': 'string' }, 'session', 'PostponementPreview'),
-    postpone: contract({ 'sessionId': 'string', 'expected': 'string', 'requestKey': 'string' }, 'session', 'ScheduleResult<Session>'),
+    previewPostponement: contract({ 'sessionId': 'string' }, 'session', 'PostponementPreview', true),
+    postpone: contract({ 'sessionId': 'string', 'expected': 'string', 'requestKey': 'string', 'reviewed?': 'object' }, 'session', 'ScheduleResult<Session> | PostponementState', true),
     loadVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string' }, 'session', 'Blob | null'),
     saveVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string', 'file': 'blob', 'metadata': 'object' }, 'session', 'MediaReference'),
     removeVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string' }, 'session', 'void'),

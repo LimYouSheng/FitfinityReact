@@ -13,7 +13,7 @@ from sqlalchemy import func, select
 from app.api.directory import bounded
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
-from app.authorization import conflict, session_record
+from app.authorization import conflict, session_record, unavailable
 from app.models.communications import ChangeRequest
 from app.models.people import Client, Trainer
 from app.models.training import Acknowledgement, CreditDebit, PackagePurchase, TrainingSession
@@ -81,10 +81,17 @@ def position(row):
     )
 
 
-def inspect(session, principal, identity, *, write=False):
+def inspect(session, principal, identity, *, write=False, allow_assigned=False):
     """Lock the aggregate in lifecycle order; review exposes no clinical or pay data."""
-    principal.operations()
+    if not allow_assigned:
+        principal.operations()
     booking = session_record(session, principal, identity, write=write)
+    if (
+        allow_assigned
+        and not principal.manages_operations
+        and booking.trainer_id != principal.trainer_id
+    ):
+        raise unavailable()
     client = session.get(Client, booking.client_id)
     purchase = session.get(PackagePurchase, booking.purchase_id)
     if (
