@@ -57,7 +57,7 @@ Reuse valid dependencies, npm/buildx caches, pinned engines and prepared images.
 
 ### Prepared Linux browser runtime
 
-The non-root host lacks WebKit library registration. Retained image `fitfinity-browser-runtime:node24-pw1.62.1` uses Node 24/Debian trixie and Playwright-installed system libraries. The saved Install script recreates it from a pinned official Node image when missing; an engine-version change requires a matching runtime. Engine archives stay in the workspace path above. Do not bypass dependency checks or change Playwright settings.
+The non-root host lacks WebKit library registration. Retained image `fitfinity-browser-runtime:node24-pw1.64.1` uses Node 24/Debian trixie and Playwright-installed system libraries. The saved Install script recreates it from a pinned official Node image when missing; an engine-version change requires a matching runtime. Engine archives stay in the workspace path above. Do not bypass dependency checks or change Playwright settings.
 
 Run this canonical restoration smoke in the prepared container. It retains fresh root/Pages/API-fixture builds, PWA checks and all three projects. Later iterations substitute a real affected spec/filter; full local suites run only when warranted by the change.
 
