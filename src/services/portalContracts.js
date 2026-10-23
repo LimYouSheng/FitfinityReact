@@ -45,7 +45,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     loadVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string' }, 'session', 'Blob | null'),
     saveVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string', 'file': 'blob', 'metadata': 'object' }, 'session', 'MediaReference'),
     removeVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string' }, 'session', 'void'),
-    updateDetails: contract({ 'sessionId': 'string', 'patch': 'object' }, 'operationsSession', 'Session'),
+    updateDetails: contract({ 'sessionId': 'string', 'patch': 'object', 'reviewed?': 'object' }, 'operationsSession', 'Session | SessionBookingState', true),
     requestTimeChange: contract({ 'sessionId': 'string', 'patch': 'object' }, 'session', 'ScheduleResult<Session>'),
     requestTrainerChange: contract({ 'sessionId': 'string', 'replacementTrainerId': 'string' }, 'session', 'ScheduleResult<Session>'),
     saveExercisePlan: contract({ 'sessionId': 'string', 'items': 'array' }, 'session', 'Session'),

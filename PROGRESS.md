@@ -2,7 +2,9 @@
 
 ## Current checkpoint — 23 October 2026 Singapore
 
-Verified GitHub main is `df9cbbb75373eb7e57b31187eeb93077ea35cec8` (PR58). The restored checkout was clean but stale at `8945ca1`; fetched main and created `test/integrated-real-api-postgres` in the existing checkout. No unknown edits were discarded. Node24.19.0, Python3.12.14 and Docker28.4.0 are available; restored dependency/image receipts require input checks before reuse.
+Verified GitHub main is `ba00ca51a68dd003aad461f080f7c385c9589d26` after PR60 merged on 23 October. PR60 final head `09c0596818e21c3136d424216dfb2346e9ebba38` passed all three required jobs in [run39890050639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39890050639): 1248 unit tests, 1152 existing browser cases, 975 backend cases, 633 infrastructure cases and 63 real-API browser cases. GitHub reported a clean mergeable head; merge used the exact tested SHA without bypass. PR61 is now retargeted to main; branch-only verification run39894499184 tests head9c8c887 and still requires all final-head jobs. Its branch excludes image/build/deploy jobs by workflow conditions. No deployment was authorized or performed.
+
+Initial checkout evidence: main was `df9cbbb75373eb7e57b31187eeb93077ea35cec8` (PR58). The restored checkout was clean but stale at `8945ca1`; fetched main and created `test/integrated-real-api-postgres` in the existing checkout. No unknown edits were discarded. Node24.19.0, Python3.12.14 and Docker28.4.0 are available; restored dependency/image receipts require input checks before reuse.
 
 **27/55 integrated in merged source: 26 server-connected operations plus one local predicate.** Trainer update remains partial and 27 other operations are incomplete. [Service Contracts](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) owns the only operation matrix. Reconciliation: its 25 connected rows plus the local predicate previously excluded Trainer deactivation; PR55's final CI subsequently passed and it merged. PR57 includes fixed weekly scheduling and session reads. Read routes do not add named operations. Counts of endpoints or browser cases are different inventories.
 
@@ -10,10 +12,10 @@ Verified GitHub main is `df9cbbb75373eb7e57b31187eeb93077ea35cec8` (PR58). The r
 | --- | --- |
 | Implemented / merged | PR55 (including54), PR57 (including56), PR58 merged; main above |
 | Final PR CI | [PR55 run38476697547](https://github.com/LimYouSheng/FitfinityReact/actions/runs/38476697547), [PR57 run38820138715](https://github.com/LimYouSheng/FitfinityReact/actions/runs/38820138715), [PR58 run38834044790](https://github.com/LimYouSheng/FitfinityReact/actions/runs/38834044790) succeeded; PR58 includes frontend/backend/api-browser |
-| Real API browser | Candidate full63/63 passed locally with Playwright1.64.1 and isolated PostgreSQL per worker. Final-head CI remains required; prior failures are retained below |
-| Backend | Full local gate passed970/970 backend and633/633 offline infrastructure cases; worker-isolation checks passed13/13. PR60 head29f68d2 backend CI passed the expanded975-case gate; final dependency-update head still requires CI |
+| Real API browser | Full63/63 passed locally and in PR60 final-head CI with Playwright1.64.1 and isolated PostgreSQL per worker; prior failures are retained below |
+| Backend | Full local gate passed970/970 backend and633/633 offline infrastructure cases; worker-isolation checks passed13/13. PR60 final head09c0596 passed the expanded975-case backend and633-case infrastructure gate |
 | Simulator / demo | 18 HTTP simulator spec files; existing browser inventory1152. These do not prove browser→FastAPI→PostgreSQL persistence |
-| Current candidate | Draft [PR60](https://github.com/LimYouSheng/FitfinityReact/pull/60) contains the documentation refactor, operation evidence map,63-case browser expansion, Docker stage separation and onboarding selection fix. Playwright1.64.1 follow-up passed locally; no merge claimed |
+| Accepted source | Merged [PR60](https://github.com/LimYouSheng/FitfinityReact/pull/60) contains the documentation refactor, operation evidence map,63-case browser expansion, Docker stage separation and onboarding selection fix. Playwright1.64.1 follow-up passed locally and final-head CI; merged at the SHA above |
 | Independent main CI | Historical ECR429 reported in handoff; connector returned no main-SHA runs during this audit. Do not infer a pass or repair |
 | Deployment / provider | No AWS query or deployment this task. Retained runbook source/image remains historical; new integrations are not live-accepted |
 
@@ -43,7 +45,7 @@ Draft [PR59](https://github.com/LimYouSheng/FitfinityReact/pull/59) removes one 
 
 ## Next scheduling prerequisite — not an integrated operation
 
-`feat/session-booking-persistence` is based on PR60 head `09c0596818e21c3136d424216dfb2346e9ebba38`; that dependency is not yet merged. PR60 final-head backend and63-case API-browser CI passed in [run39890050639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39890050639); frontend acceptance is still pending.
+`feat/session-booking-persistence` is based on PR60 head `09c0596818e21c3136d424216dfb2346e9ebba38`; that dependency merged through PR60. PR60 final-head frontend, backend and63-case API-browser CI passed in [run39890050639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39890050639); all three required jobs succeeded.
 
 The candidate adds forward migration `20261023_0031` and a transaction-owned chronological-numbering helper. The database permits valid chronological position swaps with deferred uniqueness, retains invalid-number rejection, and preserves existing capacity/completed-booking guards. Eight real-PostgreSQL cases cover swaps/no-op stability, Open records, rollback, completed acknowledgement/credit evidence, purchase isolation, duplicate rejection at commit and populated downgrade/upgrade. The affected137-case baseline and the expanded8-case focused suite passed. The first full gate exposed a stale candidate-only image fixture; it now includes the new revision and tamper checks while the historical deployment manifest remains unchanged. Full local backend gate passed983/983 plus633/633 offline infrastructure cases on source `b80d4e9`; complete final-head CI is still required. Draft [PR61](https://github.com/LimYouSheng/FitfinityReact/pull/61) holds this prerequisite.
 
@@ -79,3 +81,9 @@ Inspected current AGENTS, README, North Star, Progress and Service Contracts, pl
 ## Historical evidence
 
 The complete prior ledger is retained at [main before refactor](https://github.com/LimYouSheng/FitfinityReact/blob/df9cbbb75373eb7e57b31187eeb93077ea35cec8/PROGRESS.md); [Journey](docs/FITFINITY_JOURNEY.md) retains earlier decisions. In particular, the full local baseline had five native-touch/WebKit failures, assertions unchanged; later authoritative macOS PR CI passed. Historical local failures are not erased by that pass. The AWS runbook owns exact retained deployment identities and expired exception evidence; old approvals never renew themselves.
+
+## Session booking API work in progress
+
+`feat/session-details-api` continues from PR61 head9c8c887. The unmerged candidate adds reviewed Owner/Admin booking changes, immutable actor-private retry receipts, atomic history/notices and chronological positions. The expanded23 booking cases and52 schema/contract cases passed against isolated Docker PostgreSQL (75/75). Seven focused adapter cases pass, including the configured application boundary and response-loss reconciliation. The first browser run exposed a missing configured-service binding; it is fixed with a regression test. Browser/full acceptance remains pending; no new operation is counted until UI persistence, conflict and recovery coverage passes. Source integration remains27/55.
+
+Booking validation checkpoint: full frontend units1255/1255 in129 files, lint459 files, source health223 reachable runtime modules,20 health-checker cases and47 quality-checker cases passed. The12-case focused real-browser run passed11; phone fresh-login persistence reached its deadline while full unit/backend/checker jobs shared the host (load average13.27). Trace shows the persisted14:00–15:00 state in the fresh Admin session. This is retained as a failure, not acceptance. No timeout/retry/concurrency setting changed; the full75-case real-API browser gate will run separately after backend completion. The earlier configured-service binding and synthetic Open-fixture defects are fixed.

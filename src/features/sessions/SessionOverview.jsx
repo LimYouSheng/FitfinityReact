@@ -6,7 +6,7 @@ import StatusBadge from '../../components/StatusBadge.jsx'
 import { hasSessionAcknowledgement } from '../../app/signature.js'
 import { formatDate, weekday } from '../../utils/date.js'
 
-export default function SessionOverview({ session, client, trainer, trainers, purchased, clientInactive, packageInactive, status, pendingChanges, isOwner, sessionEditable, activeEditor, setActiveEditor, saving, setDetailsError, schedule, onOpenClient, onOpenTrainer }) {
+export default function SessionOverview({ session, client, trainer, trainers, purchased, clientInactive, packageInactive, status, pendingChanges, isOwner, sessionEditable, bookingEditable = sessionEditable, bookingUncertain = false, activeEditor, setActiveEditor, saving, setDetailsError, schedule, onOpenClient, onOpenTrainer }) {
   const { detailsDraft, setDetailsDraft, requestKind, setRequestKind, setTimeRequestDraft, setTrainerRequestId, timeChangeError, checkTimeRequest, saveDetails } = schedule
 
   const postponementError = isOpenSession(session) ? 'This session is already open.' : !purchased || purchased.id !== client.package?.id ? 'Postpone is available only for the current package.' : timeChangeError
@@ -38,13 +38,10 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
                   setDetailsError('')
                   setActiveEditor(null)
                 }}>Cancel</button>
-                <button type="button" className="text-action" disabled={saving} onClick={saveDetails}>{saving ? 'Saving…' : 'Save'}</button>
+                <button type="button" className="text-action" disabled={saving} onClick={saveDetails}>{saving ? 'Saving…' : bookingUncertain ? 'Check original save' : 'Save'}</button>
               </div>
             ) : (
-              <button type="button" className="text-action" disabled={!sessionEditable || Boolean(activeEditor)} onClick={() => {
-                setDetailsError('')
-                setActiveEditor('details')
-              }}>{isOpenSession(session) ? 'Change ad-hoc date/time' : 'Edit'}</button>
+              <button type="button" className="text-action" disabled={saving || !bookingEditable || Boolean(activeEditor)} onClick={schedule.beginDetails}>{isOpenSession(session) ? 'Change ad-hoc date/time' : 'Edit'}</button>
             )
           ) : (
             <>
@@ -78,7 +75,7 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
           <span className="session-fact-label">Trainer</span>
           <div className="session-overview-value">
             {activeEditor === 'details' ? (
-              <SelectField aria-label="Session trainer" value={detailsDraft.trainerId} onChange={event => setDetailsDraft(current => ({ ...current, trainerId: event.target.value }))}>
+              <SelectField aria-label="Session trainer" disabled={saving || bookingUncertain} value={detailsDraft.trainerId} onChange={event => setDetailsDraft(current => ({ ...current, trainerId: event.target.value }))}>
                 {trainers.filter(item => item.status !== 'inactive').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
               </SelectField>
             ) : <strong>{trainer.name}</strong>}
@@ -90,9 +87,9 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
           <span className="session-fact-label">Date & time</span>
           {activeEditor === 'details' ? (
             <div className="session-schedule-fields">
-              <label>Date<DateField aria-label="Session date"  value={detailsDraft.date} onChange={event => setDetailsDraft(current => ({ ...current, date: event.target.value }))} /></label>
-              <label>From<input aria-label="Session start time" type="time" value={detailsDraft.from} onChange={event => setDetailsDraft(current => ({ ...current, from: event.target.value }))} /></label>
-              <label>To<input aria-label="Session end time" type="time" value={detailsDraft.to} onChange={event => setDetailsDraft(current => ({ ...current, to: event.target.value }))} /></label>
+              <label>Date<DateField aria-label="Session date" disabled={saving || bookingUncertain} value={detailsDraft.date} onChange={event => setDetailsDraft(current => ({ ...current, date: event.target.value }))} /></label>
+              <label>From<input aria-label="Session start time" type="time" disabled={saving || bookingUncertain} value={detailsDraft.from} onChange={event => setDetailsDraft(current => ({ ...current, from: event.target.value }))} /></label>
+              <label>To<input aria-label="Session end time" type="time" disabled={saving || bookingUncertain} value={detailsDraft.to} onChange={event => setDetailsDraft(current => ({ ...current, to: event.target.value }))} /></label>
             </div>
           ) : <strong>{isOpenSession(session) ? 'Date/time not set' : `${weekday(session.date)}, ${formatDate(session.date)} · ${session.from}–${session.to}`}</strong>}
         </div>
