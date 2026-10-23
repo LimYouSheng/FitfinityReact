@@ -9,10 +9,10 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | [README](README.md) | Development prerequisites, configuration and commands |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
 | [North Star](NORTH_STAR.md) | Current outcome and priority |
-| [Progress](PROGRESS.md) | Current revision, evidence, blockers, next actions and hardening backlog |
+| [Progress](PROGRESS.md) | Full milestone roadmap, current evidence, blockers, next actions and hardening backlog |
 | [Architecture explanation](docs/Architecture/README.md) | Component responsibilities and interactions |
 | [Architecture diagram](docs/Architecture/diagram.md) | Component topology and connections |
-| [Service Contracts](docs/SERVICE_CONTRACTS.md) | Part 1: business rules, design decisions, operation matrix and acceptance criteria; Part 2: full dated history |
+| [Service Contracts](docs/SERVICE_CONTRACTS.md) | Part 1: business rules, design decisions, operation matrix and cross-cutting acceptance criteria; Part 2: full dated history |
 
 
 Use this structure as a guide for other projects, but re-establish their runtime, test commands, data boundaries, browser permissions and merge/deployment authority. Fitfinity's permissions and technology choices do not transfer automatically. Keep reusable engineering practice here and project business rules in Service Contracts; do not create parallel rulebooks.
