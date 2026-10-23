@@ -2,22 +2,25 @@
 
 ## Current checkpoint — 23 October 2026 Singapore
 
-Verified GitHub main is `df9cbbb75373eb7e57b31187eeb93077ea35cec8` (PR58). The restored checkout was clean but stale at `8945ca1`; fetched main and created `test/integrated-real-api-postgres` in the existing checkout. No unknown edits were discarded. Node24.19.0, Python3.12.14 and Docker28.4.0 are available; restored dependency/image receipts require input checks before reuse.
+Accepted main is `ba00ca51a68dd003aad461f080f7c385c9589d26` (PR60). Final PR60 head `09c0596818e21c3136d424216dfb2346e9ebba38` passed frontend/backend/api-browser in [run39890050639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39890050639): 1248 units, 1152 simulator browser cases, 975 backend, 633 infrastructure and 63 real-API browser cases. No deployment or production PostgreSQL access was performed.
 
-**27/55 integrated in merged source: 26 server-connected operations plus one local predicate.** Trainer update remains partial and 27 other operations are incomplete. [Service Contracts](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) owns the only operation matrix. Reconciliation: its 25 connected rows plus the local predicate previously excluded Trainer deactivation; PR55's final CI subsequently passed and it merged. PR57 includes fixed weekly scheduling and session reads. Read routes do not add named operations. Counts of endpoints or browser cases are different inventories.
+**27/55 integrated in merged source: 26 server-connected plus one local predicate.** Trainer update remains partial; 27 other operations remain incomplete. [Service Contracts](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) owns the only operation matrix. The earlier26/55 omitted Trainer deactivation, subsequently accepted in PR55. Session/calendar reads do not add named operations.
 
-| Acceptance level | Verified evidence / limit |
+| Work | Current state / acceptance boundary |
 | --- | --- |
-| Implemented / merged | PR55 (including54), PR57 (including56), PR58 merged; main above |
-| Final PR CI | [PR55 run38476697547](https://github.com/LimYouSheng/FitfinityReact/actions/runs/38476697547), [PR57 run38820138715](https://github.com/LimYouSheng/FitfinityReact/actions/runs/38820138715), [PR58 run38834044790](https://github.com/LimYouSheng/FitfinityReact/actions/runs/38834044790) succeeded; PR58 includes frontend/backend/api-browser |
-| Real API browser | Candidate full63/63 passed locally with Playwright1.64.1 and isolated PostgreSQL per worker. Final-head CI remains required; prior failures are retained below |
-| Backend | Full local gate passed970/970 backend and633/633 offline infrastructure cases; worker-isolation checks passed13/13. PR60 head29f68d2 backend CI passed the expanded975-case gate; final dependency-update head still requires CI |
-| Simulator / demo | 18 HTTP simulator spec files; existing browser inventory1152. These do not prove browser→FastAPI→PostgreSQL persistence |
-| Current candidate | Draft [PR60](https://github.com/LimYouSheng/FitfinityReact/pull/60) contains the documentation refactor, operation evidence map,63-case browser expansion, Docker stage separation and onboarding selection fix. Playwright1.64.1 follow-up passed locally; no merge claimed |
-| Independent main CI | Historical ECR429 reported in handoff; connector returned no main-SHA runs during this audit. Do not infer a pass or repair |
-| Deployment / provider | No AWS query or deployment this task. Retained runbook source/image remains historical; new integrations are not live-accepted |
+| PR60 | Merged: real PostgreSQL coverage expansion, Docker application/test/runtime separation and initial documentation cleanup. The initial cleanup did **not** fulfill the requested architecture-folder refactor. |
+| Documentation correction | Current branch `docs/architecture-and-contracts`: SoccerBot-style Architecture explanation/diagrams, concise contracts retaining55 rows, historical material relocated, unique ownership and current ledger corrected. Local55-operation registry equality, current link/anchor checks, history-preservation checks and633/633 offline infrastructure tests passed. Final-head CI remains pending. |
+| PR59 cleanup | Original head01ef529: frontend/backend passed; API browser cancelled during engine installation before tests. It also conflicts with main. Its sole fixture deletion is carried into this documentation candidate; its obsolete ledger is replaced here, not cherry-picked. Close59 as superseded once the replacement PR exists; acceptance belongs to that replacement's final CI/merge. |
+| PR61 numbering | Original head9c8c887 passed all three jobs in run39894499184, but GitHub required an updated base. Updated heada066c23 includes main; run39898033276 is the new acceptance gate. No bypass or auto-merge. Does not increase27/55. |
+| PR62 booking edits | Candidate head71b99e2 on PR61 dependency. Local1255 units,1006 backend,633 infrastructure and75 real-API browser cases passed. Its own final CI and current-base requirements remain required; it is not accepted main. |
+| Postponement candidate | Preserved on `feat/session-postponement-api` in the named local stash while docs are corrected. Focused101 backend/46 frontend passed. Full browser82/87: three outdated disabled-button assertions and two message-opening failures. A new regression reproduces an active read being exposed as recovery-pending. Fix and validate before publication; no completed-operation claim. |
+| Deployment / provider / devices | Separate pending evidence. Synthetic Cognito is substituted in test; API and isolated Docker PostgreSQL are real. No image publication, AWS changes or production test traffic under this work. |
 
-Draft [PR59](https://github.com/LimYouSheng/FitfinityReact/pull/59) removes one historical fixture and updates the old ledger; head `01ef52916ca576cad3ebd76e5253b06127759620`, CI39881298542 now has successful frontend/backend jobs but its api-browser job was cancelled during browser installation; that is not complete final-head acceptance. Preserve its intended cleanup; reconcile its ledger when integrating. Do not approve obsolete image workflow78 to unblock a queue.
+## Immediate next actions
+
+1. Complete this documentation/PR59 reconciliation, validate the55-row inventory, current links, history preservation and fixture consumers, and publish a focused PR.
+2. Finish the scheduling candidates with all final-head gates and normal GitHub requirements. Retarget dependencies only after their acceptance; update matrix status only on accepted integration.
+3. Repair the reproduced message read/recovery race, strengthen postponement stale/conflict browser coverage, validate full isolated PostgreSQL and browser suites, then continue the remaining operations.
 
 ## Active sequence and acceptance
 
@@ -32,7 +35,7 @@ Draft [PR59](https://github.com/LimYouSheng/FitfinityReact/pull/59) removes one 
 | 5 | Release and live acceptance | Tested merged source; reviewed deployment plan | Separate authorization for AWS/image/provider actions; real Cognito, restart/recovery and devices distinct |
 | 6 | Approved public website and website content management | Staff portal complete; retained public HTML design and product rules | Separate public-site delivery and acceptance; the55-operation staff goal does not mark the whole website delivered; publishing requires its applicable authority |
 
-## Candidate validation and remaining work
+## Historical PR60 validation receipts
 
 - Docker test and runtime builds passed locally with the environment's public CA trust configuration. Test image omits the Lambda adapter; runtime retains it, UID10001 and the existing launch command, and excludes test code. No image was published.
 - Every connected matrix row now links its real PostgreSQL/HTTP test owners. The local directory predicate has23 passing directory-unit cases, including its role variants; it is not a database operation.
@@ -61,9 +64,9 @@ Inspected current AGENTS, README, North Star, Progress and Service Contracts, pl
 
 | Source | Adopt / adapt / defer and reason |
 | --- | --- |
-| [PR89 document ownership](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/89), [PR86 consolidation](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/86) | Adopt one owner per document, clear current/history separation and short entry point. Keep Fitfinity's established specialist documents rather than recreating SoccerBot topology |
+| [PR89 document ownership](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/89), [PR86 consolidation](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/86) | Adopt one owner per document, clear current/history separation and short entry point. Adapt the Architecture folder with explanation and diagrams; retain Fitfinity's own runtime topology and concise operation matrix |
 | [PR88 function summaries](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/88) | Adapt concise purpose/constraint summaries for substantial new functions and test-impact review; defer bulk comment rewrite |
-| [PR87 obsolete artifacts](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/87) | Adopt reference/loader checks and immutable evidence links before cleanup; preserve PR59 and unknown files |
+| [PR87 obsolete artifacts](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/87) | Adopt reference/loader checks and immutable evidence links before cleanup; carry PR59's verified unused-fixture deletion into the documentation correction; preserve unknown files |
 | [PR83 load campaign](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/83), [PR84 overload recovery](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/84) | Adapt bounded baseline/fault/overload campaigns, exact retry identity, failure receipts and source fingerprints to FastAPI/PostgreSQL; synthetic capacity does not establish production throughput |
 | [PR80 telemetry](https://github.com/LimYouSheng/SoccerBotStudioSG/pull/80) | Adapt redaction allowlists, disabled export, bounded sampling/cost, failure isolation and honest correlation limits; defer Grafana activation and omit Cloudflare Tail/DO specifics |
 | [Current Progress](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/main/PROGRESS.md) | Adopt separate PR versus main/release acceptance and explicit security-maintenance gaps. Do not import owner-only browser execution or its merge/provider rules; Fitfinity authorization governs |
@@ -71,3 +74,9 @@ Inspected current AGENTS, README, North Star, Progress and Service Contracts, pl
 ## Historical evidence
 
 The complete prior ledger is retained at [main before refactor](https://github.com/LimYouSheng/FitfinityReact/blob/df9cbbb75373eb7e57b31187eeb93077ea35cec8/PROGRESS.md); [Journey](docs/FITFINITY_JOURNEY.md) retains earlier decisions. In particular, the full local baseline had five native-touch/WebKit failures, assertions unchanged; later authoritative macOS PR CI passed. Historical local failures are not erased by that pass. The AWS runbook owns exact retained deployment identities and expired exception evidence; old approvals never renew themselves.
+
+## Documentation correction evidence
+
+Reference inspected: SoccerBot main96814c08ecef, merged PR89 (ownership/client delivery), PR88 (function summaries), PR87 (obsolete evidence) and PR86 (architecture consolidation). Adopt `docs/Architecture/README.md` and `diagram.md`; keep Fitfinity's own AWS/FastAPI/PostgreSQL/Cognito system and standing browser/merge authority. Its381KB contracts/history file is not copied: Fitfinity current contracts remain concise and frozen detail lives under `docs/history/`. Planned client staging, Tail Worker, D1/DO and provider-specific rules are not Fitfinity capabilities or permissions. H1–H7 retain the requested hardening dependencies/evidence/boundaries.
+
+The full pre-refactor Rules/Architecture and service detail are retained with relative links relocated. The operation matrix exists only in current Service Contracts; Git history preserves the original verbose rows. The former rules filename is a compatibility map with no separate authority. No product/security rule is intentionally relaxed by moving its historical evidence.
