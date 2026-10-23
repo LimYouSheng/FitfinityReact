@@ -104,3 +104,9 @@ Full postponement browser run1:82/87; run2:86/87. A background snapshot exposed 
 Independent main run39894139373 passed backend/API browser but failed1/1152 simulator cases: desktop sidebar scroll-lock expected body top-120px, observed0px. Retrieved its trace via the connector after direct artifact download was forbidden. No main rerun or passed-main claim; scroll/navigation timing remains to diagnose. This is distinct from PR60's green final-head receipt.
 
 The documentation merge removed the unused fixture while a local health-checker copy was already running; that invocation failed with ENOENT. Rerun that checker on the settled source; do not change its assertions.
+
+## Current scheduling repair checkpoint
+
+The message read and same-session detail refresh regressions now pass (37 affected service cases and4 detail-route cases). The sidebar main failure exposed a delayed animation-frame restoration that can overwrite scrolling after the page is interactive; the new two-case regression fails before the repair and verifies both retained user scrolling and normal saved-position restoration after it. Combined affected regression run40/40 passed. Full1262-unit gate passed before this final navigation repair; expanded1264-unit gate is running. Lint462 files, health224 reachable modules,47 quality-checker and20 health-checker cases passed; the failed checker invocation caused by the concurrent fixture removal remains recorded above.
+
+PR63 head4b234ab has successful backend/API-browser CI in run39899636421; frontend remains pending. Source is not yet merged, deployed or production-accepted. Once documentation acceptance lands, the scheduling candidate can carry the already-tested PR61/62 dependencies through one final aggregate gate instead of treating their earlier heads as acceptance for later changes. All GitHub requirements still apply.
