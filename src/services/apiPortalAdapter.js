@@ -27,10 +27,18 @@ import { directorySnapshot } from './apiDirectory.js'
 import { portalRequest, authRequest } from './portalContracts.js'
 
 export function createApiPortalAdapter(options = {}) {
-  const http = createApiClient(options)
+  const transport = createApiClient(options)
+  let writeRevision = 0
+  const http = { ...transport, async post(...args) {
+    try { return await transport.post(...args) }
+    // Even an interrupted response may have committed. A later refresh must not
+    // reuse a snapshot that began before this command settled.
+    finally { writeRevision++ }
+  } }
   let policyPromise
   let loading
   let loadingGeneration
+  let loadingRevision
   const policy = () => {
     if (!policyPromise) policyPromise = http.get('/auth/policy', { authenticated: false }).then(value => {
       if (value?.password?.minimumLength !== 15 || value.password.maximumLength !== 128 || value.password.spacesAllowed !== false || value?.mfa?.required !== true || value.mfa.method !== 'totp') throw new ApiError('API_RESPONSE', 'The staff sign-in policy could not be verified.')
@@ -137,8 +145,9 @@ export function createApiPortalAdapter(options = {}) {
       return clientCreation.preview(draft, expectedGeneration)
     },
     async load() {
-      if (loading && loadingGeneration === http.generation()) return loading
+      if (loading && loadingGeneration === http.generation() && loadingRevision === writeRevision) return loading
       loadingGeneration = http.generation()
+      loadingRevision = writeRevision
       const operation = (async () => {
         const authPolicy = await policy()
         const snapshot = { user: null, data: null, accounts: [], policy: { ...authPolicy, timeZone: 'Asia/Singapore' }, capabilities: { demoControls: false, staffWorkflows: false, realAuthentication: true } }

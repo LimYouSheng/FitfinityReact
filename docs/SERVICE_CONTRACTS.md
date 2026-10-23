@@ -36,7 +36,7 @@ Errors retain a readable message and stable error code. Session expiry clears pr
 
 ## Domain operation inventory
 
-**27/55 accepted in merged source: 26 server-connected and one local predicate.** 28 remain unaccepted, including partial Trainer update. Three scheduling operations and request resolution have unmerged candidates. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
+**30/55 accepted in merged source: 29 server-connected and one local predicate.** 25 remain unaccepted, including partial Trainer update. Request resolution is an unmerged candidate. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
 
 Each connected server row names actual PostgreSQL/HTTP and real-API browser evidence owners. Browser scenarios can cover several operations. Simulator tests supplement these tests; they do not establish persistence. Local execution uses temporary Docker PostgreSQL, synthetic records and a local signed-token Cognito substitute. Real Cognito, restart, physical devices and deployment acceptance remain separate.
 
@@ -69,12 +69,12 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `trainerService.updateAutonomy` | Connected | Owner/Admin only | [`test_trainer_approvals.py`](../backend/tests/test_trainer_approvals.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `trainerService.deactivate` | Connected | Owner/Admin only; all remaining active-client/purchase sessions require available replacements | [`test_trainer_deactivation.py`](../backend/tests/test_trainer_deactivation.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `trainerService.reactivate` | Connected | Owner/Admin | [`test_trainer_reactivation.py`](../backend/tests/test_trainer_reactivation.py); [`records.spec.js`](../tests-api/records.spec.js) |
-| `sessionService.previewPostponement` | Candidate; acceptance pending | session | [backend](../backend/tests/test_session_postponement_api.py); [browser](../tests-api/session-postponement.spec.js); see Progress |
-| `sessionService.postpone` | Candidate; acceptance pending | session | [backend](../backend/tests/test_session_postponement_api.py); [browser](../tests-api/session-postponement.spec.js); see Progress |
+| `sessionService.previewPostponement` | Connected | session | [backend](../backend/tests/test_session_postponement_api.py); [browser](../tests-api/session-postponement.spec.js); see Progress |
+| `sessionService.postpone` | Connected | session | [backend](../backend/tests/test_session_postponement_api.py); [browser](../tests-api/session-postponement.spec.js); see Progress |
 | `sessionService.loadVideo` | Missing | session | Pending API acceptance |
 | `sessionService.saveVideo` | Missing | session | Pending API acceptance |
 | `sessionService.removeVideo` | Missing | session | Pending API acceptance |
-| `sessionService.updateDetails` | Candidate; acceptance pending | operationsSession | [backend](../backend/tests/test_session_booking_api.py); [browser](../tests-api/session-booking.spec.js); see Progress |
+| `sessionService.updateDetails` | Connected | operationsSession | [backend](../backend/tests/test_session_booking_api.py); [browser](../tests-api/session-booking.spec.js); see Progress |
 | `sessionService.requestTimeChange` | Missing | session | Pending API acceptance |
 | `sessionService.requestTrainerChange` | Missing | session | Pending API acceptance |
 | `sessionService.saveExercisePlan` | Missing | session | Pending API acceptance |
