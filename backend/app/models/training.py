@@ -156,7 +156,7 @@ class TrainingSession(Versioned, Base):
             ["schedule_slot_id", "purchase_id"],
             ["purchase_schedule_slots.id", "purchase_schedule_slots.purchase_id"],
         ),
-        UniqueConstraint("purchase_id", "session_number"),
+        UniqueConstraint("purchase_id", "session_number", deferrable=True, initially="DEFERRED"),
         UniqueConstraint("id", "purchase_id", "client_id"),
         choices("status", "scheduled", "planned", "completed", "cancelled"),
         choices("schedule_state", "booked", "open"),

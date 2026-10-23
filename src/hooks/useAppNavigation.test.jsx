@@ -178,3 +178,22 @@ it('ignores an old page state setter after navigation and keeps rapid Back click
   await waitFor(() => expect(output()).toHaveTextContent(/^trainers$/))
   expect(history.state.fitfinityDepth).toBe(1)
 })
+
+it.each([false, true])('restores a saved entry unless scrolling already changed before the queued frame: %s', moved => {
+  cleanup()
+  const frames = new Map()
+  let sequence = 0, y = 0
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { frames.set(++sequence, callback); return sequence })
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => { frames.delete(id) })
+  vi.spyOn(window, 'scrollY', 'get').mockImplementation(() => y)
+  history.replaceState({ fitfinity: true, fitfinityPath: 'clients', fitfinityDepth: 0, fitfinityUserId: '', fitfinityScroll: { x: 0, y: 320 } }, '', '/#/clients')
+  render(<ActionConfirmationProvider><EditGuardProvider><Harness /></EditGuardProvider></ActionConfirmationProvider>)
+  window.scrollTo.mockClear()
+  if (moved) y = 120
+  act(() => {
+    const ready = [...frames.values()]; frames.clear()
+    for (const callback of ready) callback()
+  })
+  if (moved) expect(window.scrollTo).not.toHaveBeenCalled()
+  else expect(window.scrollTo).toHaveBeenCalledWith(0, 320)
+})

@@ -184,3 +184,21 @@ it('retains Open as the original state when a pending request proposes booking i
   expect(row.request.next).toEqual({ date: '2026-10-14', from: '10:00', to: '11:00' })
   expect(() => personalMessage(personalNotice({ requestId: request.id, request: { ...request, old_start: '09:00:00' } }), staff)).toThrow()
 })
+
+it('a background snapshot does not replace the inbox while its read command is still in flight', async () => {
+  let finish, started
+  const active = new Promise(resolve => { started = resolve })
+  const fetch = transport((url, options) => {
+    if (options.method === 'POST') { started(); return new Promise(resolve => { finish = () => resolve(jsonResponse(savedRead)) }) }
+    return url.includes('/message-read-saves/') ? failure('not_found', 404) : jsonResponse([personalNotice()])
+  })
+  const services = createPortalServices(createApiPortalAdapter({ fetchImpl: fetch }))
+  const saving = services.messageService.markRead(input)
+  await active
+  try {
+    const snapshot = await services.load()
+    expect(snapshot.messageReadPending).toBeNull()
+    expect(fetch.mock.calls.some(([url]) => url.includes('/message-read-saves/'))).toBe(false)
+  } finally { finish(); await saving }
+  expect((await services.load()).messageReadPending).toBeNull()
+})

@@ -201,9 +201,11 @@ export default function useAppNavigation(userId = '') {
   })
   useLayoutEffect(() => {
     restoringScroll.current = true
+    const before = { x: window.scrollX, y: window.scrollY }
     let secondFrame
     const firstFrame = requestAnimationFrame(() => {
-      restoreEntryScroll()
+      // Do not let delayed restoration overwrite scrolling after the page became interactive.
+      if (window.scrollX === before.x && window.scrollY === before.y) restoreEntryScroll()
       secondFrame = requestAnimationFrame(() => { restoringScroll.current = false })
     })
     return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame) }

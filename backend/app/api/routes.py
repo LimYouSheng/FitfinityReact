@@ -30,6 +30,9 @@ from app.api import (
     packages,
     renewal_dismissal,
     request_cancellation,
+    session_booking_review,
+    session_booking_save,
+    session_postponement,
     session_read_schemas,
     session_reads,
     trainer_approvals,
@@ -1051,3 +1054,76 @@ def read_session_calendar(request: Request):
 def read_session_details(session_id: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
         return session_reads.detail(session, principal, session_id)
+
+
+@router.get(
+    "/sessions/{session_id}/booking-review",
+    response_model=session_booking_review.SessionBookingReview,
+    operation_id="reviewSessionBooking",
+)
+def review_session_booking(session_id: UUID, request: Request):
+    """Review current Owner/Admin booking authority and chronological context."""
+    with authorized_transaction(request) as (session, principal):
+        return session_booking_review.review(session, principal, session_id)
+
+
+@router.post(
+    "/sessions/{session_id}/booking",
+    response_model=session_booking_save.SessionBookingState,
+    operation_id="saveSessionBooking",
+)
+def save_session_booking(
+    session_id: UUID,
+    body: session_booking_review.SaveSessionBooking,
+    request: Request,
+    key: RequestKey,
+):
+    """Atomically save a reviewed booking and retain its exact retry result."""
+    with authorized_transaction(request) as (session, principal):
+        return session_booking_save.save(session, principal, session_id, key, body)
+
+
+@router.get(
+    "/session-booking-saves/{request_key}",
+    response_model=session_booking_save.SessionBookingState,
+    operation_id="reconcileSessionBooking",
+)
+def reconcile_session_booking(request_key: UUID, request: Request):
+    """Read only this actor's original booking receipt after an interrupted response."""
+    with authorized_transaction(request) as (session, principal):
+        return session_booking_save.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/sessions/{session_id}/postponement-review",
+    response_model=session_postponement.PostponementReview,
+    operation_id="reviewSessionPostponement",
+)
+def review_session_postponement(session_id: UUID, request: Request):
+    """Review an eligible current booking and the current Trainer approval requirement."""
+    with authorized_transaction(request) as (session, principal):
+        return session_postponement.review(session, principal, session_id)
+
+
+@router.post(
+    "/sessions/{session_id}/postponement",
+    response_model=session_postponement.PostponementState,
+    operation_id="postponeSession",
+)
+def postpone_session(
+    session_id: UUID, body: session_postponement.PostponeSession, request: Request, key: RequestKey
+):
+    """Atomically release this booking or persist its supervised proposal."""
+    with authorized_transaction(request) as (session, principal):
+        return session_postponement.save(session, principal, session_id, key, body)
+
+
+@router.get(
+    "/session-postponements/{request_key}",
+    response_model=session_postponement.PostponementState,
+    operation_id="reconcileSessionPostponement",
+)
+def reconcile_session_postponement(request_key: UUID, request: Request):
+    """Recover only this actor's original postponement outcome without resubmitting it."""
+    with authorized_transaction(request) as (session, principal):
+        return session_postponement.reconcile(session, principal, request_key)

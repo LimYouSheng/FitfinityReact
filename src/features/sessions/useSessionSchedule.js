@@ -5,7 +5,7 @@ import { sessionTimeChangeError } from '../../app/scheduleChanges.js'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { createUuid } from '../../utils/uuid.js'
 
-export default function useSessionSchedule({ session, policy, setActiveEditor, setDetailsError, setSaving, onSaveDetails, onRequestTimeChange, onRequestTrainerChange, onPreviewPostponement, onPostpone }) {
+export default function useSessionSchedule({ session, policy, setActiveEditor, setDetailsError, setSaving, onBeginDetails, onSaveDetails, onRequestTimeChange, onRequestTrainerChange, onPreviewPostponement, onPostpone }) {
   const confirmAction = useActionConfirmation()
   const [detailsDraft, setDetailsDraft] = useState({
     date: session.date ?? '',
@@ -32,7 +32,7 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
     try {
       const preview = await onPreviewPostponement()
       if (!mounted.current) return
-      postponementKey.current = createUuid()
+      postponementKey.current = preview.requestKey ?? createUuid()
       setPostponement(preview); setRequestKind('postpone')
     } catch (error) { if (mounted.current) setDetailsError(error.message) }
     finally { postponeLock.current = false; if (mounted.current) setSaving(false) }
@@ -70,6 +70,17 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
     return !error
   }
   const validSchedule = draft => !sessionScheduleError(draft)
+
+  const beginDetails = async () => {
+    setSaving(true); setDetailsError('')
+    try {
+      const draft = onBeginDetails ? await onBeginDetails() : null
+      if (!mounted.current) return
+      if (draft) setDetailsDraft(draft)
+      setActiveEditor('details')
+    } catch (error) { if (mounted.current) setDetailsError(error.message) }
+    finally { if (mounted.current) setSaving(false) }
+  }
 
   const saveDetails = async () => {
     if (!validSchedule(detailsDraft) || !detailsDraft.trainerId) {
@@ -161,5 +172,5 @@ export default function useSessionSchedule({ session, policy, setActiveEditor, s
     }
   }
 
-  return { detailsDraft, setDetailsDraft, requestKind, setRequestKind, timeRequestDraft, setTimeRequestDraft, trainerRequestId, setTrainerRequestId, clock, timeChangeError, timeRequestError, checkTimeRequest, validSchedule, saveDetails, submitTimeRequest, submitTrainerRequest, postponement, openPostponement, submitPostponement }
+  return { beginDetails, detailsDraft, setDetailsDraft, requestKind, setRequestKind, timeRequestDraft, setTimeRequestDraft, trainerRequestId, setTrainerRequestId, clock, timeChangeError, timeRequestError, checkTimeRequest, validSchedule, saveDetails, submitTimeRequest, submitTrainerRequest, postponement, openPostponement, submitPostponement }
 }

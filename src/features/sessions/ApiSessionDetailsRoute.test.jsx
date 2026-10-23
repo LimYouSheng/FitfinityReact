@@ -8,12 +8,12 @@ import { sessionDetailData } from '../../test/sessionReads.js'
 import { directoryId } from '../../test/directory.js'
 import { sessionDetail } from '../../services/apiSessionReads.js'
 import ApiSessionDetailsRoute from './ApiSessionDetailsRoute.jsx'
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.useRealTimers() })
 function show(services, patch = {}) {
   const snapshot = { user: staff, policy: { timeZone: 'Asia/Singapore' }, sessionGeneration: 0, serverAt: '2026-10-13T06:00:00Z', data: { clients: [], trainers: [], messages: [] }, ...patch }
   const node = selectedSession => <PortalData.Provider value={{ snapshot, services, today: '2026-10-13' }}><ActionConfirmationProvider><EditGuardProvider><ApiSessionDetailsRoute selectedSession={selectedSession} navigate={vi.fn()} openClient={vi.fn()} /></EditGuardProvider></ActionConfirmationProvider></PortalData.Provider>
   const rendered = render(node({ id: directoryId(30), version: 1 }))
-  return { ...rendered, update: id => rendered.rerender(node({ id, version: 1 })) }
+  return { ...rendered, update: id => rendered.rerender(node({ id, version: 1 })), refresh: () => { snapshot.serverAt = '2026-10-13T06:00:01Z'; rendered.rerender(node({ id: directoryId(30), version: 1 })) } }
 }
 it('shows stored plan/outcome evidence and keeps every unavailable mutation disabled', async () => {
   const services = { readSessionDetails: vi.fn().mockResolvedValue(sessionDetail(sessionDetailData(), directoryId(30), staff)) }
@@ -51,4 +51,21 @@ it('ignores a late response for the previous session after navigation', async ()
   await act(async () => complete(sessionDetail(sessionDetailData(), directoryId(30), staff)))
   expect(screen.getByText('Next session summary')).toBeVisible()
   expect(screen.queryByText('Stored client summary')).toBeNull()
+})
+
+it('keeps the reviewed postponement dialog mounted through a background detail refresh', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-13T06:00:00Z'))
+  let complete
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session = { ...value.session, date: '2026-10-20', status: 'scheduled' }
+  const services = { readSessionDetails: vi.fn().mockResolvedValueOnce(value).mockImplementation(() => new Promise(resolve => { complete = resolve })),
+    sessionService: { previewPostponement: vi.fn().mockResolvedValue({ expected: 'original-review', changes: [{ sessionId: value.session.id, before: { date: value.session.date, from: '10:00', to: '11:00' }, next: { scheduleState: 'open' } }] }) } }
+  const view = show(services, { capabilities: { sessionPostponementWrites: true } })
+  fireEvent.click(await screen.findByRole('button', { name: 'Postpone', exact: true }))
+  const dialog = await screen.findByRole('dialog', { name: 'Postpone this session?', exact: true })
+  view.refresh()
+  expect(dialog).toBeInTheDocument()
+  await act(async () => complete(value))
+  expect(screen.getByRole('dialog', { name: 'Postpone this session?', exact: true })).toBe(dialog)
+  expect(services.sessionService.previewPostponement).toHaveBeenCalledTimes(1)
 })
