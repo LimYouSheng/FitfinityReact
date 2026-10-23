@@ -71,3 +71,13 @@ it('reads active cover client names through the existing scoped endpoint and rej
   response = { ...response, client_id: directoryId(7), healthNotes: 'private' }
   await expect(services.readSessionClient({ id: directoryId(30), clientId: directoryId(7) })).rejects.toMatchObject({ code: 'API_RESPONSE' })
 })
+it('retains result identity for a retired plan item without presenting it as the current plan', () => {
+  const data = sessionDetailData(), retired = data.exercisePlan[0].id
+  data.exercisePlan = []
+  data.retiredPlanItemIds = [retired]
+  const result = sessionDetail(data, directoryId(30), staff)
+  expect(result.session.exercisePlan).toEqual([])
+  expect(result.session.exerciseResults[0].id).toBe(retired)
+  data.retiredPlanItemIds = [directoryId(99)]
+  expect(() => sessionDetail(data, directoryId(30), staff)).toThrow('could not be verified')
+})

@@ -20,8 +20,14 @@ Accepted main is `cf1d93966a2722a47a17e40788b4b601fd09b338` (PR65 request decisi
 ## Immediate next actions
 
 1. Complete PR66 Trainer time-change/reassignment validation and final-head frontend/backend/API-browser CI on current main; merge only when all gates and GitHub requirements pass, then record its two-operation increment.
-2. Continue persistent exercise-plan writes through the existing UI, preserving ordered details, current assignment, stable item identities and result/media history. Previous-plan/copy UI remains subject to its retained product decision; do not infer it from service methods alone.
+2. Continue persistent exercise-plan writes through the existing UI, preserving ordered details, current assignment, stable item identities and result/media history. YS approved a previous-plan preview followed by explicit confirmation before replacement on23 October; implement it after the existing save workflow, with separate operation evidence.
 3. Continue plans/outcomes/summary/acknowledgement/credits and the remaining named operations. Keep deployed/provider/device acceptance separate.
+
+## Exercise-plan candidate
+
+Active branch `feat/session-exercise-plan-api` starts from PR66 head `12b930ce8ed30c26455f4af9afdd9a6661785dea`; PR66 remains an unmerged dependency. The existing Start Plan/Edit/Save UI now has a candidate persistent workflow: ordered details, stable exercise IDs, retained result/media identities and actor-private receipts. It does not enable outcome, acknowledgement or media writes. YS approved preview then confirmed replacement for Previous Plan; those two operations follow this save slice. No candidate increment is counted.
+
+Local evidence: **132/132 real-API browser cases**,65 focused PostgreSQL/schema/read cases,28 focused frontend cases,47 quality checks, lint472 files and health228 runtime modules passed. **1,301/1,301 units in133 files** passed after the confirmation-text repair. Full backend and final-head CI remain pending. [Detailed repairs and compatibility boundary](#exercise-plan-local-validation-receipts) are historical evidence.
 
 ## Trainer scheduling-request candidate
 
@@ -29,7 +35,7 @@ Draft [PR66](https://github.com/LimYouSheng/FitfinityReact/pull/66), active bran
 
 Local evidence: **1,293/1,293 units in 132 files**, 47 quality-checker cases, lint468 files and source health226 runtime modules passed. The full **120/120 real-API browser** run passed before the narrow finality UI guard repair; all16 affected frontend cases passed after it. The latest33 focused PostgreSQL cases passed, including independent-connection concurrency, exact receipt identity and the corrected directory contract.
 
-The first complete backend run passed1,078/1,079 plus633 infrastructure checks; its sole failure was the directory test’s missing new capability field. The exact field assertion is corrected without relaxing privacy checks. A complete backend rerun is in progress; final-head CI remains required. [Earlier failures and repairs](#trainer-scheduling-request-local-validation-receipts) remain historical evidence.
+The first complete backend run passed1,078/1,079 plus633 infrastructure checks; its sole failure was the directory test’s missing new capability field. The exact field assertion is corrected without relaxing privacy checks. The complete backend rerun at `12b930c` passed **1,079/1,079** against isolated Docker PostgreSQL plus633 infrastructure checks in602.66 seconds; final-head CI remains required. [Earlier failures and repairs](#trainer-scheduling-request-local-validation-receipts) remain historical evidence.
 
 ## Active sequence and acceptance
 
@@ -81,6 +87,14 @@ Inspected current AGENTS, README, North Star, Progress and Service Contracts, pl
 | [Current Progress](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/main/PROGRESS.md) | Adopt separate PR versus main/release acceptance and explicit security-maintenance gaps. Do not import owner-only browser execution or its merge/provider rules; Fitfinity authorization governs |
 
 ## Historical evidence
+
+### Exercise-plan local validation receipts
+
+- The first focused PostgreSQL run passed26/30; four fixtures attempted invalid direct lifecycle/completion updates or omitted the principal's Trainer field. Fixtures now use actual lifecycle/acknowledgement transitions; all15 initial new cases passed. Constraints and assertions were retained.
+- A new cross-session empty-review regression reproduced a200 instead of409. The review now binds exact session/client/purchase/Trainer identities, not just coincident versions. Expanded focused PostgreSQL/schema/read checks passed65/65, including media/result retention, retired-item immutability and downgrade protection.
+- All12 new real-API browser cases passed, then all132 existing/new cases passed in6.3 minutes. A subsequent confirmation-text change suppresses the unavailable video-filming claim; the complete unit gate and final CI cover it. Current-plan reads exclude the full retired archive while retaining scoped IDs needed by saved results.
+- OpenAPI adds three plan operations (113 total), with unchanged existing operation definitions. DirectorySnapshot, SessionDetailRead and SessionPlanRead gain explicit fields; deployment needs matching frontend/backend/migration artifacts. Source acceptance does not authorize or establish that rollout.
+
 
 The following receipts describe their recorded checkpoints, including then-pending work. They do not override the current checkpoint or next actions above.
 

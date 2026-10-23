@@ -51,6 +51,8 @@ export default function ExercisePlanEditor({
   timeZone,
   canEdit,
   canViewVideo = canEdit,
+  mediaEditable = canEdit,
+  uncertain = false,
   editing,
   onBeginEdit,
   onEndEdit,
@@ -71,20 +73,20 @@ export default function ExercisePlanEditor({
     if (!editing) setDraft(editableItems(items, catalog, defaults))
   }, [catalog, defaults, editing, items])
 
-  const startPlan = () => {
-    const first = blankExercise(defaults)
-    setDraft([first])
-    setPendingId(first.id)
-    setError('')
-    onBeginEdit()
+  const begin = async start => {
+    if (saving) return
+    setSaving(true); setError('')
+    try {
+      const reviewed = await onBeginEdit()
+      const next = reviewed === undefined ? items : reviewed
+      const first = start && !next.length ? blankExercise(defaults) : null
+      setDraft(first ? [first] : editableItems(next, catalog, defaults))
+      setPendingId(first?.id ?? null)
+    } catch (failure) { setError(failure.message) }
+    finally { setSaving(false) }
   }
-
-  const editPlan = () => {
-    setDraft(editableItems(items, catalog, defaults))
-    setPendingId(null)
-    setError('')
-    onBeginEdit()
-  }
+  const startPlan = () => begin(true)
+  const editPlan = () => begin(false)
 
   const addExercise = () => {
     const next = blankExercise(defaults)
@@ -154,9 +156,9 @@ export default function ExercisePlanEditor({
       return
     }
 
-    const confirmed = await confirmAction({
+    const confirmed = uncertain || await confirmAction({
       title: 'Save exercise plan?',
-      message: `This will save ${draft.length} exercise${draft.length === 1 ? '' : 's'} and replace the current plan for this session. Videos can be filmed after the plan is saved.`,
+      message: `This will save ${draft.length} exercise${draft.length === 1 ? '' : 's'} and replace the current plan for this session.${mediaEditable ? ' Videos can be filmed after the plan is saved.' : ''}`,
       confirmLabel: 'Save Plan',
     })
     if (!confirmed) return
@@ -176,15 +178,16 @@ export default function ExercisePlanEditor({
 
   const headerActions = editing ? (
     <div className="exercise-edit-actions">
-      <button type="button" className="secondary-button" aria-label="Add Exercise" disabled={hasBlankName} onClick={addExercise}>+ Exercise</button>
-      <button type="button" className="secondary-button" disabled={saving} onClick={cancelEditing}>Cancel</button>
-      <button type="button" className="primary-button" disabled={saving || !draft.length || hasBlankName} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
+      <button type="button" className="secondary-button" aria-label="Add Exercise" disabled={saving || uncertain || hasBlankName} onClick={addExercise}>+ Exercise</button>
+      <button type="button" className="secondary-button" disabled={saving || uncertain} onClick={cancelEditing}>Cancel</button>
+      <button type="button" className="primary-button" disabled={saving || !draft.length || hasBlankName} onClick={save}>{saving ? 'Saving…' : uncertain ? 'Check original save' : 'Save'}</button>
     </div>
   ) : canEdit && items.length ? (
     <button
       type="button"
       className="text-action"
       aria-label="Edit exercise plan"
+      disabled={saving}
       onClick={editPlan}
     >
       Edit
@@ -205,7 +208,7 @@ export default function ExercisePlanEditor({
 
       {!editing && !items.length && (
         canEdit ? (
-          <button type="button" className="exercise-plan-empty" aria-label="Start Plan" onClick={startPlan}>
+          <button type="button" className="exercise-plan-empty" aria-label="Start Plan" disabled={saving} onClick={startPlan}>
             <span className="exercise-plan-plus" aria-hidden="true">+</span>
             <strong>Start Plan</strong>
           </button>
@@ -220,11 +223,11 @@ export default function ExercisePlanEditor({
             <article className="exercise-display-row" key={item.id}>
               <div className="exercise-display-title">
                 <strong>{item.name}</strong>
-                {canEdit || (canViewVideo && item.videoAttached) ? (
+                {mediaEditable || (canViewVideo && item.videoAttached) ? (
                   <button
                     type="button"
                     className={`exercise-display-camera ${item.videoAttached ? 'attached' : ''}`}
-                    aria-label={`${canEdit ? 'Manage' : 'View'} video for ${item.name}`}
+                    aria-label={`${mediaEditable ? 'Manage' : 'View'} video for ${item.name}`}
                     onClick={() => setVideoExercise(item)}
                   >
                     <CameraIcon />
@@ -254,7 +257,7 @@ export default function ExercisePlanEditor({
 
       {editing && (
         <div className="exercise-editor">
-          <div className="exercise-editor-list">
+          <fieldset className="exercise-editor-fields" disabled={saving || uncertain}><div className="exercise-editor-list">
             {draft.map((item, index) => (
                 <article className={`exercise-editor-row ${pendingId === item.id ? 'pending' : ''}`} key={item.id}>
                   <div className="exercise-editor-head">
@@ -307,17 +310,18 @@ export default function ExercisePlanEditor({
                 </article>
               ))}
           </div>
-          {error && <p className="validation-copy" role="alert">{error}</p>}
+          </fieldset>
         </div>
       )}
 
+      {error && <p className="validation-copy" role="alert">{error}</p>}
       <ExerciseVideoDialog
         open={Boolean(videoExercise)}
         sessionId={sessionId}
         timeZone={timeZone}
         exercise={videoExercise}
         onCancel={() => setVideoExercise(null)}
-        editable={canEdit}
+        editable={mediaEditable}
         onLoad={() => onLoadVideo(videoExercise.id)}
         onSaved={(blob, metadata) => onSaveVideo(videoExercise.id, blob, metadata)}
         onRemoved={() => onRemoveVideo(videoExercise.id)}

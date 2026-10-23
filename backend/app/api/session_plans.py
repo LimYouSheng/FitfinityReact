@@ -1,0 +1,224 @@
+"""Reviewed plan replacement retains item identities, history and original retry receipts."""
+
+import hashlib
+import json
+from datetime import datetime
+from uuid import UUID
+
+from pydantic import Field, StrictStr, model_validator
+from sqlalchemy import func, select, text
+
+from app.api import session_reads
+from app.api.request_cancellation import DECISION_LOCK as PLAN_LOCK
+from app.api.schemas import Contract
+from app.api.session_read_schemas import SessionPlanRead
+from app.auth.errors import AuthError
+from app.authorization import conflict, session_record, unavailable
+from app.models.api import SessionPlanReceipt
+from app.models.communications import SessionEvent
+from app.models.people import Client
+from app.models.training import (
+    Acknowledgement,
+    CreditDebit,
+    ExercisePlanDetail,
+    ExercisePlanItem,
+    PackagePurchase,
+)
+
+
+class PlanDetail(Contract):
+    id: StrictStr = Field(min_length=1, max_length=200)
+    value: StrictStr = Field(min_length=1, max_length=10000)
+
+
+class PlanItem(Contract):
+    id: StrictStr = Field(min_length=1, max_length=200)
+    name: StrictStr = Field(min_length=1, max_length=200)
+    weight: StrictStr = Field(max_length=100)
+    reps: StrictStr = Field(max_length=100)
+    rounds: StrictStr = Field(max_length=100)
+    rest: StrictStr = Field(max_length=100)
+    customDetails: list[PlanDetail] = Field(max_length=100)
+
+    @model_validator(mode="after")
+    def valid_details(self):
+        if not self.name.strip() or len({d.id for d in self.customDetails}) != len(
+            self.customDetails
+        ):
+            raise ValueError("Every exercise needs a name and distinct detail identities")
+        if any(not d.id.strip() or not d.value.strip() for d in self.customDetails):
+            raise ValueError("Details need an identity and text")
+        return self
+
+
+class SavePlan(Contract):
+    expected: StrictStr = Field(pattern=r"^[0-9a-f]{64}$")
+    items: list[PlanItem] = Field(min_length=1, max_length=2000)
+
+    @model_validator(mode="after")
+    def distinct_items(self):
+        if len({p.id for p in self.items}) != len(self.items):
+            raise ValueError("Exercise identities must be distinct")
+        return self
+
+
+class PlanReview(Contract):
+    sessionId: UUID
+    version: int
+    expected: str
+    items: list[SessionPlanRead]
+
+
+class PlanSaved(Contract):
+    sessionId: UUID
+    version: int
+    items: list[SessionPlanRead]
+    savedAt: datetime
+
+
+def inspect(session, principal, identity):
+    """A writable scope is required even for review; historical readership is insufficient."""
+    booking = session_record(session, principal, identity, write=True)
+    for model in (Acknowledgement, CreditDebit):
+        if session.scalar(select(model.id).where(model.session_id == identity).limit(1)):
+            raise AuthError("plan_final", "Acknowledged session plans cannot change.", 409)
+    rows = list(
+        session.scalars(
+            select(ExercisePlanItem)
+            .where(ExercisePlanItem.session_id == identity, ExercisePlanItem.retired_at.is_(None))
+            .order_by(ExercisePlanItem.id)
+            .with_for_update()
+        )
+    )
+    details = list(
+        session.scalars(
+            select(ExercisePlanDetail)
+            .join(ExercisePlanItem, ExercisePlanDetail.plan_item_id == ExercisePlanItem.id)
+            .where(ExercisePlanItem.session_id == identity, ExercisePlanItem.retired_at.is_(None))
+            .order_by(ExercisePlanDetail.id)
+        )
+    )
+    view = session_reads.detail(session, principal, identity)
+    client = session.get(Client, booking.client_id)
+    purchase = session.get(PackagePurchase, booking.purchase_id)
+    evidence = [
+        [str(booking.id), booking.version, str(booking.trainer_id)],
+        [str(client.id), client.version],
+        [str(purchase.id), purchase.version],
+        [[str(p.id), p.version] for p in rows],
+        [[str(d.id), d.version] for d in details],
+    ]
+    expected = hashlib.sha256(json.dumps(evidence).encode()).hexdigest()
+    return (
+        PlanReview(
+            sessionId=identity, version=booking.version, expected=expected, items=view.exercisePlan
+        ),
+        booking,
+        rows,
+        details,
+    )
+
+
+def review(session, principal, identity):
+    return inspect(session, principal, identity)[0]
+
+
+def receipt(session, principal, key):
+    session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": PLAN_LOCK})
+    return session.scalar(
+        select(SessionPlanReceipt).where(
+            SessionPlanReceipt.actor_id == principal.user_id, SessionPlanReceipt.request_key == key
+        )
+    )
+
+
+def reconcile(session, principal, key):
+    saved = receipt(session, principal, key)
+    if saved is None:
+        raise unavailable()
+    return PlanSaved.model_validate(saved.result)
+
+
+def save(session, principal, identity, key, body):
+    """Retire removals; never move results or media to newly inserted plan identities."""
+    saved = receipt(session, principal, key)
+    digest = hashlib.sha256(
+        json.dumps(
+            {"session": str(identity), **body.model_dump(mode="json")}, sort_keys=True
+        ).encode()
+    ).hexdigest()
+    if saved:
+        if saved.request_sha256 != digest:
+            raise AuthError("idempotency_conflict", "This key belongs to another plan.", 409)
+        return PlanSaved.model_validate(saved.result)
+    viewed, booking, rows, details = inspect(session, principal, identity)
+    if viewed.expected != body.expected:
+        raise conflict()
+    active = {str(p.id): p for p in rows if p.retired_at is None}
+    for item in body.items:
+        if item.id not in active and not item.id.startswith("draft-"):
+            raise unavailable()
+    now = session.scalar(select(func.clock_timestamp()))
+    retained = {p.id for p in body.items}
+    for row in active.values():
+        if str(row.id) not in retained:
+            row.retired_at, row.position = now, None
+    for position, item in enumerate(body.items, 1):
+        row = active.get(item.id)
+        if row is None:
+            row = ExercisePlanItem(session_id=identity, position=position, name=item.name.strip())
+            session.add(row)
+            session.flush()
+        row.position = position
+        for field in ("name", "weight", "reps", "rounds", "rest"):
+            setattr(row, field, getattr(item, field).strip())
+        # Legacy notes are projected as an editable detail until the first reviewed save;
+        # the prior notes remain in the immutable receipt, including deliberate removal.
+        row.notes = ""
+        current = {d.detail_key: d for d in details if d.plan_item_id == row.id}
+        wanted = {d.id for d in item.customDetails}
+        for detail in current.values():
+            if detail.detail_key not in wanted:
+                session.delete(detail)
+        for index, detail in enumerate(item.customDetails, 1):
+            target = current.get(detail.id)
+            if target is None:
+                target = ExercisePlanDetail(
+                    plan_item_id=row.id,
+                    detail_key=detail.id,
+                    position=index,
+                    value=detail.value.strip(),
+                )
+                session.add(target)
+            target.position, target.value = index, detail.value.strip()
+    booking.status = "planned"
+    booking.version += 1
+    session.add(
+        SessionEvent(
+            session_id=identity,
+            session_version=viewed.version,
+            kind="exercise_plan",
+            note=f"{len(body.items)} exercises saved.",
+            actor_id=principal.user_id,
+            actor_name=principal.name,
+        )
+    )
+    session.flush()
+    result = PlanSaved(
+        sessionId=identity,
+        version=booking.version,
+        savedAt=now,
+        items=session_reads.detail(session, principal, identity).exercisePlan,
+    )
+    session.add(
+        SessionPlanReceipt(
+            request_key=key,
+            request_sha256=digest,
+            session_id=identity,
+            previous=viewed.model_dump(mode="json"),
+            result=result.model_dump(mode="json"),
+            actor_id=principal.user_id,
+            actor_name=principal.name,
+        )
+    )
+    return result

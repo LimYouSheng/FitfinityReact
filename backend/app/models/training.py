@@ -211,17 +211,40 @@ class ExercisePlanItem(Versioned, Base):
     __table_args__ = (
         UniqueConstraint("session_id", "position", deferrable=True, initially="DEFERRED"),
         UniqueConstraint("id", "session_id"),
-        CheckConstraint("position > 0 AND length(btrim(name)) > 0", name="valid_item"),
+        CheckConstraint(
+            "length(btrim(name)) > 0 AND ((retired_at IS NULL AND position > 0 "
+            "AND position IS NOT NULL) OR (retired_at IS NOT NULL AND position IS NULL))",
+            name="valid_item",
+        ),
     )
     session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"), index=True)
     exercise_id: Mapped[UUID | None] = mapped_column(ForeignKey("exercises.id"), index=True)
-    position: Mapped[int] = mapped_column(Integer)
+    position: Mapped[int | None] = mapped_column(Integer)
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     name: Mapped[str] = mapped_column(String(200))
     weight: Mapped[str] = mapped_column(String(100), server_default="")
     reps: Mapped[str] = mapped_column(String(100), server_default="")
     rounds: Mapped[str] = mapped_column(String(100), server_default="")
     rest: Mapped[str] = mapped_column(String(100), server_default="")
     notes: Mapped[str] = mapped_column(Text, server_default="")
+
+
+class ExercisePlanDetail(Versioned, Base):
+    """Ordered user-entered instructions; receipt snapshots retain earlier revisions."""
+
+    __tablename__ = "exercise_plan_details"
+    __table_args__ = (
+        UniqueConstraint("plan_item_id", "detail_key"),
+        UniqueConstraint("plan_item_id", "position", deferrable=True, initially="DEFERRED"),
+        CheckConstraint(
+            "position > 0 AND length(btrim(detail_key)) > 0 AND length(btrim(value)) > 0",
+            name="valid_detail",
+        ),
+    )
+    plan_item_id: Mapped[UUID] = mapped_column(ForeignKey("exercise_plan_items.id"), index=True)
+    detail_key: Mapped[str] = mapped_column(String(200))
+    position: Mapped[int] = mapped_column(Integer)
+    value: Mapped[str] = mapped_column(Text)
 
 
 class ExerciseResult(Versioned, Base):

@@ -100,11 +100,38 @@ it.each(['time', 'trainer'])('keeps the reviewed %s intent frozen after an uncer
   expect(screen.getByRole('button', { name: 'Export Summary', exact: true })).toBeDisabled()
 })
 
-it.each(['completed', 'cancelled'])('Trainer request capability never unlocks a %s session', async status => {
+it.each(['completed', 'cancelled'])('Trainer request and plan capabilities never unlock a %s session', async status => {
   const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
   value.session = { ...value.session, status }
   const services = { readSessionDetails: vi.fn().mockResolvedValue(value) }
-  show(services, { user: { ...staff, role: 'trainer', trainerId: value.session.trainerId }, capabilities: { sessionChangeWrites: true } })
+  show(services, { user: { ...staff, role: 'trainer', trainerId: value.session.trainerId }, capabilities: { sessionChangeWrites: true, sessionPlanWrites: true } })
   expect(await screen.findByRole('button', { name: 'Request Trainer Change', exact: true })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'Edit exercise plan', exact: true })).toBeNull()
   expect(screen.getByRole('button', { name: 'Request Time Change', exact: true })).toBeDisabled()
+})
+
+it('plan-only capability freezes an uncertain save and keeps media/outcome/acknowledgement unavailable', async () => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  const reviewed = { sessionId: value.session.id, version: value.session.version, expected: 'a'.repeat(64), items: value.session.exercisePlan }
+  const save = vi.fn().mockRejectedValueOnce(new Error('Lost plan response')).mockResolvedValue({})
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionPlan: vi.fn().mockResolvedValue({ reviewed, draft: reviewed.items, uncertain: false }), sessionService: { saveExercisePlan: save } }
+  show(services, { capabilities: { sessionPlanWrites: true } })
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit exercise plan', exact: true }))
+  const weight = await screen.findByLabelText('Exercise 1 weight', { exact: true })
+  fireEvent.change(weight, { target: { value: '20 kg' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+  const dialog = await screen.findByRole('dialog', { name: 'Save exercise plan?', exact: true })
+  expect(dialog).not.toHaveTextContent('Videos can be filmed')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save Plan', exact: true }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Lost plan response')
+  expect(weight).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Add Exercise', exact: true })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Check original save', exact: true }))
+  await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+  expect(save.mock.calls[0]).toEqual(save.mock.calls[1])
+  expect(services.reviewSessionPlan).toHaveBeenCalledTimes(1)
+  await screen.findByText('Stored instruction')
+  expect(screen.queryByRole('button', { name: /Manage video/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Client Signature', exact: true })).toBeNull()
+  expect(screen.getByRole('button', { name: 'Export Summary', exact: true })).toBeDisabled()
 })

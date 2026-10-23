@@ -239,6 +239,10 @@ def seed(db, settings):
         # Distinct real accounts isolate authentication rate budgets between scenarios.
         # Production rate limits remain intact; each fresh-context check still signs in via UI.
         scopes = (
+            "plan",
+            "planadmin",
+            "planstale",
+            "planloss",
             "changetime",
             "changetimesupervised",
             "changetrainer",
@@ -301,6 +305,10 @@ def seed(db, settings):
         # Dedicated project/workflow aggregates keep independent browser writers isolated.
         for project in ("desktop-chromium", "phone", "tablet"):
             for purpose in (
+                "plan",
+                "planadmin",
+                "planstale",
+                "planloss",
                 "changetime",
                 "changetimesupervised",
                 "changetrainer",
@@ -346,7 +354,7 @@ def seed(db, settings):
                     peak_rate_cents=8000,
                     off_peak_rate_cents=5500,
                 )
-                if purpose.startswith(("resolve", "change")) or purpose in {
+                if purpose.startswith(("resolve", "change", "plan")) or purpose in {
                     "availability",
                     "postponeauto",
                     "postponesupervised",
