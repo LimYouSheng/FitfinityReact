@@ -11,7 +11,7 @@ import ApiSessionDetailsRoute from './ApiSessionDetailsRoute.jsx'
 afterEach(() => { cleanup(); vi.useRealTimers() })
 function show(services, patch = {}) {
   const snapshot = { user: staff, policy: { timeZone: 'Asia/Singapore' }, sessionGeneration: 0, serverAt: '2026-10-13T06:00:00Z', data: { clients: [], trainers: [], messages: [] }, ...patch }
-  const node = selectedSession => <PortalData.Provider value={{ snapshot, services, today: '2026-10-13' }}><ActionConfirmationProvider><EditGuardProvider><ApiSessionDetailsRoute selectedSession={selectedSession} navigate={vi.fn()} openClient={vi.fn()} /></EditGuardProvider></ActionConfirmationProvider></PortalData.Provider>
+  const node = selectedSession => <PortalData.Provider value={{ snapshot, services, refresh: async () => snapshot, today: '2026-10-13' }}><ActionConfirmationProvider><EditGuardProvider><ApiSessionDetailsRoute selectedSession={selectedSession} navigate={vi.fn()} openClient={vi.fn()} /></EditGuardProvider></ActionConfirmationProvider></PortalData.Provider>
   const rendered = render(node({ id: directoryId(30), version: 1 }))
   return { ...rendered, update: id => rendered.rerender(node({ id, version: 1 })), refresh: () => { snapshot.serverAt = '2026-10-13T06:00:01Z'; rendered.rerender(node({ id: directoryId(30), version: 1 })) } }
 }
@@ -68,4 +68,43 @@ it('keeps the reviewed postponement dialog mounted through a background detail r
   await act(async () => complete(value))
   expect(screen.getByRole('dialog', { name: 'Postpone this session?', exact: true })).toBe(dialog)
   expect(services.sessionService.previewPostponement).toHaveBeenCalledTimes(1)
+})
+
+
+it.each(['time', 'trainer'])('keeps the reviewed %s intent frozen after an uncertain response', async kind => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-13T06:00:00Z'))
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session = { ...value.session, date: '2026-10-20', status: 'scheduled' }
+  const replacement = { id: directoryId(99), name: 'Replacement', version: 1 }
+  const reviewed = { trainers: [replacement] }
+  const save = vi.fn().mockRejectedValueOnce(new Error('Lost committed response')).mockResolvedValue({ outcome: 'applied' })
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionChange: vi.fn().mockResolvedValue({ reviewed, draft: kind === 'time' ? { date: value.session.date, from: '12:00', to: '13:00' } : { replacementTrainerId: replacement.id }, uncertain: false }),
+    sessionService: { requestTimeChange: save, requestTrainerChange: save } }
+  show(services, { user: { ...staff, role: 'trainer', trainerId: value.session.trainerId }, capabilities: { sessionChangeWrites: true } })
+  fireEvent.click(await screen.findByRole('button', { name: kind === 'time' ? 'Request Time Change' : 'Request Trainer Change', exact: true }))
+  let dialog = await screen.findByRole('dialog', { name: kind === 'time' ? 'Request Time Change' : 'Request Trainer Change', exact: true })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Review Request', exact: true }))
+  const confirmation = await screen.findByRole('dialog', { name: kind === 'time' ? 'Submit time-change request?' : 'Submit trainer-change request?', exact: true })
+  fireEvent.click(within(confirmation).getByRole('button', { name: 'Submit Request', exact: true }))
+  dialog = await screen.findByRole('dialog', { name: kind === 'time' ? 'Request Time Change' : 'Request Trainer Change', exact: true })
+  expect(within(dialog).getByRole('alert')).toHaveTextContent('Lost committed response')
+  expect(within(dialog).getByLabelText(kind === 'time' ? 'Requested start time' : 'Requested replacement trainer')).toBeDisabled()
+  // Receipt recovery must remain possible even after the originally reviewed start passes.
+  vi.setSystemTime(new Date('2026-10-21T06:00:00Z'))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Check original change', exact: true }))
+  await screen.findByText('Session change saved.')
+  expect(save).toHaveBeenCalledTimes(2)
+  expect(save.mock.calls[0]).toEqual(save.mock.calls[1])
+  expect(services.reviewSessionChange).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Export Summary', exact: true })).toBeDisabled()
+})
+
+it.each(['completed', 'cancelled'])('Trainer request capability never unlocks a %s session', async status => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session = { ...value.session, status }
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value) }
+  show(services, { user: { ...staff, role: 'trainer', trainerId: value.session.trainerId }, capabilities: { sessionChangeWrites: true } })
+  expect(await screen.findByRole('button', { name: 'Request Trainer Change', exact: true })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Request Time Change', exact: true })).toBeDisabled()
 })

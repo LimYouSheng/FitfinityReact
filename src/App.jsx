@@ -1,3 +1,4 @@
+import SessionChangeRecovery from './features/sessions/SessionChangeRecovery.jsx'
 import ApiSessionDetailsRoute from './features/sessions/ApiSessionDetailsRoute.jsx'
 import ClientWeeklyScheduleRecovery from './features/clients/ClientWeeklyScheduleRecovery.jsx'
 import TrainerDeactivationRecovery from './features/trainers/TrainerDeactivationRecovery.jsx'
@@ -337,8 +338,10 @@ function StaffPortal({ navigation }) {
     selfTrainer
   ) {
     page = <TrainerProfileRoute key={selfTrainer.id} trainer={selfTrainer} ownerMode={false} navigate={navigate} goBack={goBack} openClient={openClient} />
+  } else if (route === 'sessions' && directoryOnly && snapshot.sessionChangePending) {
+    page = <SessionChangeRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionChangePending} services={services} />
   } else if (route === 'sessions' && selectedSession) {
-    page = directoryOnly ? <ApiSessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession} navigate={navigate} openClient={openClient} /> : <SessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession}
+    page = directoryOnly ? <ApiSessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession} navigate={navigate} openClient={openClient} onChangeSaved={message => notify({ message })} /> : <SessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession}
       navigate={navigate} openClient={openClient} />
   } else if (route === 'sessions' && detailId) {
     page = <UnavailablePage message="This session is unavailable for your account." />

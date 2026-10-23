@@ -6,8 +6,8 @@ import StatusBadge from '../../components/StatusBadge.jsx'
 import { hasSessionAcknowledgement } from '../../app/signature.js'
 import { formatDate, weekday } from '../../utils/date.js'
 
-export default function SessionOverview({ session, client, trainer, trainers, purchased, clientInactive, packageInactive, status, pendingChanges, isOwner, sessionEditable, bookingEditable = sessionEditable, postponementEditable = sessionEditable, bookingUncertain = false, activeEditor, setActiveEditor, saving, setDetailsError, schedule, onOpenClient, onOpenTrainer }) {
-  const { detailsDraft, setDetailsDraft, requestKind, setRequestKind, setTimeRequestDraft, setTrainerRequestId, timeChangeError, checkTimeRequest, saveDetails } = schedule
+export default function SessionOverview({ session, client, trainer, trainers, purchased, clientInactive, packageInactive, status, pendingChanges, isOwner, sessionEditable, requestEditable = sessionEditable, bookingEditable = sessionEditable, postponementEditable = sessionEditable, bookingUncertain = false, activeEditor, setActiveEditor, saving, setDetailsError, schedule, onOpenClient, onOpenTrainer }) {
+  const { detailsDraft, setDetailsDraft, requestKind, timeChangeError, saveDetails } = schedule
 
   const postponementError = isOpenSession(session) ? 'This session is already open.' : !purchased || purchased.id !== client.package?.id ? 'Postpone is available only for the current package.' : timeChangeError
 
@@ -45,17 +45,8 @@ export default function SessionOverview({ session, client, trainer, trainers, pu
             )
           ) : (
             <>
-              <button type="button" className="text-action" disabled={saving || !sessionEditable || Boolean(activeEditor) || Boolean(timeChangeError)} title={timeChangeError || undefined} onClick={() => {
-                setDetailsError('')
-                if (!checkTimeRequest(null)) return
-                setTimeRequestDraft({ date: session.date ?? '', from: session.from ?? '', to: session.to ?? '' })
-                setRequestKind('time')
-              }}>{isOpenSession(session) ? 'Change ad-hoc date/time' : 'Request Time Change'}</button>
-              <button type="button" className="text-action" disabled={saving || !sessionEditable || Boolean(activeEditor)} onClick={() => {
-                setDetailsError('')
-                setTrainerRequestId('')
-                setRequestKind('trainer')
-              }}>Request Trainer Change</button>
+              <button type="button" className="text-action" disabled={saving || !requestEditable || Boolean(activeEditor) || Boolean(requestKind) || (Boolean(timeChangeError) && !schedule.requestUncertain)} title={timeChangeError || undefined} onClick={() => void schedule.openRequest('time')}>{isOpenSession(session) ? 'Change ad-hoc date/time' : 'Request Time Change'}</button>
+              <button type="button" className="text-action" disabled={saving || !requestEditable || Boolean(activeEditor) || Boolean(requestKind)} onClick={() => void schedule.openRequest('trainer')}>Request Trainer Change</button>
             </>
           )}
         </div>

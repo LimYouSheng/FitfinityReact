@@ -403,6 +403,7 @@ class DirectorySnapshot(ServerClock):
     clientCreation: Literal[True] = True
     sessionReads: Literal[True] = True
     sessionBookingWrites: Literal[True] = True
+    sessionChangeWrites: Literal[True] = True
     sessionPostponementWrites: Literal[True] = True
     clientWeeklyScheduleWrites: Literal[True] = True
     trainerDeactivationWrites: Literal[True] = True
