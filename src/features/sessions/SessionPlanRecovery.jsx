@@ -11,7 +11,7 @@ export default function SessionPlanRecovery({ pending, services }) {
       if (locked.current) return
       locked.current = true; setBusy(true)
       try {
-        await runAction(() => services.sessionService.saveExercisePlan(pending), { message: 'Original exercise plan confirmed.' })
+        await runAction(() => pending.copySource ? services.sessionService.copyPreviousPlan({ sessionId: pending.sessionId, reviewed: pending.reviewed, copySource: pending.copySource }) : services.sessionService.saveExercisePlan(pending), { message: 'Original exercise plan confirmed.' })
         await reload()
       } catch (error) {
         if (error.status >= 400 && error.status < 500) { try { await reload() } catch { /* Shared loading failure owns Retry. */ } }

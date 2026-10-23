@@ -8,6 +8,7 @@ export default function ConfirmDialog({
   cancelLabel = 'Cancel',
   danger = false,
   confirmDisabled = false,
+  cancelDisabled = false,
   confirmForm,
   hideConfirm = false,
   onConfirm,
@@ -20,16 +21,16 @@ export default function ConfirmDialog({
   return (
     <ModalPortal>
       <div className="modal-backdrop" role="presentation" onMouseDown={event => {
-        if (event.target === event.currentTarget) onCancel?.()
+        if (!cancelDisabled && event.target === event.currentTarget) onCancel?.()
       }}>
         <section className={`modal-card${className ? ` ${className}` : ''}`} role="dialog" aria-modal="true" aria-label={title} onKeyDown={onKeyDown}>
           <div className="modal-head">
             <h2>{title}</h2>
-            <button type="button" className="icon-button" aria-label="Close dialog" onClick={onCancel}>×</button>
+            <button type="button" className="icon-button" aria-label="Close dialog" disabled={cancelDisabled} onClick={onCancel}>×</button>
           </div>
           <div className="modal-body">{children}</div>
           <div className="modal-actions">
-            <button type="button" className="secondary-button" onClick={onCancel}>{cancelLabel}</button>
+            <button type="button" className="secondary-button" disabled={cancelDisabled} onClick={onCancel}>{cancelLabel}</button>
             {!hideConfirm && (
               <button
                 type={confirmForm ? 'submit' : 'button'}

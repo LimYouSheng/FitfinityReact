@@ -196,6 +196,8 @@ export function createApiPortalAdapter(options = {}) {
       const { service, operation, input } = portalRequest(request, 'api')
       if (service === 'sessionService' && operation === 'previewPostponement') return sessionPostponement.review(input, expectedGeneration)
       if (service === 'sessionService' && operation === 'postpone') return sessionPostponement.save(input, expectedGeneration)
+      if (service === 'sessionService' && operation === 'previousPlanFor') return sessionPlans.previous(input, expectedGeneration)
+      if (service === 'sessionService' && operation === 'copyPreviousPlan') return sessionPlans.copy(input, expectedGeneration)
       if (service === 'sessionService' && operation === 'saveExercisePlan') return sessionPlans.save(input, expectedGeneration)
       if (service === 'sessionService' && ['requestTimeChange', 'requestTrainerChange'].includes(operation)) return sessionChanges.save({ sessionId: input.sessionId, reviewed: input.reviewed, kind: operation === 'requestTimeChange' ? 'time' : 'trainer', patch: operation === 'requestTimeChange' ? input.patch : { replacementTrainerId: input.replacementTrainerId } }, expectedGeneration)
       if (service === 'sessionService' && operation === 'updateDetails') return sessionBooking.save(input, expectedGeneration)

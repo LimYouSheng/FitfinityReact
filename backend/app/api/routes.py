@@ -1252,7 +1252,10 @@ def save_session_plan(
         return session_plans.save(session, principal, session_id, key, body)
 
 
-@router.get("/session-plans/{request_key}", response_model=session_plans.PlanSaved)
+@router.get(
+    "/session-plans/{request_key}",
+    response_model=session_plans.PlanCopied | session_plans.PlanSaved,
+)
 def reconcile_session_plan(request_key: UUID, request: Request):
     """Return only the authenticated actor's original plan receipt."""
     with authorized_transaction(request, advisory_lock=session_plans.PLAN_LOCK) as (
@@ -1260,3 +1263,25 @@ def reconcile_session_plan(request_key: UUID, request: Request):
         principal,
     ):
         return session_plans.reconcile(session, principal, request_key)
+
+
+@router.get("/sessions/{session_id}/previous-plan", response_model=session_plans.PreviousPlan)
+def previous_session_plan(session_id: UUID, request: Request):
+    """Preview the latest permitted previous plan without changing either session."""
+    with authorized_transaction(request, advisory_lock=session_plans.PLAN_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_plans.previous(session, principal, session_id)
+
+
+@router.post("/sessions/{session_id}/copy-plan", response_model=session_plans.PlanCopied)
+def copy_session_plan(
+    session_id: UUID, body: session_plans.CopyPlan, request: Request, key: RequestKey
+):
+    """Apply only the confirmed source and target versions; recover by the original key."""
+    with authorized_transaction(request, advisory_lock=session_plans.PLAN_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_plans.copy_previous(session, principal, session_id, key, body)
