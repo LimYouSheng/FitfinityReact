@@ -1,6 +1,6 @@
 # North Star: persistent API-backed Fitfinity prototype parity
 
-Deliver the approved [GitHub Pages prototype](https://limyousheng.github.io/FitfinityReact/) as a fully functioning persistent application backed by FastAPI, PostgreSQL and Cognito. Preserve its appearance, navigation, workflows and Owner/Admin/Trainer behaviour. A login, green CI, read-only directory or deployment is an intermediate checkpoint, not completion. `PROGRESS.md` is the only task ledger; `docs/SERVICE_CONTRACTS.md` owns the route/operation coverage matrix. No exclusions are accepted without YS's explicit agreement.
+Deliver the approved [GitHub Pages prototype](https://limyousheng.github.io/FitfinityReact/) as a fully functioning persistent application backed by FastAPI, PostgreSQL and Cognito. Preserve its appearance, navigation, workflows and Owner/Admin/Trainer behaviour. A login, green CI, read-only directory or deployment is an intermediate checkpoint, not completion. `PROGRESS.md` is the only task ledger; `docs/SERVICE_CONTRACTS.md` owns the route/operation coverage matrix. No exclusions are accepted without YS's explicit agreement. The approved public website and website-specific content management remain deferred until the staff portal is complete; staff-portal acceptance does not deliver that separate scope.
 
 ## Definition of done
 

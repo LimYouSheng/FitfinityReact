@@ -30,6 +30,7 @@ Draft [PR59](https://github.com/LimYouSheng/FitfinityReact/pull/59) removes one 
 | 3 | Plans/outcomes/summary/acknowledgement/credits | Scheduling dependencies | Durable histories, finality and exactly-once credit evidence |
 | 4 | Remaining assessment/report/media and messaging/Undo/remuneration/profile gaps | Relevant owning operations | Permission, storage/recovery and full workflow evidence; Trainer email verification remains required |
 | 5 | Release and live acceptance | Tested merged source; reviewed deployment plan | Separate authorization for AWS/image/provider actions; real Cognito, restart/recovery and devices distinct |
+| 6 | Approved public website and website content management | Staff portal complete; retained public HTML design and product rules | Separate public-site delivery and acceptance; the55-operation staff goal does not mark the whole website delivered; publishing requires its applicable authority |
 
 ## Candidate validation and remaining work
 
