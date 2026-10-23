@@ -36,7 +36,7 @@ Errors retain a readable message and stable error code. Session expiry clears pr
 
 ## Domain operation inventory
 
-**30/55 accepted in merged source: 29 server-connected and one local predicate.** 25 remain unaccepted, including partial Trainer update. Request resolution and Trainer time-change/reassignment requests are unmerged candidates. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
+**31/55 accepted in merged source: 30 server-connected and one local predicate.** 24 remain unaccepted, including partial Trainer update. Trainer time-change/reassignment requests remain unmerged candidates. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
 
 Each connected server row names actual PostgreSQL/HTTP and real-API browser evidence owners. Browser scenarios can cover several operations. Simulator tests supplement these tests; they do not establish persistence. Local execution uses temporary Docker PostgreSQL, synthetic records and a local signed-token Cognito substitute. Real Cognito, restart, physical devices and deployment acceptance remain separate.
 
@@ -92,7 +92,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `messageService.undo` | Missing | message | Pending API acceptance |
 | `messageService.markRead` | Connected | current message visibility; independent recipient state | [`test_message_api.py`](../backend/tests/test_message_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `messageService.markUnread` | Connected | current message visibility; independent recipient state | [`test_message_api.py`](../backend/tests/test_message_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
-| `requestService.resolve` | Candidate; final API acceptance pending | Owner/Admin; atomic current-state approval or rejection | [`test_request_resolution.py`](../backend/tests/test_request_resolution.py); [`request-resolution.spec.js`](../tests-api/request-resolution.spec.js); not accepted main |
+| `requestService.resolve` | Connected | Owner/Admin; atomic current-state approval or rejection | [`test_request_resolution.py`](../backend/tests/test_request_resolution.py); [`request-resolution.spec.js`](../tests-api/request-resolution.spec.js) |
 | `requestService.cancel` | Connected | active requesting Trainer | [`test_request_cancellation.py`](../backend/tests/test_request_cancellation.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `remunerationService.list` | Missing | remuneration | Pending API acceptance |
 | `remunerationService.detail` | Missing | remuneration | Pending API acceptance |

@@ -2,14 +2,17 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError
 
 from app.api import session_booking_save
 from app.api import session_changes as command
+from app.authorization import Principal
+from app.database import Database
 from app.models.api import SessionChangeReceipt
 from app.models.communications import (
     ChangeRequest,
@@ -274,17 +277,39 @@ def test_replacement_is_not_notified_of_an_unapproved_proposal(
 
 @pytest.mark.parametrize("kind", ["time", "trainer"])
 def test_concurrent_duplicate_and_competing_intents_have_one_proposal(
-    trainer_api, domain_db, graph, future, replacement, kind
+    trainer_api, domain_db, database_settings, graph, future, replacement, kind
 ):
+    """Separate connection pools model independent API replicas, not a one-connection queue."""
     viewed, key = review(trainer_api, graph, kind), uuid4()
     body = body_for(viewed, replacement)
-    with ThreadPoolExecutor(max_workers=2) as workers:
-        responses = list(workers.map(lambda _: save(trainer_api, graph, kind, body, key), range(2)))
-    assert [r.status_code for r in responses] == [200, 200]
-    assert responses[0].json() == responses[1].json()
+    with domain_db.transaction() as session:
+        user = session.get(StaffUser, graph["user_id"])
+        principal = Principal(user.id, user.name, user.role, graph["trainer_id"])
+    typed = command.ChangeTime(**body) if kind == "time" else command.ChangeTrainer(**body)
+    replicas = [Database(database_settings), Database(database_settings)]
+    ready = Barrier(2)
+
+    def apply(db):
+        with db.transaction() as session:
+            connection = session.scalar(text("SELECT pg_backend_pid()"))
+            ready.wait(timeout=5)
+            result = command.save(session, principal, graph["session_id"], key, kind, typed)
+            return connection, result.model_dump(mode="json")
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            results = list(workers.map(apply, replicas))
+    finally:
+        for db in replicas:
+            db.close()
+    assert results[0][0] != results[1][0]
+    assert results[0][1] == results[1][1]
+    assert trainer_api.get(f"/api/session-changes/{key}").json() == results[0][1]
     assert save(trainer_api, graph, kind, body).status_code == 409
     with domain_db.transaction() as session:
         assert session.scalar(select(func.count()).select_from(ChangeRequest)) == 1
+        assert session.scalar(select(func.count()).select_from(RequestEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(Message)) == 1
         assert session.scalar(select(func.count()).select_from(SessionChangeReceipt)) == 1
 
 
@@ -293,6 +318,7 @@ def test_noop_time_change_has_receipt_without_proposal_or_version_change(
 ):
     viewed = review(trainer_api, graph, "time")
     current = viewed["session"]
+    key = uuid4()
     response = save(
         trainer_api,
         graph,
@@ -303,8 +329,11 @@ def test_noop_time_change_has_receipt_without_proposal_or_version_change(
             "startsAt": current["startsAt"],
             "endsAt": current["endsAt"],
         },
+        key,
     )
     assert response.status_code == 200, response.text
+    assert trainer_api.get(f"/api/session-changes/{key}").json() == response.json()
+    assert save(trainer_api, graph, "time", body_for(viewed, replacement), key).status_code == 409
     assert response.json() == {
         "kind": "time",
         "outcome": "applied",
