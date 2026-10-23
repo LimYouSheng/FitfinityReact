@@ -267,6 +267,7 @@ class ExerciseResult(Versioned, Base):
     load_kg: Mapped[Decimal] = mapped_column(Numeric(9, 4))
     reps: Mapped[int] = mapped_column(Integer)
     sets: Mapped[int] = mapped_column(Integer)
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ExerciseResultRevision(ActorEvidence, Record, Base):
@@ -285,6 +286,7 @@ class ExerciseResultRevision(ActorEvidence, Record, Base):
     load_kg: Mapped[Decimal] = mapped_column(Numeric(9, 4))
     reps: Mapped[int] = mapped_column(Integer)
     sets: Mapped[int] = mapped_column(Integer)
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Acknowledgement(ActorEvidence, Record, Base):

@@ -112,7 +112,9 @@ def session_scope(principal: Principal):
     )
 
 
-def session_record(session: Session, principal: Principal, identity: UUID, *, write=False):
+def session_record(
+    session: Session, principal: Principal, identity: UUID, *, write=False, allow_final_notes=False
+):
     found = session.get(TrainingSession, identity)
     if found is None:
         raise unavailable()
@@ -144,7 +146,7 @@ def session_record(session: Session, principal: Principal, identity: UUID, *, wr
         if (
             client.status != "active"
             or purchase.status != "active"
-            or record.status in {"completed", "cancelled"}
+            or (not allow_final_notes and record.status in {"completed", "cancelled"})
         ):
             raise conflict()
     return record
