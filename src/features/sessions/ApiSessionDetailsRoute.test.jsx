@@ -199,3 +199,33 @@ it.each(['completed', 'cancelled'])('summary capability keeps terminal %s cover 
   await screen.findByText('Stored outcome')
   expect(within(document.querySelector('.client-summary-panel')).queryByRole('button', { name: 'Edit', exact: true })).toBeNull()
 })
+
+it('acknowledgement recovery freezes the reviewed intent and never asks to confirm completion again', async () => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session.date = '2026-01-01'
+  const reviewed = { sessionId: value.session.id, version: value.session.version, expected: 'a'.repeat(64) }
+  const save = vi.fn().mockRejectedValueOnce(new Error('Lost completion response')).mockResolvedValue({})
+  const notice = vi.fn()
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionAcknowledgement: vi.fn().mockResolvedValue({ reviewed }), sessionService: { acknowledge: save } }
+  show(services, { capabilities: { sessionAcknowledgementWrites: true } }, notice)
+  fireEvent.click(await screen.findByRole('button', { name: 'Client Signature', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Record late / no-show instead' }))
+  fireEvent.change(screen.getByLabelText('Acknowledgement note'), { target: { value: 'Absent' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Review Completion', exact: true }))
+  fireEvent.click(within(await screen.findByRole('dialog', { name: 'Complete this session?' })).getByRole('button', { name: 'Complete Session', exact: true }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Lost completion response')
+  expect(screen.getByLabelText('Acknowledgement note')).toBeDisabled()
+  expect(within(screen.getByRole('dialog', { name: 'Trainer late / no-show' })).getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Check original acknowledgement', exact: true }))
+  await vi.waitFor(() => expect(notice).toHaveBeenCalledWith('Original session acknowledgement confirmed.'))
+  expect(save.mock.calls[0]).toEqual(save.mock.calls[1])
+  expect(services.reviewSessionAcknowledgement).toHaveBeenCalledTimes(1)
+})
+
+it.each(['completed', 'cancelled'])('acknowledgement capability cannot mutate terminal %s cover evidence', async status => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session = { ...value.session, status }
+  show({ readSessionDetails: vi.fn().mockResolvedValue(value) }, { user: { ...staff, role: 'trainer', trainerId: value.session.trainerId }, capabilities: { sessionAcknowledgementWrites: true } })
+  await screen.findByText('Stored outcome')
+  expect(screen.queryByRole('button', { name: /Client Signature/ })).toBeNull()
+})

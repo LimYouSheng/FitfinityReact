@@ -9,6 +9,7 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
   const { snapshot, services, today, refresh } = usePortalData()
   const { user, policy, sessionGeneration, serverAt, data } = snapshot
   const { activeEdit } = useEditGuard()
+  const [acknowledgement, setAcknowledgement] = useState(null)
   const [summary, setSummary] = useState(null)
   const [outcome, setOutcome] = useState(null)
   const [plan, setPlan] = useState(null)
@@ -46,6 +47,22 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
     finally { setClientBusy(false) }
   }
   const canCorrectOutcome = managesOperations(user) || !['completed', 'cancelled'].includes(session.status) || data.clients.some(c => c.id === client.id && c.trainerId === user.trainerId)
+  const beginAcknowledgement = async () => {
+    const viewed = await services.reviewSessionAcknowledgement({ id, expectedVersion: session.version })
+    setAcknowledgement(viewed)
+    return viewed.draft
+  }
+  const saveAcknowledgement = async draft => {
+    try {
+      const result = await services.sessionService.acknowledge({ sessionId: id, reviewed: acknowledgement.reviewed, acknowledgement: draft })
+      onChangeSaved?.(acknowledgement?.uncertain ? 'Original session acknowledgement confirmed.' : 'Session acknowledgement saved.')
+      setSaved(true)
+      return result
+    } catch (error) {
+      setAcknowledgement(current => ({ ...current, uncertain: !(error.status >= 400 && error.status < 500) }))
+      throw error
+    }
+  }
   const beginSummary = async () => {
     const viewed = await services.reviewSessionSummary({ id, expectedVersion: session.version })
     setSummary(viewed)
@@ -141,7 +158,7 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
     setSaved(true)
     return result
   }
-  return <><SessionDetailsPage summaryEditable={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && !saved)} summaryUncertain={Boolean(summary?.uncertain)} onBeginSummary={beginSummary} onSaveClientSummary={saveSummary} outcomeEditable={Boolean(snapshot.capabilities?.sessionOutcomeWrites && canCorrectOutcome && !saved)} outcomeUncertain={Boolean(outcome?.uncertain)} onBeginOutcome={beginOutcome} onSaveOutcome={saveOutcome} onPreviewPreviousPlan={previewPreviousPlan} onCopyPreviousPlan={copyPreviousPlan} readOnly planEditable={Boolean(snapshot.capabilities?.sessionPlanWrites && !saved)} planUncertain={Boolean(plan?.uncertain)} onBeginPlan={beginPlan} onSavePlan={savePlan} requestEditable={Boolean(snapshot.capabilities?.sessionChangeWrites && !saved)} onBeginRequest={beginRequest} onRequestTimeChange={patch => requestChange('time', patch)} onRequestTrainerChange={id => requestChange('trainer', id)} postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
+  return <><SessionDetailsPage acknowledgementEditable={Boolean(snapshot.capabilities?.sessionAcknowledgementWrites && canCorrectOutcome && !saved)} acknowledgementUncertain={Boolean(acknowledgement?.uncertain)} onBeginAcknowledgement={beginAcknowledgement} onAcknowledge={saveAcknowledgement} summaryEditable={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && !saved)} summaryUncertain={Boolean(summary?.uncertain)} onBeginSummary={beginSummary} onSaveClientSummary={saveSummary} outcomeEditable={Boolean(snapshot.capabilities?.sessionOutcomeWrites && canCorrectOutcome && !saved)} outcomeUncertain={Boolean(outcome?.uncertain)} onBeginOutcome={beginOutcome} onSaveOutcome={saveOutcome} onPreviewPreviousPlan={previewPreviousPlan} onCopyPreviousPlan={copyPreviousPlan} readOnly planEditable={Boolean(snapshot.capabilities?.sessionPlanWrites && !saved)} planUncertain={Boolean(plan?.uncertain)} onBeginPlan={beginPlan} onSavePlan={savePlan} requestEditable={Boolean(snapshot.capabilities?.sessionChangeWrites && !saved)} onBeginRequest={beginRequest} onRequestTimeChange={patch => requestChange('time', patch)} onRequestTrainerChange={id => requestChange('trainer', id)} postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
     trainers={change?.reviewed.trainers ?? booking?.reviewed.trainers ?? data.sessionTrainers ?? data.trainers} messages={data.messages ?? []}
     onOpenClient={fullClient ? () => openClient(client.id) : canLimited && !clientBusy ? openLimited : undefined}
     onOpenTrainer={fullTrainer ? () => navigate(managesOperations(user) ? `trainers/${trainer.id}` : 'my-profile') : undefined} />

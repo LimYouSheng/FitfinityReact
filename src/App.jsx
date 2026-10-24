@@ -1,3 +1,4 @@
+import SessionAcknowledgementRecovery from './features/sessions/SessionAcknowledgementRecovery.jsx'
 import SessionSummaryRecovery from './features/sessions/SessionSummaryRecovery.jsx'
 import SessionOutcomeRecovery from './features/sessions/SessionOutcomeRecovery.jsx'
 import SessionPlanRecovery from './features/sessions/SessionPlanRecovery.jsx'
@@ -341,6 +342,8 @@ function StaffPortal({ navigation }) {
     selfTrainer
   ) {
     page = <TrainerProfileRoute key={selfTrainer.id} trainer={selfTrainer} ownerMode={false} navigate={navigate} goBack={goBack} openClient={openClient} />
+  } else if (route === 'sessions' && directoryOnly && snapshot.sessionAcknowledgementPending) {
+    page = <SessionAcknowledgementRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionAcknowledgementPending} services={services} />
   } else if (route === 'sessions' && directoryOnly && snapshot.sessionSummaryPending) {
     page = <SessionSummaryRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionSummaryPending} services={services} />
   } else if (route === 'sessions' && directoryOnly && snapshot.sessionOutcomePending) {

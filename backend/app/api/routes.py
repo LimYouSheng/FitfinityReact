@@ -31,6 +31,7 @@ from app.api import (
     renewal_dismissal,
     request_cancellation,
     request_resolution,
+    session_acknowledgements,
     session_booking_review,
     session_booking_save,
     session_changes,
@@ -1359,3 +1360,47 @@ def reconcile_session_summary(request_key: UUID, request: Request):
         principal,
     ):
         return session_summaries.reconcile(session, principal, request_key)
+
+
+@router.get(
+    "/sessions/{session_id}/acknowledgement-review",
+    response_model=session_acknowledgements.AcknowledgementReview,
+)
+def review_session_acknowledgement(session_id: UUID, request: Request):
+    """Review current authority, completion evidence and credit balance."""
+    with authorized_transaction(request, advisory_lock=session_acknowledgements.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_acknowledgements.review(session, principal, session_id)
+
+
+@router.post(
+    "/sessions/{session_id}/acknowledgement",
+    response_model=session_acknowledgements.AcknowledgementSaved,
+)
+def save_session_acknowledgement(
+    session_id: UUID,
+    body: session_acknowledgements.SaveAcknowledgement,
+    request: Request,
+    key: RequestKey,
+):
+    """Atomically persist acknowledgement, completion, credit and original-command receipt."""
+    with authorized_transaction(request, advisory_lock=session_acknowledgements.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_acknowledgements.save(session, principal, session_id, key, body)
+
+
+@router.get(
+    "/session-acknowledgements/{request_key}",
+    response_model=session_acknowledgements.AcknowledgementSaved,
+)
+def reconcile_session_acknowledgement(request_key: UUID, request: Request):
+    """Recover only the authenticated actor's original acknowledgement receipt."""
+    with authorized_transaction(request, advisory_lock=session_acknowledgements.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_acknowledgements.reconcile(session, principal, request_key)

@@ -84,7 +84,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `sessionService.saveOutcome` | Connected | Owner/Admin or currently assigned active Trainer; terminal ad-hoc cover stays read-only | [backend](../backend/tests/test_session_outcomes_api.py); [browser](../tests-api/session-outcomes.spec.js); PR70 accepted |
 | `sessionService.saveClientSummary` | Candidate | Owner/Admin or current assigned active Trainer; terminal cover read-only | [backend](../backend/tests/test_session_summaries_api.py); [browser](../tests-api/session-summaries.spec.js); not accepted main |
 | `sessionService.markWhatsAppOpened` | Missing | session | Pending API acceptance |
-| `sessionService.acknowledge` | Missing | session | Pending API acceptance |
+| `sessionService.acknowledge` | Candidate | Current assigned Trainer or operations; terminal cover read-only | [backend](../backend/tests/test_session_acknowledgements_api.py); [browser](../tests-api/session-acknowledgements.spec.js); not accepted main |
 | `packageService.save` | Connected | operations | [`test_package_api.py`](../backend/tests/test_package_api.py); [`persistence.spec.js`](../tests-api/persistence.spec.js) |
 | `exerciseLibraryService.loadMedia` | Missing | authenticated | Pending API acceptance |
 | `exerciseLibraryService.getAll` | Missing | authenticated | Pending API acceptance |
@@ -100,6 +100,12 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `remunerationService.approve` | Missing | approveRemuneration | Pending API acceptance |
 
 Operations means Owner/Admin. Assigned-client edits require current assignment; historical report access is a separate read permission. Assigned-trainer edits require self or operations access. Session commands require the current assigned Trainer or operations access; direct booking-detail edits require operations access. Finer domain validators remain mandatory.
+
+### Reviewed acknowledgement and credit accounting
+
+Completion binds the current session, client, purchase, plan/results, Singapore business date and used-credit balance. Only signature or late/no-show is accepted; signatures require actual bounded ink and a signer name. The server rejects future/open/cancelled sessions, inactive records and unauthorized/foreign targets. No-show may be corrected only to a signature, preserving both immutable acknowledgement records and exactly one debit. Completed ad-hoc cover remains read-only.
+
+Acknowledgement, completion, any legacy numeric plan measurements, one credit debit, the two-credit renewal notice and the actor-private original-command receipt share one transaction. An explicitly saved empty outcome stays empty. A later active purchase suppresses renewal; an existing purchase notice is not duplicated. No external message or delivery is recorded. Lost responses freeze the original intent until recovery, and replay does not reauthorize a new write or debit again. Populated receipt downgrades refuse evidence loss. This is a candidate until exact-head CI and source merge pass.
 
 ### Authentication and additional routes
 
@@ -175,6 +181,17 @@ The staff-portal goal is all 55 matrix operations, plus authentication and route
 All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in Part 2; no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
 
 ## Part 2 — Dated changes and evidence
+
+### Acknowledgement and credit integration candidate — 24 October 2026
+
+User authorized completing all remaining 18 operations with the existing real PostgreSQL stress and recovery coverage. Work continues on `feat/session-acknowledgement-api`, based on PR71 head `0e00025115e5235a2eed4e6bdb1295099173b64b`. Summary CI run40077655738 passed backend and API-browser; frontend remains pending at this checkpoint. Accepted main stays PR70, 37/55.
+
+Migration0039 and reviewed acknowledgement routes implement atomic completion, permanent signature/no-show history, exactly-one credit, renewal notice and actor-private receipt recovery. The UI reviews before opening completion, freezes uncertain intent and recovers its original receipt. Existing outcomes and explicit empty results are retained; only absent results may use numeric plan prescriptions. Existing OpenAPI paths are semantically unchanged; the new contract has113 paths/125 operations and one additional directory capability.
+
+The initial nine PostgreSQL cases passed. Expanded78-case validation passed76; the two failures were fixture prescription expectation12kg versus20kg and old OpenAPI route counts. The next50-case run passed47; three new fixtures omitted Open-session nullable identities or mismatched purchase/template names. These constraints stayed intact and fixtures were corrected. Initial frontend checks passed31/34 because an unconditional optional await changed synchronous demo opening; awaiting only the actual API review restored all39 affected checks. Three additional recovery/terminal-cover regressions subsequently passed in the18-case route suite.
+
+First real-API browser validation passed3/12: Admin completion/correction passed in all three profiles, while Trainer login failed401 because the new synthetic Trainer cohorts lacked user linkage. Preserved traces are in `ack-browser-first-traces`; correcting the linkage produced12/12 passing cases, including fresh-context persistence, one debit across correction, foreign records, stale conflicts, frozen uncertain intent and one-write original-receipt recovery. Source-health and semantic lint passed489 files;47 quality-checker regressions passed. Complete candidate gates and final-head source acceptance remain pending. All databases are disposable Docker PostgreSQL; no production/provider/AWS action occurred.
+
 
 ### 24 October 2026 — PR70 accepted: 37/55 source integration
 
@@ -7309,7 +7326,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `sessionService.saveOutcome` | Missing | session | Pending API acceptance |
 | `sessionService.saveClientSummary` | Missing | session | Pending API acceptance |
 | `sessionService.markWhatsAppOpened` | Missing | session | Pending API acceptance |
-| `sessionService.acknowledge` | Missing | session | Pending API acceptance |
+| `sessionService.acknowledge` | Candidate | Current assigned Trainer or operations; terminal cover read-only | [backend](../backend/tests/test_session_acknowledgements_api.py); [browser](../tests-api/session-acknowledgements.spec.js); not accepted main |
 | `packageService.save` | Connected | operations | [`test_package_api.py`](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/backend/tests/test_package_api.py); [`persistence.spec.js`](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/tests-api/persistence.spec.js) |
 | `exerciseLibraryService.loadMedia` | Missing | authenticated | Pending API acceptance |
 | `exerciseLibraryService.getAll` | Missing | authenticated | Pending API acceptance |
