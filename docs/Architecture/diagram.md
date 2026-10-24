@@ -1,93 +1,115 @@
-# Fitfinity system diagrams
+# System, test environment and verification diagrams
 
-[Explanation](README.md) · [Contracts and operation status](../SERVICE_CONTRACTS.md) · [Acceptance evidence](../../PROGRESS.md)
+[One-page explanation](README.md) · [Current rules](../SERVICE_CONTRACTS.md#part-1--current-system-rules) · [Implementation status and backlog](../../PROGRESS.md)
 
-## Components and trust boundaries
+Solid connections describe existing source responsibilities or the selected hosting topology; they do not certify deployment. Dashed connections and **Planned** labels identify future work. Planned hardening belongs to [M10](../../PROGRESS.md#m10-work-packages--planned); launch-critical checks remain required before launch. No diagram authorizes provisioning, paid ingestion or production testing.
 
-This is the selected architecture, not a claim that the latest source is deployed. Dashed object/media paths remain subject to operation-specific integration status.
+## Application, delivery and planned operations
+
+```mermaid
+flowchart TB
+  Staff["Staff browser: React portal"]
+  Pages["GitHub Pages: demo adapter and browser storage"]
+  subgraph AWS["Selected AWS topology: deployment acceptance separate"]
+    Assets["CloudFront: static frontend"]
+    Gateway["API Gateway"]
+    App["Lambda Web Adapter and FastAPI"]
+    Identity["Cognito: staff identity"]
+    DB[("Private PostgreSQL / RDS")]
+    Media[("S3: protected media workflows incomplete")]
+  end
+  subgraph Delivery["Source delivery"]
+    Repo["GitHub: reviewed source and lockfiles"]
+    CI["Frontend, backend and API-browser CI"]
+    Merge["Exact tested head and protected source merge"]
+    Release["Separate reviewed artifact, migration and rollout acceptance"]
+    Supply["Planned: Dependabot, vulnerability triage, SBOM and provenance assessment"]
+    Security["Planned: secret scanning, static security analysis and rate-limit hardening"]
+  end
+  subgraph Operations["M10: planned observability and operations"]
+    OTel["OpenTelemetry: correlated traces, metrics and structured logs"]
+    Privacy["Redaction, sampling, retention and cost controls"]
+    Grafana["Grafana: dashboards, SLOs and actionable alerts"]
+    Ops["Health and synthetic monitoring; incidents, rollback and restore drills"]
+    Capacity["Capacity, resource use and cost monitoring"]
+  end
+  Assets --> Staff
+  Pages -->|"Explicit demo mode"| Staff
+  Staff -->|"Explicit API mode"| Gateway
+  Gateway --> App
+  App --> Identity
+  App -->|"Transactions and receipts"| DB
+  App -.-> Media
+  Repo --> CI --> Merge --> Release
+  Release -.->|"Separately authorized deployment"| AWS
+  Supply -.->|"Reviewed update PRs"| Repo
+  Security -.-> CI
+  App -.-> OTel
+  DB -.->|"Sanitized database diagnostics"| OTel
+  OTel -.-> Privacy -.-> Grafana
+  Grafana -.-> Ops
+  Grafana -.-> Capacity
+```
+
+API errors never switch to demo. Dependency updates pass the same final-head gates; Dependabot does not authorize automatic merging. Telemetry export must avoid sensitive data and isolate exporter failures from application behavior. New instrumentation, dashboards and operations automation remain planned; existing infrastructure alone does not establish operational acceptance.
+
+## Isolated real-API testing and planned measurement
 
 ```mermaid
 flowchart LR
-  Staff[Owner / Admin / Trainer] --> UI[React portal]
-  Assets[CloudFront / static assets] --> UI
-  UI --> Services[Async portal service boundary]
-  Services -->|explicit demo mode| Demo[Prototype adapter / browser storage]
-  Services -->|explicit API mode| HTTP[API adapter / cookies / CSRF]
-  HTTP --> Gateway[Regional API Gateway]
-  Gateway --> Adapter[Lambda Web Adapter]
-  Adapter --> App[FastAPI / current authority / domain transactions]
-  Cognito[Cognito identity and signed tokens] --> App
-  App --> DB[(Private PostgreSQL / RDS)]
-  App -. authorized object workflows .-> Objects[(S3 media / objects)]
-  App --> Receipt[Actor-scoped command receipt]
-  Receipt --> DB
-```
-
-The demo branch is an explicit build/runtime mode, never a fallback after API failure. Domain authorization remains in FastAPI and PostgreSQL transactions. The [runbook](../AWS_DEPLOYMENT_RUNBOOK.md) owns deployed resources, network boundaries and release authority.
-
-## Reviewed write and recovery
-
-```mermaid
-sequenceDiagram
-  actor Staff
-  participant UI as Portal UI
-  participant API as FastAPI
-  participant DB as PostgreSQL
-  Staff->>UI: Review intended change
-  UI->>API: Fetch authorized review
-  API->>DB: Read current versions and scope
-  DB-->>API: Current state
-  API-->>UI: Review / expected version or digest
-  Staff->>UI: Confirm
-  UI->>API: Exact intent + original key + review
-  API->>DB: Lock and recheck authority / versions / conflicts
-  alt Valid command
-    API->>DB: Commit records + history/notices + receipt atomically
-    API-->>UI: Canonical saved result
-    UI->>API: Reload authorized state
-  else Stale or unauthorized
-    API-->>UI: Definitive rejection; no changes
+  Tests["Existing: Playwright with real frontend"]
+  subgraph Docker["Disposable Docker test environment"]
+    API["Real FastAPI application"]
+    Tokens["Local signed-token provider"]
+    PG[("Isolated PostgreSQL worker databases")]
+    Seed["Alembic migrations and synthetic records"]
   end
-  opt Response lost after possible commit
-    UI->>API: Read receipt for original actor/key
-    API->>DB: Reconcile original command
-    API-->>UI: Saved result or unresolved original intent
+  Owner["Verifier: target checks and owned-resource cleanup"]
+  Load["Planned: bounded latency, load and fault campaigns"]
+  Telemetry["Planned: local telemetry validation and redaction checks"]
+  Tests -->|"UI writes, reloads and original-command recovery"| API
+  Tokens -->|"Substitutes Cognito only"| API
+  API -->|"Real SQL and transactions"| PG
+  Seed --> PG
+  Owner --> Docker
+  Load -.->|"Dedicated synthetic test cohorts"| API
+  API -.-> Telemetry
+```
+
+No production PostgreSQL or real provider target participates. Future load/fault campaigns use controlled isolated environments and do not compete with acceptance suites on the same resources. Local startup measurements cannot establish Lambda cold-start performance; that requires separately authorized environment-specific evidence. Grafana ingestion is not required for local telemetry tests.
+
+## Full verification suite
+
+```mermaid
+flowchart TB
+  Change["Source change and test-impact review"]
+  subgraph Existing["Existing automated suites"]
+    Static["Lint, source health and verifier regressions"]
+    Unit["Frontend units: components, services and business rules"]
+    Simulator["Simulator browser: UI contracts, navigation and responsive behavior"]
+    Database["Backend and PostgreSQL: transactions, authorization and migrations"]
+    Browser["Real-API browser: UI to database persistence and recovery"]
+    Infra["Offline infrastructure: templates, guards and artifact contracts"]
+    Forms["Assessment paper-form parity"]
+    Build["Build and PWA verification"]
   end
+  subgraph Future["M10: planned suites and maintenance gates"]
+    Mutation["Mutation: critical JS and Python rules; surviving-mutant review"]
+    Performance["Performance: p50/p95/p99, throughput, errors, resources and browser vitals"]
+    Resilience["Expanded resilience: rate limits, provider faults, restart and interrupted writes"]
+    SupplyTests["Dependabot update CI, vulnerability triage, lockfiles, SBOM and provenance assessment"]
+    SecurityTests["Secret scanning and static security analysis"]
+    Observability["OpenTelemetry and Grafana: redaction, correlation, sampling, export failure and cost controls"]
+    Drills["Operations drills: synthetic monitoring, incident alerts, rollback, backup and migration recovery"]
+  end
+  Gates["Required final-head frontend, backend and API-browser CI"]
+  Evidence["Evidence review: scope, source, environment, results and limits"]
+  Live["Separate acceptance: real Cognito, deployed restart, devices and live environment"]
+  Change --> Existing
+  Existing --> Gates --> Evidence
+  Change -.-> Future
+  Future -.->|"Baseline and justified gates before adoption"| Evidence
+  Evidence -.->|"Applicable authorization and prerequisites"| Live
 ```
 
-A requested supervised change persists a proposal and leaves the booking unchanged. Resolution is a distinct authorized operation. Unknown outcomes are not permission to submit a new intent; refresh failure does not undo a committed save.
-
-## Isolated real-API tests
-
-```mermaid
-flowchart LR
-  Runner[Playwright tests-api] --> Browser[Real frontend in browser]
-  Browser --> API[FastAPI browser test server]
-  Tokens[Local signed-token provider] --> API
-  API --> PG[(Temporary Docker PostgreSQL)]
-  Migrations[Alembic migrations / synthetic seed] --> PG
-  API --> Checks[JWT / cookies / CSRF / domain authorization]
-  Workers[Separate worker databases] --> PG
-  Owner[Verifier owns Compose project] --> API
-  Owner --> PG
-  Owner --> Cleanup[Remove owned containers and volumes]
-```
-
-There is no path to production PostgreSQL, AWS identity delivery or customer records in this test topology. Cognito is substituted; FastAPI and PostgreSQL are not mocked. Simulator browser tests use a separate harness and provide different evidence.
-
-## Build and acceptance boundaries
-
-```mermaid
-flowchart TD
-  Source[Reviewed source] --> Base[Docker application stage]
-  Base --> Test[Test stage: no Lambda adapter]
-  Base --> Runtime[Runtime stage: pinned Lambda adapter]
-  Test --> CI[Frontend + backend + real API browser CI]
-  CI --> Merge[Final tested head / GitHub requirements / source merge]
-  Runtime --> Candidate[Image candidate]
-  Merge -. separate release authorization .-> Release[Reviewed artifact / migrations / rollout]
-  Candidate -. verified source and digest .-> Release
-  Release --> Live[Deployment and provider acceptance]
-```
-
-Source merge is not deployment authorization. OpenTelemetry/Grafana and performance budgets are backlog work; they are deliberately absent as existing runtime components.
+Existing suites already cover selected permission, conflict and response-loss cases; the planned resilience suite expands those boundaries rather than implying they are absent. Functional test timing is not a latency benchmark. Mutation scores, performance budgets, SLOs and new security gates require measured baselines and review. **Planned suites are not current CI checks or completed acceptance.** Physical-device/provider evidence is not replaced by simulated browsers or local signed tokens.
