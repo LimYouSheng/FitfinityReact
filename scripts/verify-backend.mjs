@@ -19,8 +19,9 @@ export function verifyBackend(run = spawnSync, service = 'tests') {
     const result = run('docker', [...args, 'up', '--build', '--abort-on-container-exit', '--exit-code-from', service, service], options)
     if (result.error || result.status !== 0) failure = new Error(`Backend/container/PostgreSQL gate failed (exit ${result.status ?? 'unavailable'}).`)
   } finally {
-    const logs = run('docker', [...args, 'logs', '--no-log-prefix'], options)
-    if (logs.error || logs.status !== 0) failure ??= new Error('Could not retain backend container logs.')
+    // Compose up already streams the complete receipt into the caller's retained log.
+    // Replay only on failure, when startup/attachment may have omitted diagnostics.
+    if (failure) run('docker', [...args, 'logs', '--no-log-prefix'], options)
     const cleanup = run('docker', [...args, 'down', '--volumes', '--remove-orphans'], options)
     if (cleanup.error || cleanup.status !== 0) failure ??= new Error(`Cleanup failed for owned verification project ${project}.`)
   }
