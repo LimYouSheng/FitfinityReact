@@ -172,6 +172,10 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 24 October 2026 — Complete CI backend receipt still exceeds console deadline
+
+Run40072612578 at571bb7b passed1,132/1,132 backend cases in784.43s and633 infrastructure cases, but GitHub cancelled the15-minute job as its verbose console stream finished draining. Successful-log replay was removed, yet console delivery still added approximately a minute beyond test execution. Keep the exact test commands, inventory, assertions and timeout; capture complete backend output directly into the existing uploaded artifact and print its final60 lines to the console. Preserve the exact process exit status. This changes logging transport, not test coverage or execution settings. Final-head CI remains required; cancelled receipts never establish acceptance.
+
 ### 24 October 2026 — CI cancellation diagnosed without weakening gates
 
 PR68 head31fdcd8 run40071249659 passed all1,109 backend cases in718.45s, but the wrapper replayed the complete already-streamed log for approximately98 additional seconds. GitHub cancelled the job for exceeding its15-minute limit. A cancelled job is not acceptance even when its test receipt passed. Commit571bb7b removes redundant successful-log replay, retains diagnostic replay on failure and isolated cleanup, and passes all21 health-checker regressions. No timeout, worker setting, assertion or inventory was relaxed.
