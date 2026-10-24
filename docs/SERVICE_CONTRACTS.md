@@ -197,6 +197,12 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 24 October 2026 — Package candidate complete local backend gate
+
+[PR78](https://github.com/LimYouSheng/FitfinityReact/pull/78) includes PR77 and the package lifecycle candidate. Backend inputs at2f0ea043fa4160c8f0b4c1dd4f5214f083cbc3e4 pass all1,284 real PostgreSQL/backend cases in666.27s and633 infrastructure checks (`package-backend-full-2.log`). The owned Docker database/object-storage containers and network were removed successfully. The first1,282/1,284 failure remains retained; the repaired directory expectation and email initialization fixture pass in the complete gate. No timeouts, warning policies, retries or business assertions changed.
+
+Package frontend inputs remain those of the retained1,373-unit/143-file receipt, nine real browser cases and511-file lint/source-health receipts. New session-recording frontend edits on `feat/session-recording-api` began separately during the frozen backend run and are not included in PR78 or those receipts. The seven-document structure, three Mermaid diagrams and full prior historical suffix were checked; candidate status changes are confined to the current matrix. PR78 initially targeted the dependency branch, which does not trigger this repository's main-target PR workflow; it now targets main, with this documentation checkpoint triggering complete final-head CI. PR77 head5d74afd/run40106432772 remains under verification. Superseded run40104881655 was cancelled rather than retried. Main remains45/55 until eligible tested source merges; PR77 would reach49 and the package slice51. No AWS, production database or deployment action occurred.
+
 ### 24 October 2026 — Superseded PR77 run released
 
 Run40102831829 at00daff9 was cancelled after its API-browser failure was retained, releasing repaired head9e5ce64/run40104881655. The old backend gate passed; its frontend run was incomplete and is not acceptance. Frontend artifact12564685981 is retained as `pr77-superseded-frontend.zip`; the direct CLI download was blocked by the artifact host, and the connected GitHub artifact download succeeded. All three repaired-head gates are running. No obsolete AWS publication was approved.
