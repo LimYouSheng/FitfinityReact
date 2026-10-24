@@ -1,8 +1,6 @@
 """Independent PostgreSQL writers, current permission and immutable media/history boundaries."""
 
-from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
-from threading import Barrier
 from uuid import uuid4
 
 import pytest
@@ -13,11 +11,11 @@ from app.api.request_cancellation import DECISION_LOCK
 from app.api.session_undo_routes import UndoChange
 from app.auth.errors import AuthError
 from app.authorization import Principal
-from app.database import Database
 from app.models.people import StaffUser
 from app.models.session_mutations import SessionMutation, SessionMutationUndo
 from app.models.training import Acknowledgement, CreditDebit, TrainingSession
 from app.persistence import acknowledge
+from tests.competing_writers import contend_at_commit
 from tests.test_session_undo_api import change_summary, undo, undo_review
 from tests.test_staff_api import api as api
 from tests.test_staff_api import trainer_login
@@ -34,28 +32,24 @@ def test_independent_undo_writers_commit_one_compensation(
     first = uuid4()
     keys = [first, first if duplicate else uuid4()]
     principal = Principal(graph["owner_id"], "Owner Original", "owner", None)
-    ready, pids = Barrier(2), []
 
-    def apply(key):
-        database = Database(database_settings)
+    def apply(session, index):
+        session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DECISION_LOCK})
         try:
-            with database.transaction() as session:
-                pids.append(session.scalar(text("SELECT pg_backend_pid()")))
-                ready.wait(timeout=4)
-                session.execute(
-                    text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DECISION_LOCK}
-                )
-                return 200, session_undo_save.commit(
-                    session, principal, mutation, key, UndoChange(expected=viewed["expected"]), []
-                )
+            return 200, session_undo_save.commit(
+                session,
+                principal,
+                mutation,
+                keys[index],
+                UndoChange(expected=viewed["expected"]),
+                [],
+            )
         except AuthError as error:
             return error.status, None
-        finally:
-            database.close()
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(apply, keys))
-    assert len(set(pids)) == 2
+    completed = contend_at_commit(database_settings, apply)
+    assert len({pid for pid, _ in completed}) == 2
+    results = [result for _, result in completed]
     assert sorted(status for status, _ in results) == ([200, 200] if duplicate else [200, 409])
     if duplicate:
         assert results[0][1] == results[1][1]
@@ -139,4 +133,22 @@ def test_original_trainer_can_undo_own_summary_without_access_to_foreign_records
     assert result.status_code == 200, result.text
     assert api.get(f"/api/session-changes/{uuid4()}/undo-review").status_code == 404
     with domain_db.transaction() as session:
+        assert session.get(TrainingSession, identity).client_summary == ""
+
+
+def test_undo_lock_timeout_rolls_back_and_original_key_can_recover(api, graph, domain_db):
+    identity, mutation, version = change_summary(api, graph, domain_db)
+    viewed, key = undo_review(api, mutation), uuid4()
+    with domain_db.transaction() as blocker:
+        blocker.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DECISION_LOCK})
+        response = undo(api, mutation, viewed, key)
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "service_unavailable"
+        assert blocker.scalar(select(func.count()).select_from(SessionMutationUndo)) == 0
+        assert blocker.get(TrainingSession, identity).version == version
+    first = undo(api, mutation, viewed, key)
+    assert first.status_code == 200, first.text
+    assert undo(api, mutation, viewed, key).json() == first.json()
+    with domain_db.transaction() as session:
+        assert session.scalar(select(func.count()).select_from(SessionMutationUndo)) == 1
         assert session.get(TrainingSession, identity).client_summary == ""

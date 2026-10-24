@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from app.models.api import SessionAcknowledgementReceipt
 from app.models.communications import SessionEvent
 from app.models.training import Acknowledgement, CreditDebit, TrainingSession
+from tests.competing_writers import contend_at_commit
 from tests.test_session_outcomes_api import STROKES
 from tests.test_staff_api import api as api
 
@@ -102,15 +103,9 @@ def test_invalid_acknowledgement_has_no_effect(api, domain_db, graph, body):
 def test_independent_acknowledgement_writes_have_one_effect(
     api, domain_db, database_settings, graph, duplicate
 ):
-    from concurrent.futures import ThreadPoolExecutor
-    from threading import Barrier
-
-    from sqlalchemy import text
-
     from app.api import session_acknowledgements
     from app.auth.errors import AuthError
     from app.authorization import Principal
-    from app.database import Database
     from app.models.people import StaffUser
 
     identity, key = graph["session_id"], uuid4()
@@ -118,30 +113,20 @@ def test_independent_acknowledgement_writes_have_one_effect(
     with domain_db.transaction() as session:
         user = session.get(StaffUser, graph["owner_id"])
         principal = Principal(user.id, user.name, user.role, None)
-    replicas, ready = [Database(database_settings), Database(database_settings)], Barrier(2)
 
-    def apply(pair):
-        db, index = pair
-        with db.transaction() as session:
-            pid = session.scalar(text("SELECT pg_backend_pid()"))
-            ready.wait(timeout=5)
-            body = session_acknowledgements.SaveAcknowledgement(
-                expected=viewed["expected"], method="late_no_show"
+    def apply(session, index):
+        body = session_acknowledgements.SaveAcknowledgement(
+            expected=viewed["expected"], method="late_no_show"
+        )
+        try:
+            result = session_acknowledgements.save(
+                session, principal, identity, key if duplicate else uuid4(), body
             )
-            try:
-                result = session_acknowledgements.save(
-                    session, principal, identity, key if duplicate else uuid4(), body
-                )
-                return pid, 200, result.model_dump(mode="json")
-            except AuthError as error:
-                return pid, error.status, None
+            return 200, result.model_dump(mode="json")
+        except AuthError as error:
+            return error.status, None
 
-    try:
-        with ThreadPoolExecutor(max_workers=2) as workers:
-            results = list(workers.map(apply, zip(replicas, [1, 2], strict=True)))
-    finally:
-        for db in replicas:
-            db.close()
+    results = [(pid, *result) for pid, result in contend_at_commit(database_settings, apply)]
     assert len({r[0] for r in results}) == 2
     assert sorted(r[1] for r in results) == ([200, 200] if duplicate else [200, 409])
     if duplicate:
@@ -388,3 +373,27 @@ def test_two_remaining_credits_notify_once_unless_already_renewed(api, domain_db
                 )
             )
             assert recipients == {graph["owner_id"], graph["user_id"]}
+
+
+def test_acknowledgement_lock_timeout_preserves_credit_and_original_key(api, graph, domain_db):
+    from sqlalchemy import text
+
+    from app.api.request_cancellation import DECISION_LOCK
+
+    identity, key = graph["session_id"], uuid4()
+    viewed = review(api, identity)
+    with domain_db.transaction() as blocker:
+        blocker.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DECISION_LOCK})
+        response = save(api, identity, viewed, key, method="late_no_show")
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "service_unavailable"
+        assert blocker.scalar(select(func.count()).select_from(CreditDebit)) == 0
+        assert blocker.scalar(select(func.count()).select_from(Acknowledgement)) == 0
+        assert blocker.get(TrainingSession, identity).version == viewed["version"]
+    first = save(api, identity, viewed, key, method="late_no_show")
+    assert first.status_code == 200, first.text
+    assert save(api, identity, viewed, key, method="late_no_show").json() == first.json()
+    with domain_db.transaction() as session:
+        assert session.scalar(select(func.count()).select_from(CreditDebit)) == 1
+        assert session.scalar(select(func.count()).select_from(Acknowledgement)) == 1
+        assert session.scalar(select(func.count()).select_from(SessionAcknowledgementReceipt)) == 1

@@ -209,6 +209,15 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 25 October 2026 Singapore — Complete shard evidence and deterministic contention repair
+
+Head `65be0c3d073369c8590133563568536d34a2a28d` passes both CI browser shards and the required aggregate in [run40119285796](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40119285796). Local shards each pass141 cases in9.6m/9.8m (`undo-shard-1-local.log`, `undo-shard-2-local.log`); the actual JSON reports pass the complete282-case identity comparison. The first obsolete timed-out run was cancelled after the new head was pushed; its partial frontend receipt is not accepted.
+
+CI backend job120948384527 passes1,337/1,339 cases in590.85s, but the duplicate acknowledgement and duplicate Undo writer cases receive PostgreSQL `LockNotAvailable` at the advisory lock. The complete original artifact and log remain in `undo-shards-backend-first` and `undo-shards-ci-backend-1.log`. Both fixtures started the full first-writer workload while the second writer’s deliberate one-second production lock deadline was running. The repaired shared helper flushes the first writer’s actual effects, then requires `pg_locks` to show an independent second writer blocked before releasing the original commit. It uses independent pools/PIDs and bounded events, with no sleep, retry or timeout increase. Existing duplicate200/200, competing200/409, receipt equality and exactly-once state assertions remain unchanged.
+
+Two additional real-HTTP regressions deliberately hold the same production lock until the request returns503, verify no partial receipt/credit/compensation, then release it and prove recovery with the original key creates exactly one effect. The affected acknowledgement and Undo files pass33/33 cases in28.95s (`undo-contention-focused-1.log`). Backend inventory increases to1,341 for these two new cases; production code, lock budgets and browser scenarios are unchanged. The corrected complete backend run and every new-head CI gate remain required before source acceptance. All databases/storage remain isolated Docker resources; no production or provider actions occur.
+
+
 ### 24 October 2026 UTC — User-approved complete browser CI split
 
 After reviewing the retained20-minute timeout, the user explicitly approved two isolated CI shards with a required combined completeness gate. Each shard retains the Ubuntu runner class, two Playwright workers, existing20-minute budget, all browser profiles and zero retries. Each invocation owns disposable PostgreSQL and private test storage. The required `verify / api-browser` name now belongs to the aggregate, which runs after both shards even on failure and requires their successful job result plus the exact282 discovered case identities. Missing/duplicate/substituted cases, missing shards, skipped/flaky/failed cases, retries, runner errors and incomplete reports fail closed. Artifact retrieval is pinned and scoped to the current run/attempt; traces are retained separately. The complete local suite command remains unchanged.
