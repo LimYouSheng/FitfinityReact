@@ -209,6 +209,22 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 24 October 2026 UTC — User-approved complete browser CI split
+
+After reviewing the retained20-minute timeout, the user explicitly approved two isolated CI shards with a required combined completeness gate. Each shard retains the Ubuntu runner class, two Playwright workers, existing20-minute budget, all browser profiles and zero retries. Each invocation owns disposable PostgreSQL and private test storage. The required `verify / api-browser` name now belongs to the aggregate, which runs after both shards even on failure and requires their successful job result plus the exact282 discovered case identities. Missing/duplicate/substituted cases, missing shards, skipped/flaky/failed cases, retries, runner errors and incomplete reports fail closed. Artifact retrieval is pinned and scoped to the current run/attempt; traces are retained separately. The complete local suite command remains unchanged.
+
+All72 verifier regressions pass, including25 added workflow/aggregate checks. The first sandboxed verifier attempt could not execute its child test process; the same command passes with supported child-process access (`undo-shards-quality-1.log`, `undo-shards-quality-2.log`). Lint/source health cover518 files with no issues, and all three diagrams parse. Local shard execution and new-head final CI remain pending at this checkpoint. Prior complete local application receipts retain matching application inputs; only tooling/workflow/documentation changes are added. This approval does not authorize longer timeouts, reduced coverage, retries, AWS actions or deployment. Source acceptance remains54/55 until the final named operation passes and merges.
+
+
+### 24 October 2026 UTC — Undo local validation complete; full browser CI blocked
+
+PR80 head `5caa3c3396ef64ccbb8eeba75672cb6eef6b77de` passes all 1,339 backend/PostgreSQL cases in704.08s and633 infrastructure checks locally (`undo-backend-full-2.log`), all1,384 frontend units/145 files in139.11s, and all21 final affected real-API browser cases in1.7m (`undo-browser-final.log`). GitHub backend job120938723128 passes1,339 cases in593.77s in [run40116398067](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40116398067). The original failed receipts above are retained.
+
+API-browser job120938723119 started17:31:13UTC and ended17:51:29UTC. Its annotation states “The job has exceeded the maximum execution time of 20m0s”; the retained log (`undo-pr80-browser-cancelled.log`) contains269 completed passing cases out of282, with no assertion failure before cancellation. This is incomplete evidence, not a pass. Prior PR79’s261 cases completed in13.4m; matched common cases in this run were broadly slower, but the comparison does not isolate an application or environment cause. No retry, timeout increase, runner change or merge was performed. Frontend CI remains pending at this checkpoint. A proposed two-shard arrangement would preserve every case, assertions, per-job budget, browser profiles and isolated resources, with a required aggregate identity/completeness gate; changing that arrangement requires an explicit decision under the standing runner restriction.
+
+The canonical matrix remains54/55 accepted. Its55 distinct rows, current evidence links, seven-document layout and existing Part2 historical suffix are verified; all eight stashes are preserved. Synthetic Docker databases and private test storage only; no production PostgreSQL, AWS publication/deployment or paid services.
+
+
 ### 24 October 2026 UTC — Undo complete-gate compatibility repair
 
 Draft [PR80](https://github.com/LimYouSheng/FitfinityReact/pull/80) first head `26118f620c04ec598a61f2aa42882ed91a5da654` passes633 infrastructure checks and1,329/1,339 backend cases locally in799.56s (`undo-backend-full-1.log`). [Run40115129665](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40115129665) backend reports the same ten failures and1,329 passes in604.93s; its connector-fetched job log is retained as `undo-pr80-backend-connector.log`. The earlier direct CLI download was blocked and is not a log receipt.

@@ -23,6 +23,8 @@ Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies 
 
 The [full-suite diagram](docs/Architecture/diagram.md#full-verification-suite) explains existing test scopes and planned mutation, performance, security, telemetry and operational verification. Planned suites have no executable command here until implemented.
 
+CI runs the real-API suite in two complementary shards, each with its own disposable databases/storage and the existing 20-minute budget. The required `verify / api-browser` aggregate checks both successful jobs and every discovered case identity, rejecting missing, duplicated, skipped, retried or failed cases. Local `npm run test:api-browser` still runs the complete suite; `-- --shard=1/2 --reporter=list,json` selects a shard for diagnosis, with `PLAYWRIGHT_JSON_OUTPUT_FILE` selecting its report path. A shard alone is not complete acceptance.
+
 Required CI and evidence rules belong to [AGENTS](AGENTS.md#verify-and-publish). Test inventories are defined by the verifiers, not historical counts in documentation.
 
 ## Configuration

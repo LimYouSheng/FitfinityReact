@@ -26,6 +26,7 @@ try {
       '--network', `container:${container}`, '--workdir', root, '-v', `${root}:${root}`,
       '-v', `${browsers}:${browsers}:ro`, '-e', `PLAYWRIGHT_BROWSERS_PATH=${browsers}`, '-e', 'CI=true', '-e', 'npm_config_cache=/tmp/fitfinity-npm-cache',
       '-e', `NO_PROXY=${localBypass}`, '-e', `no_proxy=${localBypass}`,
+      ...(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE ? ['-e', `PLAYWRIGHT_JSON_OUTPUT_FILE=${process.env.PLAYWRIGHT_JSON_OUTPUT_FILE}`] : []),
       process.env.FITFINITY_BROWSER_RUNNER_IMAGE, 'npx', ...args])
   } else run('npx', args)
 } catch (error) {

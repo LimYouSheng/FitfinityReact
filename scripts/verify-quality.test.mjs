@@ -4,6 +4,7 @@ import { parse } from 'yaml'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { verifyApiShards } from './verify-api-shards.mjs'
 import { verifyTestResults } from './verify-test-results.mjs'
 import { test } from 'node:test'
 import { ESLint } from 'eslint'
@@ -40,12 +41,17 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   verifyQualitySetup(readQualitySetup())
 })
 const mutations = [
+  ['missing shard', setup => { delete setup.verify.jobs['api-browser-shard'] }],
+  ['partial shard matrix', setup => { setup.verify.jobs['api-browser-shard'].strategy.matrix.shard = [1] }],
+  ['optional aggregate', setup => { setup.verify.jobs['api-browser'].if = 'success()' }],
+  ['lost aggregate dependencies', setup => { delete setup.verify.jobs['api-browser'].needs }],
+  ['forged aggregate job result', setup => { setup.verify.jobs['api-browser'].steps.find(step => step.env?.API_BROWSER_SHARD_RESULT).env.API_BROWSER_SHARD_RESULT = 'success' }],
   ['image acceptance before full CI', setup => { delete setup.acceptance.jobs.accept.needs }],
   ['image acceptance outside main', setup => { delete setup.acceptance.jobs.accept.if }],
   ['image acceptance write credentials', setup => { delete setup.acceptance.jobs.accept.steps.find(step => step.uses?.startsWith('aws-actions/')).with['inline-session-policy'] }],
   ['suppressed image acceptance failure', setup => { setup.acceptance.jobs.accept.steps.find(step => step.run?.includes('image-accept --actions'))['continue-on-error'] = true }],
   ['missing real API browser verification', setup => { delete setup.verify.jobs['api-browser'] }],
-  ['optional real API browser verification', setup => { setup.verify.jobs['api-browser'].steps.find(step => step.run?.includes('npm run test:api-browser'))['continue-on-error'] = true }],
+  ['optional real API browser verification', setup => { setup.verify.jobs['api-browser-shard'].steps.find(step => step.run?.includes('npm run test:api-browser'))['continue-on-error'] = true }],
   ['missing PR verification', setup => { delete setup.pages.on.pull_request }],
   ['path-filtered PR checks', setup => { setup.pages.on.pull_request.paths = ['backend/**'] }],
   ['optional shared verification', setup => { setup.pages.jobs.verify.if = 'false' }],
@@ -207,4 +213,39 @@ test('hosting release builds API artifact without AWS authority and retains immu
   const state = workflow.jobs.hosting.steps.find(step => step.name === 'Preserve operation state and partial evidence')
   assert.match(state.if, /^always\(\)/)
   assert.equal(state.with['if-no-files-found'], 'error')
+})
+
+function shardFixture() {
+  const specs = Array.from({ length: 282 }, (_, index) => ({ id: `case-${index}`, file: 'workflow.spec.js', line: index + 1, column: 1, title: `Case ${index}`, tests: [{ projectId: ['desktop-chromium', 'phone', 'tablet'][index % 3], expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed', retry: 0, errors: [] }] }] }))
+  const report = (items, current) => ({ errors: [], config: { shard: current ? { current, total: 2 } : null, workers: 2, projects: [{ retries: 0, repeatEach: 1 }] }, suites: [{ title: 'workflow.spec.js', specs: items }], stats: { expected: items.length, unexpected: 0, flaky: 0, skipped: 0 } })
+  return { inventory: report(specs), reports: [report(structuredClone(specs.slice(0, 141)), 1), report(structuredClone(specs.slice(141)), 2)] }
+}
+
+test('complete complementary shard identities pass regardless of report order', () => {
+  const { inventory, reports } = shardFixture()
+  assert.equal(verifyApiShards(inventory, reports.reverse(), 'success'), 282)
+})
+for (const [name, mutate] of [
+  ['missing shard', data => data.reports.pop()],
+  ['duplicate shard', data => { data.reports[1].config.shard.current = 1 }],
+  ['missing case', data => { data.reports[1].suites[0].specs.pop(); data.reports[1].stats.expected-- }],
+  ['duplicate substituted case with unchanged total', data => { data.reports[1].suites[0].specs[0] = structuredClone(data.reports[0].suites[0].specs[0]) }],
+  ['foreign substituted identity', data => { data.reports[0].suites[0].specs[0].id = 'foreign' }],
+  ['retry', data => { data.reports[0].suites[0].specs[0].tests[0].results[0].retry = 1 }],
+  ['multiple attempts', data => { data.reports[0].suites[0].specs[0].tests[0].results.push({ status: 'passed', retry: 1, errors: [] }) }],
+  ['skipped case', data => { data.reports[0].suites[0].specs[0].tests[0].results[0].status = 'skipped' }],
+  ['expected failure', data => { data.reports[0].suites[0].specs[0].tests[0].expectedStatus = 'failed' }],
+  ['failed case', data => { data.reports[0].suites[0].specs[0].tests[0].results[0].status = 'failed' }],
+  ['runner error', data => { data.reports[0].errors.push({ message: 'teardown failure' }) }],
+  ['incomplete summary', data => { data.reports[0].stats.expected-- }],
+  ['changed workers', data => { data.reports[0].config.workers = 4 }],
+  ['changed retries', data => { data.reports[0].config.projects[0].retries = 1 }],
+  ['partial discovery', data => { data.inventory.suites[0].specs.pop() }],
+]) test(`aggregate rejects ${name}`, () => {
+  const data = shardFixture(); mutate(data)
+  assert.throws(() => verifyApiShards(data.inventory, data.reports, 'success'), /API browser shards:/)
+})
+for (const outcome of ['failure', 'cancelled', 'skipped', undefined]) test(`aggregate rejects ${outcome} shard job despite passing reports`, () => {
+  const { inventory, reports } = shardFixture()
+  assert.throws(() => verifyApiShards(inventory, reports, outcome), /both shard jobs must succeed/)
 })
