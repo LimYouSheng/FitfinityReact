@@ -38,7 +38,7 @@ Errors retain a readable message and stable error code. Session expiry clears pr
 
 ### Domain operation inventory
 
-**54/55 accepted in merged source: 53 server-connected and one local predicate.** Full permitted Undo remains unaccepted; PR79 accepts the three session-recording operations. PR78 accepts package deactivation and upcoming-session deletion, with package-specific Undo. PR77 accepts the three library operations and completes Trainer update, including pending-email correction with verification before switching. PR70 accepts previous-plan preview/copy and outcome saving; PR71 accepts summary saving; PR72 accepts acknowledgement and exactly-once credits; PR73 accepts report actions and scoped history; PR75 accepts remuneration list/detail/approval and legacy handoff. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
+**55/55 accepted in merged source: 54 server-connected operations and one local predicate.** PR80 completed full permitted Undo after all required final-head gates passed. Each row below retains its real API evidence owners; full dated implementation, failure, repair and merge receipts remain in Part 2. This is source integration, not deployment or production/provider/device acceptance. [Progress](../PROGRESS.md) owns remaining milestone work.
 
 Each connected server row names actual PostgreSQL/HTTP and real-API browser evidence owners. Browser scenarios can cover several operations. Simulator tests supplement these tests; they do not establish persistence. Local execution uses temporary Docker PostgreSQL, synthetic records and a local signed-token Cognito substitute. Real Cognito, restart, physical devices and deployment acceptance remain separate.
 
@@ -91,7 +91,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `exerciseLibraryService.getAll` | Connected | authenticated | [backend](../backend/tests/test_exercise_library_api.py); [storage](../backend/tests/test_media_storage.py); [browser](../tests-api/exercise-library.spec.js); PR77 source accepted |
 | `exerciseLibraryService.save` | Connected | operations | [backend](../backend/tests/test_exercise_library_api.py); [storage](../backend/tests/test_media_storage.py); [browser](../tests-api/exercise-library.spec.js); PR77 source accepted |
 | `messageService.dismissRenewal` | Connected | visible renewal; Owner/Admin or current assigned Trainer | [`test_renewal_dismissal_api.py`](../backend/tests/test_renewal_dismissal_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
-| `messageService.undo` | Candidate | Visible original change; Owner/Admin or original active Trainer with current scope | [backend](../backend/tests/test_session_undo_api.py); [resilience](../backend/tests/test_session_undo_resilience.py); [browser](../tests-api/session-undo.spec.js); full gates and merge pending |
+| `messageService.undo` | Connected | Visible original change; Owner/Admin or original active Trainer with current scope | [backend](../backend/tests/test_session_undo_api.py); [resilience](../backend/tests/test_session_undo_resilience.py); [browser](../tests-api/session-undo.spec.js); PR80 source accepted |
 | `messageService.markRead` | Connected | current message visibility; independent recipient state | [`test_message_api.py`](../backend/tests/test_message_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `messageService.markUnread` | Connected | current message visibility; independent recipient state | [`test_message_api.py`](../backend/tests/test_message_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `requestService.resolve` | Connected | Owner/Admin; atomic current-state approval or rejection | [`test_request_resolution.py`](../backend/tests/test_request_resolution.py); [`request-resolution.spec.js`](../tests-api/request-resolution.spec.js) |
@@ -102,7 +102,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 
 Operations means Owner/Admin. Assigned-client edits require current assignment; historical report access is a separate read permission. Assigned-trainer edits require self or operations access. Session commands require the current assigned Trainer or operations access; direct booking-detail edits require operations access. Finer domain validators remain mandatory.
 
-### Permitted Undo — candidate implementation
+### Permitted Undo
 
 Undo is an explicit reviewed compensating transaction within 24 hours of the original server write. Owner/Admin or the original active Trainer must still have current record scope and applicable scheduling autonomy. A visible message alone grants no write authority. Current domain state, child records, dependent bookings, pending proposals and original media must still match the reviewed change; reverse later dependent changes first. Started schedules, acknowledged/credited scheduling changes and approved pay-cycle changes cannot be reversed through Undo.
 
@@ -208,6 +208,13 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 
 ## Part 2 — Dated changes and evidence
+
+### 25 October 2026 Singapore — Full named-operation source acceptance: 55/55
+
+[PR80](https://github.com/LimYouSheng/FitfinityReact/pull/80) merged at 2026-10-24T20:14:21Z as `4c66e83cd510cbbfec2fead12c9d3ce6e55fd5ca`. Exact head `8cd66670aee495e17244b8b6bf15bf42c8740c63` passed all required final-head gates in [run40125921904](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40125921904): 1,384 units/145 files, 1,152 simulator browser cases, 1,341 backend/PostgreSQL, 633 infrastructure and all 282 real-API browser cases across the two user-approved isolated shards and required identity/completeness aggregate. Normal GitHub merge requirements were respected without bypass. The original failed/cancelled runs remain below; the new successful head does not rewrite them.
+
+Full permitted Undo is the final named operation: 54 server-connected operations plus the intentionally local availability predicate complete 55/55. The user-requested remaining 18 are now source-accepted. Real routes, migrations, JWT/cookies/CSRF, authorization, transactional persistence and private object IO use disposable Docker PostgreSQL/storage with synthetic identities; no production database is involved. The named-operation target does not by itself close broader M6 authentication/route/attribution/restart acceptance, M7 processing/events, M8/M9 release/UAT, M10 hardening or the separate public website. No AWS image publication, Lambda deployment, provider action, paid service activation or new physical-device acceptance occurred.
+
 
 ### 25 October 2026 Singapore — Approved backend CI job budget
 
