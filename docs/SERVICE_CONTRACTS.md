@@ -37,7 +37,7 @@ Errors retain a readable message and stable error code. Session expiry clears pr
 
 ### Domain operation inventory
 
-**39/55 accepted in merged source: 38 server-connected and one local predicate.** 16 remain unaccepted, including report and remuneration candidates and partial Trainer update. PR70 accepts previous-plan preview/copy and outcome saving; PR71 accepts summary saving; PR72 accepts acknowledgement and exactly-once credits. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
+**41/55 accepted in merged source: 40 server-connected and one local predicate.** 14 remain unaccepted, including remuneration and legacy handoff candidates and partial Trainer update. PR70 accepts previous-plan preview/copy and outcome saving; PR71 accepts summary saving; PR72 accepts acknowledgement and exactly-once credits; PR73 accepts report actions and scoped history. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
 
 Each connected server row names actual PostgreSQL/HTTP and real-API browser evidence owners. Browser scenarios can cover several operations. Simulator tests supplement these tests; they do not establish persistence. Local execution uses temporary Docker PostgreSQL, synthetic records and a local signed-token Cognito substitute. Real Cognito, restart, physical devices and deployment acceptance remain separate.
 
@@ -56,8 +56,8 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `clientService.saveAssessment` | Connected | Owner/Admin only; inactive records read-only | [`test_assessment_workflows.py`](../backend/tests/test_assessment_workflows.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `clientService.saveFixedWeeklySchedule` | Connected | Owner/Admin or current assigned active Trainer; Trainer approval control enforced server-side | [`test_client_weekly_schedule.py`](../backend/tests/test_client_weekly_schedule.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `clientService.reassignTrainer` | Connected | Owner/Admin only; active client and replacement | [`test_client_assignment_review.py`](../backend/tests/test_client_assignment_review.py); [`test_client_assignment_save.py`](../backend/tests/test_client_assignment_save.py); [`records.spec.js`](../tests-api/records.spec.js) |
-| `clientService.recordProgressReportAction` | Candidate | Scoped client report access, including retained historical/inactive reads | [backend](../backend/tests/test_progress_reports_api.py); [browser](../tests-api/progress-reports.spec.js); not accepted main |
-| `clientService.progressReportHistory` | Candidate | Owner/Admin only | [backend](../backend/tests/test_progress_reports_api.py); [browser](../tests-api/progress-reports.spec.js); not accepted main |
+| `clientService.recordProgressReportAction` | Connected | Scoped client report access, including retained historical/inactive reads | [backend](../backend/tests/test_progress_reports_api.py); [browser](../tests-api/progress-reports.spec.js) |
+| `clientService.progressReportHistory` | Connected | Owner/Admin only | [backend](../backend/tests/test_progress_reports_api.py); [browser](../tests-api/progress-reports.spec.js) |
 | `clientService.deactivate` | Connected | Owner/Admin | [`test_client_deactivation_api.py`](../backend/tests/test_client_deactivation_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `clientService.reactivate` | Connected; open-session retention | Owner/Admin | [`test_client_reactivation_review.py`](../backend/tests/test_client_reactivation_review.py); [`test_client_reactivation_save.py`](../backend/tests/test_client_reactivation_save.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `trainerService.create` | Connected | Owner/Admin; Owner-only submitted rates, Admin server defaults with no financial projection | [`test_trainer_creation.py`](../backend/tests/test_trainer_creation.py); [`staff.spec.js`](../tests-api/staff.spec.js) |
@@ -83,7 +83,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `sessionService.copyPreviousPlan` | Connected | Current assigned Trainer or operations; reviewed source/target scope | [backend](../backend/tests/test_previous_session_plan_api.py); [browser](../tests-api/previous-plan.spec.js); PR70 accepted |
 | `sessionService.saveOutcome` | Connected | Owner/Admin or currently assigned active Trainer; terminal ad-hoc cover stays read-only | [backend](../backend/tests/test_session_outcomes_api.py); [browser](../tests-api/session-outcomes.spec.js); PR70 accepted |
 | `sessionService.saveClientSummary` | Connected | Owner/Admin or current assigned active Trainer; terminal cover read-only | [backend](../backend/tests/test_session_summaries_api.py); [browser](../tests-api/session-summaries.spec.js); PR71 accepted |
-| `sessionService.markWhatsAppOpened` | Missing | session | Pending API acceptance |
+| `sessionService.markWhatsAppOpened` | Candidate | Current assigned Trainer or Owner/Admin; active client/purchase; training date reached | [backend](../backend/tests/test_session_handoffs_api.py); [browser](../tests-api/session-handoffs.spec.js); compatibility action only, not accepted |
 | `sessionService.acknowledge` | Connected | Current assigned Trainer or operations; terminal cover read-only | [backend](../backend/tests/test_session_acknowledgements_api.py); [browser](../tests-api/session-acknowledgements.spec.js); PR72 accepted |
 | `packageService.save` | Connected | operations | [`test_package_api.py`](../backend/tests/test_package_api.py); [`persistence.spec.js`](../tests-api/persistence.spec.js) |
 | `exerciseLibraryService.loadMedia` | Missing | authenticated | Pending API acceptance |
@@ -112,6 +112,10 @@ Acknowledgement, completion, any legacy numeric plan measurements, one credit de
 Report audit writes record PDF export/share or legacy WhatsApp opening, never delivery or receipt by a client. The browser performs the explicit device action once; saving or recovering its audit must not repeat a download/share. Each new action has a stable UUID, explicit client/purchase membership and server-derived actor/time. Reusing an action ID with different intent or another actor conflicts without disclosing the prior private receipt. Audit and its internal notice commit together. Historical/inactive report access remains distinct from current coaching-write authority.
 
 Only Owner/Admin may read report history. Filtering by purchase must not mix another purchase or client. Existing CSV and legacy unassigned-purchase evidence remain readable; new CSV actions and new actions without a purchase are rejected. History is immutable, deterministically ordered and fails closed if it cannot be returned completely within its bounded contract. Unknown writes freeze audit intent and can recover after a focus refresh without repeating the native action. Physical-device sharing and actual provider delivery remain separate acceptance.
+
+### Legacy session opening compatibility
+
+API-backed sessions with integrated summary support may export the existing PDF when current scope, active lifecycle and training date permit; unavailable mutations remain disabled. `markWhatsAppOpened` remains an explicit compatibility action; the current PDF UI does not call it or display a WhatsApp button. Its server review binds the session, client/purchase lifecycle and Singapore business date. New actions reject foreign, Open, future and inactive records; terminal historical cover remains read-only. One intent increments the opening count/time and version, records truthful audit/internal notice evidence and stores the actor-private original result atomically. Replaying that intent never adds another opening, and conflicting key reuse is rejected. Completion, signatures, credits and remuneration remain unchanged. This records an opening, never sending or delivery. No real messaging provider is called.
 
 ### Authentication and additional routes
 
@@ -187,6 +191,50 @@ The staff-portal goal is all 55 matrix operations, plus authentication and route
 All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in Part 2; no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
 
 ## Part 2 — Dated changes and evidence
+
+### 24 October 2026 — handoff/PDF browser and unit gates
+
+After the summary-export guard repair, all12 real-API browser cases passed in46.9s, including real PDF bytes, unchanged handoff/completion/credit fields during export, explicit compatibility writes, fresh-login persistence, stale/foreign/forged denial and original-intent recovery. Owned Docker resources were removed with exit0. All1,353 units across141 files passed in122.73s and strict inventory validation passed. Updated lint501 files, source health242 runtime modules and47 verifier regression cases also pass. Receipts: `handoff-browser-2.log`, `handoff-units-full-1.log`, `handoff-lint-2.log`, `handoff-health-2.log`, `handoff-quality-3.log` under `/workspace/work/fitfinity-handoff/`. The complete1,218-case backend gate and216-case final-head API-browser CI remain pending.
+
+
+### 24 October 2026 — remuneration rerun boundary
+
+Run40084360664 completed with frontend/backend success and the retained203/204 browser failure. While it was active, GitHub refused a job rerun. After completion, automatic approval review rejected the proposed rerun, citing the older head and the no-retries rule. No rerun was performed and no acceptance is claimed. Continue the already prepared handoff/PDF integration with complete final-head gates; a later eligible stacked PR may supersede PR74, retaining this failed receipt rather than bypassing review.
+
+
+### 24 October 2026 — handoff browser first failure and summary-export repair
+
+The first12-case handoff browser run failed at the shared Export Summary enabled assertion: API sessions still passed the old blanket read-only flag into the PDF component, even after summary integration. Original log `/workspace/work/fitfinity-handoff/handoff-browser-1.log` and traces `/workspace/work/fitfinity-handoff/handoff-browser-first-traces` are retained. A narrow opt-in now allows the existing PDF UI for integrated summary support and eligible current scope, retaining inactive/future/terminal-cover restrictions and all unrelated write guards. Export does not call the handoff marker. The first focused UI regression run passed24/24; inactive/future assertions were then strengthened before the full unit gate. Browser rerun and full acceptance remain pending.
+
+
+### 24 October 2026 — legacy handoff implementation and focused backend evidence
+
+On `feat/session-handoff-api`, based on remuneration head `3da8ee72ee68aeb2b68f5b2de798f4a09a10693b`, the legacy `markWhatsAppOpened` compatibility service now has real routes, immutable receipt storage and recovery. Current PDF UI behavior is preserved; no new WhatsApp action or delivery claim is introduced. Migration0040 adds typed receipt ownership, actor/immutable guards and a populated downgrade refusal. OpenAPI has123 paths/135 operations; all prior routes and schemas compare unchanged semantically.
+
+All65 focused handoff/contract/core-schema PostgreSQL cases passed, including13 new cases for duplicate/concurrent intents, stale/forged/foreign actions, future/Open dates, lifecycle/cover boundaries, original receipt privacy, rollback after the event/notice flush and populated migration recovery. Receipt: `/workspace/work/fitfinity-handoff/handoff-backend-1.log`. Five frontend command cases passed during preparation. Lint501 files, source health242 runtime modules and47 verifier regressions pass. The first static run exposed project-relative import ordering, corrected before testing; the first sandboxed verifier child process failed, while the supported subprocess-permission run passed unchanged. Browser and full gates remain pending. Accepted source remains41/55.
+
+
+### 24 October 2026 — unchanged remuneration full browser reproduction
+
+At exact application head `3da8ee72ee68aeb2b68f5b2de798f4a09a10693b`, the full isolated Docker real-API browser suite passed204/204 in12.0 minutes, including the previously failing phone request-resolution receipt-denial case and all remuneration cases. Strict result validation passed and cleanup completed with exit0. Receipt: `/workspace/work/fitfinity-handoff/remuneration-browser-full-1.log`. Only documentation was edited during this run; application, fixtures, assertions, timeouts and retry settings were unchanged. Together with the original ECONNRESET trace before any HTTP status and203 other CI passes, this supports a transient CI transport failure and a deliberate failed-job rerun, not acceptance of the failed gate.
+
+
+### 24 October 2026 — PR72 main validation and obsolete image wait
+
+Run40082807735 at main `935db1eb6fcd9c485d758874d4271d63370b1a04` passed frontend, backend, real-API browser, build and Pages demo deployment. Only `image / image` remained waiting for AWS approval. After PR73 merged, that obsolete wait was cancelled to release report-main run40086143997; no publication approval or Lambda deployment was performed.
+
+
+### 24 October 2026 — PR73 report source acceptance: 41/55
+
+PR73 merged tested head `b7b96d554b69d22f18affc3d2d0a33b471674b97` as `d14cbc5711b1e43742b857058c7df47408705833` after all three exact-head gates succeeded in [run40082179585](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40082179585) and GitHub reported a clean, mergeable PR. Evidence: 1,341 units across139 files, 1,152 simulator browser cases, 1,188 backend/PostgreSQL, 633 infrastructure and192 real-API browser cases. `recordProgressReportAction` and `progressReportHistory` are now accepted source, bringing the canonical total to41/55. Main/release validation, Lambda deployment, real Cognito and physical-device acceptance remain separate.
+
+
+### 24 October 2026 — remuneration full backend and first final-head browser CI
+
+At head `3da8ee72ee68aeb2b68f5b2de798f4a09a10693b`, `python scripts/verify.py` completed all 1,205 backend/PostgreSQL tests and 633 offline infrastructure checks. Local receipt: `/workspace/work/fitfinity-handoff/remuneration-backend-full-2.log`; backend inputs remained identical throughout the run. The workspace connection interruption did not interrupt this gate, and its disposable Docker resources were removed. Final-head GitHub backend also passed in run40084360664.
+
+The same run's real-API browser gate passed 203/204 cases, including all remuneration cases, and failed the existing phone request-resolution lost-response test at its foreign-role receipt GET: Playwright reported `ECONNRESET` before an HTTP status was available. This is not a passed gate or an authorization result. Original artifact `12556429282` and its log/trace are retained locally in `/workspace/work/fitfinity-handoff/remuneration-ci-first-artifact`. A full local 204-case reproduction is in progress; no assertions, timeouts or retry settings were changed. Source acceptance remains 39/55 pending complete final-head CI.
+
 
 ### 24 October 2026 — remuneration Admin capability correction
 

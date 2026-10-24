@@ -273,6 +273,11 @@ def seed(db, settings):
             "paystale",
             "payloss",
             "payrefresh",
+            "handoff",
+            "handoffadmin",
+            "handoffloss",
+            "handoffforeign",
+            "handofffuture",
             "changetime",
             "changetimesupervised",
             "changetrainer",
@@ -363,6 +368,11 @@ def seed(db, settings):
                 "paystale",
                 "payloss",
                 "payrefresh",
+                "handoff",
+                "handoffadmin",
+                "handoffloss",
+                "handoffforeign",
+                "handofffuture",
                 "changetime",
                 "changetimesupervised",
                 "changetrainer",
@@ -409,7 +419,17 @@ def seed(db, settings):
                     off_peak_rate_cents=5500,
                 )
                 if purpose.startswith(
-                    ("resolve", "change", "plan", "outcome", "summary", "ack", "report", "pay")
+                    (
+                        "resolve",
+                        "change",
+                        "plan",
+                        "outcome",
+                        "summary",
+                        "ack",
+                        "report",
+                        "pay",
+                        "handoff",
+                    )
                 ) or purpose in {
                     "availability",
                     "postponeauto",
@@ -498,7 +518,10 @@ def seed(db, settings):
                     (start.replace(day=1) - timedelta(days=45)).replace(day=16)
                     if purpose.startswith("pay")
                     else start - timedelta(days=14)
-                    if purpose.startswith(("outcome", "summary", "ack", "report"))
+                    if (
+                        purpose.startswith(("outcome", "summary", "ack", "report"))
+                        or (purpose.startswith("handoff") and purpose != "handofffuture")
+                    )
                     else start,
                     stage="current",
                 )
@@ -547,6 +570,8 @@ def seed(db, settings):
                         signer_name=label,
                         strokes=[[{"x": 10, "y": 10}, {"x": 30, "y": 30}, {"x": 60, "y": 10}]],
                     )
+                if purpose.startswith("handoff"):
+                    bookings[0].client_summary = "Prepared session PDF summary"
                 if purpose.startswith("pay"):
                     for booking in bookings:
                         acknowledge(

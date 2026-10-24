@@ -1,3 +1,4 @@
+import { sessionHandoffCommands } from './apiSessionHandoffs.js'
 import { remunerationCommands } from './apiRemuneration.js'
 import { progressReportCommands } from './apiProgressReports.js'
 import { sessionAcknowledgementCommands } from './apiSessionAcknowledgements.js'
@@ -68,6 +69,7 @@ export function createApiPortalAdapter(options = {}) {
   const saveTrainerRates = trainerRateCommands(http, actionSession)
   const sessionPostponement = sessionPostponementCommands(http, actionSession)
   const sessionPlans = sessionPlanCommands(http, actionSession)
+  const sessionHandoffs = sessionHandoffCommands(http, actionSession)
   const remuneration = remunerationCommands(http, actionSession)
   const progressReports = progressReportCommands(http, actionSession)
   const sessionAcknowledgements = sessionAcknowledgementCommands(http, actionSession)
@@ -212,6 +214,7 @@ export function createApiPortalAdapter(options = {}) {
       if (service === 'sessionService' && operation === 'postpone') return sessionPostponement.save(input, expectedGeneration)
       if (service === 'sessionService' && operation === 'previousPlanFor') return sessionPlans.previous(input, expectedGeneration)
       if (service === 'sessionService' && operation === 'copyPreviousPlan') return sessionPlans.copy(input, expectedGeneration)
+      if (service === 'sessionService' && operation === 'markWhatsAppOpened') return sessionHandoffs.mark(input, expectedGeneration)
       if (service === 'remunerationService' && operation === 'list') return remuneration.list(expectedGeneration)
       if (service === 'remunerationService' && operation === 'detail') return remuneration.detail(input, expectedGeneration)
       if (service === 'remunerationService' && operation === 'approve') return remuneration.approve(input, expectedGeneration)

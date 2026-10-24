@@ -229,3 +229,23 @@ it.each(['completed', 'cancelled'])('acknowledgement capability cannot mutate te
   await screen.findByText('Stored outcome')
   expect(screen.queryByRole('button', { name: /Client Signature/ })).toBeNull()
 })
+
+
+it('enables persisted summary PDF export without enabling unrelated mutations', async () => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session = { ...value.session, date: '2026-10-12' }
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value) }
+  show(services, { capabilities: { sessionSummaryWrites: true } })
+  expect(await screen.findByRole('button', { name: 'Export Summary', exact: true })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: /WhatsApp/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Client Signature', exact: true })).toBeNull()
+  cleanup()
+  services.readSessionDetails.mockResolvedValue({ ...value, client: { ...value.client, status: 'inactive' } })
+  show(services, { capabilities: { sessionSummaryWrites: true } })
+  expect(await screen.findByRole('button', { name: 'Export Summary', exact: true })).toBeDisabled()
+  cleanup()
+  services.readSessionDetails.mockResolvedValue({ ...value, session: { ...value.session, date: '2026-10-20' } })
+  show(services, { capabilities: { sessionSummaryWrites: true } })
+  expect(await screen.findByRole('button', { name: 'Export Summary', exact: true })).toBeDisabled()
+})

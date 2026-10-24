@@ -37,6 +37,7 @@ from app.api import (
     session_booking_review,
     session_booking_save,
     session_changes,
+    session_handoffs,
     session_outcomes,
     session_plans,
     session_postponement,
@@ -1486,3 +1487,35 @@ def remuneration_approval_receipt(request_key: UUID, request: Request):
         principal,
     ):
         return remuneration.reconcile(session, principal, request_key)
+
+
+@router.get("/sessions/{session_id}/handoff-review", response_model=session_handoffs.HandoffReview)
+def review_session_handoff(session_id: UUID, request: Request):
+    """Legacy compatibility review; current PDF exports do not invoke the opening marker."""
+    with authorized_transaction(request, advisory_lock=session_handoffs.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_handoffs.review(session, principal, session_id)
+
+
+@router.post("/sessions/{session_id}/handoff", response_model=session_handoffs.HandoffSaved)
+def mark_session_handoff(
+    session_id: UUID, body: session_handoffs.MarkHandoff, request: Request, key: RequestKey
+):
+    """Record an opening exactly once per intent, without claiming delivery or changing credits."""
+    with authorized_transaction(request, advisory_lock=session_handoffs.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_handoffs.save(session, principal, session_id, key, body)
+
+
+@router.get("/session-handoffs/{request_key}", response_model=session_handoffs.HandoffSaved)
+def recover_session_handoff(request_key: UUID, request: Request):
+    """Recover only the active original actor's opening result without another write."""
+    with authorized_transaction(request, advisory_lock=session_handoffs.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_handoffs.reconcile(session, principal, request_key)
