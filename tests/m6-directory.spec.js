@@ -156,7 +156,9 @@ test('API trainer email stays pending until account-holder verification and reco
   staffApi.state.emailRequestUnknown = true
   await submit()
   await expect(page.getByRole('alert')).toHaveText('Staff service unavailable. Please retry.')
-  await submit()
+  await expect(page.getByLabel('New trainer login email', { exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Check Original Request', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByText(/Awaiting the trainer’s verification/)).toBeVisible()
   expect(staffApi.state.directory.trainers[0].email).toBe('trainer@fixture.test')
   expect(staffApi.state.mutations.filter(m => m.path === `/api/trainers/${directoryId(1)}/email-change`)).toHaveLength(1)
