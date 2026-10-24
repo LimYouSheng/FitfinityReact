@@ -14,6 +14,7 @@ from app.models import (
     package_actions,
     people,
     session_media,
+    session_mutations,
     staff,
     training,
 )
@@ -56,6 +57,7 @@ __all__ = [
     "package_actions",
     "people",
     "session_media",
+    "session_mutations",
     "staff",
     "training",
 ]

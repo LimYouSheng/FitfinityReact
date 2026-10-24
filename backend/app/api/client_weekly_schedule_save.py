@@ -10,6 +10,7 @@ from sqlalchemy import select, text
 
 from app.api.client_weekly_schedule import changes, inspect
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import unavailable
 from app.models.api import ClientWeeklyScheduleReceipt
@@ -130,6 +131,7 @@ def proposal(session, principal, client, purchase, trainer, slots, body):
     return request.id
 
 
+@journal("client.weekly")
 def save(session, principal, identity, key, body):
     saved = receipt(session, principal, key)
     canonical = body.model_dump(mode="json")

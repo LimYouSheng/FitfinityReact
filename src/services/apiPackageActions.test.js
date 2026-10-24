@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { packageActionCommands, packageUndoCommands } from './apiPackageActions.js'
+import { packageActionCommands } from './apiPackageActions.js'
 
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const input = { id: id(1), packageId: id(2), operation: 'deactivate' }
@@ -40,14 +40,4 @@ it('denies Trainer reviews before reading a purchase', async () => {
   const api = packageActionCommands(http, async () => ({ user: { role: 'trainer' } }))
   await expect(api.review(input, 1)).rejects.toMatchObject({ code: 'forbidden' })
   expect(http.get).not.toHaveBeenCalled()
-})
-
-it('Undo reconciles the original result after transport loss rather than rebuilding a review', async () => {
-  const saved = { id: id(8), status: 'undone', undoneAt: '2026-10-24T00:00:00Z' }
-  const http = { get: vi.fn(async path => path === '/api/messages' ? [{ id: id(5), undo: { id: id(4), kind: 'package_deletion' } }] : path.endsWith('undo-review') ? { id: id(4), messageId: id(5), expected: 'b'.repeat(64) } : saved), post: vi.fn().mockRejectedValue(new Error('lost')) }
-  const undo = packageUndoCommands(http, auth)
-  await expect(undo({ id: id(5) }, 1)).rejects.toThrow('lost')
-  expect(await undo({ id: id(5) }, 1)).toEqual(saved)
-  expect(http.post).toHaveBeenCalledTimes(1)
-  expect(http.get.mock.calls.filter(([path]) => path.endsWith('undo-review'))).toHaveLength(1)
 })

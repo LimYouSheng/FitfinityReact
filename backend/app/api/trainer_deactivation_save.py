@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy import select, text
 
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.api.trainer_deactivation import inspect
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
@@ -40,6 +41,7 @@ def reconcile(session, principal, key):
     return TrainerDeactivationState.model_validate(saved.result)
 
 
+@journal("trainer.deactivate")
 def save(session, principal, identity, key, body):
     principal.operations()
     saved = receipt(session, principal, key)

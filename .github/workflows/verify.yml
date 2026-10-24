@@ -74,7 +74,7 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     env:
       FORCE_COLOR: '1'
     steps:
@@ -104,7 +104,11 @@ jobs:
           if-no-files-found: warn
 
 
-  api-browser:
+  api-browser-shard:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     # Real FastAPI/PostgreSQL path complements the existing macOS UI/fixture gate.
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -121,17 +125,51 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
       - name: Real API browser persistence and authority
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/api-browser-results.json
         shell: bash
         run: |
           set -euo pipefail
-          npm run test:api-browser 2>&1 | tee "$RUNNER_TEMP/fitfinity-api-browser.log"
-          node scripts/verify-test-results.mjs api-browser "$RUNNER_TEMP/fitfinity-api-browser.log"
+          npm run test:api-browser -- --shard=${{ matrix.shard }}/2 --reporter=list,json 2>&1 | tee "$RUNNER_TEMP/fitfinity-api-browser.log"
       - name: Retain real API browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: fitfinity-api-browser-${{ github.run_id }}-${{ github.run_attempt }}
+          name: fitfinity-api-browser-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
           path: |
             ${{ runner.temp }}/fitfinity-api-browser.log
-            test-results-api/
+            ${{ runner.temp }}/api-browser-results.json
+          if-no-files-found: error
+      - name: Retain shard traces
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-api-traces-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+          path: test-results-api/
           if-no-files-found: warn
+
+  api-browser:
+    # Keep the required gate name; cancelled/failed shards can never become a green aggregate.
+    needs: api-browser-shard
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: fitfinity-api-browser-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/api-browser-shards
+      - name: Verify every discovered case passed exactly once
+        env:
+          API_BROWSER_SHARD_RESULT: ${{ needs.api-browser-shard.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx playwright test --config=playwright.api.config.js --list --reporter=json > "$RUNNER_TEMP/api-browser-inventory.json"
+          node scripts/verify-api-shards.mjs "$RUNNER_TEMP/api-browser-inventory.json" "$RUNNER_TEMP"/api-browser-shards/*/api-browser-results.json

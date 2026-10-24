@@ -33,12 +33,18 @@ export function verifyQualitySetup({ pages, verify, infrastructure, image, accep
   const caller = pages.jobs?.verify
   if (caller?.uses !== './.github/workflows/verify.yml' || caller.if != null || caller.secrets != null || caller['continue-on-error']) fail('PR and main must call the complete verification workflow unconditionally')
   if (!Object.hasOwn(verify.on ?? {}, 'workflow_call') || !equal(verify.permissions, { contents: 'read' })) fail('shared verification must be callable with read-only repository access')
-  for (const job of Object.values(verify.jobs ?? {})) {
-    if (job.if != null || job['continue-on-error'] || job.environment || job.secrets || Object.entries(job.permissions ?? {}).some(([key, value]) => key !== 'contents' || value !== 'read')) fail('verification jobs must be unconditional without deployment credentials')
+  for (const [name, job] of Object.entries(verify.jobs ?? {})) {
+    if ((job.if != null && !(name === 'api-browser' && job.if === 'always()')) || job['continue-on-error'] || job.environment || job.secrets || Object.entries(job.permissions ?? {}).some(([key, value]) => key !== 'contents' || value !== 'read')) fail('verification jobs must be unconditional without deployment credentials')
     if ((job.steps ?? []).some(step => /configure-aws-credentials|deploy-pages/.test(step.uses ?? ''))) fail('deployment action in verification')
   }
-  requireGate(verify.jobs?.['api-browser'], 'npm run test:api-browser')
-  requireGate(verify.jobs?.['api-browser'], 'node scripts/verify-test-results.mjs api-browser')
+  const shard = verify.jobs?.['api-browser-shard'], aggregate = verify.jobs?.['api-browser']
+  if (!equal(shard?.strategy, { 'fail-fast': false, matrix: { shard: [1, 2] } }) || shard['runs-on'] !== 'ubuntu-latest' || shard['timeout-minutes'] !== 20) fail('both isolated shards must retain the reviewed runner and budget')
+  if (aggregate?.needs !== 'api-browser-shard' || aggregate.if !== 'always()') fail('aggregate must run after both shards, including failures')
+  requireGate(shard, 'npm run test:api-browser -- --shard=${{ matrix.shard }}/2 --reporter=list,json')
+  requireGate(aggregate, 'npx playwright test --config=playwright.api.config.js --list --reporter=json')
+  requireGate(aggregate, 'node scripts/verify-api-shards.mjs')
+  const aggregateStep = aggregate.steps.find(step => step.run?.includes('node scripts/verify-api-shards.mjs'))
+  if (aggregateStep.env?.API_BROWSER_SHARD_RESULT !== '${{ needs.api-browser-shard.result }}') fail('aggregate must verify successful shard job outcomes')
   const frontend = verify.jobs?.frontend, backend = verify.jobs?.backend
   if (frontend?.['runs-on'] !== 'macos-15') fail('browser gates require the reviewed macOS WebKit runner')
   for (const command of ['npm ci', 'npm run verify:lint', 'npm run verify:quality-checker', 'npm test -- --reporter=verbose', 'node scripts/verify-test-results.mjs unit', 'npx playwright install --with-deps chromium webkit', 'npm run test:e2e -- --reporter=list', 'node scripts/verify-test-results.mjs browser', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(frontend, command)

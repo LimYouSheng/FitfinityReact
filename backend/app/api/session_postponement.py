@@ -11,6 +11,7 @@ from sqlalchemy import func, select, text
 
 from app.api.schemas import Contract
 from app.api.session_booking_review import BookingPosition, inspect, position
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import SessionPostponementReceipt
@@ -147,6 +148,7 @@ def notify(session, principal, booking, client, trainer, request_id):
     return notice.id
 
 
+@journal("session.postpone")
 def save(session, principal, identity, key, body):
     """Receipt, proposal or applied booking, history and notices share one transaction."""
     saved = receipt(session, principal, key)

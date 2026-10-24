@@ -78,7 +78,7 @@ export function personalMessage(value, user) {
     || (user.role === 'admin' && !adminMessageAllowed(value))) fail()
   if (value.renewalStatus === 'removed' ? !validDismissal(value.renewalDismissal) : value.renewalDismissal !== null) fail()
   if (value.reversedAt != null && (!timestamp(value.reversedAt) || !value.requestId)) fail()
-  if (value.undo != null && (!uuid(value.undo.id) || value.undo.kind !== 'package_deletion' || !Number.isSafeInteger(value.undo.count) || value.undo.count < 1 || !timestamp(value.undo.expiresAt) || !['available', 'undone', 'expired'].includes(value.undo.status) || !['owner', 'admin'].includes(user.role))) fail()
+  if (value.undo != null && (!uuid(value.undo.id) || !['package_deletion', 'session_change'].includes(value.undo.kind) || !Number.isSafeInteger(value.undo.count) || value.undo.count < (value.undo.kind === 'package_deletion' ? 1 : 0) || !timestamp(value.undo.expiresAt) || !['available', 'undone', 'expired'].includes(value.undo.status) || value.undo.kind === 'package_deletion' && !['owner', 'admin'].includes(user.role))) fail()
   if (value.requestId ? value.request?.id !== value.requestId : value.request !== null) fail()
   return { ...value, ...state, ...(value.request ? { request: proposal(value.request), status: value.reversedAt ? 'reversed' : value.request.status, requestVersion: value.request.version, ...(value.request.status === 'cancelled' && value.request.resolved_by ? { cancelledAt: value.request.resolved_at, cancelledBy: value.request.resolved_by } : {}) } : {}) }
 }

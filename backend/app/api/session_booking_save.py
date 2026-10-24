@@ -9,6 +9,7 @@ from sqlalchemy import select, text
 
 from app.api.schemas import Contract
 from app.api.session_booking_review import BookingPosition, inspect, position, validate_change
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import unavailable
 from app.models.api import SessionBookingReceipt
@@ -79,6 +80,7 @@ def notify(session, principal, booking, client, trainer):
     return notice.id
 
 
+@journal("session.details")
 def save(session, principal, identity, key, body):
     """Retain the original result on replay; any failure rolls back the complete write."""
     principal.operations()

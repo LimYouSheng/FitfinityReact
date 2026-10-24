@@ -192,6 +192,7 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
         "packageReactivationWrites",
         "packageActionWrites",
         "sessionMediaWorkflows",
+        "sessionUndoWrites",
         "clientAssessmentWorkflows",
         "contentWorkflows",
         "personalMessages",
@@ -206,6 +207,7 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
         "clientNoteWrites",
     }
     assert data["packagePolicy"] == {"minimum": 1, "maximum": 365, "sessions": 12, "days": 90}
+    assert data["sessionUndoWrites"] is True
     assert data["sessionMediaWorkflows"] is True
     assert data["packageActionWrites"] is True
     assert data["sessionChangeWrites"] is True

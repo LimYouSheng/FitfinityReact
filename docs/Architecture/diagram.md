@@ -92,7 +92,7 @@ flowchart TB
     Unit["Frontend units: components, services and business rules"]
     Simulator["Simulator browser: UI contracts, navigation and responsive behavior"]
     Database["Backend and PostgreSQL: transactions, authorization and migrations"]
-    Browser["Real-API browser: UI to database persistence and recovery"]
+    Browser["Real-API browser: two isolated shards, full identity gate, persistence and recovery"]
     ObjectTests["Media tests: signed IO, exact bytes, CORS and interrupted cleanup on real local storage"]
     Infra["Offline infrastructure: templates, guards and artifact contracts"]
     Forms["Assessment paper-form parity"]

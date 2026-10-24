@@ -10,6 +10,7 @@ from sqlalchemy import select, text
 
 from app.api.client_reactivation import review
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import ClientReactivationReceipt
@@ -42,6 +43,7 @@ def reconcile(session, principal, key):
     return ClientReactivationState.model_validate(saved.result)
 
 
+@journal("client.reactivate")
 def save(session, principal, identity, key, body):
     principal.operations()
     saved = receipt(session, principal, key)

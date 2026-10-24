@@ -5,7 +5,7 @@ import json
 from collections import defaultdict
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, exists, or_, select, text
+from sqlalchemy import and_, exists, func, or_, select, text
 
 from app.api.directory import bounded
 from app.api.message_schemas import (
@@ -33,6 +33,12 @@ from app.models.package_actions import (
     PackageDeletionUndo,
 )
 from app.models.people import StaffUser
+from app.models.session_mutations import (
+    MutationRequest,
+    MutationSession,
+    SessionMutation,
+    SessionMutationUndo,
+)
 from app.models.training import PackagePurchase
 
 
@@ -55,6 +61,51 @@ def scope(principal):
         ~Message.kind.startswith("remuneration"),
         Message.kind != "trainer_rates",
     )
+
+
+def mutation_projections(session, principal, message_ids):
+    """Only operations or the original Trainer receive a permitted-change Undo entry."""
+    rows = session.scalars(
+        select(SessionMutation).where(SessionMutation.message_id.in_(message_ids))
+    ).all()
+    mutations = {
+        row.id: row
+        for row in rows
+        if principal.manages_operations
+        or (row.actor_id == principal.user_id and row.actor_role == "trainer")
+    }
+    undone = dict(
+        session.execute(
+            select(SessionMutationUndo.mutation_id, SessionMutationUndo.created_at).where(
+                SessionMutationUndo.mutation_id.in_(mutations)
+            )
+        ).all()
+    )
+    counts = dict(
+        session.execute(
+            select(MutationSession.mutation_id, func.count())
+            .where(MutationSession.mutation_id.in_(mutations), MutationSession.side == "after")
+            .group_by(MutationSession.mutation_id)
+        ).all()
+    )
+    now = session.scalar(select(func.clock_timestamp()))
+    result = {}
+    for row in mutations.values():
+        result[row.message_id] = {
+            "id": row.id,
+            "kind": "session_change",
+            "count": counts.get(row.id, 0),
+            "expiresAt": row.expires_at,
+            "status": "undone"
+            if row.id in undone
+            else "expired"
+            if row.expires_at <= now
+            else "available",
+            "notice": "Undo corrects this record; it cannot recall a shared message."
+            if row.operation == "session.handoff"
+            else None,
+        }
+    return result
 
 
 def read_state(message_id, receipt):
@@ -169,6 +220,19 @@ def records(session, principal):
             )
         )
     )
+    mutations = mutation_projections(session, principal, ids)
+    reversals.update(
+        dict(
+            session.execute(
+                select(MutationRequest.entity_id, SessionMutationUndo.created_at)
+                .join(
+                    SessionMutationUndo,
+                    SessionMutationUndo.mutation_id == MutationRequest.mutation_id,
+                )
+                .where(MutationRequest.entity_id.in_(request_ids), MutationRequest.side == "after")
+            ).all()
+        )
+    )
     result = []
     for row in messages:
         purchase = purchases.get(row.purchase_id)
@@ -200,7 +264,7 @@ def records(session, principal):
                         else "available",
                     }
                     if row.id in actions
-                    else None
+                    else mutations.get(row.id)
                 ),
                 recipientUserId=principal.user_id,
                 kind=row.kind,

@@ -12,6 +12,7 @@ from sqlalchemy import select, text
 from app.api import request_application
 from app.api.request_cancellation import DECISION_LOCK, RequestActor
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import RequestResolutionReceipt
@@ -89,6 +90,7 @@ def notify(session, principal, request):
         session.add(MessageReceipt(message_id=message.id, user_id=identity))
 
 
+@journal("request.resolve")
 def save(session, principal, identity, key, body):
     """Bind current authority, immutable proposal, decision version and exact retry intent."""
     principal.operations()
