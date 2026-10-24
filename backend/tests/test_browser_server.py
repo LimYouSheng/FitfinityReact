@@ -79,3 +79,50 @@ def test_invalid_worker_never_allocates_an_application(worker):
             == 400
         )
     factory.assert_not_called()
+
+
+def test_slow_new_worker_setup_does_not_block_existing_app_and_allocates_once():
+    """A barrier models migration IO; existing HTTP must finish before setup is released."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    from starlette.applications import Starlette
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    from tests.browser_server import WorkerApplications
+
+    entered, release = Event(), Event()
+    created = []
+
+    def factory():
+        number = len(created)
+        created.append(number)
+        if number == 2:
+            entered.set()
+            assert release.wait(4), "Test must release blocked initialization"
+
+        async def route(request):
+            return JSONResponse({"application": number})
+
+        return Starlette(routes=[Route("/probe", route)])
+
+    with TestClient(WorkerApplications(factory(), factory)) as client:
+
+        def headers(key):
+            return {"X-Fitfinity-Browser-Worker": str(key)}
+
+        assert client.get("/probe", headers=headers(0)).json() == {"application": 1}
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            first = pool.submit(client.get, "/probe", headers=headers(1))
+            assert entered.wait(2)
+            duplicate = pool.submit(client.get, "/probe", headers=headers(1))
+            existing = pool.submit(client.get, "/probe", headers=headers(0))
+            try:
+                assert existing.result(timeout=2).json() == {"application": 1}
+                assert not first.done()
+            finally:
+                release.set()
+            assert first.result().json() == duplicate.result().json() == {"application": 2}
+        assert created == [0, 1, 2]

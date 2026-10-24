@@ -3,6 +3,7 @@
 Not copied into the runtime image. No test/reset routes or authorization overrides.
 """
 
+import asyncio
 import base64
 import json
 import os
@@ -22,6 +23,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from psycopg import sql
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
@@ -656,6 +658,17 @@ class WorkerApplications:
 
     def __init__(self, health, factory):
         self.health, self.factory, self.workers = health, factory, {}
+        self.pending = {}
+        self.creation_lock = asyncio.Lock()
+
+    async def create_worker(self, key):
+        """Serialize owned ExitStack setup without blocking existing HTTP applications."""
+        try:
+            async with self.creation_lock:
+                self.workers[key] = await run_in_threadpool(self.factory)
+                return self.workers[key]
+        finally:
+            self.pending.pop(key, None)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":
@@ -673,13 +686,15 @@ class WorkerApplications:
             return
         key = int(key)
         if key not in self.workers:
-            if len(self.workers) >= 64:
+            if key not in self.pending and len(self.workers) + len(self.pending) >= 64:
                 await JSONResponse({"error": "Test worker capacity exceeded"}, 503)(
                     scope, receive, send
                 )
                 return
-            # No await while allocating: concurrent first requests cannot create two databases.
-            self.workers[key] = self.factory()
+            # Reserve before yielding: concurrent first requests share one allocation.
+            if key not in self.pending:
+                self.pending[key] = asyncio.create_task(self.create_worker(key))
+            await asyncio.shield(self.pending[key])
         await self.workers[key](scope, receive, send)
 
 
