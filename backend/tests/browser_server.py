@@ -59,6 +59,9 @@ class BrowserIdentityProvider:
         self.public = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(self.key.public_key()))
         self.public.update(kid="browser-test-key", alg="RS256", use="sig")
         self.refreshes = {}
+        self.emails = {username: f"{username}@example.test" for username in allowed_users}
+        self.email_pending = {}
+        self.email_sends = {}
 
     def begin(self, username, password):
         if password != PASSWORD or username not in self.allowed_users:
@@ -106,8 +109,26 @@ class BrowserIdentityProvider:
             "UserAttributes": [
                 {"Name": "sub", "Value": claims["sub"]},
                 {"Name": "email_verified", "Value": "true"},
+                {"Name": "email", "Value": self.emails[claims["username"]]},
             ],
         }
+
+    def request_email_change(self, access, email):
+        """Synthetic delivery only; each request invalidates the previous synthetic code."""
+        username = self.user(access)["Username"]
+        if not email.endswith("@example.test"):
+            raise AuthError("INVALID_EMAIL", "Synthetic addresses only.", 422)
+        count = self.email_sends.get(username, 0) + 1
+        self.email_sends[username] = count
+        self.email_pending[username] = (email, f"{100000 + count:06d}")
+
+    def verify_email_change(self, access, code):
+        username = self.user(access)["Username"]
+        pending = self.email_pending.get(username)
+        if pending is None or pending[1] != code:
+            raise AuthError("INVALID_CODE", "The code is invalid or expired.", 400)
+        self.emails[username] = pending[0]
+        del self.email_pending[username]
 
     def refresh(self, refresh):
         return self.tokens(*self.refreshes[refresh])
@@ -117,6 +138,9 @@ class BrowserIdentityProvider:
 
     def close(self):
         self.refreshes.clear()
+        self.email_pending.clear()
+        self.email_sends.clear()
+        self.emails.clear()
 
 
 class BrowserInvitations:
@@ -246,6 +270,10 @@ def seed(db, settings):
         # Distinct real accounts isolate authentication rate budgets between scenarios.
         # Production rate limits remain intact; each fresh-context check still signs in via UI.
         scopes = (
+            "email",
+            "emailadmin",
+            "emailstale",
+            "emailloss",
             "plan",
             "planadmin",
             "planstale",
@@ -347,6 +375,10 @@ def seed(db, settings):
         # Dedicated project/workflow aggregates keep independent browser writers isolated.
         for project in ("desktop-chromium", "phone", "tablet"):
             for purpose in (
+                "email",
+                "emailadmin",
+                "emailstale",
+                "emailloss",
                 "plan",
                 "planadmin",
                 "planstale",
@@ -427,6 +459,7 @@ def seed(db, settings):
                 )
                 if purpose.startswith(
                     (
+                        "email",
                         "resolve",
                         "change",
                         "plan",
@@ -666,6 +699,7 @@ def browser_app(control):
             database_url=control.set(database=name).render_as_string(hide_password=False),
             auth_enabled=True,
             staff_invitations_enabled=True,
+            staff_email_corrections_enabled=True,
             staff_portal_url="https://staff.example.test/",
             cognito_pool_id="ap-southeast-1_BrowserTest",
             cognito_client_id="browsertest123",

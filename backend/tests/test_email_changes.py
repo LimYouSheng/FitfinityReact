@@ -131,7 +131,7 @@ def test_pending_address_is_reserved_against_onboarding(api, graph, email_flow, 
     ):
         change = session.scalar(select(StaffEmailChange))
         session.delete(change)
-    with pytest.raises(DBAPIError, match="Verified email downgrade refused"):
+    with pytest.raises(DBAPIError, match="Email correction downgrade refused"):
         migrate("downgrade", "20261013_0012")
     assert email_flow["sent"] == 0
 

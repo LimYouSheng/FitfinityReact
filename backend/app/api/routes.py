@@ -350,7 +350,11 @@ def staff_directory(request: Request):
     Exceeding a collection bound fails explicitly rather than returning a partial directory.
     """
     with authorized_transaction(request) as (session, principal):
-        return directory.snapshot(session, principal)
+        return directory.snapshot(
+            session,
+            principal,
+            email_corrections=request.app.state.auth_settings.staff_email_corrections_enabled,
+        )
 
 
 @router.get(

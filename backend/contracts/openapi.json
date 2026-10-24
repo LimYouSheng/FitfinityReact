@@ -2804,6 +2804,11 @@
             "title": "Trainerdeactivationwrites",
             "type": "boolean"
           },
+          "trainerEmailCorrections": {
+            "default": false,
+            "title": "Traineremailcorrections",
+            "type": "boolean"
+          },
           "trainerEmailWrites": {
             "const": true,
             "default": true,
@@ -3082,6 +3087,18 @@
             "minimum": 1.0,
             "title": "Expectedversion",
             "type": "integer"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes"
           }
         },
         "required": [
@@ -3114,7 +3131,8 @@
               "sending",
               "pending",
               "verifying",
-              "completed"
+              "completed",
+              "superseded"
             ],
             "title": "State",
             "type": "string"

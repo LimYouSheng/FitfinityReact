@@ -39,7 +39,7 @@ def fields(record):
     return {column.key: getattr(record, column.key) for column in record.__table__.columns}
 
 
-def snapshot(session, principal):
+def snapshot(session, principal, *, email_corrections=False):
     client_query = select(Client).order_by(Client.id)
     trainer_query = select(Trainer).order_by(Trainer.id)
     if not principal.manages_operations:
@@ -198,6 +198,7 @@ def snapshot(session, principal):
     ]
     now = datetime.now(UTC)
     return DirectorySnapshot(
+        trainerEmailCorrections=email_corrections,
         remunerationWorkflows=principal.role in {"owner", "trainer"},
         schemaVersion=1,
         viewerId=principal.user_id,

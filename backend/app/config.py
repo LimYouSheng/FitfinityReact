@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     auth_encryption_keys: list[SecretStr] = Field(default_factory=list, repr=False)
     auth_origins: list[str] = []
     auth_cookie_secure: bool = True
+    staff_email_corrections_enabled: bool = False
     staff_invitations_enabled: bool = False
     staff_portal_url: str = ""
     media_enabled: bool = False

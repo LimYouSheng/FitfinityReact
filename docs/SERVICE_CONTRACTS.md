@@ -119,6 +119,8 @@ API-backed sessions with integrated summary support may export the existing PDF 
 
 ### Authentication and additional routes
 
+Trainer email correction candidate: Managers must review the current pending request and Trainer version before replacing a stable requested/pending address. Sending/verifying ambiguity blocks correction. Superseded commands stay immutable, and earlier destinations remain reserved until the replacement is provider-verified; the database releases the entire predecessor chain with completion, including completion by the outgoing application. Corrections inherit send budgets/cooldowns and do not send mail. Only the account holder can send/verify a fresh code, and stale forms cannot verify a superseded request. Local login/recovery stays unchanged until verified provider readback and atomic completion revoke existing sessions. Creation is disabled by default until compatible-runtime cutover; after any correction exists, use only correction-aware rollback code. The completion compatibility regression covers reservation release, not old pending-request readers. Source acceptance remains pending in the matrix.
+
 Authentication includes enrollment/challenges, repeated login, session refresh/expiry, logout, password recovery and verified email changes. See the implemented OpenAPI schema and [architecture explanation](Architecture/README.md). Session/calendar reads expose persisted assigned/authorized records and stable IDs; they do not add operations to this matrix. Assessment history and scoped directory routes likewise support the owning domain workflows.
 
 
@@ -193,6 +195,24 @@ The staff-portal goal is all 55 matrix operations, plus authentication and route
 All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in Part 2; no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
 
 ## Part 2 — Dated changes and evidence
+
+### 24 October 2026 — PR76 browser infrastructure cancellation and guarded email evidence
+
+PR76 exact repair headbe66bc7 passed backend CI in run40097683306. Its API-browser job120883556729 was cancelled at the unchanged20-minute job limit after160/231 passing cases and no reported test failure. Dependency installation ran from13:21:41 to13:31:32UTC, dominated by slow `azure.archive.ubuntu.com` package transfers; actual tests began13:32:16. The incomplete result is not accepted. Artifact12562217167 is retained as `pr76-repair-browser-cancelled.zip` and `.log`. No old-job rerun or timeout/runner change occurred. The dependent email head includes the library repairs and will require its own complete three-gate acceptance before either increment is accepted.
+
+Guarded email source passes all1,366 units/142 files in122.24s (`email-units-full-1.log`) and22 correction/directory cases (`email-guard-backend-1.log`). Concurrency review replaced same-pool thread contention with separate application pools and asserted distinct PostgreSQL backend PIDs: both duplicate and competing-command cases pass (`email-concurrency-1.log`), retaining exactly one replacement and original-key evidence. Expected full backend inventory becomes1,264. Source-health507 files and47 quality checks pass. Initial Python static validation found six formatting/import issues in newly added SQL/test strings; exact formatting repairs pass without changing assertions. Guarded browser and full backend acceptance remain pending.
+
+### 24 October 2026 — Email correction focused persistence and rollout boundary
+
+All50 affected PostgreSQL/email/schema cases pass in21.83s (`email-backend-2.log`), and all12 new real-API browser cases pass in1.2 minutes across desktop/phone/tablet (`email-browser-1.log`). Owner/Admin UI correction, current-email preservation, account-holder-only verification, fresh login at the verified address, superseded/foreign receipt denial, stale review and lost-response original-key recovery pass. No real provider action occurs.
+
+Review identified that pre-correction application versions cannot read the new superseded state safely. The candidate therefore adds a default-disabled explicit correction-creation setting, a server guard and matching UI capability. Tests enable it only inside isolated fixtures; ordinary email verification remains available. Completion-by-outgoing-code checks cover reservation release, not general rollback compatibility. Once superseded records exist, rollback must retain correction-aware readers; populated downgrade refuses. New guarded-source acceptance is pending; earlier focused receipts are retained, not relabeled final.
+
+### 24 October 2026 — PR76 repair full local acceptance and email continuation
+
+PR76 repair head `be66bc7731b7359a978931685a5972d65f349199` passes all1,360 units/142 files and1,249 real-PostgreSQL/backend cases in574.17s, plus633 infrastructure checks. The prior unchanged full backend receipt took841.66s. Every scenario still owns its database; fresh migration and schema-isolation checks pass. Logs `pr76-repair-units-full.log` and `pr76-repair-backend-full.log` retain complete evidence and cleanup exit0. Source health506 files/245 reachable modules, CSS962 rules/3387 declarations,47 quality regressions, three Mermaid diagrams, seven-file structure/current links and the accepted Contracts history suffix pass. Initial source-health/quality invocations were blocked by sandbox child-process permission; the diagnosed permitted invocations pass in `pr76-repair-health-2.log` and `pr76-repair-quality-2.log`, retaining the original logs. New CI run40097683306 remains required; previous run40095294691 was cancelled by the new push with its failed/partial results retained.
+
+The dependent `feat/trainer-email-correction` branch fast-forwards to that library head and restores the owned email candidate without dropping any of six stashes. Expanded validation adds prior-application completion compatibility, retained reservation chains, exhausted send budgets, stale/foreign requests, migration preservation and browser persistence/recovery. All16 affected frontend checks pass in `email-units-2.log`. Neither candidate increases45/55 until final-head CI and source merge.
 
 ### 24 October 2026 — PR76 focused repair acceptance
 

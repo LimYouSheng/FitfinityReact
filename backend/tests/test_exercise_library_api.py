@@ -52,7 +52,7 @@ def test_pending_upload_intent_survives_refused_downgrade_and_command_rewrite(
     with pytest.raises(DBAPIError, match="downgrade refused"):
         migrate("downgrade", "20261024_0040")
     with domain_db.transaction() as session:
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0041"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0042"
         row = session.scalar(select(LibrarySaveIntent).where(LibrarySaveIntent.request_key == key))
         assert row.name == "New movement" and row.state == "pending"
 

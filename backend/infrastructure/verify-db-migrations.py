@@ -183,6 +183,7 @@ class RuntimeChecks(unittest.TestCase):
             "migrations/versions/20261024_0040_session_handoffs.py",
             "app/api/session_handoffs.py",
             "migrations/versions/20261024_0041_library_intents.py",
+            "migrations/versions/20261024_0042_email_corrections.py",
             "app/api/exercise_library.py",
             "app/api/library_schemas.py",
             "app/api/library_routes.py",

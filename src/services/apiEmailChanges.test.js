@@ -69,3 +69,21 @@ it('rejects malformed pending state and codes without fabricating an empty pendi
   await expect(adapter.session({ operation: 'verifyEmailChange', input: { id: change.id, code: 'abcdef' } })).rejects.toMatchObject({ code: 'INVALID_CODE' })
   expect(fetch).toHaveBeenCalledTimes(count)
 })
+
+
+it('binds a correction to the reviewed request and retains it through lost-response recovery', async () => {
+  let posted = 0
+  const corrected = { ...change, id: directoryId(91), state: 'requested' }
+  const fetch = vi.fn(async (url, options) => {
+    if (url.endsWith('/me')) return jsonResponse(sessionInfo())
+    if (options.method === 'POST') { posted++; throw new Error('response lost') }
+    return jsonResponse(corrected)
+  })
+  const adapter = make(fetch)
+  const correction = { ...update, input: { ...input, patch: { ...input.patch, supersedes: change.id } } }
+  await expect(adapter.invoke(correction)).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  expect(JSON.parse(fetch.mock.calls.find(([, options]) => options.method === 'POST')[1].body)).toEqual({ email: 'new@example.test', expectedVersion: 1, supersedes: change.id })
+  await expect(adapter.invoke({ ...correction, input: { ...correction.input, patch: { ...input.patch, supersedes: directoryId(92) } } })).rejects.toMatchObject({ code: 'SAVE_UNCERTAIN' })
+  expect(await adapter.invoke(correction)).toEqual(corrected)
+  expect(posted).toBe(1)
+})

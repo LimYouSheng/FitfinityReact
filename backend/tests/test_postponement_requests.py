@@ -38,7 +38,7 @@ def test_retained_postponement_prevents_lossy_downgrade_and_never_unschedules_bo
         booking = session.get(TrainingSession, graph["session_id"])
         assert booking.schedule_state == "booked" and booking.training_date == graph["start_date"]
         assert booking.starts_at == time(10)
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0041"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0042"
 
 
 def test_open_session_time_proposal_cancels_without_booking_or_losing_its_original_open_state(
