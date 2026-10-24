@@ -209,6 +209,15 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 25 October 2026 Singapore — Final ledger and assertion-connection repair
+
+The final ledger follow-up is [PR81](https://github.com/LimYouSheng/FitfinityReact/pull/81). Its first head `f1360f518173eccfdcd58e4f2deb3529e04001fd` retains all 55 operation identities, the seven-document structure, unchanged AGENTS/diagram inputs and the complete historical suffix. It reconciles the accepted PR80 source while preserving broader M6–M10 exit criteria. Current file links and whitespace checks pass; application code remains unchanged.
+
+In run40129004382, backend and browser shard2 pass, but shard1 reports140/141 passing cases and one `ECONNRESET` during the weekly-schedule phone scenario’s independent GET `/api/session-calendar`; the aggregate correctly fails. The UI save/reload checks had passed before this read. The retained trace records the prior Node API read ending at381088.106ms and the next starting at386159.667ms:5.071561 seconds idle, consistent with reusing a socket at Uvicorn’s unchanged five-second keep-alive expiry. The installed runtime default is verified. Original evidence is retained in `ledger-shard1-failure.log` and `ledger-shard1-traces.zip`. Browser-engine installation took9m44, but this job finished within20 minutes; no job-budget change is needed for this failure.
+
+The shared Node assertion read/write helpers now request `Connection: close`, giving these assertions short-lived HTTP connections across intervening UI actions. Actual API routes, cookies, permissions, persistence and response assertions remain exercised. Browser UI traffic, server settings, test deadlines, workers, retries and inventories are unchanged. All42 affected records cases pass across desktop/phone/tablet after the repair (`ledger-transport-records-1.log`), and518-file lint passes. Final publication evidence is owned by PR81’s complete final-head checks and merge receipt. Source integration remains55/55 through PR80; this follow-up changes the ledger and test transport, not application behavior or deployment.
+
+
 ### 25 October 2026 Singapore — Full named-operation source acceptance: 55/55
 
 [PR80](https://github.com/LimYouSheng/FitfinityReact/pull/80) merged at 2026-10-24T20:14:21Z as `4c66e83cd510cbbfec2fead12c9d3ce6e55fd5ca`. Exact head `8cd66670aee495e17244b8b6bf15bf42c8740c63` passed all required final-head gates in [run40125921904](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40125921904): 1,384 units/145 files, 1,152 simulator browser cases, 1,341 backend/PostgreSQL, 633 infrastructure and all 282 real-API browser cases across the two user-approved isolated shards and required identity/completeness aggregate. Normal GitHub merge requirements were respected without bypass. The original failed/cancelled runs remain below; the new successful head does not rewrite them.

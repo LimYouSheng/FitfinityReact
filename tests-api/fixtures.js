@@ -43,7 +43,8 @@ export async function signIn(page, role = 'owner', email = `${role}@example.test
 }
 
 export async function read(page, path) {
-  const response = await page.request.get(path)
+  // UI actions can outlive server keep-alive; assertion requests own short connections.
+  const response = await page.request.get(path, { headers: { Connection: 'close' } })
   expect(response.status()).toBe(200)
   return response.json()
 }
@@ -56,6 +57,7 @@ export async function confirm(page, action) {
 export async function post(page, path, data, key = crypto.randomUUID()) {
   const session = await read(page, '/auth/session')
   return page.request.post(path, { data, headers: {
+    Connection: 'close',
     Origin: new URL(page.url()).origin,
     'X-CSRF-Token': session.csrfToken,
     'Idempotency-Key': key,
