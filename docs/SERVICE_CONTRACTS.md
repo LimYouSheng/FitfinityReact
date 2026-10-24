@@ -37,7 +37,7 @@ Errors retain a readable message and stable error code. Session expiry clears pr
 
 ### Domain operation inventory
 
-**37/55 accepted in merged source: 36 server-connected and one local predicate.** 18 remain unaccepted, including the summary candidate and partial Trainer update. PR70 accepts previous-plan preview/copy and outcome saving. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
+**38/55 accepted in merged source: 37 server-connected and one local predicate.** 17 remain unaccepted, including the acknowledgement candidate and partial Trainer update. PR70 accepts previous-plan preview/copy and outcome saving; PR71 accepts summary saving. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
 
 Each connected server row names actual PostgreSQL/HTTP and real-API browser evidence owners. Browser scenarios can cover several operations. Simulator tests supplement these tests; they do not establish persistence. Local execution uses temporary Docker PostgreSQL, synthetic records and a local signed-token Cognito substitute. Real Cognito, restart, physical devices and deployment acceptance remain separate.
 
@@ -56,8 +56,8 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `clientService.saveAssessment` | Connected | Owner/Admin only; inactive records read-only | [`test_assessment_workflows.py`](../backend/tests/test_assessment_workflows.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `clientService.saveFixedWeeklySchedule` | Connected | Owner/Admin or current assigned active Trainer; Trainer approval control enforced server-side | [`test_client_weekly_schedule.py`](../backend/tests/test_client_weekly_schedule.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `clientService.reassignTrainer` | Connected | Owner/Admin only; active client and replacement | [`test_client_assignment_review.py`](../backend/tests/test_client_assignment_review.py); [`test_client_assignment_save.py`](../backend/tests/test_client_assignment_save.py); [`records.spec.js`](../tests-api/records.spec.js) |
-| `clientService.recordProgressReportAction` | Missing | reportClient | Pending API acceptance |
-| `clientService.progressReportHistory` | Missing | operations | Pending API acceptance |
+| `clientService.recordProgressReportAction` | Candidate | Scoped client report access, including retained historical/inactive reads | [backend](../backend/tests/test_progress_reports_api.py); [browser](../tests-api/progress-reports.spec.js); not accepted main |
+| `clientService.progressReportHistory` | Candidate | Owner/Admin only | [backend](../backend/tests/test_progress_reports_api.py); [browser](../tests-api/progress-reports.spec.js); not accepted main |
 | `clientService.deactivate` | Connected | Owner/Admin | [`test_client_deactivation_api.py`](../backend/tests/test_client_deactivation_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `clientService.reactivate` | Connected; open-session retention | Owner/Admin | [`test_client_reactivation_review.py`](../backend/tests/test_client_reactivation_review.py); [`test_client_reactivation_save.py`](../backend/tests/test_client_reactivation_save.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `trainerService.create` | Connected | Owner/Admin; Owner-only submitted rates, Admin server defaults with no financial projection | [`test_trainer_creation.py`](../backend/tests/test_trainer_creation.py); [`staff.spec.js`](../tests-api/staff.spec.js) |
@@ -82,7 +82,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `sessionService.previousPlanFor` | Connected | Current assigned Trainer or operations; reviewed source/target scope | [backend](../backend/tests/test_previous_session_plan_api.py); [browser](../tests-api/previous-plan.spec.js); PR70 accepted |
 | `sessionService.copyPreviousPlan` | Connected | Current assigned Trainer or operations; reviewed source/target scope | [backend](../backend/tests/test_previous_session_plan_api.py); [browser](../tests-api/previous-plan.spec.js); PR70 accepted |
 | `sessionService.saveOutcome` | Connected | Owner/Admin or currently assigned active Trainer; terminal ad-hoc cover stays read-only | [backend](../backend/tests/test_session_outcomes_api.py); [browser](../tests-api/session-outcomes.spec.js); PR70 accepted |
-| `sessionService.saveClientSummary` | Candidate | Owner/Admin or current assigned active Trainer; terminal cover read-only | [backend](../backend/tests/test_session_summaries_api.py); [browser](../tests-api/session-summaries.spec.js); not accepted main |
+| `sessionService.saveClientSummary` | Connected | Owner/Admin or current assigned active Trainer; terminal cover read-only | [backend](../backend/tests/test_session_summaries_api.py); [browser](../tests-api/session-summaries.spec.js); PR71 accepted |
 | `sessionService.markWhatsAppOpened` | Missing | session | Pending API acceptance |
 | `sessionService.acknowledge` | Candidate | Current assigned Trainer or operations; terminal cover read-only | [backend](../backend/tests/test_session_acknowledgements_api.py); [browser](../tests-api/session-acknowledgements.spec.js); not accepted main |
 | `packageService.save` | Connected | operations | [`test_package_api.py`](../backend/tests/test_package_api.py); [`persistence.spec.js`](../tests-api/persistence.spec.js) |
@@ -106,6 +106,12 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 Completion binds the current session, client, purchase, plan/results, Singapore business date and used-credit balance. Only signature or late/no-show is accepted; signatures require actual bounded ink and a signer name. The server rejects future/open/cancelled sessions, inactive records and unauthorized/foreign targets. No-show may be corrected only to a signature, preserving both immutable acknowledgement records and exactly one debit. Completed ad-hoc cover remains read-only.
 
 Acknowledgement, completion, any legacy numeric plan measurements, one credit debit, the two-credit renewal notice and the actor-private original-command receipt share one transaction. An explicitly saved empty outcome stays empty. A later active purchase suppresses renewal; an existing purchase notice is not duplicated. No external message or delivery is recorded. Lost responses freeze the original intent until recovery, and replay does not reauthorize a new write or debit again. Populated receipt downgrades refuse evidence loss. This is a candidate until exact-head CI and source merge pass.
+
+### Report actions and retained history
+
+Report audit writes record PDF export/share or legacy WhatsApp opening, never delivery or receipt by a client. The browser performs the explicit device action once; saving or recovering its audit must not repeat a download/share. Each new action has a stable UUID, explicit client/purchase membership and server-derived actor/time. Reusing an action ID with different intent or another actor conflicts without disclosing the prior private receipt. Audit and its internal notice commit together. Historical/inactive report access remains distinct from current coaching-write authority.
+
+Only Owner/Admin may read report history. Filtering by purchase must not mix another purchase or client. Existing CSV and legacy unassigned-purchase evidence remain readable; new CSV actions and new actions without a purchase are rejected. History is immutable, deterministically ordered and fails closed if it cannot be returned completely within its bounded contract. Unknown writes freeze audit intent and can recover after a focus refresh without repeating the native action. Physical-device sharing and actual provider delivery remain separate acceptance.
 
 ### Authentication and additional routes
 
@@ -181,6 +187,29 @@ The staff-portal goal is all 55 matrix operations, plus authentication and route
 All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in Part 2; no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
 
 ## Part 2 — Dated changes and evidence
+
+### Report focused acceptance and unit gate — 24 October 2026
+
+The repaired report/outcome browser gate passed all 27 cases across desktop, phone and tablet in 1.9 minutes. Actual downloaded PDFs have a valid header and nonempty content; inline and focus-refresh recovery each retain one download and one audit. The deliberately malformed numeric action-ID unit regression first failed with a TypeError; input validation now returns INVALID_REQUEST before any request. All 1,341 units across 139 files subsequently passed, with strict inventory verification. All 14 report/PostgreSQL cases pass. Full backend/infrastructure and final-head CI remain pending; neither report operation is counted as accepted.
+
+
+### Report action/history integration candidate — 24 October 2026
+
+Active `feat/progress-report-api` is stacked on PR72 and accepted PR71. PR72 head623d383 passed all1,336 units/138 files, all1,174 backend/PostgreSQL tests in750.46s and633 infrastructure checks locally. Exact-head run40079726495 passed backend and all177 real-API browser cases; frontend remains pending. No repeated full local API-browser run is required for that unchanged source after its authoritative CI result.
+
+The report candidate adds three routes and reuses immutable ReportAudit evidence: no applied migration is changed. The OpenAPI contract has116 paths/128 operations; all existing path definitions are semantically unchanged and DirectorySnapshot adds its capability. The first45-case backend/schema/directory run and19 focused frontend cases passed. Expanded14 report cases initially passed13: cross-actor key reuse raised an unmapped PersistenceConflict500. The API now maps that collision to deliberate409 without exposing the previous receipt; all14 pass, including independent-connection duplication, rollback, launch kinds, inactive audit access and retained CSV/unassigned history.
+
+Initial report/outcome browser validation passed24/27. Lint also identified the same unreachable report recovery branch: a preceding general client route handled focus refresh first. The branch now precedes that client route, with assertions and timeouts intact. First traces remain in `report-browser-first-traces`; the corrected run also checks downloaded bytes begin with a PDF header and contain nonempty document content. Complete candidate validation and source acceptance remain pending. All records and databases are synthetic/disposable Docker PostgreSQL; no real provider action or AWS deployment occurred.
+
+
+### PR71 summary source acceptance — 24 October 2026
+
+PR71 merged as `be738a1641c1aba37e5111fb23e7bf89177be35c` after exact head `0e00025115e5235a2eed4e6bdb1295099173b64b` passed frontend, backend and real-API browser in run40077655738. Accepted coverage is38/55 (37 server-connected plus one local predicate). Evidence includes1,328 units/137 files,1,152 simulator browser cases,1,151 PostgreSQL/backend tests,633 infrastructure checks and165 real-API browser cases. Source acceptance does not imply Lambda deployment or live-provider acceptance.
+
+PR72 acknowledgement candidate `623d38351dc47a15d483acc7dbe743b12f053da5` passed all1,336 units/138 files,23 focused acknowledgement/PostgreSQL cases and12 new real-API browser cases. The previously failing Open and renewal fixtures now meet the unchanged database constraints. The main reconciliation merge `2504c8f` has exactly the same Git tree as623d383, so running validation inputs are unchanged. Full candidate gates and final-head CI remain pending.
+
+
+
 
 ### Acknowledgement and credit integration candidate — 24 October 2026
 

@@ -68,7 +68,7 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
       assessmentApi={directoryOnly && snapshot.capabilities?.clientAssessmentWorkflows ? { services, generation: snapshot.sessionGeneration } : undefined}
       progressViewsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.sessionOutcomeWrites)}
       progressData={progress.exercises}
-      progressReportsAvailable={!directoryOnly}
+      progressReportsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.progressReportWrites)}
       sessionViewsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.sessionReads)}
       progressRoute={parts[2] === 'progress'}
       progressPackageId={parts[2] === 'progress' ? parts[3] : undefined}

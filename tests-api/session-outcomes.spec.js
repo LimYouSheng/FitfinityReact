@@ -46,8 +46,8 @@ for (const [purpose, role] of [['outcome', 'trainer'], ['outcomeadmin', 'admin']
     const chart = next.getByRole('button', { name: 'Show Measured squat progress chart', exact: true })
     await expect(chart).toBeVisible()
     await expect(chart).toHaveText(/25 kg/)
-    await expect(next.getByRole('button', { name: 'Download Progress Report PDF', exact: true })).toHaveCount(0)
-    await expect(next.getByRole('button', { name: 'View Export/WhatsApp History', exact: true })).toHaveCount(0)
+    await expect(next.getByRole('button', { name: 'Download Progress Report PDF', exact: true })).toBeVisible()
+    await expect(next.getByRole('button', { name: 'View Export/WhatsApp History', exact: true })).toHaveCount(role === 'admin' ? 1 : 0)
     await context.close()
   })
 }

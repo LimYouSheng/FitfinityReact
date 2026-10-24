@@ -41,6 +41,7 @@ from app.api import (
     session_progress,
     session_read_schemas,
     session_reads,
+    session_reports,
     session_summaries,
     trainer_approvals,
     trainer_availability,
@@ -1404,3 +1405,34 @@ def reconcile_session_acknowledgement(request_key: UUID, request: Request):
         principal,
     ):
         return session_acknowledgements.reconcile(session, principal, request_key)
+
+
+@router.post("/clients/{client_id}/report-actions", response_model=session_reports.ReportEvent)
+def record_progress_report(
+    client_id: UUID, body: session_reports.ReportAction, request: Request, key: RequestKey
+):
+    """Record a browser report action without claiming external delivery."""
+    with authorized_transaction(request, advisory_lock=session_reports.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_reports.record(session, principal, client_id, key, body)
+
+
+@router.get("/report-actions/{request_key}", response_model=session_reports.ReportEvent)
+def recover_progress_report(request_key: UUID, request: Request):
+    """Recover only this actor's original audit, without repeating a device action."""
+    with authorized_transaction(request, advisory_lock=session_reports.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_reports.reconcile(session, principal, request_key)
+
+
+@router.get("/clients/{client_id}/report-history", response_model=list[session_reports.ReportEvent])
+def read_progress_report_history(
+    client_id: UUID, request: Request, purchase_id: UUID | None = None
+):
+    """Owner/Admin history retains actor, package and original action evidence."""
+    with authorized_transaction(request) as (session, principal):
+        return session_reports.history(session, principal, client_id, purchase_id)

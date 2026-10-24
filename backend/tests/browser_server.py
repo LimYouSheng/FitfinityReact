@@ -264,6 +264,11 @@ def seed(db, settings):
             "ackadmin",
             "ackstale",
             "ackloss",
+            "report",
+            "reportadmin",
+            "reportloss",
+            "reportrefresh",
+            "reportforeign",
             "changetime",
             "changetimesupervised",
             "changetrainer",
@@ -345,6 +350,11 @@ def seed(db, settings):
                 "ackadmin",
                 "ackstale",
                 "ackloss",
+                "report",
+                "reportadmin",
+                "reportloss",
+            "reportrefresh",
+                "reportforeign",
                 "changetime",
                 "changetimesupervised",
                 "changetrainer",
@@ -391,7 +401,7 @@ def seed(db, settings):
                     off_peak_rate_cents=5500,
                 )
                 if purpose.startswith(
-                    ("resolve", "change", "plan", "outcome", "summary", "ack")
+                    ("resolve", "change", "plan", "outcome", "summary", "ack", "report")
                 ) or purpose in {
                     "availability",
                     "postponeauto",
@@ -478,7 +488,7 @@ def seed(db, settings):
                 purchase, slots, preferences, bookings = purchase_parts(
                     graph,
                     start - timedelta(days=14)
-                    if purpose.startswith(("outcome", "summary", "ack"))
+                    if purpose.startswith(("outcome", "summary", "ack", "report"))
                     else start,
                     stage="current",
                 )
@@ -493,7 +503,7 @@ def seed(db, settings):
                 add_purchase(
                     session, purchase, slots, preferences, bookings, expected_client_version=1
                 )
-                if purpose.startswith(("outcome", "summary")):
+                if purpose.startswith(("outcome", "summary", "report")):
                     plan = ExercisePlanItem(
                         session_id=bookings[0].id,
                         position=1,
@@ -505,7 +515,7 @@ def seed(db, settings):
                     )
                     session.add(plan)
                     session.flush()
-                    if purpose.startswith("summary"):
+                    if purpose.startswith(("summary", "report")):
                         session.add(
                             ExerciseResult(
                                 session_id=bookings[0].id,

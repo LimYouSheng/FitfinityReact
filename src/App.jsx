@@ -1,3 +1,4 @@
+import ProgressReportRecovery from './features/clients/ProgressReportRecovery.jsx'
 import SessionAcknowledgementRecovery from './features/sessions/SessionAcknowledgementRecovery.jsx'
 import SessionSummaryRecovery from './features/sessions/SessionSummaryRecovery.jsx'
 import SessionOutcomeRecovery from './features/sessions/SessionOutcomeRecovery.jsx'
@@ -271,6 +272,8 @@ function StaffPortal({ navigation }) {
         }}
       />
     )
+  } else if (route === 'clients' && directoryOnly && snapshot.progressReportPending) {
+    page = <ProgressReportRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.progressReportPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientRenewalPending) {
     page = <ClientRenewalRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientRenewalPending} services={services} />
   } else if (route === 'clients' && directoryOnly && snapshot.clientWeeklySchedulePending) {
