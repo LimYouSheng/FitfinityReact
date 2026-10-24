@@ -16,6 +16,7 @@ function show(route = 'dashboard', data = directoryData()) {
   const fetchImpl = vi.fn(async url => {
     const path = new URL(url, 'https://api.example').pathname
     if (path === '/auth/policy') return jsonResponse(authPolicy)
+    if (path === `/api/clients/${directoryId(7)}/progress` && state.data.sessionOutcomeWrites) return jsonResponse({ clientId: directoryId(7), exercises: [] })
     if (path === '/api/directory') return state.unavailable ? failure('service_unavailable', 503) : jsonResponse(state.data)
     if (path === '/auth/sign-out') { state.signedIn = false; return jsonResponse({ signedOut: true }) }
     if (path === '/me' || path === '/auth/session') return state.signedIn ? jsonResponse(sessionInfo()) : failure('SESSION_EXPIRED')
@@ -87,4 +88,14 @@ it.each([[true, 'Visible'], [false, 'Hidden']])('renders API public_profile=%s u
   await screen.findByRole('heading', { name: 'API Trainer' })
   const label = screen.getByText('Public profile', { selector: '.info-row span' })
   expect(label.parentElement.querySelector('strong')).toHaveTextContent(expected)
+})
+
+it('allows persisted progress routes only with outcome capability and keeps exports unavailable', async () => {
+  const data = directoryData(); data.sessionOutcomeWrites = true
+  show(`clients/${directoryId(7)}/progress`, data)
+  expect(await screen.findByRole('heading', { name: 'Progress Packages' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Download Progress Report PDF' })).toBeNull()
+  cleanup()
+  show(`clients/${directoryId(7)}/progress`)
+  expect(await screen.findByText('This workflow is not available yet.')).toBeVisible()
 })

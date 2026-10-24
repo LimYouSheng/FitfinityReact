@@ -1,3 +1,4 @@
+import useClientProgress from './useClientProgress.js'
 import useClientNotes from './useClientNotes.js'
 import usePortalData from '../../hooks/usePortalData.js'
 import usePortalActions from '../../hooks/usePortalActions.js'
@@ -16,11 +17,14 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
   const { clientService } = services
   const notes = useClientNotes(selectedClient, Boolean(snapshot.capabilities?.clientNoteWrites), clientService, snapshot.sessionGeneration)
+  const progress = useClientProgress(selectedClient.id, Boolean(directoryOnly && snapshot.capabilities?.sessionOutcomeWrites), services, snapshot.sessionGeneration, snapshot.serverAt)
   const progressClientId = selectedClient.id
   const previewRenewal = useCallback(draft => services.previewClientRenewalMatches({ id: selectedClient.id, draft }), [services, selectedClient.id])
   const reviewRenewal = useCallback(() => runAction(() => services.reviewClientRenewal({ id: selectedClient.id, expectedVersion: selectedClient.version })), [services, selectedClient.id, selectedClient.version, runAction])
   const loadProgressReportHistory = useCallback(packageId =>
     clientService.progressReportHistory({ id: progressClientId, packageId }), [clientService, progressClientId])
+  if (progress.error) return <div role="alert"><p>{progress.error.message}</p><button type="button" onClick={progress.retry}>Retry client progress</button></div>
+  if (progress.loading) return <p role="status">Loading client progress…</p>
   if (notes.error) return <div role="alert"><p>{notes.error.message}</p><button type="button" onClick={notes.retry}>Retry client notes</button></div>
   if (!notes.client) return <div role="status">Loading client notes…</div>
   return (
@@ -62,7 +66,9 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
       }), { message: 'Client details saved.' })}
       assessmentsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.clientAssessmentWorkflows)}
       assessmentApi={directoryOnly && snapshot.capabilities?.clientAssessmentWorkflows ? { services, generation: snapshot.sessionGeneration } : undefined}
-      progressViewsAvailable={!directoryOnly}
+      progressViewsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.sessionOutcomeWrites)}
+      progressData={progress.exercises}
+      progressReportsAvailable={!directoryOnly}
       sessionViewsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.sessionReads)}
       progressRoute={parts[2] === 'progress'}
       progressPackageId={parts[2] === 'progress' ? parts[3] : undefined}

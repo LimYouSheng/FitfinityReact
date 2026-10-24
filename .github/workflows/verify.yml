@@ -87,7 +87,11 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/verify-assessment-forms.mjs 2>&1 | tee "$RUNNER_TEMP/fitfinity-assessment-forms.log"
-          node scripts/verify-backend.mjs 2>&1 | tee "$RUNNER_TEMP/fitfinity-backend.log"
+          # Keep every test line in the artifact without throttling the job on console replay.
+          backend_status=0
+          node scripts/verify-backend.mjs > "$RUNNER_TEMP/fitfinity-backend.log" 2>&1 || backend_status=$?
+          tail -n 60 "$RUNNER_TEMP/fitfinity-backend.log"
+          exit "$backend_status"
       - name: Retain complete backend verification log
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

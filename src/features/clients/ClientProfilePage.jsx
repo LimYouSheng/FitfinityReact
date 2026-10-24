@@ -38,6 +38,8 @@ export default function ClientProfilePage({
   assessmentApi,
   sessionViewsAvailable = true,
   progressViewsAvailable = sessionViewsAvailable,
+  progressData,
+  progressReportsAvailable = true,
   client,
   clients,
   trainer,
@@ -71,7 +73,7 @@ export default function ClientProfilePage({
   const { guardNavigation, setActiveEdit } = useEditGuard()
   const [savedTab, setTab] = usePageState(`client.${client.id}.tab`, 'overview')
   const requestedTab = progressRoute ? 'progress' : savedTab
-  const tab = (!sessionViewsAvailable && !['overview', 'package'].includes(requestedTab)) || (!progressViewsAvailable && requestedTab === 'progress') ? 'overview' : requestedTab
+  const tab = (!sessionViewsAvailable && !['overview', 'package'].includes(requestedTab) && !(requestedTab === 'progress' && progressViewsAvailable)) || (!progressViewsAvailable && requestedTab === 'progress') ? 'overview' : requestedTab
   const [activeEditor, setActiveEditor] = useState(null)
   const onAssessmentEditChange = useCallback(editing => setActiveEditor(editing ? 'assessment' : null), [])
   const [assessmentPerson, setAssessmentPerson] = useState(0)
@@ -233,6 +235,8 @@ export default function ClientProfilePage({
           renewalReadOnly={renewalReadOnly}
           renewalWorkflow={renewalWorkflow}
           packageReactivationWorkflow={packageReactivationWorkflow}
+          progressData={progressData}
+          progressReportsAvailable={progressReportsAvailable}
           progressPackageId={progressPackageId}
           onOpenProgressPackage={onOpenProgressPackage}
           packages={packages}

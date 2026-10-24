@@ -49,3 +49,44 @@ it('retains existing item identities and rejects unexpected private fields', asy
   await expect(service.review({ id: id(1), expectedVersion: 2 }, 0)).rejects.toMatchObject({ code: 'API_RESPONSE' })
   await expect(service.save(data, 0)).rejects.toMatchObject({ code: 'API_RESPONSE' })
 })
+
+const source = () => ({ ...review(), sessionId: id(8), items: result().items, date: '2026-10-01', startsAt: '10:00:00' })
+const copyInput = () => ({ sessionId: id(1), reviewed: review(), copySource: source() })
+const copied = () => ({ ...result(), items: [{ ...result().items[0], id: id(7) }], copiedFromSessionId: id(8) })
+
+it('configured previous-plan preview and copy bind both reviews without sending source media or actors', async () => {
+  const fetch = vi.fn(async (url, options) => jsonResponse(url.endsWith('/me') ? sessionInfo() : options.method === 'GET' ? { target: review(), source: source() } : copied()))
+  const services = createConfiguredPortalServices({ mode: 'api', fetchImpl: fetch }).forSession(0)
+  expect(await services.sessionService.previousPlanFor({ sessionId: id(1) })).toEqual({ target: review(), source: source(), uncertain: false })
+  expect(await services.sessionService.copyPreviousPlan(copyInput())).toEqual(copied())
+  const [url, options] = fetch.mock.calls.find(([, options]) => options.method === 'POST')
+  expect(url).toMatch(/\/copy-plan$/)
+  expect(JSON.parse(options.body)).toEqual({ expected: review().expected, sourceId: id(8), sourceExpected: source().expected })
+})
+
+it('an uncertain copy blocks ordinary edits and reconciles the exact original source without another POST', async () => {
+  const http = { post: vi.fn(async () => { throw new ApiError('NETWORK_ERROR', 'Lost copy') }), get: vi.fn(async () => copied()) }
+  const service = sessionPlanCommands(http, actor)
+  await expect(service.copy(copyInput(), 0)).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  await expect(service.review({ id: id(1), expectedVersion: 2 }, 0)).rejects.toMatchObject({ code: 'SAVE_UNCERTAIN' })
+  await expect(service.save(input(), 0)).rejects.toMatchObject({ code: 'SAVE_UNCERTAIN' })
+  const original = await service.previous({ sessionId: id(1) }, 0)
+  expect(original).toEqual({ target: review(), source: source(), uncertain: true })
+  expect(await service.copy(copyInput(), 0)).toEqual(copied())
+  expect(http.post).toHaveBeenCalledTimes(1)
+  expect(service.pendingInput(0)).toBeNull()
+})
+
+it('an uncertain ordinary save blocks previous-plan preview and copying', async () => {
+  const service = sessionPlanCommands({ post: async () => { throw new ApiError('NETWORK_ERROR', 'Lost') } }, actor)
+  await expect(service.save(input(), 0)).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  await expect(service.previous({ sessionId: id(1) }, 0)).rejects.toMatchObject({ code: 'SAVE_UNCERTAIN' })
+  await expect(service.copy(copyInput(), 0)).rejects.toMatchObject({ code: 'SAVE_UNCERTAIN' })
+})
+
+it('rejects source identity drift, reused source item IDs and fabricated copied media', async () => {
+  for (const bad of [{ ...copied(), copiedFromSessionId: id(9) }, { ...copied(), items: source().items }, { ...copied(), items: [{ ...copied().items[0], videoAttached: true }] }]) {
+    const service = sessionPlanCommands({ post: async () => bad }, actor)
+    await expect(service.copy(copyInput(), 0)).rejects.toMatchObject({ code: 'API_RESPONSE' })
+  }
+})

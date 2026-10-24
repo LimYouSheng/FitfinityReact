@@ -73,6 +73,19 @@ class SessionPlanReceipt(ActorEvidence, Record, Base):
     result: Mapped[dict] = mapped_column(JSONB)
 
 
+class SessionOutcomeReceipt(ActorEvidence, Record, Base):
+    __tablename__ = "session_outcome_receipts"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"))
+    previous: Mapped[dict] = mapped_column(JSONB)
+    result: Mapped[dict] = mapped_column(JSONB)
+
+
 class ApiReceipt(ActorEvidence, Record, Base):
     __tablename__ = "api_receipts"
     __table_args__ = (

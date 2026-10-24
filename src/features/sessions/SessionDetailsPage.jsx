@@ -17,6 +17,7 @@ import { isOpenSession, sessionStatus, pendingSessionChanges, sessionActionError
 import { businessClock } from '../../app/clock.js'
 import { exerciseResultsFor } from '../../app/progress.js'
 import { formatDate, formatTimestamp } from '../../utils/date.js'
+import PreviousPlanDialog from './PreviousPlanDialog.jsx'
 import ExercisePlanEditor from './ExercisePlanEditor.jsx'
 
 const READ_DEFAULTS = Object.freeze({ reps: '', rounds: '', rest: '' })
@@ -25,8 +26,13 @@ const READ_CATALOG = Object.freeze([])
 export default function SessionDetailsPage({
   readOnly = false,
   planEditable = false,
+  outcomeEditable = false,
+  outcomeUncertain = false,
+  onBeginOutcome,
   planUncertain = false,
   onBeginPlan,
+  onPreviewPreviousPlan,
+  onCopyPreviousPlan,
   bookingEditable = false,
   requestEditable = false,
   onBeginRequest,
@@ -83,7 +89,7 @@ export default function SessionDetailsPage({
 
   const editLabel = activeEditor === 'details'
     ? 'Session overview'
-    : activeEditor === 'exercise'
+    : ['exercise', 'previous'].includes(activeEditor)
       ? 'Exercise plan'
       : activeEditor === 'outcome'
         ? 'Session outcome'
@@ -177,6 +183,8 @@ export default function SessionDetailsPage({
       {detailsError && !requestKind && <p className="validation-copy" role="alert">{detailsError}</p>}
 
       <Panel className={`top-gap exercise-plan-panel ${activeEditor === 'exercise' ? 'editing-section' : ''}`}>
+        {onPreviewPreviousPlan && <PreviousPlanDialog available={canEditPlan && !activeEditor} onPreview={onPreviewPreviousPlan} onCopy={onCopyPreviousPlan}
+          onBegin={() => setActiveEditor('previous')} onEnd={() => setActiveEditor(null)} />}
         <ExercisePlanEditor defaults={policy.exerciseDefaults ?? READ_DEFAULTS}
           catalog={exerciseCatalog ?? READ_CATALOG}
           items={session.exercisePlan ?? []}
@@ -199,6 +207,7 @@ export default function SessionDetailsPage({
       <SessionNotes session={session} outcome={outcome} displayedSummary={displayedSummary}
         activeEditor={activeEditor} setActiveEditor={setActiveEditor} saving={saving} setSaving={setSaving}
         setDetailsError={setDetailsError} canEditNotes={canEditNotes}
+        canEditOutcome={canEditNotes || (readOnly && outcomeEditable && !recordInactive && (isOwner || assignedTrainer))} outcomeUncertain={outcomeUncertain} onBeginOutcome={onBeginOutcome}
         onSaveOutcome={onSaveOutcome} onSaveClientSummary={onSaveClientSummary} />
 
       <Panel className="top-gap session-acknowledgement-panel">

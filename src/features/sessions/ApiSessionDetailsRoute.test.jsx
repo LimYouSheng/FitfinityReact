@@ -9,9 +9,9 @@ import { directoryId } from '../../test/directory.js'
 import { sessionDetail } from '../../services/apiSessionReads.js'
 import ApiSessionDetailsRoute from './ApiSessionDetailsRoute.jsx'
 afterEach(() => { cleanup(); vi.useRealTimers() })
-function show(services, patch = {}) {
+function show(services, patch = {}, onChangeSaved) {
   const snapshot = { user: staff, policy: { timeZone: 'Asia/Singapore' }, sessionGeneration: 0, serverAt: '2026-10-13T06:00:00Z', data: { clients: [], trainers: [], messages: [] }, ...patch }
-  const node = selectedSession => <PortalData.Provider value={{ snapshot, services, refresh: async () => snapshot, today: '2026-10-13' }}><ActionConfirmationProvider><EditGuardProvider><ApiSessionDetailsRoute selectedSession={selectedSession} navigate={vi.fn()} openClient={vi.fn()} /></EditGuardProvider></ActionConfirmationProvider></PortalData.Provider>
+  const node = selectedSession => <PortalData.Provider value={{ snapshot, services, refresh: async () => snapshot, today: '2026-10-13' }}><ActionConfirmationProvider><EditGuardProvider><ApiSessionDetailsRoute onChangeSaved={onChangeSaved} selectedSession={selectedSession} navigate={vi.fn()} openClient={vi.fn()} /></EditGuardProvider></ActionConfirmationProvider></PortalData.Provider>
   const rendered = render(node({ id: directoryId(30), version: 1 }))
   return { ...rendered, update: id => rendered.rerender(node({ id, version: 1 })), refresh: () => { snapshot.serverAt = '2026-10-13T06:00:01Z'; rendered.rerender(node({ id: directoryId(30), version: 1 })) } }
 }
@@ -134,4 +134,36 @@ it('plan-only capability freezes an uncertain save and keeps media/outcome/ackno
   expect(screen.queryByRole('button', { name: /Manage video/ })).toBeNull()
   expect(screen.queryByRole('button', { name: 'Client Signature', exact: true })).toBeNull()
   expect(screen.getByRole('button', { name: 'Export Summary', exact: true })).toBeDisabled()
+})
+
+it('recovers an uncertain outcome with its original review and an explicit recovery confirmation', async () => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  const draft = { trainerComments: 'Measured', exerciseResults: [] }
+  const reviewed = { expected: 'original-outcome' }
+  const save = vi.fn().mockRejectedValueOnce(new Error('Lost outcome response')).mockResolvedValue({})
+  const notice = vi.fn()
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionOutcome: vi.fn().mockResolvedValue({ reviewed, draft, uncertain: false }), sessionService: { saveOutcome: save } }
+  show(services, { capabilities: { sessionOutcomeWrites: true } }, notice)
+  await screen.findByText('Stored outcome')
+  const panel = document.querySelector('.session-outcome-panel')
+  fireEvent.click(within(panel).getByRole('button', { name: 'Edit', exact: true }))
+  await screen.findByDisplayValue('Measured')
+  fireEvent.click(within(panel).getByRole('button', { name: 'Save', exact: true }))
+  const confirmation = await screen.findByRole('dialog', { name: 'Save session outcome?', exact: true })
+  fireEvent.click(within(confirmation).getByRole('button', { name: 'Save Outcome', exact: true }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Lost outcome response')
+  expect(within(panel).getByLabelText('Trainer comments', { exact: true })).toBeDisabled()
+  fireEvent.click(within(panel).getByRole('button', { name: 'Check original outcome', exact: true }))
+  await vi.waitFor(() => expect(notice).toHaveBeenCalledWith('Original session outcome confirmed.'))
+  expect(save.mock.calls[0]).toEqual(save.mock.calls[1])
+  expect(services.reviewSessionOutcome).toHaveBeenCalledTimes(1)
+})
+
+it.each(['completed', 'cancelled'])('outcome capability keeps terminal %s cover evidence read-only', async status => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session = { ...value.session, status }
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value) }
+  show(services, { user: { ...staff, role: 'trainer', trainerId: value.session.trainerId }, capabilities: { sessionOutcomeWrites: true } })
+  await screen.findByText('Stored outcome')
+  expect(within(document.querySelector('.session-outcome-panel')).queryByRole('button', { name: 'Edit', exact: true })).toBeNull()
 })

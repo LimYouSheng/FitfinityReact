@@ -112,7 +112,9 @@ def session_scope(principal: Principal):
     )
 
 
-def session_record(session: Session, principal: Principal, identity: UUID, *, write=False):
+def session_record(
+    session: Session, principal: Principal, identity: UUID, *, write=False, allow_final_notes=False
+):
     found = session.get(TrainingSession, identity)
     if found is None:
         raise unavailable()
@@ -141,10 +143,18 @@ def session_record(session: Session, principal: Principal, identity: UUID, *, wr
     if write:
         if not principal.manages_operations and record.trainer_id != principal.trainer_id:
             raise unavailable()
+        # Terminal ad-hoc coverage retains evidence access, never coaching edits.
+        if (
+            allow_final_notes
+            and record.status in {"completed", "cancelled"}
+            and not principal.manages_operations
+            and client.trainer_id != principal.trainer_id
+        ):
+            raise unavailable()
         if (
             client.status != "active"
             or purchase.status != "active"
-            or record.status in {"completed", "cancelled"}
+            or (not allow_final_notes and record.status in {"completed", "cancelled"})
         ):
             raise conflict()
     return record

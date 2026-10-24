@@ -141,7 +141,7 @@ def detail(session, principal, identity):
     results = bounded(
         session,
         select(ExerciseResult)
-        .where(ExerciseResult.session_id == identity)
+        .where(ExerciseResult.session_id == identity, ExerciseResult.retired_at.is_(None))
         .order_by(ExerciseResult.id),
     )
     # Only referenced retired identities are needed to validate result relationships;

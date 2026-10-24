@@ -34,8 +34,10 @@ from app.api import (
     session_booking_review,
     session_booking_save,
     session_changes,
+    session_outcomes,
     session_plans,
     session_postponement,
+    session_progress,
     session_read_schemas,
     session_reads,
     trainer_approvals,
@@ -1252,7 +1254,10 @@ def save_session_plan(
         return session_plans.save(session, principal, session_id, key, body)
 
 
-@router.get("/session-plans/{request_key}", response_model=session_plans.PlanSaved)
+@router.get(
+    "/session-plans/{request_key}",
+    response_model=session_plans.PlanCopied | session_plans.PlanSaved,
+)
 def reconcile_session_plan(request_key: UUID, request: Request):
     """Return only the authenticated actor's original plan receipt."""
     with authorized_transaction(request, advisory_lock=session_plans.PLAN_LOCK) as (
@@ -1260,3 +1265,64 @@ def reconcile_session_plan(request_key: UUID, request: Request):
         principal,
     ):
         return session_plans.reconcile(session, principal, request_key)
+
+
+@router.get("/sessions/{session_id}/previous-plan", response_model=session_plans.PreviousPlan)
+def previous_session_plan(session_id: UUID, request: Request):
+    """Preview the latest permitted previous plan without changing either session."""
+    with authorized_transaction(request, advisory_lock=session_plans.PLAN_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_plans.previous(session, principal, session_id)
+
+
+@router.post("/sessions/{session_id}/copy-plan", response_model=session_plans.PlanCopied)
+def copy_session_plan(
+    session_id: UUID, body: session_plans.CopyPlan, request: Request, key: RequestKey
+):
+    """Apply only the confirmed source and target versions; recover by the original key."""
+    with authorized_transaction(request, advisory_lock=session_plans.PLAN_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_plans.copy_previous(session, principal, session_id, key, body)
+
+
+@router.get("/sessions/{session_id}/outcome-review", response_model=session_outcomes.OutcomeReview)
+def review_session_outcome(session_id: UUID, request: Request):
+    """Review current measurement identities and correction authority."""
+    with authorized_transaction(request, advisory_lock=session_outcomes.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_outcomes.review(session, principal, session_id)
+
+
+@router.post("/sessions/{session_id}/outcome", response_model=session_outcomes.OutcomeSaved)
+def save_session_outcome(
+    session_id: UUID, body: session_outcomes.SaveOutcome, request: Request, key: RequestKey
+):
+    """Correct measured outcomes atomically while preserving completion evidence."""
+    with authorized_transaction(request, advisory_lock=session_outcomes.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_outcomes.save(session, principal, session_id, key, body)
+
+
+@router.get("/session-outcomes/{request_key}", response_model=session_outcomes.OutcomeSaved)
+def reconcile_session_outcome(request_key: UUID, request: Request):
+    """Read the authenticated actor's original outcome receipt."""
+    with authorized_transaction(request, advisory_lock=session_outcomes.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_outcomes.reconcile(session, principal, request_key)
+
+
+@router.get("/clients/{client_id}/progress", response_model=session_progress.ClientProgress)
+def read_client_progress(client_id: UUID, request: Request):
+    """Project only permitted persisted signed-session measurements."""
+    with authorized_transaction(request) as (session, principal):
+        return session_progress.read(session, principal, client_id)

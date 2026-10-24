@@ -3,7 +3,7 @@ import Panel from '../../components/Panel.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { sessionDurationMinutes } from '../../app/sessionRules.js'
 
-export default function SessionNotes({ session, outcome, displayedSummary, activeEditor, setActiveEditor, saving, setSaving, setDetailsError, canEditNotes, onSaveOutcome, onSaveClientSummary }) {
+export default function SessionNotes({ session, outcome, displayedSummary, activeEditor, setActiveEditor, saving, setSaving, setDetailsError, canEditNotes, canEditOutcome = canEditNotes, outcomeUncertain = false, onBeginOutcome, onSaveOutcome, onSaveClientSummary }) {
   const confirmAction = useActionConfirmation()
   const [outcomeDraft, setOutcomeDraft] = useState(outcome)
   const [summaryDraft, setSummaryDraft] = useState(displayedSummary)
@@ -15,10 +15,17 @@ export default function SessionNotes({ session, outcome, displayedSummary, activ
     }
   }, [activeEditor, displayedSummary, outcome])
 
+  const beginOutcome = async () => {
+    if (saving) return
+    setSaving(true); setDetailsError(''); setActiveEditor('outcome')
+    try { if (onBeginOutcome) setOutcomeDraft(await onBeginOutcome()) }
+    catch (error) { setDetailsError(error.message); setActiveEditor(null) }
+    finally { setSaving(false) }
+  }
   const saveOutcome = async () => {
-    const confirmed = await confirmAction({
+    const confirmed = outcomeUncertain || await confirmAction({
       title: 'Save session outcome?',
-      message: 'This will update the recorded duration and trainer comments for this session.',
+      message: 'This will save measured exercise results and trainer comments. Duration follows the session booking.',
       confirmLabel: 'Save Outcome',
     })
     if (!confirmed) return
@@ -26,6 +33,7 @@ export default function SessionNotes({ session, outcome, displayedSummary, activ
     setSaving(true)
     try {
       await onSaveOutcome(outcomeDraft)
+      setDetailsError('')
       setActiveEditor(null)
     } catch (failure) {
       setDetailsError(failure.message || 'Could not complete this action. Try again.')
@@ -61,11 +69,11 @@ export default function SessionNotes({ session, outcome, displayedSummary, activ
               <h2>Session Outcome</h2>
               {activeEditor === 'outcome' ? (
                 <div className="inline-actions">
-                  <button type="button" className="text-action muted-action" disabled={saving} onClick={() => setActiveEditor(null)}>Cancel</button>
-                  <button type="button" className="text-action" disabled={saving} onClick={saveOutcome}>{saving ? 'Saving…' : 'Save'}</button>
+                  <button type="button" className="text-action muted-action" disabled={saving || outcomeUncertain} onClick={() => setActiveEditor(null)}>Cancel</button>
+                  <button type="button" className="text-action" disabled={saving} onClick={saveOutcome}>{saving ? 'Saving…' : outcomeUncertain ? 'Check original outcome' : 'Save'}</button>
                 </div>
-              ) : canEditNotes && (
-                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('outcome')}>Edit</button>
+              ) : canEditOutcome && (
+                <button type="button" className="text-action" disabled={Boolean(activeEditor) || saving} onClick={beginOutcome}>Edit</button>
               )}
             </div>
 
@@ -77,10 +85,10 @@ export default function SessionNotes({ session, outcome, displayedSummary, activ
                 </label>
                 <label>
                   Trainer comments
-                  <textarea rows="3" value={outcomeDraft.trainerComments} onChange={event => setOutcomeDraft(current => ({ ...current, trainerComments: event.target.value }))} />
+                  <textarea rows="3" disabled={saving || outcomeUncertain} value={outcomeDraft.trainerComments} onChange={event => setOutcomeDraft(current => ({ ...current, trainerComments: event.target.value }))} />
                 </label>
                 <div className="recorded-results"><h3>Recorded exercise results</h3>
-                  {(outcomeDraft.exerciseResults ?? []).map((result, index) => <div className="recorded-result" key={result.id}><strong>{result.name}</strong>{[['loadKg', 'Load (kg)'], ['reps', 'Reps'], ['sets', 'Sets']].map(([field, label]) => <label key={field}>{label}<input aria-label={`${label} for ${result.name}`} type="number" min={field === 'loadKg' ? '0' : '1'} step={field === 'loadKg' ? '0.1' : '1'} value={result[field]} onChange={event => setOutcomeDraft(current => ({ ...current, exerciseResults: current.exerciseResults.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: event.target.value } : row) }))} /></label>)}</div>)}
+                  {(outcomeDraft.exerciseResults ?? []).map((result, index) => <div className="recorded-result" key={result.id}><strong>{result.name}</strong>{[['loadKg', 'Load (kg)'], ['reps', 'Reps'], ['sets', 'Sets']].map(([field, label]) => <label key={field}>{label}<input aria-label={`${label} for ${result.name}`} type="number" disabled={saving || outcomeUncertain} min={field === 'loadKg' ? '0' : '1'} step={field === 'loadKg' ? '0.1' : '1'} value={result[field]} onChange={event => setOutcomeDraft(current => ({ ...current, exerciseResults: current.exerciseResults.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: event.target.value } : row) }))} /></label>)}</div>)}
                 </div>
               </div>
             ) : (

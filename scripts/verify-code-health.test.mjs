@@ -117,6 +117,19 @@ test('backend gate fails before creating resources when Docker is unavailable', 
   assert.deepEqual(calls, [['info']])
 })
 
+test('successful backend gate retains streamed output without replay and still cleans its project', () => {
+  const calls = []
+  verifyBackend((_command, args, options) => {
+    calls.push(args)
+    assert.equal(options.stdio, 'inherit')
+    return { status: 0 }
+  })
+  const up = calls.find(args => args.includes('up'))
+  assert.deepEqual(up.slice(-3), ['--exit-code-from', 'tests', 'tests'])
+  assert.ok(!calls.some(args => args.includes('logs')))
+  assert.equal(calls.find(args => args.includes('down'))[2], up[2])
+})
+
 test('infrastructure failure retains logs and cleans only its isolated container project', () => {
   const calls = []
   assert.throws(() => verifyBackend((_command, args) => {
