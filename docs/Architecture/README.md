@@ -1,63 +1,25 @@
-# How Fitfinity fits together
+# How the system fits together
 
-[System diagrams](diagram.md) · [Service contracts](../SERVICE_CONTRACTS.md) · [Current progress](../../PROGRESS.md)
+[System and verification diagrams](diagram.md) · [Current rules and dated history](../SERVICE_CONTRACTS.md)
 
-This explanation describes the source architecture and its deployment boundary. The operation matrix identifies what is integrated; the progress ledger identifies what has passed CI and merged. These diagrams do not certify that current source is deployed to Lambda.
+**Staff interface.** React/Vite renders the Owner, Admin and Trainer portal. Feature screens use injected asynchronous services; `PortalDataProvider` owns authorized snapshots and `useAppNavigation` owns account-scoped history. Explicit demo mode uses prototype data and browser storage. API mode uses `apiPortalAdapter` and FastAPI without falling back to mocks. GitHub Pages hosts the separate demo export.
 
-## Browser and service boundary
+**Identity and application.** Cognito owns staff identity and authentication challenges. FastAPI verifies signed tokens, cookies/CSRF, active staff identity and current record permissions. Domain services recheck reviewed versions, assignment and conflicts inside the transaction. Browser capabilities describe available features; they do not grant authority.
 
-React/Vite provides the Owner, Admin and Trainer portal. `App.jsx` composes feature screens; `PortalDataProvider` loads authorized snapshots and rejects stale account/generation replies. One navigation owner retains account-scoped history and view state. Feature screens receive data and asynchronous service callbacks rather than owning persistence.
+**Durable storage and recovery.** PostgreSQL owns relational business records, purchased snapshots, audit/credit evidence and command receipts; SQLAlchemy and Alembic define models and forward schema changes. A command commits its effects and receipt together. A lost response is reconciled using the original actor and key. S3 is the selected durable media boundary; media and report workflows remain subject to the operation matrix. Application memory and local disk are not durable business stores.
 
-`defaultPortalServices` explicitly selects the demo or API adapter behind `createPortalServices`. Demo mode uses prototype records and browser storage. API mode calls FastAPI through `apiPortalAdapter` and the HTTP client; unsupported operations fail instead of silently using mocks. The 55 named contracts describe domain behavior, not an endpoint count. Capability flags let the interface expose supported workflows, while the server enforces permissions.
+**Hosting and portability.** The selected AWS topology serves static assets through CloudFront and routes API Gateway requests to FastAPI on Lambda through the Lambda Web Adapter. Cognito, private PostgreSQL/RDS and S3 have distinct responsibilities. The application remains ordinary container-compatible HTTP so hosting changes do not require rewriting business logic. Selected topology does not establish that current source is deployed; Progress owns observed deployment status.
 
-GitHub Pages serves the demo. The AWS frontend hosting path uses static assets behind CloudFront. A production frontend build and the Lambda image are separate release artifacts: merging frontend/API code does not update either deployed artifact automatically under coding authority.
+**Testing.** Playwright's `tests-api/` runs the real frontend, FastAPI routes, migrations, JWT checks, cookies, CSRF and authorization against temporary Docker PostgreSQL with worker-isolated databases. Only Cognito is substituted by a local signed-token provider. The verifier rejects non-test database targets and removes its owned resources. Node-simulator browser tests remain separate frontend evidence. No Lambda deployment or production database is needed for these tests.
 
-## Identity and authorization
+**Delivery and hardening.** The Docker `application` stage is shared; `test` adds test dependencies without downloading the Lambda adapter, while `runtime` adds the pinned adapter. Final-head frontend/backend/API-browser CI precedes source acceptance. Image publication, migrations, deployment and live/provider/device acceptance require their own evidence and applicable authorization. Mutation testing, measured performance budgets and OpenTelemetry/Grafana remain planned work in Progress, not existing capabilities. [Service Contracts](../SERVICE_CONTRACTS.md#deployment-migration-and-acceptance) owns release safeguards.
 
-Cognito owns staff identity and authentication challenges. The backend verifies signed tokens and checks active staff identity, session state and operation-specific permissions. Cookie/CSRF handling and current actor checks are part of the API boundary. A browser role, hidden button or record ID cannot authorize a write.
+**Full verification suite.** Existing checks cover frontend units; simulator browser workflows; backend/PostgreSQL transactions, authorization and migrations; real-API browser persistence/recovery; offline infrastructure guards; assessment paper-form parity; lint/source health and verifier regressions; and builds/PWA behavior. These have different evidence scopes: simulator success does not prove persistence, and synthetic identity does not prove real Cognito. The [suite diagram](diagram.md#full-verification-suite) separates existing checks, planned additions and external acceptance. README owns executable commands; Progress owns results and remaining work.
 
-Authorization also depends on current client/Trainer assignment, approval policy and record state. Owner/Admin operations, Owner-only financial decisions and Trainer self/assigned scopes remain distinct. The initial eleven assessment forms are Owner/Admin-only; assigned general health notes have a separate policy. The [contracts](../SERVICE_CONTRACTS.md#authority-and-privacy) own these rules.
+**Planned mutation and performance testing.** Mutation testing will target critical JavaScript/Python business rules, authorization and persistence, inspect surviving/equivalent mutations and establish justified gates. Performance campaigns will measure p50/p95/p99 latency, throughput, errors, CPU/memory, connection/query behavior and browser vitals with representative data, concurrency and bounded overload/fault cases. Cold/warm measurements need an identified environment; local Docker cannot prove Lambda cold-start behavior. Establish measured budgets after baseline rather than copying arbitrary thresholds. Expanded resilience testing will cover rate limits, dependency failures, service restarts and interrupted-write recovery alongside existing targeted cases.
 
-## Application and durable data
+**Planned observability.** OpenTelemetry will correlate traces, metrics and structured logs across requests, database work and recovery. Grafana dashboards, SLOs and actionable alerts will use those measurements. Redaction of health/identity data, credentials, cookies and SQL parameters, plus sampling, retention, cardinality and cost controls, must precede activation. Validate correlation and exporter failure isolation locally first; instrumentation and export should start disabled. A Grafana stack, ingestion, credentials and production activation remain separately scoped work, not a connected capability today.
 
-FastAPI/Uvicorn runs ordinary HTTP. API routes and domain helpers validate requests, authorize the actor, acquire the necessary locks and perform the domain transaction. SQLAlchemy models and forward Alembic migrations define PostgreSQL persistence. PostgreSQL owns clients, Trainers, purchases, bookings, assessments, messages, requests, audit/credit evidence and command receipts. Schema presence does not imply a domain workflow is integrated.
+**Planned supply-chain and security maintenance.** Dependabot updates will cover npm, Python, GitHub Actions and supported container-image sources, with reviewed pins/lockfiles, vulnerability triage and all final-head CI before merge. Assess SBOMs and artifact/source provenance against verified digests. Secret scanning and static security analysis supplement current lint and authorization tests; repository/account-level settings need verification before any claim they are enabled. Neither automated update creation nor a clean scan replaces review or permits automatic deployment.
 
-Purchased terms and completed evidence are retained snapshots. Stable session IDs survive chronological renumbering and Open/scheduled transitions. A reviewed write rechecks versions, authority and conflicts and atomically saves its records, history/notices and receipt where required. Request decisions and cancellations serialize before taking actor/Trainer row locks so competing decisions have one committed winner. Lost responses reconcile the original actor/key; a retry does not invent a new intention. See the [write sequence](diagram.md#reviewed-write-and-recovery).
-
-Exercise-plan persistence keeps typed ordered detail rows and stable item IDs. Removing an exercise retires its row instead of deleting result/media identities; original values remain in immutable command receipts. An existing legacy note is shown as an editable detail until the first reviewed save. Plan editing has its own capability and does not enable video, outcome or acknowledgement writes. The previous-plan candidate shares this writer and original-key recovery: confirmation binds the target and latest permitted source, while copied prescriptions receive new IDs and source videos stay attached to the original session. Acceptance remains in the operation matrix.
-
-S3 is the selected durable object/media boundary; it is not replaced by Lambda disk or browser storage. Protected upload/download, session media and reports remain subject to their matrix status and acceptance. Do not infer implemented media workflows from infrastructure or storage models.
-
-## Deployment boundary
-
-The selected AWS topology is CloudFront/static assets, regional API Gateway, Lambda with the Lambda Web Adapter, Cognito and private PostgreSQL/RDS, with S3 for objects. The application stays container-compatible so business logic is independent of Lambda invocation details. Database connections, private network egress, retained infrastructure identities and recovery constraints belong to the [AWS runbook](../AWS_DEPLOYMENT_RUNBOOK.md), not to a new architecture diagram approval.
-
-`backend/Dockerfile` has a shared `application` stage. `test` adds test dependencies without fetching the Lambda adapter; `runtime` adds the pinned adapter and retains the production launch behavior. This isolates the ECR download dependency from backend tests. A runtime build, image publication, migration, deployment and production acceptance are separate actions and evidence levels.
-
-## Real API testing and isolation
-
-`tests-api/` drives the actual frontend through FastAPI, migrations, PostgreSQL, JWT verification, cookies, CSRF and authorization. `backend/tests/browser_server.py` supplies synthetic fixtures and a local signed-token identity provider. Cognito delivery/provisioning is substituted; the application API and database are real.
-
-The browser verifier owns a temporary Compose project and test PostgreSQL, with worker-isolated databases. The test harness validates allowed test database URLs and excludes production targets. Compose cleanup removes its owned containers/volumes. Tests do not call production RDS or require a Lambda redeployment. Existing Node-simulator browser specs remain useful frontend evidence but do not establish database persistence.
-
-Backend PostgreSQL tests exercise transaction rollback, permissions, versions and database invariants. Browser evidence adds UI writes, reload/fresh-login reads, scope checks and unknown-response recovery. Real Cognito, service restart, physical-device and live deployment acceptance remain separately recorded. Commands live in [CODEX_CLOUD](../CODEX_CLOUD.md).
-
-## Engineering hardening and release evidence
-
-Mutation testing, measured latency/throughput budgets, dependency/supply-chain maintenance, security/resilience and production drills are prioritized in [Progress](../../PROGRESS.md#engineering-hardening-backlog-planned-not-provisioned). OpenTelemetry/Grafana is planned, not a connected monitoring stack. Redaction, sampling, retention, cardinality, failure isolation and cost controls must precede activation.
-
-All final-head frontend/backend/api-browser CI and GitHub requirements precede source merge. Deployment requires its own applicable authorization and reviewed artifact/migration evidence. A green synthetic suite proves only its stated scope. Current release fingerprints and expired historical approvals remain in the runbook and ledger.
-
-## Code owners
-
-| Responsibility | Source |
-| --- | --- |
-| Composition, snapshots and navigation | `src/App.jsx`, `src/components/PortalDataProvider.jsx`, `src/hooks/useAppNavigation.js` |
-| Domain contracts and API transport | `src/services/portalContracts.js`, `apiPortalAdapter.js`, `apiClient.js` |
-| UI and prototype rules | `src/features/`, `src/components/`, `src/app/` |
-| HTTP, authority and domain transactions | `backend/app/` |
-| Durable schema and migrations | `backend/app/models/`, `backend/migrations/` |
-| Real database and browser evidence | `backend/tests/`, `tests-api/`, `backend/compose.browser.yaml` |
-| Container and release evidence | `backend/Dockerfile`, `backend/infrastructure/`, `.github/workflows/` |
-
-Adapted from SoccerBot [architecture explanation](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/96814c08ecef/docs/Architecture/README.md) and [diagrams](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/96814c08ecef/docs/Architecture/diagram.md). Fitfinity retains FastAPI/PostgreSQL/Cognito/AWS and its own execution authority; it does not inherit SoccerBot's Cloudflare/provider architecture or browser restrictions.
+**Planned production operations.** Consolidated AWS release preparation will bind source, image/artifact, grants and migrations to a reviewed rollout and populated-data recovery plan. Health/readiness acceptance, synthetic monitoring, incident ownership, alert exercises, rollback, backup/restore and migration-recovery drills will establish measurable recovery limits. Capacity/resource/cost monitoring supports those decisions. Start with isolated drills; actual AWS changes, real providers, paid telemetry and live load require their applicable authorization. These tasks belong to [M10 work packages](../../PROGRESS.md#m10-work-packages--planned) under Progress → Remaining work. M10 does not defer the security, migration and restore evidence required before launch.
