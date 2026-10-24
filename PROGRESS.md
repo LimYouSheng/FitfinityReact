@@ -2,18 +2,16 @@
 
 ## Current checkpoint — 24 October 2026 Singapore
 
-Accepted main is documentation merge `8ec4329` (PR69). Its exact head `2461162e1cde528120d07b8d53450feafe8b71fe` passed frontend/backend/API-browser in [run39932902207](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39932902207). Runtime integration remains PR67 `c68a7ac4ddd43da480ee278066a772eeb90f6656`. Tested head `ecda8a1f3b92bbb2eb4ffbb24024ff8c15fa7945` passed all three gates in [run39919404417](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39919404417): 1,301 units, 1,152 simulator browser cases, 1,096 backend, 633 infrastructure and 132 real-API browser cases. Merge completed at 08:21:46 UTC. These are that revision's inventories, not the paused candidate's.
+Accepted main is PR70 merge `3c78282ca4219bab3e7c5e07d80743d50e88d363`, completed on 24 October at 08:06:04 UTC. Exact head `3b546079f59a84f52c9b5efd6feaffd14a0b0eef` passed all three required gates in [run40073999540](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40073999540): 1,320 units, 1,152 simulator browser cases, 1,132 backend/PostgreSQL, 633 infrastructure and 153 real-API browser cases. This accepts previous-plan preview/copy and outcome/progress persistence, including PR68 ancestry. PR68 is closed; it adds no separate increment beyond PR70. Post-merge main validation is running in [run40076718695](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40076718695).
 
-[The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **34/55** accepted: 33 server-connected plus one local predicate. The earlier 26 baseline omitted Trainer deactivation; corrected 27 gained three operations in PR64, one in PR65, two in PR66 and one in PR67. Session/calendar reads do not add named operations.
+[The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **37/55** accepted: 36 server-connected plus one local predicate. The earlier 26 baseline omitted Trainer deactivation; corrected 27 gained three operations in PR64, one in PR65, two in PR66, one in PR67 and three in PR70. Session/calendar reads do not add named operations.
 
 | Acceptance | Evidence and limit |
 | --- | --- |
 | Documentation | Merged [PR69](https://github.com/LimYouSheng/FitfinityReact/pull/69) consolidates seven files, preserves full history and restores explicit comprehensive engineering safeguards in AGENTS. Local documentation checks and all three final-head CI gates passed. PR63's earlier refactor did not meet this requirement. |
-| Previous Plan | Draft [PR68](https://github.com/LimYouSheng/FitfinityReact/pull/68), head `31fdcd8`; [run40071249659](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40071249659) passed API-browser. All 1,109 backend cases passed, but redundant log replay exceeded the 15-minute job limit, so that gate is cancelled, not accepted. PR70 includes this ancestry and the logging repair; close PR68 as superseded only after aggregate source acceptance. Two candidate operations remain uncounted. |
-| Outcome candidate | Draft [PR70](https://github.com/LimYouSheng/FitfinityReact/pull/70) includes previous-plan ancestry and outcome/progress integration. Runtime `25f239c` passed all 1,320 units, 1,132 backend/PostgreSQL and 633 infrastructure checks locally; all 153 real-API browser cases passed locally, including 12 outcome cases. Logging repair `571bb7b` passed 21 checker regressions. Run40072612578 passed every backend case but still timed out while draining console output; complete logs now go directly to the existing artifact, with a short console tail and preserved exit status. Final-head CI remains required; no operation increment yet. |
-| Summary candidate | Active on `feat/session-summary-api`, based on PR70. Reviewed summary text, immutable prior-value receipts and original-key recovery are implemented but unaccepted. All 19 new backend behavior cases and 28 focused frontend cases pass; schema inventory/snapshot repairs pass their two targeted checks. All 12 new real-API browser cases and the full 1,328-unit/137-file gate pass after correcting the build artifact. First full backend run passed 1,150/1,151; the exact directory-field expectation omitted the new capability. That repair and stronger existing-measurement/comment preservation checks pass all three targeted cases; complete gates are rerunning. |
+| Summary candidate | Draft [PR71](https://github.com/LimYouSheng/FitfinityReact/pull/71), active on `feat/session-summary-api`, based on accepted PR70. All 1,328 units across 137 files, 1,151 backend/PostgreSQL, 633 infrastructure and 165 real-API browser cases pass locally, including preserved existing measurements/comments, signatures, credits and handoff fields. Initial failures and repairs are retained in Contracts history. Exact final-head CI remains required; this operation is not yet counted. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; Cognito substitute only. No production PostgreSQL or Lambda redeployment needed. |
-| Deployment | Last verified Pages demo source was c68a7ac; main run40071210314 is still validating 8ec4329. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
+| Deployment | Last verified Pages demo source was 8ec4329. Its complete main validation passed; the remaining AWS image-approval wait was cancelled after PR70 merged to release newer main validation. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
 
 ## Full milestone roadmap
 
@@ -49,9 +47,9 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 Follow the milestone roadmap above; M6 remains in progress. Priorities below select the next work without replacing the original milestones.
 
 1. Preserve the accepted seven-document format while continuing the API integration and current milestone ledger.
-2. Complete PR70’s final-head CI gates, including the backend log-replay repair; preserve signature/credit evidence and terminal-cover read-only scope.
-3. Merge the tested aggregate only when GitHub requirements pass, close PR68 as superseded, then update accepted coverage from the canonical matrix.
-4. Complete summary candidate browser/full gates, then follow the matrix through remaining acknowledgement/credits, assessment/report/media, messaging/Undo/remuneration/content/profile gaps. Do not redo accepted operations.
+2. Complete PR71’s exact final-head CI gates; preserve measured results, comments, signatures, credits and delivery evidence during summary saves.
+3. Merge only the tested eligible source; update the accepted operation matrix and historical receipt.
+4. Continue with acknowledgement/credits, then remaining report/media, package lifecycle/Undo, remuneration and profile gaps. Do not redo accepted operations.
 5. Prepare separate release/provider/restart/device acceptance; public website and its content management follow staff-portal completion.
 
 ### M10 work packages — planned
