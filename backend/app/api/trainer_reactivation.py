@@ -9,6 +9,7 @@ from pydantic import Field, StrictInt
 from sqlalchemy import select, text
 
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import TrainerReactivationReceipt
@@ -87,6 +88,7 @@ def reconcile(session, principal, key):
     return ReactivationState.model_validate(previous.result)
 
 
+@journal("trainer.reactivate")
 def save(session, principal, trainer_id, key, body):
     allowed(principal)
     trainer, user = target(session, trainer_id, write=True)

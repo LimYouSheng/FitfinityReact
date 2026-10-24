@@ -10,6 +10,7 @@ from sqlalchemy import func, select, text
 
 from app.api.request_cancellation import DECISION_LOCK
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import conflict, session_record, unavailable
 from app.models.api import SessionSummaryReceipt
@@ -91,6 +92,7 @@ def reconcile(session, principal, key):
     return SummarySaved.model_validate(found.result)
 
 
+@journal("session.summary")
 def save(session, principal, identity, key, body):
     """Commit text, prior-value audit and private retry receipt together, with no handoff effect."""
     found = receipt(session, principal, key)

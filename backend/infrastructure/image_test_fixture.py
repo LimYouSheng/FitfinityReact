@@ -308,6 +308,33 @@ def image_fixture(source, pinned_contract):
         contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
     contract["revisions"].append("20261024_0044")
     contract["tables"]["session_media_intents"] = ["SELECT", "INSERT", "UPDATE"]
+    for relative in (
+        "migrations/versions/20261024_0045_session_undo.py",
+        "app/models/session_mutations.py",
+        "app/api/session_mutation_journal.py",
+        "app/api/session_undo_review.py",
+        "app/api/session_undo_save.py",
+        "app/api/session_undo_routes.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["revisions"].append("20261024_0045")
+    for table in (
+        "session_mutations",
+        "session_mutation_undos",
+        "mutation_scopes",
+        "mutation_training_sessions",
+        "mutation_clients",
+        "mutation_package_purchases",
+        "mutation_purchase_schedule_slots",
+        "mutation_trainers",
+        "mutation_staff_users",
+        "mutation_exercise_plan_items",
+        "mutation_exercise_plan_details",
+        "mutation_exercise_results",
+        "mutation_media_assets",
+        "mutation_change_requests",
+    ):
+        contract["tables"][table] = ["SELECT", "INSERT"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

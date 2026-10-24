@@ -14,6 +14,7 @@ from app.api.session_media_schemas import (
     RecordingReview,
     RecordingSaved,
 )
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.communications import Message, MessageReceipt, SessionEvent
@@ -210,6 +211,7 @@ def retire(session, asset, now, reason):
         work.next_attempt_at = max(work.next_attempt_at, due)
 
 
+@journal("session.recording")
 def commit(session, principal, key, checked):
     """Publish verified bytes and one receipt atomically, after the second authority check."""
     row, current = preparation(session, principal, key)

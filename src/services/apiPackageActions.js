@@ -48,30 +48,3 @@ export function packageActionCommands(http, actionSession) {
     pendingInput: generation => save.pendingInput(generation),
   }
 }
-
-
-export function packageUndoCommands(http, actionSession) {
-  const save = reconciledCommand(http, actionSession, {
-    label: 'Package deletion Undo', path: input => `/api/package-actions/${input.actionId}/undo`, receiptPath: '/api/package-undos',
-    bodyFor: input => ({ expected: input.expected }),
-    validate(value) { if (!uuid(value?.id) || value.status !== 'undone' || !Number.isFinite(Date.parse(value.undoneAt))) failure(); return value },
-  })
-  return async (input, generation) => {
-    const current = await actionSession(generation)
-    if (!['owner', 'admin'].includes(current.user.role) || !uuid(input.id)) throw new ApiError('forbidden', 'Package deletion Undo is unavailable.', 403)
-    const pending = save.pendingInput(generation)
-    if (pending) {
-      if (pending.id !== input.id) throw new ApiError('SAVE_UNCERTAIN', 'Check the original Undo first.')
-      const recovered = await save.reconcile(generation)
-      if (!recovered) throw new ApiError('SAVE_UNCERTAIN', 'The original Undo is not confirmed yet. Check again.')
-      return recovered.result
-    }
-    const messages = await http.get('/api/messages', { expectedGeneration: generation })
-    if (!Array.isArray(messages)) failure()
-    const message = messages.find(row => row.id === input.id)
-    if (message?.undo?.kind !== 'package_deletion') throw new ApiError('OPERATION_UNAVAILABLE', 'Undo is unavailable for this message.')
-    const review = await http.get(`/api/package-actions/${message.undo.id}/undo-review`, { expectedGeneration: generation })
-    if (review.id !== message.undo.id || review.messageId !== input.id || !digest(review.expected)) failure()
-    return save({ id: input.id, actionId: review.id, expected: review.expected }, generation)
-  }
-}

@@ -12,6 +12,7 @@ from sqlalchemy import func, select, text
 
 from app.api.request_cancellation import DECISION_LOCK
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import conflict, session_record, unavailable
 from app.models.api import SessionOutcomeReceipt
@@ -224,6 +225,7 @@ def preserve(session, principal, row):
     )
 
 
+@journal("session.outcome")
 def save(session, principal, identity, key, body):
     """Save comments, measured rows, immutable history and original receipt in one transaction."""
     found = receipt(session, principal, key)
