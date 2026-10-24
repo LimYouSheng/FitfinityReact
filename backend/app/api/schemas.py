@@ -420,6 +420,7 @@ class DirectorySnapshot(ServerClock):
     trainerOnboardingPolicy: OwnerTrainerOnboardingPolicy | TrainerOnboardingPolicy
     clientRenewalWrites: Literal[True] = True
     packageActionWrites: Literal[True] = True
+    sessionMediaWorkflows: Literal[True] = True
     packageReactivationWrites: Literal[True] = True
     personalMessages: Literal[True] = True
     clientDeactivationWrites: Literal[True] = True

@@ -249,3 +249,25 @@ it('enables persisted summary PDF export without enabling unrelated mutations', 
   show(services, { capabilities: { sessionSummaryWrites: true } })
   expect(await screen.findByRole('button', { name: 'Export Summary', exact: true })).toBeDisabled()
 })
+
+it('offers historical Trainer recording playback without replacement or removal controls', async () => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  const trainer = { ...staff, role: 'trainer', trainerId: directoryId(999) }
+  value.session = { ...value.session, status: 'completed', readableByTrainerId: trainer.trainerId }
+  value.session.exercisePlan[0].videoAttached = true
+  const item = value.session.exercisePlan[0]
+  const services = {
+    readSessionDetails: vi.fn().mockResolvedValue(value),
+    reviewSessionMedia: vi.fn().mockResolvedValue({ reviewed: { media: { id: directoryId(998), expiresAt: '2026-10-20T00:00:00Z' } } }),
+    sessionService: { loadVideo: vi.fn().mockResolvedValue(null), saveVideo: vi.fn(), removeVideo: vi.fn() },
+  }
+  show(services, { user: trainer, capabilities: { sessionMediaWorkflows: true } })
+  fireEvent.click(await screen.findByRole('button', { name: `View video for ${item.name}`, exact: true }))
+  const dialog = await screen.findByRole('dialog', { name: `Video · ${item.name}`, exact: true })
+  expect(within(dialog).queryByText('Remove saved video')).toBeNull()
+  expect(within(dialog).queryByRole('button', { name: 'Save Video', exact: true })).toBeNull()
+  expect(within(dialog).queryByLabelText(`Attach video for ${item.name}`)).toBeNull()
+  expect(services.sessionService.loadVideo).toHaveBeenCalledWith({ sessionId: value.session.id, exerciseId: item.id })
+  expect(services.sessionService.saveVideo).not.toHaveBeenCalled()
+  expect(services.sessionService.removeVideo).not.toHaveBeenCalled()
+})

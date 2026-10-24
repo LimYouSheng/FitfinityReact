@@ -31,14 +31,14 @@ async function submit(page) {
   await page.getByRole('dialog', { name: 'Save exercise plan?', exact: true }).getByRole('button', { name: 'Save Plan', exact: true }).click()
 }
 for (const [purpose, role] of [['plan', 'trainer'], ['planadmin', 'admin']]) {
-  test(`${role} UI plan persists ordered details across reload and fresh login without enabling media`, async ({ page, browser }, info) => {
+  test(`${role} UI plan persists ordered details across reload and fresh login with recording controls available`, async ({ page, browser }, info) => {
     const before = await open(page, info, purpose, role)
     await draft(page)
     await submit(page)
     await expect(page.getByText('Exercise plan saved.', { exact: true })).toBeVisible()
     await page.reload()
     await expect(page.getByLabel('Exercise plan', { exact: true }).getByText('Keep heels down', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Manage video for Stored custom squat', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Manage video for Stored custom squat', exact: true })).toBeEnabled()
     const fresh = await freshContext(browser, page), next = await fresh.newPage()
     await signIn(next, role, role === 'trainer' ? `${info.project.name}-${purpose}@example.test` : account(purpose, role))
     const detail = await read(next, `/api/sessions/${before.sessions[0].id}/details`)

@@ -19,13 +19,14 @@ export async function putLibraryMedia(fetchImpl, lease, file, expectedHash, asse
   assertCurrent()
   const result = await fetchImpl(signedUrl(lease.url), { method: 'PUT', body: file, headers, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer', cache: 'no-store' })
   assertCurrent()
-  if (!result.ok && result.status !== 412) throw new ApiError('UPLOAD_UNCERTAIN', 'Check the original exercise save before uploading again.')
+  if (!result.ok && result.status !== 412) throw new ApiError('UPLOAD_UNCERTAIN', 'Check the original save before uploading again.')
 }
 
 /** Bound streaming reads, verify exact bytes, then recheck current server scope before playback. */
-export async function getLibraryMedia(http, fetchImpl, identity, generation, assertCurrent) {
-  const lease = await http.get(`/api/exercise-library/media/${identity}`, { expectedGeneration: generation })
-  if (!lease || Object.keys(lease).length !== 5 || !Number.isSafeInteger(lease.size) || lease.size < 1 || lease.size > 50 * 1024 * 1024 || !/^[0-9a-f]{64}$/.test(lease.sha256) || !Number.isSafeInteger(lease.version) || lease.version < 1) fail()
+export async function getProtectedMedia(http, fetchImpl, path, generation, assertCurrent, maximum = 50 * 1024 * 1024, allowMissing = false) {
+  const lease = await http.get(path, { expectedGeneration: generation })
+  if (lease === null && allowMissing) return null
+  if (!lease || Object.keys(lease).length !== 5 || !Number.isSafeInteger(lease.size) || lease.size < 1 || lease.size > maximum || !/^[0-9a-f]{64}$/.test(lease.sha256) || !Number.isSafeInteger(lease.version) || lease.version < 1) fail()
   assertCurrent()
   const response = await fetchImpl(signedUrl(lease.url), { credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer', cache: 'no-store' })
   assertCurrent()
@@ -45,8 +46,12 @@ export async function getLibraryMedia(http, fetchImpl, identity, generation, ass
   finally { reader.releaseLock() }
   const blob = new Blob(chunks, { type: lease.type })
   if (size !== lease.size || await fileDigest(blob) !== lease.sha256) fail()
-  const checked = await http.get(`/api/exercise-library/media/${identity}/check?version=${lease.version}`, { expectedGeneration: generation })
+  const checked = await http.get(`${path}/check?version=${lease.version}`, { expectedGeneration: generation })
   assertCurrent()
   if (checked?.valid !== true || Object.keys(checked).length !== 1) fail()
   return blob
+}
+
+export function getLibraryMedia(http, fetchImpl, identity, generation, assertCurrent) {
+  return getProtectedMedia(http, fetchImpl, `/api/exercise-library/media/${identity}`, generation, assertCurrent)
 }

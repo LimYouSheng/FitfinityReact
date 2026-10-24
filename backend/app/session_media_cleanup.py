@@ -8,6 +8,7 @@ from app.api.exercise_library import evidence
 from app.api.request_cancellation import DECISION_LOCK
 from app.library_cleanup import clock
 from app.models.media import MediaAsset, MediaDeletion
+from app.models.session_media import SessionMediaIntent
 
 
 def claim(database, bucket):
@@ -15,6 +16,28 @@ def claim(database, bucket):
     with database.transaction() as session:
         session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DECISION_LOCK})
         now = clock(session)
+        abandoned = session.scalars(
+            select(SessionMediaIntent)
+            .where(SessionMediaIntent.state == "pending", SessionMediaIntent.upload_until <= now)
+            .order_by(SessionMediaIntent.id)
+            .limit(100)
+            .with_for_update()
+        ).all()
+        for intent in abandoned:
+            asset = session.get(MediaAsset, intent.upload_id) if intent.upload_id else None
+            if asset is not None and asset.bucket != bucket:
+                continue
+            intent.state = "expired"
+            if asset is not None and asset.status == "pending":
+                asset.status, asset.session_id = "delete_pending", None
+                work = session.scalar(
+                    select(MediaDeletion).where(MediaDeletion.media_id == asset.id)
+                )
+                if work is None:
+                    session.add(
+                        MediaDeletion(media_id=asset.id, reason="expired", next_attempt_at=now)
+                    )
+        session.flush()
         expired = session.scalars(
             select(MediaAsset)
             .where(
@@ -42,6 +65,12 @@ def claim(database, bucket):
                 MediaAsset.status.in_(["ready", "delete_pending"]),
                 MediaDeletion.status != "done",
                 MediaDeletion.next_attempt_at <= now,
+                ~select(SessionMediaIntent.id)
+                .where(
+                    SessionMediaIntent.upload_id == MediaAsset.id,
+                    SessionMediaIntent.upload_until > now,
+                )
+                .exists(),
                 (MediaDeletion.lease_until.is_(None)) | (MediaDeletion.lease_until <= now),
                 (MediaAsset.session_id.is_(None)) | (MediaAsset.expires_at <= now),
             )

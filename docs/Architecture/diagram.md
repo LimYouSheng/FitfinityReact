@@ -16,7 +16,7 @@ flowchart TB
     App["Lambda Web Adapter and FastAPI"]
     Identity["Cognito: staff identity"]
     DB[("Private PostgreSQL / RDS")]
-    Media[("S3: library integration candidate; session media and live acceptance pending")]
+    Media[("S3: library accepted, recordings candidate; live acceptance pending")]
   end
   subgraph Delivery["Source delivery"]
     Repo["GitHub: reviewed source and lockfiles"]
@@ -63,7 +63,7 @@ flowchart LR
     API["Real FastAPI application"]
     Tokens["Local signed-token provider"]
     PG[("Isolated PostgreSQL worker databases")]
-    Objects[("Media candidate: real Docker S3-compatible storage and private worker buckets")]
+    Objects[("Media tests: real Docker S3-compatible storage and private worker buckets")]
     Seed["Alembic migrations and synthetic records"]
   end
   Owner["Verifier: target checks and owned-resource cleanup"]
@@ -93,7 +93,7 @@ flowchart TB
     Simulator["Simulator browser: UI contracts, navigation and responsive behavior"]
     Database["Backend and PostgreSQL: transactions, authorization and migrations"]
     Browser["Real-API browser: UI to database persistence and recovery"]
-    ObjectTests["Media candidate: signed IO, exact bytes, CORS and interrupted cleanup on real local storage"]
+    ObjectTests["Media tests: signed IO, exact bytes, CORS and interrupted cleanup on real local storage"]
     Infra["Offline infrastructure: templates, guards and artifact contracts"]
     Forms["Assessment paper-form parity"]
     Build["Build and PWA verification"]

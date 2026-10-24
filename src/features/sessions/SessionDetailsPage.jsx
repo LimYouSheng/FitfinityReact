@@ -58,6 +58,11 @@ export default function SessionDetailsPage({
   onOpenClient,
   onOpenTrainer,
   onSavePlan,
+  videoWorkflows = false,
+  videoUncertain = false,
+  onBeginVideo,
+  onRecoverVideo,
+  onResumeVideo,
   onLoadVideo,
   onSaveVideo,
   onRemoveVideo,
@@ -96,7 +101,7 @@ export default function SessionDetailsPage({
 
   const editLabel = activeEditor === 'details'
     ? 'Session overview'
-    : ['exercise', 'previous'].includes(activeEditor)
+    : activeEditor === 'video' ? 'Session recording' : ['exercise', 'previous'].includes(activeEditor)
       ? 'Exercise plan'
       : activeEditor === 'outcome'
         ? 'Session outcome'
@@ -197,9 +202,14 @@ export default function SessionDetailsPage({
           items={session.exercisePlan ?? []}
           sessionId={session.id}
           canEdit={canEditPlan && (!activeEditor || activeEditor === 'exercise')}
-          mediaEditable={!readOnly && canEditPlan}
+          mediaEditable={(!readOnly || videoWorkflows) && !recordInactive && !['completed', 'cancelled'].includes(session.status) && (isOwner || assignedTrainer) && (!activeEditor || activeEditor === 'video')}
+          videoUncertain={videoUncertain}
+          onBeginVideo={onBeginVideo ? async exerciseId => { const media = await onBeginVideo(exerciseId); setActiveEditor('video'); return media } : undefined}
+          onEndVideo={() => setActiveEditor(null)}
+          onRecoverVideo={onRecoverVideo}
+          onResumeVideo={onResumeVideo}
           uncertain={planUncertain}
-          canViewVideo={!readOnly && (isOwner || assignedTrainer) && !activeEditor}
+          canViewVideo={(!readOnly || videoWorkflows) && (isOwner || assignedTrainer || (readOnly && session.readableByTrainerId === user.trainerId)) && (!activeEditor || activeEditor === 'video')}
           timeZone={policy.timeZone}
           editing={activeEditor === 'exercise'}
           onBeginEdit={async () => { const items = onBeginPlan ? await onBeginPlan() : undefined; setActiveEditor('exercise'); return items }}
