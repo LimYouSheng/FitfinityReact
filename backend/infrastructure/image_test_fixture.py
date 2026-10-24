@@ -298,6 +298,16 @@ def image_fixture(source, pinned_contract):
         "package_deletion_undos",
     ):
         contract["tables"][table] = ["SELECT", "INSERT"]
+    for relative in (
+        "migrations/versions/20261024_0044_session_recordings.py",
+        "app/api/session_media.py",
+        "app/api/session_media_routes.py",
+        "app/api/session_media_schemas.py",
+        "app/models/session_media.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["revisions"].append("20261024_0044")
+    contract["tables"]["session_media_intents"] = ["SELECT", "INSERT", "UPDATE"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

@@ -57,6 +57,11 @@ export default function ExercisePlanEditor({
   onBeginEdit,
   onEndEdit,
   onSave,
+  onBeginVideo,
+  onEndVideo,
+  videoUncertain = false,
+  onRecoverVideo,
+  onResumeVideo,
   onLoadVideo,
   onSaveVideo,
   onRemoveVideo,
@@ -228,7 +233,13 @@ export default function ExercisePlanEditor({
                     type="button"
                     className={`exercise-display-camera ${item.videoAttached ? 'attached' : ''}`}
                     aria-label={`${mediaEditable ? 'Manage' : 'View'} video for ${item.name}`}
-                    onClick={() => setVideoExercise(item)}
+                    disabled={saving}
+                    onClick={async () => {
+                      setSaving(true); setError('')
+                      try { const media = onBeginVideo ? await onBeginVideo(item.id) : undefined; setVideoExercise(media === undefined ? item : { ...item, video: media, videoAttached: Boolean(media) }) }
+                      catch (failure) { setError(failure.message) }
+                      finally { setSaving(false) }
+                    }}
                   >
                     <CameraIcon />
                   </button>
@@ -320,7 +331,10 @@ export default function ExercisePlanEditor({
         sessionId={sessionId}
         timeZone={timeZone}
         exercise={videoExercise}
-        onCancel={() => setVideoExercise(null)}
+        onCancel={() => { setVideoExercise(null); onEndVideo?.() }}
+        uncertain={videoUncertain}
+        onRecover={() => onRecoverVideo(videoExercise.id)}
+        onResume={() => onResumeVideo(videoExercise.id)}
         editable={mediaEditable}
         onLoad={() => onLoadVideo(videoExercise.id)}
         onSaved={(blob, metadata) => onSaveVideo(videoExercise.id, blob, metadata)}

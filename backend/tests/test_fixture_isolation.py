@@ -17,7 +17,7 @@ def test_domain_template_clones_have_real_schema_and_isolated_writes(migrated_te
         with connect(first) as connection:
             assert (
                 connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-                == "20261024_0043"
+                == "20261024_0044"
             )
             assert connection.execute("SELECT count(*) FROM staff_users").fetchone()[0] == 0
             connection.execute("CREATE TABLE scenario_isolation_probe (value integer)")
@@ -36,7 +36,7 @@ def test_domain_template_clones_have_real_schema_and_isolated_writes(migrated_te
                     connection.execute(
                         "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal"
                     ).fetchone()[0]
-                    == 203
+                    == 208
                 )
         with connect(first) as connection:
             assert (
@@ -51,5 +51,5 @@ def test_direct_migration_fixture_still_starts_without_schema(database_url, migr
     with connect(database_url) as connection:
         assert (
             connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-            == "20261024_0043"
+            == "20261024_0044"
         )

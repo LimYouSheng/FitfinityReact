@@ -17,7 +17,7 @@ const browserCanProcessVideo = () => Boolean(
   globalThis.MediaRecorder && globalThis.HTMLCanvasElement?.prototype?.captureStream,
 )
 
-export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercise, editable = true, onLoad, onCancel, onSaved, onRemoved }) {
+export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercise, editable = true, uncertain = false, onRecover, onResume, onLoad, onCancel, onSaved, onRemoved }) {
   const processing = useRef(null)
   const committing = useRef(false)
   const [mode, setMode] = useState('choose')
@@ -25,6 +25,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
   const [previewUrl, setPreviewUrl] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [resumable, setResumable] = useState(false)
   const [compressionProgress, setCompressionProgress] = useState(0)
   const loadVideo = useEffectEvent(() => onLoad())
 
@@ -67,7 +68,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
   const chooseVideoFile = async (event, source) => {
     const file = event.target.files?.[0]
     event.target.value = ''
-    if (!file || !editable) return
+    if (!file || !editable || uncertain) return
     setError('')
     processing.current?.abort()
     const operation = new AbortController()
@@ -191,19 +192,30 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
     }
   }
 
+  const recover = async resume => {
+    if (committing.current) return
+    committing.current = true; setSaving(true); setError('')
+    try {
+      const result = await (resume ? onResume() : onRecover())
+      if (result) onCancel()
+      else { setResumable(true); setError('The original save has not completed. Resume its original upload to finish.') }
+    } catch (failure) { setError(failure.message) }
+    finally { committing.current = false; setSaving(false) }
+  }
   const removing = mode === 'remove'
 
   return (
     <ConfirmDialog
       open
       title={`Video · ${exercise.name}`}
-      confirmLabel={removing ? (saving ? 'Removing…' : 'Remove Video') : (saving ? 'Saving…' : 'Save Video')}
-      confirmDisabled={saving || (!removing && !candidate)}
-      hideConfirm={!editable || (!candidate && !removing)}
+      confirmLabel={uncertain ? (saving ? 'Checking…' : 'Check Original Request') : removing ? (saving ? 'Removing…' : 'Remove Video') : (saving ? 'Saving…' : 'Save Video')}
+      confirmDisabled={saving || (!uncertain && !removing && !candidate)}
+      hideConfirm={!editable || (!uncertain && !candidate && !removing)}
       danger={removing}
       onCancel={() => { if (!committing.current) { processing.current?.abort(); onCancel() } }}
-      onConfirm={removing ? removeVideo : saveVideo}
+      onConfirm={uncertain ? () => recover(false) : removing ? removeVideo : saveVideo}
     >
+      {uncertain && resumable && <button type="button" className="secondary-button" disabled={saving} onClick={() => recover(true)}>Resume Original Upload</button>}
       {removing ? (
         <p>Remove the saved video from <strong>{exercise.name}</strong>? The planned exercise details remain unchanged.</p>
       ) : (
@@ -264,7 +276,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
           )}
           {editable && <p className="helper">Maximum 1 minute · Under 5 MB · Final video is silent</p>}
 
-          {editable && exercise.videoAttached && !candidate && (
+          {editable && !uncertain && exercise.videoAttached && !candidate && (
             <button type="button" className="text-action exercise-video-remove" onClick={() => setMode('remove')}>Remove saved video</button>
           )}
         </div>

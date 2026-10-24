@@ -12,6 +12,7 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
   const [acknowledgement, setAcknowledgement] = useState(null)
   const [summary, setSummary] = useState(null)
   const [outcome, setOutcome] = useState(null)
+  const [video, setVideo] = useState(null)
   const [plan, setPlan] = useState(null)
   const [booking, setBooking] = useState(null), [saved, setSaved] = useState(false)
   const [postponement, setPostponement] = useState(null), [postponementNotice, setPostponementNotice] = useState('')
@@ -158,7 +159,29 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
     setSaved(true)
     return result
   }
-  return <><SessionDetailsPage summaryExportEnabled={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && (managesOperations(user) || session.trainerId === user.trainerId) && !saved)} acknowledgementEditable={Boolean(snapshot.capabilities?.sessionAcknowledgementWrites && canCorrectOutcome && !saved)} acknowledgementUncertain={Boolean(acknowledgement?.uncertain)} onBeginAcknowledgement={beginAcknowledgement} onAcknowledge={saveAcknowledgement} summaryEditable={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && !saved)} summaryUncertain={Boolean(summary?.uncertain)} onBeginSummary={beginSummary} onSaveClientSummary={saveSummary} outcomeEditable={Boolean(snapshot.capabilities?.sessionOutcomeWrites && canCorrectOutcome && !saved)} outcomeUncertain={Boolean(outcome?.uncertain)} onBeginOutcome={beginOutcome} onSaveOutcome={saveOutcome} onPreviewPreviousPlan={previewPreviousPlan} onCopyPreviousPlan={copyPreviousPlan} readOnly planEditable={Boolean(snapshot.capabilities?.sessionPlanWrites && !saved)} planUncertain={Boolean(plan?.uncertain)} onBeginPlan={beginPlan} onSavePlan={savePlan} requestEditable={Boolean(snapshot.capabilities?.sessionChangeWrites && !saved)} onBeginRequest={beginRequest} onRequestTimeChange={patch => requestChange('time', patch)} onRequestTrainerChange={id => requestChange('trainer', id)} postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
+  const beginVideo = async exerciseId => {
+    const viewed = await services.reviewSessionMedia({ sessionId: id, exerciseId, expectedVersion: session.version })
+    setVideo(viewed)
+    return viewed.reviewed.media
+  }
+  const saveVideo = async (exerciseId, file, metadata) => {
+    try {
+      const result = await services.sessionService.saveVideo({ sessionId: id, exerciseId, file, metadata, reviewed: video.reviewed })
+      setSaved(true); return result
+    } catch (error) { setVideo(current => ({ ...current, uncertain: !(error.status >= 400 && error.status < 500) })); throw error }
+  }
+  const removeVideo = async exerciseId => {
+    try {
+      const result = await services.sessionService.removeVideo({ sessionId: id, exerciseId, reviewed: video.reviewed })
+      setSaved(true); return result
+    } catch (error) { setVideo(current => ({ ...current, uncertain: !(error.status >= 400 && error.status < 500) })); throw error }
+  }
+  const recoverVideo = async (exerciseId, resume = false) => {
+    const result = await services[resume ? 'resumeSessionMedia' : 'reconcileSessionMedia']({ sessionId: id, exerciseId })
+    if (result) setSaved(true)
+    return result
+  }
+  return <><SessionDetailsPage videoWorkflows={Boolean(snapshot.capabilities?.sessionMediaWorkflows && !saved)} videoUncertain={Boolean(video?.uncertain)} onBeginVideo={beginVideo} onLoadVideo={exerciseId => services.sessionService.loadVideo({ sessionId: id, exerciseId })} onSaveVideo={saveVideo} onRemoveVideo={removeVideo} onRecoverVideo={exerciseId => recoverVideo(exerciseId)} onResumeVideo={exerciseId => recoverVideo(exerciseId, true)} summaryExportEnabled={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && (managesOperations(user) || session.trainerId === user.trainerId) && !saved)} acknowledgementEditable={Boolean(snapshot.capabilities?.sessionAcknowledgementWrites && canCorrectOutcome && !saved)} acknowledgementUncertain={Boolean(acknowledgement?.uncertain)} onBeginAcknowledgement={beginAcknowledgement} onAcknowledge={saveAcknowledgement} summaryEditable={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && !saved)} summaryUncertain={Boolean(summary?.uncertain)} onBeginSummary={beginSummary} onSaveClientSummary={saveSummary} outcomeEditable={Boolean(snapshot.capabilities?.sessionOutcomeWrites && canCorrectOutcome && !saved)} outcomeUncertain={Boolean(outcome?.uncertain)} onBeginOutcome={beginOutcome} onSaveOutcome={saveOutcome} onPreviewPreviousPlan={previewPreviousPlan} onCopyPreviousPlan={copyPreviousPlan} readOnly planEditable={Boolean(snapshot.capabilities?.sessionPlanWrites && !saved)} planUncertain={Boolean(plan?.uncertain)} onBeginPlan={beginPlan} onSavePlan={savePlan} requestEditable={Boolean(snapshot.capabilities?.sessionChangeWrites && !saved)} onBeginRequest={beginRequest} onRequestTimeChange={patch => requestChange('time', patch)} onRequestTrainerChange={id => requestChange('trainer', id)} postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
     trainers={change?.reviewed.trainers ?? booking?.reviewed.trainers ?? data.sessionTrainers ?? data.trainers} messages={data.messages ?? []}
     onOpenClient={fullClient ? () => openClient(client.id) : canLimited && !clientBusy ? openLimited : undefined}
     onOpenTrainer={fullTrainer ? () => navigate(managesOperations(user) ? `trainers/${trainer.id}` : 'my-profile') : undefined} />

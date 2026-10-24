@@ -276,6 +276,10 @@ def seed(db, settings):
             "emailadmin",
             "emailstale",
             "emailloss",
+            "videowrite",
+            "videoloss",
+            "videostale",
+            "videoforeign",
             "plan",
             "planadmin",
             "planstale",
@@ -384,6 +388,10 @@ def seed(db, settings):
                 "emailadmin",
                 "emailstale",
                 "emailloss",
+                "videowrite",
+                "videoloss",
+                "videostale",
+                "videoforeign",
                 "plan",
                 "planadmin",
                 "planstale",
@@ -471,6 +479,7 @@ def seed(db, settings):
                         "resolve",
                         "change",
                         "plan",
+                        "video",
                         "outcome",
                         "summary",
                         "ack",
@@ -585,6 +594,18 @@ def seed(db, settings):
                 add_purchase(
                     session, purchase, slots, preferences, bookings, expected_client_version=1
                 )
+                if purpose.startswith("video"):
+                    session.add(
+                        ExercisePlanItem(
+                            session_id=bookings[0].id,
+                            position=1,
+                            name="Recorded squat",
+                            weight="12 kg",
+                            reps="8",
+                            rounds="3",
+                            rest="60s",
+                        )
+                    )
                 if purpose.startswith(("outcome", "summary", "report")):
                     plan = ExercisePlanItem(
                         session_id=bookings[0].id,

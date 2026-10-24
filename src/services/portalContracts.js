@@ -42,9 +42,9 @@ export const PORTAL_CONTRACTS = Object.freeze({
   sessionService: Object.freeze({
     previewPostponement: contract({ 'sessionId': 'string' }, 'session', 'PostponementPreview', true),
     postpone: contract({ 'sessionId': 'string', 'expected': 'string', 'requestKey': 'string', 'reviewed?': 'object' }, 'session', 'ScheduleResult<Session> | PostponementState', true),
-    loadVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string' }, 'session', 'Blob | null'),
-    saveVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string', 'file': 'blob', 'metadata': 'object' }, 'session', 'MediaReference'),
-    removeVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string' }, 'session', 'void'),
+    loadVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string' }, 'session', 'Blob | null', true),
+    saveVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string', 'file': 'blob', 'metadata': 'object', 'reviewed?': 'object' }, 'session', 'MediaReference | SessionMediaSaved', true),
+    removeVideo: contract({ 'sessionId': 'string', 'exerciseId': 'string', 'reviewed?': 'object' }, 'session', 'void | SessionMediaSaved', true),
     updateDetails: contract({ 'sessionId': 'string', 'patch': 'object', 'reviewed?': 'object' }, 'operationsSession', 'Session | SessionBookingState', true),
     requestTimeChange: contract({ 'sessionId': 'string', 'patch': 'object', 'reviewed?': 'object' }, 'session', 'ScheduleResult<Session> | SessionChangeState', true),
     requestTrainerChange: contract({ 'sessionId': 'string', 'replacementTrainerId': 'string', 'reviewed?': 'object' }, 'session', 'ScheduleResult<Session> | SessionChangeState', true),

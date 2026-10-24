@@ -18,6 +18,7 @@ from app.api.openapi import configure_openapi
 from app.api.package_action_routes import router as package_action_router
 from app.api.routes import router as staff_router
 from app.api.schemas import ERROR_RESPONSES, Live, Ready
+from app.api.session_media_routes import router as session_media_router
 from app.api.staff import router as access_router
 from app.auth.cognito import Cognito
 from app.auth.errors import AuthError
@@ -78,6 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(email_router)
         app.include_router(library_router)
         app.include_router(package_action_router)
+        app.include_router(session_media_router)
         app.add_middleware(AuthRequestMiddleware, settings=settings)
         app.add_middleware(
             CORSMiddleware,
