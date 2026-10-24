@@ -188,6 +188,13 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 24 October 2026 — remuneration Admin capability correction
+
+The first full remuneration backend run passed static/OpenAPI/infrastructure checks, then an older Admin test failed: it rejected the routing capability's name and still expected the newly implemented remuneration route to return404. The known-failing run was stopped after identifying the correction; it is not a complete passed receipt. Its original log is `remuneration-backend-full-1.log`, and the owned test container/database/network were removed.
+
+DirectorySnapshot now defaults the capability closed; the server enables it only for Owner/Trainer. The Admin test explicitly requires false, retains the full financial-data prohibition for every other response field, and requires403/forbidden on the actual remuneration route. All53 focused remuneration, directory, contract and Admin HTTP/PostgreSQL cases pass (`remuneration-backend-2.log`,39.96seconds). A fresh complete gate is required. Frontend inputs are unchanged from the1,347-unit receipt; the browser Admin denial remains the same.
+
+
 ### 24 October 2026 — remuneration unit and static gates
 
 All 1,347 unit tests across 140 files passed in129.95 seconds and the strict inventory verifier passed (`remuneration-units-full-1.log`). Lint and source health passed all498 frontend files; all47 verifier regressions passed. Python checks pass all264 files and the reviewed OpenAPI has120 paths/132 operations; every prior path is semantically unchanged, and DirectorySnapshot adds only the capability flag. No applied migration was changed. Full1,205-case backend/PostgreSQL and633-check infrastructure validation is running in `remuneration-backend-full-1.log`; final-head CI and full204-case API-browser acceptance remain pending.

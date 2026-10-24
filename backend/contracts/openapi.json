@@ -2665,8 +2665,7 @@
             "type": "boolean"
           },
           "remunerationWorkflows": {
-            "const": true,
-            "default": true,
+            "default": false,
             "title": "Remunerationworkflows",
             "type": "boolean"
           },
