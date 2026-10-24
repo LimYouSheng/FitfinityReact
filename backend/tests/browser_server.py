@@ -353,7 +353,7 @@ def seed(db, settings):
                 "report",
                 "reportadmin",
                 "reportloss",
-            "reportrefresh",
+                "reportrefresh",
                 "reportforeign",
                 "changetime",
                 "changetimesupervised",
