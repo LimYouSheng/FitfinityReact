@@ -10,6 +10,7 @@ Accepted main is PR70 merge `3c78282ca4219bab3e7c5e07d80743d50e88d363`, complete
 | --- | --- |
 | Documentation | Merged [PR69](https://github.com/LimYouSheng/FitfinityReact/pull/69) consolidates seven files, preserves full history and restores explicit comprehensive engineering safeguards in AGENTS. Local documentation checks and all three final-head CI gates passed. PR63's earlier refactor did not meet this requirement. |
 | Summary candidate | Draft [PR71](https://github.com/LimYouSheng/FitfinityReact/pull/71), active on `feat/session-summary-api`, based on accepted PR70. All 1,328 units across 137 files, 1,151 backend/PostgreSQL, 633 infrastructure and 165 real-API browser cases pass locally, including preserved existing measurements/comments, signatures, credits and handoff fields. Initial failures and repairs are retained in Contracts history. Exact final-head CI remains required; this operation is not yet counted. |
+| Acknowledgement candidate | Active `feat/session-acknowledgement-api`, stacked on PR71 head `0e00025`. Atomic signature/no-show, one credit, correction history, renewal notice and recovery are implemented; focused validation is in progress. Not counted as accepted. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; Cognito substitute only. No production PostgreSQL or Lambda redeployment needed. |
 | Deployment | Last verified Pages demo source was 8ec4329. Its complete main validation passed; the remaining AWS image-approval wait was cancelled after PR70 merged to release newer main validation. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
 
@@ -49,7 +50,7 @@ Follow the milestone roadmap above; M6 remains in progress. Priorities below sel
 1. Preserve the accepted seven-document format while continuing the API integration and current milestone ledger.
 2. Complete PR71’s exact final-head CI gates; preserve measured results, comments, signatures, credits and delivery evidence during summary saves.
 3. Merge only the tested eligible source; update the accepted operation matrix and historical receipt.
-4. Continue with acknowledgement/credits, then remaining report/media, package lifecycle/Undo, remuneration and profile gaps. Do not redo accepted operations.
+4. Finish acknowledgement/credit acceptance, then report action/history and legacy handoff, package deactivation/upcoming-session deletion and permitted Undo, remuneration list/detail/approval, Exercise Library and session media, and unresolved Trainer email correction. Together with summary, these are the remaining 18 named operations. Do not redo accepted operations.
 5. Prepare separate release/provider/restart/device acceptance; public website and its content management follow staff-portal completion.
 
 ### M10 work packages — planned

@@ -260,6 +260,10 @@ def seed(db, settings):
             "summaryadmin",
             "summarystale",
             "summaryloss",
+            "ack",
+            "ackadmin",
+            "ackstale",
+            "ackloss",
             "changetime",
             "changetimesupervised",
             "changetrainer",
@@ -337,6 +341,10 @@ def seed(db, settings):
                 "summaryadmin",
                 "summarystale",
                 "summaryloss",
+                "ack",
+                "ackadmin",
+                "ackstale",
+                "ackloss",
                 "changetime",
                 "changetimesupervised",
                 "changetrainer",
@@ -383,7 +391,7 @@ def seed(db, settings):
                     off_peak_rate_cents=5500,
                 )
                 if purpose.startswith(
-                    ("resolve", "change", "plan", "outcome", "summary")
+                    ("resolve", "change", "plan", "outcome", "summary", "ack")
                 ) or purpose in {
                     "availability",
                     "postponeauto",
@@ -470,7 +478,7 @@ def seed(db, settings):
                 purchase, slots, preferences, bookings = purchase_parts(
                     graph,
                     start - timedelta(days=14)
-                    if purpose.startswith(("outcome", "summary"))
+                    if purpose.startswith(("outcome", "summary", "ack"))
                     else start,
                     stage="current",
                 )

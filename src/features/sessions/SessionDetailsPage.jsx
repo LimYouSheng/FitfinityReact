@@ -25,6 +25,9 @@ const READ_CATALOG = Object.freeze([])
 
 export default function SessionDetailsPage({
   readOnly = false,
+  acknowledgementEditable = false,
+  acknowledgementUncertain = false,
+  onBeginAcknowledgement,
   planEditable = false,
   summaryEditable = false,
   summaryUncertain = false,
@@ -127,7 +130,7 @@ export default function SessionDetailsPage({
   const canEditPlan = (isOwner || assignedTrainer) && (sessionEditable || (readOnly && planEditable && !recordInactive && !['completed', 'cancelled'].includes(session.status)))
   const canEditNotes = !readOnly && !recordInactive && (isOwner || assignedTrainer)
   const signed = session.acknowledgement?.method === 'signature'
-  const canAcknowledge = !readOnly && !recordInactive && (isOwner || assignedTrainer) && !signed
+  const canAcknowledge = (!readOnly || acknowledgementEditable) && !recordInactive && (isOwner || assignedTrainer) && !signed
   const acknowledgementHistory = session.acknowledgementHistory?.length ? session.acknowledgementHistory : session.acknowledgement ? [session.acknowledgement] : []
   const replacementTrainers = trainers.filter(item => item.status !== 'inactive' && item.id !== session.trainerId)
   const dateError = sessionActionError(session, today)
@@ -139,11 +142,11 @@ export default function SessionDetailsPage({
 
 
   const confirmAcknowledgement = async () => {
-    if (recordInactive || !checkTrainingDate()) return
+    if (!acknowledgementUncertain && (recordInactive || !checkTrainingDate())) return
     const method = acknowledgementMethod
     if (method === 'signature' && !validSignature(signature)) return
-    setAcknowledgementMethod(null)
-    const confirmed = await confirmAction({
+    if (!acknowledgementUncertain) setAcknowledgementMethod(null)
+    const confirmed = acknowledgementUncertain || await confirmAction({
       title: 'Complete this session?',
       message: method === 'late_no_show'
         ? 'This records a late/no-show, completes the session and debits one package credit. It cannot be undone. You can later correct it to a client signature without another credit deduction.'
@@ -240,7 +243,16 @@ export default function SessionDetailsPage({
             className="session-action-button session-acknowledge-button"
             disabled={Boolean(activeEditor || requestKind || dateError || saving)}
             title={dateError ?? undefined}
-            onClick={() => { if (checkTrainingDate()) { setSignature([]); setSignerName(client.name); setNote(''); setAcknowledgementMethod('signature') } }}
+            onClick={async () => {
+              if (!checkTrainingDate()) return
+              setSaving(true); setDetailsError('')
+              try {
+                const draft = onBeginAcknowledgement ? await onBeginAcknowledgement() : undefined
+                setSignature(draft?.signature ?? []); setSignerName(draft?.signerName ?? client.name)
+                setNote(draft?.note ?? ''); setAcknowledgementMethod(draft?.method ?? 'signature')
+              } catch (error) { setDetailsError(error.message) }
+              finally { setSaving(false) }
+            }}
           >
             {session.acknowledgement ? 'Correct to Client Signature' : 'Client Signature'}
           </button>
@@ -260,26 +272,27 @@ export default function SessionDetailsPage({
       <ConfirmDialog
         open={Boolean(acknowledgementMethod)}
         title={acknowledgementMethod === 'signature' ? 'Client signature' : 'Trainer late / no-show'}
-        confirmLabel={saving ? 'Saving…' : 'Review Completion'}
+        confirmLabel={saving ? 'Saving…' : acknowledgementUncertain ? 'Check original acknowledgement' : 'Review Completion'}
         confirmDisabled={saving || (acknowledgementMethod === 'signature' && (!signerName.trim() || !validSignature(signature)))}
-        onCancel={() => setAcknowledgementMethod(null)}
+        cancelDisabled={saving || acknowledgementUncertain}
+        onCancel={() => { if (!saving && !acknowledgementUncertain) setAcknowledgementMethod(null) }}
         onConfirm={confirmAcknowledgement}
       >
         {acknowledgementMethod === 'signature' ? (
           <>
             <label className="acknowledgement-field">
               Client name
-              <input aria-label="Client name" value={signerName} onChange={event => setSignerName(event.target.value)} />
+              <input disabled={saving || acknowledgementUncertain} aria-label="Client name" value={signerName} onChange={event => setSignerName(event.target.value)} />
             </label>
-            <SignaturePad strokes={signature} onChange={setSignature} disabled={saving} />
-            {!session.acknowledgement && <button type="button" className="secondary-button acknowledgement-method-switch" onClick={() => setAcknowledgementMethod('late_no_show')}>
+            <SignaturePad strokes={signature} onChange={setSignature} disabled={saving || acknowledgementUncertain} />
+            {!session.acknowledgement && <button type="button" disabled={saving || acknowledgementUncertain} className="secondary-button acknowledgement-method-switch" onClick={() => setAcknowledgementMethod('late_no_show')}>
               Record late / no-show instead
             </button>}
           </>
         ) : (
           <>
             <p>No client signature is required. This records that the client was over 15 minutes late or did not attend.</p>
-            <button type="button" className="secondary-button acknowledgement-method-switch" onClick={() => setAcknowledgementMethod('signature')}>
+            <button type="button" disabled={saving || acknowledgementUncertain} className="secondary-button acknowledgement-method-switch" onClick={() => setAcknowledgementMethod('signature')}>
               Use client signature instead
             </button>
           </>
@@ -287,7 +300,7 @@ export default function SessionDetailsPage({
 
         <label className="acknowledgement-field">
           Note (optional)
-          <textarea aria-label="Acknowledgement note" rows="3" value={note} onChange={event => setNote(event.target.value)} />
+          <textarea disabled={saving || acknowledgementUncertain} aria-label="Acknowledgement note" rows="3" value={note} onChange={event => setNote(event.target.value)} />
         </label>
       </ConfirmDialog>
 
