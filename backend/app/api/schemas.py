@@ -395,6 +395,7 @@ class DirectorySnapshot(ServerClock):
     trainerApprovalWrites: Literal[True] = True
     trainerRateWrites: Literal[True] = True
     trainerEmailWrites: Literal[True] = True
+    trainerEmailCorrections: bool = False
     trainerPersonalWrites: Literal[True] = True
     trainerReactivationWrites: Literal[True] = True
     trainerProfilePolicy: TrainerProfilePolicy = Field(default_factory=TrainerProfilePolicy)
@@ -406,6 +407,7 @@ class DirectorySnapshot(ServerClock):
     sessionPlanWrites: Literal[True] = True
     sessionOutcomeWrites: Literal[True] = True
     remunerationWorkflows: bool = False
+    exerciseLibraryWorkflows: Literal[True] = True
     progressReportWrites: Literal[True] = True
     sessionAcknowledgementWrites: Literal[True] = True
     sessionSummaryWrites: Literal[True] = True

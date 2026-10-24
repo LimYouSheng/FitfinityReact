@@ -3,7 +3,7 @@ import { reconciledCommand } from './apiCommand.js'
 
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value)
 export function emailChangeState(value) {
-  if (!value || !uuid(value.id) || typeof value.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email) || !['requested', 'sending', 'pending', 'verifying', 'completed'].includes(value.state) || typeof value.signedOut !== 'boolean' || (value.signedOut && value.state !== 'completed') || Object.keys(value).some(key => !['id', 'email', 'state', 'signedOut'].includes(key))) throw new ApiError('API_RESPONSE', 'The email verification state could not be verified. Check its status before continuing.')
+  if (!value || !uuid(value.id) || typeof value.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email) || !['requested', 'sending', 'pending', 'verifying', 'completed', 'superseded'].includes(value.state) || typeof value.signedOut !== 'boolean' || (value.signedOut && value.state !== 'completed') || Object.keys(value).some(key => !['id', 'email', 'state', 'signedOut'].includes(key))) throw new ApiError('API_RESPONSE', 'The email verification state could not be verified. Check its status before continuing.')
   return value
 }
 
@@ -43,10 +43,11 @@ export function emailCommands(http, actionSession) {
   }
   return {
     request({ id, patch, expectedVersion }, generation) {
-      if (!patch || Object.keys(patch).length !== 1 || typeof patch.email !== 'string' || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw new ApiError('INVALID_REQUEST', 'Review the new email and reload the trainer before saving.')
+      if (!patch || !Object.keys(patch).every(key => ['email', 'supersedes'].includes(key)) || typeof patch.email !== 'string' || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw new ApiError('INVALID_REQUEST', 'Review the new email and reload the trainer before saving.')
       const email = patch.email.trim().toLowerCase()
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError('INVALID_REQUEST', 'Enter a valid email address.')
-      return request({ id: checkedId(id), email, expectedVersion }, generation)
+      const correction = patch.supersedes === undefined ? {} : { supersedes: checkedId(patch.supersedes) }
+      return request({ id: checkedId(id), email, expectedVersion, ...correction }, generation)
     },
     pendingEmailChange: (input, generation) => pending(input, generation),
     pendingTrainerEmailChange: (input, generation) => pending(input, generation, true),

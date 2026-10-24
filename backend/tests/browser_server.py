@@ -1,8 +1,9 @@
-"""Test-only real HTTP application. Isolated PostgreSQL; only Cognito is substituted.
+"""Test-only real HTTP application with isolated PostgreSQL and S3-compatible storage.
 
 Not copied into the runtime image. No test/reset routes or authorization overrides.
 """
 
+import asyncio
 import base64
 import json
 import os
@@ -22,6 +23,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from psycopg import sql
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
@@ -43,6 +45,7 @@ from app.models.training import (
 )
 from app.persistence import acknowledge, add_client, add_purchase
 from tests.domain_fixtures import person, purchase_parts
+from tests.media_fixtures import isolated_media
 from tests.test_package_reactivation_review import freeze
 
 PASSWORD = "browser-test-password-only"
@@ -58,6 +61,9 @@ class BrowserIdentityProvider:
         self.public = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(self.key.public_key()))
         self.public.update(kid="browser-test-key", alg="RS256", use="sig")
         self.refreshes = {}
+        self.emails = {username: f"{username}@example.test" for username in allowed_users}
+        self.email_pending = {}
+        self.email_sends = {}
 
     def begin(self, username, password):
         if password != PASSWORD or username not in self.allowed_users:
@@ -105,8 +111,26 @@ class BrowserIdentityProvider:
             "UserAttributes": [
                 {"Name": "sub", "Value": claims["sub"]},
                 {"Name": "email_verified", "Value": "true"},
+                {"Name": "email", "Value": self.emails[claims["username"]]},
             ],
         }
+
+    def request_email_change(self, access, email):
+        """Synthetic delivery only; each request invalidates the previous synthetic code."""
+        username = self.user(access)["Username"]
+        if not email.endswith("@example.test"):
+            raise AuthError("INVALID_EMAIL", "Synthetic addresses only.", 422)
+        count = self.email_sends.get(username, 0) + 1
+        self.email_sends[username] = count
+        self.email_pending[username] = (email, f"{100000 + count:06d}")
+
+    def verify_email_change(self, access, code):
+        username = self.user(access)["Username"]
+        pending = self.email_pending.get(username)
+        if pending is None or pending[1] != code:
+            raise AuthError("INVALID_CODE", "The code is invalid or expired.", 400)
+        self.emails[username] = pending[0]
+        del self.email_pending[username]
 
     def refresh(self, refresh):
         return self.tokens(*self.refreshes[refresh])
@@ -116,6 +140,9 @@ class BrowserIdentityProvider:
 
     def close(self):
         self.refreshes.clear()
+        self.email_pending.clear()
+        self.email_sends.clear()
+        self.emails.clear()
 
 
 class BrowserInvitations:
@@ -245,6 +272,10 @@ def seed(db, settings):
         # Distinct real accounts isolate authentication rate budgets between scenarios.
         # Production rate limits remain intact; each fresh-context check still signs in via UI.
         scopes = (
+            "email",
+            "emailadmin",
+            "emailstale",
+            "emailloss",
             "plan",
             "planadmin",
             "planstale",
@@ -273,6 +304,12 @@ def seed(db, settings):
             "paystale",
             "payloss",
             "payrefresh",
+            "library",
+            "libraryadmin",
+            "librarystale",
+            "libraryloss",
+            "libraryuploadloss",
+            "libraryforeign",
             "handoff",
             "handoffadmin",
             "handoffloss",
@@ -340,6 +377,10 @@ def seed(db, settings):
         # Dedicated project/workflow aggregates keep independent browser writers isolated.
         for project in ("desktop-chromium", "phone", "tablet"):
             for purpose in (
+                "email",
+                "emailadmin",
+                "emailstale",
+                "emailloss",
                 "plan",
                 "planadmin",
                 "planstale",
@@ -420,6 +461,7 @@ def seed(db, settings):
                 )
                 if purpose.startswith(
                     (
+                        "email",
                         "resolve",
                         "change",
                         "plan",
@@ -616,6 +658,17 @@ class WorkerApplications:
 
     def __init__(self, health, factory):
         self.health, self.factory, self.workers = health, factory, {}
+        self.pending = {}
+        self.creation_lock = asyncio.Lock()
+
+    async def create_worker(self, key):
+        """Serialize owned ExitStack setup without blocking existing HTTP applications."""
+        try:
+            async with self.creation_lock:
+                self.workers[key] = await run_in_threadpool(self.factory)
+                return self.workers[key]
+        finally:
+            self.pending.pop(key, None)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":
@@ -633,13 +686,15 @@ class WorkerApplications:
             return
         key = int(key)
         if key not in self.workers:
-            if len(self.workers) >= 64:
+            if key not in self.pending and len(self.workers) + len(self.pending) >= 64:
                 await JSONResponse({"error": "Test worker capacity exceeded"}, 503)(
                     scope, receive, send
                 )
                 return
-            # No await while allocating: concurrent first requests cannot create two databases.
-            self.workers[key] = self.factory()
+            # Reserve before yielding: concurrent first requests share one allocation.
+            if key not in self.pending:
+                self.pending[key] = asyncio.create_task(self.create_worker(key))
+            await asyncio.shield(self.pending[key])
         await self.workers[key](scope, receive, send)
 
 
@@ -659,6 +714,7 @@ def browser_app(control):
             database_url=control.set(database=name).render_as_string(hide_password=False),
             auth_enabled=True,
             staff_invitations_enabled=True,
+            staff_email_corrections_enabled=True,
             staff_portal_url="https://staff.example.test/",
             cognito_pool_id="ap-southeast-1_BrowserTest",
             cognito_client_id="browsertest123",
@@ -700,7 +756,10 @@ def browser_app(control):
         site = Path(os.environ.get("FITFINITY_BROWSER_SITE", "/browser-site"))
         app.mount("/", StaticFiles(directory=site, html=True), name="browser-site")
         try:
-            yield app
+            with isolated_media(os.environ["FITFINITY_BROWSER_MEDIA_ENDPOINT"]) as (store, bucket):
+                app.state.media = store
+                settings.media_bucket = bucket
+                yield app
         finally:
             provider.close()
             app.state.invitations.close()

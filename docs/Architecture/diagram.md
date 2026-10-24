@@ -16,7 +16,7 @@ flowchart TB
     App["Lambda Web Adapter and FastAPI"]
     Identity["Cognito: staff identity"]
     DB[("Private PostgreSQL / RDS")]
-    Media[("S3: protected media workflows incomplete")]
+    Media[("S3: library integration candidate; session media and live acceptance pending")]
   end
   subgraph Delivery["Source delivery"]
     Repo["GitHub: reviewed source and lockfiles"]
@@ -39,7 +39,8 @@ flowchart TB
   Gateway --> App
   App --> Identity
   App -->|"Transactions and receipts"| DB
-  App -.-> Media
+  Staff -.->|"Candidate: private signed upload/read"| Media
+  App -.->|"Candidate: verify bytes and durable cleanup"| Media
   Repo --> CI --> Merge --> Release
   Release -.->|"Separately authorized deployment"| AWS
   Supply -.->|"Reviewed update PRs"| Repo
@@ -62,6 +63,7 @@ flowchart LR
     API["Real FastAPI application"]
     Tokens["Local signed-token provider"]
     PG[("Isolated PostgreSQL worker databases")]
+    Objects[("Media candidate: real Docker S3-compatible storage and private worker buckets")]
     Seed["Alembic migrations and synthetic records"]
   end
   Owner["Verifier: target checks and owned-resource cleanup"]
@@ -70,6 +72,8 @@ flowchart LR
   Tests -->|"UI writes, reloads and original-command recovery"| API
   Tokens -->|"Substitutes Cognito only"| API
   API -->|"Real SQL and transactions"| PG
+  Tests -->|"Conditional upload and verified playback"| Objects
+  API -->|"Verify bytes; recover deletion work"| Objects
   Seed --> PG
   Owner --> Docker
   Load -.->|"Dedicated synthetic test cohorts"| API
@@ -89,6 +93,7 @@ flowchart TB
     Simulator["Simulator browser: UI contracts, navigation and responsive behavior"]
     Database["Backend and PostgreSQL: transactions, authorization and migrations"]
     Browser["Real-API browser: UI to database persistence and recovery"]
+    ObjectTests["Media candidate: signed IO, exact bytes, CORS and interrupted cleanup on real local storage"]
     Infra["Offline infrastructure: templates, guards and artifact contracts"]
     Forms["Assessment paper-form parity"]
     Build["Build and PWA verification"]

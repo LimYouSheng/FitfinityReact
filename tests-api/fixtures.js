@@ -1,6 +1,20 @@
 import { test as base, expect } from '@playwright/test'
 export { expect }
 export const test = base.extend({
+  workerApplication: [async ({ playwright }, use, info) => {
+    // Real database migration/seeding belongs to worker setup, before scenario timing.
+    // Existing workers remain responsive while this isolated application is created.
+    const baseURL = info.project.use.baseURL
+    if (baseURL !== 'http://127.0.0.1:4180') throw new Error('Only the isolated browser API is allowed')
+    const context = await playwright.request.newContext({ baseURL,
+      extraHTTPHeaders: { 'X-Fitfinity-Browser-Worker': String(info.workerIndex) } })
+    try {
+      const response = await context.get('/auth/policy')
+      expect(response.status()).toBe(200)
+      expect((await response.json()).mfa.required).toBe(true)
+    } finally { await context.dispose() }
+    await use(true)
+  }, { scope: 'worker', auto: true }],
   extraHTTPHeaders: async ({ extraHTTPHeaders }, use, info) => {
     await use({ ...extraHTTPHeaders, 'X-Fitfinity-Browser-Worker': String(info.workerIndex) })
   },
@@ -19,6 +33,8 @@ export async function signIn(page, role = 'owner', email = `${role}@example.test
   const login = page.waitForResponse(response => response.url().endsWith('/auth/sign-in'))
   await page.getByRole('button', { name: 'Sign In', exact: true }).click()
   expect((await login).status()).toBe(200)
+  // Finish the page's accessible stage-focus transition before entering the code.
+  await expect(page.getByRole('heading', { name: 'Authenticator verification', exact: true })).toBeFocused()
   await page.getByLabel('Authenticator code').fill('123456')
   const challenge = page.waitForResponse(response => response.url().endsWith('/auth/challenge'))
   await page.getByRole('button', { name: 'Continue', exact: true }).click()

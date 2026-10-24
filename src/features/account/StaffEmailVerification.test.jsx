@@ -46,3 +46,21 @@ it('loads an interrupted send as uncertain and never sends on mount', async () =
   expect(await screen.findByRole('button', { name: 'Send New Code' })).toBeDisabled()
   expect(auth.sendEmailCode).not.toHaveBeenCalled()
 })
+
+
+it('retires an old code and reloads a corrected request without repeating provider actions', async () => {
+  const current = { ...pending, id: 'corrected-id', email: 'corrected@example.test', state: 'requested' }
+  const auth = {
+    pendingEmailChange: vi.fn().mockResolvedValueOnce(pending).mockResolvedValue(current),
+    verifyEmailChange: vi.fn().mockRejectedValue(Object.assign(new Error('Request corrected'), { status: 409, code: 'EMAIL_CHANGE_SUPERSEDED' })),
+    sendEmailCode: vi.fn(),
+  }
+  render(<StaffEmailVerification auth={auth} onCompleted={vi.fn()} />)
+  fireEvent.change(await screen.findByLabelText('Email verification code'), { target: { value: '123456' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Verify New Email' }))
+  await screen.findByText('corrected@example.test')
+  expect(screen.queryByLabelText('Email verification code')).not.toBeInTheDocument()
+  expect(auth.verifyEmailChange).toHaveBeenCalledExactlyOnceWith({ id: pending.id, code: '123456' })
+  expect(auth.sendEmailCode).not.toHaveBeenCalled()
+  expect(auth.pendingEmailChange).toHaveBeenCalledTimes(2)
+})

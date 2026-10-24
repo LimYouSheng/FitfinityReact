@@ -36,8 +36,11 @@ class Settings(BaseSettings):
     auth_encryption_keys: list[SecretStr] = Field(default_factory=list, repr=False)
     auth_origins: list[str] = []
     auth_cookie_secure: bool = True
+    staff_email_corrections_enabled: bool = False
     staff_invitations_enabled: bool = False
     staff_portal_url: str = ""
+    media_enabled: bool = False
+    media_bucket: str = ""
     auth_session_hours: int = Field(default=8, ge=1, le=168)
 
     @property
@@ -54,6 +57,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_deployment(self):
+        if self.media_enabled and not re.fullmatch(
+            r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", self.media_bucket
+        ):
+            raise ValueError("Protected media requires an explicitly configured private bucket")
         try:
             url = make_url(self.database_url.get_secret_value())
         except Exception:

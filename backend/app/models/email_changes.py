@@ -27,15 +27,23 @@ class StaffEmailChange(ActorEvidence, Record, Base):
             "uq_staff_email_changes_pending_user",
             "user_id",
             unique=True,
-            postgresql_where=text("state <> 'completed'"),
+            postgresql_where=text("state NOT IN ('completed', 'superseded')"),
         ),
         Index(
             "uq_staff_email_changes_pending_email",
             "new_email",
             unique=True,
-            postgresql_where=text("state <> 'completed'"),
+            postgresql_where=text("state NOT IN ('completed', 'superseded')"),
         ),
-        choices("state", "requested", "sending", "pending", "verifying", "completed"),
+        choices("state", "requested", "sending", "pending", "verifying", "completed", "superseded"),
+        UniqueConstraint("supersedes_id"),
+        CheckConstraint(
+            "(state = 'superseded') = (superseded_at IS NOT NULL)", name="supersession_pair"
+        ),
+        CheckConstraint(
+            "reservation_released_at IS NULL OR state IN ('completed', 'superseded')",
+            name="reservation_release",
+        ),
         CheckConstraint("attempts BETWEEN 0 AND 6", name="attempt_limit"),
         CheckConstraint("sends BETWEEN 0 AND 6", name="send_limit"),
         CheckConstraint("(lease_id IS NULL) = (lease_until IS NULL)", name="lease_pair"),
@@ -61,3 +69,7 @@ class StaffEmailChange(ActorEvidence, Record, Base):
     lease_id: Mapped[UUID | None]
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    supersedes_id: Mapped[UUID | None] = mapped_column(ForeignKey("staff_email_changes.id"))
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reservation_released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

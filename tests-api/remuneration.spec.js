@@ -43,9 +43,11 @@ test('Owner approval survives fresh Trainer login with original amounts and Admi
 
 test('changed rates reject stale UI approval and Trainer cannot read foreign pay or Owner receipts', async ({ page, browser }, info) => {
   const { trainer, cycle, review } = await open(page, info, 'paystale')
+  // Freeze the reviewed amount in the open confirmation before a competing write.
+  await page.getByRole('button', { name: 'Approve Remuneration', exact: true }).click()
   const changed = await post(page, `/api/trainers/${trainer.id}/rates`, { expectedVersion: trainer.version, rates: { peak: 12345, offPeak: 6789 } })
   expect(changed.status()).toBe(200)
-  await confirm(page, 'Approve Remuneration')
+  await page.getByRole('dialog').getByRole('button', { name: 'Approve Remuneration', exact: true }).click()
   await expect(page.getByRole('alert').first()).toContainText('Record changed')
   expect((await read(page, `/api/remuneration/${cycle}/${trainer.id}`)).status).toBe('Pending approval')
   await page.reload()

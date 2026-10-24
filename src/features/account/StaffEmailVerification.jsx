@@ -26,6 +26,9 @@ export default function StaffEmailVerification({ auth, onCompleted }) {
       if (value.state === 'completed') await onCompleted()
     } catch (reason) {
       setError(reason.message)
+      if (reason.code === 'EMAIL_CHANGE_SUPERSEDED') {
+        setCode(''); setUncertain(false); setAttempt(value => value + 1)
+      }
       if (!reason.status || reason.status >= 500 || reason.code === 'AUTH_BUSY') setUncertain(true)
       if (['SESSION_CHANGED', 'SESSION_EXPIRED'].includes(reason.code)) await onCompleted()
     } finally { setBusy(false) }

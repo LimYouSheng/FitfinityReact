@@ -1,3 +1,4 @@
+import ExerciseLibraryRecovery from './features/exercises/ExerciseLibraryRecovery.jsx'
 import ApiRemunerationRoute from './features/remuneration/ApiRemunerationRoute.jsx'
 import RemunerationRecovery from './features/remuneration/RemunerationRecovery.jsx'
 import ProgressReportRecovery from './features/clients/ProgressReportRecovery.jsx'
@@ -109,7 +110,7 @@ function StaffPortal({ navigation }) {
   const clientCreationEnabled = !directoryOnly || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
   const trainerCreationEnabled = !directoryOnly || snapshot.capabilities?.trainerCreation === true
   const packageReadOnly = directoryOnly && snapshot.capabilities?.packageWrites !== true
-  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.remunerationWorkflows ? ['remuneration'] : []), ...(snapshot.capabilities?.sessionReads ? ['sessions'] : []), ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
+  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.exerciseLibraryWorkflows ? ['exercises'] : []), ...(snapshot.capabilities?.remunerationWorkflows ? ['remuneration'] : []), ...(snapshot.capabilities?.sessionReads ? ['sessions'] : []), ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
   const { clientService, trainerService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
@@ -404,8 +405,10 @@ function StaffPortal({ navigation }) {
         await reload()
       }}
     />
+  } else if (route === 'exercises' && directoryOnly && snapshot.exerciseLibraryPending) {
+    page = <ExerciseLibraryRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.exerciseLibraryPending} services={services} onRecovered={saved => navigate(`exercises/${saved.id}`, { replace: true })} />
   } else if (route === 'exercises') {
-    page = <ExerciseLibraryPage categories={policy.exerciseCategories} key={user.id} user={user} exercises={libraryExercises} detailId={detailId}
+    page = <ExerciseLibraryPage apiRecovery={directoryOnly} categories={policy.exerciseCategories} key={user.id} user={user} exercises={libraryExercises} detailId={detailId}
       onNavigate={navigate} onBack={() => goBack('exercises')} onLoadMedia={id => exerciseLibraryService.loadMedia({ id })}
       onSave={async options => {
         const saved = await runAction(() => exerciseLibraryService.save(options), saved => exerciseNotification(libraryExercises.find(item => item.id === options.id), saved))

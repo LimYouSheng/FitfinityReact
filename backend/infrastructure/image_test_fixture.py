@@ -17,7 +17,7 @@ def image_fixture(source, pinned_contract):
     """
     contract = copy.deepcopy(pinned_contract)
     # Explicit candidate-only schema extension. Never update the deployed contract;
-    # its six-revision/table binding must reject this sixteen-revision image.
+    # its six-revision/table binding must reject the current candidate image.
     assert contract["revisions"][-1] == "20260924_0006"
     revision = "20261013_0007"
     migration = "migrations/versions/20261013_0007_package_saves.py"
@@ -263,6 +263,20 @@ def image_fixture(source, pinned_contract):
         contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
     contract["revisions"].append("20261024_0040")
     contract["tables"]["session_handoff_receipts"] = ["SELECT", "INSERT"]
+    for relative in (
+        "migrations/versions/20261024_0041_library_intents.py",
+        "app/api/exercise_library.py",
+        "app/api/library_schemas.py",
+        "app/api/library_routes.py",
+        "app/media_storage.py",
+        "app/library_cleanup.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["revisions"].append("20261024_0041")
+    contract["tables"]["library_save_intents"] = ["SELECT", "INSERT", "UPDATE"]
+    migration = "migrations/versions/20261024_0042_email_corrections.py"
+    contract["files"][migration] = hashlib.sha256((source / migration).read_bytes()).hexdigest()
+    contract["revisions"].append("20261024_0042")
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

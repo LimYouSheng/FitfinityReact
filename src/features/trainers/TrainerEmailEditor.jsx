@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 
-export default function TrainerEmailEditor({ trainer, auth, onRequest, editing, disabled, onEdit, onClose }) {
+export default function TrainerEmailEditor({ trainer, auth, onRequest, canCorrect = false, editing, disabled, onEdit, onClose }) {
   const confirm = useActionConfirmation()
   const [pending, setPending] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -9,7 +9,9 @@ export default function TrainerEmailEditor({ trainer, auth, onRequest, editing, 
   const [attempt, setAttempt] = useState(0)
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
+  const [uncertain, setUncertain] = useState(false)
   const version = useRef(null)
+  const correction = useRef(null)
   useEffect(() => {
     let current = true
     setLoading(true)
@@ -22,22 +24,29 @@ export default function TrainerEmailEditor({ trainer, auth, onRequest, editing, 
   const submit = async event => {
     event.preventDefault()
     if (busy) return
-    if (!await confirm({ title: 'Request an email change?', message: 'The trainer must sign in to Your account and verify a code sent to the new address. The current login and recovery email stays active until verification.', confirmLabel: 'Request Verification' })) return
+    if (!uncertain && !await confirm({ title: correction.current ? 'Correct the pending email?' : 'Request an email change?', message: 'The trainer must sign in to Your account and request a new code for the reviewed address. The current login and recovery email stays active until verification.', confirmLabel: 'Request Verification' })) return
     setBusy(true); setError('')
     try {
-      const value = await onRequest({ email }, version.current)
-      setPending(value)
+      const value = await onRequest({ email, ...(correction.current ? { supersedes: correction.current } : {}) }, version.current)
+      setPending(value); setUncertain(false)
       onClose()
-    } catch (reason) { setError(reason.message) }
+    } catch (reason) { setError(reason.message); setUncertain(!reason.status || reason.status >= 500) }
     finally { setBusy(false) }
   }
   if (loading) return <p role="status">Checking email verification…</p>
   if (error && !editing) return <div role="alert">{error}<button type="button" className="text-action" onClick={() => setAttempt(value => value + 1)}>Retry Email Status</button></div>
-  if (pending && pending.state !== 'completed') return <p role="status">Awaiting the trainer’s verification of {pending.email}. The current email is still active.</p>
+  const activePending = pending && !['completed', 'superseded'].includes(pending.state)
+  const begin = () => { version.current = trainer.version; correction.current = activePending ? pending.id : null; setEmail(activePending ? pending.email : ''); onEdit() }
+  if (activePending && !editing) return <div>
+    <p role="status">Awaiting the trainer’s verification of {pending.email}. The current email is still active.</p>
+    {canCorrect && ['requested', 'pending'].includes(pending.state)
+      ? <button type="button" className="text-action" disabled={disabled || trainer.status === 'inactive'} onClick={begin}>Correct Pending Email</button>
+      : canCorrect && <p className="helper">The trainer must check the pending verification in Your account before this address can be corrected.</p>}
+  </div>
   return editing ? <form onSubmit={submit}>
-    <label>New login email<input aria-label="New trainer login email" type="email" required maxLength={320} value={email} disabled={busy} onChange={event => setEmail(event.target.value)} /></label>
+    <label>New login email<input aria-label="New trainer login email" type="email" required maxLength={320} value={email} disabled={busy || uncertain} onChange={event => setEmail(event.target.value)} /></label>
     <p className="helper">The trainer confirms the new address from Your account before login or recovery changes.</p>
     {error && <p role="alert">{error}</p>}
-    <div className="inline-actions"><button className="primary-button" disabled={busy} type="submit">Request Verification</button><button type="button" className="secondary-button" disabled={busy} onClick={onClose}>Cancel</button></div>
-  </form> : <button type="button" className="text-action" disabled={disabled || trainer.status === 'inactive'} onClick={() => { version.current = trainer.version; setEmail(''); onEdit() }}>Change Login Email</button>
+    <div className="inline-actions"><button className="primary-button" disabled={busy} type="submit">{uncertain ? 'Check Original Request' : 'Request Verification'}</button><button type="button" className="secondary-button" disabled={busy || uncertain} onClick={onClose}>Cancel</button></div>
+  </form> : <button type="button" className="text-action" disabled={disabled || trainer.status === 'inactive'} onClick={begin}>Change Login Email</button>
 }

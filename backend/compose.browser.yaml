@@ -12,6 +12,8 @@ services:
       FITFINITY_ENVIRONMENT: test
       FITFINITY_TEST_DATABASE_URL: postgresql+psycopg://fitfinity_test:fitfinity-test-only@test-db:5432/fitfinity_test
       AWS_EC2_METADATA_DISABLED: 'true'
+      FITFINITY_TEST_MEDIA_ENDPOINT: http://test-media:9000
+      FITFINITY_BROWSER_MEDIA_ENDPOINT: ${FITFINITY_BROWSER_MEDIA_ENDPOINT:-http://127.0.0.1:4181}
     volumes:
       - .:/app:ro
       - ../dist-api-test:/browser-site:ro
@@ -23,8 +25,13 @@ services:
     depends_on:
       test-db:
         condition: service_healthy
+      test-media:
+        condition: service_healthy
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4180/health/ready', timeout=6)"]
       interval: 2s
       timeout: 8s
       retries: 15
+
+  test-media:
+    ports: ['127.0.0.1:4181:9000']
