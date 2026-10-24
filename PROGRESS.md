@@ -9,10 +9,10 @@ Accepted main is documentation merge `8ec4329` (PR69). Its exact head `2461162e1
 | Acceptance | Evidence and limit |
 | --- | --- |
 | Documentation | Merged [PR69](https://github.com/LimYouSheng/FitfinityReact/pull/69) consolidates seven files, preserves full history and restores explicit comprehensive engineering safeguards in AGENTS. Local documentation checks and all three final-head CI gates passed. PR63's earlier refactor did not meet this requirement. |
-| Previous Plan | Draft [PR68](https://github.com/LimYouSheng/FitfinityReact/pull/68), final head `191d960f8b6b1b89aaf82ca45898ccb70a363683`; [run39924725607](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39924725607) has API-browser success, a cancelled backend job and frontend success; it is not merge-eligible. Two candidate operations are not counted. Runtime e39aa04 passed 1,309 units, 1,109 backend, 633 infrastructure and 141 real-API browser cases locally. |
-| Outcome candidate | Active on `feat/session-outcome-api`: reviewed measured results/comments, immutable correction history and original-key recovery, plus persisted purchase-scoped progress. Focused 75 backend/schema/contract checks, 26 frontend regressions and all 12 new real-API browser cases pass after route/recovery and terminal-cover permission repairs. Full unit/backend/API-browser gates are underway; no operation increment or final acceptance claimed. |
+| Previous Plan | Draft [PR68](https://github.com/LimYouSheng/FitfinityReact/pull/68), head `31fdcd8`; [run40071249659](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40071249659) passed API-browser. All 1,109 backend cases passed, but redundant log replay exceeded the 15-minute job limit, so that gate is cancelled, not accepted. PR70 includes this ancestry and the logging repair; close PR68 as superseded only after aggregate source acceptance. Two candidate operations remain uncounted. |
+| Outcome candidate | Draft [PR70](https://github.com/LimYouSheng/FitfinityReact/pull/70) includes previous-plan ancestry and outcome/progress integration. Runtime `25f239c` passed all 1,320 units, 1,132 backend/PostgreSQL and 633 infrastructure checks locally; all 153 real-API browser cases passed locally, including 12 outcome cases. Logging repair `571bb7b` passed 21 checker regressions. Final-head CI remains required; no operation increment yet. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; Cognito substitute only. No production PostgreSQL or Lambda redeployment needed. |
-| Deployment | Last observed Pages demo source was 41d3718; current main workflow needs fresh reconciliation. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
+| Deployment | Last verified Pages demo source was c68a7ac; main run40071210314 is still validating 8ec4329. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
 
 ## Full milestone roadmap
 
@@ -48,8 +48,8 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 Follow the milestone roadmap above; M6 remains in progress. Priorities below select the next work without replacing the original milestones.
 
 1. Preserve the accepted seven-document format while continuing the API integration and current milestone ledger.
-2. Reconcile PR68's exact final-head CI and GitHub requirements; merge only when eligible, then update the matrix and history.
-3. Complete the outcome candidate’s full unit/backend/API-browser and final-head CI gates, preserving existing signature/credit evidence and terminal-cover read-only scope.
+2. Complete PR70’s final-head CI gates, including the backend log-replay repair; preserve signature/credit evidence and terminal-cover read-only scope.
+3. Merge the tested aggregate only when GitHub requirements pass, close PR68 as superseded, then update accepted coverage from the canonical matrix.
 4. Follow the matrix through remaining plans/outcomes/summaries/acknowledgement/credits, assessment/report/media, messaging/Undo/remuneration/content/profile gaps. Do not redo accepted operations.
 5. Prepare separate release/provider/restart/device acceptance; public website and its content management follow staff-portal completion.
 
