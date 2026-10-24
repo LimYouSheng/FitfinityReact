@@ -209,6 +209,13 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 24 October 2026 UTC — Undo complete-gate compatibility repair
+
+Draft [PR80](https://github.com/LimYouSheng/FitfinityReact/pull/80) first head `26118f620c04ec598a61f2aa42882ed91a5da654` passes633 infrastructure checks and1,329/1,339 backend cases locally in799.56s (`undo-backend-full-1.log`). [Run40115129665](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40115129665) backend reports the same ten failures and1,329 passes in604.93s; its connector-fetched job log is retained as `undo-pr80-backend-connector.log`. The earlier direct CLI download was blocked and is not a log receipt.
+
+Nine failures require the established owning-operation downgrade diagnostic, now obscured by the earlier Undo-history guard. The unpublished0045 migration retains its refusal before any history loss and now identifies each retained operation using those existing diagnostics; their assertions are unchanged. The directory contract test explicitly adds and checks the real `sessionUndoWrites` capability. All ten original failing cases pass in11.73s (`undo-backend-compatibility.log`). Complete frontend validation passes1,384/1,384 units across145 files in139.11s (`undo-units-full-1.log`). A corrected full backend run and new-head CI remain required; no failed-head rerun, coverage skip, timeout or runner change is used. Accepted source remains54/55.
+
+
 ### 24 October 2026 — Full permitted Undo candidate and retained test repairs
 
 The candidate on `feat/permitted-session-undo-api`, based on accepted main2b873cc, adds typed immutable snapshots, dependency hashes, actor-private recovery and atomic compensating history. Scope covers booking/time/Trainer changes, postponement, plans/copy, outcomes/summaries, recording and handoff, weekly scheduling, assignment/lifecycle and supervised proposals/applied decisions. Package-only restoration remains its existing owner. No acknowledgement, package creation/status, provider or production Undo is introduced.

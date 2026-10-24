@@ -1,6 +1,6 @@
 # Fitfinity current progress
 
-## Current checkpoint — 24 October 2026 Singapore
+## Current checkpoint — 25 October 2026 Singapore
 
 Accepted main is [PR79](https://github.com/LimYouSheng/FitfinityReact/pull/79) merge `2b873cc669f711f365f55ff3e6019a2729b91a15`. Exact head `cfce8f46cf8b1106e6b6db36950106c17b28d117` passed all three required gates in [run40110647325](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40110647325): 1,381 units/144 files, 1,152 simulator browser cases, 1,298 backend/PostgreSQL, 633 infrastructure and 261 real-API browser cases. Separate new-main validation remains distinct; original failures remain in Contracts history.
 
@@ -17,7 +17,7 @@ Accepted main is [PR79](https://github.com/LimYouSheng/FitfinityReact/pull/79) m
 | Library/Trainer update | PR77, including PR76, merged after all three exact-head gates passed. Three library operations and complete Trainer update are source-accepted. |
 | Package lifecycle | PR78 merged after all three exact-head gates passed. Deactivation and separate session deletion are accepted, including package-specific 24-hour Undo. |
 | Session recording | PR79 merged after all three exact-head gates passed; load/save/remove are source-accepted. Processing, real devices and deployment remain separate. |
-| Permitted Undo draft | Active branch `feat/permitted-session-undo-api` over accepted main2b873cc. Typed compensation and original-command recovery cover the permitted kinds. The expanded21-case real-API browser suite passes; focused PostgreSQL and migration checks plus the later-plan dependency regression pass after recorded repairs. The complete1,339-backend/633-infrastructure gate is running; complete units and exact-head CI remain pending. |
+| Permitted Undo draft | Active branch `feat/permitted-session-undo-api` over accepted main2b873cc. Typed compensation and original-command recovery cover the permitted kinds. The expanded21-case real-API browser suite passes; focused PostgreSQL and migration checks plus the later-plan dependency regression pass after recorded repairs. Complete1,384-unit/145-file validation passes. The first complete backend run passed1,329/1,339 plus633 infrastructure; nine preserved downgrade diagnostics and the new capability expectation are repaired, with all ten focused cases passing. [PR80](https://github.com/LimYouSheng/FitfinityReact/pull/80) remains draft pending the corrected complete backend gate and all three final-head CI checks. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; local signed-token Cognito substitute and actual isolated S3-compatible media storage. No production PostgreSQL or Lambda redeployment needed. |
 | Deployment | Last verified Pages demo source is PR72 merge `935db1e`: all main verification, build and Pages deployment passed in run40082807735. Its obsolete AWS image-publication approval wait was cancelled after PR73 merged, releasing newer main validation. No image publication was approved. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
 

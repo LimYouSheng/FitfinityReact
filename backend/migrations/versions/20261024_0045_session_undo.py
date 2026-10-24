@@ -441,10 +441,25 @@ CREATE TRIGGER ff_version BEFORE INSERT OR UPDATE ON exercise_plan_details
 
 DOWNGRADE_SQL = r"""
 
-DO $$ BEGIN IF EXISTS(SELECT 1 FROM session_mutations) THEN
- RAISE EXCEPTION 'Undo downgrade refused: retained compensation history exists' USING
-    ERRCODE='23514';
-END IF; END $$;
+-- Preserve owning-operation diagnostics while refusing before any retained history is dropped.
+DO $$ DECLARE reasons text; BEGIN
+ SELECT string_agg(DISTINCT CASE operation
+   WHEN 'client.deactivate' THEN 'Client deactivation downgrade refused'
+   WHEN 'client.reactivate' THEN 'Client reactivation downgrade refused'
+   WHEN 'client.weekly' THEN 'Client weekly schedule downgrade refused'
+   WHEN 'trainer.deactivate' THEN 'Trainer deactivation downgrade refused'
+   WHEN 'trainer.reactivate' THEN 'Trainer reactivation downgrade refused'
+   WHEN 'session.details' THEN 'Session booking downgrade refused'
+   WHEN 'session.change' THEN 'Session change downgrade refused'
+   WHEN 'session.postpone' THEN 'Session postponement downgrade refused'
+   WHEN 'request.resolve' THEN 'Request resolution downgrade refused'
+   ELSE operation || ' downgrade refused' END, '; ')
+ INTO reasons FROM session_mutations;
+ IF reasons IS NOT NULL THEN
+  RAISE EXCEPTION 'Undo downgrade refused: %; retained compensation history exists', reasons
+   USING ERRCODE='23514';
+ END IF;
+END $$;
 DROP TRIGGER ff_version ON exercise_plan_details;
 CREATE TRIGGER ff_version BEFORE INSERT OR UPDATE ON exercise_plan_details FOR EACH ROW EXECUTE
     FUNCTION ff_version();
