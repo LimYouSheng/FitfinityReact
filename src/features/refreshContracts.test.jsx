@@ -83,7 +83,9 @@ it('preserves an active trainer draft across refresh and updates ordinary read-o
 it('preserves session comments while editing and uses refreshed outcome data after Cancel', () => {
   function Notes({ outcome }) {
     const [activeEditor, setActiveEditor] = useState(null)
-    return <SessionNotes session={seed.sessions[0]} outcome={outcome} displayedSummary="Summary" canEditNotes activeEditor={activeEditor} setActiveEditor={setActiveEditor} />
+    const [saving, setSaving] = useState(false)
+    const [, setDetailsError] = useState('')
+    return <SessionNotes saving={saving} setSaving={setSaving} setDetailsError={setDetailsError} session={seed.sessions[0]} outcome={outcome} displayedSummary="Summary" canEditNotes activeEditor={activeEditor} setActiveEditor={setActiveEditor} />
   }
   const { rerender } = render(<Notes outcome={{ trainerComments: 'Original', durationMinutes: 60 }} />, { wrapper: Wrapper })
   const panel = () => within(screen.getByRole('heading', { name: 'Session Outcome' }).closest('.panel'))

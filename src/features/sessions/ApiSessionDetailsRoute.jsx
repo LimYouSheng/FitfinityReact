@@ -9,6 +9,7 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
   const { snapshot, services, today, refresh } = usePortalData()
   const { user, policy, sessionGeneration, serverAt, data } = snapshot
   const { activeEdit } = useEditGuard()
+  const [outcome, setOutcome] = useState(null)
   const [plan, setPlan] = useState(null)
   const [booking, setBooking] = useState(null), [saved, setSaved] = useState(false)
   const [postponement, setPostponement] = useState(null), [postponementNotice, setPostponementNotice] = useState('')
@@ -42,6 +43,23 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
     try { setLimited(await services.readSessionClient({ id, clientId: client.id })) }
     catch (error) { setClientError(error.message) }
     finally { setClientBusy(false) }
+  }
+  const canCorrectOutcome = managesOperations(user) || !['completed', 'cancelled'].includes(session.status) || data.clients.some(c => c.id === client.id && c.trainerId === user.trainerId)
+  const beginOutcome = async () => {
+    const viewed = await services.reviewSessionOutcome({ id, expectedVersion: session.version })
+    setOutcome(viewed)
+    return viewed.draft
+  }
+  const saveOutcome = async draft => {
+    try {
+      const result = await services.sessionService.saveOutcome({ sessionId: id, reviewed: outcome.reviewed, outcome: draft })
+      onChangeSaved?.(outcome?.uncertain ? 'Original session outcome confirmed.' : 'Session outcome saved.')
+      setSaved(true)
+      return result
+    } catch (error) {
+      setOutcome(current => ({ ...current, uncertain: !(error.status >= 400 && error.status < 500) }))
+      throw error
+    }
   }
   const beginPlan = async () => {
     const viewed = await services.reviewSessionPlan({ id, expectedVersion: session.version })
@@ -106,7 +124,7 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
     setSaved(true)
     return result
   }
-  return <><SessionDetailsPage onPreviewPreviousPlan={previewPreviousPlan} onCopyPreviousPlan={copyPreviousPlan} readOnly planEditable={Boolean(snapshot.capabilities?.sessionPlanWrites && !saved)} planUncertain={Boolean(plan?.uncertain)} onBeginPlan={beginPlan} onSavePlan={savePlan} requestEditable={Boolean(snapshot.capabilities?.sessionChangeWrites && !saved)} onBeginRequest={beginRequest} onRequestTimeChange={patch => requestChange('time', patch)} onRequestTrainerChange={id => requestChange('trainer', id)} postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
+  return <><SessionDetailsPage outcomeEditable={Boolean(snapshot.capabilities?.sessionOutcomeWrites && canCorrectOutcome && !saved)} outcomeUncertain={Boolean(outcome?.uncertain)} onBeginOutcome={beginOutcome} onSaveOutcome={saveOutcome} onPreviewPreviousPlan={previewPreviousPlan} onCopyPreviousPlan={copyPreviousPlan} readOnly planEditable={Boolean(snapshot.capabilities?.sessionPlanWrites && !saved)} planUncertain={Boolean(plan?.uncertain)} onBeginPlan={beginPlan} onSavePlan={savePlan} requestEditable={Boolean(snapshot.capabilities?.sessionChangeWrites && !saved)} onBeginRequest={beginRequest} onRequestTimeChange={patch => requestChange('time', patch)} onRequestTrainerChange={id => requestChange('trainer', id)} postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
     trainers={change?.reviewed.trainers ?? booking?.reviewed.trainers ?? data.sessionTrainers ?? data.trainers} messages={data.messages ?? []}
     onOpenClient={fullClient ? () => openClient(client.id) : canLimited && !clientBusy ? openLimited : undefined}
     onOpenTrainer={fullTrainer ? () => navigate(managesOperations(user) ? `trainers/${trainer.id}` : 'my-profile') : undefined} />

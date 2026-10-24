@@ -34,8 +34,13 @@ from app.main import create_app
 from app.migrations import expected_revisions, migration_config
 from app.models.communications import Message, MessageReceipt
 from app.models.people import Client, StaffIdentity, StaffUser, Trainer, TrainerAvailability
-from app.models.training import PackageTemplate, PackageTemplateRevision, PurchasePreference
-from app.persistence import add_client, add_purchase
+from app.models.training import (
+    ExercisePlanItem,
+    PackageTemplate,
+    PackageTemplateRevision,
+    PurchasePreference,
+)
+from app.persistence import acknowledge, add_client, add_purchase
 from tests.domain_fixtures import person, purchase_parts
 from tests.test_package_reactivation_review import freeze
 
@@ -246,6 +251,10 @@ def seed(db, settings):
             "plancopy",
             "plancopystale",
             "plancopyloss",
+            "outcome",
+            "outcomeadmin",
+            "outcomestale",
+            "outcomeloss",
             "changetime",
             "changetimesupervised",
             "changetrainer",
@@ -315,6 +324,10 @@ def seed(db, settings):
                 "plancopy",
                 "plancopystale",
                 "plancopyloss",
+                "outcome",
+                "outcomeadmin",
+                "outcomestale",
+                "outcomeloss",
                 "changetime",
                 "changetimesupervised",
                 "changetrainer",
@@ -360,7 +373,7 @@ def seed(db, settings):
                     peak_rate_cents=8000,
                     off_peak_rate_cents=5500,
                 )
-                if purpose.startswith(("resolve", "change", "plan")) or purpose in {
+                if purpose.startswith(("resolve", "change", "plan", "outcome")) or purpose in {
                     "availability",
                     "postponeauto",
                     "postponesupervised",
@@ -444,7 +457,9 @@ def seed(db, settings):
                     "template_id": template.id,
                 }
                 purchase, slots, preferences, bookings = purchase_parts(
-                    graph, start, stage="current"
+                    graph,
+                    start - timedelta(days=14) if purpose.startswith("outcome") else start,
+                    stage="current",
                 )
                 if purpose == "renewal":
                     preferences.append(
@@ -457,6 +472,28 @@ def seed(db, settings):
                 add_purchase(
                     session, purchase, slots, preferences, bookings, expected_client_version=1
                 )
+                if purpose.startswith("outcome"):
+                    session.add(
+                        ExercisePlanItem(
+                            session_id=bookings[0].id,
+                            position=1,
+                            name="Measured squat",
+                            weight="12 kg",
+                            reps="8",
+                            rounds="3",
+                            rest="60s",
+                        )
+                    )
+                    session.flush()
+                    acknowledge(
+                        session,
+                        bookings[0].id,
+                        bookings[0].version,
+                        cohort_owners[(project, purpose)],
+                        method="signature",
+                        signer_name=label,
+                        strokes=[[{"x": 10, "y": 10}, {"x": 30, "y": 30}, {"x": 60, "y": 10}]],
+                    )
                 if purpose == "bookingopen":
                     bookings[1].schedule_state = "open"
                     bookings[1].training_date = None

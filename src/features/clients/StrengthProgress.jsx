@@ -13,13 +13,13 @@ import usePreparedReport from '../../hooks/usePreparedReport.js'
 import StrengthProgressChart from './StrengthProgressChart.jsx'
 import { progressNumber, progressSummary, progressChange } from './progressChart.js'
 
-export default function StrengthProgress({ client, user, timeZone, onRecordAction, onLoadHistory }) {
+export default function StrengthProgress({ client, user, timeZone, onRecordAction, onLoadHistory, reportsAvailable = true }) {
   const exercises = client.strengthProgress ?? []
   const exerciseScope = `${client.id}.${client.reportPackageId ?? 'legacy'}`
   const exercisePages = usePagination(exercises, exerciseScope, `client.${exerciseScope}.exercisePage`)
   const [selectedId, setSelectedId] = usePageState(`StrengthProgress.${client.reportPackageId ?? 'unassigned'}.selectedId`, '')
 
-  const owner = managesOperations(user)
+  const owner = reportsAvailable && managesOperations(user)
   const [historyOpen, setHistoryOpen] = usePageState(`client.${client.id}.reportHistoryOpen`, false)
   const [historyState, setHistoryState] = useState({ items: [], loading: true, error: '' })
   const [historyRevision, setHistoryRevision] = useState(0)
@@ -27,7 +27,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
   const [actionError, setActionError] = useState('')
   const [unsavedAction, setUnsavedAction] = useState(null)
   const reportService = useReportService()
-  const report = usePreparedReport(reportService.progressFile, { client, timeZone }, exercises.length > 0)
+  const report = usePreparedReport(reportService.progressFile, { client, timeZone }, reportsAvailable && exercises.length > 0)
   const [shareFallback, setShareFallback] = useState(false)
   const acting = useRef(false)
 
@@ -126,7 +126,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
             <h2>Strength Progress</h2>
             <p>Completed exercise loads over time</p>
           </div>
-          <div className="strength-progress-actions">
+          {reportsAvailable && <div className="strength-progress-actions">
             <button
               type="button"
               className="secondary-button strength-progress-export"
@@ -151,7 +151,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
               </svg>
               <span>Share PDF</span>
             </button>
-          </div>
+          </div>}
         </div>
 
         <div className="strength-progress-list" aria-label="Exercise progress">

@@ -10,7 +10,7 @@ Accepted main is documentation merge `8ec4329` (PR69). Its exact head `2461162e1
 | --- | --- |
 | Documentation | Merged [PR69](https://github.com/LimYouSheng/FitfinityReact/pull/69) consolidates seven files, preserves full history and restores explicit comprehensive engineering safeguards in AGENTS. Local documentation checks and all three final-head CI gates passed. PR63's earlier refactor did not meet this requirement. |
 | Previous Plan | Draft [PR68](https://github.com/LimYouSheng/FitfinityReact/pull/68), final head `191d960f8b6b1b89aaf82ca45898ccb70a363683`; [run39924725607](https://github.com/LimYouSheng/FitfinityReact/actions/runs/39924725607) has API-browser success, a cancelled backend job and frontend success; it is not merge-eligible. Two candidate operations are not counted. Runtime e39aa04 passed 1,309 units, 1,109 backend, 633 infrastructure and 141 real-API browser cases locally. |
-| Outcome candidate | Resuming on `feat/session-outcome-api`; committed checkpoint plus uncommitted backend/frontend/tests preserved. Focused tests are partial evidence; the initial focused browser invocation failed and needs diagnosis after documentation. No operation increment or complete validation claimed. |
+| Outcome candidate | Active on `feat/session-outcome-api`: reviewed measured results/comments, immutable correction history and original-key recovery, plus persisted purchase-scoped progress. Focused 75 backend/schema/contract checks, 26 frontend regressions and all 12 new real-API browser cases pass after route/recovery and terminal-cover permission repairs. Full unit/backend/API-browser gates are underway; no operation increment or final acceptance claimed. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; Cognito substitute only. No production PostgreSQL or Lambda redeployment needed. |
 | Deployment | Last observed Pages demo source was 41d3718; current main workflow needs fresh reconciliation. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
 
@@ -49,7 +49,7 @@ Follow the milestone roadmap above; M6 remains in progress. Priorities below sel
 
 1. Preserve the accepted seven-document format while continuing the API integration and current milestone ledger.
 2. Reconcile PR68's exact final-head CI and GitHub requirements; merge only when eligible, then update the matrix and history.
-3. Resume the preserved outcome candidate and diagnose its failed browser receipt. Complete real PostgreSQL/UI persistence, permission, conflict and recovery acceptance before counting it.
+3. Complete the outcome candidate’s full unit/backend/API-browser and final-head CI gates, preserving existing signature/credit evidence and terminal-cover read-only scope.
 4. Follow the matrix through remaining plans/outcomes/summaries/acknowledgement/credits, assessment/report/media, messaging/Undo/remuneration/content/profile gaps. Do not redo accepted operations.
 5. Prepare separate release/provider/restart/device acceptance; public website and its content management follow staff-portal completion.
 

@@ -1,3 +1,4 @@
+import SessionOutcomeRecovery from './features/sessions/SessionOutcomeRecovery.jsx'
 import SessionPlanRecovery from './features/sessions/SessionPlanRecovery.jsx'
 import SessionChangeRecovery from './features/sessions/SessionChangeRecovery.jsx'
 import ApiSessionDetailsRoute from './features/sessions/ApiSessionDetailsRoute.jsx'
@@ -244,7 +245,7 @@ function StaffPortal({ navigation }) {
 
   let page
 
-  if (directoryOnly && (!enabledRoutes.includes(route) || (creatingClient && !clientCreationEnabled) || (creatingTrainer && !trainerCreationEnabled) || (route === 'packages' && detailId === 'new' && packageReadOnly) || (route === 'clients' && parts[2]))) {
+  if (directoryOnly && (!enabledRoutes.includes(route) || (creatingClient && !clientCreationEnabled) || (creatingTrainer && !trainerCreationEnabled) || (route === 'packages' && detailId === 'new' && packageReadOnly) || (route === 'clients' && parts[2] && !(snapshot.capabilities?.sessionOutcomeWrites && parts[2] === 'progress' && parts.length <= 4)))) {
     page = <UnavailablePage message="This workflow is not available yet." />
   } else if (creatingClient && managesOperations(user)) {
     page = (
@@ -339,6 +340,8 @@ function StaffPortal({ navigation }) {
     selfTrainer
   ) {
     page = <TrainerProfileRoute key={selfTrainer.id} trainer={selfTrainer} ownerMode={false} navigate={navigate} goBack={goBack} openClient={openClient} />
+  } else if (route === 'sessions' && directoryOnly && snapshot.sessionOutcomePending) {
+    page = <SessionOutcomeRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionOutcomePending} services={services} />
   } else if (route === 'sessions' && directoryOnly && snapshot.sessionPlanPending) {
     page = <SessionPlanRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionPlanPending} services={services} />
   } else if (route === 'sessions' && directoryOnly && snapshot.sessionChangePending) {

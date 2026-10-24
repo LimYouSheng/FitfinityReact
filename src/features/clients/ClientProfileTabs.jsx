@@ -169,7 +169,7 @@ function SessionsTab({ title, history = false, client, sessions, trainers, empty
   )
 }
 
-export default function ClientProfileTabs({ readOnly = false, renewalReadOnly = readOnly, renewalWorkflow, packageReactivationWorkflow, progressPackageId, onOpenProgressPackage, tab, user, client, clients, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory, packages, policy, onRenewPackage, onDeactivatePackage, onReactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
+export default function ClientProfileTabs({ readOnly = false, renewalReadOnly = readOnly, renewalWorkflow, packageReactivationWorkflow, progressData, progressReportsAvailable = true, progressPackageId, onOpenProgressPackage, tab, user, client, clients, sessions, trainers, today, onOpenSession, timeZone, onRecordProgressReport, onLoadProgressReportHistory, packages, policy, onRenewPackage, onDeactivatePackage, onReactivatePackage, onDeletePackageSessions, packageCreditTransactions = [] }) {
   const clientSessions = sessions.filter(session => session.clientId === client.id && (managesOperations(user) || session.trainerId === user.trainerId))
   const history = clientSessions
     .filter(session => isSessionHistory(session, today))
@@ -179,6 +179,6 @@ export default function ClientProfileTabs({ readOnly = false, renewalReadOnly = 
   if (tab === 'package') return <PackageTab clients={clients} readOnly={readOnly} renewalReadOnly={renewalReadOnly} renewalWorkflow={renewalWorkflow} packageReactivationWorkflow={packageReactivationWorkflow} client={client} today={today} user={user} trainers={trainers} sessions={sessions} packages={packages} policy={policy} onRenewPackage={onRenewPackage} onDeactivatePackage={onDeactivatePackage} onReactivatePackage={onReactivatePackage} onDeletePackageSessions={onDeletePackageSessions} packageCreditTransactions={packageCreditTransactions} />
   if (tab === 'history') return <SessionsTab title="Session History" history client={client} sessions={history} trainers={trainers} emptyCopy="No session history." onOpenSession={onOpenSession} />
   if (tab === 'upcoming') return <SessionsTab title="Upcoming Sessions" client={client} sessions={upcoming} trainers={trainers} emptyCopy="No upcoming sessions." onOpenSession={onOpenSession} />
-  if (tab === 'progress') return <PackageProgress packageId={progressPackageId} onOpenPackage={onOpenProgressPackage} client={client} sessions={sessions} user={user} timeZone={timeZone} onRecordAction={onRecordProgressReport} onLoadHistory={onLoadProgressReportHistory} />
+  if (tab === 'progress') return <PackageProgress progressData={progressData} reportsAvailable={progressReportsAvailable} packageId={progressPackageId} onOpenPackage={onOpenProgressPackage} client={client} sessions={sessions} user={user} timeZone={timeZone} onRecordAction={onRecordProgressReport} onLoadHistory={onLoadProgressReportHistory} />
   return null
 }

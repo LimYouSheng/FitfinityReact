@@ -143,6 +143,14 @@ def session_record(
     if write:
         if not principal.manages_operations and record.trainer_id != principal.trainer_id:
             raise unavailable()
+        # Terminal ad-hoc coverage retains evidence access, never coaching edits.
+        if (
+            allow_final_notes
+            and record.status in {"completed", "cancelled"}
+            and not principal.manages_operations
+            and client.trainer_id != principal.trainer_id
+        ):
+            raise unavailable()
         if (
             client.status != "active"
             or purchase.status != "active"

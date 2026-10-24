@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
@@ -60,6 +61,7 @@ class OutcomeReview(Contract):
     durationMinutes: int
     trainerComments: str
     rows: list[OutcomeRow]
+    draftRows: list[OutcomeRow]
 
 
 class OutcomeSaved(Contract):
@@ -80,7 +82,7 @@ def duration(booking):
 
 
 def inspect(session, principal, identity):
-    """Notes/results retain prototype correction rights; signatures, credits and schedule stay untouched."""
+    """Allow audited outcome corrections without changing signature, credit or schedule evidence."""
     booking = session_record(session, principal, identity, write=True, allow_final_notes=True)
     plan = list(
         session.scalars(
@@ -145,6 +147,29 @@ def inspect(session, principal, identity):
             )
     if len(projected) > 2000 or len({r.id for r in projected}) != len(projected):
         raise AuthError("outcome_capacity", "The outcome could not be loaded completely.", 503)
+    drafts = [r.model_copy() for r in projected]
+    recorded = (
+        bool(results)
+        or session.scalar(
+            select(SessionOutcomeReceipt.id)
+            .where(SessionOutcomeReceipt.session_id == identity)
+            .limit(1)
+        )
+        is not None
+    )
+    if not recorded:
+        prescriptions = {p.id: p for p in plan}
+        for row in drafts:
+            item = prescriptions.get(row.planItemId)
+            match = (
+                re.fullmatch(r"(\d+(?:\.\d{1,4})?)\s*(?:kg)?", item.weight.strip(), re.I)
+                if item
+                else None
+            )
+            if match and item.reps.strip().isdigit() and item.rounds.strip().isdigit():
+                weight, reps, sets = float(match[1]), int(item.reps), int(item.rounds)
+                if 0 <= weight <= 2000 and 1 <= reps <= 1000 and 1 <= sets <= 100:
+                    row.loadKg, row.reps, row.sets = weight, reps, sets
     return (
         OutcomeReview(
             sessionId=identity,
@@ -153,6 +178,7 @@ def inspect(session, principal, identity):
             durationMinutes=duration(booking),
             trainerComments=booking.trainer_comments,
             rows=projected,
+            draftRows=drafts,
         ),
         booking,
         plan,

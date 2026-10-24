@@ -7,8 +7,8 @@ import PaginationControls from '../../components/PaginationControls.jsx'
 import usePagination from '../../hooks/usePagination.js'
 import StrengthProgress from './StrengthProgress.jsx'
 
-export default function PackageProgress({ client, sessions = [], user, packageId, onOpenPackage, ...props }) {
-  const reportClient = useMemo(() => ({ ...client, strengthProgress: clientProgressExercises(client, sessions) }), [client, sessions])
+export default function PackageProgress({ client, sessions = [], user, progressData, packageId, onOpenPackage, ...props }) {
+  const reportClient = useMemo(() => ({ ...client, strengthProgress: progressData ?? clientProgressExercises(client, sessions) }), [client, sessions, progressData])
   const packages = [ ...(client.package.status === 'inactive' ? [] : [client.package]), ...pastClientPackages(client) ]
     .sort((a, b) => b.startDate.localeCompare(a.startDate) || a.id.localeCompare(b.id))
   const pages = usePagination(packages, client.id, `client.${client.id}.progressPackagesPage`)

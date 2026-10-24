@@ -26,6 +26,9 @@ const READ_CATALOG = Object.freeze([])
 export default function SessionDetailsPage({
   readOnly = false,
   planEditable = false,
+  outcomeEditable = false,
+  outcomeUncertain = false,
+  onBeginOutcome,
   planUncertain = false,
   onBeginPlan,
   onPreviewPreviousPlan,
@@ -204,6 +207,7 @@ export default function SessionDetailsPage({
       <SessionNotes session={session} outcome={outcome} displayedSummary={displayedSummary}
         activeEditor={activeEditor} setActiveEditor={setActiveEditor} saving={saving} setSaving={setSaving}
         setDetailsError={setDetailsError} canEditNotes={canEditNotes}
+        canEditOutcome={canEditNotes || (readOnly && outcomeEditable && !recordInactive && (isOwner || assignedTrainer))} outcomeUncertain={outcomeUncertain} onBeginOutcome={onBeginOutcome}
         onSaveOutcome={onSaveOutcome} onSaveClientSummary={onSaveClientSummary} />
 
       <Panel className="top-gap session-acknowledgement-panel">

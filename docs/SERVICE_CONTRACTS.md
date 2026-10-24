@@ -81,7 +81,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `sessionService.saveExercisePlan` | Connected | Owner/Admin or current assigned active Trainer; active editable session | [backend](../backend/tests/test_session_plans_api.py); [browser](../tests-api/session-plans.spec.js); PR67 accepted |
 | `sessionService.previousPlanFor` | Candidate | Current assigned Trainer or operations; source read scope | [backend](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/backend/tests/test_previous_session_plan_api.py); [browser](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/tests-api/previous-plan.spec.js); not accepted main |
 | `sessionService.copyPreviousPlan` | Candidate | Current assigned Trainer or operations; active editable target | [backend](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/backend/tests/test_previous_session_plan_api.py); [browser](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/tests-api/previous-plan.spec.js); not accepted main |
-| `sessionService.saveOutcome` | Missing | session | Pending API acceptance |
+| `sessionService.saveOutcome` | Candidate | Owner/Admin or currently assigned active Trainer; terminal ad-hoc cover stays read-only | [backend](../backend/tests/test_session_outcomes_api.py); [browser](../tests-api/session-outcomes.spec.js); not accepted main |
 | `sessionService.saveClientSummary` | Missing | session | Pending API acceptance |
 | `sessionService.markWhatsAppOpened` | Missing | session | Pending API acceptance |
 | `sessionService.acknowledge` | Missing | session | Pending API acceptance |
@@ -105,6 +105,12 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 Authentication includes enrollment/challenges, repeated login, session refresh/expiry, logout, password recovery and verified email changes. See the implemented OpenAPI schema and [architecture explanation](Architecture/README.md). Session/calendar reads expose persisted assigned/authorized records and stable IDs; they do not add operations to this matrix. Assessment history and scoped directory routes likewise support the owning domain workflows.
 
+
+### Outcome corrections and persisted progress
+
+Reviewed outcome saves retain measured loads/reps/sets and comments, deriving duration from the booking. Corrected or removed measurements retain stable identities and immutable prior revisions. They do not change completion status, signatures, acknowledgement history, package credits or remuneration approval evidence. Owner/Admin and the current assigned Trainer may correct eligible records; completed/cancelled ad-hoc cover remains read-only. Inactive clients/purchases reject writes. Original actor/key recovery remains possible after reassignment without granting new edit authority.
+
+Only signed completed attended results contribute to purchase-scoped progress; no-shows are excluded. An explicitly saved empty outcome never resurrects prescription defaults. Current full-profile scope and session visibility both apply to the projection; cover-session access does not grant full client progress. Outcome persistence and progress reads do not complete summary, acknowledgement, report-export/history or media operations. Matrix status above/below identifies whether this candidate is accepted source.
 
 ### Product scope and retained design decisions
 
@@ -165,6 +171,12 @@ The staff-portal goal is all 55 matrix operations, plus authentication and route
 All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in Part 2; no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
 
 ## Part 2 — Dated changes and evidence
+
+### 24 October 2026 — Outcome API candidate and demonstrated repairs
+
+The preserved candidate introduces migration0037, immutable actor-private outcome receipts, measurement retirement/correction history and scoped signed-session progress. Initial four-case backend and focused frontend evidence preceded the pause; the original browser run passed4/12. Resume reproduced two frontend defects: App blocked the progress route and local original-command recovery emitted ordinary-save copy. Two regressions failed before repair. A separate terminal-cover review found both UI and API incorrectly allowing completed/cancelled ad-hoc outcome edits; two UI and two actual PostgreSQL regressions reproduced and repaired that scope gap. Assertions and runner settings remain intact.
+
+Twenty initial outcome PostgreSQL cases passed, then the expanded75-case outcome/schema/OpenAPI gate passed, including23 outcome cases, independent connection PIDs for duplicate and competing writes, rollback, foreign/inactive/forged-field rejection, immutable revisions and downgrade protection.26 affected frontend cases and12/12 real-API browser cases passed (45.8s), with UI writes, reload/fresh-login progress, stale conflict and lost-response recovery preserving signatures/credits and one committed write.47 quality checks, lint481 files and source health232 modules passed. The first full unit gate passed1,319/1,320 with one unhandled error: the existing refresh-contract harness omitted saving/error setters required by the outcome editor. Its real state setters are restored with the draft/Cancel assertions unchanged; full unit rerun is pending. Full gates remain pending at this checkpoint. OpenAPI adds four routes (107 paths/119 operations); existing route definitions are unchanged and DirectorySnapshot adds an explicit capability. No source acceptance, provider call or deployment is claimed.
 
 ### 24 October 2026 — Documentation accepted; API work resumes
 

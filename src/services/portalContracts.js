@@ -51,7 +51,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     saveExercisePlan: contract({ 'sessionId': 'string', 'items': 'array', 'reviewed?': 'object' }, 'session', 'Session | PlanSaved', true),
     previousPlanFor: contract({ 'sessionId': 'string' }, 'session', 'ExercisePlanItem[] | PreviousPlan', true),
     copyPreviousPlan: contract({ 'sessionId': 'string', 'reviewed?': 'object', 'copySource?': 'object' }, 'session', 'Session | PlanCopied', true),
-    saveOutcome: contract({ 'sessionId': 'string', 'outcome': 'object' }, 'session', 'Session'),
+    saveOutcome: contract({ 'sessionId': 'string', 'outcome': 'object', 'reviewed?': 'object' }, 'session', 'Session | OutcomeSaved', true),
     saveClientSummary: contract({ 'sessionId': 'string', 'summary': 'string' }, 'session', 'Session'),
     markWhatsAppOpened: contract({ 'sessionId': 'string' }, 'session', 'Session'),
     acknowledge: contract({ 'sessionId': 'string', 'acknowledgement': 'object' }, 'session', 'AcknowledgementResult'),
