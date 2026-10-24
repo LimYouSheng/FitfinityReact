@@ -40,6 +40,7 @@ from app.api import (
     session_progress,
     session_read_schemas,
     session_reads,
+    session_summaries,
     trainer_approvals,
     trainer_availability,
     trainer_deactivation,
@@ -1326,3 +1327,35 @@ def read_client_progress(client_id: UUID, request: Request):
     """Project only permitted persisted signed-session measurements."""
     with authorized_transaction(request) as (session, principal):
         return session_progress.read(session, principal, client_id)
+
+
+@router.get("/sessions/{session_id}/summary-review", response_model=session_summaries.SummaryReview)
+def review_session_summary(session_id: UUID, request: Request):
+    """Review current text and authority before replacing the client-facing summary."""
+    with authorized_transaction(request, advisory_lock=session_summaries.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_summaries.review(session, principal, session_id)
+
+
+@router.post("/sessions/{session_id}/summary", response_model=session_summaries.SummarySaved)
+def save_session_summary(
+    session_id: UUID, body: session_summaries.SaveSummary, request: Request, key: RequestKey
+):
+    """Persist a reviewed summary without recording completion or delivery."""
+    with authorized_transaction(request, advisory_lock=session_summaries.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_summaries.save(session, principal, session_id, key, body)
+
+
+@router.get("/session-summaries/{request_key}", response_model=session_summaries.SummarySaved)
+def reconcile_session_summary(request_key: UUID, request: Request):
+    """Recover only the authenticated actor's original summary receipt."""
+    with authorized_transaction(request, advisory_lock=session_summaries.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_summaries.reconcile(session, principal, request_key)

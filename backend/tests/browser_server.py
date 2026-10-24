@@ -255,6 +255,10 @@ def seed(db, settings):
             "outcomeadmin",
             "outcomestale",
             "outcomeloss",
+            "summary",
+            "summaryadmin",
+            "summarystale",
+            "summaryloss",
             "changetime",
             "changetimesupervised",
             "changetrainer",
@@ -328,6 +332,10 @@ def seed(db, settings):
                 "outcomeadmin",
                 "outcomestale",
                 "outcomeloss",
+                "summary",
+                "summaryadmin",
+                "summarystale",
+                "summaryloss",
                 "changetime",
                 "changetimesupervised",
                 "changetrainer",
@@ -373,7 +381,9 @@ def seed(db, settings):
                     peak_rate_cents=8000,
                     off_peak_rate_cents=5500,
                 )
-                if purpose.startswith(("resolve", "change", "plan", "outcome")) or purpose in {
+                if purpose.startswith(
+                    ("resolve", "change", "plan", "outcome", "summary")
+                ) or purpose in {
                     "availability",
                     "postponeauto",
                     "postponesupervised",
@@ -458,7 +468,9 @@ def seed(db, settings):
                 }
                 purchase, slots, preferences, bookings = purchase_parts(
                     graph,
-                    start - timedelta(days=14) if purpose.startswith("outcome") else start,
+                    start - timedelta(days=14)
+                    if purpose.startswith(("outcome", "summary"))
+                    else start,
                     stage="current",
                 )
                 if purpose == "renewal":
@@ -472,7 +484,7 @@ def seed(db, settings):
                 add_purchase(
                     session, purchase, slots, preferences, bookings, expected_client_version=1
                 )
-                if purpose.startswith("outcome"):
+                if purpose.startswith(("outcome", "summary")):
                     session.add(
                         ExercisePlanItem(
                             session_id=bookings[0].id,

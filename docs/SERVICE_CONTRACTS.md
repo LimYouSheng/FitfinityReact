@@ -82,7 +82,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `sessionService.previousPlanFor` | Candidate | Current assigned Trainer or operations; source read scope | [backend](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/backend/tests/test_previous_session_plan_api.py); [browser](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/tests-api/previous-plan.spec.js); not accepted main |
 | `sessionService.copyPreviousPlan` | Candidate | Current assigned Trainer or operations; active editable target | [backend](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/backend/tests/test_previous_session_plan_api.py); [browser](https://github.com/LimYouSheng/FitfinityReact/blob/191d960f8b6b1b89aaf82ca45898ccb70a363683/tests-api/previous-plan.spec.js); not accepted main |
 | `sessionService.saveOutcome` | Candidate | Owner/Admin or currently assigned active Trainer; terminal ad-hoc cover stays read-only | [backend](../backend/tests/test_session_outcomes_api.py); [browser](../tests-api/session-outcomes.spec.js); not accepted main |
-| `sessionService.saveClientSummary` | Missing | session | Pending API acceptance |
+| `sessionService.saveClientSummary` | Candidate | Owner/Admin or current assigned active Trainer; terminal cover read-only | [backend](../backend/tests/test_session_summaries_api.py); [browser](../tests-api/session-summaries.spec.js); not accepted main |
 | `sessionService.markWhatsAppOpened` | Missing | session | Pending API acceptance |
 | `sessionService.acknowledge` | Missing | session | Pending API acceptance |
 | `packageService.save` | Connected | operations | [`test_package_api.py`](../backend/tests/test_package_api.py); [`persistence.spec.js`](../tests-api/persistence.spec.js) |
@@ -111,6 +111,10 @@ Authentication includes enrollment/challenges, repeated login, session refresh/e
 Reviewed outcome saves retain measured loads/reps/sets and comments, deriving duration from the booking. Corrected or removed measurements retain stable identities and immutable prior revisions. They do not change completion status, signatures, acknowledgement history, package credits or remuneration approval evidence. Owner/Admin and the current assigned Trainer may correct eligible records; completed/cancelled ad-hoc cover remains read-only. Inactive clients/purchases reject writes. Original actor/key recovery remains possible after reassignment without granting new edit authority.
 
 Only signed completed attended results contribute to purchase-scoped progress; no-shows are excluded. An explicitly saved empty outcome never resurrects prescription defaults. Current full-profile scope and session visibility both apply to the projection; cover-session access does not grant full client progress. Outcome persistence and progress reads do not complete summary, acknowledgement, report-export/history or media operations. Matrix status above/below identifies whether this candidate is accepted source.
+
+### Client-facing summaries
+
+A summary is reviewed client-facing text, saved separately from measured outcomes and completion. Replacing it retains immutable prior text, actor/time and the original command receipt. Current session assignment and active client/purchase authority apply; completed/cancelled ad-hoc cover remains read-only. A summary save never changes signatures, credits, measurements, or WhatsApp/share/delivery state. The editor requires nonblank text; the server enforces the bounded text contract and stale-version rejection. Source acceptance remains governed by the operation matrix.
 
 ### Product scope and retained design decisions
 
@@ -171,6 +175,12 @@ The staff-portal goal is all 55 matrix operations, plus authentication and route
 All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in Part 2; no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
 
 ## Part 2 — Dated changes and evidence
+
+### 24 October 2026 — Client-summary candidate and initial verification
+
+The next named operation, saveClientSummary, adds migration0038 and three additive review/save/receipt routes (110 paths/122 operations). It uses current terminal-cover/lifecycle authorization, immutable actor-private prior/new text receipts, version-bound review and one atomic summary/event/receipt commit, with no completion or delivery effect. Browser recovery freezes the original text and reconciles its original key.
+
+The first19-case PostgreSQL run passed17 with two fixture assertions reading status from the wrong response level; fixing the nested session assertion and explicitly checking unchanged handoff fields makes all19 behavior cases pass. Independent connection PIDs exercise duplicate and competing writes; rollback, stale/foreign/inactive/forged input, private receipts and downgrade protection are covered. The combined71-case run passed69; its two remaining failures identified the trigger inventory (182, not181) and explicit OpenAPI regeneration. Both targeted checks then passed.28 focused frontend cases, lint485 files and47 quality checks passed. The first browser attempt built dist while the harness serves dist-api-test, loading the prior frontend; all12 cases timed out waiting for the absent edit control. Original traces are preserved. Rebuilding with the canonical build:api-test command made all12 cases pass in46.6s across desktop Chromium, phone and tablet/WebKit. Source health passed485 files/234 reachable modules. The full unit gate passed1,328/1,328 cases across137 files with strict receipt verification. Complete backend/API-browser and final-head acceptance are pending; this candidate adds no accepted operation yet.
 
 ### 24 October 2026 — Complete CI backend receipt still exceeds console deadline
 

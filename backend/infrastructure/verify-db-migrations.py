@@ -173,6 +173,8 @@ class RuntimeChecks(unittest.TestCase):
             "migrations/versions/20261023_0037_session_outcomes.py",
             "app/api/session_outcomes.py",
             "app/api/session_progress.py",
+            "migrations/versions/20261024_0038_session_summaries.py",
+            "app/api/session_summaries.py",
         ]:
             path = self.image_root / relative
             original = path.read_bytes()
