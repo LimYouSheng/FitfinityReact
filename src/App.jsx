@@ -1,3 +1,5 @@
+import ApiRemunerationRoute from './features/remuneration/ApiRemunerationRoute.jsx'
+import RemunerationRecovery from './features/remuneration/RemunerationRecovery.jsx'
 import ProgressReportRecovery from './features/clients/ProgressReportRecovery.jsx'
 import SessionAcknowledgementRecovery from './features/sessions/SessionAcknowledgementRecovery.jsx'
 import SessionSummaryRecovery from './features/sessions/SessionSummaryRecovery.jsx'
@@ -107,7 +109,7 @@ function StaffPortal({ navigation }) {
   const clientCreationEnabled = !directoryOnly || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
   const trainerCreationEnabled = !directoryOnly || snapshot.capabilities?.trainerCreation === true
   const packageReadOnly = directoryOnly && snapshot.capabilities?.packageWrites !== true
-  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.sessionReads ? ['sessions'] : []), ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
+  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.remunerationWorkflows ? ['remuneration'] : []), ...(snapshot.capabilities?.sessionReads ? ['sessions'] : []), ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
   const { clientService, trainerService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
@@ -382,11 +384,16 @@ function StaffPortal({ navigation }) {
     )
   } else if (route === 'remuneration' && !canViewRemuneration(user)) {
     page = <UnavailablePage message="Remuneration is unavailable for this account." />
+  } else if (route === 'remuneration' && directoryOnly && snapshot.remunerationPending) {
+    page = <RemunerationRecovery pending={snapshot.remunerationPending} services={services} />
+  } else if (route === 'remuneration' && directoryOnly) {
+    page = <ApiRemunerationRoute cycleKey={detailId} trainerId={parts[2]} onNavigate={(next, options) => navigate(next, { ...options, preserveView: true })} onOpenSession={openSession} />
   } else if (route === 'remuneration') {
     page = <RemunerationPage
       key={user.id}
       user={user}
       views={db.remunerationViews}
+      apiApprovalRecovery={directoryOnly}
       policy={policy}
       cycleKey={detailId}
       trainerId={parts[2]}

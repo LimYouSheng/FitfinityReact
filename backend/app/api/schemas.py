@@ -405,6 +405,7 @@ class DirectorySnapshot(ServerClock):
     sessionBookingWrites: Literal[True] = True
     sessionPlanWrites: Literal[True] = True
     sessionOutcomeWrites: Literal[True] = True
+    remunerationWorkflows: Literal[True] = True
     progressReportWrites: Literal[True] = True
     sessionAcknowledgementWrites: Literal[True] = True
     sessionSummaryWrites: Literal[True] = True

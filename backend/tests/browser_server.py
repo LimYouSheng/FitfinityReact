@@ -269,6 +269,10 @@ def seed(db, settings):
             "reportloss",
             "reportrefresh",
             "reportforeign",
+            "pay",
+            "paystale",
+            "payloss",
+            "payrefresh",
             "changetime",
             "changetimesupervised",
             "changetrainer",
@@ -355,6 +359,10 @@ def seed(db, settings):
                 "reportloss",
                 "reportrefresh",
                 "reportforeign",
+                "pay",
+                "paystale",
+                "payloss",
+                "payrefresh",
                 "changetime",
                 "changetimesupervised",
                 "changetrainer",
@@ -401,7 +409,7 @@ def seed(db, settings):
                     off_peak_rate_cents=5500,
                 )
                 if purpose.startswith(
-                    ("resolve", "change", "plan", "outcome", "summary", "ack", "report")
+                    ("resolve", "change", "plan", "outcome", "summary", "ack", "report", "pay")
                 ) or purpose in {
                     "availability",
                     "postponeauto",
@@ -487,7 +495,9 @@ def seed(db, settings):
                 }
                 purchase, slots, preferences, bookings = purchase_parts(
                     graph,
-                    start - timedelta(days=14)
+                    (start.replace(day=1) - timedelta(days=45)).replace(day=16)
+                    if purpose.startswith("pay")
+                    else start - timedelta(days=14)
                     if purpose.startswith(("outcome", "summary", "ack", "report"))
                     else start,
                     stage="current",
@@ -537,6 +547,17 @@ def seed(db, settings):
                         signer_name=label,
                         strokes=[[{"x": 10, "y": 10}, {"x": 30, "y": 30}, {"x": 60, "y": 10}]],
                     )
+                if purpose.startswith("pay"):
+                    for booking in bookings:
+                        acknowledge(
+                            session,
+                            booking.id,
+                            booking.version,
+                            cohort_owners[(project, purpose)],
+                            method="signature",
+                            signer_name=label,
+                            strokes=[[{"x": 10, "y": 10}, {"x": 30, "y": 30}, {"x": 60, "y": 10}]],
+                        )
                 if purpose == "bookingopen":
                     bookings[1].schedule_state = "open"
                     bookings[1].training_date = None

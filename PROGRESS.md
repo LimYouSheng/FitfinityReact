@@ -2,16 +2,17 @@
 
 ## Current checkpoint — 24 October 2026 Singapore
 
-Accepted main is PR71 merge `be738a1641c1aba37e5111fb23e7bf89177be35c`. Exact head `0e00025115e5235a2eed4e6bdb1295099173b64b` passed all three required gates in [run40077655738](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40077655738): 1,328 units, 1,152 simulator browser cases, 1,151 backend/PostgreSQL, 633 infrastructure and 165 real-API browser cases. This accepts durable reviewed client summaries after PR70's previous-plan and outcome integration. Post-merge main validation is separate.
+Accepted main is PR72 merge `935db1eb6fcd9c485d758874d4271d63370b1a04`. Exact head `623d38351dc47a15d483acc7dbe743b12f053da5` passed all three required gates in [run40079726495](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40079726495): 1,336 units, 1,152 simulator browser cases, 1,174 backend/PostgreSQL, 633 infrastructure and 177 real-API browser cases. Acknowledgement, immutable correction history and exactly-once credits are accepted source. Post-merge main validation remains separate.
 
-[The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **38/55** accepted: 37 server-connected plus one local predicate. The earlier 26 baseline omitted Trainer deactivation; corrected 27 gained three operations in PR64, one in PR65, two in PR66, one in PR67, three in PR70 and one in PR71. Session/calendar reads do not add named operations.
+[The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **39/55** accepted: 38 server-connected plus one local predicate. The earlier 26 baseline omitted Trainer deactivation; corrected 27 gained three operations in PR64, one in PR65, two in PR66, one in PR67, three in PR70 one in PR71 and one in PR72. Session/calendar reads do not add named operations.
 
 | Acceptance | Evidence and limit |
 | --- | --- |
 | Documentation | Merged [PR69](https://github.com/LimYouSheng/FitfinityReact/pull/69) consolidates seven files, preserves full history and restores explicit comprehensive engineering safeguards in AGENTS. Local documentation checks and all three final-head CI gates passed. PR63's earlier refactor did not meet this requirement. |
 | Summary integration | [PR71](https://github.com/LimYouSheng/FitfinityReact/pull/71) merged after exact-head CI passed. Summary saves preserve measurements, comments, signatures, credits and handoff fields. |
-| Acknowledgement candidate | Draft [PR72](https://github.com/LimYouSheng/FitfinityReact/pull/72), branch `feat/session-acknowledgement-api`, based on accepted PR71. All 1,336 units, 1,174 backend/PostgreSQL and 633 infrastructure checks pass locally. Exact-head CI run40079726495 passed backend and all177 API-browser cases; frontend remains pending. Not counted as accepted. The active branch is now the stacked report candidate below. |
-| Report candidate | Active `feat/progress-report-api`, stacked on PR72. Report audit writes, private original-action recovery and Owner/Admin history are implemented. All 1,341 units across139 files,14 focused PostgreSQL cases and27 report/outcome API-browser cases pass. Full backend/infrastructure and final-head CI remain pending. Not accepted. |
+| Acknowledgement integration | [PR72](https://github.com/LimYouSheng/FitfinityReact/pull/72) merged after all three exact-head gates passed. Receipt is retained in Service Contracts history. |
+| Report candidate | [PR73](https://github.com/LimYouSheng/FitfinityReact/pull/73), head `b7b96d5`, based on accepted PR72. All 1,341 units, 14 focused PostgreSQL cases and 27 report/outcome API-browser cases pass locally. All 1,188 backend/PostgreSQL and 633 infrastructure checks pass after one fixture-format correction; final-head CI remains pending. Not accepted. |
+| Active implementation | `feat/remuneration-api`, based on PR73 and reconciled main. Remuneration list/detail/approval, immutable evidence and recovery are implemented candidates; 17 new PostgreSQL cases and 13 focused frontend tests pass. All 12 real-API browser cases and all 1,347 units across140 files pass. Lint, source health and47 verifier regressions pass. Full1,205-case backend gate is running; final-head CI remains pending. No acceptance claimed. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; Cognito substitute only. No production PostgreSQL or Lambda redeployment needed. |
 | Deployment | Last verified Pages demo source is PR70 merge 3c78282. Its complete main validation, build and Pages deployment passed; its obsolete AWS image-publication approval wait was cancelled after PR71 merged to release newer main validation. No image publication was approved. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
 
@@ -49,9 +50,9 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 Follow the milestone roadmap above; M6 remains in progress. Priorities below select the next work without replacing the original milestones.
 
 1. Preserve the accepted seven-document format while continuing the API integration and current milestone ledger.
-2. Complete PR72’s full local and exact final-head CI gates; preserve immutable acknowledgement, exactly-once credit and original-request recovery evidence.
+2. Finish PR73 report action/history final-head gates; preserve the first formatting failure and complete isolated test evidence.
 3. Merge only the tested eligible source; update the accepted operation matrix and historical receipt.
-4. Finish acknowledgement/credit acceptance, then report action/history and legacy handoff, package deactivation/upcoming-session deletion and permitted Undo, remuneration list/detail/approval, Exercise Library and session media, and unresolved Trainer email correction. These are the remaining 17 named operations after summary acceptance. Do not redo accepted operations.
+4. Finish report action/history and remuneration, then legacy handoff, package deactivation/upcoming-session deletion and permitted Undo, Exercise Library and session media, and unresolved Trainer email correction. These are the remaining 16 named operations after acknowledgement acceptance. Do not redo accepted operations.
 5. Prepare separate release/provider/restart/device acceptance; public website and its content management follow staff-portal completion.
 
 ### M10 work packages — planned

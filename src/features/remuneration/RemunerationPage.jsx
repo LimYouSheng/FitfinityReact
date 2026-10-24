@@ -26,33 +26,38 @@ function Totals({ records, money }) {
   </div>
 }
 
-function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSession }) {
+function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSession, apiApprovalRecovery }) {
   const confirm = useActionConfirmation()
   const { notify } = useNotifications()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [uncertain, setUncertain] = useState(null)
   const operationPending = useRef(false)
   const pagination = usePagination(record.rows, `${record.cycle.key}/${record.trainerId}`, 'remuneration.sessionPage')
   const approved = record.status === 'Approved'
 
   const approve = async () => {
     if (operationPending.current) return
-    if (hidden) {
+    if (hidden && !uncertain) {
       notify({ tone: 'info', message: 'Show amounts to review the total before approving.' })
       return
     }
     operationPending.current = true
     setBusy(true); setError('')
     try {
-      const accepted = await confirm({
+      const accepted = uncertain || await confirm({
         title: 'Approve trainer remuneration?',
         message: `Approve ${record.sessions} completed sessions for ${record.trainerName}, totalling ${money(record.amountCents)}. This stores the calculated breakdown and notifies the trainer.`,
         confirmLabel: 'Approve Remuneration',
       })
       if (!accepted) return
-      await onApprove(record.cycle.key, record.trainerId, record.revision)
+      const intent = uncertain ?? { cycle: record.cycle.key, trainerId: record.trainerId, revision: record.revision }
+      await onApprove(intent.cycle, intent.trainerId, intent.revision)
+      setUncertain(null)
     } catch (failure) {
       setError(failure.message || 'Could not approve. Try again.')
+      if (apiApprovalRecovery && (!failure.status || failure.status >= 500)) setUncertain(value => value ?? { cycle: record.cycle.key, trainerId: record.trainerId, revision: record.revision })
+      else setUncertain(null)
     } finally { operationPending.current = false; setBusy(false) }
   }
 
@@ -75,7 +80,7 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
     <PaginationControls {...pagination} onPage={pagination.setPage} />
     {error && <p role="alert" className="validation-copy">{error}</p>}
     {owner && !approved && <div className="remuneration-actions">
-      <button className="primary-button" type="button" disabled={busy || !record.closed || !record.sessions || Boolean(record.reviewCount)} onClick={approve}>Approve Remuneration</button>
+      <button className="primary-button" type="button" disabled={busy || (!uncertain && (!record.closed || !record.sessions || Boolean(record.reviewCount)))} onClick={approve}>{uncertain ? 'Check original remuneration approval' : 'Approve Remuneration'}</button>
     </div>}
   </>
 }
@@ -113,7 +118,7 @@ function TrainerList({ view, user, money, onNavigate }) {
   </>
 }
 
-export default function RemunerationPage({ user, views, policy, cycleKey, trainerId, onNavigate, onApprove, onOpenSession }) {
+export default function RemunerationPage({ user, views, policy, cycleKey, trainerId, onNavigate, onApprove, onOpenSession, apiApprovalRecovery = false }) {
   const [hidden, setHidden] = usePageState('RemunerationPage.hidden', true)
   const money = cents => hidden ? '••••' : formatMoney(cents, policy)
   const owner = user.role === 'owner'
@@ -127,7 +132,7 @@ export default function RemunerationPage({ user, views, policy, cycleKey, traine
       : !cycleKey ? <PayCycleList views={views} user={user} money={money} onNavigate={onNavigate} />
         : <>
           <div className="remuneration-toolbar"><p className="remuneration-cycle-caption">{cycleLabel(view.cycle)}</p>{view.isCurrent && <StatusBadge tone="blue">Current</StatusBadge>}</div>
-          <Panel>{selected ? <TrainerBreakdown key={`${view.key}/${selected.trainerId}`} record={selected} owner={owner} hidden={hidden} money={money} onApprove={onApprove} onOpenSession={onOpenSession} />
+          <Panel>{selected ? <TrainerBreakdown key={`${view.key}/${selected.trainerId}`} record={selected} apiApprovalRecovery={apiApprovalRecovery} owner={owner} hidden={hidden} money={money} onApprove={onApprove} onOpenSession={onOpenSession} />
             : <TrainerList view={view} user={user} money={money} onNavigate={onNavigate} />}</Panel>
         </>}
   </div>

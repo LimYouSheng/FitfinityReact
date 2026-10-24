@@ -37,7 +37,7 @@ Errors retain a readable message and stable error code. Session expiry clears pr
 
 ### Domain operation inventory
 
-**38/55 accepted in merged source: 37 server-connected and one local predicate.** 17 remain unaccepted, including the acknowledgement candidate and partial Trainer update. PR70 accepts previous-plan preview/copy and outcome saving; PR71 accepts summary saving. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
+**39/55 accepted in merged source: 38 server-connected and one local predicate.** 16 remain unaccepted, including report and remuneration candidates and partial Trainer update. PR70 accepts previous-plan preview/copy and outcome saving; PR71 accepts summary saving; PR72 accepts acknowledgement and exactly-once credits. This is source integration, not deployed or production acceptance. PR60 added real PostgreSQL coverage without adding named operations. Current validation and proposed increments belong only in [Progress](../PROGRESS.md).
 
 Each connected server row names actual PostgreSQL/HTTP and real-API browser evidence owners. Browser scenarios can cover several operations. Simulator tests supplement these tests; they do not establish persistence. Local execution uses temporary Docker PostgreSQL, synthetic records and a local signed-token Cognito substitute. Real Cognito, restart, physical devices and deployment acceptance remain separate.
 
@@ -84,7 +84,7 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `sessionService.saveOutcome` | Connected | Owner/Admin or currently assigned active Trainer; terminal ad-hoc cover stays read-only | [backend](../backend/tests/test_session_outcomes_api.py); [browser](../tests-api/session-outcomes.spec.js); PR70 accepted |
 | `sessionService.saveClientSummary` | Connected | Owner/Admin or current assigned active Trainer; terminal cover read-only | [backend](../backend/tests/test_session_summaries_api.py); [browser](../tests-api/session-summaries.spec.js); PR71 accepted |
 | `sessionService.markWhatsAppOpened` | Missing | session | Pending API acceptance |
-| `sessionService.acknowledge` | Candidate | Current assigned Trainer or operations; terminal cover read-only | [backend](../backend/tests/test_session_acknowledgements_api.py); [browser](../tests-api/session-acknowledgements.spec.js); not accepted main |
+| `sessionService.acknowledge` | Connected | Current assigned Trainer or operations; terminal cover read-only | [backend](../backend/tests/test_session_acknowledgements_api.py); [browser](../tests-api/session-acknowledgements.spec.js); PR72 accepted |
 | `packageService.save` | Connected | operations | [`test_package_api.py`](../backend/tests/test_package_api.py); [`persistence.spec.js`](../tests-api/persistence.spec.js) |
 | `exerciseLibraryService.loadMedia` | Missing | authenticated | Pending API acceptance |
 | `exerciseLibraryService.getAll` | Missing | authenticated | Pending API acceptance |
@@ -95,9 +95,9 @@ Each connected server row names actual PostgreSQL/HTTP and real-API browser evid
 | `messageService.markUnread` | Connected | current message visibility; independent recipient state | [`test_message_api.py`](../backend/tests/test_message_api.py); [`records.spec.js`](../tests-api/records.spec.js) |
 | `requestService.resolve` | Connected | Owner/Admin; atomic current-state approval or rejection | [`test_request_resolution.py`](../backend/tests/test_request_resolution.py); [`request-resolution.spec.js`](../tests-api/request-resolution.spec.js) |
 | `requestService.cancel` | Connected | active requesting Trainer | [`test_request_cancellation.py`](../backend/tests/test_request_cancellation.py); [`records.spec.js`](../tests-api/records.spec.js) |
-| `remunerationService.list` | Missing | remuneration | Pending API acceptance |
-| `remunerationService.detail` | Missing | remuneration | Pending API acceptance |
-| `remunerationService.approve` | Missing | approveRemuneration | Pending API acceptance |
+| `remunerationService.list` | Candidate | Owner all Trainers; Trainer self only; Admin forbidden | [backend](../backend/tests/test_remuneration_api.py); [browser](../tests-api/remuneration.spec.js); pending full acceptance |
+| `remunerationService.detail` | Candidate | Owner all Trainers; Trainer self only; Admin forbidden | [backend](../backend/tests/test_remuneration_api.py); [browser](../tests-api/remuneration.spec.js); pending full acceptance |
+| `remunerationService.approve` | Candidate | Owner only; reviewed closed cycle, immutable approval and private recovery | [backend](../backend/tests/test_remuneration_api.py); [browser](../tests-api/remuneration.spec.js); pending full acceptance |
 
 Operations means Owner/Admin. Assigned-client edits require current assignment; historical report access is a separate read permission. Assigned-trainer edits require self or operations access. Session commands require the current assigned Trainer or operations access; direct booking-detail edits require operations access. Finer domain validators remain mandatory.
 
@@ -146,7 +146,7 @@ A summary is reviewed client-facing text, saved separately from measured outcome
 
 **Completion, credits and remuneration.** Signature/no-show and legacy handoff actions unlock on the gym-local training date, not before it. A signature requires signer name and actual normalized finite SVG ink on a 600×200 surface with bounded strokes/points. Saved signatures are read-only; no-show may be corrected only to a signature, retaining both snapshots and actor/time. Completion consumes at most one credit; retries/corrections never debit or pay twice. Outcome duration and WhatsApp are not completion prerequisites. Signed attended results drive progress by stable session/result identity; no-shows do not. Explicitly empty results stay empty; numeric plan loads supply legacy results only when a result list is absent. Blank or nonnumeric loads are not measurements.
 
-Use saved rates and gym-local start time. Weekday peak windows are 06:30–08:30 and 18:00–20:30 with exclusive ends; weekends are peak all day. The pay cycle runs from the 16th through the next 15th and closes after that day. No-shows receive the applicable full rate with no attended minutes. Incomplete, invalid or future completion evidence prevents approval; frozen unfinished inactive records neither earn pay nor block approval. Approval retains its amount/evidence snapshot, rejects stale/duplicate approval and displays later source differences separately. Owner-only rates/approval and Admin financial restrictions above supersede older role descriptions in history.
+Use saved rates and gym-local start time. Weekday peak windows are 06:30–08:30 and 18:00–20:30 with exclusive ends; weekends are peak all day. The pay cycle runs from the 16th through the next 15th and closes after that day. No-shows receive the applicable full rate with no attended minutes. Incomplete, invalid or future completion evidence prevents approval; frozen unfinished inactive records neither earn pay nor block approval. Approval retains its amount/evidence snapshot, rejects stale/duplicate approval and displays later source differences separately. Owner-only rates/approval and Admin financial restrictions above supersede older role descriptions in history. An API approval binds the reviewed cycle, trainer and source fingerprint; approval, typed lines, internal notice and recipient records commit together. Its actor-private receipt recovers the original approval after a lost response. This records approved remuneration, not a transfer or provider payment. Later rate/name changes leave the approved amount and names fixed; later attendance/booking evidence differences are shown separately. Financial reads are loaded on the remuneration route, not included in the general directory.
 
 **Messages and renewal reminders.** Read/unread belongs independently to each recipient; category/filter navigation does not mark records read. Typed metadata, not titles, determines categories. A fresh credit debit creates a single package-instance reminder at the configured remaining-session threshold (two: 10/12, 22/24, 34/36), atomically with usage. Retries and no-show corrections cannot duplicate it. Existing reminders survive later usage and reads; an old-package debit never notifies for a new purchase. Dashboard previews show at most three rows while totals include every visible reminder. Reading a reminder does not resolve it. Legacy normalization preserves unrelated records and publishes only after successful persistence.
 
@@ -187,6 +187,35 @@ The staff-portal goal is all 55 matrix operations, plus authentication and route
 All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in Part 2; no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
 
 ## Part 2 — Dated changes and evidence
+
+### 24 October 2026 — remuneration unit and static gates
+
+All 1,347 unit tests across 140 files passed in129.95 seconds and the strict inventory verifier passed (`remuneration-units-full-1.log`). Lint and source health passed all498 frontend files; all47 verifier regressions passed. Python checks pass all264 files and the reviewed OpenAPI has120 paths/132 operations; every prior path is semantically unchanged, and DirectorySnapshot adds only the capability flag. No applied migration was changed. Full1,205-case backend/PostgreSQL and633-check infrastructure validation is running in `remuneration-backend-full-1.log`; final-head CI and full204-case API-browser acceptance remain pending.
+
+
+### 24 October 2026 — remuneration browser validation
+
+The corrected remuneration real-API browser suite passed all 12 cases in 1.1 minutes across desktop Chromium, phone and tablet. It includes actual UI approval, fresh-login Trainer persistence, Admin and foreign-Trainer denial, stale-rate rejection followed by review of the changed total, and inline/focus-refresh recovery after a lost committed response with exactly one original POST. Log: `/workspace/work/fitfinity-handoff/remuneration-browser-2.log`. All databases are disposable Docker PostgreSQL; the only identity provider is the local signed-token substitute. No payment, real notification delivery, AWS change or production database access occurred.
+
+
+### 24 October 2026 — remuneration browser first failure retained
+
+The first real-API browser run passed nine of twelve cases across desktop Chromium, phone and tablet. All three failures were the same stale-rate test step after successful stale rejection: it tried to click “Show remuneration amounts” after reload, but the approved page-state behavior had already retained visible amounts. The test now asserts “Hide remuneration amounts” and the exact revised total before approval. Timeouts, retries and application visibility behavior were not changed. Original log: `remuneration-browser-1.log`; traces: `/workspace/work/fitfinity-handoff/remuneration-browser-first-traces`. The corrected twelve-case run is pending.
+
+
+### 24 October 2026 — report full gate and remuneration iteration
+
+Report head `b7b96d554b69d22f18affc3d2d0a33b471674b97` passed the complete local backend gate: all 1,188 backend/PostgreSQL tests in 771.08 seconds, all 633 infrastructure checks, Ruff and OpenAPI. Log: `/workspace/work/fitfinity-handoff/report-backend-full-2.log`; owned Compose resources were removed. The obsolete `cb9bab` PR run40081846420 was cancelled after its formatting failure and 192-case API-browser pass; final-head run40082179585 runs separately. PR71 main run40080233582 passed validation, build and Pages deployment, then waited only for AWS image approval. Its obsolete wait was cancelled after PR72 merged; no image publication was approved.
+
+Remuneration iteration on `feat/remuneration-api`: all 17 new PostgreSQL cases passed on the first focused run. The 52-case run had 51 passes and one directory exact-field-set failure because its expectation omitted the new `remunerationWorkflows` capability. The expectation now includes the typed flag; no financial data was added to the directory. First log: `remuneration-backend-1.log`. Thirteen focused frontend cases pass, including uncertain approval recovery without a second confirmation. The source-health invocation initially hit sandbox `spawnSync git EPERM`; the supported permission rerun passed all498 frontend files. Full suites and browser evidence remain pending.
+
+
+### 24 October 2026 — acknowledgement accepted, report formatting correction
+
+PR72 merged as `935db1eb6fcd9c485d758874d4271d63370b1a04` after exact head `623d38351dc47a15d483acc7dbe743b12f053da5` passed all three required CI gates in [run40079726495](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40079726495). Evidence: 1,336 units across 138 files, 1,174 backend/PostgreSQL tests, 633 infrastructure checks, 177 real-API browser cases and 1,152 simulator browser cases. Accepted source coverage is 39/55: 38 server-connected and one local predicate. This does not establish deployment or live acceptance.
+
+Report PR73 first full local gate stopped before backend tests at Ruff's formatting check: one recovery-fixture list entry was misindented. Original failure remains in `/workspace/work/fitfinity-handoff/report-backend-full-1.log`. Formatting-only correction `b7b96d5` was pushed; full isolated backend gate is running in `report-backend-full-2.log`. Local merge `c53be182e09c4e1fa19def2b1dad38b7654f98cd` reconciles accepted PR72 and has exactly the same Git tree as `b7b96d5`. Remuneration draft work is on `feat/remuneration-api`; no candidate is counted as accepted.
+
 
 ### Report focused acceptance and unit gate — 24 October 2026
 
