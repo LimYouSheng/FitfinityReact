@@ -167,3 +167,35 @@ it.each(['completed', 'cancelled'])('outcome capability keeps terminal %s cover 
   await screen.findByText('Stored outcome')
   expect(within(document.querySelector('.session-outcome-panel')).queryByRole('button', { name: 'Edit', exact: true })).toBeNull()
 })
+
+it('recovers an uncertain summary with its original review and an explicit recovery confirmation', async () => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  const draft = 'Reviewed client summary'
+  const reviewed = { expected: 'original-summary' }
+  const save = vi.fn().mockRejectedValueOnce(new Error('Lost summary response')).mockResolvedValue({})
+  const notice = vi.fn()
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionSummary: vi.fn().mockResolvedValue({ reviewed, draft, uncertain: false }), sessionService: { saveClientSummary: save } }
+  show(services, { capabilities: { sessionSummaryWrites: true } }, notice)
+  await screen.findByText('Stored outcome')
+  const panel = document.querySelector('.client-summary-panel')
+  fireEvent.click(within(panel).getByRole('button', { name: 'Edit', exact: true }))
+  await screen.findByDisplayValue('Reviewed client summary')
+  fireEvent.click(within(panel).getByRole('button', { name: 'Save', exact: true }))
+  const confirmation = await screen.findByRole('dialog', { name: 'Save client-facing summary?', exact: true })
+  fireEvent.click(within(confirmation).getByRole('button', { name: 'Save Summary', exact: true }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Lost summary response')
+  expect(within(panel).getByLabelText('Client-facing summary', { exact: true })).toBeDisabled()
+  fireEvent.click(within(panel).getByRole('button', { name: 'Check original summary', exact: true }))
+  await vi.waitFor(() => expect(notice).toHaveBeenCalledWith('Original client summary confirmed.'))
+  expect(save.mock.calls[0]).toEqual(save.mock.calls[1])
+  expect(services.reviewSessionSummary).toHaveBeenCalledTimes(1)
+})
+
+it.each(['completed', 'cancelled'])('summary capability keeps terminal %s cover evidence read-only', async status => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session = { ...value.session, status }
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value) }
+  show(services, { user: { ...staff, role: 'trainer', trainerId: value.session.trainerId }, capabilities: { sessionSummaryWrites: true } })
+  await screen.findByText('Stored outcome')
+  expect(within(document.querySelector('.client-summary-panel')).queryByRole('button', { name: 'Edit', exact: true })).toBeNull()
+})

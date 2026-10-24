@@ -3,7 +3,7 @@ import Panel from '../../components/Panel.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { sessionDurationMinutes } from '../../app/sessionRules.js'
 
-export default function SessionNotes({ session, outcome, displayedSummary, activeEditor, setActiveEditor, saving, setSaving, setDetailsError, canEditNotes, canEditOutcome = canEditNotes, outcomeUncertain = false, onBeginOutcome, onSaveOutcome, onSaveClientSummary }) {
+export default function SessionNotes({ session, outcome, displayedSummary, activeEditor, setActiveEditor, saving, setSaving, setDetailsError, canEditNotes, canEditSummary = canEditNotes, summaryUncertain = false, onBeginSummary, canEditOutcome = canEditNotes, outcomeUncertain = false, onBeginOutcome, onSaveOutcome, onSaveClientSummary }) {
   const confirmAction = useActionConfirmation()
   const [outcomeDraft, setOutcomeDraft] = useState(outcome)
   const [summaryDraft, setSummaryDraft] = useState(displayedSummary)
@@ -42,8 +42,19 @@ export default function SessionNotes({ session, outcome, displayedSummary, activ
     }
   }
 
+  const beginSummary = async () => {
+    if (saving) return
+    setSaving(true); setDetailsError(''); setActiveEditor('summary')
+    try {
+      if (onBeginSummary) {
+        const draft = await onBeginSummary()
+        setSummaryDraft(draft || displayedSummary)
+      }
+    } catch (error) { setDetailsError(error.message); setActiveEditor(null) }
+    finally { setSaving(false) }
+  }
   const saveSummary = async () => {
-    const confirmed = await confirmAction({
+    const confirmed = summaryUncertain || await confirmAction({
       title: 'Save client-facing summary?',
       message: 'This will replace the summary prepared for sharing with the client.',
       confirmLabel: 'Save Summary',
@@ -53,6 +64,7 @@ export default function SessionNotes({ session, outcome, displayedSummary, activ
     setSaving(true)
     try {
       await onSaveClientSummary(summaryDraft)
+      setDetailsError('')
       setActiveEditor(null)
     } catch (failure) {
       setDetailsError(failure.message || 'Could not complete this action. Try again.')
@@ -105,17 +117,17 @@ export default function SessionNotes({ session, outcome, displayedSummary, activ
               <h2>Client-Facing Summary</h2>
               {activeEditor === 'summary' ? (
                 <div className="inline-actions">
-                  <button type="button" className="text-action muted-action" disabled={saving} onClick={() => setActiveEditor(null)}>Cancel</button>
-                  <button type="button" className="text-action" disabled={saving || !summaryDraft.trim()} onClick={saveSummary}>{saving ? 'Saving…' : 'Save'}</button>
+                  <button type="button" className="text-action muted-action" disabled={saving || summaryUncertain} onClick={() => setActiveEditor(null)}>Cancel</button>
+                  <button type="button" className="text-action" disabled={saving || !summaryDraft.trim()} onClick={saveSummary}>{summaryUncertain ? 'Check original summary' : saving ? 'Saving…' : 'Save'}</button>
                 </div>
-              ) : canEditNotes && (
-                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('summary')}>Edit</button>
+              ) : canEditSummary && (
+                <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={beginSummary}>Edit</button>
               )}
             </div>
 
             {activeEditor === 'summary' ? (
               <div className="client-summary-editor">
-                <textarea rows="8" value={summaryDraft} onChange={event => setSummaryDraft(event.target.value)} />
+                <textarea aria-label="Client-facing summary" rows="8" disabled={saving || summaryUncertain} value={summaryDraft} onChange={event => setSummaryDraft(event.target.value)} />
               </div>
             ) : (
               <div className="client-summary-copy">{displayedSummary}</div>

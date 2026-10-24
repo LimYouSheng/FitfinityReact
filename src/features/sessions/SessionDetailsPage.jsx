@@ -26,6 +26,9 @@ const READ_CATALOG = Object.freeze([])
 export default function SessionDetailsPage({
   readOnly = false,
   planEditable = false,
+  summaryEditable = false,
+  summaryUncertain = false,
+  onBeginSummary,
   outcomeEditable = false,
   outcomeUncertain = false,
   onBeginOutcome,
@@ -207,6 +210,7 @@ export default function SessionDetailsPage({
       <SessionNotes session={session} outcome={outcome} displayedSummary={displayedSummary}
         activeEditor={activeEditor} setActiveEditor={setActiveEditor} saving={saving} setSaving={setSaving}
         setDetailsError={setDetailsError} canEditNotes={canEditNotes}
+        canEditSummary={canEditNotes || (readOnly && summaryEditable && !recordInactive && (isOwner || assignedTrainer))} summaryUncertain={summaryUncertain} onBeginSummary={onBeginSummary}
         canEditOutcome={canEditNotes || (readOnly && outcomeEditable && !recordInactive && (isOwner || assignedTrainer))} outcomeUncertain={outcomeUncertain} onBeginOutcome={onBeginOutcome}
         onSaveOutcome={onSaveOutcome} onSaveClientSummary={onSaveClientSummary} />
 

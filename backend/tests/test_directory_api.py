@@ -176,6 +176,7 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
         "sessionPostponementWrites",
         "sessionPlanWrites",
         "sessionOutcomeWrites",
+        "sessionSummaryWrites",
         "sessionChangeWrites",
         "clientWeeklyScheduleWrites",
         "trainerDeactivationWrites",
@@ -201,6 +202,7 @@ def test_directory_does_not_load_assessment_answers_or_manufacture_other_domains
     assert data["sessionChangeWrites"] is True
     assert data["sessionPlanWrites"] is True
     assert data["sessionOutcomeWrites"] is True
+    assert data["sessionSummaryWrites"] is True
     assert data["trainerApprovalWrites"] is True
     assert data["trainerCreation"] is True
     assert data["trainerOnboardingPolicy"] == {

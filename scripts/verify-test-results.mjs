@@ -11,13 +11,13 @@ export function verifyTestResults(kind, logPath) {
   if (kind === 'unit') {
     const files = [...text.matchAll(/Test Files\s+(\d+) passed\s*\((\d+)\)/g)].at(-1)
     const tests = [...text.matchAll(/\bTests\s+(\d+) passed\s*\((\d+)\)/g)].at(-1)
-    if (!files || !tests || files[1] !== '136' || files[2] !== '136' || tests[1] !== '1320' || tests[2] !== '1320') fail('Unit totals must be exactly 1320 passed / 1320 in 136 passed / 136 files.')
+    if (!files || !tests || files[1] !== '137' || files[2] !== '137' || tests[1] !== '1328' || tests[2] !== '1328') fail('Unit totals must be exactly 1328 passed / 1328 in 137 passed / 137 files.')
   } else {
-    const expected = kind === 'api-browser' ? '153' : '1152'
+    const expected = kind === 'api-browser' ? '165' : '1152'
     const passed = [...text.matchAll(/(?:^|\n)\s*(\d+) passed(?:\s|$)/g)].at(-1)
     if (!passed || passed[1] !== expected || /\bError:|\b(?:Timed out waiting|No tests found)\b/.test(text)) fail(`${kind} gate must finish with exactly ${expected} passed and no errors.`)
   }
-  console.log(`\u001b[32m${kind === 'unit' ? '1320/1320 unit tests in 136 files' : kind === 'api-browser' ? '153/153 real API browser cases' : '1152/1152 browser cases'} confirmed.\u001b[0m`)
+  console.log(`\u001b[32m${kind === 'unit' ? '1328/1328 unit tests in 137 files' : kind === 'api-browser' ? '165/165 real API browser cases' : '1152/1152 browser cases'} confirmed.\u001b[0m`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
