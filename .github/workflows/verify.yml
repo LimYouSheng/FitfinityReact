@@ -74,7 +74,7 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     env:
       FORCE_COLOR: '1'
     steps:

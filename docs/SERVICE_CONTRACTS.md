@@ -209,6 +209,18 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 25 October 2026 Singapore — Approved backend CI job budget
+
+After the complete1,341-test backend summary passed but its15-minute overall job budget cancelled final verification/cleanup, the user explicitly approved the prepared one-line change to60 minutes, matching frontend. Only `.github/workflows/verify.yml` backend `timeout-minutes` changes. The production one-second lock limit, test deadlines, assertions, inventories, runner class, browser shards and required final-head gates remain unchanged. Matching complete local application receipts remain valid; a new complete CI run is required. The cancelled job and its original evidence are preserved below, not relabelled as accepted. Source acceptance stays54/55 until PR80 passes and merges.
+
+
+### 25 October 2026 Singapore — Corrected tests pass; backend job budget blocks acceptance
+
+Head `7bb3b070f199acf5edad81edf1909b9eb3108a75` passes the complete local1,341-backend/PostgreSQL gate in736.38s plus633 infrastructure checks (`undo-contention-full-1.log`); owned Docker resources are cleaned up. [Run40121008126](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40121008126) passes both API-browser shards and the required exact282-case aggregate. Backend job120952594720 reports1,341 passed in838.93s, with no test failure, but GitHub cancels the overall job at its15-minute limit before final verification/cleanup can establish a successful job receipt. The annotation explicitly states “The job has exceeded the maximum execution time of 15m0s”; `undo-contention-ci-timeout.log` retains the evidence. A passed pytest summary is not a passed complete CI job.
+
+The one-line proposed backend budget change is15→60 minutes, matching the existing frontend job limit. It is not yet applied or approved. Production one-second lock limits, test timeouts, assertions, inventories and the approved browser shards remain unchanged. This separate timeout change requires an explicit decision under the standing restriction. Frontend CI remains pending at this checkpoint; source acceptance stays54/55 and PR80 remains draft. No unchanged-head rerun or merge was performed.
+
+
 ### 25 October 2026 Singapore — Complete shard evidence and deterministic contention repair
 
 Head `65be0c3d073369c8590133563568536d34a2a28d` passes both CI browser shards and the required aggregate in [run40119285796](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40119285796). Local shards each pass141 cases in9.6m/9.8m (`undo-shard-1-local.log`, `undo-shard-2-local.log`); the actual JSON reports pass the complete282-case identity comparison. The first obsolete timed-out run was cancelled after the new head was pushed; its partial frontend receipt is not accepted.
