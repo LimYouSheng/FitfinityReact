@@ -14,6 +14,7 @@ from app.api import session_booking_review as booking_review
 from app.api import session_booking_save as booking_save
 from app.api.request_cancellation import DECISION_LOCK
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import SessionChangeReceipt
@@ -151,6 +152,7 @@ def notify(session, principal, booking, client, original, replacement, request_i
     return notice.id
 
 
+@journal("session.change")
 def save(session, principal, identity, key, kind, body):
     """Commit proposal/application, history, notices and original retry receipt atomically."""
     saved = receipt(session, principal, key)

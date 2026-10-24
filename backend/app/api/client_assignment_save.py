@@ -10,6 +10,7 @@ from sqlalchemy import or_, select, text
 from app.api.client_assignment import inspect
 from app.api.directory import bounded
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import ClientAssignmentReceipt
@@ -54,6 +55,7 @@ def reconcile(session, principal, key):
     return AssignmentState.model_validate(saved.result)
 
 
+@journal("client.assignment")
 def save(session, principal, identity, key, body):
     principal.operations()
     saved = receipt(session, principal, key)

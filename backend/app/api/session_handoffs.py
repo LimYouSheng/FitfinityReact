@@ -10,6 +10,7 @@ from sqlalchemy import func, select, text
 
 from app.api.request_cancellation import DECISION_LOCK
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.api.session_summaries import inspect as summary_scope
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
@@ -74,6 +75,7 @@ def reconcile(session, principal, key):
     return HandoffSaved.model_validate(found.result)
 
 
+@journal("session.handoff")
 def save(session, principal, identity, key, body):
     """Commit one opening and its receipt, without delivery, completion or credit effects."""
     found = receipt(session, principal, key)

@@ -526,7 +526,10 @@ def preview_client_matches(body: client_matching.MatchRequest, request: Request,
 
 @router.post("/clients", response_model=client_creation.CreatedClient, operation_id="createClient")
 def create_client(body: client_creation.CreateClient, request: Request, key: RequestKey):
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return client_creation.create(session, principal, key, body)
 
 
@@ -563,7 +566,10 @@ def reactivate_trainer(
     key: RequestKey,
 ):
     """Reactivate the reviewed application account without reviving revoked sessions."""
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         result = trainer_reactivation.save(session, principal, trainer_id, key, body)
     if body.expectedAccountId:
         request.app.state.auth.drain_revocations(user_id=body.expectedAccountId)
@@ -703,7 +709,10 @@ def deactivate_client(
     client_id: UUID, body: client_deactivation.DeactivateClient, request: Request, key: RequestKey
 ):
     """Atomically freeze the reviewed active client and purchases without deleting history."""
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return client_deactivation.save(session, principal, client_id, key, body)
 
 
@@ -751,7 +760,10 @@ def reactivate_client(
     client_id: UUID, body: client_reactivation.ReactivationDates, request: Request, key: RequestKey
 ):
     """Restore the reviewed client, causal purchases and conflict-free retained calendar."""
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return client_reactivation_save.save(session, principal, client_id, key, body)
 
 
@@ -852,7 +864,10 @@ def renew_client_package(
     client_id: UUID, body: client_renewal_save.RenewPackage, request: Request, key: RequestKey
 ):
     """Atomically add the reviewed purchase and sessions without changing current settings."""
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return client_renewal_save.save(session, principal, client_id, key, body)
 
 
@@ -910,7 +925,10 @@ def reactivate_package(
     key: RequestKey,
 ):
     """Restore only the reviewed purchase and its conflict-free retained calendar."""
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return package_reactivation_save.save(session, principal, client_id, purchase_id, key, body)
 
 
@@ -943,7 +961,10 @@ def review_client_trainer_assignment(client_id: UUID, request: Request):
 def save_client_trainer_assignment(
     client_id: UUID, body: client_assignment_save.SaveAssignment, request: Request, key: RequestKey
 ):
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return client_assignment_save.save(session, principal, client_id, key, body)
 
 
@@ -993,7 +1014,10 @@ def save_trainer_deactivation(
     request: Request,
     key: RequestKey,
 ):
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return trainer_deactivation_save.save(session, principal, trainer_id, key, body)
 
 
@@ -1043,7 +1067,10 @@ def save_client_weekly_schedule(
     request: Request,
     key: RequestKey,
 ):
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return client_weekly_schedule_save.save(session, principal, client_id, key, body)
 
 
@@ -1100,7 +1127,10 @@ def save_session_booking(
     key: RequestKey,
 ):
     """Atomically save a reviewed booking and retain its exact retry result."""
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return session_booking_save.save(session, principal, session_id, key, body)
 
 
@@ -1135,7 +1165,10 @@ def postpone_session(
     session_id: UUID, body: session_postponement.PostponeSession, request: Request, key: RequestKey
 ):
     """Atomically release this booking or persist its supervised proposal."""
-    with authorized_transaction(request) as (session, principal):
+    with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
         return session_postponement.save(session, principal, session_id, key, body)
 
 

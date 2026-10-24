@@ -83,16 +83,17 @@ class DismissRenewal(Contract):
     expectedClientVersion: StrictInt = Field(ge=1)
 
 
-class PackageMessageUndo(Contract):
+class MessageUndoEvidence(Contract):
     id: UUID
     count: int
     expiresAt: datetime
     status: Literal["available", "undone", "expired"]
-    kind: Literal["package_deletion"] = "package_deletion"
+    kind: Literal["package_deletion", "session_change"] = "package_deletion"
+    notice: str | None = None
 
 
 class PersonalMessage(MessageReadState):
-    undo: PackageMessageUndo | None = None
+    undo: MessageUndoEvidence | None = None
     reversedAt: datetime | None = None
     recipientUserId: UUID
     kind: str

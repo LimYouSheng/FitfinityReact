@@ -11,6 +11,7 @@ from sqlalchemy import exists, func, select, text
 from app.api import session_reads
 from app.api.request_cancellation import DECISION_LOCK as PLAN_LOCK
 from app.api.schemas import Contract
+from app.api.session_mutation_journal import journal
 from app.api.session_read_schemas import SessionPlanRead
 from app.auth.errors import AuthError
 from app.authorization import conflict, session_record, session_scope, unavailable
@@ -140,6 +141,7 @@ def reconcile(session, principal, key):
     return decode_saved(saved.result)
 
 
+@journal("session.plan")
 def save(session, principal, identity, key, body):
     """Retire removals; never move results or media to newly inserted plan identities."""
     saved = receipt(session, principal, key)
@@ -305,6 +307,7 @@ def previous(session, principal, identity, *, write=False):
     return PreviousPlan(target=target, source=projected)
 
 
+@journal("session.copy_plan")
 def copy_previous(session, principal, identity, key, body):
     """Confirm both reviewed plans and latest-source selection before replacing the target."""
     saved = receipt(session, principal, key)
