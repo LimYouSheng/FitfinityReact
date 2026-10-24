@@ -14,7 +14,7 @@ from sqlalchemy.pool import NullPool
 from app.config import Settings
 from app.migrations import migration_config
 
-pytest_plugins = ["tests.domain_fixtures", "tests.auth_fixtures"]
+pytest_plugins = ["tests.domain_fixtures", "tests.auth_fixtures", "tests.media_fixtures"]
 
 
 def test_control_url(value: str | None):

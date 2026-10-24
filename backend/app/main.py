@@ -13,6 +13,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.email_changes import router as email_router
+from app.api.library_routes import router as library_router
 from app.api.openapi import configure_openapi
 from app.api.routes import router as staff_router
 from app.api.schemas import ERROR_RESPONSES, Live, Ready
@@ -26,6 +27,7 @@ from app.auth.routes import router as auth_router
 from app.auth.service import AuthService
 from app.config import Settings, load_settings
 from app.database import Database
+from app.media_storage import configured_storage
 from app.migrations import expected_revisions
 from app.observability import RequestContextMiddleware, configure_logging, error_response
 
@@ -37,6 +39,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.database = Database(settings)
+        app.state.media = configured_storage(settings)
         app.state.expected_revisions = expected_revisions()
         if settings.auth_enabled:
             app.state.invitations = CognitoInvitations(settings)
@@ -52,6 +55,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 app.state.auth.provider.close()
                 app.state.invitations.close()
             app.state.database.close()
+            if app.state.media is not None:
+                app.state.media.close()
             logger.info("application_stopped")
 
     app = FastAPI(
@@ -70,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(staff_router)
         app.include_router(access_router)
         app.include_router(email_router)
+        app.include_router(library_router)
         app.add_middleware(AuthRequestMiddleware, settings=settings)
         app.add_middleware(
             CORSMiddleware,

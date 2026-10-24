@@ -15,7 +15,7 @@ const EXERCISE_EDIT_LABEL = 'Exercise library entry'
 const draftFor = (exercise, categories) => ({ name: exercise?.name ?? '', category: exercise?.category ?? categories[0] ?? '', description: exercise?.description ?? '', status: exercise?.status ?? 'active' })
 const mediaLabel = media => media ? media.type.startsWith('image/') ? 'Photo' : 'Video' : '—'
 
-function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia, onSave, onNavigate, onBack }) {
+function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia, onSave, onNavigate, onBack, apiRecovery }) {
   const confirm = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
   const [editing, setEditing] = useState(creating)
@@ -26,6 +26,8 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
   const [errors, setErrors] = useState({})
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [uncertain, setUncertain] = useState(false)
+  const original = useRef(null)
   const [created, setCreated] = useState(null)
   const pending = useRef(false), navigated = useRef(false), fileInput = useRef(null)
   const dirty = JSON.stringify(draft) !== JSON.stringify(draftFor(exercise, categories)) || Boolean(file) || removeMedia
@@ -47,34 +49,41 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
     if (pending.current) return
     const validation = exerciseDraftErrors(nextDraft, exercises, exercise?.id, categories)
     setErrors(validation)
-    if (Object.keys(validation).length || (!statusOnly && mediaError)) return
+    if (!uncertain && (Object.keys(validation).length || (!statusOnly && mediaError))) return
     pending.current = true; setBusy(true); setError('')
     try {
       const action = statusOnly ? nextDraft.status === 'active' ? 'Reactivate Exercise' : 'Deactivate Exercise' : creating ? 'Create Exercise' : 'Save Exercise'
-      if (!await confirm({ title: `${action}?`, confirmLabel: action,
+      if (!uncertain && !await confirm({ title: `${action}?`, confirmLabel: action,
         message: `${nextDraft.name.trim()} · ${nextDraft.category}. ${statusOnly && nextDraft.status === 'inactive' ? 'This removes the exercise from new session selections. Saved plans keep their existing details.' : 'Save this library entry and create a related Message.'}` })) return
-      const saved = await onSave({ id: exercise?.id, expectedVersion: exercise?.version, draft: nextDraft,
-        mediaFile: statusOnly ? null : file, removeMedia: statusOnly ? false : removeMedia })
+      const options = uncertain ? original.current : { id: exercise?.id, expectedVersion: exercise?.version, draft: nextDraft,
+        mediaFile: statusOnly ? null : file, removeMedia: statusOnly ? false : removeMedia }
+      original.current = options
+      const saved = await onSave(options)
+      setUncertain(false)
       setEditing(false); setFile(null); setMediaError(''); setRemoveMedia(false); setActiveEdit(null)
       if (creating) setCreated(saved)
-    } catch (failure) { setError(failure.message || 'Could not save the exercise. Try again.') }
+    } catch (failure) {
+      setUncertain(Boolean(apiRecovery && (!failure.status || failure.status >= 500)))
+      setError(failure.message || 'Could not save the exercise. Try again.')
+    }
     finally { pending.current = false; setBusy(false) }
   }
 
   if (creating && created) return <Panel><p role="status">Opening exercise…</p></Panel>
   if (!editing) return <Panel>
     <div className="section-head"><div><h2>{exercise?.name ?? created?.name}</h2><StatusBadge tone={exercise?.status === 'inactive' ? 'neutral' : 'green'}>{exercise?.status === 'inactive' ? 'Inactive' : 'Active'}</StatusBadge></div>
-      <button type="button" className="text-action" disabled={busy} onClick={() => { setEditing(true); setDraft(draftFor(exercise, categories)) }}>Edit Exercise</button>
+      <button type="button" className="text-action" disabled={busy || uncertain} onClick={() => { setEditing(true); setDraft(draftFor(exercise, categories)) }}>Edit Exercise</button>
     </div>
     <dl className="library-summary"><div><dt>Category</dt><dd>{exercise?.category}</dd></div><div><dt>Description</dt><dd>{exercise?.description || '—'}</dd></div><div><dt>Photo / video</dt><dd>{exercise?.media?.name || 'No attachment'}</dd></div></dl>
     <ExerciseLibraryMedia onLoad={onLoadMedia} media={exercise?.media} />
     {error && <p className="validation-copy" role="alert">{error}</p>}
-    {exercise && <div className="library-lifecycle"><button className="secondary-button" type="button" disabled={busy} onClick={() => persist({ ...draftFor(exercise, categories), status: exercise.status === 'active' ? 'inactive' : 'active' }, true)}>{exercise.status === 'active' ? 'Deactivate Exercise' : 'Reactivate Exercise'}</button></div>}
+    {uncertain && <button disabled={busy} onClick={() => persist(draft)}>Check original exercise save</button>}
+    {exercise && <div className="library-lifecycle"><button className="secondary-button" type="button" disabled={busy || uncertain} onClick={() => persist({ ...draftFor(exercise, categories), status: exercise.status === 'active' ? 'inactive' : 'active' }, true)}>{exercise.status === 'active' ? 'Deactivate Exercise' : 'Reactivate Exercise'}</button></div>}
   </Panel>
 
   return <Panel>
     <form className="library-form" noValidate onSubmit={event => { event.preventDefault(); persist(draft) }}>
-      <fieldset disabled={busy}>
+      <fieldset disabled={busy || uncertain}>
         <div className={`library-field is-required ${errors.name ? 'is-invalid' : ''}`}><label htmlFor="library-name">Exercise name <span aria-hidden="true">*</span></label><input id="library-name" required maxLength={180} value={draft.name} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'library-name-error' : undefined} onChange={event => patch({ name: event.target.value })} />{errors.name && <small id="library-name-error">{errors.name}</small>}</div>
         <div className={`library-field is-required ${errors.category ? 'is-invalid' : ''}`}><label htmlFor="library-category">Category <span aria-hidden="true">*</span></label><SelectField id="library-category" required value={draft.category} aria-invalid={Boolean(errors.category)} onChange={event => patch({ category: event.target.value })}>{categories.map(category => <option key={category}>{category}</option>)}</SelectField>{errors.category && <small>{errors.category}</small>}</div>
         <div className="library-field"><label htmlFor="library-description">Description</label><textarea id="library-description" rows={3} maxLength={2000} value={draft.description} onChange={event => patch({ description: event.target.value })} />{errors.description && <small>{errors.description}</small>}</div>
@@ -94,12 +103,13 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
           else { setEditing(false); setFile(null); setMediaError(''); setRemoveMedia(false); setErrors({}); setError('') }
         }}>Cancel</button><button className="primary-button" type="submit" disabled={!creating && !dirty}>{busy ? 'Saving…' : creating ? 'Create Exercise' : 'Save Exercise'}</button></div>
       </fieldset>
+      {uncertain && <button type="button" disabled={busy} onClick={() => persist(draft)}>Check original exercise save</button>}
       {error && <p className="validation-copy" role="alert">{error}</p>}
     </form>
   </Panel>
 }
 
-function OwnerExerciseLibrary({ exercises, categories, detailId, onNavigate, onBack, onLoadMedia, onSave }) {
+function OwnerExerciseLibrary({ exercises, categories, detailId, onNavigate, onBack, onLoadMedia, onSave, apiRecovery }) {
   const { activeEdit } = useEditGuard()
   const [query, setQuery] = usePageState('ExerciseLibraryPage.query', ''), [category, setCategory] = usePageState('ExerciseLibraryPage.category', ''), [status, setStatus] = usePageState('ExerciseLibraryPage.status', 'active')
   const visible = useMemo(() => filterExerciseCatalog(exercises, { query, category, status }), [category, exercises, query, status])
@@ -110,7 +120,7 @@ function OwnerExerciseLibrary({ exercises, categories, detailId, onNavigate, onB
     <div className={detailId ? 'page-head' : 'page-head directory-page-head'}><div><span className="eyebrow">Operations</span><h1>{creating ? 'Add Exercise' : 'Exercise Library'}</h1></div>{detailId
       ? <button type="button" className="secondary-button" onClick={onBack}>Back to Exercise Library</button>
       : <button type="button" className="onboarding-button primary" onClick={() => onNavigate('exercises/new')}>Add Exercise</button>}</div>
-    {detailId ? creating || selected ? <ExerciseDetail key={detailId} exercise={selected} exercises={exercises} categories={categories} creating={creating} onLoadMedia={onLoadMedia} onSave={onSave} onNavigate={onNavigate} onBack={onBack} /> : <Panel><p>Exercise not found.</p></Panel>
+    {detailId ? creating || selected ? <ExerciseDetail apiRecovery={apiRecovery} key={detailId} exercise={selected} exercises={exercises} categories={categories} creating={creating} onLoadMedia={onLoadMedia} onSave={onSave} onNavigate={onNavigate} onBack={onBack} /> : <Panel><p>Exercise not found.</p></Panel>
       : <Panel>
         <div className="library-filters"><input type="search" aria-label="Search exercises" placeholder="Search exercises" value={query} onChange={event => setQuery(event.target.value)} /><SelectField aria-label="Exercise category" value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(item => <option key={item}>{item}</option>)}</SelectField><SelectField aria-label="Exercise status" value={status} onChange={event => setStatus(event.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option><option value="">All statuses</option></SelectField></div>
         <p className="library-count">{visible.length} exercises</p>

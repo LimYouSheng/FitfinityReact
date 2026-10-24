@@ -10,13 +10,13 @@ import { DEFAULT_EXERCISES } from '../../data/mockExercises.js'
 import ExerciseLibraryPage from './ExerciseLibraryPage.jsx'
 
 afterEach(cleanup)
-function Harness({ detailId, onSave, onOutsideClick, user = { id: 'u-owner', name: 'Owner', role: 'owner' } }) {
+function Harness({ detailId, onSave, onOutsideClick, apiRecovery, user = { id: 'u-owner', name: 'Owner', role: 'owner' } }) {
   const [detail, setDetail] = useState(detailId), [exercises, setExercises] = useState(DEFAULT_EXERCISES)
   const { guardNavigation } = useEditGuard()
   return <AppShell user={user} users={[user]} userId={user.id} route="exercises" messages={[]}
     onRoute={path => guardNavigation(() => setDetail(path.split('/')[1]))} onUserChange={vi.fn()} onReset={vi.fn()}>
     {onOutsideClick && <button type="button" onClick={onOutsideClick}>Outside action</button>}
-    <ExerciseLibraryPage categories={mockPolicy.exerciseCategories} user={user} exercises={exercises} detailId={detail}
+    <ExerciseLibraryPage apiRecovery={apiRecovery} categories={mockPolicy.exerciseCategories} user={user} exercises={exercises} detailId={detail}
     onNavigate={path => guardNavigation(() => setDetail(path.split('/')[1]))}
     onBack={() => guardNavigation(() => setDetail(null))}
     onSave={async options => {
@@ -39,6 +39,17 @@ async function confirm(name) {
   fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name, exact: true }))
 }
 describe('exercise library form and summary', () => {
+  it('freezes an uncertain API draft and checks its original values without another confirmation', async () => {
+    const save = vi.fn().mockRejectedValueOnce(new Error('Lost response')).mockResolvedValue(undefined)
+    mount({ detailId: 'new', apiRecovery: true, onSave: save })
+    setName('Original movement'); click('Create Exercise'); await confirm('Create Exercise')
+    const check = await screen.findByRole('button', { name: 'Check original exercise save' })
+    expect(nameField()).toBeDisabled()
+    fireEvent.click(check)
+    expect(await screen.findByRole('heading', { name: 'Original movement' })).toBeVisible()
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(save.mock.calls[1][0]).toEqual(save.mock.calls[0][0])
+  })
   it('paginates the original catalog and combines category, search and status filters', () => {
     mount(); expect(screen.getAllByRole('row')).toHaveLength(11)
     click('Next'); expect(screen.getByText('Page 2 of 5')).toBeVisible()

@@ -60,9 +60,9 @@ export const PORTAL_CONTRACTS = Object.freeze({
     save: contract({ 'id?': 'string', 'expectedVersion?': 'number', 'draft': 'object' }, 'operations', 'PackageDefinition', true),
   }),
   exerciseLibraryService: Object.freeze({
-    loadMedia: contract({ 'id': 'string' }, 'authenticated', 'Blob | null'),
-    getAll: contract({}, 'authenticated', 'LibraryExercise[]'),
-    save: contract({ 'id?': 'string', 'expectedVersion?': 'number', 'draft': 'object', 'mediaFile?': 'blob', 'removeMedia?': 'boolean' }, 'operations', 'LibraryExercise'),
+    loadMedia: contract({ 'id': 'string' }, 'authenticated', 'Blob | null', true),
+    getAll: contract({}, 'authenticated', 'LibraryExercise[]', true),
+    save: contract({ 'id?': 'string', 'expectedVersion?': 'number', 'draft': 'object', 'mediaFile?': 'blob', 'removeMedia?': 'boolean' }, 'operations', 'LibraryExercise', true),
   }),
   messageService: Object.freeze({
     dismissRenewal: contract({ 'id': 'string', 'expectedClientVersion?': 'number' }, 'message', 'PersonalMessage | RenewalState', true),

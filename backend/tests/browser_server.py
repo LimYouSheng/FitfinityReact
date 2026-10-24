@@ -1,4 +1,4 @@
-"""Test-only real HTTP application. Isolated PostgreSQL; only Cognito is substituted.
+"""Test-only real HTTP application with isolated PostgreSQL and S3-compatible storage.
 
 Not copied into the runtime image. No test/reset routes or authorization overrides.
 """
@@ -43,6 +43,7 @@ from app.models.training import (
 )
 from app.persistence import acknowledge, add_client, add_purchase
 from tests.domain_fixtures import person, purchase_parts
+from tests.media_fixtures import isolated_media
 from tests.test_package_reactivation_review import freeze
 
 PASSWORD = "browser-test-password-only"
@@ -273,6 +274,12 @@ def seed(db, settings):
             "paystale",
             "payloss",
             "payrefresh",
+            "library",
+            "libraryadmin",
+            "librarystale",
+            "libraryloss",
+            "libraryuploadloss",
+            "libraryforeign",
             "handoff",
             "handoffadmin",
             "handoffloss",
@@ -700,7 +707,10 @@ def browser_app(control):
         site = Path(os.environ.get("FITFINITY_BROWSER_SITE", "/browser-site"))
         app.mount("/", StaticFiles(directory=site, html=True), name="browser-site")
         try:
-            yield app
+            with isolated_media(os.environ["FITFINITY_BROWSER_MEDIA_ENDPOINT"]) as (store, bucket):
+                app.state.media = store
+                settings.media_bucket = bucket
+                yield app
         finally:
             provider.close()
             app.state.invitations.close()

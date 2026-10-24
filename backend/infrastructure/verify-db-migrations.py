@@ -182,6 +182,12 @@ class RuntimeChecks(unittest.TestCase):
             "app/api/remuneration_schemas.py",
             "migrations/versions/20261024_0040_session_handoffs.py",
             "app/api/session_handoffs.py",
+            "migrations/versions/20261024_0041_library_intents.py",
+            "app/api/exercise_library.py",
+            "app/api/library_schemas.py",
+            "app/api/library_routes.py",
+            "app/media_storage.py",
+            "app/library_cleanup.py",
         ]:
             path = self.image_root / relative
             original = path.read_bytes()

@@ -406,6 +406,7 @@ class DirectorySnapshot(ServerClock):
     sessionPlanWrites: Literal[True] = True
     sessionOutcomeWrites: Literal[True] = True
     remunerationWorkflows: bool = False
+    exerciseLibraryWorkflows: Literal[True] = True
     progressReportWrites: Literal[True] = True
     sessionAcknowledgementWrites: Literal[True] = True
     sessionSummaryWrites: Literal[True] = True

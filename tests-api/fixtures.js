@@ -19,6 +19,8 @@ export async function signIn(page, role = 'owner', email = `${role}@example.test
   const login = page.waitForResponse(response => response.url().endsWith('/auth/sign-in'))
   await page.getByRole('button', { name: 'Sign In', exact: true }).click()
   expect((await login).status()).toBe(200)
+  // Finish the page's accessible stage-focus transition before entering the code.
+  await expect(page.getByRole('heading', { name: 'Authenticator verification', exact: true })).toBeFocused()
   await page.getByLabel('Authenticator code').fill('123456')
   const challenge = page.waitForResponse(response => response.url().endsWith('/auth/challenge'))
   await page.getByRole('button', { name: 'Continue', exact: true }).click()

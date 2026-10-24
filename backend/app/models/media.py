@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -17,10 +18,42 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.common import Versioned, choices
+from app.models.common import ActorEvidence, Versioned, choices
+
+
+class LibrarySaveIntent(ActorEvidence, Versioned, Base):
+    """Frozen original command; only its terminal receipt/state may change."""
+
+    __tablename__ = "library_save_intents"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "request_key"),
+        choices("state", "pending", "completed", "expired"),
+        choices("exercise_status", "active", "inactive"),
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="request_digest"),
+        CheckConstraint("expected_version IS NULL OR expected_version > 0", name="review_version"),
+        CheckConstraint("(state = 'completed') = (result IS NOT NULL)", name="receipt_state"),
+        CheckConstraint(
+            "length(btrim(name)) BETWEEN 1 AND 180 AND length(description) <= 2000",
+            name="details_bounds",
+        ),
+    )
+    request_key: Mapped[UUID]
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    exercise_id: Mapped[UUID]  # Allocated before a new exercise is published.
+    expected_version: Mapped[int | None] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(180))
+    category: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str] = mapped_column(Text)
+    exercise_status: Mapped[str] = mapped_column(String(16))
+    remove_media: Mapped[bool] = mapped_column(Boolean)
+    upload_id: Mapped[UUID | None] = mapped_column(ForeignKey("media_assets.id"), unique=True)
+    upload_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    state: Mapped[str] = mapped_column(String(16), server_default="pending")
+    result: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
 
 
 class MediaAsset(Versioned, Base):
