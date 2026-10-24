@@ -337,6 +337,9 @@ def seed(db, settings):
             "contacts",
             "assessments",
             "lifecycle",
+            "packagedelete",
+            "packageloss",
+            "packagestale",
             "weekly",
             "assignment",
             "package",
@@ -436,6 +439,9 @@ def seed(db, settings):
                 "contacts",
                 "assessments",
                 "lifecycle",
+                "packagedelete",
+                "packageloss",
+                "packagestale",
                 "weekly",
                 "assignment",
                 "package",
@@ -474,6 +480,7 @@ def seed(db, settings):
                     )
                 ) or purpose in {
                     "availability",
+                    "packagestale",
                     "postponeauto",
                     "postponesupervised",
                 }:

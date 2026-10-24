@@ -18,7 +18,7 @@ class SessionBookingReceipt(ActorEvidence, Record, Base):
     )
     request_key: Mapped[UUID]
     request_sha256: Mapped[str] = mapped_column(String(64))
-    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"))
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"))
     client_id: Mapped[UUID] = mapped_column(ForeignKey("clients.id"))
     purchase_id: Mapped[UUID] = mapped_column(ForeignKey("package_purchases.id"))
     message_id: Mapped[UUID | None] = mapped_column(ForeignKey("messages.id"))
@@ -34,7 +34,7 @@ class SessionPostponementReceipt(ActorEvidence, Record, Base):
     )
     request_key: Mapped[UUID]
     request_sha256: Mapped[str] = mapped_column(String(64))
-    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"))
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"))
     client_id: Mapped[UUID] = mapped_column(ForeignKey("clients.id"))
     purchase_id: Mapped[UUID] = mapped_column(ForeignKey("package_purchases.id"))
     message_id: Mapped[UUID | None] = mapped_column(ForeignKey("messages.id"))
@@ -51,7 +51,7 @@ class SessionChangeReceipt(ActorEvidence, Record, Base):
     )
     request_key: Mapped[UUID]
     request_sha256: Mapped[str] = mapped_column(String(64))
-    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"))
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"))
     client_id: Mapped[UUID] = mapped_column(ForeignKey("clients.id"))
     purchase_id: Mapped[UUID] = mapped_column(ForeignKey("package_purchases.id"))
     message_id: Mapped[UUID | None] = mapped_column(ForeignKey("messages.id"))
@@ -68,7 +68,7 @@ class SessionPlanReceipt(ActorEvidence, Record, Base):
     )
     request_key: Mapped[UUID]
     request_sha256: Mapped[str] = mapped_column(String(64))
-    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"))
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"))
     previous: Mapped[dict] = mapped_column(JSONB)
     result: Mapped[dict] = mapped_column(JSONB)
 
@@ -81,7 +81,7 @@ class SessionOutcomeReceipt(ActorEvidence, Record, Base):
     )
     request_key: Mapped[UUID]
     request_sha256: Mapped[str] = mapped_column(String(64))
-    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"))
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"))
     previous: Mapped[dict] = mapped_column(JSONB)
     result: Mapped[dict] = mapped_column(JSONB)
 
@@ -94,7 +94,7 @@ class SessionSummaryReceipt(ActorEvidence, Record, Base):
     )
     request_key: Mapped[UUID]
     request_sha256: Mapped[str] = mapped_column(String(64))
-    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"))
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"))
     previous: Mapped[dict] = mapped_column(JSONB)
     result: Mapped[dict] = mapped_column(JSONB)
 
@@ -120,7 +120,7 @@ class SessionHandoffReceipt(ActorEvidence, Record, Base):
     )
     request_key: Mapped[UUID]
     request_sha256: Mapped[str] = mapped_column(String(64))
-    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"))
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"))
     message_id: Mapped[UUID] = mapped_column(ForeignKey("messages.id"))
     previous: Mapped[dict] = mapped_column(JSONB)
     result: Mapped[dict] = mapped_column(JSONB)

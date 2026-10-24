@@ -419,6 +419,7 @@ class DirectorySnapshot(ServerClock):
     trainerCreation: Literal[True] = True
     trainerOnboardingPolicy: OwnerTrainerOnboardingPolicy | TrainerOnboardingPolicy
     clientRenewalWrites: Literal[True] = True
+    packageActionWrites: Literal[True] = True
     packageReactivationWrites: Literal[True] = True
     personalMessages: Literal[True] = True
     clientDeactivationWrites: Literal[True] = True

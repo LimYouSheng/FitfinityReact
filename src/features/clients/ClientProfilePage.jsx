@@ -27,6 +27,7 @@ export default function ClientProfilePage({
   renewalReadOnly = readOnly,
   renewalWorkflow,
   packageReactivationWorkflow,
+  packageActionWorkflow,
   onReviewDeactivation,
   reactivationWorkflow,
   personalReadOnly = readOnly,
@@ -234,6 +235,7 @@ export default function ClientProfilePage({
           readOnly={readOnly}
           renewalReadOnly={renewalReadOnly}
           renewalWorkflow={renewalWorkflow}
+          packageActionWorkflow={packageActionWorkflow}
           packageReactivationWorkflow={packageReactivationWorkflow}
           progressData={progressData}
           progressReportsAvailable={progressReportsAvailable}
