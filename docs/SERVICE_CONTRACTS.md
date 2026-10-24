@@ -194,6 +194,35 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 24 October 2026 — PR76 focused repair acceptance
+
+All27 library/remuneration real-API browser cases pass across desktop, phone and tablet in2.5 minutes (`pr76-browser-repair-1.log`), including unchanged stale-review, exact original-command recovery, foreign-scope and fresh-login persistence assertions. All8 remuneration units pass, including the strengthened background-refresh recovery regression. Semantic lint passes506 files. The complete1,360-unit and1,249-backend/633-infrastructure checks and new final-head CI remain pending. These focused receipts do not change45/55 accepted source.
+
+### 24 October 2026 — PR76 failure diagnosis and measured fixture repair
+
+Run40095294691 completed API-browser at227/231. Preserved `pr76-browser-failures.zip` contains all four original traces. A stale-remuneration test allowed a background detail refresh to load the new rates before opening confirmation, so approval was valid; it now opens the original reviewed confirmation before the competing write. A real UI defect hid original-command recovery when a concurrent refresh showed Approved: recovery now remains visible for an uncertain command regardless of displayed approval status, and the existing unit regression additionally rerenders that state and preserves original-call equality. All8 remuneration units pass.
+
+The library Owner save committed successfully, but its subsequent calendar refresh took4.16s, exceeding the test's immediate heading expectation while the app was still refreshing. The test now awaits the actual catalogue response containing its committed record before asserting navigation. The upload-loss test mistook the recovery button changing to Checking for completion and asserted zero commits while recovery was still active; it now requires the saved exercise heading before asserting exactly one commit and one upload. Assertions, timeouts and runner settings remain intact; these checks are functional evidence, not a latency budget.
+
+Before fixture changes, the unchanged17-case plan cohort passed in16.41s, with typical setup0.34–0.37s. The migrated-schema candidate passes those17 plus two new isolation/fresh-migration regressions in13.10s, with typical setup0.14s. Real Alembic creates one empty session template; each domain test receives a separate cloned database and retains its own transactions and cleanup. Direct database/migration tests still begin empty, and explicit migration exercises remain real. New expected backend inventory is1,249. Logs `fixture-baseline-1.log` and `fixture-candidate-1.log` preserve measurements. Full-gate performance and exact-head CI remain pending; no timeout increase, skipped test, parallel test runner or old-job rerun was introduced.
+
+Email correction source is preserved in the named stash `Owned Trainer email correction candidate; pause for PR76 backend fixture budget` and its outside-checkout draft. The five older stashes remain untouched. This checkpoint adds no accepted operation.
+
+
+### 24 October 2026 — PR76 CI budget and email candidate checkpoint
+
+PR76 backend job120876129319 was cancelled at the existing15-minute job boundary after reaching94% of the1,247-case pytest inventory, with no assertion failure in its retained partial log. This is not a pass. The local full gate remains a separate completed receipt. Retained artifact/log: `pr76-backend-cancelled.zip` and `.log`. No workflow rerun or timeout change occurred. Investigate repeated41-revision per-test schema setup; any fixture optimization must preserve every case, per-test isolated databases, real migration execution, direct fresh-database migration coverage and runner settings.
+
+The email candidate's first backend cohort passed15/17. One new test switched only cookies while leaving the deterministic provider configured as the Trainer, so restoring the Manager failed authentication. The test now restores the provider identity context too. An older downgrade assertion expected0013's message;0042 correctly refuses earlier, and the exact expected error is updated. These fixes are not yet rerun. Email work is preserved while the library CI budget is addressed; neither candidate increases45/55 accepted source.
+
+
+### 24 October 2026 — PR76 complete local backend receipt and dependent email candidate
+
+Library head `1c8863967f093af9596bcc21a4ff2997d3ce07d8` passes the complete1,247/1,247 backend/PostgreSQL gate in841.66s and633/633 infrastructure checks, with strict inventory validation and owned-resource cleanup (`library-backend-full-3.log`). Runtime and backend test inputs stayed frozen throughout. [PR76](https://github.com/LimYouSheng/FitfinityReact/pull/76) is draft; all three jobs in [run40095294691](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40095294691) remain in progress at this checkpoint. Its full231-case browser result will supply exact-head acceptance if it passes; unchanged full browser execution need not be duplicated locally. Source acceptance remains45/55.
+
+Dependent work now uses `feat/trainer-email-correction` based on that unaccepted library head. The candidate permits Manager correction only of a reviewed stable request; immutable predecessor evidence and destination reservations remain until the account holder verifies a replacement. Sending/verifying ambiguity blocks correction, inherited code-send counters/cooldowns prevent budget reset, and stale Trainer forms refresh the current request after rejection without automatic provider actions. Forward migration0042, frontend and focused tests are under validation, not accepted. All15 affected frontend tests pass; backend/browser/full gates remain outstanding. Local provider substitution sends no real email; real Cognito acceptance remains separate.
+
+
 ### 24 October 2026 — strict library contract focused gate passed
 
 After required original-key binding, all52 affected API-contract, directory, library and cleanup cases passed in54.66s (`library-contracts-2.log`) using real isolated PostgreSQL and object storage. Missing/mismatched keys are rejected without publishing; original-command recovery and storage cleanup remain covered. Final Python lint/format and frontend lint pass. The complete1,247-case backend and231-case browser gates, followed by exact-head GitHub requirements, remain necessary before source acceptance. Prior1,360-unit receipt is reusable because runtime JavaScript and unit-test inputs remain unchanged; later changes affect backend, browser fixtures and documentation only.

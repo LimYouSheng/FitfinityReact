@@ -79,7 +79,7 @@ function TrainerBreakdown({ record, owner, hidden, money, onApprove, onOpenSessi
     </div>
     <PaginationControls {...pagination} onPage={pagination.setPage} />
     {error && <p role="alert" className="validation-copy">{error}</p>}
-    {owner && !approved && <div className="remuneration-actions">
+    {owner && (!approved || uncertain) && <div className="remuneration-actions">
       <button className="primary-button" type="button" disabled={busy || (!uncertain && (!record.closed || !record.sessions || Boolean(record.reviewCount)))} onClick={approve}>{uncertain ? 'Check original remuneration approval' : 'Approve Remuneration'}</button>
     </div>}
   </>

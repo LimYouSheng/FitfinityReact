@@ -1,6 +1,7 @@
 """Real PostgreSQL tests get a fresh database; never fall back to a deployment URL."""
 
 import os
+from contextlib import contextmanager
 from uuid import uuid4
 
 import psycopg
@@ -36,13 +37,19 @@ def settings():
     )
 
 
-@pytest.fixture
-def database_url():
+@contextmanager
+def isolated_database(*, template=None):
+    """Own one disposable database; a template never contains scenario records."""
     control = test_control_url(os.getenv("FITFINITY_TEST_DATABASE_URL"))
     database_name = "fitfinity_test_" + uuid4().hex
     admin_dsn = control.set(drivername="postgresql").render_as_string(hide_password=False)
     with psycopg.connect(admin_dsn, autocommit=True, connect_timeout=5) as connection:
-        connection.execute(sql.SQL("CREATE DATABASE {} ").format(sql.Identifier(database_name)))
+        statement = sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database_name))
+        if template is not None:
+            if not template.startswith("fitfinity_test_"):
+                raise ValueError("Only this test invocation's isolated template is permitted")
+            statement += sql.SQL(" TEMPLATE {}").format(sql.Identifier(template))
+        connection.execute(statement)
     try:
         yield control.set(database=database_name).render_as_string(hide_password=False)
     finally:
@@ -50,6 +57,34 @@ def database_url():
             connection.execute(
                 sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(database_name))
             )
+
+
+@pytest.fixture(scope="session")
+def migrated_template():
+    """Apply real Alembic migrations once; clone only the empty schema for domain tests."""
+    with isolated_database() as url:
+        engine = create_engine(url, poolclass=NullPool)
+        try:
+            with engine.connect() as connection:
+                config = migration_config()
+                config.attributes["connection"] = connection
+                command.upgrade(config, "head")
+        finally:
+            engine.dispose()
+        yield make_url(url).database
+
+
+@pytest.fixture
+def database_url(request):
+    # Direct migration/database tests retain an empty database. Domain scenarios
+    # still own separate databases, connections, transactions and teardown.
+    template = (
+        request.getfixturevalue("migrated_template")
+        if "domain_db" in request.fixturenames
+        else None
+    )
+    with isolated_database(template=template) as url:
+        yield url
 
 
 @pytest.fixture

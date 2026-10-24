@@ -14,9 +14,10 @@ function NotifiedRemuneration(props) {
   const views = props.views ?? remunerationCycles(data, props.user, props.now).map(key => ({ key, cycle: payCycle(key, policy.remuneration), trainers: cycleTrainers(data, key, props.user, props.now) }))
   return <RemunerationPage {...props} views={views} policy={policy} onApprove={(...args) => runAction(() => props.onApprove(...args), { message: 'Remuneration approved.' })} />
 }
-function show(props) {
-  return render(<NotificationProvider><ActionConfirmationProvider><EditGuardProvider><NotifiedRemuneration user={owner} data={payFixture()} cycleKey="2026-09" onNavigate={()=>{}} onOpenSession={()=>{}} {...props}/></EditGuardProvider></ActionConfirmationProvider></NotificationProvider>)
+function pageFor(props) {
+  return (<NotificationProvider><ActionConfirmationProvider><EditGuardProvider><NotifiedRemuneration user={owner} data={payFixture()} cycleKey="2026-09" onNavigate={()=>{}} onOpenSession={()=>{}} {...props}/></EditGuardProvider></ActionConfirmationProvider></NotificationProvider>)
 }
+function show(props) { return render(pageFor(props)) }
 afterEach(cleanup)
 it('hides amounts until requested and scopes trainer rows and deep links to the signed-in trainer', async () => {
   show({user:{id:'trainer',role:'trainer',trainerId:'t1'}})
@@ -164,10 +165,14 @@ it('shows In progress before cycle close and Pending review until every session 
 it('checks uncertain API approval with the original review without a second confirmation', async () => {
   const db = payFixture(); db.sessions[0].date = '2020-08-20'
   const approve = vi.fn().mockRejectedValueOnce(new Error('Lost response')).mockResolvedValueOnce(undefined)
-  show({ data: db, cycleKey: '2020-09', trainerId: 't1', onApprove: approve, apiApprovalRecovery: true })
+  const props = { data: db, cycleKey: '2020-09', trainerId: 't1', onApprove: approve, apiApprovalRecovery: true }
+  const rendered = show(props)
   await userEvent.click(screen.getByRole('button', { name: 'Show remuneration amounts' }))
   await userEvent.click(screen.getByRole('button', { name: 'Approve Remuneration', exact: true }))
   await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Approve Remuneration', exact: true }))
+  await screen.findByRole('button', { name: 'Check original remuneration approval', exact: true })
+  const views = remunerationCycles(db, owner).map(key => ({ key, cycle: payCycle(key, db.settings.remuneration), trainers: cycleTrainers(db, key, owner).map(row => row.trainerId === 't1' ? { ...row, status: 'Approved', approvedAt: '2020-09-16T00:00:00Z' } : row) }))
+  rendered.rerender(pageFor({ ...props, views }))
   await userEvent.click(await screen.findByRole('button', { name: 'Check original remuneration approval', exact: true }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(approve).toHaveBeenCalledTimes(2)

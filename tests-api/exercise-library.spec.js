@@ -7,7 +7,9 @@ async function create(page, name, media = false) {
   await page.goto('/#/exercises/new')
   await page.getByLabel('Exercise name', { exact: false }).fill(name)
   if (media) await page.getByLabel('Photo / video', { exact: true }).setInputFiles({ name: 'reference.png', mimeType: 'image/png', buffer: png })
+  const refreshed = page.waitForResponse(async response => response.url().endsWith('/api/exercise-library') && response.request().method() === 'GET' && response.ok() && (await response.json()).items.some(item => item.name === name))
   await confirm(page, 'Create Exercise')
+  await refreshed
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
   return (await catalogue(page)).items.find(item => item.name === name)
 }
@@ -105,6 +107,7 @@ for (const interrupted of ['commit', 'upload']) test(`lost library ${interrupted
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await page.getByRole('button', { name: 'Check original exercise save', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Check original exercise save', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
   expect(commits).toBe(1); expect(uploads).toBe(1)
   const original = await read(page, `/api/exercise-library/save-intents/${key}`)
   expect(original.state).toBe('completed')
