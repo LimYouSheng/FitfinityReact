@@ -150,6 +150,16 @@ def test_competing_corrections_keep_one_current_request(
             client.headers.update(
                 {"Origin": "https://staff.example", "X-CSRF-Token": api.headers["X-CSRF-Token"]}
             )
+            # Each TestClient has its own event-loop thread. Initialize FastAPI's lazy
+            # validation before racing business transactions: Python 3.12 warning filters
+            # are process-global, so concurrent first-use TypeAdapter construction races.
+            invalid = client.post(
+                f"/api/trainers/{graph['trainer_id']}/email-change",
+                json={},
+                headers={"Idempotency-Key": str(uuid4())},
+            )
+            assert invalid.status_code == 422
+            assert pids == []  # Invalid setup never reaches the transaction barrier.
             clients.append(client)
 
         def apply(index):

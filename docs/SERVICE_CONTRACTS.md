@@ -196,6 +196,12 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 24 October 2026 — Competing email fixture initialization repair
+
+The broader package candidate's full isolated run retained1,282/1,284 backend passes in621.85s plus633 infrastructure passes (`package-backend-full-1.log`). One failure is the package candidate's missing directory-capability expectation. The other exposes the existing email duplicate-concurrency fixture: only one database PID reaches the barrier because the other request fails during concurrent first-use FastAPI validation with `UnsupportedFieldAttributeWarning`. Pinned FastAPI builds TypeAdapters under `warnings.catch_warnings`; Python3.12 shares those filters across the separate TestClient event-loop threads. This is prior to the endpoint/database operation, not evidence of a duplicate business write.
+
+Each replica now validates an intentionally empty request sequentially, requiring422 and no barrier entry, before launching the original competing writes. The test retains separate application pools, two distinct PostgreSQL PIDs, original barrier/deadline, exact200/200 or200/409 results, one current request and no provider sends. No warning filter, timeout, retry or assertion is weakened. All23 affected directory/email cases pass in20.51s (`package-repair-focused-1.log`), including the package capability expectation repair. The email-only fixture change is published to PR77; package application work remains uncommitted. Complete final-head gates remain required; accepted main stays45/55.
+
 ### 24 October 2026 — Real browser worker initialization repair
 
 PR77 repair00daff9/run40102831829 passes backend but API-browser finishes241/243; two Owner email scenarios fail in phone/tablet. Artifact12564440563, original traces and `pr77-worker-ci-failure.log` remain retained. The tablet trace shows a4.719s `/me` wait while account loading, and the phone case exhausts its30s scenario budget. Inspection found synchronous migration/seeding in the shared ASGI event loop and first-request worker creation inside scenario timing. A deterministic barrier regression fails against the exact previous dispatcher in2.13s (`pr77-worker-before-failure.log`) and passes after the fix; all14 harness regressions pass in1.44s (`pr77-worker-regression-1.log`).
