@@ -53,7 +53,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
     copyPreviousPlan: contract({ 'sessionId': 'string', 'reviewed?': 'object', 'copySource?': 'object' }, 'session', 'Session | PlanCopied', true),
     saveOutcome: contract({ 'sessionId': 'string', 'outcome': 'object', 'reviewed?': 'object' }, 'session', 'Session | OutcomeSaved', true),
     saveClientSummary: contract({ 'sessionId': 'string', 'summary': 'string', 'reviewed?': 'object' }, 'session', 'Session | SummarySaved', true),
-    markWhatsAppOpened: contract({ 'sessionId': 'string' }, 'session', 'Session'),
+    markWhatsAppOpened: contract({ 'sessionId': 'string' }, 'session', 'Session | SessionHandoffState', true),
     acknowledge: contract({ 'sessionId': 'string', 'acknowledgement': 'object', 'reviewed?': 'object' }, 'session', 'AcknowledgementResult | AcknowledgementSaved', true),
   }),
   packageService: Object.freeze({
@@ -75,9 +75,9 @@ export const PORTAL_CONTRACTS = Object.freeze({
     cancel: contract({ 'id': 'string', 'expectedVersion?': 'number' }, 'authenticated', 'Message | CancellationState', true),
   }),
   remunerationService: Object.freeze({
-    list: contract({}, 'remuneration', 'RemunerationCycle[]'),
-    detail: contract({ 'cycle': 'string', 'trainerId': 'string' }, 'remuneration', 'RemunerationRecord'),
-    approve: contract({ 'cycle': 'string', 'trainerId': 'string', 'revision': 'string' }, 'approveRemuneration', 'RemunerationApproval'),
+    list: contract({}, 'remuneration', 'RemunerationCycle[]', true),
+    detail: contract({ 'cycle': 'string', 'trainerId': 'string' }, 'remuneration', 'RemunerationRecord', true),
+    approve: contract({ 'cycle': 'string', 'trainerId': 'string', 'revision': 'string' }, 'approveRemuneration', 'RemunerationApproval', true),
   }),
 })
 

@@ -1,5 +1,6 @@
 """Real PostgreSQL/HTTP creation, retry, revocation and Admin data isolation."""
 
+import json
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -205,12 +206,20 @@ def test_admin_signin_is_local_role_and_all_directory_responses_omit_rates(
     ]:
         response = api.get(path)
         assert response.status_code == 200, response.text
+        payload = response.json()
+        if path.startswith("/api/directory"):
+            # A false routing capability is not financial data; every other field
+            # retains the complete financial non-disclosure assertion below.
+            assert payload.pop("remunerationWorkflows") is False
         assert not any(
-            key in response.text for key in ["peak_rate", "off_peak_rate", "rates", "remuneration"]
+            key in json.dumps(payload)
+            for key in ["peak_rate", "off_peak_rate", "rates", "remuneration"]
         )
     data = api.get("/api/directory").json()
     assert len(data["clients"]) == len(data["trainers"]) == len(data["packages"]) == 1
-    assert api.get("/api/remuneration").status_code == 404
+    denied_pay = api.get("/api/remuneration")
+    assert denied_pay.status_code == 403
+    assert denied_pay.json()["error"]["code"] == "forbidden"
     # Rates now have a POST command, but no GET route. Admin cannot invoke it.
     rates_path = f"/api/trainers/{graph['trainer_id']}/rates"
     assert api.get(rates_path).status_code == 405

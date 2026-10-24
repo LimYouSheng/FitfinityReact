@@ -2,18 +2,20 @@
 
 ## Current checkpoint — 24 October 2026 Singapore
 
-Accepted main is PR71 merge `be738a1641c1aba37e5111fb23e7bf89177be35c`. Exact head `0e00025115e5235a2eed4e6bdb1295099173b64b` passed all three required gates in [run40077655738](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40077655738): 1,328 units, 1,152 simulator browser cases, 1,151 backend/PostgreSQL, 633 infrastructure and 165 real-API browser cases. This accepts durable reviewed client summaries after PR70's previous-plan and outcome integration. Post-merge main validation is separate.
+Accepted main is PR73 merge `d14cbc5711b1e43742b857058c7df47408705833`. Exact head `b7b96d554b69d22f18affc3d2d0a33b471674b97` passed all three required gates in [run40082179585](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40082179585): 1,341 units, 1,152 simulator browser cases, 1,188 backend/PostgreSQL, 633 infrastructure and192 real-API browser cases. Report actions and scoped history are accepted source. Post-merge main validation remains separate.
 
-[The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **38/55** accepted: 37 server-connected plus one local predicate. The earlier 26 baseline omitted Trainer deactivation; corrected 27 gained three operations in PR64, one in PR65, two in PR66, one in PR67, three in PR70 and one in PR71. Session/calendar reads do not add named operations.
+[The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **41/55** accepted: 40 server-connected plus one local predicate. The earlier 26 baseline omitted Trainer deactivation; corrected 27 gained three operations in PR64, one in PR65, two in PR66, one in PR67, three in PR70 one in PR71 one in PR72 and two in PR73. Session/calendar reads do not add named operations.
 
 | Acceptance | Evidence and limit |
 | --- | --- |
 | Documentation | Merged [PR69](https://github.com/LimYouSheng/FitfinityReact/pull/69) consolidates seven files, preserves full history and restores explicit comprehensive engineering safeguards in AGENTS. Local documentation checks and all three final-head CI gates passed. PR63's earlier refactor did not meet this requirement. |
 | Summary integration | [PR71](https://github.com/LimYouSheng/FitfinityReact/pull/71) merged after exact-head CI passed. Summary saves preserve measurements, comments, signatures, credits and handoff fields. |
-| Acknowledgement candidate | Draft [PR72](https://github.com/LimYouSheng/FitfinityReact/pull/72), branch `feat/session-acknowledgement-api`, based on accepted PR71. All 1,336 units, 1,174 backend/PostgreSQL and 633 infrastructure checks pass locally. Exact-head CI run40079726495 passed backend and all177 API-browser cases; frontend remains pending. Not counted as accepted. The active branch is now the stacked report candidate below. |
-| Report candidate | Active `feat/progress-report-api`, stacked on PR72. Report audit writes, private original-action recovery and Owner/Admin history are implemented. All 1,341 units across139 files,14 focused PostgreSQL cases and27 report/outcome API-browser cases pass. Full backend/infrastructure and final-head CI remain pending. Not accepted. |
+| Acknowledgement integration | [PR72](https://github.com/LimYouSheng/FitfinityReact/pull/72) merged after all three exact-head gates passed. Receipt is retained in Service Contracts history. |
+| Report integration | [PR73](https://github.com/LimYouSheng/FitfinityReact/pull/73) merged after all three exact-head gates passed. Actual PDF bytes, persisted scoped history, conflicts, private recovery and rollback are covered; full receipt is retained in Service Contracts. |
+| Remuneration candidate | [PR74](https://github.com/LimYouSheng/FitfinityReact/pull/74), head `3da8ee7`: all 1,347 units, 1,205 backend/PostgreSQL, 633 infrastructure and 204 real-API browser cases pass locally. CI frontend/backend passed; API-browser failed 203/204 with one ECONNRESET. Automatic approval review rejected the failed-job rerun. Original evidence remains in Contracts; this candidate may be superseded only by a fully validated stacked head. |
+| Active implementation | `feat/session-handoff-api`, based on PR74: legacy opening compatibility and immutable recovery receipts; a narrow summary-capability opt-in repairs API PDF export. All 65 focused PostgreSQL/contract/schema cases, 12 real-API browser cases and 1,353 units across141 files pass. Full backend and final-head CI remain pending. No new acceptance claimed. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; Cognito substitute only. No production PostgreSQL or Lambda redeployment needed. |
-| Deployment | Last verified Pages demo source is PR70 merge 3c78282. Its complete main validation, build and Pages deployment passed; its obsolete AWS image-publication approval wait was cancelled after PR71 merged to release newer main validation. No image publication was approved. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
+| Deployment | Last verified Pages demo source is PR72 merge `935db1e`: all main verification, build and Pages deployment passed in run40082807735. Its obsolete AWS image-publication approval wait was cancelled after PR73 merged, releasing newer main validation. No image publication was approved. No new Lambda image, AWS deployment, real Cognito or device acceptance is claimed. |
 
 ## Full milestone roadmap
 
@@ -49,9 +51,9 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 Follow the milestone roadmap above; M6 remains in progress. Priorities below select the next work without replacing the original milestones.
 
 1. Preserve the accepted seven-document format while continuing the API integration and current milestone ledger.
-2. Complete PR72’s full local and exact final-head CI gates; preserve immutable acknowledgement, exactly-once credit and original-request recovery evidence.
+2. Finish the handoff/PDF integration and all three final-head gates, retaining the PR74 failed browser receipt and approval-review boundary.
 3. Merge only the tested eligible source; update the accepted operation matrix and historical receipt.
-4. Finish acknowledgement/credit acceptance, then report action/history and legacy handoff, package deactivation/upcoming-session deletion and permitted Undo, remuneration list/detail/approval, Exercise Library and session media, and unresolved Trainer email correction. These are the remaining 17 named operations after summary acceptance. Do not redo accepted operations.
+4. Finish remuneration, then legacy handoff, package deactivation/upcoming-session deletion and permitted Undo, Exercise Library and session media, and unresolved Trainer email correction. These are the remaining 14 named operations after report acceptance. Do not redo accepted operations.
 5. Prepare separate release/provider/restart/device acceptance; public website and its content management follow staff-portal completion.
 
 ### M10 work packages — planned

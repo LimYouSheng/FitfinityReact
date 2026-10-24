@@ -250,10 +250,19 @@ def image_fixture(source, pinned_contract):
         "migrations/versions/20261024_0039_session_acknowledgements.py",
         "app/api/session_acknowledgements.py",
         "app/api/session_reports.py",
+        "app/api/remuneration.py",
+        "app/api/remuneration_schemas.py",
     ):
         contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
     contract["revisions"].append("20261024_0039")
     contract["tables"]["session_acknowledgement_receipts"] = ["SELECT", "INSERT"]
+    for relative in (
+        "migrations/versions/20261024_0040_session_handoffs.py",
+        "app/api/session_handoffs.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["revisions"].append("20261024_0040")
+    contract["tables"]["session_handoff_receipts"] = ["SELECT", "INSERT"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

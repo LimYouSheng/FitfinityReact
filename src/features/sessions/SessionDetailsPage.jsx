@@ -30,6 +30,7 @@ export default function SessionDetailsPage({
   onBeginAcknowledgement,
   planEditable = false,
   summaryEditable = false,
+  summaryExportEnabled = false,
   summaryUncertain = false,
   onBeginSummary,
   outcomeEditable = false,
@@ -259,7 +260,7 @@ export default function SessionDetailsPage({
         )}
 
         <SessionSummaryExport client={client} session={session} displayedSummary={displayedSummary}
-          recordInactive={recordInactive || readOnly} activeEditor={activeEditor} requestKind={requestKind}
+          recordInactive={recordInactive || (readOnly && !summaryExportEnabled)} activeEditor={activeEditor} requestKind={requestKind}
           dateError={dateError} checkTrainingDate={checkTrainingDate} saving={saving} setSaving={setSaving} />
       </div>
 

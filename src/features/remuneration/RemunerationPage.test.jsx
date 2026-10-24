@@ -161,3 +161,15 @@ it('shows In progress before cycle close and Pending review until every session 
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Approve Remuneration', exact: true })).toBeEnabled()
 })
+it('checks uncertain API approval with the original review without a second confirmation', async () => {
+  const db = payFixture(); db.sessions[0].date = '2020-08-20'
+  const approve = vi.fn().mockRejectedValueOnce(new Error('Lost response')).mockResolvedValueOnce(undefined)
+  show({ data: db, cycleKey: '2020-09', trainerId: 't1', onApprove: approve, apiApprovalRecovery: true })
+  await userEvent.click(screen.getByRole('button', { name: 'Show remuneration amounts' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Approve Remuneration', exact: true }))
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Approve Remuneration', exact: true }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Check original remuneration approval', exact: true }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(approve).toHaveBeenCalledTimes(2)
+  expect(approve.mock.calls[1]).toEqual(approve.mock.calls[0])
+})

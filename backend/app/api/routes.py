@@ -28,6 +28,8 @@ from app.api import (
     messages,
     package_reactivation_save,
     packages,
+    remuneration,
+    remuneration_schemas,
     renewal_dismissal,
     request_cancellation,
     request_resolution,
@@ -35,6 +37,7 @@ from app.api import (
     session_booking_review,
     session_booking_save,
     session_changes,
+    session_handoffs,
     session_outcomes,
     session_plans,
     session_postponement,
@@ -1436,3 +1439,83 @@ def read_progress_report_history(
     """Owner/Admin history retains actor, package and original action evidence."""
     with authorized_transaction(request) as (session, principal):
         return session_reports.history(session, principal, client_id, purchase_id)
+
+
+@router.get("/remuneration", response_model=list[remuneration_schemas.PayView])
+def list_remuneration(request: Request):
+    """Owner all-trainer or Trainer self-only cycles; Admin financial access is forbidden."""
+    with authorized_transaction(request, advisory_lock=remuneration.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return remuneration.listing(session, principal)
+
+
+@router.get("/remuneration/{cycle_key}/{trainer_id}", response_model=remuneration_schemas.PayRecord)
+def remuneration_detail(cycle_key: str, trainer_id: UUID, request: Request):
+    """Current calculation alongside immutable approved amounts and later evidence differences."""
+    with authorized_transaction(request, advisory_lock=remuneration.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return remuneration.detail(session, principal, cycle_key, trainer_id)
+
+
+@router.post(
+    "/remuneration/{cycle_key}/{trainer_id}/approval", response_model=remuneration_schemas.PaySaved
+)
+def approve_remuneration(
+    cycle_key: str,
+    trainer_id: UUID,
+    body: remuneration_schemas.ApprovePay,
+    request: Request,
+    key: RequestKey,
+):
+    """Owner approval binds the reviewed source and atomically records immutable pay evidence."""
+    with authorized_transaction(request, advisory_lock=remuneration.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return remuneration.approve(session, principal, cycle_key, trainer_id, key, body)
+
+
+@router.get("/remuneration-approvals/{request_key}", response_model=remuneration_schemas.PaySaved)
+def remuneration_approval_receipt(request_key: UUID, request: Request):
+    """Original active Owner can recover an approval without repeating its financial effect."""
+    with authorized_transaction(request, advisory_lock=remuneration.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return remuneration.reconcile(session, principal, request_key)
+
+
+@router.get("/sessions/{session_id}/handoff-review", response_model=session_handoffs.HandoffReview)
+def review_session_handoff(session_id: UUID, request: Request):
+    """Legacy compatibility review; current PDF exports do not invoke the opening marker."""
+    with authorized_transaction(request, advisory_lock=session_handoffs.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_handoffs.review(session, principal, session_id)
+
+
+@router.post("/sessions/{session_id}/handoff", response_model=session_handoffs.HandoffSaved)
+def mark_session_handoff(
+    session_id: UUID, body: session_handoffs.MarkHandoff, request: Request, key: RequestKey
+):
+    """Record an opening exactly once per intent, without claiming delivery or changing credits."""
+    with authorized_transaction(request, advisory_lock=session_handoffs.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_handoffs.save(session, principal, session_id, key, body)
+
+
+@router.get("/session-handoffs/{request_key}", response_model=session_handoffs.HandoffSaved)
+def recover_session_handoff(request_key: UUID, request: Request):
+    """Recover only the active original actor's opening result without another write."""
+    with authorized_transaction(request, advisory_lock=session_handoffs.DECISION_LOCK) as (
+        session,
+        principal,
+    ):
+        return session_handoffs.reconcile(session, principal, request_key)

@@ -198,6 +198,7 @@ def snapshot(session, principal):
     ]
     now = datetime.now(UTC)
     return DirectorySnapshot(
+        remunerationWorkflows=principal.role in {"owner", "trainer"},
         schemaVersion=1,
         viewerId=principal.user_id,
         serverAt=now,
