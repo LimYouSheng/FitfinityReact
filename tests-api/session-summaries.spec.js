@@ -11,6 +11,8 @@ async function open(page, info, purpose, role = 'trainer') {
   const session = all.find(s => s.clientId === client.id && s.sessionNumber === 1)
   expect(session.status).toBe('completed')
   const before = await read(page, `/api/sessions/${session.id}/details`)
+  expect(before.exerciseResults).toHaveLength(1)
+  expect(before.trainerComments).toBe('Recorded before summary')
   await page.goto(`/#/sessions/${session.id}`)
   const panel = page.locator('.client-summary-panel')
   await panel.getByRole('button', { name: 'Edit', exact: true }).click()

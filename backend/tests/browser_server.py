@@ -36,6 +36,7 @@ from app.models.communications import Message, MessageReceipt
 from app.models.people import Client, StaffIdentity, StaffUser, Trainer, TrainerAvailability
 from app.models.training import (
     ExercisePlanItem,
+    ExerciseResult,
     PackageTemplate,
     PackageTemplateRevision,
     PurchasePreference,
@@ -485,18 +486,30 @@ def seed(db, settings):
                     session, purchase, slots, preferences, bookings, expected_client_version=1
                 )
                 if purpose.startswith(("outcome", "summary")):
-                    session.add(
-                        ExercisePlanItem(
-                            session_id=bookings[0].id,
-                            position=1,
-                            name="Measured squat",
-                            weight="12 kg",
-                            reps="8",
-                            rounds="3",
-                            rest="60s",
-                        )
+                    plan = ExercisePlanItem(
+                        session_id=bookings[0].id,
+                        position=1,
+                        name="Measured squat",
+                        weight="12 kg",
+                        reps="8",
+                        rounds="3",
+                        rest="60s",
                     )
+                    session.add(plan)
                     session.flush()
+                    if purpose.startswith("summary"):
+                        session.add(
+                            ExerciseResult(
+                                session_id=bookings[0].id,
+                                plan_item_id=plan.id,
+                                name="Measured squat",
+                                load_kg=12,
+                                reps=8,
+                                sets=3,
+                            )
+                        )
+                        bookings[0].trainer_comments = "Recorded before summary"
+                        session.flush()
                     acknowledge(
                         session,
                         bookings[0].id,

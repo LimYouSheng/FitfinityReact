@@ -71,7 +71,21 @@ def test_summary_corrections_replay_and_immutable_prior_text(api, domain_db, gra
 def test_terminal_summary_preserves_status_signature_credit_and_handoff(
     api, domain_db, graph, terminal
 ):
-    identity = graph["session_id"]
+    from tests.test_session_outcomes_api import measurement, setup_plan
+    from tests.test_session_outcomes_api import review as outcome_review
+    from tests.test_session_outcomes_api import save as save_outcome
+
+    identity, plan_id = setup_plan(api, graph)
+    assert (
+        save_outcome(
+            api,
+            identity,
+            outcome_review(api, identity),
+            [measurement(plan_id)],
+            comments="Existing trainer comments",
+        ).status_code
+        == 200
+    )
     with domain_db.transaction() as session:
         booking = session.get(TrainingSession, identity)
         if terminal == "completed":
@@ -89,6 +103,9 @@ def test_terminal_summary_preserves_status_signature_credit_and_handoff(
         signature_ids = list(session.scalars(select(Acknowledgement.id)))
         debit_ids = list(session.scalars(select(CreditDebit.id)))
     before = api.get(f"/api/sessions/{identity}/details").json()
+    assert len(before["exerciseResults"]) == 1
+    assert before["exerciseResults"][0]["loadKg"] == 20
+    assert before["trainerComments"] == "Existing trainer comments"
     assert save(api, identity, review(api, identity)).status_code == 200
     after = api.get(f"/api/sessions/{identity}/details").json()
     assert after["session"]["status"] == before["session"]["status"]
@@ -96,6 +113,7 @@ def test_terminal_summary_preserves_status_signature_credit_and_handoff(
         "acknowledgementHistory",
         "purchase",
         "exerciseResults",
+        "trainerComments",
         "whatsappOpenedAt",
         "whatsappOpenCount",
     ):
