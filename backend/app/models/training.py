@@ -150,6 +150,15 @@ class TrainingSession(Versioned, Base):
     __tablename__ = "training_sessions"
     __table_args__ = (
         ForeignKeyConstraint(
+            ["id", "purchase_id", "client_id"],
+            [
+                "session_identities.id",
+                "session_identities.purchase_id",
+                "session_identities.client_id",
+            ],
+            name="fk_training_sessions_identity",
+        ),
+        ForeignKeyConstraint(
             ["purchase_id", "client_id"], ["package_purchases.id", "package_purchases.client_id"]
         ),
         ForeignKeyConstraint(
@@ -185,7 +194,7 @@ class TrainingSession(Versioned, Base):
     status: Mapped[str] = mapped_column(String(16), server_default="scheduled")
     trainer_comments: Mapped[str] = mapped_column(Text, server_default="")
     client_summary: Mapped[str] = mapped_column(Text, server_default="")
-    copied_from_session_id: Mapped[UUID | None] = mapped_column(ForeignKey("training_sessions.id"))
+    copied_from_session_id: Mapped[UUID | None] = mapped_column(ForeignKey("session_identities.id"))
     whatsapp_opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     whatsapp_open_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
 
@@ -217,7 +226,7 @@ class ExercisePlanItem(Versioned, Base):
             name="valid_item",
         ),
     )
-    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"), index=True)
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"), index=True)
     exercise_id: Mapped[UUID | None] = mapped_column(ForeignKey("exercises.id"), index=True)
     position: Mapped[int | None] = mapped_column(Integer)
     retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -261,7 +270,7 @@ class ExerciseResult(Versioned, Base):
         ),
         CheckConstraint("length(btrim(name)) > 0", name="name_required"),
     )
-    session_id: Mapped[UUID] = mapped_column(ForeignKey("training_sessions.id"), index=True)
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"), index=True)
     plan_item_id: Mapped[UUID | None] = mapped_column()
     name: Mapped[str] = mapped_column(String(200))
     load_kg: Mapped[Decimal] = mapped_column(Numeric(9, 4))
@@ -354,7 +363,7 @@ class AssignmentChange(Record, Base):
     )
     event_id: Mapped[UUID] = mapped_column(ForeignKey("assignment_events.id"), index=True)
     purchase_id: Mapped[UUID | None] = mapped_column(ForeignKey("package_purchases.id"))
-    session_id: Mapped[UUID | None] = mapped_column(ForeignKey("training_sessions.id"))
+    session_id: Mapped[UUID | None] = mapped_column(ForeignKey("session_identities.id"))
     old_trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"))
     new_trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"))
     old_version: Mapped[int] = mapped_column(Integer)

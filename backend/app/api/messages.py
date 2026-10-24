@@ -27,6 +27,11 @@ from app.models.communications import (
     RequestSlot,
 )
 from app.models.evidence import RemunerationApproval
+from app.models.package_actions import (
+    PackageActionReceipt,
+    PackageActionRequest,
+    PackageDeletionUndo,
+)
 from app.models.people import StaffUser
 from app.models.training import PackagePurchase
 
@@ -93,6 +98,15 @@ def records(session, principal):
             )
         )
     }
+    reversals = dict(
+        session.execute(
+            select(PackageActionRequest.request_id, PackageDeletionUndo.created_at)
+            .join(
+                PackageDeletionUndo, PackageDeletionUndo.action_id == PackageActionRequest.action_id
+            )
+            .where(PackageActionRequest.request_id.in_(request_ids))
+        ).all()
+    )
     requests = {}
     for row in session.scalars(select(ChangeRequest).where(ChangeRequest.id.in_(request_ids))):
         fields = {
@@ -135,6 +149,26 @@ def records(session, principal):
             select(RenewalDismissal).where(RenewalDismissal.message_id.in_(ids))
         )
     }
+    actions = (
+        {
+            row.message_id: row
+            for row in session.scalars(
+                select(PackageActionReceipt).where(
+                    PackageActionReceipt.message_id.in_(ids),
+                    PackageActionReceipt.undo_expires_at.is_not(None),
+                )
+            )
+        }
+        if principal.manages_operations
+        else {}
+    )
+    undone = set(
+        session.scalars(
+            select(PackageDeletionUndo.action_id).where(
+                PackageDeletionUndo.action_id.in_([row.id for row in actions.values()])
+            )
+        )
+    )
     result = []
     for row in messages:
         purchase = purchases.get(row.purchase_id)
@@ -154,6 +188,20 @@ def records(session, principal):
         result.append(
             PersonalMessage(
                 **read_state(row.id, receipts.get(row.id)).model_dump(),
+                undo=(
+                    {
+                        "id": actions[row.id].id,
+                        "count": len(actions[row.id].result["deletedSessionIds"]),
+                        "expiresAt": actions[row.id].undo_expires_at,
+                        "status": "undone"
+                        if actions[row.id].id in undone
+                        else "expired"
+                        if actions[row.id].undo_expires_at <= datetime.now(UTC)
+                        else "available",
+                    }
+                    if row.id in actions
+                    else None
+                ),
                 recipientUserId=principal.user_id,
                 kind=row.kind,
                 title=row.title,
@@ -171,6 +219,7 @@ def records(session, principal):
                 contentId=row.content_id,
                 remunerationCycle=cycles.get(row.remuneration_id),
                 request=requests.get(row.request_id),
+                reversedAt=reversals.get(row.request_id),
                 renewalStatus="removed" if row.id in dismissals else renewal,
                 renewalDismissal=dismissals.get(row.id),
             )

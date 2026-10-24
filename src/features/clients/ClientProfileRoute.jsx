@@ -42,6 +42,12 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
         save: draft => runAction(() => clientService.reassignTrainer({ id: selectedClient.id, draft }), { message: 'Trainer permanently reassigned.' }),
         saved: reload,
       } : undefined}
+      packageActionWorkflow={directoryOnly && snapshot.capabilities?.packageActionWrites ? (packageId, operation) => ({
+        review: () => services.reviewPackageAction({ id: selectedClient.id, packageId, operation }),
+        save: input => clientService[operation === 'deactivate' ? 'deactivatePackage' : 'deletePackageSessions']({ id: selectedClient.id, options: { packageId, ...input } }),
+        reconcile: () => services.reconcilePackageAction({}),
+        saved: reload,
+      }) : undefined}
       packageReactivationWorkflow={directoryOnly && snapshot.capabilities?.packageReactivationWrites ? packageId => ({
         review: () => runAction(() => services.previewPackageReactivation({ id: selectedClient.id, packageId, expectedVersion: selectedClient.version })),
         preview: input => runAction(() => services.previewPackageReactivationDates({ ...input, packageId })),

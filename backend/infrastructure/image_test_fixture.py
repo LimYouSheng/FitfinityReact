@@ -277,6 +277,27 @@ def image_fixture(source, pinned_contract):
     migration = "migrations/versions/20261024_0042_email_corrections.py"
     contract["files"][migration] = hashlib.sha256((source / migration).read_bytes()).hexdigest()
     contract["revisions"].append("20261024_0042")
+    for relative in (
+        "migrations/versions/20261024_0043_package_archives.py",
+        "app/api/package_action_review.py",
+        "app/api/package_action_save.py",
+        "app/api/package_action_undo.py",
+        "app/api/package_action_routes.py",
+        "app/api/package_action_schemas.py",
+        "app/models/package_actions.py",
+        "app/session_media_cleanup.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["revisions"].append("20261024_0043")
+    for table in (
+        "package_archived_media",
+        "package_action_requests",
+        "session_identities",
+        "session_archives",
+        "package_action_receipts",
+        "package_deletion_undos",
+    ):
+        contract["tables"][table] = ["SELECT", "INSERT"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

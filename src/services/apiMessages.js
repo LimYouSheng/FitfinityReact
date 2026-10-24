@@ -69,7 +69,7 @@ function proposal(value) {
 export function personalMessage(value, user) {
   const state = messageReadState(value, false)
   const links = ['clientId', 'purchaseId', 'sessionId', 'trainerId', 'requestId', 'exerciseId', 'packageId', 'contentId']
-  const keys = ['id', 'version', 'read', 'readAt', 'recipientUserId', 'kind', 'title', 'body', 'createdAt', 'actorId', 'actorName', ...links, 'remunerationCycle', 'request', 'renewalStatus', 'renewalDismissal']
+  const keys = ['id', 'version', 'read', 'readAt', 'recipientUserId', 'kind', 'title', 'body', 'createdAt', 'actorId', 'actorName', ...links, 'remunerationCycle', 'request', 'renewalStatus', 'renewalDismissal', 'undo', 'reversedAt']
   if (Object.keys(value).some(key => !keys.includes(key)) || value.recipientUserId !== user.id
     || !uuid(value.actorId) || !['kind', 'title', 'actorName'].every(key => typeof value[key] === 'string' && value[key].trim())
     || typeof value.body !== 'string' || !timestamp(value.createdAt) || !links.every(key => value[key] === null || uuid(value[key]))
@@ -77,8 +77,10 @@ export function personalMessage(value, user) {
     || (value.kind === 'renewal' ? !['active', 'renewed', 'removed'].includes(value.renewalStatus) : value.renewalStatus !== null)
     || (user.role === 'admin' && !adminMessageAllowed(value))) fail()
   if (value.renewalStatus === 'removed' ? !validDismissal(value.renewalDismissal) : value.renewalDismissal !== null) fail()
+  if (value.reversedAt != null && (!timestamp(value.reversedAt) || !value.requestId)) fail()
+  if (value.undo != null && (!uuid(value.undo.id) || value.undo.kind !== 'package_deletion' || !Number.isSafeInteger(value.undo.count) || value.undo.count < 1 || !timestamp(value.undo.expiresAt) || !['available', 'undone', 'expired'].includes(value.undo.status) || !['owner', 'admin'].includes(user.role))) fail()
   if (value.requestId ? value.request?.id !== value.requestId : value.request !== null) fail()
-  return { ...value, ...state, ...(value.request ? { request: proposal(value.request), status: value.request.status, requestVersion: value.request.version, ...(value.request.status === 'cancelled' && value.request.resolved_by ? { cancelledAt: value.request.resolved_at, cancelledBy: value.request.resolved_by } : {}) } : {}) }
+  return { ...value, ...state, ...(value.request ? { request: proposal(value.request), status: value.reversedAt ? 'reversed' : value.request.status, requestVersion: value.request.version, ...(value.request.status === 'cancelled' && value.request.resolved_by ? { cancelledAt: value.request.resolved_at, cancelledBy: value.request.resolved_by } : {}) } : {}) }
 }
 
 const validActor = value => value && uuid(value.id) && typeof value.name === 'string' && value.name.trim() && Object.keys(value).every(key => ['id', 'name'].includes(key))
@@ -98,7 +100,7 @@ const validDismissal = value => value && timestamp(value.at) && uuid(value.by?.i
 
 export function renewalState(value) {
   if (!value || !uuid(value.id) || !['removed', 'renewed'].includes(value.renewalStatus)
-    || Object.keys(value).some(key => !['id', 'renewalStatus', 'renewalDismissal'].includes(key))
+    || Object.keys(value).some(key => !['id', 'renewalStatus', 'renewalDismissal', 'undo', 'reversedAt'].includes(key))
     || (value.renewalStatus === 'removed' ? !validDismissal(value.renewalDismissal) : value.renewalDismissal !== null)) fail()
   return value
 }

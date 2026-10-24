@@ -15,6 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.api.email_changes import router as email_router
 from app.api.library_routes import router as library_router
 from app.api.openapi import configure_openapi
+from app.api.package_action_routes import router as package_action_router
 from app.api.routes import router as staff_router
 from app.api.schemas import ERROR_RESPONSES, Live, Ready
 from app.api.staff import router as access_router
@@ -76,6 +77,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(access_router)
         app.include_router(email_router)
         app.include_router(library_router)
+        app.include_router(package_action_router)
         app.add_middleware(AuthRequestMiddleware, settings=settings)
         app.add_middleware(
             CORSMiddleware,
