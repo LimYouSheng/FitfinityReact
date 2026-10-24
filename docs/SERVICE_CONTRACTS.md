@@ -158,11 +158,34 @@ Applied migrations are immutable. Additive schema changes must tolerate existing
 
 ### Milestones and retained acceptance criteria
 
+The [full milestone roadmap in Progress](../PROGRESS.md#full-milestone-roadmap) owns M0–M10 scope, current status and milestone exit criteria. This section owns the cross-cutting acceptance requirements. The 55-operation matrix does not replace later event/media, public-site, staging or launch acceptance.
+
 The staff-portal goal is all 55 matrix operations, plus authentication and route parity. Completion needs durable behavior, server permissions, prototype parity and meaningful real-database evidence, not an endpoint or API-enabled flag. Shared data must survive reload, sign-out, another browser/device and service restart. Conflict, idempotency and unknown-write recovery must preserve intent and exactly-once effects. Equivalent data must demonstrate layout, navigation, filters, pagination, Back behavior, accessibility and responsive parity without fabricated schedules or missing workflows.
 
 All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in Part 2; no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
 
 ## Part 2 — Dated changes and evidence
+
+### 24 October 2026 — Documentation accepted; API work resumes
+
+PR69 exact head2461162 passed all three gates in run39932902207 and merged as8ec4329. PR68 head191d960 passed frontend/API-browser but its backend job was cancelled, so it remains unaccepted. Incorporate the accepted documentation and obtain new final-head gates; no cancelled job counts as passed. User resumes API integration with the same isolated database, permission, concurrency/conflict and interrupted-write acceptance. Mutation/load testing remain M10 plans.
+
+### 23 October 2026 — Add M10 operational hardening and observability
+
+The user adds M10 to the active Progress roadmap for Grafana/observability, migration/recovery, backups and related engineering hardening. Existing H1–H7 tasks become its work packages, retaining dependencies, acceptance evidence and rollout boundaries. M8/M9 launch-critical security and recovery requirements remain prerequisites; M10 is planned and does not authorize tooling activation, paid services or production operations. Architecture links these planned capabilities to M10 without duplicating its task ledger.
+
+
+### 23 October 2026 — Restore the active milestone roadmap
+
+The user identified that M6/M7 had become visible only in retained history after consolidation. Initially restored M6.1–M6.5, M7, the separate public-site deliverable and the original combined M8/M9 sequence to Part 1; the user then specified that the complete active roadmap belongs in Progress. M0–M9 scope, status and exit criteria now live there, with links from North Star and current contracts. Preserve original numbering and later explicit permission decisions; the 55-operation matrix is not a replacement for milestone acceptance. No milestone is newly completed by this documentation repair.
+
+### 23 October 2026 — Planned architecture and full verification map
+
+The user requested the future Grafana, Dependabot and other hardening work in the architecture explanation and diagrams, plus a third diagram for the full test suite. Architecture now shows selected runtime/delivery with planned observability, supply-chain/security and operations; the isolated test environment with planned measurement; and existing versus planned verification suites. Mutation/performance, expanded resilience, telemetry validation, scanning and recovery drills are explicitly planned, not installed or CI-accepted. Backlog ownership remains Progress → Remaining work and command ownership remains README. No tooling activation, AWS change or production test is authorized by these diagrams.
+
+### 23 October 2026 — Restore explicit engineering safeguards
+
+The user requested a comprehensive engineering guide suitable as a starting structure for future projects. Comparison with pre-consolidation AGENTS, North Star and cloud instructions found safeguards had become implicit: checkpoint/ancestry and runtime verification, completion evidence before implementation, diagnosis before retries, runner-setting protection and explicit blocked/draft status. These are restored to active AGENTS alongside test-impact review, source/CI/release distinctions and handoff requirements. Project-specific technology and permissions must be re-established when adapting the guide; Fitfinity merge/browser authority does not transfer. The seven-document layout, business rules, operation count and full retained history are unchanged. No runtime or deployment change is included.
 
 ### 23 October 2026 — Seven-document consolidation
 
