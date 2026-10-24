@@ -209,6 +209,12 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 25 October 2026 Singapore — Final-ledger CI browser-startup stall
+
+At head `0aacdd198bd132da9866e889a2dfc2fa9181cdf4`, [run40131047952](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40131047952) passes backend and browser shard2. Shard1 passes140/141, including the previously failed weekly-schedule read, but the first phone email-correction scenario exceeds its unchanged30-second deadline; the aggregate correctly fails. Its trace shows initial `newPage` taking16.377 seconds before application navigation. The subsequent independent directory read reaches teardown at the overall deadline, producing `Response has been disposed`; this is distinct from the earlier socket reset. Retained originals: `ledger-transport-ci-failure.log` and `ledger-transport-traces.zip`.
+
+The unchanged full email-correction file then passes all12 desktop/phone/tablet cases against disposable Docker PostgreSQL in1.4 minutes (`ledger-email-diagnosis.log`); the same phone case takes17.5 seconds and owned resources are cleaned. This supports an isolated browser-startup stall, without proving its host-level cause. One full CI revalidation is justified by that trace and focused diagnostic evidence. No application fix is claimed, and no deadlines, assertions, workers, test retries or inventories change. The failed attempt remains failed; PR81 must still pass complete final-head CI before merge.
+
 ### 25 October 2026 Singapore — Final ledger and assertion-connection repair
 
 The final ledger follow-up is [PR81](https://github.com/LimYouSheng/FitfinityReact/pull/81). Its first head `f1360f518173eccfdcd58e4f2deb3529e04001fd` retains all 55 operation identities, the seven-document structure, unchanged AGENTS/diagram inputs and the complete historical suffix. It reconciles the accepted PR80 source while preserving broader M6–M10 exit criteria. Current file links and whitespace checks pass; application code remains unchanged.
