@@ -16,15 +16,13 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   const sessions = db.sessions ?? []
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
   const { clientService } = services
-  const notes = useClientNotes(selectedClient, Boolean(snapshot.capabilities?.clientNoteWrites), clientService, snapshot.sessionGeneration)
+  const notes = useClientNotes(selectedClient, Boolean(snapshot.capabilities?.clientNoteWrites), clientService, snapshot.sessionGeneration, services.readClientNotes)
   const progress = useClientProgress(selectedClient.id, Boolean(directoryOnly && snapshot.capabilities?.sessionOutcomeWrites), services, snapshot.sessionGeneration, snapshot.serverAt)
   const progressClientId = selectedClient.id
   const previewRenewal = useCallback(draft => services.previewClientRenewalMatches({ id: selectedClient.id, draft }), [services, selectedClient.id])
   const reviewRenewal = useCallback(() => runAction(() => services.reviewClientRenewal({ id: selectedClient.id, expectedVersion: selectedClient.version })), [services, selectedClient.id, selectedClient.version, runAction])
   const loadProgressReportHistory = useCallback(packageId =>
     clientService.progressReportHistory({ id: progressClientId, packageId }), [clientService, progressClientId])
-  if (progress.error) return <div role="alert"><p>{progress.error.message}</p><button type="button" onClick={progress.retry}>Retry client progress</button></div>
-  if (progress.loading) return <p role="status">Loading client progress…</p>
   if (notes.error) return <div role="alert"><p>{notes.error.message}</p><button type="button" onClick={notes.retry}>Retry client notes</button></div>
   if (!notes.client) return <div role="status">Loading client notes…</div>
   return (
@@ -74,6 +72,7 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
       assessmentApi={directoryOnly && snapshot.capabilities?.clientAssessmentWorkflows ? { services, generation: snapshot.sessionGeneration } : undefined}
       progressViewsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.sessionOutcomeWrites)}
       progressData={progress.exercises}
+      progressState={progress}
       progressReportsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.progressReportWrites)}
       sessionViewsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.sessionReads)}
       progressRoute={parts[2] === 'progress'}

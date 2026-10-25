@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { PORTAL_DRAFT_DISCARDED } from '../hooks/usePortalData.js'
 import { useActionConfirmation } from './ActionConfirmationProvider.jsx'
 
 const EditGuardContext = createContext(null)
@@ -36,6 +37,7 @@ export function EditGuardProvider({ children }) {
       })
       if (!confirmed) return false
 
+      window.dispatchEvent(new Event(PORTAL_DRAFT_DISCARDED))
       setActiveEdit(null)
       await action()
       return true

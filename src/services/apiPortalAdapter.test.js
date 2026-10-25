@@ -255,3 +255,15 @@ it.each([false, true])('post-write refresh cannot reuse a snapshot begun before 
   expect(directoryReads).toBe(2)
   expect(writes).toBe(1)
 })
+
+it('reads authorized notes without a directory reload and rejects mismatched reviewed versions', async () => {
+  const client = { id: '00000000-0000-4000-8000-000000000111', version: 2, people: [] }
+  let version = 2
+  const fetch = vi.fn(async url => jsonResponse(url.endsWith('/me') ? sessionInfo() : { id: client.id, version, people: [], healthNotes: 'Private note', remarks: '' }))
+  const services = createPortalServices(make(fetch))
+  expect(await services.readClientNotes(client)).toMatchObject({ healthNotes: 'Private note', notesAvailable: true })
+  expect(fetch.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/me', `/api/clients/${client.id}/notes`])
+  version = 3
+  await expect(services.readClientNotes(client)).rejects.toMatchObject({ code: 'API_RESPONSE' })
+  await expect(services.readClientNotes({ ...client, id: '../other' })).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
+})

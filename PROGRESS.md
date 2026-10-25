@@ -51,6 +51,10 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency, Grafana and supply-chain capabilities remain planned until separately implemented and evidenced.
 5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the seven-document structure and all eight existing stashes.
 
+### Active follow-up — offline recovery and responsiveness
+
+The approved local repair candidate on `fix/portal-offline-recovery` addresses the four exploratory findings: preserve same-login notes drafts through outages, reduce repeated/serial reads, guard saved sessions until fresh details load, and clear resolved connection warnings. Six new isolated PostgreSQL browser cases and the twelve affected postponement cases pass; all1,391 units/146 files and the Chromium/WebKit manual recovery recheck pass. Three local reload observations are404–888ms with one directory request each; these are not a latency budget. Final-head source CI/merge remain open. Accepted application source above is unchanged. First failures and detailed evidence are in Contracts history. This is a bounded repair, not implementation of M10 mutation or latency tooling.
+
 ### M6 exit evidence — source accepted, external acceptance open
 
 PR82 closes the authorized M6 source-exit work after complete final-head CI and normal merge. Full milestone/live acceptance remains distinct. Detailed first failures and the measured test-graph cleanup repair are retained once in Contracts history.

@@ -61,3 +61,44 @@ it.each(['client', 'trainer'])('retires private %s drafts when a later snapshot 
   expect(original.getSnapshot()).toEqual({})
   expect(original.update({ form: { draft: { name: 'Late result' } } }, version)).toBe(false)
 })
+
+it('hides retained notes drafts through an outage and retires them on logout or verified identity changes', async () => {
+  let current, failure = null, identity = snapshot()
+  const services = { load: vi.fn(async () => { if (failure) throw failure; return identity }) }
+  function Probe() { current = usePortalData(); return null }
+  render(<PortalDataProvider services={services}><Probe /></PortalDataProvider>)
+  await waitFor(() => expect(current.snapshot?.user).toBeTruthy())
+  const original = current.draftRecovery
+  original.set('client/one/remarks', { draft: 'Private unsaved note', reviewed: { expectedVersion: 2 } })
+  failure = Object.assign(new Error('Offline'), { code: 'NETWORK_ERROR' })
+  await act(async () => { await current.refresh().catch(() => {}) })
+  expect(current.snapshot).toBeNull()
+  expect(current.draftRecovery.get('client/one/remarks')).toBeUndefined()
+  expect(original.get('client/one/remarks')).toBeUndefined()
+  original.set('client/one/remarks', { draft: 'Late replacement' })
+  failure = null
+  await act(async () => { await current.refresh() })
+  expect(current.draftRecovery.get('client/one/remarks')).toEqual({ draft: 'Private unsaved note', reviewed: { expectedVersion: 2 } })
+  identity = { ...snapshot(), user: { id: 'different-owner', role: 'owner' }, sessionGeneration: 1 }
+  await act(async () => { await current.refresh() })
+  expect(current.draftRecovery.get('client/one/remarks')).toBeUndefined()
+  original.set('client/one/remarks', { draft: 'Old identity callback' })
+  expect(current.draftRecovery.get('client/one/remarks')).toBeUndefined()
+  current.draftRecovery.set('client/one/remarks', { draft: 'New identity' })
+  identity = { ...snapshot(), user: null }
+  await act(async () => { await current.refresh() })
+  identity = snapshot()
+  await act(async () => { await current.refresh() })
+  expect(current.draftRecovery.get('client/one/remarks')).toBeUndefined()
+})
+
+it('loads once at bootstrap and once per focus event without a second identity-triggered refresh', async () => {
+  let current
+  const services = { load: vi.fn(async () => snapshot()) }
+  function Probe() { current = usePortalData(); return null }
+  render(<PortalDataProvider services={services}><Probe /></PortalDataProvider>)
+  await waitFor(() => expect(current.snapshot?.user).toBeTruthy())
+  expect(services.load).toHaveBeenCalledTimes(1)
+  await act(async () => { window.dispatchEvent(new Event('focus')) })
+  expect(services.load).toHaveBeenCalledTimes(2)
+})

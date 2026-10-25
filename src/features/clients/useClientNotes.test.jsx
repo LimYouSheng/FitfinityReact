@@ -54,3 +54,13 @@ it('retires old notes immediately when directory authority or a person version c
   expect(result.current.client).toBeFalsy()
   expect(service.getById).toHaveBeenCalledTimes(2)
 })
+
+it('uses the scoped notes reader without reloading the full directory', async () => {
+  const client = { id: 'one', version: 2, people: [] }
+  const service = { getById: vi.fn() }
+  const read = vi.fn(async value => ({ ...value, healthNotes: 'Scoped note' }))
+  const { result } = renderHook(() => useClientNotes(client, true, service, 1, read))
+  await waitFor(() => expect(result.current.client?.healthNotes).toBe('Scoped note'))
+  expect(service.getById).not.toHaveBeenCalled()
+  expect(read).toHaveBeenCalledWith(client)
+})

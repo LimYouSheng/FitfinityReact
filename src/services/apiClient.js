@@ -71,7 +71,7 @@ export function createApiClient({ baseUrl = '', origin, fetchImpl = globalThis.f
       assertGeneration(at)
       if (error instanceof ApiError) throw error
       if (error.name === 'AbortError') throw error
-      throw new ApiError('NETWORK_ERROR', method === 'POST' ? 'The response was interrupted. Check the current state before trying again.' : 'Unable to reach the staff service. Check your connection and retry.')
+      throw Object.assign(new ApiError('NETWORK_ERROR', method === 'POST' ? 'The response was interrupted. Check the current state before trying again.' : 'Unable to reach the staff service. Check your connection and retry.'), { requestMethod: method })
     }
     assertGeneration(at)
     if (!response.ok) {
