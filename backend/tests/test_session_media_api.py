@@ -247,7 +247,7 @@ def test_recording_evidence_refuses_populated_downgrade(api, graph, recording, m
     _, item, _ = recording
     _, _, response = reserve(api, graph, item)
     assert response.status_code == 200
-    with pytest.raises(DBAPIError, match="Recording downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261024_0043")
 
 

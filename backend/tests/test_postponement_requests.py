@@ -31,14 +31,14 @@ def test_retained_postponement_prevents_lossy_downgrade_and_never_unschedules_bo
 ):
     with domain_db.transaction() as session:
         identity, _ = seed_request(session, graph, "session_postpone")
-    with pytest.raises(DBAPIError, match="Postponement-request downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0023")
     with domain_db.transaction() as session:
         assert session.get(ChangeRequest, identity).status == "pending"
         booking = session.get(TrainingSession, graph["session_id"])
         assert booking.schedule_state == "booked" and booking.training_date == graph["start_date"]
         assert booking.starts_at == time(10)
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0045"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261025_0046"
 
 
 def test_open_session_time_proposal_cancels_without_booking_or_losing_its_original_open_state(
@@ -55,7 +55,7 @@ def test_open_session_time_proposal_cancels_without_booking_or_losing_its_origin
         identity, _ = seed_request(
             session, graph, "session_time", old_date=None, old_start=None, old_end=None
         )
-    with pytest.raises(DBAPIError, match="Postponement-request downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0023")
     with domain_db.transaction() as session:
         saved = save(session, actor(graph), identity, uuid4(), CancelRequest(expectedVersion=1))

@@ -215,7 +215,7 @@ def test_rollback_immutable_dismissal_and_receipt_refuse_populated_downgrade(
     for model in [RenewalDismissal, RenewalDismissalReceipt]:
         with pytest.raises(DBAPIError), domain_db.transaction() as session:
             session.delete(session.scalar(select(model)))
-    with pytest.raises(DBAPIError, match="Renewal dismissal downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0018")
 
 

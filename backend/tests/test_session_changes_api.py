@@ -232,7 +232,7 @@ def test_receipt_is_immutable_and_populated_downgrade_refuses(
         with domain_db.transaction() as session:
             session.delete(session.scalar(select(SessionChangeReceipt)))
 
-    with pytest.raises(DBAPIError, match="Session change downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261023_0034")
 
 

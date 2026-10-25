@@ -16,7 +16,7 @@ flowchart TB
     App["Lambda Web Adapter and FastAPI"]
     Identity["Cognito: staff identity"]
     DB[("Private PostgreSQL / RDS")]
-    Media[("S3: library accepted, recordings candidate; live acceptance pending")]
+    Media[("S3: library and recordings source accepted; live acceptance pending")]
   end
   subgraph Delivery["Source delivery"]
     Repo["GitHub: reviewed source and lockfiles"]
@@ -39,8 +39,8 @@ flowchart TB
   Gateway --> App
   App --> Identity
   App -->|"Transactions and receipts"| DB
-  Staff -.->|"Candidate: private signed upload/read"| Media
-  App -.->|"Candidate: verify bytes and durable cleanup"| Media
+  Staff -->|"Private signed upload/read"| Media
+  App -->|"Verify bytes and durable cleanup"| Media
   Repo --> CI --> Merge --> Release
   Release -.->|"Separately authorized deployment"| AWS
   Supply -.->|"Reviewed update PRs"| Repo

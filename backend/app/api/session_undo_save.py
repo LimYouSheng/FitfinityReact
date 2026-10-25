@@ -281,6 +281,8 @@ def commit(session, principal, identity, key, body, checked):
                     session_id=entity_id,
                     session_version=session.get(training.TrainingSession, entity_id).version,
                     kind="session_undo",
+                    old_trainer_id=after["trainer_id"] if after else None,
+                    new_trainer_id=before["trainer_id"] if before else None,
                     note=f"Compensation for {mutation.operation}; original evidence retained.",
                     actor_id=principal.user_id,
                     actor_name=principal.name,

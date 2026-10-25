@@ -124,7 +124,7 @@ def test_create_is_atomic_replayable_and_private(api, domain_db, graph, migrate)
     with pytest.raises(DBAPIError, match="immutable"):
         with domain_db.transaction() as session:
             session.execute(text("UPDATE client_create_receipts SET result = '{}'::jsonb"))
-    with pytest.raises(DBAPIError, match="Client creation downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0014")
 
 

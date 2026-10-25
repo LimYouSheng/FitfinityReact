@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Computed,
     Date,
     DateTime,
     ForeignKey,
@@ -185,6 +186,7 @@ class TrainingSession(Versioned, Base):
     client_id: Mapped[UUID] = mapped_column(ForeignKey("clients.id"), index=True)
     purchase_id: Mapped[UUID] = mapped_column(index=True)
     trainer_id: Mapped[UUID] = mapped_column(ForeignKey("trainers.id"), index=True)
+    assigned_trainer_id: Mapped[UUID] = mapped_column(Computed("trainer_id", persisted=True))
     schedule_slot_id: Mapped[UUID | None] = mapped_column()
     schedule_state: Mapped[str] = mapped_column(String(16), server_default="booked")
     session_number: Mapped[int | None] = mapped_column(Integer)

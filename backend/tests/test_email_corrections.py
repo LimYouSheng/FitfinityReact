@@ -10,6 +10,7 @@ from sqlalchemy.exc import DBAPIError
 
 from app.models.email_changes import StaffEmailChange
 from app.models.people import StaffUser, Trainer
+from tests.legacy_migration_graph import outgoing_graph
 from tests.test_email_changes import email_flow as email_flow
 from tests.test_email_changes import post, request_email
 from tests.test_staff_api import api as api
@@ -297,65 +298,68 @@ def test_migration_preserves_prior_completed_evidence_and_outgoing_code_completi
 
     from app.models.people import StaffIdentity
 
-    migrate("downgrade", "20261024_0041")
-    ids = [uuid4(), uuid4()]
-    with domain_db.transaction() as session:
-        identity = session.scalar(
-            select(StaffIdentity.id).where(StaffIdentity.user_id == graph["user_id"])
-        )
-        for index, change_id in enumerate(ids):
-            session.execute(
-                text("""
-                INSERT INTO staff_email_changes
-                (id, request_key, trainer_version, user_id, identity_id, old_email,
-                 new_email, actor_id, actor_name, state, completed_at)
-                VALUES (:id, :key, 1, :user, :identity, :old, :new, :actor, 'Migration actor',
-                        :state, CASE WHEN :done THEN now() ELSE NULL END)
-            """),
-                {
-                    "id": change_id,
-                    "key": uuid4(),
-                    "user": graph["user_id"],
-                    "identity": identity,
-                    "old": email_flow["old"],
-                    "new": f"legacy-{index}@example.test",
-                    "actor": graph["user_id"],
-                    "state": "completed" if index == 0 else "pending",
-                    "done": index == 0,
-                },
-            )
-        prior = session.execute(
-            text(
-                "SELECT id, request_key, new_email, actor_id, actor_name, created_at, completed_at "
-                "FROM staff_email_changes WHERE id = :id"
-            ),
-            {"id": ids[0]},
-        ).one()
-    migrate()
-    with domain_db.transaction() as session:
-        preserved = session.execute(
-            text(
-                "SELECT id, request_key, new_email, actor_id, actor_name, created_at, completed_at "
-                "FROM staff_email_changes WHERE id = :id"
-            ),
-            {"id": ids[0]},
-        ).one()
-        assert preserved == prior
-        completed = session.get(StaffEmailChange, ids[0])
-        assert completed.reservation_released_at == completed.completed_at
-        # Simulate the outgoing application, which knows no reservation-release column.
-        session.execute(
-            text(
-                "UPDATE staff_email_changes SET state = 'completed', completed_at = now() "
-                "WHERE id = :id"
-            ),
-            {"id": ids[1]},
-        )
-    with domain_db.transaction() as session:
-        completed = session.get(StaffEmailChange, ids[1])
-        assert completed.reservation_released_at == completed.completed_at
-    with pytest.raises(DBAPIError, match="Email correction downgrade refused"):
+    with outgoing_graph(domain_db) as (domain_db, migrate):
         migrate("downgrade", "20261024_0041")
+        ids = [uuid4(), uuid4()]
+        with domain_db.transaction() as session:
+            identity = session.scalar(
+                select(StaffIdentity.id).where(StaffIdentity.user_id == graph["user_id"])
+            )
+            for index, change_id in enumerate(ids):
+                session.execute(
+                    text("""
+                    INSERT INTO staff_email_changes
+                    (id, request_key, trainer_version, user_id, identity_id, old_email,
+                     new_email, actor_id, actor_name, state, completed_at)
+                    VALUES (:id, :key, 1, :user, :identity, :old, :new, :actor, 'Migration actor',
+                            :state, CASE WHEN :done THEN now() ELSE NULL END)
+                """),
+                    {
+                        "id": change_id,
+                        "key": uuid4(),
+                        "user": graph["user_id"],
+                        "identity": identity,
+                        "old": email_flow["old"],
+                        "new": f"legacy-{index}@example.test",
+                        "actor": graph["user_id"],
+                        "state": "completed" if index == 0 else "pending",
+                        "done": index == 0,
+                    },
+                )
+            prior = session.execute(
+                text(
+                    "SELECT id, request_key, new_email, actor_id, actor_name, "
+                    "created_at, completed_at "
+                    "FROM staff_email_changes WHERE id = :id"
+                ),
+                {"id": ids[0]},
+            ).one()
+        migrate()
+        with domain_db.transaction() as session:
+            preserved = session.execute(
+                text(
+                    "SELECT id, request_key, new_email, actor_id, actor_name, "
+                    "created_at, completed_at "
+                    "FROM staff_email_changes WHERE id = :id"
+                ),
+                {"id": ids[0]},
+            ).one()
+            assert preserved == prior
+            completed = session.get(StaffEmailChange, ids[0])
+            assert completed.reservation_released_at == completed.completed_at
+            # Simulate the outgoing application, which knows no reservation-release column.
+            session.execute(
+                text(
+                    "UPDATE staff_email_changes SET state = 'completed', completed_at = now() "
+                    "WHERE id = :id"
+                ),
+                {"id": ids[1]},
+            )
+        with domain_db.transaction() as session:
+            completed = session.get(StaffEmailChange, ids[1])
+            assert completed.reservation_released_at == completed.completed_at
+        with pytest.raises(DBAPIError, match="Email correction downgrade refused"):
+            migrate("downgrade", "20261024_0041")
 
 
 def test_outgoing_completion_releases_correction_chain_in_database(

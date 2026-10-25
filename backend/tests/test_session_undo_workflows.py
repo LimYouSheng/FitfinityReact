@@ -95,6 +95,16 @@ def test_assignment_undo_appends_compensation_instead_of_erasing_original_histor
     mutation = latest(domain_db)
     restored = undo(api, mutation, undo_review(api, mutation))
     assert restored.status_code == 200, restored.text
+    attribution = api.get(f"/api/sessions/{graph['second_session_id']}/attribution")
+    assert attribution.status_code == 200, attribution.text
+    assert attribution.json()["original"]["id"] == str(graph["trainer_id"])
+    assert attribution.json()["assigned"]["id"] == str(graph["trainer_id"])
+    assert [
+        (row["oldTrainerId"], row["newTrainerId"]) for row in attribution.json()["history"]
+    ] == [
+        (str(graph["trainer_id"]), str(replacement)),
+        (str(replacement), str(graph["trainer_id"])),
+    ]
     with domain_db.transaction() as session:
         assert session.get(Client, graph["client_id"]).trainer_id == graph["trainer_id"]
         assert session.get(PackagePurchase, graph["purchase_id"]).trainer_id == graph["trainer_id"]

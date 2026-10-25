@@ -189,5 +189,5 @@ def test_cancellation_receipts_are_immutable_and_prevent_lossy_downgrade(domain_
         )
     with pytest.raises(DBAPIError), domain_db.transaction() as session:
         session.execute(text("DELETE FROM request_cancellation_receipts"))
-    with pytest.raises(DBAPIError, match="Request cancellation downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0022")

@@ -335,6 +335,15 @@ def image_fixture(source, pinned_contract):
         "mutation_change_requests",
     ):
         contract["tables"][table] = ["SELECT", "INSERT"]
+    contract["revisions"].append("20261025_0046")
+    for relative in (
+        "migrations/versions/20261025_0046_session_attribution.py",
+        "app/models/session_attribution.py",
+        "app/api/session_attribution.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["tables"]["session_trainer_attributions"] = ["SELECT", "INSERT", "UPDATE"]
+    contract["tables"]["session_trainer_assignment_history"] = ["SELECT", "INSERT"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

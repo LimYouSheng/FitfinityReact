@@ -332,7 +332,7 @@ def test_rollback_immutable_receipts_and_populated_downgrade(api, domain_db, gra
     assert mark(api, identity).status_code == 200
     with pytest.raises(DBAPIError), domain_db.transaction() as session:
         session.delete(session.scalar(select(MessageReadReceipt)))
-    with pytest.raises(DBAPIError, match="Message read downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0017")
 
 

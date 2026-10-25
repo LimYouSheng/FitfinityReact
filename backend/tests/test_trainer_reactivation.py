@@ -80,7 +80,7 @@ def test_review_save_replay_and_unchanged_records(api, domain_db, graph, migrate
         assert (
             len(session.scalars(select(Message).where(Message.kind == "trainer_status")).all()) == 1
         )
-    with pytest.raises(DBAPIError, match="Trainer reactivation downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0015")
     with pytest.raises(DBAPIError, match="immutable"), domain_db.transaction() as session:
         session.delete(session.scalar(select(TrainerReactivationReceipt)))

@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.auth.errors import AuthError
 from app.models.people import Client, Trainer
+from app.models.session_attribution import (
+    SessionTrainerAssignmentHistory,
+    SessionTrainerAttribution,
+)
 from app.models.training import AssignmentChange, AssignmentEvent, PackagePurchase, TrainingSession
 
 
@@ -95,6 +99,20 @@ def session_scope(principal: Principal):
         return true()
     return or_(
         TrainingSession.trainer_id == principal.trainer_id,
+        exists().where(
+            SessionTrainerAttribution.session_id == TrainingSession.id,
+            or_(
+                SessionTrainerAttribution.original_trainer_id == principal.trainer_id,
+                SessionTrainerAttribution.performed_by_trainer_id == principal.trainer_id,
+            ),
+        ),
+        exists().where(
+            SessionTrainerAssignmentHistory.session_id == TrainingSession.id,
+            or_(
+                SessionTrainerAssignmentHistory.old_trainer_id == principal.trainer_id,
+                SessionTrainerAssignmentHistory.new_trainer_id == principal.trainer_id,
+            ),
+        ),
         exists().where(
             Client.id == TrainingSession.client_id, Client.trainer_id == principal.trainer_id
         ),

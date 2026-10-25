@@ -2,7 +2,7 @@
 
 ## Current checkpoint — 25 October 2026 Singapore
 
-Accepted application source is [PR80](https://github.com/LimYouSheng/FitfinityReact/pull/80) merge `4c66e83cd510cbbfec2fead12c9d3ce6e55fd5ca`. Exact head `8cd66670aee495e17244b8b6bf15bf42c8740c63` passed all required gates in [run40125921904](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40125921904): 1,384 units/145 files, 1,152 simulator browser cases, 1,341 backend/PostgreSQL, 633 infrastructure and 282 real-API browser cases. Separate main/release validation remains distinct; original failures and complete merge evidence remain in Contracts history.
+Accepted source is [PR81](https://github.com/LimYouSheng/FitfinityReact/pull/81) merge `12746640452c2778c83c3f6a1207bf2356118937`, including PR80’s completed integrations. Exact head `752a45f9499afd0480f3006fc35f86088c36615e` passed all required gates in [run40132434584](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40132434584): 1,384 units/145 files, 1,152 simulator browser cases, 1,341 backend/PostgreSQL, 633 infrastructure and 282 real-API browser cases. Separate main/release validation remains distinct; original failures and complete merge evidence remain in Contracts history.
 
 [The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **55/55 source accepted**: 54 server-connected operations plus one local predicate. All 18 operations remaining at the 37/55 checkpoint are complete in merged source. This does not establish deployment or blanket milestone acceptance.
 
@@ -10,7 +10,7 @@ Accepted application source is [PR80](https://github.com/LimYouSheng/FitfinityRe
 | --- | --- |
 | Staff-portal source | All named operations are source-accepted; the broader milestone exit evidence below remains separate. Detailed operation receipts live in Service Contracts Part 2. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; local signed-token Cognito substitute and actual isolated S3-compatible media storage. No production PostgreSQL or Lambda redeployment needed. |
-| Deployment | Last verified Pages demo source is PR77 merge `c625b1575218dd3fab43cccc8fa1d25b4036b743`: verification, build and Pages deploy succeeded in [run40110047432](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40110047432). Its obsolete AWS image job awaited approval; no image publication was approved. No new Lambda deployment, real Cognito or device acceptance is claimed. |
+| Deployment | Last verified Pages demo source is PR81 merge `12746640452c2778c83c3f6a1207bf2356118937`: verification, build and Pages deploy succeeded in [run40135325108](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40135325108). AWS image publication awaits separate approval; none was granted. No new Lambda deployment, real Cognito or device acceptance is claimed. |
 
 ## Full milestone roadmap
 
@@ -50,6 +50,15 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency, Grafana and supply-chain capabilities remain planned until separately implemented and evidenced.
 5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the seven-document structure and all eight existing stashes.
+
+### M6 exit work — active
+
+| Area | Current evidence / gap | Completion evidence |
+| --- | --- | --- |
+| Trainer attribution | Additive candidate on `feat/m6-attribution-exit`; not yet source-accepted. Original/assigned/performed identity, immutable assignment edges, request attribution and conservative legacy handling were missing from the accepted schema. | Populated upgrade and empty round trip; immutable evidence, permission/foreign-record, completion, reassignment, deletion/Undo and browser reload/fresh-login tests; full exact-head CI and merge. |
+| Service restart | Existing reload/fresh-context tests do not prove process-restart durability. | Actual FastAPI process termination/restart against the same isolated database, preserved receipts/records/auth state, no repeated effects and no partial interrupted writes. |
+| Authentication and route parity | Audit beyond the named operation matrix remains open. Lost-authenticator policy is now operator-assisted; prepare and test it without adding runtime admin powers. | Explicit mapping of authentication/account lifecycle and routes to real-API evidence; fix concrete gaps without replacing physical/provider acceptance with mocks. |
+| External acceptance | Current source is not deployed to Lambda; real Cognito and current physical-device acceptance remain unverified. | Reviewed environment/source binding and separately authorized live-provider/device/UAT receipts; no blanket M6 closure from source CI alone. |
 
 ### M10 work packages — planned
 

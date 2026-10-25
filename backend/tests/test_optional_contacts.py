@@ -132,6 +132,6 @@ def test_downgrade_refuses_cleared_contact_fields_without_deleting_any_record(ap
     body = copy.deepcopy(payload(api, graph))
     body["people"][0]["birthday"] = None
     assert save(api, graph, body).status_code == 200
-    with pytest.raises(DBAPIError, match="Optional contacts downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0009")
     assert payload(api, graph)["people"][0]["birthday"] is None

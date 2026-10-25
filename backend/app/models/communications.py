@@ -181,6 +181,7 @@ class SessionEvent(ActorEvidence, Record, Base):
     __tablename__ = "session_events"
     __table_args__ = (CheckConstraint("session_version > 0", name="valid_version"),)
     session_id: Mapped[UUID] = mapped_column(ForeignKey("session_identities.id"), index=True)
+    request_id: Mapped[UUID | None] = mapped_column(ForeignKey("change_requests.id"))
     session_version: Mapped[int] = mapped_column(Integer)
     kind: Mapped[str] = mapped_column(String(64))
     note: Mapped[str] = mapped_column(Text, server_default="")

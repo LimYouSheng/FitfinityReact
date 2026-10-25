@@ -48,6 +48,14 @@ for (const [purpose, kind] of [['changetime', 'time'], ['changetrainer', 'traine
     expect(changed).toBeTruthy()
     if (kind === 'time') expect(changed).toMatchObject({ startsAt: '12:00', endsAt: '13:00', trainerId: before.sessions[0].trainerId })
     else {
+      const attribution = await read(fresh.page, `/api/sessions/${changed.id}/attribution`)
+      expect(attribution.originalState).toBe('captured')
+      expect(attribution.original.id).toBe(before.sessions[0].trainerId)
+      expect(attribution.assigned.id).toBe(changed.trainerId)
+      expect(attribution.performedBy).toBeNull()
+      expect(attribution.history).toHaveLength(1)
+      expect(attribution.history[0]).toMatchObject({ oldTrainerId: before.sessions[0].trainerId, newTrainerId: changed.trainerId, requestId: null })
+      expect((await read(page, `/api/sessions/${changed.id}/attribution`))).toEqual(attribution)
       expect(changed.trainerId).not.toBe(before.sessions[0].trainerId)
       expect(saved).toHaveLength(1)
       const original = (await read(page, '/api/session-calendar')).sessions
@@ -62,6 +70,7 @@ for (const [purpose, kind] of [['changetime', 'time'], ['changetrainer', 'traine
     const all = (await read(staff, '/api/session-calendar')).sessions
     const foreign = all.find(s => s.clientId !== before.client.id)
     expect(foreign).toBeTruthy()
+    expect((await fresh.page.request.get(`/api/sessions/${foreign.id}/attribution`)).status()).toBe(404)
     expect((await fresh.page.request.get(`/api/sessions/${foreign.id}/change-review?kind=${kind}`)).status()).toBe(404)
     const current = (await read(staff, '/api/directory')).clients.find(c => c.id === before.client.id)
     expect(current.purchases.map(p => [p.id, p.total_sessions, p.used, p.start_date, p.end_date])).toEqual(before.client.purchases.map(p => [p.id, p.total_sessions, p.used, p.start_date, p.end_date]))
@@ -92,6 +101,14 @@ for (const [purpose, kind] of [['changetimesupervised', 'time'], ['changetrainer
     const saved = (await read(fresh.page, '/api/session-calendar')).sessions
     expect(saved.every(s => s.clientId === before.client.id && s.readAccess === 'assigned')).toBe(true)
     expect(saved.find(s => s.id === before.sessions[0].id)).toMatchObject(kind === 'time' ? { startsAt: '12:00', endsAt: '13:00' } : { date: before.sessions[0].date, startsAt: before.sessions[0].startsAt })
+    if (kind === 'trainer') {
+      const attribution = await read(fresh.page, `/api/sessions/${before.sessions[0].id}/attribution`)
+      expect(attribution.original.id).toBe(before.sessions[0].trainerId)
+      expect(attribution.history).toHaveLength(1)
+      expect(attribution.history[0].requestId).toBe(notice.request.id)
+      expect(attribution.history[0].requestedBy.id).not.toBe(attribution.history[0].recordedBy.id)
+      expect(attribution.history[0].newTrainerId).toBe(attribution.assigned.id)
+    }
     await fresh.context.close(); await owner.close()
   })
 }

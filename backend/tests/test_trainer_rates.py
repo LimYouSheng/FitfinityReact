@@ -113,7 +113,7 @@ def test_concurrent_retry_has_one_effect_and_evidence_cannot_be_deleted(
         assert len(session.scalars(select(TrainerRateReceipt)).all()) == 1
     with pytest.raises(DBAPIError), domain_db.transaction() as session:
         session.delete(session.scalar(select(TrainerRateReceipt)))
-    with pytest.raises(DBAPIError, match="Trainer rate downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0011")
 
 

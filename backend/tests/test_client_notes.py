@@ -134,7 +134,7 @@ def test_notes_access_and_receipts_are_immutable_and_prevent_downgrade(
         session.delete(session.scalar(select(ClientNoteReceipt)))
     with pytest.raises(DBAPIError), domain_db.transaction() as session:
         session.delete(session.scalar(select(ClientNoteAccess)))
-    with pytest.raises(DBAPIError, match="Client notes downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0010")
     assert api.get(url(graph)).json()["remarks"] == "Saved"
 
