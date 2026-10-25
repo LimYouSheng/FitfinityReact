@@ -1,5 +1,6 @@
 """Real PostgreSQL tests get a fresh database; never fall back to a deployment URL."""
 
+import gc
 import os
 from contextlib import contextmanager
 from uuid import uuid4
@@ -16,6 +17,16 @@ from app.config import Settings
 from app.migrations import migration_config
 
 pytest_plugins = ["tests.domain_fixtures", "tests.auth_fixtures", "tests.media_fixtures"]
+
+
+@pytest.fixture(autouse=True)
+def reclaim_completed_test_graphs():
+    """Release closed app/ORM cycles after other function fixtures have torn down."""
+    yield
+    # Otherwise retired test graphs accumulate until a later writer holds DB locks:
+    # measured generation-2 pauses exceed the unchanged one-second lock deadline.
+    # Leave automatic collection enabled throughout every scenario and race.
+    gc.collect()
 
 
 def test_control_url(value: str | None):

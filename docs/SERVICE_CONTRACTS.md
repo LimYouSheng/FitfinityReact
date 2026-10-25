@@ -223,6 +223,15 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 25 October 2026 Singapore — M6 full validation and recurring concurrency diagnosis
+
+Head `155ef2bbc8dcfa858b9bb7f340400b1342edbe0a` passes the complete local1,353 backend/PostgreSQL gate in693.48s plus633 offline infrastructure checks. All24 acknowledgement/postponement browser cases pass in2.1m with unchanged assertions and deadlines; the earlier failing phone acknowledgement passes in12.3s. Scoped local services are removed after the gate. Run40171778770 passes both real-API shards and the complete294-case aggregate, but backend passes1,352/1,353: `test_independent_conflicting_outcomes_have_one_winner` times out acquiring shared decision lock714602045. The postponement test passes. Artifact12590758118 and decoded failure are preserved separately; the complete prior local gate does not override this CI failure.
+
+The recurrence across summary, postponement and outcome concurrency prompted a parameter-free full-suite diagnostic, which passes1,353 cases in749.78s but records196 collection pauses over50ms. Generation-2 cleanup pauses reach1,414.75ms wall/1,412.13ms CPU while reclaiming295,348 objects; other pauses exceed one second, and concurrent acknowledgement/profile scenarios encounter783.54/811.66ms pauses. This demonstrates accumulated in-process test graphs can consume the unchanged database lock budget; it does not prove which pause occurred in an uninstrumented CI run. The empty-snapshot optimization alone did not resolve the recurring failure.
+
+A root autouse fixture now collects unreachable completed test graphs after dependent function fixtures have closed their clients, sessions and databases. It does not disable automatic collection during scenarios, warm application caches, change lock ownership, add retries or modify assertions/deadlines/runner settings. All88 focused concurrent-write/restart/recovery cases pass in95.80s. No call-phase GC pause reaches50ms in that cohort; the largest measured collection is678.71ms during teardown, after transactions close. Python lint passes. Complete new-head CI remains required. The diagnostic is a retained one-off artifact, not implementation of the planned M10 latency suite. PR82 remains draft; no AWS or production action occurs.
+
+
 ### 25 October 2026 Singapore — M6 final-candidate CI diagnosis
 
 PR82 head `dda67caf97103651fa8973fcff6440660bbb9abc`, run40167827120, passes the complete frontend gate and API shard1. Backend passes1,352/1,353: concurrent postponement returns200/503 instead of two identical200 responses; captured durations are1,055ms for the committed write and1,047ms for the rejected duplicate. API shard2 passes144/145: the phone acknowledgement trace spends17,011ms creating its initial blank page, completes the acknowledgement UI, then reaches the unchanged30-second budget opening a fresh page. The aggregate correctly fails. Complete backend artifact12589846776 and browser trace12589757191 are retained under `m6-final-ci-first`; no original evidence is overwritten. These results do not establish M6 acceptance.
