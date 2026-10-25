@@ -79,7 +79,7 @@ def test_profile_save_syncs_name_and_clears_optional_contacts_without_email_or_r
         assert user.name == "Renamed Trainer" and user.email == original["email"]
         evidence = session.scalar(select(TrainerDetailReceipt))
         assert set(evidence.result) == {"id", "version"}
-    with pytest.raises(DBAPIError, match="Trainer details downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0013")
 
 

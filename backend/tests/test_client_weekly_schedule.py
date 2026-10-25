@@ -306,7 +306,7 @@ def test_receipt_privacy_and_immutable_populated_downgrade(
     assert api.get(f"/api/client-weekly-schedules/{key}").status_code == 404
     with pytest.raises(DBAPIError, match="immutable"), domain_db.transaction() as session:
         session.delete(session.scalar(select(ClientWeeklyScheduleReceipt)))
-    with pytest.raises(DBAPIError, match="Client weekly schedule downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0029")
 
 

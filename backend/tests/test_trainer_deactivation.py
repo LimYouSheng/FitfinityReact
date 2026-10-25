@@ -247,7 +247,7 @@ def test_receipts_are_immutable_and_populated_downgrade_refuses(
     assert save(api, graph, payload(api, graph, replacement)).status_code == 200
     with pytest.raises(DBAPIError, match="immutable"), domain_db.transaction() as session:
         session.delete(session.scalar(select(TrainerDeactivationReceipt)))
-    with pytest.raises(DBAPIError, match="Trainer deactivation downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0028")
 
 

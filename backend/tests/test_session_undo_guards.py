@@ -48,4 +48,4 @@ def test_populated_undo_migration_refuses_downgrade_without_losing_history(
     with domain_db.transaction() as session:
         assert session.scalar(select(func.count()).select_from(SessionMutation)) == 1
         assert session.scalar(select(func.count()).select_from(SessionMutationUndo)) == 1
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0045"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261025_0046"

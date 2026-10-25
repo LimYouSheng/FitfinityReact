@@ -187,7 +187,7 @@ def test_immutable_receipts_populated_downgrade_and_transaction_rollback(
     assert save(api).status_code == 200
     with pytest.raises(DBAPIError), domain_db.transaction() as session:
         session.delete(session.scalar(select(ContentSaveReceipt)))
-    with pytest.raises(DBAPIError, match="Content save downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0016")
     principal = Principal(graph["owner_id"], "Owner", "owner", None)
     with pytest.raises(RuntimeError), domain_db.transaction() as session:

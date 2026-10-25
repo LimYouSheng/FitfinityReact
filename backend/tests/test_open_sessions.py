@@ -11,6 +11,7 @@ from app.models.people import Trainer
 from app.models.training import Acknowledgement, TrainingSession
 from app.persistence import PersistenceConflict, acknowledge, add_purchase
 from tests.domain_fixtures import purchase_parts
+from tests.legacy_migration_graph import outgoing_graph
 from tests.test_client_deactivation_api import row_values
 from tests.test_client_reactivation_review import deactivate, preview, read
 from tests.test_client_reactivation_save import body, save
@@ -180,25 +181,31 @@ def test_concurrent_open_inserts_cannot_exceed_purchased_capacity(domain_db, gra
 def test_open_records_block_downgrade_before_losing_unscheduled_evidence(domain_db, graph, migrate):
     with domain_db.transaction() as session:
         make_open(session, graph["session_id"])
-    with pytest.raises(DBAPIError, match="Open-session downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0021")
     with domain_db.transaction() as session:
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0045"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261025_0046"
         assert session.get(TrainingSession, graph["session_id"]).schedule_state == "open"
 
 
 def test_booked_history_survives_forward_and_backward_schema_changes(domain_db, graph, migrate):
-    query = text(
-        "SELECT id, training_date, starts_at, ends_at, session_number, version "
-        "FROM training_sessions ORDER BY id"
-    )
-    with domain_db.transaction() as session:
-        before = session.execute(query).all()
-    migrate("downgrade", "20261013_0021")
-    migrate()
-    with domain_db.transaction() as session:
-        assert session.execute(query).all() == before
-        assert all(r.schedule_state == "booked" for r in session.scalars(select(TrainingSession)))
+    with outgoing_graph(domain_db) as (domain_db, migrate):
+        query = text(
+            "SELECT id, training_date, starts_at, ends_at, session_number, version "
+            "FROM training_sessions ORDER BY id"
+        )
+        with domain_db.transaction() as session:
+            before = session.execute(query).all()
+        migrate("downgrade", "20261013_0021")
+        migrate()
+        with domain_db.transaction() as session:
+            assert session.execute(query).all() == before
+            assert (
+                session.scalar(
+                    text("SELECT count(*) FROM training_sessions WHERE schedule_state <> 'booked'")
+                )
+                == 0
+            )
 
 
 def test_booked_number_cannot_change_without_an_open_transition(domain_db, graph):

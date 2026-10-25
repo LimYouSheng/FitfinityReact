@@ -587,11 +587,11 @@ def test_identity_link_requires_explicit_user_and_verified_subject(auth_service,
 
 def test_saved_auth_state_blocks_downgrade(auth_service, login, migrate):
     login()
-    with pytest.raises(DBAPIError, match="authentication downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20260915_0002")
     assert count(auth_service, AuthSession) == 1
     with auth_service.db.transaction() as session:
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0045"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261025_0046"
 
 
 def test_session_identity_foreign_key_rejects_cross_account_link(auth_service, login, graph):

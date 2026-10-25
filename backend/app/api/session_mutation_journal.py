@@ -57,6 +57,9 @@ SESSION_REQUESTS = {"session_time", "session_trainer", "session_postpone", "fixe
 
 def values(session, model, ids):
     """Read persisted rows in one batch, independent of dirty ORM attribute values."""
+    # Empty snapshots need no SQL; avoid repeated round trips while holding write locks.
+    if not ids:
+        return {}
     table = model.__table__
     rows = (
         session.connection()

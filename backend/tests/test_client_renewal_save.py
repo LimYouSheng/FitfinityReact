@@ -320,5 +320,5 @@ def test_rollback_and_immutable_receipt_prevent_partial_or_lossy_changes(
     with pytest.raises(DBAPIError, match="immutable"):
         with domain_db.transaction() as session:
             session.execute(text("UPDATE client_renewal_receipts SET actor_name = 'Changed'"))
-    with pytest.raises(DBAPIError, match="receipts exist"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0025")

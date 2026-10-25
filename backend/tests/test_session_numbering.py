@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 
 from app.models.people import Client
@@ -11,6 +11,7 @@ from app.models.training import Acknowledgement, CreditDebit, PackagePurchase, T
 from app.persistence import acknowledge, add_purchase
 from app.session_numbering import renumber_purchase
 from tests.domain_fixtures import purchase_parts
+from tests.legacy_migration_graph import outgoing_graph
 from tests.test_client_deactivation_api import row_values
 from tests.test_open_sessions import make_open
 
@@ -134,12 +135,36 @@ def test_deferred_uniqueness_still_rejects_duplicate_positions_at_commit(domain_
 
 
 def test_renumbered_history_survives_downgrade_and_upgrade(domain_db, graph, migrate):
-    with domain_db.transaction() as session:
-        moved = session.get(TrainingSession, graph["second_session_id"])
-        moved.training_date -= timedelta(days=8)
-        renumber_purchase(session, graph["purchase_id"])
-    before = positions(domain_db, graph)
-    migrate("downgrade", "20261013_0030")
-    assert positions(domain_db, graph) == before
-    migrate()
-    assert positions(domain_db, graph) == before
+    with outgoing_graph(domain_db) as (domain_db, migrate):
+        # Exercise the outgoing schema with its known columns, without loading
+        # the current ORM's additive assigned_trainer_id projection.
+        with domain_db.transaction() as session:
+            session.execute(
+                text(
+                    "UPDATE training_sessions SET training_date=training_date-8, "
+                    "version=version+1 WHERE id=:id"
+                ),
+                {"id": graph["second_session_id"]},
+            )
+            session.execute(
+                text(
+                    "UPDATE training_sessions SET session_number=3-session_number, "
+                    "version=version+1 WHERE purchase_id=:id"
+                ),
+                {"id": graph["purchase_id"]},
+            )
+
+        def retained():
+            with domain_db.transaction() as session:
+                return session.execute(
+                    text(
+                        "SELECT id, session_number, training_date, version "
+                        "FROM training_sessions ORDER BY id"
+                    )
+                ).all()
+
+        before = retained()
+        migrate("downgrade", "20261013_0030")
+        assert retained() == before
+        migrate()
+        assert retained() == before

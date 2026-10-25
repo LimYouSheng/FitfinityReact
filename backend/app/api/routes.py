@@ -34,6 +34,7 @@ from app.api import (
     request_cancellation,
     request_resolution,
     session_acknowledgements,
+    session_attribution,
     session_booking_review,
     session_booking_save,
     session_changes,
@@ -1102,6 +1103,17 @@ def read_session_calendar(request: Request):
 def read_session_details(session_id: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
         return session_reads.detail(session, principal, session_id)
+
+
+@router.get(
+    "/sessions/{session_id}/attribution",
+    response_model=session_attribution.AttributionRead,
+    operation_id="readSessionAttribution",
+)
+def read_session_attribution(session_id: UUID, request: Request):
+    """Read scoped original, assigned and performed Trainer evidence and assignment history."""
+    with authorized_transaction(request) as (session, principal):
+        return session_attribution.read(session, principal, session_id)
 
 
 @router.get(

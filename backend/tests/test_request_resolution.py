@@ -350,7 +350,7 @@ def test_immutable_receipts_block_lossy_downgrade(api, domain_db, graph, future,
     assert resolve(api, identity).status_code == 200
     with pytest.raises(DBAPIError), domain_db.transaction() as session:
         session.delete(session.scalar(select(RequestResolutionReceipt)))
-    with pytest.raises(DBAPIError, match="resolution downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261023_0033")
 
 

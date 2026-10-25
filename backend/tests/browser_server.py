@@ -64,16 +64,59 @@ class BrowserIdentityProvider:
         self.emails = {username: f"{username}@example.test" for username in allowed_users}
         self.email_pending = {}
         self.email_sends = {}
+        self.passwords = {username: PASSWORD for username in allowed_users}
+        self.temporary = {username for username in allowed_users if "-authenroll-" in username}
+        self.enrolled = set(allowed_users) - self.temporary
+        self.recovery_codes = {}
 
     def begin(self, username, password):
-        if password != PASSWORD or username not in self.allowed_users:
+        if username not in self.allowed_users or password != self.passwords[username]:
             raise AuthError("AUTH_FAILED", "Invalid test identity.")
-        return {"ChallengeName": "SOFTWARE_TOKEN_MFA", "Session": username}
+        step = (
+            "NEW_PASSWORD_REQUIRED"
+            if username in self.temporary
+            else ("SOFTWARE_TOKEN_MFA" if username in self.enrolled else "MFA_SETUP")
+        )
+        return {"ChallengeName": step, "Session": username}
 
     def answer(self, username, step, state, answer):
+        if step == "NEW_PASSWORD_REQUIRED" and state == username and username in self.temporary:
+            self.passwords[username] = answer
+            self.temporary.remove(username)
+            return {"ChallengeName": "MFA_SETUP", "Session": username}
+        if step == "MFA_SETUP" and state == f"verified:{username}" and answer == "123456":
+            self.enrolled.add(username)
+            return self.tokens(username)
         if step != "SOFTWARE_TOKEN_MFA" or state != username or answer != "123456":
-            raise AuthError("AUTH_FAILED", "Invalid test challenge.")
+            raise AuthError("INVALID_CODE", "The code is invalid or expired.", 400)
         return self.tokens(username)
+
+    def associate(self, state):
+        if state not in self.allowed_users or state in self.enrolled:
+            raise AuthError()
+        return {"Session": f"associated:{state}", "SecretCode": "ABCDEFGHIJKLMNOP234567"}
+
+    def verify_totp(self, state, code):
+        if not state.startswith("associated:") or code != "123456":
+            raise AuthError("INVALID_CODE", "The code is invalid or expired.", 400)
+        return "verified:" + state.removeprefix("associated:")
+
+    def change_password(self, access, current, proposed):
+        username = self.user(access)["Username"]
+        if current != self.passwords[username]:
+            raise AuthError()
+        self.passwords[username] = proposed
+
+    def forgot(self, username):
+        if username not in self.allowed_users:
+            raise AuthError()
+        self.recovery_codes[username] = "654321"
+
+    def reset(self, username, code, password):
+        if self.recovery_codes.get(username) != code:
+            raise AuthError("INVALID_CODE", "The code is invalid or expired.", 400)
+        self.passwords[username] = password
+        del self.recovery_codes[username]
 
     def tokens(self, username, auth_time=None):
         now = int(time.time())
@@ -107,7 +150,9 @@ class BrowserIdentityProvider:
         )
         return {
             "Username": claims["username"],
-            "UserMFASettingList": ["SOFTWARE_TOKEN_MFA"],
+            "UserMFASettingList": ["SOFTWARE_TOKEN_MFA"]
+            if claims["username"] in self.enrolled
+            else [],
             "UserAttributes": [
                 {"Name": "sub", "Value": claims["sub"]},
                 {"Name": "email_verified", "Value": "true"},
@@ -143,6 +188,10 @@ class BrowserIdentityProvider:
         self.email_pending.clear()
         self.email_sends.clear()
         self.emails.clear()
+        self.passwords.clear()
+        self.temporary.clear()
+        self.enrolled.clear()
+        self.recovery_codes.clear()
 
 
 class BrowserInvitations:
@@ -272,6 +321,10 @@ def seed(db, settings):
         # Distinct real accounts isolate authentication rate budgets between scenarios.
         # Production rate limits remain intact; each fresh-context check still signs in via UI.
         scopes = (
+            "authenroll",
+            "authchange",
+            "authreset",
+            "authnav",
             "email",
             "emailadmin",
             "emailstale",

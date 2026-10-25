@@ -167,7 +167,7 @@ def apply(session, principal, request, viewed):
         raise conflict()
     if booking.schedule_state == "open" and request.kind == "session_trainer":
         booking_save.apply_open_reassignment(
-            session, principal, booking, client, purchase, trainer_id
+            session, principal, booking, client, purchase, trainer_id, request_id=request.id
         )
         return
     body = booking_review.SaveSessionBooking(
@@ -180,5 +180,13 @@ def apply(session, principal, request, viewed):
     if not booking_review.validate_change(session, view, booking, trainers, [], body):
         raise conflict()
     booking_save.apply_booking(
-        session, principal, booking, client, purchase, bookings, trainers, body
+        session,
+        principal,
+        booking,
+        client,
+        purchase,
+        bookings,
+        trainers,
+        body,
+        request_id=request.id,
     )

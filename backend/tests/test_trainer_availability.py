@@ -231,7 +231,7 @@ def test_receipts_are_immutable_and_cannot_be_downgraded(domain_db, graph, migra
         )
     with pytest.raises(DBAPIError), domain_db.transaction() as session:
         session.execute(text("DELETE FROM trainer_availability_receipts"))
-    with pytest.raises(DBAPIError, match="Trainer availability downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0024")
 
 

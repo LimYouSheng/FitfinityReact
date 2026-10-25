@@ -19,6 +19,7 @@ from app.models.assessments import (
 from app.models.people import Client, ClientPerson, StaffUser
 from app.persistence import PersistenceConflict, add_client
 from tests.domain_fixtures import person
+from tests.legacy_migration_graph import outgoing_graph
 
 pytestmark = pytest.mark.database
 DAY = date(2026, 9, 21)
@@ -54,26 +55,29 @@ def test_migration_preserves_populated_m53_and_legacy_notes(domain_db, graph, mi
         client_person = session.scalar(select(ClientPerson))
         client_person.health_notes = "Historical owner note; do not infer answers"
         identity = client_person.id
-    migrate("downgrade", "20260915_0003")
-    migrate()
-    migrate()
-    with domain_db.transaction() as session:
-        assert session.get(ClientPerson, identity).health_notes.startswith("Historical owner")
-        assert session.scalar(select(func.count()).select_from(Client)) == 1
-        assert session.scalar(select(func.count()).select_from(AssessmentFormVersion)) == 11
-        assert session.scalar(select(func.count()).select_from(ClientAssessment)) == 0
-        assert session.scalar(text("SELECT count(*) FROM training_sessions")) == 2
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0045"
+    with outgoing_graph(domain_db) as (domain_db, migrate):
+        migrate("downgrade", "20260915_0003")
+        migrate()
+        migrate()
+        with domain_db.transaction() as session:
+            assert session.get(ClientPerson, identity).health_notes.startswith("Historical owner")
+            assert session.scalar(select(func.count()).select_from(Client)) == 1
+            assert session.scalar(select(func.count()).select_from(AssessmentFormVersion)) == 11
+            assert session.scalar(select(func.count()).select_from(ClientAssessment)) == 0
+            assert session.scalar(text("SELECT count(*) FROM training_sessions")) == 2
+            assert (
+                session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0045"
+            )
 
 
 def test_saved_assessment_prevents_destructive_downgrade(domain_db, assessment, migrate):
-    with pytest.raises(DBAPIError, match="assessment downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20260915_0003")
     with domain_db.transaction() as session:
         assert session.get(ClientAssessmentRevision, assessment["first"]).answers == {
             "eyes_open_1": 0
         }
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0045"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261025_0046"
 
 
 def test_draft_completion_correction_preserves_submitted_names_and_values(

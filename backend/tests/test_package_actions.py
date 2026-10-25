@@ -8,6 +8,7 @@ from sqlalchemy.exc import DBAPIError
 
 from app.auth.errors import AuthError
 from app.models.package_actions import PackageActionReceipt, SessionArchive
+from app.models.session_attribution import SessionTrainerAttribution
 from app.models.training import ExercisePlanItem, PackagePurchase, TrainingSession
 from app.persistence import add_purchase
 from tests.domain_fixtures import purchase_parts
@@ -189,6 +190,9 @@ def test_undo_restores_same_ids_increasing_versions_and_retained_plan(
             )
             assert restored.version > archive.original_version
             assert restored.created_at == archive.original_created_at
+            attribution = session.get(SessionTrainerAttribution, booking)
+            assert attribution.original_trainer_id == graph["trainer_id"]
+            assert attribution.original_state == "captured"
         assert (
             session.scalar(
                 select(ExercisePlanItem).where(ExercisePlanItem.session_id == bookings[0])
@@ -208,7 +212,7 @@ def test_populated_archive_downgrade_refuses_without_removing_history(
 ):
     identity, bookings = future
     assert save(api, graph, review(api, graph, identity), delete=True).status_code == 200
-    with pytest.raises(DBAPIError, match="retained deletion evidence"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261024_0042")
     with domain_db.transaction() as session:
         assert len(session.scalars(select(SessionArchive)).all()) == 2

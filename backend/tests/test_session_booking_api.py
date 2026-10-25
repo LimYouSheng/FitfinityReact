@@ -202,7 +202,7 @@ def test_receipts_are_immutable_and_block_lossy_downgrade(api, domain_db, graph,
     assert save(api, identity, payload(api, identity)).status_code == 200
     with pytest.raises(DBAPIError, match="immutable"), domain_db.transaction() as session:
         session.delete(session.scalar(select(SessionBookingReceipt)))
-    with pytest.raises(DBAPIError, match="Session booking downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261023_0031")
 
 

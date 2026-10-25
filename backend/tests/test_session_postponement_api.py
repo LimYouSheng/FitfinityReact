@@ -192,7 +192,7 @@ def test_populated_receipt_cannot_be_deleted_or_downgraded(api, domain_db, graph
     assert save(api, graph, review(api, graph)).status_code == 200
     with pytest.raises(DBAPIError, match="immutable"), domain_db.transaction() as session:
         session.delete(session.scalar(select(SessionPostponementReceipt)))
-    with pytest.raises(DBAPIError, match="Session postponement downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261023_0032")
 
 

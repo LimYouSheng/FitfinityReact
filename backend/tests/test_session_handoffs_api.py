@@ -234,5 +234,5 @@ def test_populated_handoff_evidence_refuses_destructive_downgrade(api, domain_db
     with pytest.raises(DBAPIError):
         migrate("downgrade", "20261024_0039")
     with domain_db.transaction() as session:
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261024_0045"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261025_0046"
         assert session.scalar(select(func.count()).select_from(SessionHandoffReceipt)) == 1

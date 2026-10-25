@@ -126,13 +126,16 @@ def save(session, principal, identity, key, body):
     return result
 
 
-def apply_booking(session, principal, booking, client, purchase, bookings, trainers, body):
+def apply_booking(
+    session, principal, booking, client, purchase, bookings, trainers, body, *, request_id=None
+):
     """Apply an already validated change inside the caller-owned transaction."""
     session.add(
         SessionEvent(
             session_id=booking.id,
             session_version=booking.version,
             kind="session_details",
+            request_id=request_id,
             note="Session date, time or assigned Trainer changed.",
             old_date=booking.training_date,
             new_date=date.fromisoformat(body.date),
@@ -164,13 +167,16 @@ def apply_booking(session, principal, booking, client, purchase, bookings, train
     return message_id
 
 
-def apply_open_reassignment(session, principal, booking, client, purchase, trainer_id):
+def apply_open_reassignment(
+    session, principal, booking, client, purchase, trainer_id, *, request_id=None
+):
     """Retain undated identity and credit history when changing an Open session Trainer."""
     session.add(
         SessionEvent(
             session_id=booking.id,
             session_version=booking.version,
             kind="session_trainer",
+            request_id=request_id,
             note="Reassignment of an undated Open session.",
             old_trainer_id=booking.trainer_id,
             new_trainer_id=trainer_id,
