@@ -13,11 +13,11 @@ export function verifyTestResults(kind, logPath) {
     const tests = [...text.matchAll(/\bTests\s+(\d+) passed\s*\((\d+)\)/g)].at(-1)
     if (!files || !tests || files[1] !== '145' || files[2] !== '145' || tests[1] !== '1384' || tests[2] !== '1384') fail('Unit totals must be exactly 1384 passed / 1384 in 145 passed / 145 files.')
   } else {
-    const expected = kind === 'api-browser' ? '282' : '1152'
+    const expected = kind === 'api-browser' ? '294' : '1152'
     const passed = [...text.matchAll(/(?:^|\n)\s*(\d+) passed(?:\s|$)/g)].at(-1)
     if (!passed || passed[1] !== expected || /\bError:|\b(?:Timed out waiting|No tests found)\b/.test(text)) fail(`${kind} gate must finish with exactly ${expected} passed and no errors.`)
   }
-  console.log(`\u001b[32m${kind === 'unit' ? '1384/1384 unit tests in 145 files' : kind === 'api-browser' ? '282/282 real API browser cases' : '1152/1152 browser cases'} confirmed.\u001b[0m`)
+  console.log(`\u001b[32m${kind === 'unit' ? '1384/1384 unit tests in 145 files' : kind === 'api-browser' ? '294/294 real API browser cases' : '1152/1152 browser cases'} confirmed.\u001b[0m`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

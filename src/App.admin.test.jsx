@@ -157,7 +157,8 @@ it('renders the live Admin directory without expecting hidden rate fields or ena
   expect(screen.queryByRole('heading', { name: 'Account', exact: true })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Home', exact: true }))
   await screen.findByRole('heading', { name: 'Your account', exact: true })
-  expect(screen.getByText('Client and trainer information is available to view. Package setup is available under Packages. Other workflows will be available in a later release.')).toBeVisible()
+  expect(screen.queryByText(/Other workflows will be available in a later release/)).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'View Clients', exact: true })).toBeEnabled()
 })
 
 

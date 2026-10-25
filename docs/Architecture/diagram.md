@@ -67,6 +67,7 @@ flowchart LR
     Seed["Alembic migrations and synthetic records"]
   end
   Owner["Verifier: target checks and owned-resource cleanup"]
+  Restart["HTTP worker crash/restart and durable receipt checks"]
   Load["Planned: bounded latency, load and fault campaigns"]
   Telemetry["Planned: local telemetry validation and redaction checks"]
   Tests -->|"UI writes, reloads and original-command recovery"| API
@@ -75,6 +76,8 @@ flowchart LR
   Tests -->|"Conditional upload and verified playback"| Objects
   API -->|"Verify bytes; recover deletion work"| Objects
   Seed --> PG
+  Restart --> API
+  Restart -->|"Same owned database"| PG
   Owner --> Docker
   Load -.->|"Dedicated synthetic test cohorts"| API
   API -.-> Telemetry
@@ -94,6 +97,7 @@ flowchart TB
     Database["Backend and PostgreSQL: transactions, authorization and migrations"]
     Browser["Real-API browser: two isolated shards, full identity gate, persistence and recovery"]
     ObjectTests["Media tests: signed IO, exact bytes, CORS and interrupted cleanup on real local storage"]
+    Recovery["HTTP crash/restart; operator MFA recovery drill with synthetic provider"]
     Infra["Offline infrastructure: templates, guards and artifact contracts"]
     Forms["Assessment paper-form parity"]
     Build["Build and PWA verification"]
@@ -101,7 +105,7 @@ flowchart TB
   subgraph Future["M10: planned suites and maintenance gates"]
     Mutation["Mutation: critical JS and Python rules; surviving-mutant review"]
     Performance["Performance: p50/p95/p99, throughput, errors, resources and browser vitals"]
-    Resilience["Expanded resilience: rate limits, provider faults, restart and interrupted writes"]
+    Resilience["Expanded resilience: rate limits, dependency faults and broader recovery campaigns"]
     SupplyTests["Dependabot update CI, vulnerability triage, lockfiles, SBOM and provenance assessment"]
     SecurityTests["Secret scanning and static security analysis"]
     Observability["OpenTelemetry and Grafana: redaction, correlation, sampling, export failure and cost controls"]

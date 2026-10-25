@@ -1,0 +1,112 @@
+import { test, expect, signIn, read, account, freshContext } from './fixtures.js'
+
+async function password(page, email, value = 'browser-test-password-only') {
+  await page.goto('/')
+  await page.getByLabel('Email', { exact: true }).fill(email)
+  await page.getByLabel('Password', { exact: true }).fill(value)
+  await page.getByRole('button', { name: 'Sign In', exact: true }).click()
+}
+async function mfa(page) {
+  await expect(page.getByRole('heading', { name: 'Authenticator verification', exact: true })).toBeFocused()
+  await page.getByLabel('Authenticator code').fill('123456')
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Owner Dashboard', exact: true })).toBeVisible()
+}
+
+test('temporary password and MFA enrollment persist a real session; logout prevents private back navigation', async ({ page }) => {
+  await password(page, account('authenroll'))
+  await expect(page.getByRole('heading', { name: 'Choose a new password', exact: true })).toBeFocused()
+  await page.getByLabel('New password', { exact: true }).fill('enrolled-passphrase-only')
+  await page.getByLabel('Confirm new password').fill('enrolled-passphrase-only')
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await expect(page.getByLabel('Authenticator setup key')).toHaveText('ABCDEFGHIJKLMNOP234567')
+  await page.getByLabel('Authenticator code').fill('000000')
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('invalid or expired')
+  expect((await page.request.get('/me')).status()).toBe(401)
+  await page.getByLabel('Authenticator code').fill('123456')
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Owner Dashboard', exact: true })).toBeVisible()
+  const identity = (await read(page, '/me')).user.id
+  await page.reload()
+  expect((await read(page, '/me')).user.id).toBe(identity)
+  await expect(page.getByLabel('Authenticator setup key')).toHaveCount(0)
+  await page.goto('/#/account')
+  await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  await page.goBack()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  expect((await page.request.get('/api/directory')).status()).toBe(401)
+  expect(await page.evaluate(() => JSON.stringify([localStorage, sessionStorage]))).not.toContain('ABCDEFGHIJKLMNOP234567')
+})
+
+for (const mode of ['change', 'reset']) test(`password ${mode} revokes existing real sessions and requires MFA for the next login`, async ({ page, browser }) => {
+  const email = account(`auth${mode}`), nextPassword = `new-${mode}-passphrase-only`
+  await signIn(page, 'owner', email)
+  const identity = (await read(page, '/me')).user.id
+  const context = await freshContext(browser, page)
+  try {
+    const other = await context.newPage()
+    await signIn(other, 'owner', email)
+    if (mode === 'change') {
+      await page.goto('/#/change-password')
+      await page.getByLabel('Current password').fill('browser-test-password-only')
+      await page.getByLabel('New password', { exact: true }).fill(nextPassword)
+      await page.getByLabel('Confirm new password').fill(nextPassword)
+      await page.getByRole('button', { name: 'Save Password', exact: true }).click()
+      await page.getByRole('dialog').getByRole('button', { name: 'Change Password', exact: true }).click()
+    } else {
+      await page.goto('/#/account')
+      await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
+      await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+      await page.getByLabel('Email', { exact: true }).fill(email)
+      await page.getByRole('button', { name: 'Forgot password?', exact: true }).click()
+      await page.getByRole('button', { name: 'Send recovery code', exact: true }).click()
+      await page.getByLabel('Recovery code').fill('654321')
+      await page.getByLabel('New password', { exact: true }).fill(nextPassword)
+      await page.getByLabel('Confirm new password').fill(nextPassword)
+      await page.getByRole('button', { name: 'Reset Password', exact: true }).click()
+    }
+    await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+    expect((await other.request.get('/me')).status()).toBe(401)
+    expect((await other.request.get('/api/directory')).status()).toBe(401)
+    await password(page, email, nextPassword)
+    expect((await page.request.get('/api/directory')).status()).toBe(401)
+    await mfa(page)
+    await page.reload()
+    expect((await read(page, '/me')).user.id).toBe(identity)
+  } finally { await context.close() }
+})
+
+test('real directory pagination and Back survive reload but do not cross account boundaries', async ({ page }, info) => {
+  await signIn(page, 'owner', account('authnav'))
+  const all = (await read(page, '/api/directory')).clients
+  expect(all.filter(client => client.name.startsWith(info.project.name)).length).toBeGreaterThan(20)
+  await page.goto('/#/clients')
+  await page.getByLabel('Search client', { exact: true }).fill(info.project.name)
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(page.getByLabel('List pages')).toContainText('Page 2 of')
+  const row = page.getByLabel('Client list', { exact: true }).getByRole('button', { name: /^View / }).first()
+  const name = (await row.getAttribute('aria-label')).slice(5)
+  expect(all.some(client => client.name === name)).toBe(true)
+  const foreign = all.find(client => client.name === name)
+  expect((await read(page, `/api/clients/${foreign.id}/deactivation`)).id).toBe(foreign.id)
+  await row.click()
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByLabel('Search client', { exact: true })).toHaveValue(info.project.name)
+  await expect(page.getByLabel('List pages')).toContainText('Page 2 of')
+  await page.reload()
+  await expect(page.getByLabel('Search client', { exact: true })).toHaveValue(info.project.name)
+  await expect(page.getByLabel('List pages')).toContainText('Page 2 of')
+  await page.goto('/#/account')
+  await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  await signIn(page, 'trainer')
+  await page.goto('/#/clients')
+  await expect(page.getByLabel('Search client', { exact: true })).toHaveValue('')
+  await expect(page.getByLabel('Client list', { exact: true }).getByRole('button', { name: /^View / })).toHaveCount(1)
+  expect((await read(page, '/api/directory')).clients.map(client => client.name)).toEqual(['Browser Client'])
+  expect((await page.request.get(`/api/clients/${foreign.id}/deactivation`)).status()).toBe(403)
+})
