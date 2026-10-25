@@ -110,7 +110,7 @@ Undo is an explicit reviewed compensating transaction within 24 hours of the ori
 
 Retain typed immutable before/after records, original command receipts, event/decision history and identities. Compensation advances versions, appends lifecycle/assignment/outcome evidence and never rewinds credits or revives revoked logins. A pending supervised proposal becomes cancelled with a new event; an approved decision remains approved with a separate reversal projection. Restoring recordings requires verified original bytes, current access, no cleanup lease and the unchanged original expiry. Handoff reversal cannot recall an external message or establish delivery. Package creation/status and acknowledgements are excluded; deleted package-session restoration remains in its separate package lifecycle owner.
 
-One actor-private original key governs an interrupted Undo. Recover its receipt before another write; changed intent, competing commands, expired windows and lost authority reject without partial effects. Current browser, PostgreSQL, migration and full final-head CI evidence governs acceptance; this candidate does not yet complete the final named operation.
+One actor-private original key governs an interrupted Undo. Recover its receipt before another write; changed intent, competing commands, expired windows and lost authority reject without partial effects. PR80 provides source acceptance for full permitted Undo; browser, PostgreSQL, migration and full final-head CI evidence is retained in Part 2. Deployment and live acceptance remain separate.
 
 ### Reviewed acknowledgement and credit accounting
 
@@ -132,7 +132,7 @@ API-backed sessions with integrated summary support may export the existing PDF 
 
 Trainer email correction: Managers must review the current pending request and Trainer version before replacing a stable requested/pending address. Sending/verifying ambiguity blocks correction. Superseded commands stay immutable, and earlier destinations remain reserved until the replacement is provider-verified; the database releases the entire predecessor chain with completion, including completion by the outgoing application. Corrections inherit send budgets/cooldowns and do not send mail. Only the account holder can send/verify a fresh code, and stale forms cannot verify a superseded request. Local login/recovery stays unchanged until verified provider readback and atomic completion revoke existing sessions. Creation is disabled by default until compatible-runtime cutover; after any correction exists, use only correction-aware rollback code. The completion compatibility regression covers reservation release, not old pending-request readers. PR77 provides source acceptance.
 
-Authentication includes enrollment/challenges, repeated login, session refresh/expiry, logout, password recovery and verified email changes. See the implemented OpenAPI schema and [architecture explanation](Architecture/README.md). Session/calendar reads expose persisted assigned/authorized records and stable IDs; they do not add operations to this matrix. Assessment history and scoped directory routes likewise support the owning domain workflows.
+Authentication includes enrollment/challenges, repeated login, session refresh/expiry, logout, password recovery and verified email changes. Evidence owners are [stored session lifecycle and races](../backend/tests/test_auth_sessions.py), [HTTP/JWT/cookie/CSRF security](../backend/tests/test_auth_security.py), [bootstrap and expiry](../backend/tests/test_auth_bootstrap.py), [enrollment/password/navigation browser workflows](../tests-api/authentication.spec.js), [verified email browser workflows](../tests-api/email-corrections.spec.js), [operator recovery drill](../backend/tests/test_mfa_recovery_drill.py) and [actual process restart](../backend/tests/test_process_restart.py). These use isolated storage and synthetic provider responses; live Cognito and physical-device receipts remain separate. See the implemented OpenAPI schema and [architecture explanation](Architecture/README.md). Session/calendar reads expose persisted assigned/authorized records and stable IDs; they do not add operations to this matrix. Assessment history and scoped directory routes likewise support the owning domain workflows.
 
 
 ### Outcome corrections and persisted progress
@@ -222,6 +222,13 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 
 ## Part 2 — Dated changes and evidence
+
+### 25 October 2026 Singapore — M6 final-candidate CI diagnosis
+
+PR82 head `dda67caf97103651fa8973fcff6440660bbb9abc`, run40167827120, passes the complete frontend gate and API shard1. Backend passes1,352/1,353: concurrent postponement returns200/503 instead of two identical200 responses; captured durations are1,055ms for the committed write and1,047ms for the rejected duplicate. API shard2 passes144/145: the phone acknowledgement trace spends17,011ms creating its initial blank page, completes the acknowledgement UI, then reaches the unchanged30-second budget opening a fresh page. The aggregate correctly fails. Complete backend artifact12589846776 and browser trace12589757191 are retained under `m6-final-ci-first`; no original evidence is overwritten. These results do not establish M6 acceptance.
+
+The unchanged postponement concurrency case passes locally in3.19s. A parameter-free SQL diagnostic identifies32 empty-set SELECTs across setup and requests, including compensation snapshots of untouched model types. The journal now returns an empty snapshot directly when its explicit ID collection is empty, avoiding redundant SQL while retaining identical populated reads, locks, transaction boundaries and evidence. This reduces avoidable work; it does not prove the CI runner's underlying slowdown or establish a latency budget. All60 affected postponement/Undo cases pass in63.91s; the diagnostic now observes five empty-set SELECTs rather than32. Python lint/format checks pass. Complete new-head CI remains required. Browser timing evidence supports revalidation with unchanged assertions, retries, deadlines and runner settings. No deployment or provider action occurred.
+
 
 ### 25 October 2026 Singapore — Consolidated M6 source-exit candidate
 
