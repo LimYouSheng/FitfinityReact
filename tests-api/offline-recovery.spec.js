@@ -62,3 +62,30 @@ test('an outage draft cannot cross a verified account change', async ({ page, co
   await expect(page.getByRole('textbox', { name: 'Remarks', exact: true })).not.toHaveValue('Must not appear for Admin')
   await expect(page.getByText('Your unsaved draft is available. Choose Edit to resume it.', { exact: true })).toHaveCount(0)
 })
+
+test('notes Retry refreshes stale directory authority after another device saves', async ({ page, context }, info) => {
+  const { client, panel } = await notesPage(page, info)
+  await panel.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('button', { name: 'Home', exact: true }).click()
+  const another = await context.newPage()
+  try {
+    await another.goto(`/#/clients/${client.id}`)
+    const notes = another.locator('.panel').filter({ has: another.getByRole('heading', { name: 'Remarks', exact: true }) })
+    await notes.getByRole('button', { name: 'Edit', exact: true }).click()
+    const value = `Other device revision ${info.project.name}`
+    await another.getByRole('textbox', { name: 'Remarks', exact: true }).fill(value)
+    await notes.getByRole('button', { name: 'Save', exact: true }).click()
+    await another.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
+    await notes.getByRole('button', { name: 'Edit', exact: true }).waitFor()
+    await page.goto(`/#/clients/${client.id}`)
+    await page.getByRole('button', { name: 'Retry client notes', exact: true }).click()
+    await expect(panel.getByText(value, { exact: true })).toBeVisible()
+    expect((await read(page, `/api/clients/${client.id}/notes`)).version).toBe(client.version + 1)
+    await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+    await page.getByRole('textbox', { name: 'Remarks', exact: true }).fill('Unsaved after refreshed review')
+    const refreshed = page.waitForResponse(response => response.url().endsWith('/api/session-calendar'))
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await refreshed
+    await expect(page.getByRole('textbox', { name: 'Remarks', exact: true })).toHaveValue('Unsaved after refreshed review')
+  } finally { await another.close() }
+})

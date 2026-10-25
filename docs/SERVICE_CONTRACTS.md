@@ -224,6 +224,15 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 26 October 2026 Singapore — Repeated rule-led review repairs stale notes Retry
+
+The user requested repeated exploratory review and repairs before physical testing. A fresh isolated Docker PostgreSQL walkthrough found a concurrent-device edge: the optimized notes read correctly rejected a stale directory version, but Retry repeated that stale input. An initial local getById repair was rejected during continued exploration because its independently refreshed profile left the portal directory stale; the next background refresh could unmount an assessment editor. The final repair awaits the authorized portal reload before retrying notes, retaining the normal scoped-read optimization and original draft versions.
+
+The repaired cross-device read and next focus refresh preserve the opened editor. Subsequent Chromium desktop/phone and Linux WebKit tablet exploration found no unresolved issue in the reviewed scope: stale/offline drafts, explicit discard, permission boundaries, assessment draft/completion/history, plan persistence, postponement/Undo, purchase/client freeze/reactivation, Trainer session revocation/reactivation without reclaiming assignments, no-show/signature correction, failed post-save detail read and sign-out/Back. Read-only PostgreSQL confirms exactly one credit debit after correction. Interrupted post-save GET recovery issues no second POST. WebKit reload observations are872/863ms; these are not M10 percentile or physical-device evidence.
+
+Full review, original failures, driver mistakes and scope limits are retained in `/workspace/work/fitfinity-rule-review-20261026/REVIEW.md`. Nine focused real-API recovery cases pass in55.3s; the complete unit gate passes1,392 cases/146 files in119.88s, with521-file lint, source health and72 verifier regressions passing. API-browser inventory is303 cases. Full new-head CI/merge remains required. The earlier PR84 head's300-case API-browser CI passed, but cannot accept this later repair. No AWS, production PostgreSQL, real provider or deployment action occurred; physical-device and full milestone acceptance remain separate.
+
+
 ### 26 October 2026 Singapore — Exploratory review and recovery candidate
 
 The rule-led local walkthrough of PR82 application inputs found four frontend issues: a pre-write connection failure discarded notes drafts, redundant/sequential reads delayed profiles, postponement feedback preceded fresh details, and a resolved connection warning remained visible. Original screenshots, timings, request failures and SQL corroboration are retained in `/workspace/work/fitfinity-manual-20261025/REVIEW.md`. Observed client reloads reached3,883ms; these are individual observations, not a latency distribution or M10 acceptance. No automated test scenarios were used for that exploratory review.

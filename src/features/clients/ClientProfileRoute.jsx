@@ -23,7 +23,7 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   const reviewRenewal = useCallback(() => runAction(() => services.reviewClientRenewal({ id: selectedClient.id, expectedVersion: selectedClient.version })), [services, selectedClient.id, selectedClient.version, runAction])
   const loadProgressReportHistory = useCallback(packageId =>
     clientService.progressReportHistory({ id: progressClientId, packageId }), [clientService, progressClientId])
-  if (notes.error) return <div role="alert"><p>{notes.error.message}</p><button type="button" onClick={notes.retry}>Retry client notes</button></div>
+  if (notes.error) return <div role="alert"><p>{notes.error.message}</p><button type="button" onClick={async () => { await reload(); notes.retry() }}>Retry client notes</button></div>
   if (!notes.client) return <div role="status">Loading client notes…</div>
   return (
     <ClientProfilePage

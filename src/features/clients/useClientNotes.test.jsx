@@ -64,3 +64,19 @@ it('uses the scoped notes reader without reloading the full directory', async ()
   expect(service.getById).not.toHaveBeenCalled()
   expect(read).toHaveBeenCalledWith(client)
 })
+
+it('accepts a refreshed directory version on retry and keeps its editor through equivalent refreshes', async () => {
+  const client = { id: 'one', version: 2, people: [] }
+  const fresh = { ...client, version: 3 }
+  const service = { getById: vi.fn() }
+  const read = vi.fn().mockRejectedValueOnce(new Error('Reload and review again')).mockResolvedValue({ ...fresh, healthNotes: 'Another device saved this' })
+  const { result, rerender } = renderHook(({ row }) => useClientNotes(row, true, service, 1, read), { initialProps: { row: client } })
+  await waitFor(() => expect(result.current.error?.message).toBe('Reload and review again'))
+  rerender({ row: fresh })
+  act(() => result.current.retry())
+  await waitFor(() => expect(result.current.client?.version).toBe(3))
+  const displayed = result.current.client
+  rerender({ row: structuredClone(fresh) })
+  expect(result.current.client).toBe(displayed)
+  expect(service.getById).not.toHaveBeenCalled()
+})
