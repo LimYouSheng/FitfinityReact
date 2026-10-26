@@ -120,3 +120,20 @@ it('keeps banner dismissal outside the app edit lock and leaves the active draft
   expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('Keep me')
   expect(screen.getByText('Test draft')).toBeVisible()
 })
+
+it('clears a resolved connection error without hiding an uncertain POST or unrelated failure', async () => {
+  show()
+  const fail = async (code, requestMethod) => {
+    await act(async () => {
+      await notifications.runAction(() => Promise.reject(Object.assign(new Error('Failure remains visible'), { code, requestMethod }))).catch(() => {})
+    })
+  }
+  await fail('NETWORK_ERROR', 'GET')
+  act(() => window.dispatchEvent(new Event('fitfinity:connection-restored')))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  for (const [code, method] of [['NETWORK_ERROR', 'POST'], ['conflict', 'GET']]) {
+    await fail(code, method)
+    act(() => window.dispatchEvent(new Event('fitfinity:connection-restored')))
+    expect(screen.getByRole('alert')).toHaveTextContent('Failure remains visible')
+  }
+})

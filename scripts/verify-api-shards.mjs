@@ -29,7 +29,7 @@ export function cases(report) {
 export function verifyApiShards(inventory, reports, jobResult) {
   if (jobResult !== 'success') fail('both shard jobs must succeed')
   const expected = cases(inventory)
-  if (inventory.config?.shard != null || expected.size !== 294) fail('full inventory must contain exactly 294 cases')
+  if (inventory.config?.shard != null || expected.size !== 303) fail('full inventory must contain exactly 303 cases')
   if (reports.length !== 2) fail('exactly two shard reports required')
   const seen = new Set(), shards = new Set()
   for (const report of reports) {

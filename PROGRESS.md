@@ -51,6 +51,10 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency, Grafana and supply-chain capabilities remain planned until separately implemented and evidenced.
 5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the seven-document structure and all eight existing stashes.
 
+### Active follow-up — offline recovery and responsiveness
+
+PR84 (`fix/portal-offline-recovery`) addresses offline notes drafts, repeated/serial reads, guarded post-save detail refresh and resolved connection warnings. A second rule-led pass found and repaired stale-directory notes Retry; subsequent reviewed Chromium/phone/WebKit journeys have no unresolved finding within their recorded scope. Nine focused real-API recovery cases and all1,392 units/146 files pass, alongside lint/source health and72 verifier checks. The API-browser inventory is303 cases; final new-head CI/merge remain pending. Accepted application source above is unchanged. Full scope, first failures and limits are retained once in Contracts history. Local reload observations are not latency budgets or physical acceptance; M10 mutation/performance tooling remains planned.
+
 ### M6 exit evidence — source accepted, external acceptance open
 
 PR82 closes the authorized M6 source-exit work after complete final-head CI and normal merge. Full milestone/live acceptance remains distinct. Detailed first failures and the measured test-graph cleanup repair are retained once in Contracts history.

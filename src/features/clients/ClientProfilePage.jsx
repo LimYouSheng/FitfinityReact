@@ -40,6 +40,7 @@ export default function ClientProfilePage({
   sessionViewsAvailable = true,
   progressViewsAvailable = sessionViewsAvailable,
   progressData,
+  progressState,
   progressReportsAvailable = true,
   client,
   clients,
@@ -201,6 +202,7 @@ export default function ClientProfilePage({
         </Panel>}
         {(client.healthNotes || client.notesAvailable) && <ClientEditableText
           title="Health / Limitation Notes"
+          recoveryKey={`client/${client.id}/health`}
           value={client.healthNotes}
           editable={notesEditable}
           version={client.version}
@@ -215,6 +217,7 @@ export default function ClientProfilePage({
 
         <ClientEditableText
           title="Remarks"
+          recoveryKey={`client/${client.id}/remarks`}
           value={client.remarks}
           editable={notesEditable}
           version={client.version}
@@ -238,6 +241,7 @@ export default function ClientProfilePage({
           packageActionWorkflow={packageActionWorkflow}
           packageReactivationWorkflow={packageReactivationWorkflow}
           progressData={progressData}
+          progressState={progressState}
           progressReportsAvailable={progressReportsAvailable}
           progressPackageId={progressPackageId}
           onOpenProgressPackage={onOpenProgressPackage}

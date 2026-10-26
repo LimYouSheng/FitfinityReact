@@ -18,22 +18,41 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
   const [postponement, setPostponement] = useState(null), [postponementNotice, setPostponementNotice] = useState('')
   const [change, setChange] = useState(null), [changeNotice, setChangeNotice] = useState('')
   const finishing = useRef(false)
-  useEffect(() => {
-    if (!saved || activeEdit || finishing.current) return
-    finishing.current = true
-    void refresh().catch(() => null).finally(() => { finishing.current = false; setSaved(false); setBooking(null) })
-  }, [saved, activeEdit, refresh])
   const [state, setState] = useState(null), [attempt, setAttempt] = useState(0)
+  const [refreshError, setRefreshError] = useState('')
+  const lifetime = useRef(null)
+  const refreshedDetail = useRef(false)
+  useEffect(() => { const token = {}; lifetime.current = token; return () => { if (lifetime.current === token) lifetime.current = null } }, [])
   const [limited, setLimited] = useState(null), [clientBusy, setClientBusy] = useState(false), [clientError, setClientError] = useState('')
   const id = selectedSession.id, version = selectedSession.version
   useEffect(() => {
+    if (!saved || activeEdit || finishing.current || refreshError) return
+    finishing.current = true
+    const token = lifetime.current
+    // A committed command stays committed even if either subsequent read fails.
+    void (async () => {
+      try {
+        await refresh()
+        const value = await services.readSessionDetails({ id })
+        if (lifetime.current !== token) return
+        refreshedDetail.current = true
+        setState({ id, generation: sessionGeneration, value })
+        setSaved(false); setBooking(null); setPostponementNotice(current => current.replace(' Updating details…', ''))
+      } catch {
+        if (lifetime.current === token) setRefreshError('Saved. The latest details could not be loaded. Retry refreshing; do not repeat the save.')
+      } finally { finishing.current = false }
+    })()
+  }, [saved, activeEdit, refresh, services, id, sessionGeneration, refreshError])
+  useEffect(() => {
+    if (finishing.current || saved) return
+    if (refreshedDetail.current) { refreshedDetail.current = false; return }
     let current = true
     // Keep same-session drafts mounted while refreshing; identity/generation checks below still hide stale scope.
     services.readSessionDetails({ id }).then(value => {
       if (current) setState({ id, generation: sessionGeneration, value })
     }).catch(error => { if (current) setState({ id, generation: sessionGeneration, error }) })
     return () => { current = false }
-  }, [id, version, sessionGeneration, serverAt, services, attempt])
+  }, [id, version, sessionGeneration, serverAt, services, attempt, saved])
   if (!state || state.id !== id || state.generation !== sessionGeneration) return <p role="status">Loading session…</p>
   if (state.error) return <section role="alert"><p>{state.error.message}</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Retry session</button></section>
   const { session, client, trainer } = state.value
@@ -141,7 +160,7 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
   }
   const postpone = async (expected, requestKey) => {
     const result = await services.sessionService.postpone({ sessionId: id, expected, requestKey, reviewed: postponement.reviewed })
-    setPostponementNotice(result.outcome === 'requested' ? 'Postponement requested. The booking stays unchanged until approved.' : 'Session postponed.')
+    setPostponementNotice(result.outcome === 'requested' ? 'Postponement requested. The booking stays unchanged until approved.' : 'Session postponed. Updating details…')
     setSaved(true)
     return result
   }
@@ -185,6 +204,8 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
     trainers={change?.reviewed.trainers ?? booking?.reviewed.trainers ?? data.sessionTrainers ?? data.trainers} messages={data.messages ?? []}
     onOpenClient={fullClient ? () => openClient(client.id) : canLimited && !clientBusy ? openLimited : undefined}
     onOpenTrainer={fullTrainer ? () => navigate(managesOperations(user) ? `trainers/${trainer.id}` : 'my-profile') : undefined} />
+    {saved && !refreshError && <p role="status">Saved. Updating details…</p>}
+    {refreshError && <section role="alert"><p>{refreshError}</p><button type="button" onClick={() => setRefreshError('')}>Retry refreshing</button></section>}
     {changeNotice && <p role="status">{changeNotice}</p>}
     {postponementNotice && <p role="status">{postponementNotice}</p>}
     {clientError && <p role="alert">{clientError}</p>}

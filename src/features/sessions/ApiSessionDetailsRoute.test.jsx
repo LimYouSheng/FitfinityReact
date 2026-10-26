@@ -271,3 +271,27 @@ it('offers historical Trainer recording playback without replacement or removal 
   expect(services.sessionService.saveVideo).not.toHaveBeenCalled()
   expect(services.sessionService.removeVideo).not.toHaveBeenCalled()
 })
+
+it('keeps saved session controls guarded until fresh details arrive and retries only reads after a refresh failure', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-13T06:00:00Z'))
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session = { ...value.session, date: '2026-10-20', status: 'scheduled' }
+  let finishRead
+  const read = vi.fn().mockResolvedValueOnce(value).mockRejectedValueOnce(new Error('Read failed')).mockImplementation(() => new Promise(resolve => { finishRead = resolve }))
+  const save = vi.fn().mockResolvedValue({ outcome: 'applied' })
+  const services = { readSessionDetails: read, sessionService: {
+    previewPostponement: vi.fn().mockResolvedValue({ reviewed: {}, expected: 'review', changes: [{ sessionId: value.session.id, before: { date: value.session.date, from: '10:00', to: '11:00' }, next: { scheduleState: 'open' } }] }), postpone: save,
+  } }
+  show(services, { capabilities: { sessionPostponementWrites: true } })
+  fireEvent.click(await screen.findByRole('button', { name: 'Postpone', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Confirm Postponement', exact: true }))
+  expect(await screen.findByRole('button', { name: 'Retry refreshing', exact: true })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Retry refreshing', exact: true }))
+  await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(3))
+  expect(screen.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
+  await act(async () => finishRead({ ...value, session: { ...value.session, scheduleState: 'open', date: null, from: null, to: null, sessionNo: null } }))
+  expect(await screen.findByText('Date/time not set')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Retry refreshing', exact: true })).toBeNull()
+  expect(save).toHaveBeenCalledTimes(1)
+})

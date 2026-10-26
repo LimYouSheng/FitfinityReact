@@ -3,6 +3,8 @@ import { portalServices } from '../services/defaultPortalServices.js'
 import { businessClock } from '../app/clock.js'
 import { PortalData, PORTAL_SESSION_ENDED } from '../hooks/usePortalData.js'
 import { createAdminCreationState } from '../app/adminOnboarding.js'
+import { PORTAL_DRAFT_DISCARDED } from '../hooks/usePortalData.js'
+import { PORTAL_CONNECTION_RESTORED } from './NotificationProvider.jsx'
 import { createCreationState } from '../app/creationState.js'
 
 const identityScope = (user, sessionGeneration) => user ? `${user.id}/${user.role}/${sessionGeneration ?? 'demo'}` : null
@@ -17,6 +19,8 @@ export function PortalDataProvider({ services = portalServices, children }) {
   const clientRecovery = useRef(null)
   const trainerRecovery = useRef(null)
   const sessionScope = useRef(null)
+  const drafts = useRef(new Map())
+  const verifiedScope = useRef(null)
   const retireAdminCreation = useCallback(() => {
     adminRecovery.current?.retire()
     adminRecovery.current = null
@@ -29,7 +33,7 @@ export function PortalDataProvider({ services = portalServices, children }) {
     trainerRecovery.current?.retire()
     trainerRecovery.current = null
   }, [])
-  const retireWorkflows = useCallback(() => { retireAdminCreation(); retireClientCreation(); retireTrainerCreation() }, [retireAdminCreation, retireClientCreation, retireTrainerCreation])
+  const retireWorkflows = useCallback(() => { verifiedScope.current = null; drafts.current.clear(); retireAdminCreation(); retireClientCreation(); retireTrainerCreation() }, [retireAdminCreation, retireClientCreation, retireTrainerCreation])
   const invalidateRequests = useCallback(() => { ++generation.current }, [])
   const refresh = useCallback(async () => {
     const request = ++generation.current
@@ -39,6 +43,8 @@ export function PortalDataProvider({ services = portalServices, children }) {
         const nextScope = identityScope(snapshot.user, snapshot.sessionGeneration)
         if (nextScope !== sessionScope.current) retireWorkflows()
         sessionScope.current = nextScope
+        verifiedScope.current = nextScope
+        window.dispatchEvent(new Event(PORTAL_CONNECTION_RESTORED))
         const ownerId = snapshot.user?.role === 'owner' ? snapshot.user.id : null
         if (adminRecovery.current?.ownerId !== ownerId) retireAdminCreation()
         if (ownerId && !adminRecovery.current) adminRecovery.current = createAdminCreationState(ownerId)
@@ -54,6 +60,7 @@ export function PortalDataProvider({ services = portalServices, children }) {
       return snapshot
     } catch (error) {
       if (mounted.current && request === generation.current) {
+        verifiedScope.current = null
         const nextScope = error.verifiedIdentity ? identityScope(error.verifiedIdentity, error.verifiedIdentity.sessionGeneration) : sessionScope.current
         const changedIdentity = nextScope !== sessionScope.current
         sessionScope.current = nextScope
@@ -68,15 +75,16 @@ export function PortalDataProvider({ services = portalServices, children }) {
     mounted.current = true
     void refresh().catch(() => {})
     const synchronize = () => { setClock(new Date()); void refresh().catch(() => {}) }
-    const timer = setInterval(() => { setClock(new Date()) }, 30000)
+    const discard = () => drafts.current.clear()
+    const timer = setInterval(() => {
+      setClock(new Date())
+      if (sessionScope.current) void refresh().catch(() => {})
+    }, 30000)
+    window.addEventListener(PORTAL_DRAFT_DISCARDED, discard)
     window.addEventListener('storage', synchronize)
     window.addEventListener('focus', synchronize)
-    return () => { mounted.current = false; invalidateRequests(); clearInterval(timer); window.removeEventListener('storage', synchronize); window.removeEventListener('focus', synchronize) }
+    return () => { mounted.current = false; invalidateRequests(); clearInterval(timer); window.removeEventListener(PORTAL_DRAFT_DISCARDED, discard); window.removeEventListener('storage', synchronize); window.removeEventListener('focus', synchronize) }
   }, [refresh, invalidateRequests])
-  const userId = state.snapshot?.user?.id
-  useEffect(() => {
-    if (userId) void refresh().catch(() => {})
-  }, [clock, userId, refresh])
   const renderedScope = identityScope(state.snapshot?.user, state.snapshot?.sessionGeneration)
   const renderedGeneration = state.snapshot?.sessionGeneration
   const guardedServices = useMemo(() => {
@@ -84,6 +92,7 @@ export function PortalDataProvider({ services = portalServices, children }) {
     const signOutSnapshot = () => {
       invalidateRequests()
       sessionScope.current = null
+      verifiedScope.current = null
       retireWorkflows()
       // Let the active navigation owner retire its route before private UI unmounts.
       window.dispatchEvent(new Event(PORTAL_SESSION_ENDED))
@@ -96,6 +105,7 @@ export function PortalDataProvider({ services = portalServices, children }) {
       const isCurrent = () => mounted.current && scopeAtStart === sessionScope.current
       try { const result = await operation(...args); if ((clearSession || result?.signedOut === true) && isCurrent()) signOutSnapshot(); return result }
       catch (error) {
+        if (authorityLost(error) && isCurrent()) drafts.current.clear()
         if (error.code === 'SESSION_CHANGED' && isCurrent()) {
           retireWorkflows()
           invalidateRequests()
@@ -113,6 +123,15 @@ export function PortalDataProvider({ services = portalServices, children }) {
     }
     return Object.fromEntries(Object.entries(scopedServices).filter(([key]) => key !== 'forSession').map(([key, value]) => [key, key === 'reportService' ? value : typeof value === 'function' ? wrap(value) : Object.fromEntries(Object.entries(value).map(([method, operation]) => [method, wrap(operation, key === 'auth' && method === 'signOut', key === 'staffService' && method === 'createAdmin' ? 'admin' : key === 'clientService' && method === 'create' ? 'client' : key === 'trainerService' && method === 'create' ? 'trainer' : null)]))]))
   }, [services, renderedScope, renderedGeneration, refresh, invalidateRequests, retireWorkflows])
+  // Drafts never leave memory and are inaccessible until this exact login is verified again.
+  const draftRecovery = useMemo(() => {
+    const current = () => renderedScope && renderedScope === verifiedScope.current
+    return {
+      get: key => current() ? drafts.current.get(key) : undefined,
+      set: (key, value) => { if (current()) drafts.current.set(key, value) },
+      remove: key => { if (current()) drafts.current.delete(key) },
+    }
+  }, [renderedScope])
   const today = state.snapshot?.businessDate ?? businessClock(clock, state.snapshot?.policy.timeZone).date
-  return <PortalData.Provider value={{ ...state, services: guardedServices, refresh, today }}>{children}</PortalData.Provider>
+  return <PortalData.Provider value={{ ...state, services: guardedServices, refresh, today, draftRecovery }}>{children}</PortalData.Provider>
 }

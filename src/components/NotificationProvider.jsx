@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+export const PORTAL_CONNECTION_RESTORED = 'fitfinity:connection-restored'
+
 const NotificationContext = createContext(null)
 const tones = {
   success: { icon: '✓' },
@@ -38,8 +40,8 @@ export function NotificationProvider({ children }) {
   const scope = useRef(0)
   const dismiss = useCallback(() => setNotification(null), [])
   const clear = useCallback(() => { scope.current += 1; setNotification(null) }, [])
-  const notify = useCallback(({ message, tone = 'success' }) => {
-    setNotification({ id: ++sequence.current, message, tone: tones[tone] ? tone : 'info' })
+  const notify = useCallback(({ message, tone = 'success', connectionError = false }) => {
+    setNotification({ id: ++sequence.current, message, connectionError, tone: tones[tone] ? tone : 'info' })
   }, [])
 
   // Call only after confirmation and validation. A rejected operation never emits success.
@@ -49,14 +51,18 @@ export function NotificationProvider({ children }) {
     try {
       result = await operation()
     } catch (error) {
-      if (scope.current === startedIn) notify({ tone: 'error', message: error?.message || 'Could not complete this action. Try again.' })
+      if (scope.current === startedIn) notify({ tone: 'error', connectionError: error?.code === 'NETWORK_ERROR' && error?.requestMethod === 'GET', message: error?.message || 'Could not complete this action. Try again.' })
       throw error
     }
     if (scope.current === startedIn && outcome) notify(typeof outcome === 'function' ? outcome(result) : outcome)
     return result
   }, [notify])
 
-  useEffect(() => () => { scope.current += 1 }, [])
+  useEffect(() => {
+    const recovered = () => setNotification(current => current?.connectionError ? null : current)
+    window.addEventListener(PORTAL_CONNECTION_RESTORED, recovered)
+    return () => { scope.current += 1; window.removeEventListener(PORTAL_CONNECTION_RESTORED, recovered) }
+  }, [])
   const value = useMemo(() => ({ notify, runAction, clear }), [clear, notify, runAction])
   return <NotificationContext.Provider value={value}>
     {children}
