@@ -226,6 +226,10 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 26 October 2026 Singapore — PR86 dialog-transition regression follow-up
+
+The first complete PR86 workflow [40279899583](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40279899583) exposed two desktop real-API failures: stale completion lost its conflict alert, and an interrupted postponement could lose its reopened recovery dialog. Both reproduced against isolated Docker PostgreSQL. The new generic edit-guard exit refresh was firing during acknowledgement confirmation and postponement cancellation, replacing the page as the read observed committed finality/open state. Explicit inline-editor exit notification now owns discarded-draft refresh; dialog transitions do not trigger it. Two strengthened unit assertions first failed (32/34 passed), then all 53 affected units passed after the repair. The existing completion browser case additionally requires HTTP 409 and the retained note. No existing browser assertion, retry, timeout or inventory is weakened. Complete corrected-head verification remains pending; first logs and traces are retained.
+
 ### 26 October 2026 Singapore — Continued session draft, refresh and authority audit
 
 Candidate branch `fix/session-logic-audit`, based on PR85 merge `df8eee96c51bd1e6faf3ebbe07447f02433c8943`. The audit reproduced plan/outcome/summary drafts unmounting on temporary detail failures, booking-time drafts overwritten by ordinary background changes, and active editors surviving reassignment/completion. Same-authority reviews now remain mounted until editing ends; changed identity/assignment/finality/client/purchase scope and definitive denials retire old private state. Cancel reads the current record. Committed-save refresh recovery remains reachable when the calendar changes first, without another write. Inline Retry and validation errors remain above active-edit dimming.

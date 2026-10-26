@@ -8,7 +8,7 @@ import { managesOperations } from '../../app/permissions.js'
 import { packageForRecord } from '../../app/clientPackages.js'
 import SignaturePad, { SignaturePreview } from '../../components/SignaturePad.jsx'
 import { validSignature } from '../../app/signature.js'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Panel from '../../components/Panel.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
@@ -70,6 +70,7 @@ export default function SessionDetailsPage({
   onSaveOutcome,
   onSaveClientSummary,
   onSaveDetails,
+  onInlineEditorClosed,
   onRequestTimeChange,
   onRequestTrainerChange,
   onPreviewPostponement,
@@ -84,6 +85,14 @@ export default function SessionDetailsPage({
   const displayedSummary = session.clientSummary || automaticClientSummary(session, outcome)
 
   const [activeEditor, setActiveEditor] = useState(null)
+  const previousInlineEditor = useRef(null)
+  useEffect(() => {
+    // Dialog transitions also clear the navigation guard; only an inline editor
+    // exit should refresh discarded drafts, never interrupt confirmation/recovery.
+    const previous = previousInlineEditor.current
+    previousInlineEditor.current = activeEditor
+    if (previous && !activeEditor) onInlineEditorClosed?.()
+  }, [activeEditor, onInlineEditorClosed])
   const [detailsError, setDetailsError] = useState('')
   const [acknowledgementMethod, setAcknowledgementMethod] = useState(null)
   const [signerName, setSignerName] = useState(client.name)

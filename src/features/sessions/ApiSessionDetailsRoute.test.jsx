@@ -70,6 +70,10 @@ it('keeps the reviewed postponement dialog mounted through a background detail r
   await act(async () => complete(value))
   expect(screen.getByRole('dialog', { name: 'Postpone this session?', exact: true })).toBe(dialog)
   expect(services.sessionService.previewPostponement).toHaveBeenCalledTimes(1)
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel', exact: true }))
+  fireEvent.click(screen.getByRole('button', { name: 'Postpone', exact: true }))
+  await screen.findByRole('dialog', { name: 'Postpone this session?', exact: true })
+  expect(services.readSessionDetails).toHaveBeenCalledTimes(2)
 })
 
 
@@ -214,7 +218,9 @@ it('acknowledgement recovery freezes the reviewed intent and never asks to confi
   fireEvent.click(await screen.findByRole('button', { name: 'Record late / no-show instead' }))
   fireEvent.change(screen.getByLabelText('Acknowledgement note'), { target: { value: 'Absent' } })
   fireEvent.click(screen.getByRole('button', { name: 'Review Completion', exact: true }))
-  fireEvent.click(within(await screen.findByRole('dialog', { name: 'Complete this session?' })).getByRole('button', { name: 'Complete Session', exact: true }))
+  const confirmation = await screen.findByRole('dialog', { name: 'Complete this session?' })
+  expect(services.readSessionDetails).toHaveBeenCalledTimes(1)
+  fireEvent.click(within(confirmation).getByRole('button', { name: 'Complete Session', exact: true }))
   expect(await screen.findByRole('alert')).toHaveTextContent('Lost completion response')
   expect(screen.getByLabelText('Acknowledgement note')).toBeDisabled()
   expect(within(screen.getByRole('dialog', { name: 'Trainer late / no-show' })).getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled()
