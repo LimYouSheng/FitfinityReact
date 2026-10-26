@@ -201,7 +201,7 @@ export default function SessionDetailsPage({
         activeEditor={activeEditor} setActiveEditor={setActiveEditor} saving={saving}
         setDetailsError={setDetailsError} schedule={schedule} onOpenClient={onOpenClient} onOpenTrainer={onOpenTrainer} />
 
-      {detailsError && !requestKind && <p className="validation-copy editing-section" role="alert">{detailsError}</p>}
+      {detailsError && !requestKind && !acknowledgementMethod && <p className="validation-copy editing-section" role="alert">{detailsError}</p>}
 
       <Panel className={`top-gap exercise-plan-panel ${activeEditor === 'exercise' ? 'editing-section' : ''}`}>
         {onPreviewPreviousPlan && <PreviousPlanDialog available={canEditPlan && !activeEditor} onPreview={onPreviewPreviousPlan} onCopy={onCopyPreviousPlan}
@@ -322,6 +322,7 @@ export default function SessionDetailsPage({
           Note (optional)
           <textarea disabled={saving || acknowledgementUncertain} aria-label="Acknowledgement note" rows="3" value={note} onChange={event => setNote(event.target.value)} />
         </label>
+        {detailsError && <p role="alert" className="validation-copy">{detailsError}</p>}
       </ConfirmDialog>
 
       <SessionChangeDialogs schedule={schedule} saving={saving} detailsError={detailsError}

@@ -62,7 +62,7 @@ test('stale completion cannot debit twice and foreign records stay denied', asyn
   const rejected = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(`/api/sessions/${session.id}/acknowledgement`))
   await submit(page)
   expect((await rejected).status()).toBe(409)
-  await expect(page.getByRole('alert').filter({ hasText: /changed|reload/i })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Trainer late / no-show', exact: true }).getByRole('alert').filter({ hasText: /changed|reload/i })).toBeVisible()
   await expect(page.getByLabel('Acknowledgement note')).toHaveValue('Client absent; retained completion evidence.')
   expect((await read(staff, `/api/sessions/${session.id}/details`)).purchase.used).toBe(1)
   const foreign = (await read(staff, '/api/session-calendar')).sessions.find(s => s.clientId !== client.id)

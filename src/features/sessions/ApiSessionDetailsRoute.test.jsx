@@ -221,7 +221,7 @@ it('acknowledgement recovery freezes the reviewed intent and never asks to confi
   const confirmation = await screen.findByRole('dialog', { name: 'Complete this session?' })
   expect(services.readSessionDetails).toHaveBeenCalledTimes(1)
   fireEvent.click(within(confirmation).getByRole('button', { name: 'Complete Session', exact: true }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('Lost completion response')
+  expect(await within(await screen.findByRole('dialog', { name: 'Trainer late / no-show' })).findByRole('alert')).toHaveTextContent('Lost completion response')
   expect(screen.getByLabelText('Acknowledgement note')).toBeDisabled()
   expect(within(screen.getByRole('dialog', { name: 'Trainer late / no-show' })).getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Check original acknowledgement', exact: true }))
