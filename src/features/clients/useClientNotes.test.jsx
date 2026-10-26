@@ -80,3 +80,41 @@ it('accepts a refreshed directory version on retry and keeps its editor through 
   expect(result.current.client).toBe(displayed)
   expect(service.getById).not.toHaveBeenCalled()
 })
+
+it('preserves the reviewed client during edits and reads the latest version after editing ends', async () => {
+  const client = { id: 'one', version: 1, status: 'active', trainerId: 'trainer', people: [{ id: 'person', version: 1 }] }
+  const fresh = { ...client, version: 2, people: [{ id: 'person', version: 2 }] }
+  const service = { getById: vi.fn() }
+  const read = vi.fn(async row => ({ ...row, healthNotes: `Version ${row.version}` }))
+  const { result, rerender } = renderHook(({ row, editing }) => useClientNotes(row, true, service, 1, read, editing), { initialProps: { row: client, editing: false } })
+  await waitFor(() => expect(result.current.client?.version).toBe(1))
+  const reviewed = result.current.client
+  rerender({ row: client, editing: true })
+  rerender({ row: fresh, editing: true })
+  expect(result.current.client).toBe(reviewed)
+  expect(read).toHaveBeenCalledTimes(1)
+  rerender({ row: fresh, editing: false })
+  expect(result.current.client).toBe(reviewed)
+  await waitFor(() => expect(result.current.client?.version).toBe(2))
+})
+
+it.each([
+  { trainerId: 'another' }, { status: 'inactive' }, { people: [{ id: 'another' }] }, { id: 'another' },
+])('immediately retires an active editor when its authority changes: %j', async patch => {
+  const client = { id: 'one', trainerId: 'trainer', status: 'active', people: [{ id: 'person' }] }
+  const service = { getById: vi.fn().mockResolvedValueOnce(client).mockReturnValue(new Promise(() => {})) }
+  const { result, rerender } = renderHook(({ row }) => useClientNotes(row, true, service, 1, undefined, true), { initialProps: { row: client } })
+  await waitFor(() => expect(result.current.client).toEqual(client))
+  rerender({ row: { ...client, ...patch } })
+  expect(result.current.client).toBeFalsy()
+})
+
+it.each([401, 403, 404])('removes a previously loaded client after a %s scoped read rejection', async status => {
+  const client = { id: 'one', version: 1 }
+  const service = { getById: vi.fn().mockResolvedValueOnce(client).mockRejectedValueOnce(Object.assign(new Error('Denied'), { status })) }
+  const { result, rerender } = renderHook(({ row }) => useClientNotes(row, true, service, 1), { initialProps: { row: client } })
+  await waitFor(() => expect(result.current.client).toEqual(client))
+  rerender({ row: { ...client, version: 2 } })
+  await waitFor(() => expect(result.current.error?.status).toBe(status))
+  expect(result.current.client).toBeFalsy()
+})

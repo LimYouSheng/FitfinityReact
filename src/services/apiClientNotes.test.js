@@ -47,3 +47,38 @@ it('requires matching client/person versions and rejects assessment data in note
   expect(() => withClientNotes(client, { ...notes, people: [{ ...notes.people[0], version: 2 }] })).toThrow()
   expect(() => withClientNotes(client, { ...notes, assessments: {} })).toThrow()
 })
+
+it('recovers a committed original save after Cancel without replaying it or blocking a new draft', async () => {
+  let lost = true
+  const fetch = vi.fn(async (url, options) => {
+    if (options.method === 'POST') {
+      if (lost) { lost = false; throw new Error('Lost response') }
+      return jsonResponse({ id, version: 4 })
+    }
+    return jsonResponse(url.includes('client-note-saves') ? result : sessionInfo())
+  })
+  const adapter = make(fetch)
+  await expect(adapter.invoke(request())).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  expect(await adapter.recoverClientNotes({})).toEqual({ pending: false, recovered: true })
+  expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1)
+  await expect(adapter.invoke(request({ ...input, reviewed: { expectedVersion: 3 }, patch: { remarks: 'New review' } }))).resolves.toEqual({ id, version: 4 })
+})
+
+it('checks an uncommitted save without writing and explicitly resumes its immutable key and body', async () => {
+  let lost = true
+  const fetch = vi.fn(async (url, options) => {
+    if (options.method === 'POST') {
+      if (lost) { lost = false; throw new Error('Lost request') }
+      return jsonResponse(result)
+    }
+    return url.includes('client-note-saves') ? failure('not_found', 404) : jsonResponse(sessionInfo())
+  })
+  const adapter = make(fetch)
+  await expect(adapter.invoke(request())).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  expect(await adapter.recoverClientNotes({})).toEqual({ pending: true, recovered: false })
+  expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1)
+  await expect(adapter.resumeClientNotes({})).resolves.toEqual(result)
+  const writes = fetch.mock.calls.filter(([, options]) => options.method === 'POST')
+  expect(writes).toHaveLength(2)
+  expect(writes[1]).toEqual(writes[0])
+})
