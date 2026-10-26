@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+export const PORTAL_ACTION_FAILED = 'fitfinity:action-failed'
 export const PORTAL_CONNECTION_RESTORED = 'fitfinity:connection-restored'
 
 const NotificationContext = createContext(null)
@@ -52,6 +53,7 @@ export function NotificationProvider({ children }) {
       result = await operation()
     } catch (error) {
       if (scope.current === startedIn) notify({ tone: 'error', connectionError: error?.code === 'NETWORK_ERROR' && error?.requestMethod === 'GET', message: error?.message || 'Could not complete this action. Try again.' })
+      if (scope.current === startedIn) window.dispatchEvent(new Event(PORTAL_ACTION_FAILED))
       throw error
     }
     if (scope.current === startedIn && outcome) notify(typeof outcome === 'function' ? outcome(result) : outcome)

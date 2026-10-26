@@ -2,7 +2,7 @@
 
 [System and verification diagrams](diagram.md) · [Current rules and dated history](../SERVICE_CONTRACTS.md)
 
-**Staff interface.** React/Vite renders the Owner, Admin and Trainer portal. Feature screens use injected asynchronous services; `PortalDataProvider` owns authorized snapshots and `useAppNavigation` owns account-scoped history. Explicit demo mode uses prototype data and browser storage. API mode uses `apiPortalAdapter` and FastAPI without falling back to mocks. GitHub Pages hosts the separate demo export.
+**Staff interface.** React/Vite renders the Owner, Admin and Trainer portal. Feature screens use injected asynchronous services; `PortalDataProvider` owns authorized snapshots and `useAppNavigation` owns account-scoped history. Explicit demo mode uses prototype data and browser storage. API mode uses `apiPortalAdapter` and FastAPI without falling back to mocks. GitHub Pages hosts the separate demo export. A session-scoped recovery panel above the routes exposes uncertain simple-form commands after their editors close; the adapter retains immutable intents and the server owns receipts.
 
 **Identity and application.** Cognito owns staff identity and authentication challenges. FastAPI verifies signed tokens, cookies/CSRF, active staff identity and current record permissions. Domain services recheck reviewed versions, assignment and conflicts inside the transaction. Browser capabilities describe available features; they do not grant authority.
 

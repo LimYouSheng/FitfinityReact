@@ -22,8 +22,10 @@ export function clientNoteCommands(http, actionSession) {
       return value
     },
   })
-  return ({ id, patch, reviewed }, generation) => {
+  const command = ({ id, patch, reviewed }, generation) => {
     if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || !Number.isSafeInteger(reviewed?.expectedVersion) || reviewed.expectedVersion < 1 || !patch || !Object.keys(patch).length || Object.entries(patch).some(([key, value]) => !['remarks', 'healthNotes'].includes(key) || typeof value !== 'string' || value.length > 10000)) throw new ApiError('INVALID_REQUEST', 'Reload and review the client notes before saving.')
     return save({ id, expectedVersion: reviewed.expectedVersion, patch }, generation)
   }
+  command.recovery = save
+  return command
 }

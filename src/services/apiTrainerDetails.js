@@ -13,7 +13,7 @@ export function trainerDetailCommands(http, actionSession) {
       return value
     },
   })
-  return ({ id, patch, expectedVersion }, generation) => {
+  const command = ({ id, patch, expectedVersion }, generation) => {
     if (!patch || !Object.keys(patch).length || Object.keys(patch).some(key => !fields.includes(key))) throw new ApiError('OPERATION_UNAVAILABLE', 'Use the dedicated workflow for these trainer fields.')
     if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw new ApiError('INVALID_REQUEST', 'Reload and review the trainer before saving.')
     const body = { ...patch }
@@ -21,4 +21,6 @@ export function trainerDetailCommands(http, actionSession) {
     if (body.birthday === '') body.birthday = null
     return save({ id, expectedVersion, patch: body }, generation)
   }
+  command.recovery = save
+  return command
 }

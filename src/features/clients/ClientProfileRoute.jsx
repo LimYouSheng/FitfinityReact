@@ -3,6 +3,7 @@ import useClientNotes from './useClientNotes.js'
 import usePortalData from '../../hooks/usePortalData.js'
 import usePortalActions from '../../hooks/usePortalActions.js'
 import { useCallback } from 'react'
+import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import ClientProfilePage from './ClientProfilePage.jsx'
 import { activePackages } from '../../app/packages.js'
 import { visibleSessionsForUser } from '../../app/sessionRules.js'
@@ -16,16 +17,18 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   const sessions = db.sessions ?? []
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
   const { clientService } = services
-  const notes = useClientNotes(selectedClient, Boolean(snapshot.capabilities?.clientNoteWrites), clientService, snapshot.sessionGeneration, services.readClientNotes)
+  const { activeEdit } = useEditGuard()
+  const notes = useClientNotes(selectedClient, Boolean(snapshot.capabilities?.clientNoteWrites), clientService, snapshot.sessionGeneration, services.readClientNotes, Boolean(activeEdit))
   const progress = useClientProgress(selectedClient.id, Boolean(directoryOnly && snapshot.capabilities?.sessionOutcomeWrites), services, snapshot.sessionGeneration, snapshot.serverAt)
   const progressClientId = selectedClient.id
   const previewRenewal = useCallback(draft => services.previewClientRenewalMatches({ id: selectedClient.id, draft }), [services, selectedClient.id])
   const reviewRenewal = useCallback(() => runAction(() => services.reviewClientRenewal({ id: selectedClient.id, expectedVersion: selectedClient.version })), [services, selectedClient.id, selectedClient.version, runAction])
   const loadProgressReportHistory = useCallback(packageId =>
     clientService.progressReportHistory({ id: progressClientId, packageId }), [clientService, progressClientId])
-  if (notes.error) return <div role="alert"><p>{notes.error.message}</p><button type="button" onClick={async () => { await reload(); notes.retry() }}>Retry client notes</button></div>
+  if (notes.error && !notes.client) return <div role="alert"><p>{notes.error.message}</p><button type="button" onClick={async () => { await reload(); notes.retry() }}>Retry client notes</button></div>
   if (!notes.client) return <div role="status">Loading client notes…</div>
-  return (
+  return (<>
+    {notes.error && <section role="alert"><p>{notes.error.message}</p><button type="button" onClick={async () => { await reload(); notes.retry() }}>Retry client notes</button></section>}
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
@@ -157,5 +160,5 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
         } finally { await reload() }
       }}
     />
-  )
+  </>)
 }

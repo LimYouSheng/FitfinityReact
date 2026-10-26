@@ -2,6 +2,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import ClientRenewalRecovery from './ClientRenewalRecovery.jsx'
 import ClientProfileRoute from './ClientProfileRoute.jsx'
+import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
+import { EditGuardProvider } from '../../components/EditGuardProvider.jsx'
 
 const actions = vi.hoisted(() => ({ runAction: vi.fn(fn => fn()), reload: vi.fn(), props: null, renewPackage: vi.fn() }))
 vi.mock('../../hooks/usePortalActions.js', () => ({ default: () => actions }))
@@ -31,7 +33,7 @@ it.each(['NETWORK_ERROR', 'SAVE_UNCERTAIN'])('accepts only the original reconcil
   const result = { id: 'client', version: 3, purchaseId: 'purchase' }
   actions.renewPackage.mockRejectedValue({ code })
   actions.reload.mockResolvedValue({ clientRenewalRecovered: { input: pending, result } })
-  render(<ClientProfileRoute selectedClient={{ id: 'client' }} parts={['clients', 'client']} />)
+  render(<ActionConfirmationProvider><EditGuardProvider><ClientProfileRoute selectedClient={{ id: 'client' }} parts={['clients', 'client']} /></EditGuardProvider></ActionConfirmationProvider>)
   const attempt = actions.props.onRenewPackage(pending.draft)
   if (code === 'SAVE_UNCERTAIN') await expect(attempt).rejects.toMatchObject({ code })
   else expect(await attempt).toEqual(result)
@@ -40,7 +42,7 @@ it.each(['NETWORK_ERROR', 'SAVE_UNCERTAIN'])('accepts only the original reconcil
 it('does not refresh a confirmed API save until the wizard releases its edit guard', async () => {
   const result = { id: 'client', version: 3, purchaseId: 'purchase' }
   actions.renewPackage.mockResolvedValue(result)
-  render(<ClientProfileRoute selectedClient={{ id: 'client' }} parts={['clients', 'client']} />)
+  render(<ActionConfirmationProvider><EditGuardProvider><ClientProfileRoute selectedClient={{ id: 'client' }} parts={['clients', 'client']} /></EditGuardProvider></ActionConfirmationProvider>)
   expect(await actions.props.onRenewPackage(pending.draft)).toEqual(result)
   expect(actions.reload).not.toHaveBeenCalled()
   await actions.props.renewalWorkflow.saved()

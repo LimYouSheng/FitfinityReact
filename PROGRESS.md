@@ -1,8 +1,8 @@
 # Fitfinity current progress
 
-## Current checkpoint — 25 October 2026 Singapore
+## Current checkpoint — 26 October 2026 Singapore
 
-Accepted **application source** is [PR82](https://github.com/LimYouSheng/FitfinityReact/pull/82) merge `51b61599ca3bfc15b968cad3f7a8d9d85aa86b0d`. Exact final head `9359d5524cdf36eac02b31590e6315ec2efc34de` passed every required gate in [run40174094706](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40174094706): **1,384 units/145 files, 1,152 simulator browser cases, 1,353 backend/PostgreSQL tests, 633 infrastructure checks and 294 real-API browser cases**. Later documentation-only receipts do not change that application acceptance. Original failures, repairs and merge evidence remain in Contracts history.
+Accepted **application source** is [PR84](https://github.com/LimYouSheng/FitfinityReact/pull/84), merge `bdee849dad80887341b56b990b49da7593e1ef85`. Its exact final head `9ca1f362d76318f6cd74b7120722a8d69a0859ee` passed all required gates in [run40244798892](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40244798892): **1,392 units/146 files, 1,152 simulator browser cases, 1,353 backend/PostgreSQL tests, 633 infrastructure checks and 303 real-API browser cases**. This incorporates PR82's M6 source exit and the subsequent offline recovery repairs. Original failures and acceptance receipts remain in Contracts history.
 
 [The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **55/55 source accepted**: 54 server-connected operations plus one local predicate. All 18 operations remaining at the 37/55 checkpoint are complete in merged source. This does not establish deployment or blanket milestone acceptance.
 
@@ -51,9 +51,9 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency, Grafana and supply-chain capabilities remain planned until separately implemented and evidenced.
 5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the seven-document structure and all eight existing stashes.
 
-### Active follow-up — offline recovery and responsiveness
+### Active follow-up — profile drafts and uncertain commands
 
-PR84 (`fix/portal-offline-recovery`) addresses offline notes drafts, repeated/serial reads, guarded post-save detail refresh and resolved connection warnings. A second rule-led pass found and repaired stale-directory notes Retry; subsequent reviewed Chromium/phone/WebKit journeys have no unresolved finding within their recorded scope. Nine focused real-API recovery cases and all1,392 units/146 files pass, alongside lint/source health and72 verifier checks. The API-browser inventory is303 cases; final new-head CI/merge remain pending. Accepted application source above is unchanged. Full scope, first failures and limits are retained once in Contracts history. Local reload observations are not latency budgets or physical acceptance; M10 mutation/performance tooling remains planned.
+Deep audit found that ordinary same-client version changes could unmount unrelated profile editors, and Cancel could strand uncertain simple-form commands. [PR85](https://github.com/LimYouSheng/FitfinityReact/pull/85), branch `fix/profile-draft-command-recovery`, preserves reviewed profile state during editing while retiring changed authority, and moves same-login recovery above routes for notes, client information, Trainer information/rates/approval settings and package setup. Background refresh only lists pending commands; explicit Check reads a receipt, while confirmed retry retains the original body/key. The shared retry guard spans receipt reads; active creation editors retain their original receipt, and approval Cancel is visibly disabled while saving. Expanded local validation passes **1,423 units/149 files**, **57 affected real-API browser cases**,527-file lint/source health and72 verifier checks; the complete API-browser inventory is351. Repeated independent browser checks found no unresolved logic finding in the reviewed scope. Reload observations987/1,420/929ms retain the noticeable1.42s wait for measured performance follow-up. Exact final-head CI and merge remain pending. Earlier notes-only receipts remain historical in Contracts; they do not accept this expanded candidate. Physical/provider/deployed acceptance and M10 tooling remain separate.
 
 ### M6 exit evidence — source accepted, external acceptance open
 

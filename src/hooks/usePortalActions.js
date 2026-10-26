@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import usePortalData from './usePortalData.js'
 import { useNotifications } from '../components/NotificationProvider.jsx'
 
@@ -6,5 +7,6 @@ import { useNotifications } from '../components/NotificationProvider.jsx'
 export default function usePortalActions() {
   const { refresh } = usePortalData()
   const { runAction } = useNotifications()
-  return { runAction, reload: () => refresh().catch(() => null) }
+  const reload = useCallback(() => refresh().catch(() => null), [refresh])
+  return { runAction, reload }
 }

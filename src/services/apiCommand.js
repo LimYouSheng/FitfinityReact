@@ -30,19 +30,22 @@ export function reconciledCommand(http, actionSession, { path, receiptPath, vali
     if (pending && pending.fingerprint !== fingerprint) throw new ApiError('SAVE_UNCERTAIN', `Check the previous ${label.toLowerCase()} save with its original values before making another change.`)
     const attempt = pending ?? { fingerprint, body, key: keyFor(body), generation: sessionGeneration }
     if (pending?.inFlight) throw new ApiError('SAVE_PENDING', `${label} is still saving.`)
-    if (pending) {
-      const receipt = await readReceipt(attempt, sessionGeneration)
-      if (receipt.found) return receipt.result
-      // A serialized read found no final receipt. An explicit retry may resume
-      // the same immutable command/key; a late arrival remains idempotent.
-    }
+    const retrying = Boolean(pending)
     pending = attempt
     attempt.inFlight = true
-    try { return accept(attempt, validate(await http.post(path(attempt.body), bodyFor(attempt.body), { csrf: true, idempotencyKey: attempt.key, expectedGeneration: sessionGeneration }), attempt.body)) }
-    catch (error) {
-      // A definitive rejection cannot have committed. Unknown outcomes retain the command.
-      if (definitiveRejection(error) && pending === attempt) pending = null
-      throw error
+    try {
+      if (retrying) {
+        const receipt = await readReceipt(attempt, sessionGeneration)
+        if (receipt.found) return receipt.result
+        // Hold the guard across the receipt read: concurrent retries must not
+        // both reach POST, even though the server also enforces idempotency.
+      }
+      try { return accept(attempt, validate(await http.post(path(attempt.body), bodyFor(attempt.body), { csrf: true, idempotencyKey: attempt.key, expectedGeneration: sessionGeneration }), attempt.body)) }
+      catch (error) {
+        // Only a definitive write rejection retires an uncertain command.
+        if (definitiveRejection(error) && pending === attempt) pending = null
+        throw error
+      }
     } finally { attempt.inFlight = false }
   }
   // A profile reload can resolve a committed save without initiating another write.

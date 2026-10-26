@@ -11,8 +11,10 @@ export function trainerApprovalCommands(http, actionSession) {
       return value
     },
   })
-  return (input, generation) => {
+  const command = (input, generation) => {
     if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(input.id) || !Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1 || Object.keys(input.approvalNeeded ?? {}).length !== fields.length || fields.some(field => typeof input.approvalNeeded[field] !== 'boolean')) throw new ApiError('INVALID_REQUEST', 'Review all four approval settings and reload the trainer before saving.')
     return save(input, generation)
   }
+  command.recovery = save
+  return command
 }
