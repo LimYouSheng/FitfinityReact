@@ -154,6 +154,7 @@ for (const committed of [true, false]) test(`cancelled notes recover their origi
     const other = (await read(page, '/api/directory')).clients.find(row => row.name === `${info.project.name} contacts`)
     expect(other.id).not.toBe(client.id)
     await page.goto(`/#/clients/${other.id}`)
+    await expect(page.getByRole('heading', { name: other.name, exact: true })).toBeVisible()
     const otherPanel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Remarks', exact: true }) })
     await otherPanel.getByRole('button', { name: 'Edit', exact: true }).click()
     await page.getByRole('textbox', { name: 'Remarks', exact: true }).fill(`Fresh intent after ${committed}`)

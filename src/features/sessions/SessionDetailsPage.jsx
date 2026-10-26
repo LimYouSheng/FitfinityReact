@@ -192,7 +192,7 @@ export default function SessionDetailsPage({
         activeEditor={activeEditor} setActiveEditor={setActiveEditor} saving={saving}
         setDetailsError={setDetailsError} schedule={schedule} onOpenClient={onOpenClient} onOpenTrainer={onOpenTrainer} />
 
-      {detailsError && !requestKind && <p className="validation-copy" role="alert">{detailsError}</p>}
+      {detailsError && !requestKind && <p className="validation-copy editing-section" role="alert">{detailsError}</p>}
 
       <Panel className={`top-gap exercise-plan-panel ${activeEditor === 'exercise' ? 'editing-section' : ''}`}>
         {onPreviewPreviousPlan && <PreviousPlanDialog available={canEditPlan && !activeEditor} onPreview={onPreviewPreviousPlan} onCopy={onCopyPreviousPlan}
