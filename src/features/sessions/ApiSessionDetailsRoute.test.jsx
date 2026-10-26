@@ -11,9 +11,11 @@ import ApiSessionDetailsRoute from './ApiSessionDetailsRoute.jsx'
 afterEach(() => { cleanup(); vi.useRealTimers() })
 function show(services, patch = {}, onChangeSaved) {
   const snapshot = { user: staff, policy: { timeZone: 'Asia/Singapore' }, sessionGeneration: 0, serverAt: '2026-10-13T06:00:00Z', data: { clients: [], trainers: [], messages: [] }, ...patch }
-  const node = selectedSession => <PortalData.Provider value={{ snapshot, services, refresh: async () => snapshot, today: '2026-10-13' }}><ActionConfirmationProvider><EditGuardProvider><ApiSessionDetailsRoute onChangeSaved={onChangeSaved} selectedSession={selectedSession} navigate={vi.fn()} openClient={vi.fn()} /></EditGuardProvider></ActionConfirmationProvider></PortalData.Provider>
-  const rendered = render(node({ id: directoryId(30), version: 1 }))
-  return { ...rendered, update: id => rendered.rerender(node({ id, version: 1 })), refresh: () => { snapshot.serverAt = '2026-10-13T06:00:01Z'; rendered.rerender(node({ id: directoryId(30), version: 1 })) } }
+  const node = selectedSession => <PortalData.Provider value={{ snapshot, services, refresh: services.refresh ?? (async () => snapshot), today: '2026-10-13' }}><ActionConfirmationProvider><EditGuardProvider><ApiSessionDetailsRoute onChangeSaved={onChangeSaved} selectedSession={selectedSession} navigate={vi.fn()} openClient={vi.fn()} /></EditGuardProvider></ActionConfirmationProvider></PortalData.Provider>
+  let selected = { id: directoryId(30), version: 1, ...patch.selectedSession }
+  const rendered = render(node(selected))
+  const select = next => { selected = next; rendered.rerender(node(selected)) }
+  return { ...rendered, select, update: id => select({ id, version: 1 }), refresh: () => { snapshot.serverAt = '2026-10-13T06:00:01Z'; rendered.rerender(node(selected)) } }
 }
 it('shows stored plan/outcome evidence and keeps every unavailable mutation disabled', async () => {
   const services = { readSessionDetails: vi.fn().mockResolvedValue(sessionDetail(sessionDetailData(), directoryId(30), staff)) }
@@ -68,6 +70,10 @@ it('keeps the reviewed postponement dialog mounted through a background detail r
   await act(async () => complete(value))
   expect(screen.getByRole('dialog', { name: 'Postpone this session?', exact: true })).toBe(dialog)
   expect(services.sessionService.previewPostponement).toHaveBeenCalledTimes(1)
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel', exact: true }))
+  fireEvent.click(screen.getByRole('button', { name: 'Postpone', exact: true }))
+  await screen.findByRole('dialog', { name: 'Postpone this session?', exact: true })
+  expect(services.readSessionDetails).toHaveBeenCalledTimes(2)
 })
 
 
@@ -212,8 +218,10 @@ it('acknowledgement recovery freezes the reviewed intent and never asks to confi
   fireEvent.click(await screen.findByRole('button', { name: 'Record late / no-show instead' }))
   fireEvent.change(screen.getByLabelText('Acknowledgement note'), { target: { value: 'Absent' } })
   fireEvent.click(screen.getByRole('button', { name: 'Review Completion', exact: true }))
-  fireEvent.click(within(await screen.findByRole('dialog', { name: 'Complete this session?' })).getByRole('button', { name: 'Complete Session', exact: true }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('Lost completion response')
+  const confirmation = await screen.findByRole('dialog', { name: 'Complete this session?' })
+  expect(services.readSessionDetails).toHaveBeenCalledTimes(1)
+  fireEvent.click(within(confirmation).getByRole('button', { name: 'Complete Session', exact: true }))
+  expect(await within(await screen.findByRole('dialog', { name: 'Trainer late / no-show' })).findByRole('alert')).toHaveTextContent('Lost completion response')
   expect(screen.getByLabelText('Acknowledgement note')).toBeDisabled()
   expect(within(screen.getByRole('dialog', { name: 'Trainer late / no-show' })).getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Check original acknowledgement', exact: true }))
@@ -293,5 +301,122 @@ it('keeps saved session controls guarded until fresh details arrive and retries 
   await act(async () => finishRead({ ...value, session: { ...value.session, scheduleState: 'open', date: null, from: null, to: null, sessionNo: null } }))
   expect(await screen.findByText('Date/time not set')).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Retry refreshing', exact: true })).toBeNull()
+  expect(save).toHaveBeenCalledTimes(1)
+})
+
+it.each(['plan', 'outcome', 'summary'])('retains an unsaved %s through a transient background read failure and retry', async kind => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value),
+    reviewSessionPlan: vi.fn().mockResolvedValue({ reviewed: {}, draft: value.session.exercisePlan }),
+    reviewSessionOutcome: vi.fn().mockResolvedValue({ reviewed: {}, draft: { trainerComments: '', exerciseResults: [] } }),
+    reviewSessionSummary: vi.fn().mockResolvedValue({ reviewed: {}, draft: 'Original summary' }) }
+  const view = show(services, { capabilities: { sessionPlanWrites: true, sessionOutcomeWrites: true, sessionSummaryWrites: true } })
+  await screen.findByText('Stored instruction')
+  if (kind === 'plan') fireEvent.click(screen.getByRole('button', { name: 'Edit exercise plan', exact: true }))
+  else fireEvent.click(within(document.querySelector(kind === 'outcome' ? '.session-outcome-panel' : '.client-summary-panel')).getByRole('button', { name: 'Edit', exact: true }))
+  const field = await screen.findByLabelText(kind === 'plan' ? 'Exercise 1 weight' : kind === 'outcome' ? 'Trainer comments' : 'Client-facing summary', { exact: true })
+  fireEvent.change(field, { target: { value: 'Unsaved independent draft' } })
+  services.readSessionDetails.mockRejectedValueOnce(Object.assign(new Error('Temporary detail outage'), { status: 503 }))
+  view.refresh()
+  await screen.findByText('Temporary detail outage')
+  expect(field).toBeInTheDocument()
+  expect(field).toHaveValue('Unsaved independent draft')
+  fireEvent.click(screen.getByRole('button', { name: 'Retry session', exact: true }))
+  await vi.waitFor(() => expect(screen.queryByText('Temporary detail outage')).toBeNull())
+  expect(field).toBeInTheDocument()
+  expect(field).toHaveValue('Unsaved independent draft')
+})
+
+it.each([401, 403, 404])('retires private session details after a definitive %s background denial', async status => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value) }
+  const view = show(services)
+  await screen.findByText('Stored instruction')
+  services.readSessionDetails.mockRejectedValueOnce(Object.assign(new Error('Access retired'), { status }))
+  view.refresh()
+  await screen.findByText('Access retired')
+  expect(screen.queryByText('Stored instruction')).toBeNull()
+  expect(screen.queryByText('Stored client summary')).toBeNull()
+})
+
+it.each(['assignment', 'completion'])('retires the active plan editor when a background read changes %s authority', async change => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionPlan: vi.fn().mockResolvedValue({ reviewed: {}, draft: value.session.exercisePlan }) }
+  const view = show(services, { user: { ...staff, role: 'trainer', trainerId: value.session.trainerId }, capabilities: { sessionPlanWrites: true } })
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit exercise plan', exact: true }))
+  const field = await screen.findByLabelText('Exercise 1 weight', { exact: true })
+  fireEvent.change(field, { target: { value: 'Unsaved old authority' } })
+  services.readSessionDetails.mockResolvedValue({ ...value, session: { ...value.session, version: 2, ...(change === 'assignment' ? { trainerId: directoryId(99) } : { status: 'completed' }) } })
+  view.refresh()
+  await vi.waitFor(() => expect(screen.queryByLabelText('Exercise 1 weight', { exact: true })).toBeNull())
+  expect(screen.queryByRole('button', { name: 'Edit exercise plan', exact: true })).toBeNull()
+})
+
+it('keeps reviewed booking times through an ordinary refresh, then loads the latest after Cancel', async () => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionBooking: vi.fn().mockResolvedValue({ reviewed: { trainers: [] }, draft: { date: value.session.date, from: '10:00', to: '11:00', trainerId: value.session.trainerId } }) }
+  const view = show(services, { capabilities: { sessionBookingWrites: true } })
+  await screen.findByText('Stored instruction')
+  const panel = document.querySelector('.session-overview-panel')
+  fireEvent.click(within(panel).getByRole('button', { name: 'Edit', exact: true }))
+  const field = await screen.findByLabelText('Session start time', { exact: true })
+  fireEvent.change(field, { target: { value: '14:00' } })
+  services.readSessionDetails.mockResolvedValue({ ...value, session: { ...value.session, version: 2, from: '16:00', to: '17:00' } })
+  await act(async () => view.refresh())
+  expect(field).toHaveValue('14:00')
+  fireEvent.click(within(panel).getByRole('button', { name: 'Cancel', exact: true }))
+  await vi.waitFor(() => expect(panel).toHaveTextContent('16:00–17:00'))
+})
+
+it.each(['assignment', 'completion'])('a calendar %s change hides the old editor even when its detail read fails', async change => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionPlan: vi.fn().mockResolvedValue({ reviewed: {}, draft: value.session.exercisePlan }) }
+  const view = show(services, { capabilities: { sessionPlanWrites: true } })
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit exercise plan', exact: true }))
+  await screen.findByLabelText('Exercise 1 weight', { exact: true })
+  services.readSessionDetails.mockRejectedValue(Object.assign(new Error('Temporary detail outage'), { status: 503 }))
+  view.select({ id: value.session.id, version: 2, ...(change === 'assignment' ? { trainerId: directoryId(99) } : { status: 'completed' }) })
+  expect(screen.queryByLabelText('Exercise 1 weight', { exact: true })).toBeNull()
+  await screen.findByText('Temporary detail outage')
+  expect(screen.queryByText('Stored client summary')).toBeNull()
+})
+
+it('retires a completed-session summary editor when permanent client assignment is lost', async () => {
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session.status = 'completed'
+  const data = { clients: [{ id: value.client.id, trainerId: value.session.trainerId, status: 'active' }], trainers: [], messages: [] }
+  const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionSummary: vi.fn().mockResolvedValue({ reviewed: {}, draft: 'Private draft' }) }
+  const view = show(services, { selectedSession: value.session, data, user: { ...staff, role: 'trainer', trainerId: value.session.trainerId }, capabilities: { sessionSummaryWrites: true } })
+  await screen.findByText('Stored client summary')
+  fireEvent.click(within(document.querySelector('.client-summary-panel')).getByRole('button', { name: 'Edit', exact: true }))
+  await screen.findByDisplayValue('Private draft')
+  data.clients = []
+  view.refresh()
+  expect(screen.queryByDisplayValue('Private draft')).toBeNull()
+  await screen.findByText('Stored client summary')
+  expect(within(document.querySelector('.client-summary-panel')).queryByRole('button', { name: 'Edit', exact: true })).toBeNull()
+})
+
+it('keeps committed-save refresh recovery reachable after the calendar changes scope', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-13T06:00:00Z'))
+  const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
+  value.session.date = '2026-10-20'
+  const changed = { ...value, session: { ...value.session, version: 2, scheduleState: 'open', date: null, from: null, to: null, sessionNumber: null } }
+  let finishRefresh
+  const save = vi.fn().mockResolvedValue({ outcome: 'applied' })
+  const services = {
+    refresh: vi.fn(() => new Promise(resolve => { finishRefresh = resolve })),
+    readSessionDetails: vi.fn().mockResolvedValueOnce(value).mockRejectedValueOnce(new Error('Refresh failed')).mockResolvedValue(changed),
+    sessionService: { previewPostponement: vi.fn().mockResolvedValue({ reviewed: {}, expected: 'review', changes: [{ sessionId: value.session.id, before: { date: value.session.date, from: '10:00', to: '11:00' }, next: { scheduleState: 'open' } }] }), postpone: save },
+  }
+  const view = show(services, { selectedSession: value.session, capabilities: { sessionPostponementWrites: true } })
+  fireEvent.click(await screen.findByRole('button', { name: 'Postpone', exact: true }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Confirm Postponement', exact: true }))
+  await vi.waitFor(() => expect(services.refresh).toHaveBeenCalledTimes(1))
+  await act(async () => { view.select(changed.session); finishRefresh() })
+  services.refresh.mockResolvedValue(undefined)
+  fireEvent.click(await screen.findByRole('button', { name: 'Retry refreshing', exact: true }))
+  await screen.findByText('Date/time not set')
+  expect(screen.queryByText('Saved. Updating details…')).toBeNull()
   expect(save).toHaveBeenCalledTimes(1)
 })

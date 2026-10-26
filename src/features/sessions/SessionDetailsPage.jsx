@@ -8,7 +8,7 @@ import { managesOperations } from '../../app/permissions.js'
 import { packageForRecord } from '../../app/clientPackages.js'
 import SignaturePad, { SignaturePreview } from '../../components/SignaturePad.jsx'
 import { validSignature } from '../../app/signature.js'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Panel from '../../components/Panel.jsx'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
@@ -70,6 +70,7 @@ export default function SessionDetailsPage({
   onSaveOutcome,
   onSaveClientSummary,
   onSaveDetails,
+  onInlineEditorClosed,
   onRequestTimeChange,
   onRequestTrainerChange,
   onPreviewPostponement,
@@ -84,6 +85,14 @@ export default function SessionDetailsPage({
   const displayedSummary = session.clientSummary || automaticClientSummary(session, outcome)
 
   const [activeEditor, setActiveEditor] = useState(null)
+  const previousInlineEditor = useRef(null)
+  useEffect(() => {
+    // Dialog transitions also clear the navigation guard; only an inline editor
+    // exit should refresh discarded drafts, never interrupt confirmation/recovery.
+    const previous = previousInlineEditor.current
+    previousInlineEditor.current = activeEditor
+    if (previous && !activeEditor) onInlineEditorClosed?.()
+  }, [activeEditor, onInlineEditorClosed])
   const [detailsError, setDetailsError] = useState('')
   const [acknowledgementMethod, setAcknowledgementMethod] = useState(null)
   const [signerName, setSignerName] = useState(client.name)
@@ -192,7 +201,7 @@ export default function SessionDetailsPage({
         activeEditor={activeEditor} setActiveEditor={setActiveEditor} saving={saving}
         setDetailsError={setDetailsError} schedule={schedule} onOpenClient={onOpenClient} onOpenTrainer={onOpenTrainer} />
 
-      {detailsError && !requestKind && <p className="validation-copy" role="alert">{detailsError}</p>}
+      {detailsError && !requestKind && !acknowledgementMethod && <p className="validation-copy editing-section" role="alert">{detailsError}</p>}
 
       <Panel className={`top-gap exercise-plan-panel ${activeEditor === 'exercise' ? 'editing-section' : ''}`}>
         {onPreviewPreviousPlan && <PreviousPlanDialog available={canEditPlan && !activeEditor} onPreview={onPreviewPreviousPlan} onCopy={onCopyPreviousPlan}
@@ -313,6 +322,7 @@ export default function SessionDetailsPage({
           Note (optional)
           <textarea disabled={saving || acknowledgementUncertain} aria-label="Acknowledgement note" rows="3" value={note} onChange={event => setNote(event.target.value)} />
         </label>
+        {detailsError && <p role="alert" className="validation-copy">{detailsError}</p>}
       </ConfirmDialog>
 
       <SessionChangeDialogs schedule={schedule} saving={saving} detailsError={detailsError}

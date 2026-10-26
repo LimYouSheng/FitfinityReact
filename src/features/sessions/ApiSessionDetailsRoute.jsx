@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import usePortalData from '../../hooks/usePortalData.js'
 import SessionDetailsPage from './SessionDetailsPage.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { managesOperations } from '../../app/permissions.js'
+import { packageForRecord } from '../../app/clientPackages.js'
+
+// Versions and booking times may change during a review; authority changes may not
+// carry an old editor into the newly scoped record.
+const recordScope = ({ session, client, trainer }) => JSON.stringify([session.id, session.clientId, session.trainerId, session.packageId, session.scheduleState, ['completed', 'cancelled'].includes(session.status) ? session.status : 'editable', client.status, trainer.status, packageForRecord(client, session)?.status, packageForRecord(client, session)?.stage, session.acknowledgement?.id])
+const scopeDenied = error => [401, 403, 404].includes(error.status) || ['SESSION_CHANGED', 'SESSION_EXPIRED', 'forbidden', 'unauthorized', 'not_found'].includes(error.code)
 
 export default function ApiSessionDetailsRoute({ selectedSession, navigate, openClient, onChangeSaved }) {
   const { snapshot, services, today, refresh } = usePortalData()
@@ -20,11 +26,17 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
   const finishing = useRef(false)
   const [state, setState] = useState(null), [attempt, setAttempt] = useState(0)
   const [refreshError, setRefreshError] = useState('')
+  const editing = useRef(false)
+  useEffect(() => { editing.current = Boolean(activeEdit) }, [activeEdit])
+  const inlineEditorClosed = useCallback(() => { if (!saved) setAttempt(n => n + 1) }, [saved])
   const lifetime = useRef(null)
-  const refreshedDetail = useRef(false)
+  const refreshedDetail = useRef(null)
   useEffect(() => { const token = {}; lifetime.current = token; return () => { if (lifetime.current === token) lifetime.current = null } }, [])
   const [limited, setLimited] = useState(null), [clientBusy, setClientBusy] = useState(false), [clientError, setClientError] = useState('')
   const id = selectedSession.id, version = selectedSession.version
+  const calendarClient = data.sessionClients?.find(client => client.id === selectedSession.clientId)
+  const assignedClient = data.clients.find(client => client.id === selectedSession.clientId)
+  const selectionScope = JSON.stringify([id, sessionGeneration, user.id, user.role, user.trainerId, selectedSession.clientId, selectedSession.trainerId, selectedSession.packageId, selectedSession.scheduleState, ['completed', 'cancelled'].includes(selectedSession.status) ? selectedSession.status : 'editable', assignedClient?.trainerId, assignedClient?.status, calendarClient?.status, calendarClient && packageForRecord(calendarClient, selectedSession)?.status, calendarClient && packageForRecord(calendarClient, selectedSession)?.stage])
   useEffect(() => {
     if (!saved || activeEdit || finishing.current || refreshError) return
     finishing.current = true
@@ -35,26 +47,26 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
         await refresh()
         const value = await services.readSessionDetails({ id })
         if (lifetime.current !== token) return
-        refreshedDetail.current = true
-        setState({ id, generation: sessionGeneration, value })
+        refreshedDetail.current = selectionScope
+        setState({ id, generation: sessionGeneration, selectionScope, value })
         setSaved(false); setBooking(null); setPostponementNotice(current => current.replace(' Updating details…', ''))
       } catch {
         if (lifetime.current === token) setRefreshError('Saved. The latest details could not be loaded. Retry refreshing; do not repeat the save.')
       } finally { finishing.current = false }
     })()
-  }, [saved, activeEdit, refresh, services, id, sessionGeneration, refreshError])
+  }, [saved, activeEdit, refresh, services, id, sessionGeneration, refreshError, selectionScope])
   useEffect(() => {
     if (finishing.current || saved) return
-    if (refreshedDetail.current) { refreshedDetail.current = false; return }
+    if (refreshedDetail.current) { const matched = refreshedDetail.current === selectionScope; refreshedDetail.current = null; if (matched) return }
     let current = true
     // Keep same-session drafts mounted while refreshing; identity/generation checks below still hide stale scope.
     services.readSessionDetails({ id }).then(value => {
-      if (current) setState({ id, generation: sessionGeneration, value })
-    }).catch(error => { if (current) setState({ id, generation: sessionGeneration, error }) })
+      if (current) setState(previous => ({ id, generation: sessionGeneration, selectionScope, value: editing.current && previous?.id === id && previous.generation === sessionGeneration && previous.selectionScope === selectionScope && previous.value && recordScope(previous.value) === recordScope(value) ? previous.value : value }))
+    }).catch(error => { if (current) setState(previous => ({ id, generation: sessionGeneration, selectionScope, error, value: !scopeDenied(error) && previous?.id === id && previous.generation === sessionGeneration && previous.selectionScope === selectionScope ? previous.value : null })) })
     return () => { current = false }
-  }, [id, version, sessionGeneration, serverAt, services, attempt, saved])
-  if (!state || state.id !== id || state.generation !== sessionGeneration) return <p role="status">Loading session…</p>
-  if (state.error) return <section role="alert"><p>{state.error.message}</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Retry session</button></section>
+  }, [id, version, sessionGeneration, serverAt, services, attempt, saved, selectionScope])
+  if (!state || state.id !== id || state.generation !== sessionGeneration || state.selectionScope !== selectionScope) return refreshError ? <section role="alert"><p>{refreshError}</p><button type="button" onClick={() => setRefreshError('')}>Retry refreshing</button></section> : <p role="status">{saved ? 'Saved. Updating details…' : 'Loading session…'}</p>
+  if (state.error && !state.value) return <section role="alert"><p>{state.error.message}</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Retry session</button></section>
   const { session, client, trainer } = state.value
   const fullClient = data.clients.some(c => c.id === client.id)
   const fullTrainer = data.trainers.some(t => t.id === trainer.id)
@@ -200,10 +212,11 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
     if (result) setSaved(true)
     return result
   }
-  return <><SessionDetailsPage videoWorkflows={Boolean(snapshot.capabilities?.sessionMediaWorkflows && !saved)} videoUncertain={Boolean(video?.uncertain)} onBeginVideo={beginVideo} onLoadVideo={exerciseId => services.sessionService.loadVideo({ sessionId: id, exerciseId })} onSaveVideo={saveVideo} onRemoveVideo={removeVideo} onRecoverVideo={exerciseId => recoverVideo(exerciseId)} onResumeVideo={exerciseId => recoverVideo(exerciseId, true)} summaryExportEnabled={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && (managesOperations(user) || session.trainerId === user.trainerId) && !saved)} acknowledgementEditable={Boolean(snapshot.capabilities?.sessionAcknowledgementWrites && canCorrectOutcome && !saved)} acknowledgementUncertain={Boolean(acknowledgement?.uncertain)} onBeginAcknowledgement={beginAcknowledgement} onAcknowledge={saveAcknowledgement} summaryEditable={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && !saved)} summaryUncertain={Boolean(summary?.uncertain)} onBeginSummary={beginSummary} onSaveClientSummary={saveSummary} outcomeEditable={Boolean(snapshot.capabilities?.sessionOutcomeWrites && canCorrectOutcome && !saved)} outcomeUncertain={Boolean(outcome?.uncertain)} onBeginOutcome={beginOutcome} onSaveOutcome={saveOutcome} onPreviewPreviousPlan={previewPreviousPlan} onCopyPreviousPlan={copyPreviousPlan} readOnly planEditable={Boolean(snapshot.capabilities?.sessionPlanWrites && !saved)} planUncertain={Boolean(plan?.uncertain)} onBeginPlan={beginPlan} onSavePlan={savePlan} requestEditable={Boolean(snapshot.capabilities?.sessionChangeWrites && !saved)} onBeginRequest={beginRequest} onRequestTimeChange={patch => requestChange('time', patch)} onRequestTrainerChange={id => requestChange('trainer', id)} postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
+  return <><SessionDetailsPage onInlineEditorClosed={inlineEditorClosed} key={recordScope(state.value)} videoWorkflows={Boolean(snapshot.capabilities?.sessionMediaWorkflows && !saved)} videoUncertain={Boolean(video?.uncertain)} onBeginVideo={beginVideo} onLoadVideo={exerciseId => services.sessionService.loadVideo({ sessionId: id, exerciseId })} onSaveVideo={saveVideo} onRemoveVideo={removeVideo} onRecoverVideo={exerciseId => recoverVideo(exerciseId)} onResumeVideo={exerciseId => recoverVideo(exerciseId, true)} summaryExportEnabled={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && (managesOperations(user) || session.trainerId === user.trainerId) && !saved)} acknowledgementEditable={Boolean(snapshot.capabilities?.sessionAcknowledgementWrites && canCorrectOutcome && !saved)} acknowledgementUncertain={Boolean(acknowledgement?.uncertain)} onBeginAcknowledgement={beginAcknowledgement} onAcknowledge={saveAcknowledgement} summaryEditable={Boolean(snapshot.capabilities?.sessionSummaryWrites && canCorrectOutcome && !saved)} summaryUncertain={Boolean(summary?.uncertain)} onBeginSummary={beginSummary} onSaveClientSummary={saveSummary} outcomeEditable={Boolean(snapshot.capabilities?.sessionOutcomeWrites && canCorrectOutcome && !saved)} outcomeUncertain={Boolean(outcome?.uncertain)} onBeginOutcome={beginOutcome} onSaveOutcome={saveOutcome} onPreviewPreviousPlan={previewPreviousPlan} onCopyPreviousPlan={copyPreviousPlan} readOnly planEditable={Boolean(snapshot.capabilities?.sessionPlanWrites && !saved)} planUncertain={Boolean(plan?.uncertain)} onBeginPlan={beginPlan} onSavePlan={savePlan} requestEditable={Boolean(snapshot.capabilities?.sessionChangeWrites && !saved)} onBeginRequest={beginRequest} onRequestTimeChange={patch => requestChange('time', patch)} onRequestTrainerChange={id => requestChange('trainer', id)} postponementEditable={Boolean(snapshot.capabilities?.sessionPostponementWrites && !saved)} onPreviewPostponement={previewPostponement} onPostpone={postpone} bookingEditable={Boolean(snapshot.capabilities?.sessionBookingWrites && !saved)} bookingUncertain={Boolean(booking?.uncertain)} onBeginDetails={beginDetails} onSaveDetails={saveDetails} today={today} policy={policy} user={user} session={session} client={client} trainer={trainer}
     trainers={change?.reviewed.trainers ?? booking?.reviewed.trainers ?? data.sessionTrainers ?? data.trainers} messages={data.messages ?? []}
     onOpenClient={fullClient ? () => openClient(client.id) : canLimited && !clientBusy ? openLimited : undefined}
     onOpenTrainer={fullTrainer ? () => navigate(managesOperations(user) ? `trainers/${trainer.id}` : 'my-profile') : undefined} />
+    {state.error && <section className="editing-section" role="alert"><p>{state.error.message}</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Retry session</button></section>}
     {saved && !refreshError && <p role="status">Saved. Updating details…</p>}
     {refreshError && <section role="alert"><p>{refreshError}</p><button type="button" onClick={() => setRefreshError('')}>Retry refreshing</button></section>}
     {changeNotice && <p role="status">{changeNotice}</p>}

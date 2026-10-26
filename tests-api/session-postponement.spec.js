@@ -14,7 +14,9 @@ async function open(page, info, purpose, role = 'owner') {
 }
 async function preview(page) {
   await page.getByRole('button', { name: 'Postpone', exact: true }).click()
-  return page.getByRole('dialog', { name: 'Postpone this session?', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Postpone this session?', exact: true })
+  await expect(dialog.getByRole('table')).toContainText('Open session · Date/time not set')
+  return dialog
 }
 async function confirm(page, dialog) {
   await expect(dialog.getByRole('table')).toContainText('Open session · Date/time not set')
@@ -35,10 +37,13 @@ async function assertOpen(page, client, sessions) {
 test('Owner postponement UI preserves IDs, other bookings, purchased validity and credits after reload', async ({ page }, info) => {
   const { client, sessions } = await open(page, info, 'postpone')
   const stale = await preview(page)
+  await expect(stale.getByRole('table')).toContainText(`${sessions[0].startsAt}–${sessions[0].endsAt}`)
   const review = await read(page, `/api/sessions/${sessions[0].id}/booking-review`)
   const changed = await post(page, `/api/sessions/${sessions[0].id}/booking`, { expected: review.expected, date: review.session.date, startsAt: review.session.startsAt, endsAt: '11:30', trainerId: review.session.trainerId })
   expect(changed.status()).toBe(200)
+  const rejected = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith(`/api/sessions/${sessions[0].id}/postponement`))
   await stale.getByRole('button', { name: 'Confirm Postponement', exact: true }).click()
+  expect((await rejected).status()).toBe(409)
   await expect(stale.getByRole('alert')).toBeVisible()
   expect((await read(page, `/api/sessions/${sessions[0].id}/booking-review`)).session).toMatchObject({ scheduleState: 'booked', endsAt: '11:30' })
   await stale.getByRole('button', { name: 'Cancel', exact: true }).click()
