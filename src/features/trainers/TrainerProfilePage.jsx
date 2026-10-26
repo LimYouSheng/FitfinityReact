@@ -342,7 +342,7 @@ export default function TrainerProfilePage({
                 <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => { reviewedVersion.current = trainer.version; setActiveEditor('autonomy') }}>Edit</button>
               ) : (
                 <div className="inline-actions">
-                  <button type="button" className="text-action muted-action" onClick={() => {
+                  <button type="button" className="text-action muted-action" disabled={autonomyBusy} onClick={() => {
                     if (autonomyBusy) return
                     setAutonomyDraft(trainer.approvalNeeded)
                     setActiveEditor(null)

@@ -133,9 +133,9 @@ for (const committed of [true, false]) test(`cancelled notes recover their origi
   await page.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
   await expect(panel.getByRole('button', { name: 'Cancel', exact: true })).toBeEnabled()
   await panel.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('button', { name: 'Check Previous Notes Save', exact: true }).click()
+  expect(writes).toHaveLength(1)
   if (!committed) {
-    await page.getByRole('button', { name: 'Check Previous Notes Save', exact: true }).click()
-    expect(writes).toHaveLength(1)
     await page.getByRole('button', { name: 'Retry Original Notes Save', exact: true }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'Retry Original Save', exact: true }).click()
   }

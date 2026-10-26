@@ -2,9 +2,8 @@ import useClientProgress from './useClientProgress.js'
 import useClientNotes from './useClientNotes.js'
 import usePortalData from '../../hooks/usePortalData.js'
 import usePortalActions from '../../hooks/usePortalActions.js'
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
-import ClientNoteRecovery from './ClientNoteRecovery.jsx'
 import ClientProfilePage from './ClientProfilePage.jsx'
 import { activePackages } from '../../app/packages.js'
 import { visibleSessionsForUser } from '../../app/sessionRules.js'
@@ -19,8 +18,6 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
   const { clientService } = services
   const { activeEdit } = useEditGuard()
-  const [noteAttempt, setNoteAttempt] = useState(0)
-  const notesRecovered = useCallback(() => runAction(reload, { message: 'Previous notes save confirmed.' }), [runAction, reload])
   const notes = useClientNotes(selectedClient, Boolean(snapshot.capabilities?.clientNoteWrites), clientService, snapshot.sessionGeneration, services.readClientNotes, Boolean(activeEdit))
   const progress = useClientProgress(selectedClient.id, Boolean(directoryOnly && snapshot.capabilities?.sessionOutcomeWrites), services, snapshot.sessionGeneration, snapshot.serverAt)
   const progressClientId = selectedClient.id
@@ -32,7 +29,6 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   if (!notes.client) return <div role="status">Loading client notes…</div>
   return (<>
     {notes.error && <section role="alert"><p>{notes.error.message}</p><button type="button" onClick={async () => { await reload(); notes.retry() }}>Retry client notes</button></section>}
-    <ClientNoteRecovery services={services} generation={snapshot.sessionGeneration} serverAt={snapshot.serverAt} attempt={noteAttempt} onRecovered={notesRecovered} />
     <ClientProfilePage
       key={selectedClient.id}
       readOnly={directoryOnly}
@@ -129,8 +125,7 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
       today={today}
       onOpenSession={openSession}
       onUpdate={async (patch, reviewed) => {
-        try { await runAction(() => clientService.update({ id: selectedClient.id, patch, ...(directoryOnly ? { reviewed } : {}) }), { message: 'Client details saved.' }) }
-        catch (error) { setNoteAttempt(value => value + 1); throw error }
+        await runAction(() => clientService.update({ id: selectedClient.id, patch, ...(directoryOnly ? { reviewed } : {}) }), { message: 'Client details saved.' })
       }}
       onSaveAssessment={async options => {
         const saved = await runAction(() => clientService.saveAssessment({ id: selectedClient.id, assessment: options }), { message: 'Assessment saved.' })

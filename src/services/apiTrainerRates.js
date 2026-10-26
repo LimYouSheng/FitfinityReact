@@ -20,9 +20,11 @@ export function trainerRateCommands(http, actionSession) {
       return value
     },
   })
-  return ({ id, patch, expectedVersion }, generation) => {
+  const command = ({ id, patch, expectedVersion }, generation) => {
     if (!patch || Object.keys(patch).length !== 1 || !Object.hasOwn(patch, 'rates')) throw new ApiError('OPERATION_UNAVAILABLE', 'Use the dedicated workflow for these trainer fields.')
     if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1 || !patch.rates || Object.keys(patch.rates).length !== 2 || !['peak', 'offPeak'].every(key => Object.hasOwn(patch.rates, key))) throw new ApiError('INVALID_REQUEST', 'Review both rates and reload the trainer before saving.')
     return save({ id, expectedVersion, rates: { peak: cents(patch.rates.peak), offPeak: cents(patch.rates.offPeak) } }, generation)
   }
+  command.recovery = save
+  return command
 }

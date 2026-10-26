@@ -1,3 +1,4 @@
+import { profileRecoveryCommands } from './apiProfileRecovery.js'
 import { sessionMediaCommands } from './apiSessionMedia.js'
 import { packageActionCommands } from './apiPackageActions.js'
 import { messageUndoCommands } from './apiMessageUndo.js'
@@ -105,6 +106,14 @@ export function createApiPortalAdapter(options = {}) {
   const messageUndo = messageUndoCommands(http, actionSession)
   const packageActions = packageActionCommands(http, actionSession)
   const packageReactivation = packageReactivationCommands(http, actionSession)
+  const profileRecovery = profileRecoveryCommands({
+    notes: { label: 'Notes', command: saveClientNotes.recovery },
+    clientDetails: { label: 'Client Information', command: saveClientDetails.recovery },
+    trainerDetails: { label: 'Trainer Information', command: saveTrainerDetails.recovery },
+    trainerRates: { label: 'Trainer Rates', command: saveTrainerRates.recovery },
+    trainerApprovals: { label: 'Approval Settings', command: saveTrainerApprovals.recovery },
+    packages: { label: 'Package Setup', command: savePackage },
+  })
   const clearSession = result => { http.clear(); return result }
   const methods = {
     ...emailMethods,
@@ -138,8 +147,8 @@ export function createApiPortalAdapter(options = {}) {
     },
   }
   return {
-    async recoverClientNotes(_input, { expectedGeneration = http.generation() } = {}) { return saveClientNotes.recover(expectedGeneration) },
-    async resumeClientNotes(_input, { expectedGeneration = http.generation() } = {}) { return saveClientNotes.resume(expectedGeneration) },
+    async recoverProfileSaves({ kind } = {}, { expectedGeneration = http.generation() } = {}) { return profileRecovery.read(expectedGeneration, kind) },
+    async resumeProfileSave({ kind }, { expectedGeneration = http.generation() } = {}) { return profileRecovery.resume(kind, expectedGeneration) },
     async readContent(_input, { expectedGeneration = http.generation() } = {}) { return content.read(expectedGeneration) },
     async readClientNotes(client, { expectedGeneration = http.generation() } = {}) {
       if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(client?.id) || !Number.isSafeInteger(client.version) || client.version < 1 || !Array.isArray(client.people)) throw new ApiError('INVALID_REQUEST', 'Reload the client before reading notes.')

@@ -12,7 +12,7 @@ export function clientDetailCommands(http, actionSession) {
       return value
     },
   })
-  return (input, generation) => {
+  const command = (input, generation) => {
     const { id, patch, reviewed } = input
     if (!patch || Object.keys(patch).some(key => !['people', 'remarks', 'genderPreference'].includes(key))) throw new ApiError('OPERATION_UNAVAILABLE', 'Use the dedicated workflow for these client fields.')
     if (!identity(id) || !version(reviewed?.expectedVersion) || !Array.isArray(patch.people) || !Array.isArray(reviewed.people) || patch.people.length !== reviewed.people.length || ![1, 2].includes(patch.people.length) || reviewed.people.some(p => !identity(p.id) || !version(p.expectedVersion))) throw new ApiError('INVALID_REQUEST', 'Reload and review each client’s details before saving.')
@@ -24,4 +24,6 @@ export function clientDetailCommands(http, actionSession) {
     }))
     return save({ id, expectedVersion: reviewed.expectedVersion, people, remarks: patch.remarks, genderPreference: patch.genderPreference }, generation)
   }
+  command.recovery = save
+  return command
 }

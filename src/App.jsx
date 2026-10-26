@@ -1,3 +1,4 @@
+import ProfileSaveRecovery from './components/ProfileSaveRecovery.jsx'
 import ExerciseLibraryRecovery from './features/exercises/ExerciseLibraryRecovery.jsx'
 import ApiRemunerationRoute from './features/remuneration/ApiRemunerationRoute.jsx'
 import RemunerationRecovery from './features/remuneration/RemunerationRecovery.jsx'
@@ -466,6 +467,7 @@ function StaffPortal({ navigation }) {
       onUserChange={switchUser}
       onReset={reset}
     >
+      <ProfileSaveRecovery />
       {page}
       {creatingAdmin && adminCreation && <CreateAdminDialog today={today} creation={adminCreation} realAuthentication={snapshot.capabilities?.realAuthentication === true}
         onClose={() => goBack('owner-profile')} onCreate={async (body, key) => {

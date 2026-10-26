@@ -26,16 +26,6 @@ export function clientNoteCommands(http, actionSession) {
     if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || !Number.isSafeInteger(reviewed?.expectedVersion) || reviewed.expectedVersion < 1 || !patch || !Object.keys(patch).length || Object.entries(patch).some(([key, value]) => !['remarks', 'healthNotes'].includes(key) || typeof value !== 'string' || value.length > 10000)) throw new ApiError('INVALID_REQUEST', 'Reload and review the client notes before saving.')
     return save({ id, expectedVersion: reviewed.expectedVersion, patch }, generation)
   }
-  // Recovery owns the immutable intent even after an editor is cancelled or unmounted.
-  command.recover = async generation => {
-    if (!save.pendingInput(generation)) return { pending: false, recovered: false }
-    const recovered = await save.reconcile(generation)
-    return { pending: Boolean(save.pendingInput(generation)), recovered: Boolean(recovered) }
-  }
-  command.resume = async generation => {
-    const original = save.pendingInput(generation)
-    if (!original) return null
-    return save(original, generation)
-  }
+  command.recovery = save
   return command
 }
