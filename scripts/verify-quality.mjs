@@ -41,6 +41,8 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   const shard = verify.jobs?.['api-browser-shard'], aggregate = verify.jobs?.['api-browser']
   if (!equal(shard?.strategy, { 'fail-fast': false, matrix: { shard: [1, 2] } }) || shard['runs-on'] !== 'ubuntu-latest' || shard['timeout-minutes'] !== 20) fail('both isolated shards must retain the reviewed runner and budget')
   if (aggregate?.needs !== 'api-browser-shard' || aggregate.if !== 'always()') fail('aggregate must run after both shards, including failures')
+  requireGate(shard, 'sudo python3 scripts/prepare-browser-apt.py /etc/apt/sources.list.d/ubuntu.sources')
+  requireGate(shard, 'npx playwright install --with-deps chromium webkit')
   requireGate(shard, 'npm run test:api-browser -- --shard=${{ matrix.shard }}/2 --reporter=list,json')
   requireGate(aggregate, 'npx playwright test --config=playwright.api.config.js --list --reporter=json')
   requireGate(aggregate, 'node scripts/verify-api-shards.mjs')

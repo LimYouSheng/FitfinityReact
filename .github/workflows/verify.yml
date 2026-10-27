@@ -129,6 +129,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Use Ubuntu archive for browser system packages
+        run: sudo python3 scripts/prepare-browser-apt.py /etc/apt/sources.list.d/ubuntu.sources
       - run: npx playwright install --with-deps chromium webkit
       - name: Real API browser persistence and authority
         env:
