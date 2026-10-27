@@ -59,6 +59,8 @@ Branch `chore/security-update-policy` prepares the grouped one-per-ecosystem ver
 
 GitHub's observed banner reports 19 alerts (5high,10moderate,4low). The main-lock npm audit instead reports 6 affected package entries (4high,2moderate), with 0 production npm entries. These are different inventories. The GitHub alerts endpoint still returns 403; full alert-by-alert reconciliation awaits read access or the user's exported list. Do not claim all 19 resolved from npm output. Python, container and deployed acceptance remain distinct. README owns the three-layer operating policy; H4 retains remaining ecosystem coverage.
 
+The initial PR103 real-API CI run passed368/369 cases; a loading-layout fixture race is repaired with33/33 local recovery cases passing. All final-head gates must rerun. A broader query of42 pinned Python distributions found PyJWT/urllib3 advisories; prepare their hashed-lock fixes separately. Record the email-status layout shift as a UI hardening follow-up.
+
 Next maintenance slices: complete security reconciliation and full CI, then separately review optional npm/Actions upgrades and Python/Compose update coverage. The previous combined routine-upgrade trial failed one of1,472 units; retained evidence must be diagnosed before those optional updates are revived. Backend routers and further feature extraction remain separate tasks.
 
 ### M6 exit evidence — source accepted, external acceptance open

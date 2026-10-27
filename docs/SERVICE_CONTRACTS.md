@@ -228,6 +228,12 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 27 October 2026 — PR103 real-API fixture diagnosis and broader dependency inventory
+
+Initial head `529a2ca68bc0b4d822f82f52a6c7d25b52fdc822` in run40475524665 passed368/369 real-API cases. The tablet rates-recovery case clicked while the preceding email-status section replaced its loading paragraph with a button. Trace timestamps show the response completing between actionability/coordinate selection and click completion; no editor opened and no mutation was sent. The fixture now waits for the expected ready email control before clicking Edit. All33 profile-recovery cases pass locally against isolated Docker PostgreSQL, retaining private receipts, exact write counts, fresh-login persistence and foreign-record assertions. No timeout, retry or assertion was relaxed. Original trace artifact12720639154 and local `/workspace/work/pr103-failure/` retain evidence. The loading-state layout shift remains a UX hardening observation, not a demonstrated save/persistence defect.
+
+A read-only PyPI advisory query checked all42 unique distributions in both Python locks. PyJWT2.14.0 and urllib3 2.7.0 have published advisories with fixed versions2.15.0 and2.8.0; aliases are not independent findings. Separate hashed-lock preparation is underway; no backend fix or deployed acceptance is claimed. GitHub confirms `allow_auto_merge=false`; alert and automated-security-update settings reads return403 even after reconnecting the confirmed LimYouSheng identity. SoccerBot's current Progress likewise records owner-confirmed settings and npm audit remediation rather than API verification. Sensitive tooling is excluded from both version and security groups without ignoring its individual updates.
+
 ### 27 October 2026 — dependency cleanup and security-policy preparation
 
 PR91 merged as `bcf2164daaf6214d4436a6052ad6c9f5e3b522f8` after exact-head run40459653015; PR92 merged as `92a28daa598560abc58f6cda147e78550af3352e` after run40459955156. All three required gates passed. The user subsequently cancelled PR93 and dependency/grouping PRs94–102; no dependency fixes or stricter grouping reached main through those closed PRs. Original branches, logs and traces remain preserved. The combined optional npm trial passed1,471/1,472 units and failed the account-navigation outage-draft test; it was archived and reverted, not accepted.

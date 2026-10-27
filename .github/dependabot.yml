@@ -12,6 +12,7 @@ updates:
       npm-security:
         applies-to: security-updates
         patterns: ['*']
+        exclude-patterns: ['typescript', 'eslint*', '@eslint/*', '@typescript-eslint/*', '@playwright/*', 'playwright*', 'wrangler', 'miniflare']
         update-types: [minor, patch]
       npm-minor-patch:
         applies-to: version-updates
