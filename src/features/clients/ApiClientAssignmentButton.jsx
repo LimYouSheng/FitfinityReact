@@ -9,6 +9,12 @@ export default function ApiClientAssignmentButton({ client, workflow, timeZone, 
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const locked = useRef(false), finishing = useRef(false)
+  const reviewScope = useRef(null)
+  // A delayed review cannot take over another edit or reactivate a retired control.
+  useEffect(() => {
+    reviewScope.current = {}
+    return () => { reviewScope.current = null }
+  }, [disabled, client.id, client.status])
   useEffect(() => {
     if (saved && !activeEdit && !finishing.current) {
       finishing.current = true
@@ -23,10 +29,14 @@ export default function ApiClientAssignmentButton({ client, workflow, timeZone, 
   return <>
     <button type="button" className="text-action" disabled={disabled || busy} onClick={async () => {
       if (locked.current) return
+      const scope = reviewScope.current
       locked.current = true; setBusy(true); setError('')
-      try { setDraft(await workflow.review()); onEditing(true) }
-      catch (failure) { setError(failure.message) }
-      finally { locked.current = false; setBusy(false) }
+      try {
+        const reviewed = await workflow.review()
+        if (reviewScope.current !== scope) return
+        setDraft(reviewed); onEditing(true)
+      } catch (failure) { if (reviewScope.current === scope) setError(failure.message) }
+      finally { locked.current = false; if (reviewScope.current) setBusy(false) }
     }}>{busy ? 'Checking Trainers…' : 'Reassign Trainer'}</button>
     {draft && <ReassignTrainerDialog client={client} trainers={[]} sessions={[]} timeZone={timeZone}
       reviewed={draft.reviewed} initialTrainerId={draft.trainerId} uncertain={draft.uncertain}

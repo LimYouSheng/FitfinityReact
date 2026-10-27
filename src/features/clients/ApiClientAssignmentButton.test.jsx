@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
 import { EditGuardProvider, useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { assignmentReview } from '../../test/clientAssignment.js'
@@ -63,4 +63,19 @@ it('offers a fresh assignment review after successful refresh without repeating 
   expect(screen.getByRole('option', { name: 'Current Trainer', exact: true })).toBeEnabled()
   expect(workflow.review).toHaveBeenCalledTimes(2)
   expect(workflow.save).toHaveBeenCalledTimes(1)
+})
+
+it.each(['unmounted', 'another edit', 'edit ended'])('ignores a delayed review after the button is %s', async change => {
+  let resolve
+  const workflow = workflowFor({ review: vi.fn(() => new Promise(done => { resolve = done })) })
+  const onEditing = vi.fn()
+  const app = (visible, disabled = false) => <ActionConfirmationProvider><EditGuardProvider>{visible && <ApiClientAssignmentButton client={reviewed} workflow={workflow} disabled={disabled} onEditing={onEditing} />}</EditGuardProvider></ActionConfirmationProvider>
+  const view = render(app(true))
+  fireEvent.click(screen.getByRole('button', { name: 'Reassign Trainer', exact: true }))
+  view.rerender(app(change !== 'unmounted', true))
+  if (change === 'edit ended') view.rerender(app(true))
+  await act(async () => resolve({ reviewed, trainerId: '', uncertain: false }))
+  expect(onEditing).not.toHaveBeenCalled()
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(workflow.save).not.toHaveBeenCalled()
 })

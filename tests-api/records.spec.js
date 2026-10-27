@@ -158,9 +158,35 @@ test('personal read/unread and renewal removal persist without changing client c
   expect((await read(page, '/api/directory')).clients.find(row => row.id === client.id).purchases).toEqual(client.purchases)
 })
 
+/** Hold one real review response while the user starts a different edit. */
+async function holdReview(page, path) {
+  let release, arrived
+  const ready = new Promise(resolve => { arrived = resolve })
+  const gate = new Promise(resolve => { release = resolve })
+  await page.route(`**${path}`, async route => {
+    const response = await route.fetch()
+    expect(response.status()).toBe(200)
+    arrived()
+    await gate
+    await route.fulfill({ response })
+  }, { times: 1 })
+  return { ready, release }
+}
+
 test('permanent reassignment UI persists assignment and preserves original purchased trainer', async ({ page }, info) => {
   const client = await clientPage(page, info, 'assignment')
   const replacement = (await read(page, '/api/directory')).trainers.find(row => row.name === `${info.project.name} assignmentcover Trainer`)
+  const held = await holdReview(page, `/api/clients/${client.id}/trainer-assignment-review`)
+  await page.getByRole('button', { name: 'Reassign Trainer', exact: true }).click()
+  await held.ready
+  const general = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'General Information', exact: true }) })
+  await general.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Client email', { exact: true }).fill('retained-draft@example.test')
+  held.release()
+  await expect(page.getByRole('button', { name: 'Checking Trainers…', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Permanently Reassign Trainer', exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Client email', { exact: true })).toHaveValue('retained-draft@example.test')
+  await general.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.getByRole('button', { name: 'Reassign Trainer', exact: true }).click()
   await page.getByLabel('New trainer', { exact: true }).selectOption(replacement.id)
   await page.getByRole('dialog', { name: 'Permanently Reassign Trainer', exact: true }).getByRole('button', { name: 'Review Reassignment', exact: true }).click()
@@ -180,6 +206,20 @@ test('Trainer approval controls and deactivate/reactivate UI retain durable sess
   const trainer = directory.trainers.find(row => row.id === client.trainer_id)
   const replacement = directory.trainers.find(row => row.name === `${info.project.name} staffcover Trainer`)
   await page.goto(`/#/trainers/${trainer.id}`)
+  await expect(page.getByRole('heading', { name: trainer.name, exact: true })).toBeVisible()
+  const held = await holdReview(page, `/api/trainers/${trainer.id}/deactivation-review`)
+  await profileAction(page, 'Deactivate Trainer')
+  await held.ready
+  const menu = page.locator('details.profile-menu')
+  if (await menu.locator('summary').isVisible() && await menu.getAttribute('open') !== null) await menu.locator('summary').click()
+  const general = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'General Information', exact: true }) })
+  await general.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Trainer qualifications', { exact: true }).fill('Retained qualification draft')
+  held.release()
+  await expect(page.getByRole('button', { name: 'Checking Trainer…', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: `Deactivate ${trainer.name}?`, exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Trainer qualifications', { exact: true })).toHaveValue('Retained qualification draft')
+  await general.getByRole('button', { name: 'Cancel', exact: true }).click()
   const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Owner Approval Needed', exact: true }) })
   await panel.getByRole('button', { name: 'Edit', exact: true }).click()
   await panel.getByRole('checkbox', { name: 'Availability changes' }).uncheck()

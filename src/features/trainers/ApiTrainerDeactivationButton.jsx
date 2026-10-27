@@ -9,6 +9,12 @@ export default function ApiTrainerDeactivationButton({ trainer, workflow, disabl
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const locked = useRef(false), finishing = useRef(false)
+  const reviewScope = useRef(null)
+  // A delayed review cannot take over another edit or reactivate a retired control.
+  useEffect(() => {
+    reviewScope.current = {}
+    return () => { reviewScope.current = null }
+  }, [disabled, trainer.id, trainer.status])
   useEffect(() => {
     if (saved && !activeEdit && !finishing.current) {
       finishing.current = true
@@ -19,10 +25,14 @@ export default function ApiTrainerDeactivationButton({ trainer, workflow, disabl
   return <>
     <button type="button" className="profile-menu-danger" disabled={disabled || busy} onClick={async () => {
       if (locked.current) return
+      const scope = reviewScope.current
       locked.current = true; setBusy(true); setError('')
-      try { setDraft(await workflow.review()); onEditing(true) }
-      catch (failure) { setError(failure.message) }
-      finally { locked.current = false; setBusy(false) }
+      try {
+        const reviewed = await workflow.review()
+        if (reviewScope.current !== scope) return
+        setDraft(reviewed); onEditing(true)
+      } catch (failure) { if (reviewScope.current === scope) setError(failure.message) }
+      finally { locked.current = false; if (reviewScope.current) setBusy(false) }
     }}>{busy ? 'Checking Trainer…' : 'Deactivate Trainer'}</button>
     {draft && <TrainerDeactivationDialog trainer={trainer} trainers={[]} clients={[]} sessions={[]}
       deactivateOpen reviewed={draft.reviewed} initialReplacements={draft.replacements} uncertain={draft.uncertain}
