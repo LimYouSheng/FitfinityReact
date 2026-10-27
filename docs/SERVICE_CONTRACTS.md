@@ -228,6 +228,12 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 27 October 2026 — complete offline-editor readiness and download blockage
+
+The first PR104 fixture adjustment covered only the initial client. A local run passed23/24 and exposed the same assessment-card layout shift when opening a second client after receipt recovery; the original trace is retained under `/workspace/work/pr104-failure/local-first/`. All notes-editor openings now share an assessment-readiness prerequisite, including alternate browser pages. The broader local suite passed24/24 in2.2m; review then corrected two prerequisite calls to target their actual alternate page, and all9 affected real-API cases passed on desktop/phone/tablet in the focused final check. Lint passes531 files. Existing lost-response, exact-write-count, conflict, identity and persistence assertions are unchanged.
+
+Run40499150071 on head `23ce6dff024b191e61deef0cee198aa7bf95b1f8` passed backend and API shard2. Shard1 exhausted its existing20-minute budget fetching Ubuntu browser dependencies; no API tests started in that shard. No timeout or runner setting was changed. New final-head CI is required. GitHub's post-PR103 push banner reports2 moderate alerts instead of19; detailed alert reads still return403, so no individual-alert closure or deployed patch is inferred. Main application run40498328753 must be checked independently of successful Dependabot update jobs.
+
 ### 27 October 2026 — PR103 source acceptance and PR104 remaining browser failure
 
 PR103 head `6304c855816d9c3e9a0ad6cc54f14a47db75274a` passed complete frontend/backend/API-browser CI in run40478715048 and merged as `bc674ad4ecd5c7c65e9326d792cd0555373b072a`. The audit and grouped update policy are now source-accepted. Main verification and deployment remain separate. Dependabot then opened grouped Docker patch PR105, Actions PR107 and npm PR108, plus independent PyJWT security PR106. PR106 changed only the manifest, omitting the hashed locks; it was closed as covered by PR104 and its redundant run40498474632 was cancelled. Bot activity confirms operational proposals, not complete settings API access or vulnerability remediation.

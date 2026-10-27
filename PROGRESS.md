@@ -67,6 +67,8 @@ Next maintenance slices: complete security reconciliation and full CI, then sepa
 
 Branch `chore/python-security-updates` builds on PR103 head `6304c855816d9c3e9a0ad6cc54f14a47db75274a`; PR103 is now merged. PyJWT2.14.0 →2.15.0 and urllib3 2.7.0 →2.8.0 address five distinct GHSA advisories (duplicate PYSEC aliases are not extra findings). Both uv-resolved hashed locks retain every other version. Hash-checked installation and `pip check` pass in a local test image; both replacement versions have no current PyPI-listed advisories. Complete local backend/PostgreSQL verification passed1,353/1,353 cases in1,087.09s; full final-head CI and merged-source acceptance remain required. This does not replace the pending19-alert GitHub reconciliation or container/deployment acceptance. No historical AWS artifact contract is rewritten.
 
+PR104 remains blocked on final-head CI: the latest API shard1 timed out during Ubuntu dependency downloads before tests; shard2 and backend passed. Local offline readiness now covers all editor openings, with24/24 passing and all9 affected cases passing after the alternate-page corrections. GitHub now reports2 moderate alerts on main; detailed reconciliation and deployment acceptance remain open.
+
 ### M6 exit evidence — source accepted, external acceptance open
 
 PR82 closes the authorized M6 source-exit work after complete final-head CI and normal merge. Full milestone/live acceptance remains distinct. Detailed first failures and the measured test-graph cleanup repair are retained once in Contracts history.

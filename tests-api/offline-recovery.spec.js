@@ -1,14 +1,18 @@
 import { test, expect, signIn, read, account, freshContext } from './fixtures.js'
 
+/** Wait for assessment cards above Remarks before choosing click coordinates. */
+async function openNotesEditor(page, panel) {
+  await expect(page.getByRole('button', { name: /Lifestyle & Health History/ })).toBeVisible()
+  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+}
+
 /** Real notes workflow, with connectivity loss rather than substituted API responses. */
 async function notesPage(page, info, purpose = 'contacts') {
   await signIn(page, 'owner', account(purpose))
   const client = (await read(page, '/api/directory')).clients.find(row => row.name === `${info.project.name} ${purpose}`)
   await page.goto(`/#/clients/${client.id}`)
-  // Assessment cards above Remarks change its position when their read completes.
-  await expect(page.getByRole('button', { name: /Lifestyle & Health History/ })).toBeVisible()
   const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Remarks', exact: true }) })
-  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await openNotesEditor(page, panel)
   return { client, panel }
 }
 
@@ -27,7 +31,7 @@ test('offline notes retain the original draft through Retry, persist once and cl
   await page.getByRole('button', { name: 'Retry', exact: true }).click()
   await expect(panel).toContainText('Your unsaved draft is available')
   await expect(page.getByText('Unable to reach the staff service. Check your connection and retry.', { exact: true })).toHaveCount(0)
-  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await openNotesEditor(page, panel)
   await expect(page.getByRole('textbox', { name: 'Remarks', exact: true })).toHaveValue(value)
   await panel.getByRole('button', { name: 'Save', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
@@ -60,7 +64,7 @@ test('an outage draft cannot cross a verified account change', async ({ page, co
   await page.getByRole('button', { name: 'Retry', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Admin Dashboard', exact: true })).toBeVisible()
   await page.goto(`/#/clients/${client.id}`)
-  await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+  await openNotesEditor(page, panel)
   await expect(page.getByRole('textbox', { name: 'Remarks', exact: true })).not.toHaveValue('Must not appear for Admin')
   await expect(page.getByText('Your unsaved draft is available. Choose Edit to resume it.', { exact: true })).toHaveCount(0)
 })
@@ -73,7 +77,7 @@ test('notes Retry refreshes stale directory authority after another device saves
   try {
     await another.goto(`/#/clients/${client.id}`)
     const notes = another.locator('.panel').filter({ has: another.getByRole('heading', { name: 'Remarks', exact: true }) })
-    await notes.getByRole('button', { name: 'Edit', exact: true }).click()
+    await openNotesEditor(another, notes)
     const value = `Other device revision ${info.project.name}`
     await another.getByRole('textbox', { name: 'Remarks', exact: true }).fill(value)
     await notes.getByRole('button', { name: 'Save', exact: true }).click()
@@ -83,7 +87,7 @@ test('notes Retry refreshes stale directory authority after another device saves
     await page.getByRole('button', { name: 'Retry client notes', exact: true }).click()
     await expect(panel.getByText(value, { exact: true })).toBeVisible()
     expect((await read(page, `/api/clients/${client.id}/notes`)).version).toBe(client.version + 1)
-    await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+    await openNotesEditor(page, panel)
     await page.getByRole('textbox', { name: 'Remarks', exact: true }).fill('Unsaved after refreshed review')
     const refreshed = page.waitForResponse(response => response.url().endsWith('/api/session-calendar'))
     await page.evaluate(() => window.dispatchEvent(new Event('focus')))
@@ -100,7 +104,7 @@ test('an active notes draft survives a concurrent directory version and still re
   try {
     await another.goto(`/#/clients/${client.id}`)
     const otherPanel = another.locator('.panel').filter({ has: another.getByRole('heading', { name: 'Remarks', exact: true }) })
-    await otherPanel.getByRole('button', { name: 'Edit', exact: true }).click()
+    await openNotesEditor(another, otherPanel)
     await another.getByRole('textbox', { name: 'Remarks', exact: true }).fill('Concurrent committed value')
     await otherPanel.getByRole('button', { name: 'Save', exact: true }).click()
     await another.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
@@ -158,7 +162,7 @@ for (const committed of [true, false]) test(`cancelled notes recover their origi
     await page.goto(`/#/clients/${other.id}`)
     await expect(page.getByRole('heading', { name: other.name, exact: true })).toBeVisible()
     const otherPanel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Remarks', exact: true }) })
-    await otherPanel.getByRole('button', { name: 'Edit', exact: true }).click()
+    await openNotesEditor(page, otherPanel)
     await page.getByRole('textbox', { name: 'Remarks', exact: true }).fill(`Fresh intent after ${committed}`)
     await otherPanel.getByRole('button', { name: 'Save', exact: true }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
@@ -185,7 +189,7 @@ for (const editor of ['general information', 'assessment']) test(`${editor} draf
   try {
     await another.goto(`/#/clients/${client.id}`)
     const otherPanel = another.locator('.panel').filter({ has: another.getByRole('heading', { name: 'Remarks', exact: true }) })
-    await otherPanel.getByRole('button', { name: 'Edit', exact: true }).click()
+    await openNotesEditor(another, otherPanel)
     await another.getByRole('textbox', { name: 'Remarks', exact: true }).fill(`Concurrent notes while editing ${editor}`)
     await otherPanel.getByRole('button', { name: 'Save', exact: true }).click()
     await another.getByRole('dialog').getByRole('button', { name: 'Save Changes', exact: true }).click()
