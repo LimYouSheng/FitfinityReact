@@ -116,6 +116,8 @@ test('assignment change retires a Trainer plan draft while retaining only histor
     await expect(page.getByRole('heading', { name: 'Session Overview', exact: true })).toBeVisible()
     await expect(page.getByRole('dialog', { name: 'Save exercise plan?', exact: true })).toHaveCount(0)
     expect(writes).toEqual([])
+    await expect(page.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
+    expect((await page.request.get(`/api/sessions/${id}/postponement-review`)).status()).toBe(404)
     expect((await page.request.get(`/api/sessions/${id}/plan-review`)).status()).toBe(404)
     expect((await read(owner, `/api/sessions/${id}/details`)).exercisePlan).toEqual([])
   } finally { await context.close() }

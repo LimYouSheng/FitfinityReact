@@ -226,6 +226,12 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 27 October 2026 Singapore — Historical-read Postpone control follow-up
+
+Screenshot inspection of the confirmation recheck exposed an enabled Postpone button after Trainer reassignment. Independent worker253 actions confirmed it requested a review that correctly returned404; the booking remained with the replacement at16:00–17:00. The first manual attempt timed out while creating the fresh worker; explicitly completing the normal isolated `/auth/policy` setup before browser navigation allowed the unchanged probe to run, without increasing a deadline. The corresponding unit probe failed1/23 because the historical Trainer's button was enabled. Postpone now additionally requires operations authority or current session assignment; all34 affected unit cases pass, including Owner/Admin/current-Trainer positive controls. The reassignment real-API case additionally requires the button disabled and direct review404. This is a UI authority repair, not a server bypass.
+
+The in-progress369-case local run and CI40435788177 were superseded for this additional fix and are not full passes; original output is retained. The final unit inventory becomes1,449/149 files, API inventory remains369/24. Updated complete verification remains pending. No server rule, timeout, retry or assertion was weakened.
+
 ### 27 October 2026 Singapore — Confirmation lifetime audit
 
 Candidate `fix/confirmation-lifetime` starts from PR86 merge `379bd1e2ab58eceb86bcc519fc7fffcfa830ba0f`. Initial focused probes reproduced four failures: caller teardown, late callbacks, session termination and provider teardown did not retire/resolve pending confirmations. Independent Chromium actions against synthetic Docker PostgreSQL worker249 showed an old Trainer plan confirmation surviving Owner UI reassignment (the attempted stale write correctly returned404) and a signature preview surviving another-tab logout while protected reads returned401. This demonstrates stale/private UI, not a server permission bypass.

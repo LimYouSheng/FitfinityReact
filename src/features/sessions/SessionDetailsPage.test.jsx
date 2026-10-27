@@ -431,3 +431,20 @@ it('postponement is disabled for sessions outside the current package', () => {
   renderDetails({ session: { ...session, packageId: 'additional' }, client: { ...client, additionalPackages: [{ ...client.package, id: 'additional' }] } })
   expect(screen.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
 })
+
+it.each([
+  ['owner', undefined, true], ['admin', undefined, true],
+  ['trainer', 't1', true], ['trainer', 'former-trainer', false],
+])('Postpone requires current assignment or operations authority (%s/%s)', (role, trainerId, allowed) => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-09-02T04:00:00Z'))
+  const props = renderDetails({ user: { id: 'viewer', role, trainerId }, readOnly: true, postponementEditable: true,
+    onPreviewPostponement: vi.fn(), onPostpone: vi.fn() })
+  const button = screen.getByRole('button', { name: 'Postpone', exact: true })
+  if (allowed) expect(button).toBeEnabled()
+  else {
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(props.onPreviewPostponement).not.toHaveBeenCalled()
+    expect(props.onPostpone).not.toHaveBeenCalled()
+  }
+})
