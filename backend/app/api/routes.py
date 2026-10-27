@@ -5,7 +5,7 @@ from typing import Annotated
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Header, Query, Request
+from fastapi import APIRouter, Query, Request
 from sqlalchemy import select
 
 from app.api import (
@@ -23,13 +23,10 @@ from app.api import (
     client_renewal_save,
     client_weekly_schedule,
     client_weekly_schedule_save,
-    content,
     directory,
     messages,
     package_reactivation_save,
     packages,
-    remuneration,
-    remuneration_schemas,
     renewal_dismissal,
     request_cancellation,
     request_resolution,
@@ -55,6 +52,7 @@ from app.api import (
     trainer_rates,
     trainer_reactivation,
 )
+from app.api.content_routes import router as content_router
 from app.api.dependencies import authorized_transaction
 from app.api.message_schemas import (
     DismissRenewal,
@@ -63,6 +61,8 @@ from app.api.message_schemas import (
     RenewalState,
     SaveMessageRead,
 )
+from app.api.remuneration_routes import router as remuneration_router
+from app.api.request_types import RequestKey
 from app.api.schemas import (
     ERROR_RESPONSES,
     AssessmentRevision,
@@ -96,13 +96,6 @@ from app.models.training import PackagePurchase, TrainingSession
 router = APIRouter(prefix="/api", tags=["staff records"], responses=ERROR_RESPONSES)
 Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0, le=10000)]
-RequestKey = Annotated[
-    UUID,
-    Header(
-        alias="Idempotency-Key",
-        description="New UUID per save; retain the key and identical body for retries.",
-    ),
-]
 
 
 @router.post(
@@ -612,29 +605,7 @@ def reconcile_assessment_save(request_key: UUID, request: Request):
         return assessments.reconcile(session, principal, request_key)
 
 
-@router.get("/content", response_model=list[content.ContentState], operation_id="staffContent")
-def staff_content(request: Request):
-    """Read the complete bounded staff content catalogue; never public website content."""
-    with authorized_transaction(request) as (session, principal):
-        return content.records(session, principal)
-
-
-@router.post("/content", response_model=content.ContentState, operation_id="saveContent")
-def save_content(body: content.SaveContent, request: Request, key: RequestKey):
-    """Save reviewed staff content and its immutable receipt/Owner notice atomically."""
-    with authorized_transaction(request) as (session, principal):
-        return content.save(session, principal, key, body)
-
-
-@router.get(
-    "/content-saves/{request_key}",
-    response_model=content.ContentState,
-    operation_id="reconcileContent",
-)
-def reconcile_content(request_key: UUID, request: Request):
-    """Read only this actor's original saved content after an interrupted response."""
-    with authorized_transaction(request) as (session, principal):
-        return content.reconcile(session, principal, request_key)
+router.include_router(content_router)
 
 
 @router.get("/messages", response_model=list[PersonalMessage], operation_id="personalMessages")
@@ -1490,52 +1461,7 @@ def read_progress_report_history(
         return session_reports.history(session, principal, client_id, purchase_id)
 
 
-@router.get("/remuneration", response_model=list[remuneration_schemas.PayView])
-def list_remuneration(request: Request):
-    """Owner all-trainer or Trainer self-only cycles; Admin financial access is forbidden."""
-    with authorized_transaction(request, advisory_lock=remuneration.DECISION_LOCK) as (
-        session,
-        principal,
-    ):
-        return remuneration.listing(session, principal)
-
-
-@router.get("/remuneration/{cycle_key}/{trainer_id}", response_model=remuneration_schemas.PayRecord)
-def remuneration_detail(cycle_key: str, trainer_id: UUID, request: Request):
-    """Current calculation alongside immutable approved amounts and later evidence differences."""
-    with authorized_transaction(request, advisory_lock=remuneration.DECISION_LOCK) as (
-        session,
-        principal,
-    ):
-        return remuneration.detail(session, principal, cycle_key, trainer_id)
-
-
-@router.post(
-    "/remuneration/{cycle_key}/{trainer_id}/approval", response_model=remuneration_schemas.PaySaved
-)
-def approve_remuneration(
-    cycle_key: str,
-    trainer_id: UUID,
-    body: remuneration_schemas.ApprovePay,
-    request: Request,
-    key: RequestKey,
-):
-    """Owner approval binds the reviewed source and atomically records immutable pay evidence."""
-    with authorized_transaction(request, advisory_lock=remuneration.DECISION_LOCK) as (
-        session,
-        principal,
-    ):
-        return remuneration.approve(session, principal, cycle_key, trainer_id, key, body)
-
-
-@router.get("/remuneration-approvals/{request_key}", response_model=remuneration_schemas.PaySaved)
-def remuneration_approval_receipt(request_key: UUID, request: Request):
-    """Original active Owner can recover an approval without repeating its financial effect."""
-    with authorized_transaction(request, advisory_lock=remuneration.DECISION_LOCK) as (
-        session,
-        principal,
-    ):
-        return remuneration.reconcile(session, principal, request_key)
+router.include_router(remuneration_router)
 
 
 @router.get("/sessions/{session_id}/handoff-review", response_model=session_handoffs.HandoffReview)

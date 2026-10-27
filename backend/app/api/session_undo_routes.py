@@ -11,7 +11,7 @@ from app.api import session_undo_review, session_undo_save
 from app.api.dependencies import authorized_transaction
 from app.api.library_routes import storage
 from app.api.request_cancellation import DECISION_LOCK
-from app.api.routes import RequestKey
+from app.api.request_types import RequestKey
 from app.api.schemas import ERROR_RESPONSES, Contract
 
 router = APIRouter(tags=["permitted session Undo"], responses=ERROR_RESPONSES)

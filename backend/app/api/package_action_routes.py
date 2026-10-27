@@ -19,7 +19,7 @@ from app.api.package_action_schemas import (
     UndoPackageDeletion,
 )
 from app.api.request_cancellation import DECISION_LOCK
-from app.api.routes import RequestKey
+from app.api.request_types import RequestKey
 from app.api.schemas import ERROR_RESPONSES
 from app.models.package_actions import PackageDeletionUndo
 

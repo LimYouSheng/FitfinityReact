@@ -228,6 +228,12 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 27 October 2026 Singapore — Backend domain-router preparation
+
+Dependent `refactor/backend-domain-routers` starts at unmerged PR92 head `3758e2cb8bf15bab10722cc3bf59f09258d2c5bf`. Content/remuneration routers are included at their original registration positions with parent API prefix/tags/error metadata retained. Shared `RequestKey` moves to `request_types.py`; existing standalone routers import it without depending on the central registry. The central file shrinks from1,570 to1,496 lines; this is the first incremental extraction, not a claim that all domains are split.
+
+All7 moved handlers/decorators and the request-key annotation have identical ASTs. The exact159-operation OpenAPI snapshot passes without edits. All62 content/remuneration/contract tests pass in34.68s against a unique disposable Docker PostgreSQL/media project with owned cleanup; Python lint/format passes320 files. All54 affected real-API browser cases pass in4.2m across desktop/phone/tablet with isolated PostgreSQL and owned cleanup. Final-head CI remains pending. Local evidence is retained in `/workspace/work/fitfinity-domain-routers-20261027/`; no production database or provider action is used.
+
 ### 27 October 2026 Singapore — Bounded dependency maintenance preparation
 
 Dependent branch `chore/bounded-dependency-updates` starts from unmerged PR91 head `b7beebd2b54404649cb2c736198113aa0883f8af`. Five frontend declarations move from `latest` to their existing locked versions: jest-dom7.0.1, React Testing Library16.3.3, user-event14.6.6, plugin-react6.1.1 and jsdom30.0.1. All non-root resolved lockfile records remain identical. `npm ci --dry-run --ignore-scripts --offline` passes;83 verifier checks cover exact tooling pins and bounded update configuration. PR91’s1,472-unit and81-case real-API receipts remain applicable to unchanged runtime/source/dependency bytes; this slice still requires its own full final-head CI.

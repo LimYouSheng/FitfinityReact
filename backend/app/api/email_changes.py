@@ -10,7 +10,7 @@ from pydantic import Field, SecretStr, StrictInt, StrictStr, field_validator
 from sqlalchemy import select, text
 
 from app.api.dependencies import authorized_transaction
-from app.api.routes import RequestKey
+from app.api.request_types import RequestKey
 from app.api.schemas import ERROR_RESPONSES, Contract
 from app.auth.errors import AuthError, busy
 from app.auth.routes import _handle

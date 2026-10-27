@@ -11,7 +11,7 @@ from app.api.dependencies import authorized_transaction
 from app.api.library_routes import storage
 from app.api.library_schemas import MediaReadCheck, OriginalLibraryAction, ReadLease, UploadLease
 from app.api.request_cancellation import DECISION_LOCK
-from app.api.routes import RequestKey
+from app.api.request_types import RequestKey
 from app.api.schemas import ERROR_RESPONSES
 from app.api.session_media_schemas import (
     RecordingIntent,

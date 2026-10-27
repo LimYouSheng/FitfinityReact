@@ -9,7 +9,7 @@ from sqlalchemy import func, select, text
 
 from app.api import trainer_creation
 from app.api.dependencies import authorized_transaction
-from app.api.routes import RequestKey
+from app.api.request_types import RequestKey
 from app.api.schemas import ERROR_RESPONSES
 from app.api.staff_provisioning import locked, provision
 from app.api.staff_schemas import AdminCreated, NewAdmin

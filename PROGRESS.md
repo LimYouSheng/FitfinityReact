@@ -61,6 +61,10 @@ Next maintenance slices: extract remaining feature routes only where ownership i
 
 Branch `chore/bounded-dependency-updates` builds on unmerged PR91 head `b7beebd2b54404649cb2c736198113aa0883f8af`. Pin the five `latest` declarations to their existing locked versions without changing any resolved package. Add bounded weekly npm/Actions/Dockerfile update configuration and maintenance instructions. Python custom hashed locks and Compose pins remain explicitly manual; this does not complete H4 or establish observed Dependabot/security-alert operation. Offline `npm ci --dry-run --ignore-scripts --offline` passes;83 verifier checks pass. Final-head CI remains required.
 
+### Active dependent follow-up — backend domain routers
+
+Branch `refactor/backend-domain-routers` builds on unmerged PR92 head `3758e2cb8bf15bab10722cc3bf59f09258d2c5bf`. The first extraction moves content/remuneration registration into domain routers and shared request annotations into an independent module. All7 moved handler/decorator ASTs and the idempotency header annotation match the original; the159-operation OpenAPI snapshot is unchanged. All62 affected backend/PostgreSQL/contract tests pass in34.68s, and Python lint/format checks pass320 files. All54 affected real-API browser cases pass in4.2m across desktop/phone/tablet with isolated PostgreSQL; final-head CI remains pending. Remaining domains stay for later incremental extraction; no schema/business-logic change is included.
+
 ### M6 exit evidence — source accepted, external acceptance open
 
 PR82 closes the authorized M6 source-exit work after complete final-head CI and normal merge. Full milestone/live acceptance remains distinct. Detailed first failures and the measured test-graph cleanup repair are retained once in Contracts history.
