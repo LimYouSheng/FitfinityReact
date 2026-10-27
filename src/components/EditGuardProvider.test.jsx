@@ -4,12 +4,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { ActionConfirmationProvider } from './ActionConfirmationProvider.jsx'
 import { EditGuardProvider, useEditGuard } from './EditGuardProvider.jsx'
 
-function NavigationHarness({ destinations }) {
+function NavigationHarness({ destinations, edit = 'Trainer rates' }) {
   const { guardNavigation, setActiveEdit } = useEditGuard()
 
   useEffect(() => {
-    setActiveEdit('Trainer rates')
-  }, [setActiveEdit])
+    setActiveEdit(edit)
+  }, [setActiveEdit, edit])
 
   return (
     <>
@@ -40,3 +40,21 @@ describe('edit navigation guard', () => {
 })
 
 afterEach(cleanup)
+
+
+it.each([null, 'Replacement record'])('cancels the old navigation decision when its edit becomes %s', async edit => {
+  const destinations = []
+  const app = active => <ActionConfirmationProvider><EditGuardProvider><NavigationHarness destinations={destinations} edit={active} /></EditGuardProvider></ActionConfirmationProvider>
+  const view = render(app('Original record'))
+  fireEvent.click(screen.getByRole('button', { name: 'Clients', exact: true }))
+  expect(screen.getByRole('dialog', { name: 'Leave this edit?' })).toBeVisible()
+  view.rerender(app(edit))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(destinations).toEqual([])
+  fireEvent.click(screen.getByRole('button', { name: 'Sessions', exact: true }))
+  if (edit) {
+    expect(screen.getByRole('dialog')).toHaveTextContent('Replacement record')
+    fireEvent.click(screen.getByRole('button', { name: 'Leave Without Saving', exact: true }))
+  }
+  await waitFor(() => expect(destinations).toEqual(['sessions']))
+})
