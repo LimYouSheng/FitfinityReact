@@ -14,7 +14,7 @@ it('uses verified live identity without reading or writing demo storage', async 
   const services = createConfiguredPortalServices({ mode: 'api', baseUrl: 'https://api.example', fetchImpl: fetch })
   const snapshot = await services.load()
   expect(snapshot.user.email).toBe('owner@example.test')
-  expect(snapshot).toMatchObject({ data: { clients: [], trainers: [], packages: [] }, capabilities: { demoControls: false, staffWorkflows: true, directoryReadOnly: true } })
+  expect(snapshot).toMatchObject({ data: { clients: [], trainers: [], packages: [] }, capabilities: { demoControls: false, staffWorkflows: true, apiBackedWorkflows: true } })
   expect(read).not.toHaveBeenCalled(); expect(write).not.toHaveBeenCalled()
 })
 it('shows sign-in only for terminal expiry and does not hide backend failures', async () => {
