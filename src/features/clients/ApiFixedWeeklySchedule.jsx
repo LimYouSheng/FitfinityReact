@@ -1,9 +1,11 @@
+import useReviewLifetime from '../../hooks/useReviewLifetime.js'
 import { useEffect, useRef, useState } from 'react'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import FixedWeeklySchedule from './FixedWeeklySchedule.jsx'
 
 export default function ApiFixedWeeklySchedule({ client, workflow, editable, editing, disabled, onEditing }) {
   const { activeEdit } = useEditGuard()
+  const beginReview = useReviewLifetime(disabled || !editable, `${client.id}/${client.status}`)
   const [draft, setDraft] = useState(null)
   const [saved, setSaved] = useState(false)
   const finishing = useRef(false)
@@ -18,9 +20,13 @@ export default function ApiFixedWeeklySchedule({ client, workflow, editable, edi
   return <FixedWeeklySchedule slots={client.fixedWeeklySchedule} editable={editable && !saved}
     editing={editing} editDisabled={disabled} uncertain={draft?.uncertain}
     onBeginEdit={async () => {
-      const current = await workflow.review()
-      setDraft(current); onEditing(true)
-      return { slots: current.slots }
+      const isCurrent = beginReview()
+      try {
+        const current = await workflow.review()
+        if (!isCurrent()) return
+        setDraft(current); onEditing(true)
+        return { slots: current.slots }
+      } catch (error) { if (isCurrent()) throw error }
     }} onEndEdit={() => onEditing(false)}
     onReviewSave={async slots => {
       const preview = await workflow.preview({ reviewed: draft.reviewed, slots })

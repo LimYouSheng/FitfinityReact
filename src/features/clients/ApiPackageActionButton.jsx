@@ -1,10 +1,12 @@
+import useReviewLifetime from '../../hooks/useReviewLifetime.js'
 import { useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 
 // Freeze the original review on response loss; recovery reads its receipt without a new write.
-export default function ApiPackageActionButton({ workflow, operation, disabled }) {
+export default function ApiPackageActionButton({ workflow, operation, disabled, recordId }) {
   const { setActiveEdit, guardNavigation } = useEditGuard()
+  const beginReview = useReviewLifetime(disabled, `${recordId}/${operation}`)
   const locked = useRef(false)
   const [draft, setDraft] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -13,9 +15,13 @@ export default function ApiPackageActionButton({ workflow, operation, disabled }
   const close = () => { setDraft(null); setActiveEdit(null) }
   const open = async () => {
     if (locked.current) return
+    const isCurrent = beginReview()
     locked.current = true; setBusy(true); setError('')
-    try { setDraft(await workflow.review()); setActiveEdit(label) }
-    catch (failure) { setError(failure.message) }
+    try {
+      const reviewed = await workflow.review()
+      if (!isCurrent()) return
+      setDraft(reviewed); setActiveEdit(label)
+    } catch (failure) { if (isCurrent()) setError(failure.message) }
     finally { locked.current = false; setBusy(false) }
   }
   const save = async () => {

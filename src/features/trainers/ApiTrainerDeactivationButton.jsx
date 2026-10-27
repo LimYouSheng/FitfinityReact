@@ -1,3 +1,4 @@
+import useReviewLifetime from '../../hooks/useReviewLifetime.js'
 import { useEffect, useRef, useState } from 'react'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import TrainerDeactivationDialog from './TrainerDeactivationDialog.jsx'
@@ -9,12 +10,7 @@ export default function ApiTrainerDeactivationButton({ trainer, workflow, disabl
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const locked = useRef(false), finishing = useRef(false)
-  const reviewScope = useRef(null)
-  // A delayed review cannot take over another edit or reactivate a retired control.
-  useEffect(() => {
-    reviewScope.current = {}
-    return () => { reviewScope.current = null }
-  }, [disabled, trainer.id, trainer.status])
+  const beginReview = useReviewLifetime(disabled, `${trainer.id}/${trainer.status}`)
   useEffect(() => {
     if (saved && !activeEdit && !finishing.current) {
       finishing.current = true
@@ -25,14 +21,14 @@ export default function ApiTrainerDeactivationButton({ trainer, workflow, disabl
   return <>
     <button type="button" className="profile-menu-danger" disabled={disabled || busy} onClick={async () => {
       if (locked.current) return
-      const scope = reviewScope.current
+      const isCurrent = beginReview()
       locked.current = true; setBusy(true); setError('')
       try {
         const reviewed = await workflow.review()
-        if (reviewScope.current !== scope) return
+        if (!isCurrent()) return
         setDraft(reviewed); onEditing(true)
-      } catch (failure) { if (reviewScope.current === scope) setError(failure.message) }
-      finally { locked.current = false; if (reviewScope.current) setBusy(false) }
+      } catch (failure) { if (isCurrent()) setError(failure.message) }
+      finally { locked.current = false; setBusy(false) }
     }}>{busy ? 'Checking Trainer…' : 'Deactivate Trainer'}</button>
     {draft && <TrainerDeactivationDialog trainer={trainer} trainers={[]} clients={[]} sessions={[]}
       deactivateOpen reviewed={draft.reviewed} initialReplacements={draft.replacements} uncertain={draft.uncertain}

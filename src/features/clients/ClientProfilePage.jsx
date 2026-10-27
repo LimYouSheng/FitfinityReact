@@ -135,7 +135,7 @@ export default function ClientProfilePage({
         })}
       >
 
-          {reactivationWorkflow && managesOperations(user) && client.status === 'inactive' && <ApiClientReactivationButton disabled={Boolean(activeEditor)} workflow={reactivationWorkflow} onEditing={editing => { setActiveEditor(editing ? 'reactivation' : null); setActiveEdit(editing ? 'Client reactivation' : null) }} />}
+          {reactivationWorkflow && managesOperations(user) && client.status === 'inactive' && <ApiClientReactivationButton recordId={client.id} disabled={Boolean(activeEditor)} workflow={reactivationWorkflow} onEditing={editing => { setActiveEditor(editing ? 'reactivation' : null); setActiveEdit(editing ? 'Client reactivation' : null) }} />}
           {onReviewDeactivation && managesOperations(user) && client.status !== 'inactive' && <ClientDeactivationButton disabled={Boolean(activeEditor)} onReview={onReviewDeactivation} onDeactivate={onDeactivate} />}
           {!readOnly && managesOperations(user) && client.status !== 'inactive' && (
             <button

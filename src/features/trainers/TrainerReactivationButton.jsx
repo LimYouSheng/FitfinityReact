@@ -1,3 +1,4 @@
+import useReviewLifetime from '../../hooks/useReviewLifetime.js'
 import { useRef, useState } from 'react'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 
@@ -7,14 +8,17 @@ export default function TrainerReactivationButton({ trainer, disabled, onReview,
   const [busy, setBusy] = useState(false)
   const [uncertain, setUncertain] = useState(false)
   const [saved, setSaved] = useState(false)
+  const beginReview = useReviewLifetime(disabled, `${trainer.id}/${trainer.status}`)
   if (saved) return null
   return <button type="button" className="profile-menu-reactivate" disabled={disabled || busy} onClick={async () => {
     if (working.current) return
     working.current = true
     setBusy(true)
+    const isCurrent = beginReview()
     let submitted = false
     try {
       const review = onReview ? await onReview() : null
+      if (!isCurrent()) return
       if (!review?.uncertain && !await confirmAction({
         title: `Reactivate ${trainer.name}?`,
         message: `The trainer will return to active trainer lists and can be assigned to sessions again.${onReview ? ' A fresh sign-in is required; separately disabled sign-in identities remain disabled.' : ''}`,
