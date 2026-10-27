@@ -1,3 +1,4 @@
+import useReviewLifetime from '../../hooks/useReviewLifetime.js'
 import { useEffect, useRef, useState } from 'react'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import ReassignTrainerDialog from './ReassignTrainerDialog.jsx'
@@ -9,12 +10,7 @@ export default function ApiClientAssignmentButton({ client, workflow, timeZone, 
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const locked = useRef(false), finishing = useRef(false)
-  const reviewScope = useRef(null)
-  // A delayed review cannot take over another edit or reactivate a retired control.
-  useEffect(() => {
-    reviewScope.current = {}
-    return () => { reviewScope.current = null }
-  }, [disabled, client.id, client.status])
+  const beginReview = useReviewLifetime(disabled, `${client.id}/${client.status}`)
   useEffect(() => {
     if (saved && !activeEdit && !finishing.current) {
       finishing.current = true
@@ -29,14 +25,14 @@ export default function ApiClientAssignmentButton({ client, workflow, timeZone, 
   return <>
     <button type="button" className="text-action" disabled={disabled || busy} onClick={async () => {
       if (locked.current) return
-      const scope = reviewScope.current
+      const isCurrent = beginReview()
       locked.current = true; setBusy(true); setError('')
       try {
         const reviewed = await workflow.review()
-        if (reviewScope.current !== scope) return
+        if (!isCurrent()) return
         setDraft(reviewed); onEditing(true)
-      } catch (failure) { if (reviewScope.current === scope) setError(failure.message) }
-      finally { locked.current = false; if (reviewScope.current) setBusy(false) }
+      } catch (failure) { if (isCurrent()) setError(failure.message) }
+      finally { locked.current = false; setBusy(false) }
     }}>{busy ? 'Checking Trainers…' : 'Reassign Trainer'}</button>
     {draft && <ReassignTrainerDialog client={client} trainers={[]} sessions={[]} timeZone={timeZone}
       reviewed={draft.reviewed} initialTrainerId={draft.trainerId} uncertain={draft.uncertain}

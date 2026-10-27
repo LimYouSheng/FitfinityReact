@@ -1,3 +1,4 @@
+import useReviewLifetime from '../../hooks/useReviewLifetime.js'
 import { useRef, useState } from 'react'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 
@@ -7,13 +8,16 @@ export default function ClientDeactivationButton({ disabled, onReview, onDeactiv
   const [busy, setBusy] = useState(false)
   const [uncertain, setUncertain] = useState(false)
   const [saved, setSaved] = useState(false)
+  const beginReview = useReviewLifetime(disabled)
   if (saved) return null
   return <button type="button" className="profile-menu-danger" disabled={disabled || busy} onClick={async () => {
     if (locked.current) return
     locked.current = true; setBusy(true)
+    const isCurrent = beginReview()
     let submitted = false
     try {
       const { reviewed, uncertain: pending } = await onReview()
+      if (!isCurrent()) return
       if (!pending && !await confirm({ title: `Deactivate ${reviewed.name}?`, danger: true, confirmLabel: 'Deactivate Client',
         message: `The client will become inactive and remain visible to the assigned trainer. ${reviewed.purchases.filter(p => p.status === 'active').length} active purchased packages will be deactivated. Retained sessions and credits stay unchanged.` })) return
       submitted = true

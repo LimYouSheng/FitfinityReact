@@ -1,3 +1,4 @@
+import useReviewLifetime from '../../hooks/useReviewLifetime.js'
 import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import DateField from '../../components/DateField.jsx'
@@ -5,10 +6,11 @@ import Field from '../../components/OnboardingField.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { formatDate } from '../../utils/date.js'
 
-export default function ApiClientReactivationButton({ disabled, workflow, onEditing, packageName }) {
+export default function ApiClientReactivationButton({ disabled, workflow, onEditing, packageName, recordId }) {
   const { guardNavigation, activeEdit } = useEditGuard()
   const target = packageName === undefined ? 'Client' : 'Package'
   const actionLabel = `Reactivate ${target}`
+  const beginReview = useReviewLifetime(disabled, recordId ?? packageName)
   const locked = useRef(false)
   const [review, setReview] = useState(null)
   const [dates, setDates] = useState({})
@@ -27,12 +29,14 @@ export default function ApiClientReactivationButton({ disabled, workflow, onEdit
   const close = () => { setReview(null); onEditing(false) }
   const open = async () => {
     if (locked.current) return
+    const isCurrent = beginReview()
     locked.current = true; setBusy(true); setError('')
     try {
       const value = await workflow.review()
+      if (!isCurrent()) return
       setReview(value.reviewed); setDates(value.dates); setUncertain(value.uncertain)
       setInitialConflicts(value.reviewed.rows.filter(r => r.error).map(r => r.id)); onEditing(true)
-    } catch (failure) { setError(failure.message) }
+    } catch (failure) { if (isCurrent()) setError(failure.message) }
     finally { locked.current = false; setBusy(false) }
   }
   const preview = async (id, day) => {

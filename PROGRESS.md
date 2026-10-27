@@ -2,7 +2,7 @@
 
 ## Current checkpoint — 27 October 2026 Singapore
 
-Accepted **application source** is [PR86](https://github.com/LimYouSheng/FitfinityReact/pull/86), merge `379bd1e2ab58eceb86bcc519fc7fffcfa830ba0f`. Its exact final head `131a6d73de40041566d03ec99ab57c77911d6f22` passed all required gates in [run40285361823](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40285361823): **1,436 units/149 files, 1,152 simulator browser cases, 1,353 backend/PostgreSQL tests and 366 real-API browser cases**, plus lint/source-health/verifier gates. This incorporates the M6 source exit, offline/profile recovery and session-draft/authority repairs. Original failures and acceptance receipts remain in Contracts history.
+Accepted **application source** is [PR87](https://github.com/LimYouSheng/FitfinityReact/pull/87), merge `f62bb450d374e55361956a2e0132e472223ea61f`. Exact head `d995d914c027820ca6e188c15e2e2d21fe515984` passed [run40436948308](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40436948308): **1,449 units/149 files,1,152 simulator browser cases,1,353 backend/PostgreSQL tests and369 real-API browser cases**, plus lint/source-health/verifier gates. It includes PR86's session repairs and retires stale confirmations/private signature previews and historical-Trainer Postpone actions. Full receipts and original failures remain in Contracts history.
 
 [The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **55/55 source accepted**: 54 server-connected operations plus one local predicate. All 18 operations remaining at the 37/55 checkpoint are complete in merged source. This does not establish deployment or blanket milestone acceptance.
 
@@ -10,7 +10,7 @@ Accepted **application source** is [PR86](https://github.com/LimYouSheng/Fitfini
 | --- | --- |
 | Staff-portal source | All named operations and the additional M6 source-exit implementation are source-accepted; live/provider/device acceptance below remains separate. Detailed operation receipts live in Service Contracts Part 2. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; local signed-token Cognito substitute and actual isolated S3-compatible media storage. No production PostgreSQL or Lambda redeployment needed. |
-| Deployment | [PR86’s post-merge run40294306972](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40294306972) passed verification, build and the separate Pages demo deployment. AWS image publication is waiting for its separate approval; none was granted. No new Lambda, real Cognito or current device acceptance is recorded. |
+| Deployment | [PR86’s post-merge run40294306972](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40294306972) passed verification, build and the separate Pages demo deployment. Its obsolete image-approval wait was cancelled after PR87 merged; PR87 main run40440869355 is verifying the new main. No AWS publication approval was granted. No new Lambda, real Cognito or current device acceptance is recorded. |
 
 ## Full milestone roadmap
 
@@ -51,13 +51,13 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency, Grafana and supply-chain capabilities remain planned until separately implemented and evidenced.
 5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the seven-document structure and all eight existing stashes.
 
-### Active follow-up — confirmation lifetime
-
-Branch `fix/confirmation-lifetime` is based on accepted PR86. Independent browser probes reproduced a Trainer save confirmation remaining after reassignment and a private signature confirmation remaining after another-tab logout. The server still rejected unauthorized access. The candidate binds confirmations to their requesting component and retires them on session termination; navigation confirmations also cancel when their edit disappears or changes. The initial confirmation repair passes independent fixed-browser probes, all30 affected real-API cases across three profiles,1,445 units/149 files,528-file lint/source health and72 verifier checks. Continued screenshot review then reproduced an enabled Postpone control for the former Trainer after reassignment; the server correctly returned404. The candidate now also disables that action, with34 affected units passing and a strengthened real-API assertion. Updated complete gates are pending. [PR87](https://github.com/LimYouSheng/FitfinityReact/pull/87) awaits complete final-head CI and is not yet merged; the full API-browser inventory is 369 cases/24 files. Full evidence belongs to Contracts Part 2. Physical/provider/deployed acceptance and M10 tooling remain separate.
-
 ### Active dependent follow-up — delayed profile reviews
 
-Branch `fix/pending-review-lifetime` builds on PR87 head `d995d914c027820ca6e188c15e2e2d21fe515984`; that dependency remains unmerged. A delayed client-assignment or Trainer-deactivation review could take over a newer profile edit, and retired controls could still call their old parent editing callback. Review results/errors are now bound to the control’s current record and enabled lifetime. Thirteen focused unit checks and six affected real-API browser cases across all three profiles pass, including preserved drafts, fresh reviews and persisted reassignment/deactivation/reactivation. The complete local unit gate passes1,455/149 files; final-head CI acceptance is pending. First failures and scope remain in Contracts history.
+Branch `fix/pending-review-lifetime` builds on PR87 head `d995d914c027820ca6e188c15e2e2d21fe515984`; PR87 is now merged; [PR88](https://github.com/LimYouSheng/FitfinityReact/pull/88) still awaits its own complete CI. A delayed client-assignment or Trainer-deactivation review could take over a newer profile edit, and retired controls could still call their old parent editing callback. Review results/errors are now bound to the control’s current record and enabled lifetime. Thirteen focused unit checks and six affected real-API browser cases across all three profiles pass, including preserved drafts, fresh reviews and persisted reassignment/deactivation/reactivation. The complete local unit gate passes1,455/149 files; final-head CI acceptance is pending. First failures and scope remain in Contracts history.
+
+### Active dependent follow-up — remaining lifecycle reviews
+
+Branch `fix/lifecycle-review-scope` builds on unmerged PR88 head `fe1877a95a6f499379704cc7c39b0ae17f71bbae`. Related probes reproduce late reviews in client deactivation/reactivation, Trainer reactivation, package actions and weekly schedules. A shared review-lifetime guard replaces duplicated handling and binds package reviews to their record IDs. All17 retirement probes pass, including two record-identity checks. All51 affected real-API browser cases pass across desktop/phone/tablet against isolated Docker PostgreSQL; the complete local unit gate passes1,472/150 files in125.75s. Lint/source health cover530 files and all72 verifier checks pass. This candidate is not accepted main; existing uncertain-write recovery and server authority remain unchanged.
 
 ### M6 exit evidence — source accepted, external acceptance open
 

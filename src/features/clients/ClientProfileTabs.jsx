@@ -52,7 +52,7 @@ function PackageTab({ readOnly = false, renewalReadOnly = readOnly, renewalWorkf
           </div>}
         </div>
         {!client.package || client.package.status === 'inactive' ? <p className="empty">No active current package.</p> : <>
-        {packageActionWorkflow && client.status !== 'inactive' && <ApiPackageActionButton operation="deactivate" disabled={Boolean(activeEdit)} workflow={packageActionWorkflow(client.package.id, 'deactivate')} />}
+        {packageActionWorkflow && client.status !== 'inactive' && <ApiPackageActionButton recordId={client.package.id} operation="deactivate" disabled={Boolean(activeEdit)} workflow={packageActionWorkflow(client.package.id, 'deactivate')} />}
         <div className="client-package-grid">
           <div><span>Total sessions</span><strong>{(client.package?.total ?? 0)}</strong></div>
           <div><span>Completed</span><strong>{(client.package?.used ?? 0)}</strong></div>
@@ -76,7 +76,7 @@ function PackageTab({ readOnly = false, renewalReadOnly = readOnly, renewalWorkf
               <span>{trainers.find(trainer => trainer.id === item.trainerId)?.name ?? item.trainerName ?? 'Unassigned'} · {weeklyFrequencyLabel(item.sessionsPerWeek, true)}</span>
               <span>{item.used} / {item.total} used</span>
             </div>
-            {packageActionWorkflow && client.status !== 'inactive' && <ApiPackageActionButton operation="deactivate" disabled={Boolean(activeEdit)} workflow={packageActionWorkflow(item.id, 'deactivate')} />}
+            {packageActionWorkflow && client.status !== 'inactive' && <ApiPackageActionButton recordId={item.id} operation="deactivate" disabled={Boolean(activeEdit)} workflow={packageActionWorkflow(item.id, 'deactivate')} />}
             {!readOnly && managesOperations(user) && client.status !== 'inactive' && <button type="button" className="secondary-button" onClick={() => {
               setDeleteUpcoming(false); setDeactivationError(''); setDeactivateOpen(item)
             }}>Deactivate Package</button>}
@@ -96,8 +96,8 @@ function PackageTab({ readOnly = false, renewalReadOnly = readOnly, renewalWorkf
                   </span>)}
                   {!readOnly && managesOperations(user) && <button type="button" className="text-action" disabled={!eligibleCount(item)} onClick={() => { setDeactivationError(''); setDeletePackage(item) }}>Delete Upcoming Sessions ({eligibleCount(item)})</button>}
             {!readOnly && managesOperations(user) && client.status !== 'inactive' && <button type="button" className="secondary-button" onClick={() => setReactivateOpen(item.id)}>Reactivate Package</button>}
-                  {packageActionWorkflow && <ApiPackageActionButton operation="delete_sessions" disabled={Boolean(activeEdit)} workflow={packageActionWorkflow(item.id, 'delete_sessions')} />}
-                  {packageReactivationWorkflow && managesOperations(user) && client.status !== 'inactive' && <ApiClientReactivationButton key={item.id} packageName={item.name ?? `${item.total} Sessions`} disabled={Boolean(activeEdit)} workflow={packageReactivationWorkflow(item.id)} onEditing={editing => setActiveEdit(editing ? 'Package reactivation' : null)} />}
+                  {packageActionWorkflow && <ApiPackageActionButton recordId={item.id} operation="delete_sessions" disabled={Boolean(activeEdit)} workflow={packageActionWorkflow(item.id, 'delete_sessions')} />}
+                  {packageReactivationWorkflow && managesOperations(user) && client.status !== 'inactive' && <ApiClientReactivationButton recordId={item.id} key={item.id} packageName={item.name ?? `${item.total} Sessions`} disabled={Boolean(activeEdit)} workflow={packageReactivationWorkflow(item.id)} onEditing={editing => setActiveEdit(editing ? 'Package reactivation' : null)} />}
                 </>}
               </div>
               <span>{item.used} / {item.total} used</span>
