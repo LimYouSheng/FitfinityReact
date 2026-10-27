@@ -24,7 +24,7 @@ flowchart TB
     Merge["Exact tested head and protected source merge"]
     Image["Manual image run: entered main SHA, full CI, AWS approval and scan"]
     Release["Separate reviewed artifact, migration and rollout acceptance"]
-    Supply["Planned: Dependabot, vulnerability triage, SBOM and provenance assessment"]
+    Supply["Dependabot source: npm, Actions, Dockerfile; planned: remaining coverage, SBOM and provenance"]
     Security["Planned: secret scanning, static security analysis and rate-limit hardening"]
   end
   subgraph Operations["M10: planned observability and operations"]
