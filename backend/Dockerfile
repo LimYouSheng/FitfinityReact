@@ -1,4 +1,4 @@
-FROM python:3.12.14-slim-trixie AS application
+FROM python:3.12.15-slim-trixie AS application
 
 # Refresh Debian security fixes before installing the locked Python dependencies.
 # Fail the build if the critical Perl/OpenSSL fixes reviewed on 2026-09-22
