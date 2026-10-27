@@ -63,6 +63,10 @@ The initial PR103 real-API CI run passed368/369 cases; a loading-layout fixture 
 
 Next maintenance slices: complete security reconciliation and full CI, then separately review optional npm/Actions upgrades and Python/Compose update coverage. The previous combined routine-upgrade trial failed one of1,472 units; retained evidence must be diagnosed before those optional updates are revived. Backend routers and further feature extraction remain separate tasks.
 
+### Dependent follow-up — Python security fixes
+
+Branch `chore/python-security-updates` builds on PR103 head `6304c855816d9c3e9a0ad6cc54f14a47db75274a`; PR103 remains unmerged. PyJWT2.14.0 →2.15.0 and urllib3 2.7.0 →2.8.0 address five distinct GHSA advisories (duplicate PYSEC aliases are not extra findings). Both uv-resolved hashed locks retain every other version. Hash-checked installation and `pip check` pass in a local test image; both replacement versions have no current PyPI-listed advisories. Complete backend/PostgreSQL verification is running; full final-head CI and merged-source acceptance remain required. This does not replace the pending19-alert GitHub reconciliation or container/deployment acceptance. No historical AWS artifact contract is rewritten.
+
 ### M6 exit evidence — source accepted, external acceptance open
 
 PR82 closes the authorized M6 source-exit work after complete final-head CI and normal merge. Full milestone/live acceptance remains distinct. Detailed first failures and the measured test-graph cleanup repair are retained once in Contracts history.
