@@ -48,7 +48,9 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (aggregateStep.env?.API_BROWSER_SHARD_RESULT !== '${{ needs.api-browser-shard.result }}') fail('aggregate must verify successful shard job outcomes')
   const frontend = verify.jobs?.frontend, backend = verify.jobs?.backend
   if (frontend?.['runs-on'] !== 'macos-15') fail('browser gates require the reviewed macOS WebKit runner')
-  for (const command of ['npm ci', 'npm run verify:lint', 'npm run verify:quality-checker', 'npm test -- --reporter=verbose', 'node scripts/verify-test-results.mjs unit', 'npx playwright install --with-deps chromium webkit', 'npm run test:e2e -- --reporter=list', 'node scripts/verify-test-results.mjs browser', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(frontend, command)
+  for (const command of ['npm ci', 'npm audit --include=dev --audit-level=high --json', 'npm run verify:lint', 'npm run verify:quality-checker', 'npm test -- --reporter=verbose', 'node scripts/verify-test-results.mjs unit', 'npx playwright install --with-deps chromium webkit', 'npm run test:e2e -- --reporter=list', 'node scripts/verify-test-results.mjs browser', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(frontend, command)
+  const auditArtifacts = frontend.steps.filter(step => step.uses?.startsWith('actions/upload-artifact@') && step.with?.path?.split('\n').includes('${{ runner.temp }}/fitfinity-npm-audit.json'))
+  if (auditArtifacts.length !== 1 || auditArtifacts[0].if !== 'always()') fail('npm audit evidence must survive failed verification')
   for (const command of ['node scripts/verify-assessment-forms.mjs', 'node scripts/verify-backend.mjs']) requireGate(backend, command)
   const mainOnly = "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
   if (pages.jobs?.build?.needs !== 'verify' || pages.jobs.build.if !== mainOnly || pages.jobs?.deploy?.needs !== 'build' || pages.jobs.deploy.if !== mainOnly) fail('Pages build and publish must depend on full verification and the main-branch guard')
@@ -86,11 +88,13 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   }
   const updates = dependabot?.updates
   if (dependabot?.version !== 2 || updates?.length !== 3) fail('dependency automation must retain the three reviewed ecosystems')
-  for (const [ecosystem, directory, limit] of [['npm', '/', 2], ['github-actions', '/', 2], ['docker', '/backend', 1]]) {
+  for (const [ecosystem, directory, limit] of [['npm', '/', 1], ['github-actions', '/', 1], ['docker', '/backend', 1]]) {
     const matches = updates.filter(update => update['package-ecosystem'] === ecosystem)
     const update = matches[0]
     if (matches.length !== 1 || update.directory !== directory || update['open-pull-requests-limit'] !== limit || !equal(update.schedule, { interval: 'weekly', day: 'monday', time: '09:00', timezone: 'Asia/Singapore' }) || update['target-branch'] || update['insecure-external-code-execution']) fail(`bounded default-branch dependency updates required: ${ecosystem}`)
-    if (ecosystem === 'npm' && !equal(update.groups, { 'npm-minor-patch': { patterns: ['*'], 'update-types': ['minor', 'patch'] } })) fail('npm majors must remain separate from routine grouped updates')
+    if (ecosystem === 'npm' && !equal(update.groups, { 'npm-security': { 'applies-to': 'security-updates', patterns: ['*'], 'exclude-patterns': ['typescript', 'eslint*', '@eslint/*', '@typescript-eslint/*', '@playwright/*', 'playwright*', 'wrangler', 'miniflare'], 'update-types': ['minor', 'patch'] }, 'npm-minor-patch': { 'applies-to': 'version-updates', patterns: ['*'], 'exclude-patterns': ['typescript', 'eslint*', '@eslint/*', '@typescript-eslint/*', '@playwright/*', 'playwright*', 'wrangler', 'miniflare'], 'update-types': ['minor', 'patch'] } })) fail('npm majors must remain separate from routine grouped updates')
+    if (ecosystem === 'github-actions' && !equal(update.groups, { 'actions-minor-patch': { patterns: ['*'], 'update-types': ['minor', 'patch'] } })) fail('compatible Actions updates must be grouped')
+    if (ecosystem === 'docker' && (!equal(update.groups, { 'docker-patches': { patterns: ['*'], 'update-types': ['patch'] } }) || !equal(update.ignore, [{ 'dependency-name': 'python', 'update-types': ['version-update:semver-major', 'version-update:semver-minor'] }]))) fail('Docker patches must be grouped within the supported Python minor')
   }
   if (packageJson.scripts?.['verify:lint'] !== 'node scripts/verify-lint.mjs' || packageJson.scripts?.['verify:quality-checker'] !== 'node --test --test-reporter=spec scripts/verify-quality.test.mjs') fail('canonical quality commands are missing')
 }

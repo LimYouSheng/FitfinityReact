@@ -26,6 +26,11 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Audit locked npm dependencies including development tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --include=dev --audit-level=high --json | tee "$RUNNER_TEMP/fitfinity-npm-audit.json"
       - name: Semantic lint and quality gate regression checks
         shell: bash
         run: |
@@ -62,6 +67,7 @@ jobs:
         with:
           name: fitfinity-verification-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            ${{ runner.temp }}/fitfinity-npm-audit.json
             ${{ runner.temp }}/fitfinity-lint.log
             ${{ runner.temp }}/fitfinity-quality-checker.log
             ${{ runner.temp }}/fitfinity-unit.log

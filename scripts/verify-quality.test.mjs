@@ -41,6 +41,11 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   verifyQualitySetup(readQualitySetup())
 })
 const mutations = [
+  ['missing blocking audit', setup => { setup.verify.jobs.frontend.steps = setup.verify.jobs.frontend.steps.filter(step => !step.run?.includes('npm audit')) }],
+  ['optional audit', setup => { setup.verify.jobs.frontend.steps.find(step => step.run?.includes('npm audit'))['continue-on-error'] = true }],
+  ['lost audit evidence', setup => { setup.verify.jobs.frontend.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
+  ['grouped sensitive tooling', setup => { delete setup.dependabot.updates[0].groups['npm-minor-patch']['exclude-patterns'] }],
+  ['grouped major security upgrade', setup => { setup.dependabot.updates[0].groups['npm-security']['update-types'].push('major') }],
   ['missing shard', setup => { delete setup.verify.jobs['api-browser-shard'] }],
   ['partial shard matrix', setup => { setup.verify.jobs['api-browser-shard'].strategy.matrix.shard = [1] }],
   ['optional aggregate', setup => { setup.verify.jobs['api-browser'].if = 'success()' }],
@@ -69,6 +74,9 @@ const mutations = [
   ['unbounded dependency update PRs', setup => { setup.dependabot.updates[0]['open-pull-requests-limit'] = 20 }],
   ['dependency updates target unverified branch', setup => { setup.dependabot.updates[0]['target-branch'] = 'other' }],
   ['grouped npm major updates', setup => { setup.dependabot.updates[0].groups['npm-minor-patch']['update-types'].push('major') }],
+  ['ungrouped security proposals', setup => { delete setup.dependabot.updates[0].groups['npm-security'] }],
+  ['ungrouped Actions proposals', setup => { delete setup.dependabot.updates[1].groups }],
+  ['unsupported Python minor proposal', setup => { delete setup.dependabot.updates[2].ignore }],
   ['image publication before tests', setup => { delete setup.image.jobs.image.needs }],
   ['image publication before activation', setup => { setup.image.jobs.image.if = "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'" }],
   ['automatic image entry bypasses manual initiation', setup => { setup.image.on.push = { branches: ['main'] } }],

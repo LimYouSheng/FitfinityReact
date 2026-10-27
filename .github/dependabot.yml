@@ -7,10 +7,17 @@ updates:
       day: monday
       time: '09:00'
       timezone: Asia/Singapore
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 1
     groups:
-      npm-minor-patch:
+      npm-security:
+        applies-to: security-updates
         patterns: ['*']
+        exclude-patterns: ['typescript', 'eslint*', '@eslint/*', '@typescript-eslint/*', '@playwright/*', 'playwright*', 'wrangler', 'miniflare']
+        update-types: [minor, patch]
+      npm-minor-patch:
+        applies-to: version-updates
+        patterns: ['*']
+        exclude-patterns: ['typescript', 'eslint*', '@eslint/*', '@typescript-eslint/*', '@playwright/*', 'playwright*', 'wrangler', 'miniflare']
         update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
@@ -19,7 +26,11 @@ updates:
       day: monday
       time: '09:00'
       timezone: Asia/Singapore
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 1
+    groups:
+      actions-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /backend
     schedule:
@@ -28,6 +39,14 @@ updates:
       time: '09:00'
       timezone: Asia/Singapore
     open-pull-requests-limit: 1
+    groups:
+      docker-patches:
+        patterns: ['*']
+        update-types: [patch]
+    ignore:
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+# Python runtime upgrades beyond 3.12 require an explicit compatibility change.
 # Python uses uv-generated custom .lock files; keep manifest + both hashed locks
 # reviewed together until an updater is proven to regenerate this format.
 # Compose PostgreSQL/RustFS pins remain part of manual image maintenance.

@@ -30,6 +30,8 @@ for (const workflow of workflows) for (const committed of [true, false]) test(`$
   } else {
     record = kind === 'client' ? client : directory.trainers.find(row => row.id === client.trainer_id)
     await page.goto(`/#/${kind === 'client' ? 'clients' : 'trainers'}/${record.id}`)
+    // Email status resolves above the other trainer panels and changes their position.
+    if (kind !== 'client') await expect(page.getByRole('button', { name: 'Change Login Email', exact: true })).toBeVisible()
     panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: heading, exact: true }) })
     await panel.getByRole('button', { name: 'Edit', exact: true }).click()
     if (kind === 'client') await page.getByLabel('Client email', { exact: true }).fill(`recovered-${committed}@example.test`)
