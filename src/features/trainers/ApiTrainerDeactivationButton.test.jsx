@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
 import { EditGuardProvider, useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { trainerDeactivationReview } from '../../test/trainerDeactivation.js'
@@ -51,5 +51,20 @@ it('does not submit when server batch preview reports a replacement conflict', a
   fireEvent.change(screen.getByLabelText('Reassign API Client'), { target: { value: reviewed.sessions[0].choices[0].id } })
   await screen.findByText('No active trainer is free for this session. Resolve the booking conflict before deactivation.')
   expect(within(dialog).getByRole('button', { name: 'Deactivate Trainer' })).toBeDisabled()
+  expect(workflow.save).not.toHaveBeenCalled()
+})
+
+it.each(['unmounted', 'another edit', 'edit ended'])('ignores a delayed review after the button is %s', async change => {
+  let resolve
+  const workflow = workflowFor({ review: vi.fn(() => new Promise(done => { resolve = done })) })
+  const onEditing = vi.fn()
+  const app = (visible, disabled = false) => <ActionConfirmationProvider><EditGuardProvider>{visible && <ApiTrainerDeactivationButton trainer={reviewed} workflow={workflow} disabled={disabled} onEditing={onEditing} />}</EditGuardProvider></ActionConfirmationProvider>
+  const view = render(app(true))
+  fireEvent.click(screen.getByRole('button', { name: 'Deactivate Trainer', exact: true }))
+  view.rerender(app(change !== 'unmounted', true))
+  if (change === 'edit ended') view.rerender(app(true))
+  await act(async () => resolve({ reviewed, replacements: {}, uncertain: false }))
+  expect(onEditing).not.toHaveBeenCalled()
+  expect(screen.queryByRole('dialog')).toBeNull()
   expect(workflow.save).not.toHaveBeenCalled()
 })
