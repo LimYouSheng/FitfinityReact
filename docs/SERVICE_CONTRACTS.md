@@ -228,6 +228,16 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 27 October 2026 Singapore — PR93 API CI failure diagnosis and fixture repair
+
+Run40460872964 at head `34b96628ab2f4f8fb38c19e3a31cf162243efe5b` passed frontend36m19s and backend23m32s but failed API acceptance. Shard1 was cancelled at its20-minute job deadline: Ubuntu browser dependencies fetched119MB in11m49s and its188 tests began only at06:37:25UTC,13m19s after job start. This is a diagnosed external setup delay; no deadline, shard inventory, runner setting or retry policy is changed.
+
+Shard2 completed180/181 with one tablet acknowledgement-recovery fixture failure. Artifact12714339597 shows the click resolving to the old inline dialog’s identically labelled button while the focus-triggered snapshot replaced it with the recovery screen; no receipt GET was sent. The test now explicitly requires the recovery-screen heading before clicking. Original success, single-write, private-receipt, one-credit and fresh-context assertions remain intact. All15 acknowledgement cases pass locally in1.3m across desktop/phone/tablet against isolated Docker PostgreSQL; lint passes531 files. Application/backend code is unchanged by this repair. Original trace, diagnosis and local logs are retained under `/workspace/work/fitfinity-pr93-failure/`. Corrected-head full CI remains required.
+
+### 27 October 2026 Singapore — PR91 and PR92 source acceptance
+
+PR91 exact head `b7beebd2b54404649cb2c736198113aa0883f8af` passed run40459653015 (frontend38m9s, backend19m46s, both API shards and369-case aggregate) and merged as `bcf2164daaf6214d4436a6052ad6c9f5e3b522f8`. PR92 exact head `3758e2cb8bf15bab10722cc3bf59f09258d2c5bf` passed run40459955156 (frontend38m33s, backend21m57s, both API shards and369-case aggregate) and merged as `92a28daa598560abc58f6cda147e78550af3352e`. Normal merges used tested heads; PR93 remains separately unaccepted. No AWS publication/deployment or real-provider action was performed.
+
 ### 27 October 2026 Singapore — Backend domain-router preparation
 
 Dependent `refactor/backend-domain-routers` starts at unmerged PR92 head `3758e2cb8bf15bab10722cc3bf59f09258d2c5bf`. Content/remuneration routers are included at their original registration positions with parent API prefix/tags/error metadata retained. Shared `RequestKey` moves to `request_types.py`; existing standalone routers import it without depending on the central registry. The central file shrinks from1,570 to1,496 lines; this is the first incremental extraction, not a claim that all domains are split.

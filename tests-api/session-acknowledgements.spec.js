@@ -91,6 +91,8 @@ test('lost committed acknowledgement freezes intent and recovers one private rec
   await expect(page.getByLabel('Acknowledgement note')).toBeDisabled()
   await expect(page.getByRole('dialog', { name: 'Trainer late / no-show' }).getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled()
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  // The recovery screen replaces an inline dialog with the same button label.
+  await expect(page.getByRole('heading', { name: 'Session acknowledgement', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Check original acknowledgement', exact: true }).click()
   await expect(page.getByText('Original session acknowledgement confirmed.', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => window.ackWrites)).toBe(1)
