@@ -2,7 +2,7 @@
 
 ## Current checkpoint — 27 October 2026 Singapore
 
-Accepted **application source** is [PR92](https://github.com/LimYouSheng/FitfinityReact/pull/92), merge `92a28daa598560abc58f6cda147e78550af3352e`, following PR91's session-route ownership refactor. Both exact heads passed all three gates before merge. Inventories remain **1,472 units/150 files,1,152 simulator browser cases,1,353 backend/PostgreSQL tests and369 real-API browser cases**. PR90 separated manual AWS image publication from ordinary verification/demo publishing. No current-source deployment is claimed. Full receipts and original failures remain in Contracts history.
+Accepted **application source** is [PR103](https://github.com/LimYouSheng/FitfinityReact/pull/103), merge `bc674ad4ecd5c7c65e9326d792cd0555373b072a`. Exact head `6304c855816d9c3e9a0ad6cc54f14a47db75274a` passed all required gates in run40478715048, including the blocking npm audit. Grouped dependency maintenance and npm security fixes are merged; fresh main verification is running. No current-source Lambda deployment is claimed. Full receipts and original failures remain in Contracts history.
 
 [The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **55/55 source accepted**: 54 server-connected operations plus one local predicate. All 18 operations remaining at the 37/55 checkpoint are complete in merged source. This does not establish deployment or blanket milestone acceptance.
 
@@ -59,13 +59,13 @@ Branch `chore/security-update-policy` prepares the grouped one-per-ecosystem ver
 
 GitHub's observed banner reports 19 alerts (5high,10moderate,4low). The main-lock npm audit instead reports 6 affected package entries (4high,2moderate), with 0 production npm entries. These are different inventories. The GitHub alerts endpoint still returns 403; full alert-by-alert reconciliation awaits read access or the user's exported list. Do not claim all 19 resolved from npm output. Python, container and deployed acceptance remain distinct. README owns the three-layer operating policy; H4 retains remaining ecosystem coverage.
 
-The initial PR103 real-API CI run passed368/369 cases; a loading-layout fixture race is repaired with33/33 local recovery cases passing. All final-head gates must rerun. A broader query of42 pinned Python distributions found PyJWT/urllib3 advisories; prepare their hashed-lock fixes separately. Record the email-status layout shift as a UI hardening follow-up.
+The initial PR103 real-API CI run passed368/369 cases; a loading-layout fixture race was repaired with33/33 local recovery cases and complete final-head CI passing. A broader query of42 pinned Python distributions found PyJWT/urllib3 advisories; prepare their hashed-lock fixes separately. Record the email-status layout shift as a UI hardening follow-up.
 
 Next maintenance slices: complete security reconciliation and full CI, then separately review optional npm/Actions upgrades and Python/Compose update coverage. The previous combined routine-upgrade trial failed one of1,472 units; retained evidence must be diagnosed before those optional updates are revived. Backend routers and further feature extraction remain separate tasks.
 
 ### Dependent follow-up — Python security fixes
 
-Branch `chore/python-security-updates` builds on PR103 head `6304c855816d9c3e9a0ad6cc54f14a47db75274a`; PR103 remains unmerged. PyJWT2.14.0 →2.15.0 and urllib3 2.7.0 →2.8.0 address five distinct GHSA advisories (duplicate PYSEC aliases are not extra findings). Both uv-resolved hashed locks retain every other version. Hash-checked installation and `pip check` pass in a local test image; both replacement versions have no current PyPI-listed advisories. Complete backend/PostgreSQL verification is running; full final-head CI and merged-source acceptance remain required. This does not replace the pending19-alert GitHub reconciliation or container/deployment acceptance. No historical AWS artifact contract is rewritten.
+Branch `chore/python-security-updates` builds on PR103 head `6304c855816d9c3e9a0ad6cc54f14a47db75274a`; PR103 is now merged. PyJWT2.14.0 →2.15.0 and urllib3 2.7.0 →2.8.0 address five distinct GHSA advisories (duplicate PYSEC aliases are not extra findings). Both uv-resolved hashed locks retain every other version. Hash-checked installation and `pip check` pass in a local test image; both replacement versions have no current PyPI-listed advisories. Complete local backend/PostgreSQL verification passed1,353/1,353 cases in1,087.09s; full final-head CI and merged-source acceptance remain required. This does not replace the pending19-alert GitHub reconciliation or container/deployment acceptance. No historical AWS artifact contract is rewritten.
 
 ### M6 exit evidence — source accepted, external acceptance open
 

@@ -228,6 +228,12 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 27 October 2026 — PR103 source acceptance and PR104 remaining browser failure
+
+PR103 head `6304c855816d9c3e9a0ad6cc54f14a47db75274a` passed complete frontend/backend/API-browser CI in run40478715048 and merged as `bc674ad4ecd5c7c65e9326d792cd0555373b072a`. The audit and grouped update policy are now source-accepted. Main verification and deployment remain separate. Dependabot then opened grouped Docker patch PR105, Actions PR107 and npm PR108, plus independent PyJWT security PR106. PR106 changed only the manifest, omitting the hashed locks; it was closed as covered by PR104 and its redundant run40498474632 was cancelled. Bot activity confirms operational proposals, not complete settings API access or vulnerability remediation.
+
+PR104 initial head `5ad56be8ff0fe42d5dc22d0198c0497af581c2f2` passed frontend/backend CI, but run40479433974 passed368/369 real-API cases: tablet offline-notes setup missed its Edit click while assessment cards expanded above Remarks. Trace artifact12723231888 records the assessment response ending at338152ms between coordinate selection and click completion at338184ms. No editor or write began. The complete local updated-Python backend gate independently passed1,353/1,353 tests in1,087.09s; no live/provider acceptance is inferred. Original traces and local runs remain in `/workspace/work/pr104-failure/`. PR104 stays draft until the corrected exact head passes every gate. Assessment and email loading layout shifts remain UI-hardening follow-ups.
+
 ### 27 October 2026 — Python security update preparation
 
 Dependent branch `chore/python-security-updates` starts from PR103 head `6304c855816d9c3e9a0ad6cc54f14a47db75274a`. The42-distribution PyPI query identified PyJWT GHSA-42vr-xj54-vc7v / GHSA-x33g-cr3x-6449 and urllib3 GHSA-8988-9cw3-xx77 / GHSA-gh4c-6fx4-qh6g / GHSA-vxq7-64xx-v4gw. Published fixes are PyJWT2.15.0 and urllib3 2.8.0. Both runtime/test locks were resolved with uv, constraining all other versions; only the two generated version/hash blocks changed, preserving existing provenance comments. The updated image installs with `--require-hashes` and passes `pip check`. A subsequent query lists no advisories for the replacement versions; this is a known-advisory snapshot, not full security certification.

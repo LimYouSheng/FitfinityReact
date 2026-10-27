@@ -5,6 +5,8 @@ async function notesPage(page, info, purpose = 'contacts') {
   await signIn(page, 'owner', account(purpose))
   const client = (await read(page, '/api/directory')).clients.find(row => row.name === `${info.project.name} ${purpose}`)
   await page.goto(`/#/clients/${client.id}`)
+  // Assessment cards above Remarks change its position when their read completes.
+  await expect(page.getByRole('button', { name: /Lifestyle & Health History/ })).toBeVisible()
   const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Remarks', exact: true }) })
   await panel.getByRole('button', { name: 'Edit', exact: true }).click()
   return { client, panel }
