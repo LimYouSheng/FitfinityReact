@@ -64,9 +64,14 @@ const mutations = [
   ['credentials in PR checks', setup => { setup.verify.jobs.frontend.permissions = { 'id-token': 'write' } }],
   ['transitive-only parser dependency', setup => { delete setup.packageJson.devDependencies.rolldown }],
   ['unlocked lint dependency', setup => { setup.lock.packages['node_modules/eslint'].version = '0.0.0' }],
-  ['image publication before tests', setup => { delete setup.pages.jobs.image.needs }],
-  ['image publication before activation', setup => { setup.pages.jobs.image.if = "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'" }],
-  ['independent image entry bypasses shared gates', setup => { setup.image.on.workflow_dispatch = null }],
+  ['image publication before tests', setup => { delete setup.image.jobs.image.needs }],
+  ['image publication before activation', setup => { setup.image.jobs.image.if = "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'" }],
+  ['automatic image entry bypasses manual initiation', setup => { setup.image.on.push = { branches: ['main'] } }],
+  ['normal verification waits for release', setup => { setup.pages.jobs.image = { uses: './.github/workflows/aws-image.yml' } }],
+  ['release verification bypass', setup => { delete setup.image.jobs.verify.needs }],
+  ['release source selection bypass', setup => { setup.image.jobs.source.steps[0].run = 'true' }],
+  ['release input is not required', setup => { setup.image.on.workflow_dispatch.inputs.source_sha.required = false }],
+  ['release verification failure ignored', setup => { setup.image.jobs.verify['continue-on-error'] = true }],
   ['image job without environment protection', setup => { delete setup.image.jobs.image.environment }],
   ['image role replaced with verification role', setup => { setup.image.jobs.image.steps.find(step => step.uses?.startsWith('aws-actions/')).with['role-to-assume'] = '${{ vars.AWS_VERIFY_ROLE_ARN }}' }],
   ['image account guard removed', setup => { delete setup.image.jobs.image.steps.find(step => step.uses?.startsWith('aws-actions/')).with['allowed-account-ids'] }],
@@ -77,6 +82,16 @@ for (const [name, mutate] of mutations) test(`quality setup rejects ${name}`, ()
   const setup = readQualitySetup()
   mutate(setup)
   assert.throws(() => verifyQualitySetup(setup), /Quality setup:/)
+})
+
+test('manual release source gate executes only for the exact entered SHA', () => {
+  const script = readQualitySetup().image.jobs.source.steps[0].run
+  const sha = 'a'.repeat(40)
+  for (const expected of [sha, 'b'.repeat(40), '', 'main', `${sha}\n`, '$(exit 0)']) {
+    const result = spawnSync('bash', ['-c', script], { encoding: 'utf8', env: { PATH: process.env.PATH, EXPECTED_SHA: expected, GITHUB_SHA: sha } })
+    assert.ifError(result.error)
+    assert.equal(result.status === 0, expected === sha)
+  }
 })
 
 function receipt(kind, contents, valid) {

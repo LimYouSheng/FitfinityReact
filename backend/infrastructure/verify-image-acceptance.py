@@ -256,6 +256,40 @@ class AcceptanceChecks(unittest.TestCase):
         self.assertEqual(candidate, self.candidate)
         self.assertEqual(provenance, self.provenance)
 
+    def manual_candidate(self):
+        self.run.update(path=".github/workflows/aws-image.yml", event="workflow_dispatch")
+        self.jobs["jobs"][-1]["name"] = "image"
+        self.jobs["jobs"].append({"name": "verify / api-browser", "conclusion": "success"})
+        self.jobs["total_count"] = 4
+
+    def test_manual_candidate_requires_all_three_gates(self):
+        self.manual_candidate()
+        self.assertEqual(self.trusted()[0], self.candidate)
+        for conclusion in ("failure", "skipped", "cancelled", None):
+            with self.subTest(conclusion=conclusion):
+                self.jobs["jobs"][-1]["conclusion"] = conclusion
+                with self.assertRaises(RuntimeError):
+                    self.trusted()
+
+    def test_manual_candidate_rejects_missing_or_duplicate_api_gate(self):
+        self.manual_candidate()
+        gate = self.jobs["jobs"].pop()
+        self.jobs["total_count"] = 3
+        with self.assertRaises(RuntimeError):
+            self.trusted()
+        self.jobs["jobs"].extend([gate, gate.copy()])
+        self.jobs["total_count"] = 5
+        with self.assertRaises(RuntimeError):
+            self.trusted()
+
+    def test_manual_candidate_rejects_push_and_wrong_artifact_source(self):
+        self.manual_candidate()
+        with patch.dict(self.run, {"event": "push"}), self.assertRaises(RuntimeError):
+            self.trusted()
+        self.artifact["workflow_run"]["head_sha"] = "d" * 40
+        with self.assertRaises(RuntimeError):
+            self.trusted()
+
     def test_arbitrary_receipt_cannot_claim_verified_ci(self):
         self.jobs["jobs"][0]["conclusion"] = "failure"
         with self.assertRaises(RuntimeError):

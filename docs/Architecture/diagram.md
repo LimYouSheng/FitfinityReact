@@ -22,6 +22,7 @@ flowchart TB
     Repo["GitHub: reviewed source and lockfiles"]
     CI["Frontend, backend and API-browser CI"]
     Merge["Exact tested head and protected source merge"]
+    Image["Manual image run: entered main SHA, full CI, AWS approval and scan"]
     Release["Separate reviewed artifact, migration and rollout acceptance"]
     Supply["Planned: Dependabot, vulnerability triage, SBOM and provenance assessment"]
     Security["Planned: secret scanning, static security analysis and rate-limit hardening"]
@@ -41,7 +42,9 @@ flowchart TB
   App -->|"Transactions and receipts"| DB
   Staff -->|"Private signed upload/read"| Media
   App -->|"Verify bytes and durable cleanup"| Media
-  Repo --> CI --> Merge --> Release
+  Repo --> CI --> Merge
+  Merge -->|"Normal main verification and demo publishing"| Pages
+  Merge -->|"Separate manual initiation"| Image --> Release
   Release -.->|"Separately authorized deployment"| AWS
   Supply -.->|"Reviewed update PRs"| Repo
   Security -.-> CI
