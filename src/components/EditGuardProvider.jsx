@@ -7,7 +7,11 @@ const EditGuardContext = createContext(null)
 export function EditGuardProvider({ children }) {
   const confirmAction = useActionConfirmation()
   const [activeEdit, setActiveEdit] = useState(null)
-  const navigationPending = useRef(false)
+  const navigationPending = useRef(null)
+
+  useEffect(() => {
+    if (navigationPending.current && navigationPending.current.edit !== activeEdit) navigationPending.current.controller.abort()
+  }, [activeEdit])
 
   useEffect(() => {
     const warnBeforeUnload = event => {
@@ -26,7 +30,8 @@ export function EditGuardProvider({ children }) {
     }
 
     if (navigationPending.current) return false
-    navigationPending.current = true
+    const pending = { controller: new AbortController(), edit: activeEdit }
+    navigationPending.current = pending
 
     try {
       const confirmed = await confirmAction({
@@ -34,6 +39,7 @@ export function EditGuardProvider({ children }) {
         message: `${activeEdit} is currently being edited. Leaving now will discard the unsaved changes.`,
         confirmLabel: 'Leave Without Saving',
         danger: true,
+        signal: pending.controller.signal,
       })
       if (!confirmed) return false
 
@@ -42,7 +48,7 @@ export function EditGuardProvider({ children }) {
       await action()
       return true
     } finally {
-      navigationPending.current = false
+      if (navigationPending.current === pending) navigationPending.current = null
     }
   }, [activeEdit, confirmAction])
 

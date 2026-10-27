@@ -7,7 +7,7 @@ import { EditGuardProvider } from '../../components/EditGuardProvider.jsx'
 
 const actions = vi.hoisted(() => ({ runAction: vi.fn(fn => fn()), reload: vi.fn(), props: null, renewPackage: vi.fn() }))
 vi.mock('../../hooks/usePortalActions.js', () => ({ default: () => actions }))
-vi.mock('../../hooks/usePortalData.js', () => ({ default: () => ({ snapshot: { user: { role: 'owner' }, data: { trainers: [], clients: [], packages: [] }, policy: {}, capabilities: { directoryReadOnly: true, clientRenewalWrites: true } }, services: { clientService: { renewPackage: actions.renewPackage } } }) }))
+vi.mock('../../hooks/usePortalData.js', async importOriginal => ({ ...await importOriginal(), default: () => ({ snapshot: { user: { role: 'owner' }, data: { trainers: [], clients: [], packages: [] }, policy: {}, capabilities: { directoryReadOnly: true, clientRenewalWrites: true } }, services: { clientService: { renewPackage: actions.renewPackage } } }) }))
 vi.mock('./useClientNotes.js', () => ({ default: client => ({ client }) }))
 vi.mock('./ClientProfilePage.jsx', () => ({ default: props => { actions.props = props; return null } }))
 afterEach(() => { cleanup(); vi.clearAllMocks(); actions.reload.mockReset(); actions.renewPackage.mockReset() })

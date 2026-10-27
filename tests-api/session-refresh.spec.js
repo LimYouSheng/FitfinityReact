@@ -87,6 +87,10 @@ test('competing booking refresh preserves reviewed draft and stale rejection, th
 test('assignment change retires a Trainer plan draft while retaining only historical read access', async ({ page, browser }, info) => {
   const { id } = await open(page, info, 'planrevoked', 'trainer')
   await planDraft(page)
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Save exercise plan?', exact: true })).toBeVisible()
+  const writes = []
+  page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith(`/api/sessions/${id}/plan`)) writes.push(request.url()) })
   const context = await freshContext(browser, page)
   try {
     const owner = await context.newPage()
@@ -110,6 +114,10 @@ test('assignment change retires a Trainer plan draft while retaining only histor
     await expect(page.getByLabel('Exercise 1 weight', { exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Start Plan', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Session Overview', exact: true })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Save exercise plan?', exact: true })).toHaveCount(0)
+    expect(writes).toEqual([])
+    await expect(page.getByRole('button', { name: 'Postpone', exact: true })).toBeDisabled()
+    expect((await page.request.get(`/api/sessions/${id}/postponement-review`)).status()).toBe(404)
     expect((await page.request.get(`/api/sessions/${id}/plan-review`)).status()).toBe(404)
     expect((await read(owner, `/api/sessions/${id}/details`)).exercisePlan).toEqual([])
   } finally { await context.close() }

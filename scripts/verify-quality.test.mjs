@@ -89,15 +89,15 @@ function receipt(kind, contents, valid) {
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 }
 test('complete unit and browser receipts pass exact inventory validation', () => {
-  receipt('unit', 'Test Files 149 passed (149)\nTests 1436 passed (1436)', true)
+  receipt('unit', 'Test Files 149 passed (149)\nTests 1449 passed (1449)', true)
   receipt('browser', '1152 passed (1m)', true)
-  receipt('api-browser', '366 passed (1m)', true)
+  receipt('api-browser', '369 passed (1m)', true)
 })
 test('unit receipt rejects old totals, missing files, truncation and skipped tests', () => {
-  for (const text of ['Test Files 149 passed (149)\nTests 1423 passed (1423)', 'Test Files 146 passed (146)\nTests 1392 passed (1392)', 'Test Files 145 passed (145)\nTests 1384 passed (1384)', 'Test Files 141 passed (141)\nTests 1247 passed (1247)', 'Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 887 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 149 passed (149)\nTests 1436 passed (1436)\n1 skipped']) receipt('unit', text, false)
+  for (const text of ['Test Files 149 passed (149)\nTests 1436 passed (1436)', 'Test Files 149 passed (149)\nTests 1423 passed (1423)', 'Test Files 146 passed (146)\nTests 1392 passed (1392)', 'Test Files 145 passed (145)\nTests 1384 passed (1384)', 'Test Files 141 passed (141)\nTests 1247 passed (1247)', 'Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 887 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 149 passed (149)\nTests 1449 passed (1449)\n1 skipped']) receipt('unit', text, false)
 })
 test('browser receipt rejects partial totals, retries, skipped tests and errors', () => {
-  for (const text of ['12 passed', '62 passed', '282 passed', '294 passed', '300 passed', '303 passed', '351 passed', '366 passed\n1 skipped', '366 passed\n(retry #1)', '366 passed\nError: incomplete']) receipt('api-browser', text, false)
+  for (const text of ['12 passed', '62 passed', '282 passed', '294 passed', '300 passed', '303 passed', '351 passed', '366 passed', '369 passed\n1 skipped', '369 passed\n(retry #1)', '369 passed\nError: incomplete']) receipt('api-browser', text, false)
   for (const text of ['849 passed', '837 passed', '819 passed', '810 passed', '804 passed', '792 passed', '791 passed', '765 passed', '791 passed', '723 passed', '717 passed', '714 passed', '711 passed', '708 passed', '696 passed', '707 passed', '1152 passed\n(retry #1)', '1152 passed\n1 skipped', '1152 passed\nError: incomplete']) receipt('browser', text, false)
 })
 
@@ -216,14 +216,14 @@ test('hosting release builds API artifact without AWS authority and retains immu
 })
 
 function shardFixture() {
-  const specs = Array.from({ length: 366 }, (_, index) => ({ id: `case-${index}`, file: 'workflow.spec.js', line: index + 1, column: 1, title: `Case ${index}`, tests: [{ projectId: ['desktop-chromium', 'phone', 'tablet'][index % 3], expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed', retry: 0, errors: [] }] }] }))
+  const specs = Array.from({ length: 369 }, (_, index) => ({ id: `case-${index}`, file: 'workflow.spec.js', line: index + 1, column: 1, title: `Case ${index}`, tests: [{ projectId: ['desktop-chromium', 'phone', 'tablet'][index % 3], expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed', retry: 0, errors: [] }] }] }))
   const report = (items, current) => ({ errors: [], config: { shard: current ? { current, total: 2 } : null, workers: 2, projects: [{ retries: 0, repeatEach: 1 }] }, suites: [{ title: 'workflow.spec.js', specs: items }], stats: { expected: items.length, unexpected: 0, flaky: 0, skipped: 0 } })
   return { inventory: report(specs), reports: [report(structuredClone(specs.slice(0, 141)), 1), report(structuredClone(specs.slice(141)), 2)] }
 }
 
 test('complete complementary shard identities pass regardless of report order', () => {
   const { inventory, reports } = shardFixture()
-  assert.equal(verifyApiShards(inventory, reports.reverse(), 'success'), 366)
+  assert.equal(verifyApiShards(inventory, reports.reverse(), 'success'), 369)
 })
 for (const [name, mutate] of [
   ['missing shard', data => data.reports.pop()],

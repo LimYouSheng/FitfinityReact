@@ -196,7 +196,7 @@ export default function SessionDetailsPage({
       <SessionOverview requestEditable={!readOnly ? sessionEditable : requestEditable && !recordInactive && assignedTrainer && !['completed', 'cancelled'].includes(session.status)} session={session} client={client} trainer={trainer} trainers={trainers}
         purchased={purchased} clientInactive={clientInactive} packageInactive={packageInactive}
         status={status} pendingChanges={pendingChanges} isOwner={isOwner} sessionEditable={sessionEditable}
-        postponementEditable={(sessionEditable || postponementEditable) && !recordInactive && !['completed', 'cancelled'].includes(session.status)}
+        postponementEditable={(isOwner || assignedTrainer) && (sessionEditable || postponementEditable) && !recordInactive && !['completed', 'cancelled'].includes(session.status)}
         bookingEditable={(sessionEditable || bookingEditable) && !recordInactive && !['completed', 'cancelled'].includes(session.status)} bookingUncertain={bookingUncertain}
         activeEditor={activeEditor} setActiveEditor={setActiveEditor} saving={saving}
         setDetailsError={setDetailsError} schedule={schedule} onOpenClient={onOpenClient} onOpenTrainer={onOpenTrainer} />
