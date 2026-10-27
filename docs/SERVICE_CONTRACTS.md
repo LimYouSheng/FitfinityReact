@@ -228,6 +228,10 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 27 October 2026 Singapore — Dependabot grouping cleanup
+
+User requested a tidy grouped update queue after eight proposals appeared. Inspection found #101 already carries the undici/source-map-js/Vite versions from #97/#98/#100; #99 additionally updates Vitest/mocker. Actions #95/#96 are compatible separate proposals. Python3.15 in #94 conflicts with `requires-python >=3.12,<3.13` and is not an ordinary compatible update. Configuration now proposes one open version PR per ecosystem, explicit npm security grouping, grouped npm/Actions minor/patch updates and Docker patches, with Python minor/major updates reserved for explicit compatibility work. All86 verifier tests pass. Replacement batches must be published before closing superseded fixes; no alert is dismissed or update auto-merged. Dependabot alert API returned403, so this evidence concerns PR contents and configuration, not a complete alert audit.
+
 ### 27 October 2026 Singapore — Bounded dependency maintenance preparation
 
 Dependent branch `chore/bounded-dependency-updates` starts from unmerged PR91 head `b7beebd2b54404649cb2c736198113aa0883f8af`. Five frontend declarations move from `latest` to their existing locked versions: jest-dom7.0.1, React Testing Library16.3.3, user-event14.6.6, plugin-react6.1.1 and jsdom30.0.1. All non-root resolved lockfile records remain identical. `npm ci --dry-run --ignore-scripts --offline` passes;83 verifier checks cover exact tooling pins and bounded update configuration. PR91’s1,472-unit and81-case real-API receipts remain applicable to unchanged runtime/source/dependency bytes; this slice still requires its own full final-head CI.

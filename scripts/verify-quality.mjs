@@ -86,11 +86,14 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   }
   const updates = dependabot?.updates
   if (dependabot?.version !== 2 || updates?.length !== 3) fail('dependency automation must retain the three reviewed ecosystems')
-  for (const [ecosystem, directory, limit] of [['npm', '/', 2], ['github-actions', '/', 2], ['docker', '/backend', 1]]) {
+  for (const [ecosystem, directory, limit] of [['npm', '/', 1], ['github-actions', '/', 1], ['docker', '/backend', 1]]) {
     const matches = updates.filter(update => update['package-ecosystem'] === ecosystem)
     const update = matches[0]
     if (matches.length !== 1 || update.directory !== directory || update['open-pull-requests-limit'] !== limit || !equal(update.schedule, { interval: 'weekly', day: 'monday', time: '09:00', timezone: 'Asia/Singapore' }) || update['target-branch'] || update['insecure-external-code-execution']) fail(`bounded default-branch dependency updates required: ${ecosystem}`)
-    if (ecosystem === 'npm' && !equal(update.groups, { 'npm-minor-patch': { patterns: ['*'], 'update-types': ['minor', 'patch'] } })) fail('npm majors must remain separate from routine grouped updates')
+    if (ecosystem === 'npm' && !equal(update.groups, { 'npm-security': { 'applies-to': 'security-updates', patterns: ['*'] }, 'npm-minor-patch': { 'applies-to': 'version-updates', patterns: ['*'], 'update-types': ['minor', 'patch'] } })) fail('npm majors must remain separate from routine grouped updates')
+    if (ecosystem === 'github-actions' && !equal(update.groups, { 'actions-minor-patch': { patterns: ['*'], 'update-types': ['minor', 'patch'] } })) fail('compatible Actions updates must be grouped')
+    if (ecosystem === 'docker' && (!equal(update.groups, { 'docker-patches': { patterns: ['*'], 'update-types': ['patch'] } }) || !equal(update.ignore, [{ 'dependency-name': 'python', 'update-types': ['version-update:semver-major', 'version-update:semver-minor'] }]))) fail('Docker patches must be grouped within the supported Python minor')
+
   }
   if (packageJson.scripts?.['verify:lint'] !== 'node scripts/verify-lint.mjs' || packageJson.scripts?.['verify:quality-checker'] !== 'node --test --test-reporter=spec scripts/verify-quality.test.mjs') fail('canonical quality commands are missing')
 }

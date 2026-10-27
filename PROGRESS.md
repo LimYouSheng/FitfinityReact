@@ -61,6 +61,10 @@ Next maintenance slices: extract remaining feature routes only where ownership i
 
 Branch `chore/bounded-dependency-updates` builds on unmerged PR91 head `b7beebd2b54404649cb2c736198113aa0883f8af`. Pin the five `latest` declarations to their existing locked versions without changing any resolved package. Add bounded weekly npm/Actions/Dockerfile update configuration and maintenance instructions. Python custom hashed locks and Compose pins remain explicitly manual; this does not complete H4 or establish observed Dependabot/security-alert operation. Offline `npm ci --dry-run --ignore-scripts --offline` passes;83 verifier checks pass. Final-head CI remains required.
 
+### Active dependency-queue tidy-up
+
+Branch `chore/tidy-dependabot-groups` proposes one open routine version PR per ecosystem, explicit npm security grouping, grouped Actions minor/patch updates and grouped Docker patches. Python minor/major proposals are excluded because the backend requires3.12. Existing proposals #97/#98/#100 overlap the npm group #101; #99 adds the Vitest fix. Consolidated npm/Actions replacements will retain all proposed fixes before superseded PRs close. Security alerts remain open until actual remediation; their API is unavailable to the current integration (403), so no complete vulnerability audit is claimed. All86 grouping/verifier checks pass; source CI remains required.
+
 ### M6 exit evidence — source accepted, external acceptance open
 
 PR82 closes the authorized M6 source-exit work after complete final-head CI and normal merge. Full milestone/live acceptance remains distinct. Detailed first failures and the measured test-graph cleanup repair are retained once in Contracts history.
