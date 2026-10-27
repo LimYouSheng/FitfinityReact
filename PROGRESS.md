@@ -55,7 +55,11 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 
 Branch `refactor/session-route-ownership` starts from accepted PR90 main `e821befc18674884632db767649937708d744a9c`. The architecture explanation maps editor, command and refresh transitions to existing owners. The first incremental extraction moves session recovery/detail/list selection into `SessionsRoute`, preserving precedence, permission filtering and record/login-generation keys. The misleading `directoryReadOnly` marker becomes `apiBackedWorkflows`; operation capabilities remain unchanged. The complete local unit gate passes1,472/150 files in151.55s, source-health covers531 files, and78 verifier checks pass. All81 affected real-API cases pass in6.0m across desktop/phone/tablet against isolated Docker PostgreSQL; this refactor is not yet source-accepted.
 
-Next maintenance slices: extract remaining feature routes only where ownership is clearer; pin the five `latest` declarations to reviewed locked versions before separate Dependabot configuration under H4; split backend route registration one domain at a time with unchanged OpenAPI snapshots, authorization and full API evidence. These are separate PRs, not a broad application rewrite. No new state-machine framework or paid service is required.
+Next maintenance slices: extract remaining feature routes only where ownership is clearer; complete H4 Python/Compose update coverage after the bounded dependency slice below; split backend route registration one domain at a time with unchanged OpenAPI snapshots, authorization and full API evidence. These are separate PRs, not a broad application rewrite. No new state-machine framework or paid service is required.
+
+### Active dependent follow-up — bounded dependency maintenance
+
+Branch `chore/bounded-dependency-updates` builds on unmerged PR91 head `b7beebd2b54404649cb2c736198113aa0883f8af`. Pin the five `latest` declarations to their existing locked versions without changing any resolved package. Add bounded weekly npm/Actions/Dockerfile update configuration and maintenance instructions. Python custom hashed locks and Compose pins remain explicitly manual; this does not complete H4 or establish observed Dependabot/security-alert operation. Offline `npm ci --dry-run --ignore-scripts --offline` passes;83 verifier checks pass. Final-head CI remains required.
 
 ### M6 exit evidence — source accepted, external acceptance open
 

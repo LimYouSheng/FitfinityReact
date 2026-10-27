@@ -15,6 +15,7 @@ const requireGate = (job, command) => {
 export function readQualitySetup(root = process.cwd()) {
   const read = file => fs.readFileSync(path.join(root, file), 'utf8')
   return {
+    dependabot: parse(read('.github/dependabot.yml')),
     pages: parse(read('.github/workflows/pages.yml')),
     verify: parse(read('.github/workflows/verify.yml')),
     infrastructure: parse(read('.github/workflows/infrastructure.yml')),
@@ -25,7 +26,7 @@ export function readQualitySetup(root = process.cwd()) {
   }
 }
 
-export function verifyQualitySetup({ pages, verify, infrastructure, image, acceptance, packageJson, lock }) {
+export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, packageJson, lock }) {
   for (const event of ['pull_request', 'push']) {
     if (!equal(pages.on?.[event]?.branches, ['main']) || Object.keys(pages.on[event]).some(key => key !== 'branches')) fail(`${event} must run all gates for main without path filtering`)
   }
@@ -79,9 +80,17 @@ export function verifyQualitySetup({ pages, verify, infrastructure, image, accep
   requireGate(acceptJob, 'test "$IMAGE_ROLE" = \'arn:aws:iam::418638389566:role/fitfinity-test-github-image\'')
   requireGate(acceptJob, 'python3 backend/infrastructure/deploy.py image-accept --actions --digest')
   if (!Object.hasOwn(infrastructure.on ?? {}, 'workflow_call') || !Object.hasOwn(infrastructure.on, 'workflow_dispatch') || Object.hasOwn(infrastructure.on, 'pull_request')) fail('standalone infrastructure checks must remain manual/callable without duplicating full PR gates')
-  for (const name of ['eslint', '@eslint/js', 'eslint-plugin-react-hooks', 'globals', 'rolldown', 'css-tree', 'yaml']) {
+  for (const name of ['eslint', '@eslint/js', 'eslint-plugin-react-hooks', 'globals', 'rolldown', 'css-tree', 'yaml', '@testing-library/jest-dom', '@testing-library/react', '@testing-library/user-event', '@vitejs/plugin-react', 'jsdom']) {
     const version = packageJson.devDependencies?.[name]
     if (!/^\d+\.\d+\.\d+$/.test(version ?? '') || lock.packages?.['']?.devDependencies?.[name] !== version || lock.packages?.[`node_modules/${name}`]?.version !== version) fail(`declare and lock direct tooling dependency: ${name}`)
+  }
+  const updates = dependabot?.updates
+  if (dependabot?.version !== 2 || updates?.length !== 3) fail('dependency automation must retain the three reviewed ecosystems')
+  for (const [ecosystem, directory, limit] of [['npm', '/', 2], ['github-actions', '/', 2], ['docker', '/backend', 1]]) {
+    const matches = updates.filter(update => update['package-ecosystem'] === ecosystem)
+    const update = matches[0]
+    if (matches.length !== 1 || update.directory !== directory || update['open-pull-requests-limit'] !== limit || !equal(update.schedule, { interval: 'weekly', day: 'monday', time: '09:00', timezone: 'Asia/Singapore' }) || update['target-branch'] || update['insecure-external-code-execution']) fail(`bounded default-branch dependency updates required: ${ecosystem}`)
+    if (ecosystem === 'npm' && !equal(update.groups, { 'npm-minor-patch': { patterns: ['*'], 'update-types': ['minor', 'patch'] } })) fail('npm majors must remain separate from routine grouped updates')
   }
   if (packageJson.scripts?.['verify:lint'] !== 'node scripts/verify-lint.mjs' || packageJson.scripts?.['verify:quality-checker'] !== 'node --test --test-reporter=spec scripts/verify-quality.test.mjs') fail('canonical quality commands are missing')
 }
