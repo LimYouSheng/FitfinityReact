@@ -282,15 +282,15 @@ for (const outcome of ['failure', 'cancelled', 'skipped', undefined]) test(`aggr
 })
 
 
-for (const scheme of ['http', 'https']) test(`Ubuntu mirror selection preserves signed suites from ${scheme}`, () => {
+for (const source of ['http://azure.archive.ubuntu.com/ubuntu/', 'https://azure.archive.ubuntu.com/ubuntu/', 'mirror+file:/etc/apt/apt-mirrors.txt']) test(`Ubuntu mirror selection preserves signed suites from ${source}`, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fitfinity-apt-'))
   try {
     const file = path.join(dir, 'ubuntu.sources')
-    const input = `Types: deb\nURIs: ${scheme}://azure.archive.ubuntu.com/ubuntu/\nSuites: noble noble-updates noble-backports\nComponents: main universe restricted multiverse\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n\nTypes: deb\nURIs: http://security.ubuntu.com/ubuntu/\nSuites: noble-security\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n`
+    const input = `Types: deb\nURIs: ${source}\nSuites: noble noble-updates noble-backports\nComponents: main universe restricted multiverse\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n\nTypes: deb\nURIs: http://security.ubuntu.com/ubuntu/\nSuites: noble-security\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n`
     fs.writeFileSync(file, input)
     const result = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
-    const expected = input.replace(`${scheme}://azure.archive.ubuntu.com`, 'https://us.archive.ubuntu.com')
+    const expected = input.replace(source, 'https://us.archive.ubuntu.com/ubuntu/')
     assert.equal(fs.readFileSync(file, 'utf8'), expected)
     const again = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
     assert.equal(again.status, 0, again.stderr)

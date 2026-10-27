@@ -228,6 +228,12 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 27 October 2026 — correct GitHub runner mirror-list source handling
+
+Run40516140632 at `5907f191f9e38a052f745a02e3d229d817a727c9` passed complete frontend and backend gates; both API shards failed in the new source-selection step with `Unexpected Ubuntu source layout`, before browser installation or tests. This is a setup defect in the mirror trial, not an application failure or evidence about the replacement mirror's speed. The initial fixtures covered direct URLs but missed GitHub's mirror-list transport.
+
+The [exact ubuntu24/20261012.334 image build script](https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/scripts/build/configure-apt-sources.sh) replaces Azure URLs with `mirror+file:/etc/apt/apt-mirrors.txt`. That list prioritises Azure, then archive.ubuntu.com, then security.ubuntu.com. The selector now recognises this exact URI as well as direct Azure URLs and replaces it with the reviewed US archive HTTPS URI, without editing the mirror list or other sources. Regression coverage exercises this layout, exact preservation of suites/components/signing keys/security sources, repeat invocation and rejection of unknown layouts. All97 quality checks and531-file lint pass with required execution permissions; the first restricted execution produced only a test-process failure and is not a passing receipt. Full new-head CI and actual download performance remain pending; no assertion, retry, timeout or runner budget was weakened.
+
 ### 27 October 2026 — Ubuntu download-path diagnosis and official mirror trial
 
 PR103's actual main application run40498328753 passed; Dependabot update-job success was not used as application acceptance. PR104 run40508051161 at `4e2346a77d052584bc0987fe774d2df37b18d8cd` passed backend and API shard1, while shard2 exhausted its20-minute budget downloading packages before tests. Both shards used Ubuntu image20261012.334.1: shard1 fetched119MB in4seconds, while shard2 stalled through the budget. Earlier PR93 evidence also took11m49s for119MB. Playwright1.64.1 was unchanged. This establishes variable package-download-path performance, not a proven global Ubuntu outage or application regression.

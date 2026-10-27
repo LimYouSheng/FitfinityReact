@@ -9,7 +9,8 @@ def main():
     source = Path(sys.argv[1])
     original = source.read_text()
     replacement = re.sub(
-        r"(?m)^(URIs:[ \t]+)https?://azure\.archive\.ubuntu\.com/ubuntu/?[ \t]*$",
+        r"(?m)^(URIs:[ \t]+)(?:https?://azure\.archive\.ubuntu\.com/ubuntu/?|"
+        r"mirror\+file:/etc/apt/apt-mirrors\.txt)(?=[ \t]*$)",
         r"\1https://us.archive.ubuntu.com/ubuntu/",
         original,
     )
