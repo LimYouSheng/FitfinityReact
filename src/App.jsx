@@ -1,14 +1,9 @@
+import SessionsRoute from './features/sessions/SessionsRoute.jsx'
 import ProfileSaveRecovery from './components/ProfileSaveRecovery.jsx'
 import ExerciseLibraryRecovery from './features/exercises/ExerciseLibraryRecovery.jsx'
 import ApiRemunerationRoute from './features/remuneration/ApiRemunerationRoute.jsx'
 import RemunerationRecovery from './features/remuneration/RemunerationRecovery.jsx'
 import ProgressReportRecovery from './features/clients/ProgressReportRecovery.jsx'
-import SessionAcknowledgementRecovery from './features/sessions/SessionAcknowledgementRecovery.jsx'
-import SessionSummaryRecovery from './features/sessions/SessionSummaryRecovery.jsx'
-import SessionOutcomeRecovery from './features/sessions/SessionOutcomeRecovery.jsx'
-import SessionPlanRecovery from './features/sessions/SessionPlanRecovery.jsx'
-import SessionChangeRecovery from './features/sessions/SessionChangeRecovery.jsx'
-import ApiSessionDetailsRoute from './features/sessions/ApiSessionDetailsRoute.jsx'
 import ClientWeeklyScheduleRecovery from './features/clients/ClientWeeklyScheduleRecovery.jsx'
 import TrainerDeactivationRecovery from './features/trainers/TrainerDeactivationRecovery.jsx'
 import ClientAssignmentRecovery from './features/clients/ClientAssignmentRecovery.jsx'
@@ -38,8 +33,6 @@ import ExerciseLibraryPage from './features/exercises/ExerciseLibraryPage.jsx'
 import MessagesPage, { MessageInbox } from './features/messages/MessagesPage.jsx'
 import { MESSAGE_CATEGORIES } from './features/messages/messageFilters.js'
 import RemunerationPage from './features/remuneration/RemunerationPage.jsx'
-import SessionsPage from './features/sessions/SessionsPage.jsx'
-import SessionDetailsRoute from './features/sessions/SessionDetailsRoute.jsx'
 import UnavailablePage from './features/placeholders/UnavailablePage.jsx'
 import OwnerProfilePage from './features/owner/OwnerProfilePage.jsx'
 import useSwipeBack from './hooks/useSwipeBack.js'
@@ -107,11 +100,11 @@ function StaffPortal({ navigation }) {
   // The provider keeps a retry banner; do not invite duplicate writes.
   const reload = () => refreshData().catch(() => null)
   const { user, data: db, policy } = snapshot
-  const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
-  const clientCreationEnabled = !directoryOnly || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
-  const trainerCreationEnabled = !directoryOnly || snapshot.capabilities?.trainerCreation === true
-  const packageReadOnly = directoryOnly && snapshot.capabilities?.packageWrites !== true
-  const enabledRoutes = directoryOnly ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.exerciseLibraryWorkflows ? ['exercises'] : []), ...(snapshot.capabilities?.remunerationWorkflows ? ['remuneration'] : []), ...(snapshot.capabilities?.sessionReads ? ['sessions'] : []), ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
+  const apiMode = snapshot.capabilities?.apiBackedWorkflows === true
+  const clientCreationEnabled = !apiMode || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
+  const trainerCreationEnabled = !apiMode || snapshot.capabilities?.trainerCreation === true
+  const packageReadOnly = apiMode && snapshot.capabilities?.packageWrites !== true
+  const enabledRoutes = apiMode ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.exerciseLibraryWorkflows ? ['exercises'] : []), ...(snapshot.capabilities?.remunerationWorkflows ? ['remuneration'] : []), ...(snapshot.capabilities?.sessionReads ? ['sessions'] : []), ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
   const { clientService, trainerService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
@@ -171,14 +164,6 @@ function StaffPortal({ navigation }) {
     [trainers, detailId, route],
   )
 
-  const selectedSession = useMemo(
-    () =>
-      route === 'sessions' && detailId
-        ? visibleSessionsForUser(user, sessions).find(item => item.id === detailId) ?? null
-        : null,
-    [detailId, route, sessions, user],
-  )
-
   const selfTrainer =
     user.role === 'trainer'
       ? trainers.find(item => item.id === user.trainerId)
@@ -209,7 +194,7 @@ function StaffPortal({ navigation }) {
     sessions,
     onResolveRequest: async (id, decision, expectedVersion) => {
       const message = messages.find(row => row.id === id)
-      const result = await runAction(() => requestService.resolve({ id: directoryOnly ? message?.requestId : id, decision, ...(directoryOnly ? { expectedVersion: expectedVersion ?? message?.requestVersion } : {}) }), {
+      const result = await runAction(() => requestService.resolve({ id: apiMode ? message?.requestId : id, decision, ...(apiMode ? { expectedVersion: expectedVersion ?? message?.requestVersion } : {}) }), {
         tone: decision === 'approved' ? 'success' : 'warning',
         message: decision === 'approved' ? 'Request approved.' : 'Request rejected.',
       })
@@ -217,17 +202,17 @@ function StaffPortal({ navigation }) {
       return result
     },
     onCancelRequest: async id => {
-      const result = await runAction(() => requestService.cancel({ id, ...(directoryOnly ? { expectedVersion: messages.find(message => message.requestId === id)?.requestVersion } : {}) }), { message: 'Request cancelled.' })
+      const result = await runAction(() => requestService.cancel({ id, ...(apiMode ? { expectedVersion: messages.find(message => message.requestId === id)?.requestVersion } : {}) }), { message: 'Request cancelled.' })
       try { await reload() } catch { notify({ tone: 'warning', message: 'Cancelled. Refresh to update the request list.' }) }
       return result
     },
     onDismissRenewal: async id => {
-      const result = await runAction(() => messageService.dismissRenewal({ id, ...(directoryOnly ? { expectedClientVersion: clients.find(client => client.id === messages.find(message => message.id === id)?.clientId)?.version } : {}) }), { message: 'Renewal follow-up removed.' })
+      const result = await runAction(() => messageService.dismissRenewal({ id, ...(apiMode ? { expectedClientVersion: clients.find(client => client.id === messages.find(message => message.id === id)?.clientId)?.version } : {}) }), { message: 'Renewal follow-up removed.' })
       try { await reload() } catch { notify({ tone: 'warning', message: 'Removed. Refresh to update the renewal list.' }) }
       return result
     },
     onMarkRead: async id => {
-      await runAction(() => messageService.markRead({ id, ...(directoryOnly ? { expectedVersion: messages.find(message => message.id === id)?.version } : {}) }), null)
+      await runAction(() => messageService.markRead({ id, ...(apiMode ? { expectedVersion: messages.find(message => message.id === id)?.version } : {}) }), null)
       await reload()
     },
     onUndo: async id => {
@@ -236,7 +221,7 @@ function StaffPortal({ navigation }) {
       return result
     },
     onMarkUnread: async id => {
-      await runAction(() => messageService.markUnread({ id, ...(directoryOnly ? { expectedVersion: messages.find(message => message.id === id)?.version } : {}) }), { tone: 'info', message: 'Message marked as unread.' })
+      await runAction(() => messageService.markUnread({ id, ...(apiMode ? { expectedVersion: messages.find(message => message.id === id)?.version } : {}) }), { tone: 'info', message: 'Message marked as unread.' })
       await reload()
     },
     onOpenRelated: ({ type, id }) => {
@@ -252,7 +237,7 @@ function StaffPortal({ navigation }) {
 
   let page
 
-  if (directoryOnly && (!enabledRoutes.includes(route) || (creatingClient && !clientCreationEnabled) || (creatingTrainer && !trainerCreationEnabled) || (route === 'packages' && detailId === 'new' && packageReadOnly) || (route === 'clients' && parts[2] && !(snapshot.capabilities?.sessionOutcomeWrites && parts[2] === 'progress' && parts.length <= 4)))) {
+  if (apiMode && (!enabledRoutes.includes(route) || (creatingClient && !clientCreationEnabled) || (creatingTrainer && !trainerCreationEnabled) || (route === 'packages' && detailId === 'new' && packageReadOnly) || (route === 'clients' && parts[2] && !(snapshot.capabilities?.sessionOutcomeWrites && parts[2] === 'progress' && parts.length <= 4)))) {
     page = <UnavailablePage message="This workflow is not available yet." />
   } else if (creatingClient && managesOperations(user)) {
     page = (
@@ -264,8 +249,8 @@ function StaffPortal({ navigation }) {
         packages={activePackages(db)}
         trainers={trainers}
         onCancel={() => goBack('clients')}
-        recovery={directoryOnly ? clientCreation : undefined}
-        previewMatches={directoryOnly ? services.previewClientMatches : undefined}
+        recovery={apiMode ? clientCreation : undefined}
+        previewMatches={apiMode ? services.previewClientMatches : undefined}
         onCreate={async draft => {
           const created = await runAction(() => clientService.create({ draft }), { message: 'Client created.' })
           return created
@@ -276,19 +261,19 @@ function StaffPortal({ navigation }) {
         }}
       />
     )
-  } else if (route === 'clients' && directoryOnly && snapshot.progressReportPending) {
+  } else if (route === 'clients' && apiMode && snapshot.progressReportPending) {
     page = <ProgressReportRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.progressReportPending} services={services} />
-  } else if (route === 'clients' && directoryOnly && snapshot.clientRenewalPending) {
+  } else if (route === 'clients' && apiMode && snapshot.clientRenewalPending) {
     page = <ClientRenewalRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientRenewalPending} services={services} />
-  } else if (route === 'clients' && directoryOnly && snapshot.clientWeeklySchedulePending) {
+  } else if (route === 'clients' && apiMode && snapshot.clientWeeklySchedulePending) {
     page = <ClientWeeklyScheduleRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientWeeklySchedulePending} services={services} />
-  } else if (route === 'clients' && directoryOnly && snapshot.clientAssignmentPending) {
+  } else if (route === 'clients' && apiMode && snapshot.clientAssignmentPending) {
     page = <ClientAssignmentRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientAssignmentPending} services={services} />
-  } else if (route === 'clients' && directoryOnly && snapshot.packageReactivationPending) {
+  } else if (route === 'clients' && apiMode && snapshot.packageReactivationPending) {
     page = <ClientReactivationRecovery packageMode key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.packageReactivationPending} services={services} />
-  } else if (route === 'clients' && directoryOnly && snapshot.clientReactivationPending) {
+  } else if (route === 'clients' && apiMode && snapshot.clientReactivationPending) {
     page = <ClientReactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientReactivationPending} services={services} />
-  } else if (route === 'clients' && directoryOnly && snapshot.clientDeactivationPending) {
+  } else if (route === 'clients' && apiMode && snapshot.clientDeactivationPending) {
     page = <ClientDeactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.clientDeactivationPending} services={services} />
   } else if (route === 'clients' && selectedClient) {
     page = (
@@ -311,7 +296,7 @@ function StaffPortal({ navigation }) {
   } else if (creatingTrainer && managesOperations(user)) {
     page = (
       <AddTrainerPage
-        recovery={directoryOnly ? trainerCreation : undefined}
+        recovery={apiMode ? trainerCreation : undefined}
         realAuthentication={snapshot.capabilities?.realAuthentication === true}
         viewer={user}
         policy={policy}
@@ -319,19 +304,19 @@ function StaffPortal({ navigation }) {
         onCancel={() => goBack('trainers')}
         onCreate={async draft => {
           const created = await runAction(() => trainerService.create({ draft }), { message: 'Trainer created.' })
-          if (!directoryOnly) await reload()
+          if (!apiMode) await reload()
           return created
         }}
         onCreated={async (id, result) => {
           navigate(`trainers/${id}`, { replace: true })
           if (result.invitation === 'unknown') notify({ tone: 'warning', message: 'Trainer created. Invitation delivery is unconfirmed; contact support before sending another.' })
-          if (directoryOnly) {
+          if (apiMode) {
             try { await refreshData() } catch { notify({ tone: 'warning', message: 'Trainer created. Retry loading to view it.' }) }
           }
         }}
       />
     )
-  } else if (route === 'trainers' && directoryOnly && snapshot.trainerDeactivationPending) {
+  } else if (route === 'trainers' && apiMode && snapshot.trainerDeactivationPending) {
     page = <TrainerDeactivationRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.trainerDeactivationPending} services={services} />
   } else if (
     route === 'trainers' &&
@@ -341,7 +326,7 @@ function StaffPortal({ navigation }) {
     page = <TrainerProfileRoute key={selectedTrainer.id} trainer={selectedTrainer} ownerMode navigate={navigate} goBack={goBack} openClient={openClient} />
   } else if (route === 'trainers' && managesOperations(user)) {
     page = <TrainersPage trainers={trainers} onOpen={openTrainer} onAdd={trainerCreationEnabled ? openAddTrainer : undefined} />
-  } else if (route === 'my-profile' && directoryOnly && snapshot.trainerAvailabilityPending) {
+  } else if (route === 'my-profile' && apiMode && snapshot.trainerAvailabilityPending) {
     page = <TrainerAvailabilityRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.trainerAvailabilityPending} services={services} />
   } else if (
     route === 'my-profile' &&
@@ -349,53 +334,30 @@ function StaffPortal({ navigation }) {
     selfTrainer
   ) {
     page = <TrainerProfileRoute key={selfTrainer.id} trainer={selfTrainer} ownerMode={false} navigate={navigate} goBack={goBack} openClient={openClient} />
-  } else if (route === 'sessions' && directoryOnly && snapshot.sessionAcknowledgementPending) {
-    page = <SessionAcknowledgementRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionAcknowledgementPending} services={services} />
-  } else if (route === 'sessions' && directoryOnly && snapshot.sessionSummaryPending) {
-    page = <SessionSummaryRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionSummaryPending} services={services} />
-  } else if (route === 'sessions' && directoryOnly && snapshot.sessionOutcomePending) {
-    page = <SessionOutcomeRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionOutcomePending} services={services} />
-  } else if (route === 'sessions' && directoryOnly && snapshot.sessionPlanPending) {
-    page = <SessionPlanRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionPlanPending} services={services} />
-  } else if (route === 'sessions' && directoryOnly && snapshot.sessionChangePending) {
-    page = <SessionChangeRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.sessionChangePending} services={services} />
-  } else if (route === 'sessions' && selectedSession) {
-    page = directoryOnly ? <ApiSessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession} navigate={navigate} openClient={openClient} onChangeSaved={message => notify({ message })} /> : <SessionDetailsRoute key={selectedSession.id} selectedSession={selectedSession}
-      navigate={navigate} openClient={openClient} />
-  } else if (route === 'sessions' && detailId) {
-    page = <UnavailablePage message="This session is unavailable for your account." />
   } else if (route === 'sessions') {
-    page = (
-      <SessionsPage
-        today={today}
-        user={user}
-        sessions={sessions}
-        clients={sessionClients}
-        trainers={sessionTrainers}
-        onOpen={openSession}
-      />
-    )
+    page = <SessionsRoute detailId={detailId} clients={sessionClients} trainers={sessionTrainers}
+      navigate={navigate} openClient={openClient} onChangeSaved={message => notify({ message })} />
   } else if (route === 'messages') {
-    page = directoryOnly && snapshot.requestResolutionPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/resolution`} pending={snapshot.requestResolutionPending} services={services} resolution /> : directoryOnly && snapshot.requestCancellationPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/cancellation`} pending={snapshot.requestCancellationPending} services={services} cancellation /> : directoryOnly && snapshot.renewalDismissalPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/renewal`} pending={snapshot.renewalDismissalPending} services={services} renewal /> : directoryOnly && snapshot.messageReadPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.messageReadPending} services={services} /> : (
+    page = apiMode && snapshot.requestResolutionPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/resolution`} pending={snapshot.requestResolutionPending} services={services} resolution /> : apiMode && snapshot.requestCancellationPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/cancellation`} pending={snapshot.requestCancellationPending} services={services} cancellation /> : apiMode && snapshot.renewalDismissalPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/renewal`} pending={snapshot.renewalDismissalPending} services={services} renewal /> : apiMode && snapshot.messageReadPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.messageReadPending} services={services} /> : (
       <MessagesPage
         {...messageInboxProps}
-        {...(directoryOnly ? { ...(!snapshot.capabilities.requestResolutionWrites ? { onResolveRequest: undefined } : {}), ...(!snapshot.capabilities.requestCancellationWrites ? { onCancelRequest: undefined } : {}), ...(!snapshot.capabilities.packageActionWrites && !snapshot.capabilities.sessionUndoWrites ? { onUndo: undefined } : {}), ...(!snapshot.capabilities.renewalDismissalWrites ? { onDismissRenewal: undefined } : {}) } : {})}
+        {...(apiMode ? { ...(!snapshot.capabilities.requestResolutionWrites ? { onResolveRequest: undefined } : {}), ...(!snapshot.capabilities.requestCancellationWrites ? { onCancelRequest: undefined } : {}), ...(!snapshot.capabilities.packageActionWrites && !snapshot.capabilities.sessionUndoWrites ? { onUndo: undefined } : {}), ...(!snapshot.capabilities.renewalDismissalWrites ? { onDismissRenewal: undefined } : {}) } : {})}
         category={MESSAGE_CATEGORIES.some(item => item.key === detailId && (item.key !== 'remuneration' || canViewRemuneration(user))) ? detailId : 'all'}
         onCategoryChange={category => navigate(category === 'all' ? 'messages' : `messages/${category}`, { preserveView: true })}
       />
     )
   } else if (route === 'remuneration' && !canViewRemuneration(user)) {
     page = <UnavailablePage message="Remuneration is unavailable for this account." />
-  } else if (route === 'remuneration' && directoryOnly && snapshot.remunerationPending) {
+  } else if (route === 'remuneration' && apiMode && snapshot.remunerationPending) {
     page = <RemunerationRecovery pending={snapshot.remunerationPending} services={services} />
-  } else if (route === 'remuneration' && directoryOnly) {
+  } else if (route === 'remuneration' && apiMode) {
     page = <ApiRemunerationRoute cycleKey={detailId} trainerId={parts[2]} onNavigate={(next, options) => navigate(next, { ...options, preserveView: true })} onOpenSession={openSession} />
   } else if (route === 'remuneration') {
     page = <RemunerationPage
       key={user.id}
       user={user}
       views={db.remunerationViews}
-      apiApprovalRecovery={directoryOnly}
+      apiApprovalRecovery={apiMode}
       policy={policy}
       cycleKey={detailId}
       trainerId={parts[2]}
@@ -406,10 +368,10 @@ function StaffPortal({ navigation }) {
         await reload()
       }}
     />
-  } else if (route === 'exercises' && directoryOnly && snapshot.exerciseLibraryPending) {
+  } else if (route === 'exercises' && apiMode && snapshot.exerciseLibraryPending) {
     page = <ExerciseLibraryRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.exerciseLibraryPending} services={services} onRecovered={saved => navigate(`exercises/${saved.id}`, { replace: true })} />
   } else if (route === 'exercises') {
-    page = <ExerciseLibraryPage apiRecovery={directoryOnly} categories={policy.exerciseCategories} key={user.id} user={user} exercises={libraryExercises} detailId={detailId}
+    page = <ExerciseLibraryPage apiRecovery={apiMode} categories={policy.exerciseCategories} key={user.id} user={user} exercises={libraryExercises} detailId={detailId}
       onNavigate={navigate} onBack={() => goBack('exercises')} onLoadMedia={id => exerciseLibraryService.loadMedia({ id })}
       onSave={async options => {
         const saved = await runAction(() => exerciseLibraryService.save(options), saved => exerciseNotification(libraryExercises.find(item => item.id === options.id), saved))
@@ -433,8 +395,8 @@ function StaffPortal({ navigation }) {
   } else if (route === 'owner-profile') {
     page = <UnavailablePage message="This profile is available to the owner." />
   } else if (route === 'content' && managesOperations(user)) {
-    page = directoryOnly ? <ApiContentWorkspace key={`${user.id}/${snapshot.sessionGeneration}`} services={services} generation={snapshot.sessionGeneration} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} /> : <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
-  } else if (route === 'account' || (directoryOnly && !snapshot.capabilities?.sessionReads && route === 'dashboard')) {
+    page = apiMode ? <ApiContentWorkspace key={`${user.id}/${snapshot.sessionGeneration}`} services={services} generation={snapshot.sessionGeneration} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} /> : <ContentManagementPage entries={db.contentEntries} detailId={detailId} onNavigate={navigate} onBack={() => goBack('content')} onSave={async options => { const result = await runAction(() => services.contentService.save(options), { message: 'Content saved.' }); await reload(); return result }} />
+  } else if (route === 'account' || (apiMode && !snapshot.capabilities?.sessionReads && route === 'dashboard')) {
     page = <StaffAccountPage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} user={user} profile={route === 'account'} emailVerification={snapshot.capabilities?.trainerEmailWrites && user.role === 'trainer' ? { auth: services.auth, onCompleted: reload } : undefined} onNavigate={navigate} onSignOut={signOut} busy={accountBusy} />
   } else if (route === 'dashboard') {
     page = <DashboardPage

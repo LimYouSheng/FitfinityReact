@@ -228,6 +228,14 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 27 October 2026 Singapore — Session routing ownership preparation
+
+Branch `refactor/session-route-ownership` starts from PR90 accepted main. It renames the internal API-mode marker to `apiBackedWorkflows`, updates its consumers/fixtures, and extracts session recovery/detail/list routing while retaining recovery precedence, current record visibility and record/login-generation keys. `App.jsx` shrinks from480 to442 lines; the domain owner is34 lines. Existing confirmation, command and refresh owners remain separate; their transitions are explained in Architecture instead of adding a generic state machine. Source-health caught and prompted repair of an incorrect placeholder import during extraction. The full local unit gate passes1,472/150 files in151.55s; source-health covers531 files and78 verifier checks pass. All81 affected real-API cases pass in6.0m across desktop/phone/tablet against isolated Docker PostgreSQL with owned cleanup; final-head CI remains pending; no server contract or write behavior is intentionally changed. The obsolete PR88 main run40444066504 had passed verification/build/demo but waited on image approval; cancelling that superseded wait without approval unblocked PR90 main run40458427527.
+
+### 27 October 2026 Singapore — PR90 source acceptance
+
+PR90 merged normally as `e821befc18674884632db767649937708d744a9c` after exact head `67ce41c27feb352b188e2e3683eb62f4c101be25` passed run40447077391: frontend37m37s, backend22m57s, both real-API shards and the369-case aggregate. Image publication is now manually initiated and exact-source verified before protected AWS approval. This is source acceptance; no release was dispatched, image approved or Lambda deployed.
+
 ### 27 October 2026 Singapore — Manual image release preparation
 
 User requested tighter release control with independent verification: manual initiation plus approval for image publication. Branch `fix/manual-image-release` starts from PR89 merge `751f3c84d0348a024ebf08330e66d81c012629d6`. `pages.yml` no longer calls image publication. `aws-image.yml` accepts only manual dispatch, requires an exact entered main SHA and explicit activation, reruns all three verification gates, and retains `aws-test` approval, AWS serialization, exact account/role, scan and receipt safeguards. Runtime source validation rejects pushes and other workflow identities. The candidate reader preserves legacy receipts while requiring all three gates for the new canonical manual workflow. No release was dispatched or approved and no AWS operation was performed.

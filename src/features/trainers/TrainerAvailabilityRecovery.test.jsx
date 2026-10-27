@@ -5,7 +5,7 @@ import TrainerProfileRoute from './TrainerProfileRoute.jsx'
 
 const actions = vi.hoisted(() => ({ runAction: vi.fn(fn => fn()), reload: vi.fn(), props: null, saveAvailability: vi.fn() }))
 vi.mock('../../hooks/usePortalActions.js', () => ({ default: () => actions }))
-vi.mock('../../hooks/usePortalData.js', () => ({ default: () => ({ snapshot: { user: { role: 'trainer' }, data: { trainers: [], clients: [] }, policy: {}, capabilities: { directoryReadOnly: true, trainerAvailabilityWrites: true } }, services: { trainerService: { saveAvailability: actions.saveAvailability } } }) }))
+vi.mock('../../hooks/usePortalData.js', () => ({ default: () => ({ snapshot: { user: { role: 'trainer' }, data: { trainers: [], clients: [] }, policy: {}, capabilities: { apiBackedWorkflows: true, trainerAvailabilityWrites: true } }, services: { trainerService: { saveAvailability: actions.saveAvailability } } }) }))
 vi.mock('./TrainerProfilePage.jsx', () => ({ default: props => { actions.props = props; return null } }))
 afterEach(() => { cleanup(); vi.clearAllMocks(); actions.reload.mockReset(); actions.saveAvailability.mockReset() })
 const pending = { id: 'trainer', expectedVersion: 4, blocks: [{ days: ['Monday'], from: '10:00', to: '11:00' }] }

@@ -2,7 +2,7 @@
 
 ## Current checkpoint — 27 October 2026 Singapore
 
-Accepted **application source** is [PR89](https://github.com/LimYouSheng/FitfinityReact/pull/89), merge `751f3c84d0348a024ebf08330e66d81c012629d6`. Exact head `7f21dd5e2bf2e3aba89268908f10b064c6c7d7f1` passed [run40442412057](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40442412057): **1,472 units/150 files,1,152 simulator browser cases,1,353 backend/PostgreSQL tests and369 real-API browser cases**, plus lint/source-health/verifier gates. It includes PR88 and retires delayed lifecycle reviews after scope changes. Full receipts and original failures remain in Contracts history.
+Accepted **application source** is [PR90](https://github.com/LimYouSheng/FitfinityReact/pull/90), merge `e821befc18674884632db767649937708d744a9c`. Exact head `67ce41c27feb352b188e2e3683eb62f4c101be25` passed [run40447077391](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40447077391): **1,472 units/150 files,1,152 simulator browser cases,1,353 backend/PostgreSQL tests and369 real-API browser cases**, plus lint/source-health/verifier gates. It includes the lifecycle repairs and separates manually initiated, exact-source AWS image publication from ordinary verification/demo publishing. Full receipts and original failures remain in Contracts history.
 
 [The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **55/55 source accepted**: 54 server-connected operations plus one local predicate. All 18 operations remaining at the 37/55 checkpoint are complete in merged source. This does not establish deployment or blanket milestone acceptance.
 
@@ -10,7 +10,7 @@ Accepted **application source** is [PR89](https://github.com/LimYouSheng/Fitfini
 | --- | --- |
 | Staff-portal source | All named operations and the additional M6 source-exit implementation are source-accepted; live/provider/device acceptance below remains separate. Detailed operation receipts live in Service Contracts Part 2. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; local signed-token Cognito substitute and actual isolated S3-compatible media storage. No production PostgreSQL or Lambda redeployment needed. |
-| Deployment | Main runs still use the legacy workflow until this release-control change merges. PR88 main run40444066504 is in progress and PR89 main run40446518267 is queued at this checkpoint; earlier PR86/87 runs are cancelled. No AWS publication approval, new Lambda deployment, real Cognito or current device acceptance is recorded. |
+| Deployment | PR90 source now requires manual image initiation, exact main SHA, full verification and existing AWS approval. The obsolete PR88 image-approval wait was cancelled without approval; PR90 main run40458427527 is now verifying independently. No new AWS publication approval, Lambda deployment, real Cognito or current device acceptance is recorded. |
 
 ## Full milestone roadmap
 
@@ -51,9 +51,11 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency, Grafana and supply-chain capabilities remain planned until separately implemented and evidenced.
 5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the seven-document structure and all eight existing stashes.
 
-### Active follow-up — manually initiated image publication
+### Active follow-up — frontend route and lifecycle ownership
 
-Branch `fix/manual-image-release` starts from accepted PR89 main. Separate ordinary verification/demo publishing from AWS image release; require an explicitly entered main SHA, full verification, then protected environment approval. Preserve exact-source/artifact binding and historical candidate receipts. Offline infrastructure passes636/636; all78 workflow/verifier checks pass, including executable exact-SHA rejection tests. Final-head CI is pending. No image was dispatched, approved or deployed. This is release-control preparation, not completion of the wider M10/H6 backlog.
+Branch `refactor/session-route-ownership` starts from accepted PR90 main `e821befc18674884632db767649937708d744a9c`. The architecture explanation maps editor, command and refresh transitions to existing owners. The first incremental extraction moves session recovery/detail/list selection into `SessionsRoute`, preserving precedence, permission filtering and record/login-generation keys. The misleading `directoryReadOnly` marker becomes `apiBackedWorkflows`; operation capabilities remain unchanged. The complete local unit gate passes1,472/150 files in151.55s, source-health covers531 files, and78 verifier checks pass. All81 affected real-API cases pass in6.0m across desktop/phone/tablet against isolated Docker PostgreSQL; this refactor is not yet source-accepted.
+
+Next maintenance slices: extract remaining feature routes only where ownership is clearer; pin the five `latest` declarations to reviewed locked versions before separate Dependabot configuration under H4; split backend route registration one domain at a time with unchanged OpenAPI snapshots, authorization and full API evidence. These are separate PRs, not a broad application rewrite. No new state-machine framework or paid service is required.
 
 ### M6 exit evidence — source accepted, external acceptance open
 

@@ -15,11 +15,11 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   const { user, data: db, policy } = snapshot
   const { trainers } = db
   const sessions = db.sessions ?? []
-  const directoryOnly = snapshot.capabilities?.directoryReadOnly === true
+  const apiMode = snapshot.capabilities?.apiBackedWorkflows === true
   const { clientService } = services
   const { activeEdit } = useEditGuard()
   const notes = useClientNotes(selectedClient, Boolean(snapshot.capabilities?.clientNoteWrites), clientService, snapshot.sessionGeneration, services.readClientNotes, Boolean(activeEdit))
-  const progress = useClientProgress(selectedClient.id, Boolean(directoryOnly && snapshot.capabilities?.sessionOutcomeWrites), services, snapshot.sessionGeneration, snapshot.serverAt)
+  const progress = useClientProgress(selectedClient.id, Boolean(apiMode && snapshot.capabilities?.sessionOutcomeWrites), services, snapshot.sessionGeneration, snapshot.serverAt)
   const progressClientId = selectedClient.id
   const previewRenewal = useCallback(draft => services.previewClientRenewalMatches({ id: selectedClient.id, draft }), [services, selectedClient.id])
   const reviewRenewal = useCallback(() => runAction(() => services.reviewClientRenewal({ id: selectedClient.id, expectedVersion: selectedClient.version })), [services, selectedClient.id, selectedClient.version, runAction])
@@ -31,53 +31,53 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
     {notes.error && <section role="alert"><p>{notes.error.message}</p><button type="button" onClick={async () => { await reload(); notes.retry() }}>Retry client notes</button></section>}
     <ClientProfilePage
       key={selectedClient.id}
-      readOnly={directoryOnly}
-      weeklyScheduleWorkflow={directoryOnly && snapshot.capabilities?.clientWeeklyScheduleWrites ? {
+      readOnly={apiMode}
+      weeklyScheduleWorkflow={apiMode && snapshot.capabilities?.clientWeeklyScheduleWrites ? {
         review: () => runAction(() => services.reviewClientWeeklySchedule({ id: selectedClient.id, expectedVersion: selectedClient.version })),
         preview: input => runAction(() => services.previewClientWeeklySchedule({ id: selectedClient.id, ...input })),
         save: input => runAction(() => clientService.saveFixedWeeklySchedule({ id: selectedClient.id, ...input }), result => scheduleNotification('Fixed weekly schedule', result)),
         saved: reload,
       } : undefined}
-      assignmentWorkflow={directoryOnly && snapshot.capabilities?.clientAssignmentWrites ? {
+      assignmentWorkflow={apiMode && snapshot.capabilities?.clientAssignmentWrites ? {
         review: () => runAction(() => services.previewClientAssignment({ id: selectedClient.id, expectedVersion: selectedClient.version })),
         save: draft => runAction(() => clientService.reassignTrainer({ id: selectedClient.id, draft }), { message: 'Trainer permanently reassigned.' }),
         saved: reload,
       } : undefined}
-      packageActionWorkflow={directoryOnly && snapshot.capabilities?.packageActionWrites ? (packageId, operation) => ({
+      packageActionWorkflow={apiMode && snapshot.capabilities?.packageActionWrites ? (packageId, operation) => ({
         review: () => services.reviewPackageAction({ id: selectedClient.id, packageId, operation }),
         save: input => clientService[operation === 'deactivate' ? 'deactivatePackage' : 'deletePackageSessions']({ id: selectedClient.id, options: { packageId, ...input } }),
         reconcile: () => services.reconcilePackageAction({}),
         saved: reload,
       }) : undefined}
-      packageReactivationWorkflow={directoryOnly && snapshot.capabilities?.packageReactivationWrites ? packageId => ({
+      packageReactivationWorkflow={apiMode && snapshot.capabilities?.packageReactivationWrites ? packageId => ({
         review: () => runAction(() => services.previewPackageReactivation({ id: selectedClient.id, packageId, expectedVersion: selectedClient.version })),
         preview: input => runAction(() => services.previewPackageReactivationDates({ ...input, packageId })),
         save: input => runAction(() => clientService.reactivatePackage({ id: selectedClient.id, options: { packageId, reviewed: input.reviewed, dates: input.dates } }), { message: 'Package reactivated.' }),
         saved: reload,
       }) : undefined}
-      renewalReadOnly={directoryOnly && !snapshot.capabilities?.clientRenewalWrites}
-      renewalWorkflow={directoryOnly && snapshot.capabilities?.clientRenewalWrites ? { review: reviewRenewal, preview: previewRenewal, saved: reload } : undefined}
-      reactivationWorkflow={directoryOnly && snapshot.capabilities?.clientReactivationWrites ? {
+      renewalReadOnly={apiMode && !snapshot.capabilities?.clientRenewalWrites}
+      renewalWorkflow={apiMode && snapshot.capabilities?.clientRenewalWrites ? { review: reviewRenewal, preview: previewRenewal, saved: reload } : undefined}
+      reactivationWorkflow={apiMode && snapshot.capabilities?.clientReactivationWrites ? {
         review: () => runAction(() => services.previewClientReactivation({ id: selectedClient.id, expectedVersion: selectedClient.version })),
         preview: input => runAction(() => services.previewClientReactivationDates(input)),
         save: input => runAction(() => clientService.reactivate(input), { message: 'Client reactivated.' }),
         saved: async () => { navigate('clients', { replace: true }); await reload() },
       } : undefined}
-      onReviewDeactivation={directoryOnly && snapshot.capabilities?.clientDeactivationWrites && services.previewClientDeactivation ? () => runAction(() => services.previewClientDeactivation({ id: selectedClient.id, expectedVersion: selectedClient.version })) : undefined}
-      notesReadOnly={directoryOnly && !snapshot.capabilities?.clientNoteWrites}
+      onReviewDeactivation={apiMode && snapshot.capabilities?.clientDeactivationWrites && services.previewClientDeactivation ? () => runAction(() => services.previewClientDeactivation({ id: selectedClient.id, expectedVersion: selectedClient.version })) : undefined}
+      notesReadOnly={apiMode && !snapshot.capabilities?.clientNoteWrites}
       onNotesSaved={reload}
-      personalReadOnly={directoryOnly && !snapshot.capabilities?.clientPersonalWrites}
+      personalReadOnly={apiMode && !snapshot.capabilities?.clientPersonalWrites}
       onGeneralSaved={reload}
       onUpdateGeneral={async (patch, reviewed) => runAction(() => clientService.update({
-        id: selectedClient.id, patch, ...(directoryOnly ? { reviewed } : {}),
+        id: selectedClient.id, patch, ...(apiMode ? { reviewed } : {}),
       }), { message: 'Client details saved.' })}
-      assessmentsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.clientAssessmentWorkflows)}
-      assessmentApi={directoryOnly && snapshot.capabilities?.clientAssessmentWorkflows ? { services, generation: snapshot.sessionGeneration } : undefined}
-      progressViewsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.sessionOutcomeWrites)}
+      assessmentsAvailable={!apiMode || Boolean(snapshot.capabilities?.clientAssessmentWorkflows)}
+      assessmentApi={apiMode && snapshot.capabilities?.clientAssessmentWorkflows ? { services, generation: snapshot.sessionGeneration } : undefined}
+      progressViewsAvailable={!apiMode || Boolean(snapshot.capabilities?.sessionOutcomeWrites)}
       progressData={progress.exercises}
       progressState={progress}
-      progressReportsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.progressReportWrites)}
-      sessionViewsAvailable={!directoryOnly || Boolean(snapshot.capabilities?.sessionReads)}
+      progressReportsAvailable={!apiMode || Boolean(snapshot.capabilities?.progressReportWrites)}
+      sessionViewsAvailable={!apiMode || Boolean(snapshot.capabilities?.sessionReads)}
       progressRoute={parts[2] === 'progress'}
       progressPackageId={parts[2] === 'progress' ? parts[3] : undefined}
       onOpenProgressPackage={id => navigate(`clients/${selectedClient.id}/progress/${id}`, { preserveView: true })}
@@ -105,10 +105,10 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
       onRenewPackage={async draft => {
         try {
           const renewed = await runAction(() => clientService.renewPackage({ id: selectedClient.id, draft }), { message: 'Package added.' })
-          if (!directoryOnly) await reload()
+          if (!apiMode) await reload()
           return renewed
         } catch (error) {
-          if (directoryOnly) {
+          if (apiMode) {
             const refreshed = await reload()
             const recovered = refreshed?.clientRenewalRecovered
             if (error.code !== 'SAVE_UNCERTAIN' && recovered?.input.id === selectedClient.id && recovered.input.draft.requestId === draft.requestId) return runAction(async () => recovered.result, { message: 'Package added.' })
@@ -125,7 +125,7 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
       today={today}
       onOpenSession={openSession}
       onUpdate={async (patch, reviewed) => {
-        await runAction(() => clientService.update({ id: selectedClient.id, patch, ...(directoryOnly ? { reviewed } : {}) }), { message: 'Client details saved.' })
+        await runAction(() => clientService.update({ id: selectedClient.id, patch, ...(apiMode ? { reviewed } : {}) }), { message: 'Client details saved.' })
       }}
       onSaveAssessment={async options => {
         const saved = await runAction(() => clientService.saveAssessment({ id: selectedClient.id, assessment: options }), { message: 'Assessment saved.' })
@@ -150,7 +150,7 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
         return result
       }}
       onDeactivate={async reviewed => {
-        await runAction(() => clientService.deactivate({ id: selectedClient.id, ...(directoryOnly ? { reviewed } : {}) }), { tone: 'warning', message: 'Client deactivated.' })
+        await runAction(() => clientService.deactivate({ id: selectedClient.id, ...(apiMode ? { reviewed } : {}) }), { tone: 'warning', message: 'Client deactivated.' })
         navigate('clients', { replace: true })
         await reload()
       }}
