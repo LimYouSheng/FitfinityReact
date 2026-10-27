@@ -27,6 +27,12 @@ CI runs the real-API suite in two complementary shards, each with its own dispos
 
 Required CI and evidence rules belong to [AGENTS](AGENTS.md#verify-and-publish). Test inventories are defined by the verifiers, not historical counts in documentation.
 
+## Manual AWS image publication
+
+Normal main verification and Pages demo publishing do not queue an AWS image. For an independently authorized image candidate, open **Build and scan the verified AWS image candidate** in GitHub Actions, select `main`, and enter its exact 40-character commit SHA as `source_sha`. A mismatch stops before verification; main advancing later does not change the run’s selected commit. `AWS_IMAGE_RELEASE_ENABLED=true` must remain explicitly configured. The workflow reruns the complete frontend, backend and API-browser gates for that SHA before requesting the existing `aws-test` environment approval. Inspect the run SHA and successful gates before approving; cancel an obsolete candidate instead of approving it to clear a queue.
+
+The image retains its commit/run/attempt binding, exact AWS account/role checks, scan and receipt evidence. Historical candidates retain their original provenance rules; new manual candidates require all three verification gates. Image publication does not deploy Lambda, run migrations or authorize customer/provider actions. AWS release workflows remain serialized separately from ordinary verification/demo publishing.
+
 ## Configuration
 
 Local prototype development uses `VITE_PORTAL_MODE=demo` and an empty `VITE_API_BASE_URL`. API builds explicitly select API mode and the reviewed API origin. Unsupported API operations do not fall back to demo storage. Public frontend configuration is separate from server secrets; never put credentials in a Vite bundle.

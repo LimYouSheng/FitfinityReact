@@ -43,7 +43,10 @@ class ImageReleaseChecks(unittest.TestCase):
             "GITHUB_REPOSITORY": "LimYouSheng/FitfinityReact",
             "GITHUB_REF": "refs/heads/main",
             "GITHUB_SHA": self.revision,
-            "GITHUB_EVENT_NAME": "push",
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
+            "GITHUB_WORKFLOW_REF": (
+                "LimYouSheng/FitfinityReact/.github/workflows/aws-image.yml@refs/heads/main"
+            ),
             "GITHUB_RUN_ID": "123",
             "GITHUB_RUN_ATTEMPT": "1",
             "AWS_ACCESS_KEY_ID": "fixture",
@@ -185,6 +188,11 @@ class ImageReleaseChecks(unittest.TestCase):
     def test_source_refuses_pull_requests_forks_other_branches_and_invalid_sha(self):
         for key, value in [
             ("GITHUB_EVENT_NAME", "pull_request"),
+            ("GITHUB_EVENT_NAME", "push"),
+            (
+                "GITHUB_WORKFLOW_REF",
+                "LimYouSheng/FitfinityReact/.github/workflows/pages.yml@refs/heads/main",
+            ),
             ("GITHUB_REPOSITORY", "other/repo"),
             ("GITHUB_REF", "refs/heads/other"),
             ("GITHUB_SHA", "bad"),

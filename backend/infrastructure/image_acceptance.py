@@ -139,14 +139,19 @@ class ExistingImage(ImageCandidate):
         prefix = f"repos/{GITHUB_REPO}"
         run = self.github(f"{prefix}/actions/runs/{run_id}/attempts/{attempt}")
         revision = run.get("head_sha", "")
+        # Preserve historical candidate evidence; new releases have their own manual run.
+        manual = run.get("path") == ".github/workflows/aws-image.yml"
+        trusted_entry = (manual and run.get("event") == "workflow_dispatch") or (
+            run.get("path") == ".github/workflows/pages.yml"
+            and run.get("event") in {"push", "workflow_dispatch"}
+        )
         require(
             run.get("id") == run_id
             and run.get("run_attempt") == attempt
             and run.get("repository", {}).get("full_name") == GITHUB_REPO
             and run.get("head_repository", {}).get("full_name") == GITHUB_REPO
             and run.get("head_branch") == "main"
-            and run.get("event") in {"push", "workflow_dispatch"}
-            and run.get("path") == ".github/workflows/pages.yml"
+            and trusted_entry
             and run.get("status") == "completed"
             and re.fullmatch(r"[0-9a-f]{40}", revision),
             "Untrusted candidate workflow provenance",
@@ -165,13 +170,18 @@ class ExistingImage(ImageCandidate):
             )
         else:
             raise RuntimeError("Excessive job pagination")
-        for name in ("verify / frontend", "verify / backend"):
+        required = ("verify / frontend", "verify / backend") + (
+            ("verify / api-browser",) if manual else ()
+        )
+        for name in required:
             matches = [job for job in jobs if job.get("name") == name]
             require(
                 len(matches) == 1 and matches[0].get("conclusion") == "success",
                 "Candidate source lacks complete required CI",
             )
-        images = [job for job in jobs if job.get("name") == "image / image"]
+        images = [
+            job for job in jobs if job.get("name") == ("image" if manual else "image / image")
+        ]
         require(
             len(images) == 1 and images[0].get("conclusion") in {"success", "failure"},
             "Missing canonical image job",

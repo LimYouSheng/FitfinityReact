@@ -51,10 +51,18 @@ export function verifyQualitySetup({ pages, verify, infrastructure, image, accep
   for (const command of ['node scripts/verify-assessment-forms.mjs', 'node scripts/verify-backend.mjs']) requireGate(backend, command)
   const mainOnly = "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
   if (pages.jobs?.build?.needs !== 'verify' || pages.jobs.build.if !== mainOnly || pages.jobs?.deploy?.needs !== 'build' || pages.jobs.deploy.if !== mainOnly) fail('Pages build and publish must depend on full verification and the main-branch guard')
-  const imageCaller = pages.jobs?.image, imageJob = image?.jobs?.image
-  if (imageCaller?.needs !== 'verify' || imageCaller.uses !== './.github/workflows/aws-image.yml' || imageCaller.if !== `${mainOnly} && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'` || imageCaller['continue-on-error']) fail('image publication requires complete verification, main and explicit activation')
-  if (!equal(image?.on, { workflow_call: null }) || !equal(image.permissions, { contents: 'read' }) || !equal(image.concurrency, { group: 'fitfinity-aws-test', 'cancel-in-progress': false })) fail('image workflow must be callable only and serialize AWS operations')
-  if (imageJob?.if !== mainOnly || imageJob.environment !== 'aws-test' || imageJob['continue-on-error'] || !equal(imageJob.permissions, { contents: 'read', 'id-token': 'write' })) fail('image publication requires its protected environment and narrow credentials')
+  const imageJob = image?.jobs?.image
+  const releaseGuard = "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'"
+  if (pages.jobs?.image || Object.values(pages.jobs ?? {}).some(job => job.uses === './.github/workflows/aws-image.yml')) fail('normal verification must not queue or wait for image publication')
+  if (!equal(Object.keys(image?.on ?? {}), ['workflow_dispatch']) || !equal(image.on.workflow_dispatch?.inputs?.source_sha, { description: 'Exact main commit to verify and publish (40-character SHA)', required: true, type: 'string' }) || !equal(image.permissions, { contents: 'read' }) || !equal(image.concurrency, { group: 'fitfinity-aws-test', 'cancel-in-progress': false })) fail('image workflow requires manual exact-source selection and serialized AWS operations')
+  const source = image.jobs?.source, releaseVerify = image.jobs?.verify
+  if (source?.if !== releaseGuard || source.environment || source['continue-on-error'] || source.permissions || source.steps?.length !== 1) fail('release source selection requires main, explicit activation and no deployment credentials')
+  const selection = source.steps[0]
+  if (selection.env?.EXPECTED_SHA !== '${{ inputs.source_sha }}') fail('release must bind the explicitly entered source SHA')
+  requireGate(source, '[[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]')
+  requireGate(source, 'test "$EXPECTED_SHA" = "$GITHUB_SHA"')
+  if (releaseVerify?.needs !== 'source' || releaseVerify.uses !== './.github/workflows/verify.yml' || releaseVerify.if != null || releaseVerify.secrets || releaseVerify['continue-on-error']) fail('manual release must run all verification after source selection')
+  if (imageJob?.needs !== 'verify' || imageJob.if !== `github.event_name == 'workflow_dispatch' && ${releaseGuard}` || imageJob.environment !== 'aws-test' || imageJob['continue-on-error'] || !equal(imageJob.permissions, { contents: 'read', 'id-token': 'write' })) fail('image publication requires complete verification, its protected environment and narrow credentials')
   const imageCredentials = imageJob.steps.filter(step => (step.uses ?? '').startsWith('aws-actions/configure-aws-credentials@'))
   if (imageCredentials.length !== 1 || imageCredentials[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || imageCredentials[0].with?.['allowed-account-ids'] !== '418638389566' || imageCredentials[0].with?.['aws-region'] !== 'ap-southeast-1') fail('image publication must use its separate exact-account role')
   requireGate(imageJob, 'test "$IMAGE_ROLE" = \'arn:aws:iam::418638389566:role/fitfinity-test-github-image\'')

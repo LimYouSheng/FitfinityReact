@@ -1,7 +1,12 @@
 name: Build and scan the verified AWS image candidate
 
 on:
-  workflow_call:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact main commit to verify and publish (40-character SHA)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -11,8 +16,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  source:
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the explicitly selected main commit
+        env:
+          EXPECTED_SHA: ${{ inputs.source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$EXPECTED_SHA" = "$GITHUB_SHA"
+
+  verify:
+    needs: source
+    uses: ./.github/workflows/verify.yml
+
   image:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment: aws-test

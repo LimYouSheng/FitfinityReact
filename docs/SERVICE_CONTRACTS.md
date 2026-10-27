@@ -210,6 +210,8 @@ The retained initial capacity design is private encrypted Singapore PostgreSQL, 
 
 ### Deployment, migration and acceptance
 
+AWS image publication requires manual initiation for an explicitly entered main commit SHA, complete frontend/backend/API-browser verification of that same SHA, and the existing protected AWS environment approval. Ordinary verification/demo publishing must not wait on image approval. New manual candidate receipts bind the canonical workflow, run/attempt, source, artifact and image digest; historical candidates retain their original evidence rules. Publication is separate from Lambda deployment and migrations.
+
 Preserve existing database, Cognito pool/Owner, retained buckets and successful edge. Historical creation, deletion and replacement procedures are completed evidence, not steps to replay. New source needs a matching reviewed artifact/image, provenance/security review, populated-database migration/grant/backup/recovery plan and applicable authorization. Old source/image manifests must reject incompatible new bytes. Historical security exceptions have expired; neither renewal nor teardown is implied.
 
 Applied migrations are immutable. Additive schema changes must tolerate existing rows and outgoing code; review locking/runtime costs. Destructive evolution uses expand → compatible code/backfill → verified transition → later contract after the rollback window. Alembic success does not prove application compatibility, and downgrade cannot reconstruct deleted data. Code rollback does not reverse financial/database effects. Resource/network identity, least privilege, secret protection, capacity and cost remain part of release review; selected WAF/throttling or observability designs do not establish deployed controls.
@@ -225,6 +227,16 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 
 ## Part 2 — Dated changes and evidence
+
+### 27 October 2026 Singapore — Manual image release preparation
+
+User requested tighter release control with independent verification: manual initiation plus approval for image publication. Branch `fix/manual-image-release` starts from PR89 merge `751f3c84d0348a024ebf08330e66d81c012629d6`. `pages.yml` no longer calls image publication. `aws-image.yml` accepts only manual dispatch, requires an exact entered main SHA and explicit activation, reruns all three verification gates, and retains `aws-test` approval, AWS serialization, exact account/role, scan and receipt safeguards. Runtime source validation rejects pushes and other workflow identities. The candidate reader preserves legacy receipts while requiring all three gates for the new canonical manual workflow. No release was dispatched or approved and no AWS operation was performed.
+
+Initial host infrastructure verification stopped because `boto3` was absent; the first read-only container invocation could not read the mount as UID10001. Using the existing test image as workspace UID1000 with network disabled passes636/636 offline infrastructure checks (including three new provenance regressions). Original logs remain in `/workspace/work/fitfinity-manual-release-20261027/`. All78 workflow/verifier checks pass, including executing the SHA guard with matching, mismatched, empty, malformed and shell-like input. Python lint initially found four overlong lines; targeted formatting plus wrapping the remaining literal repairs them. Final Python lint/format checks and the636-test isolated rerun pass; JS lint/source health pass530 files. Final-head CI remains pending.
+
+### 27 October 2026 Singapore — PR88 and PR89 source acceptance
+
+PR88 merged as `cd6d03dca03f8aa2a3e04171f18eea180c8c682a` after exact head `fe1877a95a6f499379704cc7c39b0ae17f71bbae` passed run40439232307 (frontend34m25s, backend23m7s, complete369-case API aggregate). PR89 merged as `751f3c84d0348a024ebf08330e66d81c012629d6` after exact head `7f21dd5e2bf2e3aba89268908f10b064c6c7d7f1` passed run40442412057 (frontend40m53s, backend23m35s, complete369-case API aggregate). PR89 inventory is1,472 units/150 files,1,152 simulator cases and1,353 backend/PostgreSQL tests. Both normal merges used the tested heads; publication, deployment and physical/provider acceptance remain separate.
 
 ### 27 October 2026 Singapore — Remaining lifecycle review audit
 

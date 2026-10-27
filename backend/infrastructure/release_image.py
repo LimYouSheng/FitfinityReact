@@ -175,7 +175,9 @@ class ImageCandidate:
             os.getenv("GITHUB_ACTIONS") == "true"
             and os.getenv("GITHUB_REPOSITORY") == "LimYouSheng/FitfinityReact"
             and os.getenv("GITHUB_REF") == "refs/heads/main"
-            and os.getenv("GITHUB_EVENT_NAME") in {"push", "workflow_dispatch"},
+            and os.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch"
+            and os.getenv("GITHUB_WORKFLOW_REF")
+            == "LimYouSheng/FitfinityReact/.github/workflows/aws-image.yml@refs/heads/main",
             "Image publication requires the verified main Actions workflow",
         )
         revision = os.getenv("GITHUB_SHA", "")
