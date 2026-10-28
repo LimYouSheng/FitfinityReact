@@ -1,63 +1,51 @@
 # Fitfinity current progress and handover
 
-This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. Update this checkpoint when work changes; keep detailed historical receipts in Journey instead of accumulating old handovers here.
+This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey.
 
-## Current task — consolidate and accept the documentation refactor
+## Current task — reconcile status and expand code ownership
 
-Checkpoint: 28 October 2026, 16:26 Singapore. The requested documentation changes are implemented and published in **[PR109](https://github.com/LimYouSheng/FitfinityReact/pull/109)**. They are not merged or final-head CI-accepted. The active task is to complete verification and resolve the remaining CI failure before an eligible source merge; no new API feature or AWS deployment is in progress.
-
-**Latest task update — 28 October 2026: supersedes the earlier monitoring/resume status below.** The user stopped CI monitoring and requested three documentation tasks: reconcile requirement versus checkpoint wording, add synthetic API success/rejection/uncertain-outcome examples, and draft operational alert/recovery detail. The six SoccerBot files are references, not six extra tasks. Append content only within the existing structure; do not add headings, sections or files. The Owner confirmed recovery targets, responders/destinations and restore receipts are not yet agreed/available; draft proposals and an unexecuted rehearsal procedure are therefore explicitly labelled. CI has not been polled or cancelled as part of this task.
-
-**Current leave-off.** The changes append to Business Rules, the existing API transport section and Runbook sections4/7. All original rule paragraphs,64 BR IDs,55 operation rows, endpoint/schema indexes, milestone rows and prior history remain intact. JSON examples are checked against the current OpenAPI schemas and actual package/error owners; state interpretation adds no API enum. Validation passed: additions-only diff, unchanged headings and existing tables, all64 BR IDs/55 operation rows, nine synthetic JSON examples against OpenAPI and1,638 local links/anchors. Next: review the proposals with the Owner, assign responders and approve achievable targets, then scope an isolated restore drill and synthetic alert-delivery acceptance. Resume PR109 final-head CI only when requested; do not treat earlier runs or this draft as operational acceptance.
+Checkpoint: 28 October 2026 Singapore. PR109 is merged; its exact-head and fresh-main frontend/backend/API-browser gates passed. Main is `08220b9969ad71933bde0c4f5458eef9e1190bc1`. GitHub Pages publication passed; no Lambda deployment or live acceptance is implied. Full receipts and the unresolved earlier transport failure are recorded in [Journey](docs/journey.md#28-october-2026--documentation-acceptance-and-ownership-expansion).
 
 ### Completed in this task
 
 | Deliverable | Current result |
 | --- | --- |
-| Documentation structure | Lowercase docs; root README removed; AGENTS is the entry directory. No repository skill created, as requested. |
-| Rules and API reference | [Business rules](docs/business-rules.md) retains all64 BR groups. [API contracts](docs/api-contracts.md) retains all55 operation rows and indexes159 HTTP operations /246 schemas from checked-in OpenAPI. |
-| Milestones and history | [Journey](docs/journey.md) begins with all20 milestone/extension rows (M0–M10), followed by the complete dated history. No duplicate roadmap remains here. |
-| Specialist guides | Version inventory, code-owner/BR mapping, developer AWS role UAT, runbook, development guide, ten architecture ADRs and the new [security infrastructure overview](docs/security.md) are included. The security document starts with a stakeholder paragraph naming actual tools/services, then a Mermaid diagram and a tool/service/status table. It maps implemented/prepared controls and labels future layers; it changes no security settings. |
-| PR cleanup | PR110/111 changes are incorporated into PR109; both are closed and their branches/commits preserved. GitHub marked PR110 merged into the task branch by ancestry, not into main. |
-| Local validation | Last split validation passed1,558 local links/anchors, all24 current Mermaid diagrams, preservation of rules/matrix/milestones/full history and API-index agreement. No application, dependency or workflow bytes changed. The security addition passed1,630 local link/anchor checks, preservation checks and its new Mermaid parse (25 current diagrams in total); diff whitespace checks passed. |
+| Current status | Replaced obsolete PR109 pending/monitoring handover with merged and verified evidence. |
+| Business rules | Removed superseded implementation checkpoints from current requirements; retained exact prior prose in Journey and all 64 BR IDs. |
+| Code ownership | Preserved the numbered feature map and rule mappings in `docs/code-owners/index.md`; added the function-level technical-behavior companion following SoccerBot's two-file structure. |
+| Boundaries | No application, workflow, dependency or infrastructure changes. Runbook proposals and unexecuted recovery acceptance remain unchanged. |
 
-### Left off — checkout, evidence and unresolved failure
+### Left off — checkout and evidence
 
 | Item | Exact handover |
 | --- | --- |
-| Repository / active branch | `/workspace/FitfinityReact` · `docs/dependency-version-inventory` · PR109 targets main. Use the existing checkout. |
-| Inspected source | `fd0b6eee79d94056c7be3ada94a036b89e016ffc`, before this security-document update (including the stakeholder introduction above its diagram). Resolve the latest commit from Git/PR109 when resuming; this document cannot embed its own commit SHA. |
-| Working tree / preserved work | Clean before this update. Eight existing stashes and superseded PR branches are retained; do not reset, drop or delete them. |
-| Main / accepted application | Last verified main `1246fb815b1240a92fd953b85abc05f18f46bc73` (PR104), with successful fresh-main run40614828297. Recheck remote main before continuing. |
-| Latest inspected CI | [run40656888657](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40656888657) for `fd0b6ee` was running at inspection, after obsolete run269 was cancelled at the user’s request. Publishing the security document creates a newer head requiring its own complete checks. Earlier-head results are not final acceptance. |
-| Known failed evidence | [run40650892639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40650892639), head `a5e36f0`: frontend/backend and API shard2 passed; shard1 had187 passed/1 failed. The aggregate correctly rejected the failed shard. |
-| Failure location | Phone permanent reassignment in `tests-api/records.spec.js:200`; visible assignment and reload checks passed, then `read()` at line221 failed on `/api/directory` with `socket hang up (ECONNRESET)`. The reset's root cause is still unproven. No code repair, retry, assertion weakening or timeout change has been made. |
-| Evidence to reopen | [Original shard1 job](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40650892639/job/122690445978); retained local log `/tmp/fitfinity-run40650892639-shard1.log`; Actions trace artifact `fitfinity-api-traces-40650892639-1-1`. Local temporary files may not survive another workspace. Detailed receipt: [Journey entry](docs/journey.md#28-october-2026--split-canonical-rules-api-contracts-and-journey-consolidate-prs). |
-| Access caveat | The GitHub connector retrieved logs when CLI log download was forbidden; CLI API credentials later returned401. Use the available authorized connector if CLI access remains unavailable; do not replace injected credentials or bypass controls. |
+| Repository / branch | Existing `/workspace/FitfinityReact` checkout; `docs/reconcile-code-owners`, based on merged main `08220b9`. |
+| Preserved work | Existing stashes and superseded branches retained; no destructive cleanup. |
+| Validation / publication | Passed: 1,750 local links/anchors, 36 Mermaid parses, 64 named Python symbols, all 64 BR IDs/mappings, unchanged API contracts, all 21 prior ownership diagrams and the complete previous Journey. Publishing a draft PR; its new head still requires complete final-head CI. PR109 receipts do not accept new bytes. |
+| Retained failure | Earlier reassignment readback `ECONNRESET` cause unresolved; original evidence retained in Journey. No active failure on accepted main. |
+| External acceptance | Real Cognito, current physical-device/UAT, Lambda release, assigned alert responders and tested backup restore remain separate. |
 
 ### Resume in this order
 
-1. Read AGENTS and this handover; inspect working tree, latest PR109 head, main and the runs attached to that exact head. Preserve original failed evidence and unknown work.
-2. Inspect the final-head frontend/backend/API-browser results. Investigate the retained connection reset using the trace and available server evidence; distinguish a transport/environment interruption from application or fixture behavior before choosing a repair. A later green run does not establish the earlier root cause. Do not use blanket retries or longer timeouts.
-3. If a repair is justified, reproduce and validate the focused change, record its diagnosis in Journey, update this checkpoint and run the required complete final-head gates. Keep any application/fixture repair identifiable from the documentation work.
-4. Once all three exact-head gates and GitHub requirements pass, merge PR109 under existing source-merge authority and verify fresh main. Record the tested/merged SHAs and run links in Journey; replace this active task with the next actual task here.
-5. Resume the separately scoped M6 external acceptance and roadmap work below. Source merge does not authorize image publication, AWS changes, real provider actions or physical/live acceptance claims.
+1. Validate this documentation change, inspect the diff and publish a draft PR; verify its exact head and all three complete CI gates.
+2. Diagnose any new failure without weakening tests or discarding earlier evidence. Merge only the eligible tested head under standing source authority; verify fresh main separately.
+3. Prepare the remaining M6 external acceptance and M10 work below. Obtain concrete environment/provider authorization before any AWS changes or live actions.
 
 ## Current acceptance boundaries
 
 The [canonical operation matrix](docs/api-contracts.md#domain-operation-inventory) remains **55/55 source accepted:54 server-connected operations and one local predicate**. M6 source exit is accepted; the remaining live/provider/device evidence is listed below. Real-API verification uses actual FastAPI/migrations/PostgreSQL and isolated object storage with synthetic records and a local signed-token Cognito substitute. It does not use production PostgreSQL and needs no Lambda redeployment.
 
-No current-source Lambda deployment, real Cognito acceptance or current physical-device/UAT receipt is recorded. Historical application receipts and full milestone scope are in [Journey](docs/journey.md); the current documentation PR does not change those acceptance boundaries.
+No current-source Lambda deployment, real Cognito acceptance or current physical-device/UAT receipt is recorded. Historical application receipts and full milestone scope are in [Journey](docs/journey.md); documentation reconciliation does not change those acceptance boundaries.
 
 ## Remaining work
 
 Follow the [full roadmap in Journey](docs/journey.md#full-milestone-roadmap). The 55-operation source target is complete; do not repeat accepted integrations or mark later milestones complete from this count.
 
-1. Complete the consolidated documentation PR and CI diagnosis above, then the remaining environment-specific M6 acceptance in the table below through the separately authorized release work. The source-exit implementation is accepted; do not repeat it or infer live acceptance from synthetic-provider tests.
+1. Complete the documentation reconciliation and ownership expansion, then prepare the remaining environment-specific M6 acceptance in the table below through separately authorized release work. The source-exit implementation is accepted; do not repeat it or infer live acceptance from synthetic-provider tests.
 2. Scope M7 durable events, scheduling/notifications and media processing/retention, preserving provider and deployment boundaries.
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency and Grafana remain planned; dependency automation/audit is partially implemented, with remaining supply-chain work under H4.
-5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested docs/versions.md inventory, docs/code-owners.md navigation map and docs/uat/ role worksheets and all eight existing stashes.
+5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested docs/versions.md inventory, docs/code-owners/index.md navigation map and docs/uat/ role worksheets and all eight existing stashes.
 
 ### Dependency/security maintenance and deferred refactors
 
@@ -71,7 +59,7 @@ Optional npm/Actions upgrades require separate compatibility review; the previou
 
 ### Developer AWS UAT preparation
 
-The [UAT folder](docs/uat/) in the documentation PR stack contains separate Owner, Admin and Trainer worksheets with blank Result/Remarks columns. The original92 case IDs and additional Trainer manager-action restriction check remain; none is marked executed or passed. Worksheets target the deployed developer AWS site with designated test identities, real Cognito/email and developer storage. Assisted fault/recovery checks require an arranged test. Drafting does not deploy source or establish live/device acceptance.
+The [UAT folder](docs/uat/) merged through PR109 contains separate Owner, Admin and Trainer worksheets with blank Result/Remarks columns. The original92 case IDs and additional Trainer manager-action restriction check remain; none is marked executed or passed. Worksheets target the deployed developer AWS site with designated test identities, real Cognito/email and developer storage. Assisted fault/recovery checks require an arranged test. Drafting does not deploy source or establish live/device acceptance.
 
 ### M6 exit evidence — source accepted, external acceptance open
 
@@ -97,7 +85,7 @@ M10 depends on stable domain contracts and isolated test evidence; environment-s
 | H3 / next | Secret scanning, static analysis and permission regression; rate limits, dependency failures, interrupted-write recovery | Permission matrix and operation coverage | Negative-role/foreign-record checks, forged actors, stale authority, 429/503/disconnect/restart recovery and no duplicate/partial writes; review false positives | Inspect supported GitHub controls before enabling; provider faults synthetic; no credential disclosure |
 | H4 / next | Dependabot for npm/Python/Actions/container images; supply-chain review | Inventory exact pins/lockfiles, supported update ecosystems and CI | Grouped reviewed update PRs, lockfile/hash validation, vulnerability severity/triage deadlines, all final-head CI; assess SBOM and artifact/source provenance with verified digest | No auto-merge or unreviewed runtime updates; account settings remain unverified until read; provenance generation is not deployment |
 | H5 / later | OpenTelemetry traces/metrics/structured logs and Grafana dashboards | H2 baseline, threat/data review, stable request correlation | Cross-layer correlation, latency/error/saturation dashboards, proposed SLOs/error budgets and actionable alert/runbook exercises; redact health/PII, tokens/cookies, SQL parameters; test sampling, retention, cardinality, export failures and cost caps | Prepare default-disabled instrumentation first; separately approve stack/credentials/ingestion/production activation; no planned-capability claim |
-| H6 / release | AWS release readiness and production operations (runbook drafted in PR109): health/readiness, synthetic checks, incidents, rollback, backup/restore, migration recovery, capacity/cost | Tested source/artifact and migration inventory, H2/H5 where relevant; reviewed recovery environment | Reviewed image/provenance/grants/rollout plan; version/digest-bound health and synthetic evidence, incident ownership and drills, measured RPO/RTO, populated restore/forward-recovery and rollback constraints, capacity/cost alerts | Isolated restore drills first; never replay bootstrap, rewrite applied migrations, touch customer data or deploy under source authority |
+| H6 / release | AWS release readiness and production operations (runbook merged through PR109): health/readiness, synthetic checks, incidents, rollback, backup/restore, migration recovery, capacity/cost | Tested source/artifact and migration inventory, H2/H5 where relevant; reviewed recovery environment | Reviewed image/provenance/grants/rollout plan; version/digest-bound health and synthetic evidence, incident ownership and drills, measured RPO/RTO, populated restore/forward-recovery and rollback constraints, capacity/cost alerts | Isolated restore drills first; never replay bootstrap, rewrite applied migrations, touch customer data or deploy under source authority |
 | H7 / ongoing | Documentation/test impact and obsolete artifact audit | Source reference/loader scan and owners | Updated affected tests/fixtures/inventories, preserved first failures, no stale status, meaningful purpose comments; retain historical evidence by immutable link | No blanket deletion, architecture transplant or comment-only churn; retain the PR59/63 cleanup evidence |
 
 Full dated receipts, first failures and superseded checkpoints live only in [Service Journey](docs/journey.md#complete-journey).
