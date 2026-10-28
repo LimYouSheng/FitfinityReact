@@ -21,13 +21,13 @@ Checkpoint: 28 October 2026 Singapore. PR109 is merged; its exact-head and fresh
 | --- | --- |
 | Repository / branch | Existing `/workspace/FitfinityReact` checkout; `docs/reconcile-code-owners`, based on merged main `08220b9`. |
 | Preserved work | Existing stashes and superseded branches retained; no destructive cleanup. |
-| Validation / publication | Passed: 1,750 local links/anchors, 36 Mermaid parses, 64 named Python symbols, all 64 BR IDs/mappings, unchanged API contracts, all 21 prior ownership diagrams and the complete previous Journey. Publishing a draft PR; its new head still requires complete final-head CI. PR109 receipts do not accept new bytes. |
+| Validation / publication | Passed: 1,750 local links/anchors, 36 Mermaid parses, 64 named Python symbols, all 64 BR IDs/mappings, unchanged API contracts, all 21 prior ownership diagrams and the complete previous Journey. Published as [draft PR112](https://github.com/LimYouSheng/FitfinityReact/pull/112); its latest head still requires complete final-head CI. PR109 receipts do not accept new bytes. |
 | Retained failure | Earlier reassignment readback `ECONNRESET` cause unresolved; original evidence retained in Journey. No active failure on accepted main. |
 | External acceptance | Real Cognito, current physical-device/UAT, Lambda release, assigned alert responders and tested backup restore remain separate. |
 
 ### Resume in this order
 
-1. Validate this documentation change, inspect the diff and publish a draft PR; verify its exact head and all three complete CI gates.
+1. Inspect draft PR112 and verify its latest head against all three complete CI gates; local documentation validation has passed.
 2. Diagnose any new failure without weakening tests or discarding earlier evidence. Merge only the eligible tested head under standing source authority; verify fresh main separately.
 3. Prepare the remaining M6 external acceptance and M10 work below. Obtain concrete environment/provider authorization before any AWS changes or live actions.
 
