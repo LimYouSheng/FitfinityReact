@@ -358,6 +358,10 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 ## Part 2 — Dated changes and evidence
 
+### 28 October 2026 — simplify role worksheets
+
+At the user's request, removed the UAT-folder README and each worksheet's Retests section and all following completion/sign-off material. The folder now contains only Owner, Admin and Trainer worksheets. Existing test-case rows, expected results and blank Result/Remarks cells are unchanged; navigation links point directly to the worksheets. Earlier entries describe the prior draft, not the current folder structure. No cases were executed or accepted by this edit.
+
 ### 28 October 2026 — role-specific user acceptance worksheets
 
 The user requested ready-to-fill user worksheets with less developer language, then consolidation into one UAT folder with one worksheet per role. The initial `docs/UAT.md` draft is replaced by `docs/UAT/README.md`, `Owner.md`, `Admin.md` and `Trainer.md`. The shared start page owns preparation/result instructions; each role has plain-language actions, expected outcomes, empty Result/Remarks columns, retest rows and a completion review. The original92 case IDs remain across applicable roles; UAT-T01 adds an explicit Trainer check for manager-only actions. Role actions are tailored, including Admin financial denial, Trainer self-service and manager/Trainer cooperation, rather than asking restricted users to execute Owner actions. Owner has87 main case rows, Admin85 and Trainer66 (including T01); shared IDs are intentional, not additional unique acceptance cases. Live account checks remain separate and blank. Hosting/backup/internal deployment tasks are not user worksheet steps; their canonical release/backlog ownership is unchanged. No UAT result is claimed.

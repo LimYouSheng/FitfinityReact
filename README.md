@@ -4,7 +4,7 @@ Development entry point for the Fitfinity staff portal. See [AGENTS](AGENTS.md#a
 
 [Code owners and feature map](docs/Code-Owners.md) provides an overview and progressively detailed responsibility diagrams with source links.
 
-[UAT worksheets](docs/UAT/README.md) provide separate Owner, Admin and Trainer checklists with plain-language steps, expected results and blank Result/Remarks columns.
+UAT worksheets for [Owner](docs/UAT/Owner.md), [Admin](docs/UAT/Admin.md) and [Trainer](docs/UAT/Trainer.md) provide role-specific checklists with plain-language steps, expected results and blank Result/Remarks columns.
 
 ## Development setup
 

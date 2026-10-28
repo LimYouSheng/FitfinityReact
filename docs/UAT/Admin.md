@@ -1,7 +1,5 @@
 # Admin acceptance worksheet
 
-[Preparation and result key](README.md) · [Other role worksheets](README.md#staff-portal-uat-worksheets)
-
 | Test session | Fill in |
 | --- | --- |
 | Tester / date | |
@@ -156,29 +154,3 @@ Ask the organiser before using real sign-in or email services. Practice codes an
 | --- | --- | --- | --- | --- |
 | LIVE-01 | Complete real sign-in/authenticator setup, password recovery and email change using your designated test account. | Codes arrive at the intended address; correct credentials work afterwards; old access ends where required. | | |
 | LIVE-03 | With authorised support, complete the arranged lost-authenticator recovery and enrol a replacement authenticator. | Support verifies your identity. Old access ends and a new authenticator is required; ordinary staff cannot reset another person’s authenticator. | | |
-
-## Retests
-
-Keep the original result above. Record later checks here.
-
-| Case | Date / version | What was checked again | Result | Remarks |
-| --- | --- | --- | --- | --- |
-| | | | | |
-| | | | | |
-| | | | | |
-| | | | | |
-| | | | | |
-
-## Completion review
-
-| Review item | Decision / result | Remarks |
-| --- | --- | --- |
-| All assigned cases have a result | | |
-| Failures corrected and retested | | |
-| Blocked / untested cases listed | | |
-| Slowness and usability issues reviewed | | |
-| Missing/duplicated information or privacy problems | | |
-| Final decision: Accepted / Changes needed / Testing incomplete | | |
-| Reviewed by / date | | |
-
-Do not mark testing complete while required checks are blocked or untested. Acceptance covers only the role, features and devices recorded on this worksheet.
