@@ -2,7 +2,7 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey.
 
-## Current task — reconcile status and expand code ownership
+## Current task — reconcile documentation, map data lifecycle and broaden API examples
 
 Checkpoint: 28 October 2026 Singapore. PR109 is merged; its exact-head and fresh-main frontend/backend/API-browser gates passed. Main is `08220b9969ad71933bde0c4f5458eef9e1190bc1`. GitHub Pages publication passed; no Lambda deployment or live acceptance is implied. Full receipts and the unresolved earlier transport failure are recorded in [Journey](docs/journey.md#28-october-2026--documentation-acceptance-and-ownership-expansion).
 
@@ -13,6 +13,8 @@ Checkpoint: 28 October 2026 Singapore. PR109 is merged; its exact-head and fresh
 | Current status | Replaced obsolete PR109 pending/monitoring handover with merged and verified evidence. |
 | Business rules | Removed superseded implementation checkpoints from current requirements; retained exact prior prose in Journey and all 64 BR IDs. |
 | Code ownership | Preserved the numbered feature map and rule mappings in `docs/code-owners/index.md`; added the function-level technical-behavior companion following SoccerBot's two-file structure. |
+| Data lifecycle | Added the SoccerBot-format source-based draft: browser/PostgreSQL/media/provider inventory, actual narrow auth/media cleanup, pending policy worksheet and disposal/restore gaps. No cleanup executed. |
+| API examples | Added 15 schema-checked synthetic JSON examples for request decisions, acknowledgement/credit recovery and private recording intents/commit/expiry within the existing transport section. |
 | Boundaries | No application, workflow, dependency or infrastructure changes. Runbook proposals and unexecuted recovery acceptance remain unchanged. |
 
 ### Left off — checkout and evidence
@@ -21,7 +23,7 @@ Checkpoint: 28 October 2026 Singapore. PR109 is merged; its exact-head and fresh
 | --- | --- |
 | Repository / branch | Existing `/workspace/FitfinityReact` checkout; `docs/reconcile-code-owners`, based on merged main `08220b9`. |
 | Preserved work | Existing stashes and superseded branches retained; no destructive cleanup. |
-| Validation / publication | Passed: 1,750 local links/anchors, 36 Mermaid parses, 64 named Python symbols, all 64 BR IDs/mappings, unchanged API contracts, all 21 prior ownership diagrams and the complete previous Journey. Published as [draft PR112](https://github.com/LimYouSheng/FitfinityReact/pull/112); its latest head still requires complete final-head CI. PR109 receipts do not accept new bytes. |
+| Validation / publication | Passed: 1,804 local links/anchors, 37 Mermaid parses, 15 new schema-checked API JSON examples and 20 unique lifecycle inventory IDs. The ownership pass verified 64 named Python symbols; all 64 BR IDs/mappings, 55 operation rows, endpoint/schema indexes, 21 prior ownership diagrams and the complete previous Journey are preserved. Published as [draft PR112](https://github.com/LimYouSheng/FitfinityReact/pull/112); its latest head still requires complete final-head CI. PR109 receipts do not accept new bytes. |
 | Retained failure | Earlier reassignment readback `ECONNRESET` cause unresolved; original evidence retained in Journey. No active failure on accepted main. |
 | External acceptance | Real Cognito, current physical-device/UAT, Lambda release, assigned alert responders and tested backup restore remain separate. |
 
@@ -45,7 +47,8 @@ Follow the [full roadmap in Journey](docs/journey.md#full-milestone-roadmap). Th
 2. Scope M7 durable events, scheduling/notifications and media processing/retention, preserving provider and deployment boundaries.
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency and Grafana remain planned; dependency automation/audit is partially implemented, with remaining supply-chain work under H4.
-5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested docs/versions.md inventory, docs/code-owners/index.md navigation map and docs/uat/ role worksheets and all eight existing stashes.
+5. Map business privacy/retention clauses using [Data lifecycle](docs/data-lifecycle.md); approve category-specific periods and exclusions before any general disposal implementation. Verify existing auth/media worker scheduling and backup/object-copy settings through separately authorized environment work.
+6. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested docs/versions.md inventory, docs/code-owners/index.md navigation map and docs/uat/ role worksheets and all eight existing stashes.
 
 ### Dependency/security maintenance and deferred refactors
 

@@ -33,6 +33,13 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 28 October 2026 — data lifecycle draft and broader API examples
+
+At the user's request, extended PR112 with `docs/data-lifecycle.md`, following SoccerBot's eight-section data-lifecycle draft format while mapping Fitfinity's actual PostgreSQL/Cognito/private-S3/browser owners. The review distinguishes general disposal gaps from implemented explicit auth maintenance and leased media byte deletion. Auth cleanup predicates, recording expiry, upload/read leases, retained mutation/receipt/archive evidence and unverified backup/log/object-version settings are documented. No database/provider query, cleanup command, infrastructure change or restore was executed. Policy clauses, category-specific disposal periods, actual worker scheduling, copy coverage and tested deletion-aware restore remain pending.
+
+Broadened API examples within the existing transport section: scheduling approval/rejection and original decision recovery; no-show acknowledgement and exactly-once credit behavior; recording reservation/upload/commit, pending/completed recovery and expired-intent rejection. All 15 new synthetic JSON examples are checked against the checked-in OpenAPI schemas; review fingerprints/checksums are explicitly placeholders and no usable credentials or signed URLs are supplied. Examples do not add routes, schemas or acceptance claims. Local validation passed 1,804 links/anchors, 37 Mermaid parses and 20 unique lifecycle inventory IDs; business rules, operation rows, endpoint/schema indexes and previous history were preserved. The lifecycle reference was inspected at SoccerBot commit `91539f2829550388345740680a9b980b22c75c44`.
+
+
 ### 28 October 2026 — documentation acceptance and ownership expansion
 
 PR109 merged into main as `08220b9969ad71933bde0c4f5458eef9e1190bc1` on 28 October 2026 at 18:31 Singapore. Its tested head was `2b1e7d67f927fbea3e0da74404a5d978bd33a4e2`: [final-head run40663146579](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40663146579) passed frontend, backend and both real-API browser shards with aggregate verification. [Fresh-main run40672778281](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40672778281) passed the same gates and GitHub Pages build/publication, completing at 19:13 Singapore. This is source and staff-demo publication evidence, not a Lambda image deployment or live Cognito/device acceptance.
