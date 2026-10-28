@@ -1,6 +1,6 @@
 # Fitfinity operations runbook
 
-Draft — **28 October 2026**. For authorised operators of the developer AWS environment and future production releases. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Service Contracts](service_contracts.md) owns rules, and [README](../README.md#configuration) owns configuration and local commands.
+Draft — **28 October 2026**. For authorised operators of the developer AWS environment and future production releases. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Service Contracts](service_contracts.md) owns rules, and [section10](#10-development-and-configuration-reference) owns configuration and local commands.
 
 Navigation: [Access](#1-ownership-and-access) · [Routine checks](#2-routine-checks) · [Dependencies](#3-dependency-maintenance-and-dependabot) · [Monitoring](#4-monitoring-and-observability) · [Incidents](#5-incident-response-and-recovery) · [Releases](#6-deployments-and-rollback) · [Restore](#7-data-protection-and-restore) · [DNS](#8-domain-dns-and-https) · [Handover](#9-operational-records-and-handover).
 
@@ -45,7 +45,27 @@ Use [Owner](uat/owner.md), [Admin](uat/admin.md) and [Trainer](uat/trainer.md) w
 
 ## 3. Dependency maintenance and Dependabot
 
-[README's dependency policy](../README.md#dependency-maintenance) and [dependabot.yml](../.github/dependabot.yml) own schedules/groups and gates. Version checks run Monday09:00 Singapore with one open routine PR each for npm, Actions and backend Docker. Security proposals can arrive separately on any day. No eligible release may mean no new PR; a Dependabot update job is not an application deployment. GitHub notifications follow account preferences, not this chat.
+### Dependency maintenance
+
+[versions.md](versions.md) is the dependency inventory of locked application/transitive dependencies, images, browser engines and CI pins, with manual patch guidance and explicit gaps for deployed/OS versions. Update it alongside dependency changes.
+
+The design has three layers:
+
+| Layer | Purpose | Behaviour |
+| --- | --- | --- |
+| Version updates | Keep dependencies current | Weekly Monday, 9 am Singapore. At most one open version-update PR each for npm, Actions and backend Dockerfile images. |
+| Security alerts and updates | Identify known vulnerabilities and propose fixes | GitHub alerts and security PRs have been observed. Settings and the complete alert inventory still require verification with appropriate read access; security updates are independent of the weekly schedule and version-PR limits. |
+| Blocking audit | Prevent known high/critical npm findings from passing verification | Full verification runs `npm audit --include=dev --audit-level=high --json`, including development tooling, and retains the report even on failure. Registry/access errors fail verification too. This does not audit Python, OS/container packages or the deployed environment. |
+
+Routine minor/patch updates are grouped. Major upgrades and sensitive tooling (TypeScript, ESLint, Playwright, Wrangler and Miniflare, where present) remain separate from routine and security groups. Other minor/patch npm security fixes have their own group. Exclusions from grouping do not ignore updates. Python runtime proposals remain within the supported 3.12 line. The version-PR limit controls the queue, not a guarantee that all updates fit one PR.
+
+Every update follows **PR → compatibility fixes → all three CI gates → review and authorized merge → fresh main CI → separately authorized deployment and verification**. There is no automatic merge. Failed updates leave the deployed version unchanged and require investigation; never weaken tests to accept them. Main verification can publish the Pages demo; AWS image publication and Lambda deployment remain separate manual, authorized actions. A deployed security fix is complete only after the affected deployment is verified.
+
+GitHub alerts/PRs notify according to account notification preferences; they do not automatically message this chat. Recheck security settings for each client repository. Closing update PRs neither fixes vulnerabilities nor disables future proposals. The five formerly floating frontend test/build declarations remain pinned.
+
+Review release notes, compatibility, dependency/lockfile diffs, vulnerability reachability and license changes before accepting an update. Require full final-head frontend/backend/API-browser CI and preserve SHA-pinned Actions and image digest/source evidence. Triage critical or actively exploited findings within24 hours, high severity within3 business days and other alerts within10 business days; record exposure, owner and disposition rather than treating these targets as a waiver or guaranteed remediation date. Release-blocking findings must be resolved or separately reviewed before deployment.
+
+Python version updates remain manually maintained: `pyproject.toml` feeds uv-generated `requirements.lock` and `requirements-test.lock`, which the current Dependabot pip fetcher does not discover as ordinary requirements files. Observed security PR106 updated only the manifest; a bot proposal is incomplete until both hashed locks are regenerated and verified. Review/regenerate both hashed locks together with manifest changes and run the complete isolated backend/API gates. Compose PostgreSQL/RustFS pins also remain manually reviewed; Dockerfile automation is not claimed to cover Compose or every embedded image reference. A tested lock-updater integration, remaining image coverage, security-alert activation, SBOMs and provenance remain in Progress H4.
 
 ### Update and remediation procedure
 
@@ -144,7 +164,7 @@ The image retains its commit/run/attempt binding, exact AWS account/role checks,
 
 [Release image](../backend/infrastructure/release_image.py), [image acceptance](../backend/infrastructure/image_acceptance.py), [private runtime](../backend/infrastructure/private_runtime.py), [database migrations](../backend/infrastructure/database_migrations.py) and [hosting operator](../backend/infrastructure/hosting_operator.py) are source owners, not a sequential script list to execute blindly. Their retained contracts and fingerprints may bind earlier artifacts. Reconcile and review a new release binding; never rewrite history or bypass a source mismatch just to make publication pass.
 
-Frontend and Lambda releases are separate. Preserve reviewed API origin/CORS/cookies and existing resource identities. Email correction and media are default-disabled capabilities: use [README configuration](../README.md#configuration) for compatible activation. Source-present cleanup commands do not establish scheduled cloud cleanup or accepted media processing.
+Frontend and Lambda releases are separate. Preserve reviewed API origin/CORS/cookies and existing resource identities. Email correction and media are default-disabled capabilities: use [Runbook configuration](runbook.md#configuration) for compatible activation. Source-present cleanup commands do not establish scheduled cloud cleanup or accepted media processing.
 
 ### 6.3 Rollback
 
@@ -177,3 +197,42 @@ For certificate/routing incidents, distinguish DNS validation/CAA, certificate c
 For each incident/change retain: named owner, Singapore/UTC timestamps, environment/account/resource identities, source/run/artifact/digest, reason/scope, applicable BR/UAT IDs, redacted evidence, approval, observed before/after behavior and remaining actions. Store completed user worksheets and sensitive incident evidence in restricted records, not in blank worksheet masters or public PRs.
 
 Before handover, name primary/backup responders; confirm access/MFA/billing; reconcile current artifacts and dependency findings; exercise role UAT, alert delivery, rollback and restore; document residual risks and obtain Owner acceptance. [Code owners](code-owners.md) locates implementation modules, not on-call people. M7 processing, public/member delivery and M10 monitoring remain governed by [Progress](../PROGRESS.md), not completed by this document.
+
+## 10. Development and configuration reference
+
+### Development setup
+
+Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies with `npm ci` from the reviewed lockfile; reuse matching dependencies, prepared images and Playwright caches during routine work. Backend versions and hashes are owned by `backend/pyproject.toml`, its requirements files and `backend/Dockerfile`.
+
+`npm run dev` starts Vite; `npm run build` creates `dist/`; `npm run preview` serves it locally. `npm run build:pages-test` creates the `/FitfinityReact/` demo export. Local ports are not public preview URLs.
+
+### Verification commands
+
+| Command | Scope |
+| --- | --- |
+| `npm run verify:lint` / `verify:health` | Semantic lint and source ownership/health |
+| `npm run verify:quality-checker` / `verify:health-checker` | Verifier regressions |
+| `npm test -- --reporter=verbose` | Frontend units; append a real test path for focused work |
+| `npm run verify:assessments` | Assessment form parity |
+| `npm run verify:backend` | Full backend against isolated Docker PostgreSQL and S3-compatible storage, including offline infrastructure checks |
+| `npm run verify:infrastructure` | Offline infrastructure checks alone |
+| `CI=true npm run test:e2e -- --reporter=list` | Root/Pages/API-fixture builds, PWA and simulator browser suite |
+| `npm run test:api-browser` | Real frontend/FastAPI/migrations/PostgreSQL and protected-media browser suite |
+
+The [full-suite diagram](architecture/diagram.md#full-verification-suite) explains existing test scopes and planned mutation, performance, security, telemetry and operational verification. Planned suites have no executable command here until implemented.
+
+CI runs the real-API suite in two complementary shards, each with its own disposable databases/storage and the existing 20-minute budget. The required `verify / api-browser` aggregate checks both successful jobs and every discovered case identity, rejecting missing, duplicated, skipped, retried or failed cases. Local `npm run test:api-browser` still runs the complete suite; `-- --shard=1/2 --reporter=list,json` selects a shard for diagnosis, with `PLAYWRIGHT_JSON_OUTPUT_FILE` selecting its report path. A shard alone is not complete acceptance. Overall job budgets are 60 minutes each for frontend/backend, 20 minutes per API-browser shard and 5 minutes for the aggregate; these are separate from test and database timeouts.
+
+Required CI and evidence rules belong to [AGENTS](../AGENTS.md#verify-and-publish). Test inventories are defined by the verifiers, not historical counts in documentation.
+
+### Configuration
+
+Local prototype development uses `VITE_PORTAL_MODE=demo` and an empty `VITE_API_BASE_URL`. API builds explicitly select API mode and the reviewed API origin. Unsupported API operations do not fall back to demo storage. Public frontend configuration is separate from server secrets; never put credentials in a Vite bundle.
+
+Real-API tests create temporary Docker PostgreSQL databases, private buckets in the pinned Docker S3-compatible service and synthetic accounts. They require no production database, AWS credentials or Lambda redeployment. The local signed-token provider substitutes Cognito; FastAPI, PostgreSQL and object IO are real. Local storage compatibility does not prove AWS S3 deployment acceptance. The verifier owns isolation checks and cleanup; browser storage uses loopback port4181 or the internal Compose hostname.
+
+Pending Trainer email correction is disabled by default (`FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED=false`). Enable it only after all serving application instances understand superseded requests and the forward migration is verified. Once corrections exist, rollback requires a correction-aware application; old pending-request readers are incompatible, and populated schema downgrade refuses evidence loss. Disabling creation does not prevent account holders from finishing existing verification.
+
+Protected media is disabled by default. An authorized deployment must explicitly set `FITFINITY_MEDIA_ENABLED=true` and `FITFINITY_MEDIA_BUCKET` for an existing private bucket; source code does not create AWS resources. The runtime uses its workload identity and Singapore S3 endpoint. Reviewed bucket CORS must permit only the staff origin, GET/PUT/HEAD and the required content-type/checksum/conditional-write headers. Test endpoints and synthetic credentials exist only in test fixtures. `python -m app.library_cleanup` performs a bounded cleanup sweep after configuration; scheduling, grants and production activation remain release tasks in Progress. It retains durable work after failure and never deletes a library object while it is attached or its upload lease remains valid. `python -m app.session_media_cleanup` similarly performs a bounded session-media sweep, respecting package-deletion Undo holds, original fixed expiry and worker leases. Both commands require separate release activation; source integration does not schedule them.
+
+Prepared environments may reuse `FITFINITY_BROWSER_BACKEND_IMAGE`, `FITFINITY_BROWSER_RUNNER_IMAGE` and `PLAYWRIGHT_BROWSERS_PATH` with matching source/engine inputs. Keep public CA/proxy settings and TLS verification intact; cloud-specific trust setup stays outside tracked source. If Docker or trust is unavailable, record the blocker rather than substitute SQLite or a simulator.

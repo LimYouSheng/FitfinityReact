@@ -36,7 +36,7 @@ Stable rule-group IDs identify the existing paragraphs below; they do not change
 
 <a id="br-008"></a>
 
-**BR-008** — **Lost authenticator — operator-assisted policy.** Recovery uses an independently authorized operator, identity verification against existing trusted records, an audit reference and fresh MFA enrollment; the staff app receives no Cognito administrator recovery powers. Keep pool-wide MFA required and preserve the existing staff identity and provider subject. Password recovery and MFA-preference reconciliation do not recover a lost TOTP factor. Prepare user-specific recovery with session/flow revocation, controlled re-enrollment, exact target binding and explicit handling of uncertain provider outcomes. Never collect passwords, TOTP seeds or codes in source, logs or chat. Real provider execution and live acceptance require separate authorization. AWS now documents [AdminDeleteSoftwareToken](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminDeleteSoftwareToken.html) for removing a lost factor and [required-MFA re-enrollment](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-mfa-totp.html); the [operator procedure](../README.md#operator-assisted-lost-authenticator-recovery) and synthetic drill are separate from live recovery acceptance.
+**BR-008** — **Lost authenticator — operator-assisted policy.** Recovery uses an independently authorized operator, identity verification against existing trusted records, an audit reference and fresh MFA enrollment; the staff app receives no Cognito administrator recovery powers. Keep pool-wide MFA required and preserve the existing staff identity and provider subject. Password recovery and MFA-preference reconciliation do not recover a lost TOTP factor. Prepare user-specific recovery with session/flow revocation, controlled re-enrollment, exact target binding and explicit handling of uncertain provider outcomes. Never collect passwords, TOTP seeds or codes in source, logs or chat. Real provider execution and live acceptance require separate authorization. AWS now documents [AdminDeleteSoftwareToken](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminDeleteSoftwareToken.html) for removing a lost factor and [required-MFA re-enrollment](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-mfa-totp.html); the [operator procedure](runbook.md#52-operator-assisted-lost-authenticator-recovery) and synthetic drill are separate from live recovery acceptance.
 
 ### Persistence, conflicts and recovery
 
@@ -357,6 +357,10 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 
 ## Part 2 — Dated changes and evidence
+
+### 28 October 2026 — remove redundant root README
+
+At the user's request, removed root README.md. Its remaining development setup, verification commands and configuration moved into Runbook section10; its three-layer dependency policy moved into section3. Image publication and MFA recovery were already owned by the runbook. Local references now point directly to those owners; AGENTS remains the task-based entry directory. Original instruction text and historical external links remain retained. No application behavior, dependency, AWS operation or test result changed.
 
 ### 28 October 2026 — operations runbook, lowercase docs and task directory
 
