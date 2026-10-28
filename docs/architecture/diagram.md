@@ -1,6 +1,6 @@
 # System, test environment and verification diagrams
 
-[One-page explanation](README.md) · [Current rules](../SERVICE_CONTRACTS.md#part-1--current-system-rules) · [Implementation status and backlog](../../PROGRESS.md)
+[Architecture decisions](adr.md) · [Current rules](../business-rules.md#current-business-rules) · [Implementation status and backlog](../../PROGRESS.md)
 
 Solid connections describe existing source responsibilities or the selected hosting topology; they do not certify deployment. Dashed connections and **Planned** labels identify future work. Planned hardening belongs to [M10](../../PROGRESS.md#m10-work-packages--planned); launch-critical checks remain required before launch. No diagram authorizes provisioning, paid ingestion or production testing.
 
