@@ -41,6 +41,9 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   verifyQualitySetup(readQualitySetup())
 })
 const mutations = [
+  ['missing reviewed Ubuntu source selection', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('prepare-browser-apt.py')) }],
+  ['missing API browser engines', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('playwright install')) }],
+
   ['missing blocking audit', setup => { setup.verify.jobs.frontend.steps = setup.verify.jobs.frontend.steps.filter(step => !step.run?.includes('npm audit')) }],
   ['optional audit', setup => { setup.verify.jobs.frontend.steps.find(step => step.run?.includes('npm audit'))['continue-on-error'] = true }],
   ['lost audit evidence', setup => { setup.verify.jobs.frontend.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
@@ -276,4 +279,33 @@ for (const [name, mutate] of [
 for (const outcome of ['failure', 'cancelled', 'skipped', undefined]) test(`aggregate rejects ${outcome} shard job despite passing reports`, () => {
   const { inventory, reports } = shardFixture()
   assert.throws(() => verifyApiShards(inventory, reports, outcome), /both shard jobs must succeed/)
+})
+
+
+for (const source of ['http://azure.archive.ubuntu.com/ubuntu/', 'https://azure.archive.ubuntu.com/ubuntu/', 'mirror+file:/etc/apt/apt-mirrors.txt']) test(`Ubuntu mirror selection preserves signed suites from ${source}`, () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fitfinity-apt-'))
+  try {
+    const file = path.join(dir, 'ubuntu.sources')
+    const input = `Types: deb\nURIs: ${source}\nSuites: noble noble-updates noble-backports\nComponents: main universe restricted multiverse\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n\nTypes: deb\nURIs: http://security.ubuntu.com/ubuntu/\nSuites: noble-security\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n`
+    fs.writeFileSync(file, input)
+    const result = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
+    assert.equal(result.status, 0, result.stderr)
+    const expected = input.replace(source, 'https://us.archive.ubuntu.com/ubuntu/')
+    assert.equal(fs.readFileSync(file, 'utf8'), expected)
+    const again = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
+    assert.equal(again.status, 0, again.stderr)
+    assert.equal(fs.readFileSync(file, 'utf8'), expected)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+test('unexpected Ubuntu source format is rejected without modifying repositories', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fitfinity-apt-'))
+  try {
+    const file = path.join(dir, 'ubuntu.sources')
+    const input = 'URIs: https://unreviewed.example/ubuntu/\nSigned-By: /keyring.gpg\n'
+    fs.writeFileSync(file, input)
+    const result = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /Unexpected Ubuntu source layout/)
+    assert.equal(fs.readFileSync(file, 'utf8'), input)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
