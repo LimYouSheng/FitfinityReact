@@ -8,27 +8,27 @@ Repository snapshot: **28 October 2026 Singapore**, dependency inputs from merge
 
 | Component | Repository version / selection | Version owner and scope |
 | --- | --- | --- |
-| Frontend application | 0.1.0 | [package.json](package.json); project metadata, not a release fingerprint |
-| Backend application | 0.1.0 | [backend/pyproject.toml](backend/pyproject.toml); project metadata |
-| FastAPI application/OpenAPI metadata | 0.2.0 | [backend/app/main.py](backend/app/main.py); API metadata differs from backend package metadata |
-| Node.js | 24 (major only; patch floats) | [.github/workflows/verify.yml](.github/workflows/verify.yml) and other workflows; build/test runtime |
+| Frontend application | 0.1.0 | [package.json](../package.json); project metadata, not a release fingerprint |
+| Backend application | 0.1.0 | [backend/pyproject.toml](../backend/pyproject.toml); project metadata |
+| FastAPI application/OpenAPI metadata | 0.2.0 | [backend/app/main.py](../backend/app/main.py); API metadata differs from backend package metadata |
+| Node.js | 24 (major only; patch floats) | [.github/workflows/verify.yml](../.github/workflows/verify.yml) and other workflows; build/test runtime |
 | npm | Bundled with selected Node; not independently pinned | Capture `node --version` and `npm --version` for each verification/release |
-| Python | 3.12.14; supported range >=3.12,<3.13 | [backend/Dockerfile](backend/Dockerfile), [pyproject.toml](backend/pyproject.toml) |
+| Python | 3.12.14; supported range >=3.12,<3.13 | [backend/Dockerfile](../backend/Dockerfile), [pyproject.toml](../backend/pyproject.toml) |
 | Backend base image | `python:3.12.14-slim-trixie` | Dockerfile; Debian 13 (Trixie); tag is not a digest lock |
 | Lambda Web Adapter | `public.ecr.aws/awsguru/aws-lambda-adapter:1.0.1` | Dockerfile runtime stage only; tag is not a digest lock |
-| Local/test PostgreSQL | `postgres:17.11-bookworm` | [backend/compose.yaml](backend/compose.yaml); Debian 12 (Bookworm); local/test only |
-| RDS engine configuration | PostgreSQL 17.11 | [backend/infrastructure/test-foundation.json](backend/infrastructure/test-foundation.json); desired configuration, not a current live query |
+| Local/test PostgreSQL | `postgres:17.11-bookworm` | [backend/compose.yaml](../backend/compose.yaml); Debian 12 (Bookworm); local/test only |
+| RDS engine configuration | PostgreSQL 17.11 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json); desired configuration, not a current live query |
 | Isolated S3-compatible test storage | `ghcr.io/rustfs/rustfs:1.0.3@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b` | Compose; synthetic test media only, not production S3 |
 | Frontend CI host | `macos-15` | verify.yml; runner image/tool patches change outside this repository |
 | Backend/API/release CI host | `ubuntu-latest` | Workflows; alias floats; latest investigated run used Ubuntu 24.04.5 image20261012.334.1 |
-| Browser system packages | Installed by Playwright through APT; exact versions not locked | [scripts/prepare-browser-apt.py](scripts/prepare-browser-apt.py) selects official US archive; signing keys and suites retained |
+| Browser system packages | Installed by Playwright through APT; exact versions not locked | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) selects official US archive; signing keys and suites retained |
 | Perl/OpenSSL build floors | `perl-base >=5.40.1-6+deb13u1`; `libssl3t64 >=3.5.7-1~deb13u2` | Dockerfile runs APT upgrade then checks these minimums; actual installed versions may be newer |
 
 The optional `FITFINITY_BROWSER_BACKEND_IMAGE` and `FITFINITY_BROWSER_RUNNER_IMAGE` overrides select environment-prepared images, not additional production pins. Their actual digest and contents must be captured when used. The rejected official Playwright container trial is not part of the selected runtime.
 
 ## Direct npm dependencies
 
-Resolved versions come from [package-lock.json](package-lock.json), including when [package.json](package.json) allows a range. Development tools execute in CI and may contribute code to generated assets; “development” does not mean irrelevant to security.
+Resolved versions come from [package-lock.json](../package-lock.json), including when [package.json](../package.json) allows a range. Development tools execute in CI and may contribute code to generated assets; “development” does not mean irrelevant to security.
 
 | Package | Manifest constraint | Locked version | Scope |
 | --- | --- | --- | --- |
@@ -52,7 +52,7 @@ Resolved versions come from [package-lock.json](package-lock.json), including wh
 
 ## All locked Python dependencies
 
-[Runtime lock](backend/requirements.lock): **33 packages**. [Test lock](backend/requirements-test.lock): **42 packages**, including runtime dependencies. Both locks contain install hashes. Direct declarations are in [pyproject.toml](backend/pyproject.toml); a transitive package may still be security-critical. Runtime dependencies appear in both locks unless noted.
+[Runtime lock](../backend/requirements.lock): **33 packages**. [Test lock](../backend/requirements-test.lock): **42 packages**, including runtime dependencies. Both locks contain install hashes. Direct declarations are in [pyproject.toml](../backend/pyproject.toml); a transitive package may still be security-critical. Runtime dependencies appear in both locks unless noted.
 
 | Distribution | Runtime lock | Test lock | Declaration |
 | --- | --- | --- | --- |
@@ -105,14 +105,14 @@ Full commit SHA is the effective pin. Version labels below are comments from the
 
 | Action | Pinned commit | Workflow label | Used in |
 | --- | --- | --- | --- |
-| `actions/checkout` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | v7 | [aws-image-accept.yml](.github/workflows/aws-image-accept.yml), [aws-image.yml](.github/workflows/aws-image.yml), [aws-private-runtime.yml](.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](.github/workflows/aws-test-hosting.yml), [aws-verify.yml](.github/workflows/aws-verify.yml), [infrastructure.yml](.github/workflows/infrastructure.yml), [pages.yml](.github/workflows/pages.yml), [verify.yml](.github/workflows/verify.yml) |
-| `actions/configure-pages` | `45bfe0192ca1faeb007ade9deae92b16b8254a0d` | v6 | [pages.yml](.github/workflows/pages.yml) |
-| `actions/deploy-pages` | `cd2ce8fcbc39b97be8ca5fce6e763baed58fa128` | v5 | [pages.yml](.github/workflows/pages.yml) |
-| `actions/download-artifact` | `d3f86a106a0bac45b974a628896c90dbdf5c8093` | v4 | [verify.yml](.github/workflows/verify.yml) |
-| `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` | v7 | [aws-test-hosting.yml](.github/workflows/aws-test-hosting.yml), [infrastructure.yml](.github/workflows/infrastructure.yml), [pages.yml](.github/workflows/pages.yml), [verify.yml](.github/workflows/verify.yml) |
-| `actions/upload-artifact` | `ea165f8d65b6e75b540449e92b4886f43607fa02` | v4.6.2 | [aws-image-accept.yml](.github/workflows/aws-image-accept.yml), [aws-image.yml](.github/workflows/aws-image.yml), [aws-private-runtime.yml](.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](.github/workflows/aws-test-hosting.yml), [aws-verify.yml](.github/workflows/aws-verify.yml), [infrastructure.yml](.github/workflows/infrastructure.yml), [verify.yml](.github/workflows/verify.yml) |
-| `actions/upload-pages-artifact` | `fc324d3547104276b827a68afc52ff2a11cc49c9` | v5 | [pages.yml](.github/workflows/pages.yml) |
-| `aws-actions/configure-aws-credentials` | `e3dd6a429d7300a6a4c196c26e071d42e0343502` | No tag label; use SHA | [aws-image-accept.yml](.github/workflows/aws-image-accept.yml), [aws-image.yml](.github/workflows/aws-image.yml), [aws-private-runtime.yml](.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](.github/workflows/aws-test-hosting.yml), [aws-verify.yml](.github/workflows/aws-verify.yml) |
+| `actions/checkout` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | v7 | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [pages.yml](../.github/workflows/pages.yml), [verify.yml](../.github/workflows/verify.yml) |
+| `actions/configure-pages` | `45bfe0192ca1faeb007ade9deae92b16b8254a0d` | v6 | [pages.yml](../.github/workflows/pages.yml) |
+| `actions/deploy-pages` | `cd2ce8fcbc39b97be8ca5fce6e763baed58fa128` | v5 | [pages.yml](../.github/workflows/pages.yml) |
+| `actions/download-artifact` | `d3f86a106a0bac45b974a628896c90dbdf5c8093` | v4 | [verify.yml](../.github/workflows/verify.yml) |
+| `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` | v7 | [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [pages.yml](../.github/workflows/pages.yml), [verify.yml](../.github/workflows/verify.yml) |
+| `actions/upload-artifact` | `ea165f8d65b6e75b540449e92b4886f43607fa02` | v4.6.2 | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [verify.yml](../.github/workflows/verify.yml) |
+| `actions/upload-pages-artifact` | `fc324d3547104276b827a68afc52ff2a11cc49c9` | v5 | [pages.yml](../.github/workflows/pages.yml) |
+| `aws-actions/configure-aws-credentials` | `e3dd6a429d7300a6a4c196c26e071d42e0343502` | No tag label; use SHA | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml) |
 
 ## Browser engines
 
@@ -135,7 +135,7 @@ Source: `playwright-core@1.64.1` package's `browsers.json`, checked against the 
 3. **Python:** update `backend/pyproject.toml` for direct requirements and regenerate **both hashed locks** with uv. Runtime compilation uses `uv pip compile backend/pyproject.toml --generate-hashes --python-version 3.12 -o backend/requirements.lock`; test compilation adds `--extra test -c backend/requirements.lock -o backend/requirements-test.lock`. Use a targeted `--upgrade-package PACKAGE` where appropriate, retain unrelated pins and review the resolution. Install with `--require-hashes`, run `pip check`, and verify isolated backend/PostgreSQL and API workflows. Never accept a manifest-only bot change as complete.
 4. **Images/OS:** update Dockerfile or Compose references deliberately, including digest pins where present. Rebuild and inspect the exact resulting image's OS and Python packages; APT upgrades mean a Dockerfile tag alone cannot identify installed OS versions. Scan the resulting digest. A tag update, minimum-version check or alternate mirror is not a clean scan receipt. Review PostgreSQL compatibility/migrations and RustFS storage behavior when those images change.
 5. **Actions/browser tooling:** update the reviewed Action commit SHA or Playwright package/lock and installed matching engines. Review upstream changes and platform support; do not weaken tests or raise timeouts to accept an upgrade.
-6. Complete the required frontend, backend and real-API CI on the exact final head, review and merge, then check fresh main verification. AWS publication/deployment and provider actions require separate authorization. Record the deployed digest and verify the affected runtime before claiming a deployed fix. [README](README.md#dependency-maintenance) and [AGENTS](AGENTS.md) own the standing process.
+6. Complete the required frontend, backend and real-API CI on the exact final head, review and merge, then check fresh main verification. AWS publication/deployment and provider actions require separate authorization. Record the deployed digest and verify the affected runtime before claiming a deployed fix. [README](../README.md#dependency-maintenance) and [AGENTS](../AGENTS.md) own the standing process.
 
 ## Versions that require artifact or environment inspection
 
@@ -149,11 +149,11 @@ Source: `playwright-core@1.64.1` package's `browsers.json`, checked against the 
 | Action-internal/transitively downloaded tools and browser native libraries | Not included in the app's package locks | Action source/SBOM at pinned SHA, engine manifest and exact runner/image package evidence |
 | User physical browsers and OS | Controlled by each device | Device OS/browser versions during physical acceptance and subsequent update review |
 
-This inventory is not a complete artifact SBOM. In particular, no unverified OS/library version is invented to fill a gap. The separately scanned Playwright container trial exposed GStreamer and bundled-npm findings; rejecting that image does not establish that the retained runner is clean. [Progress](PROGRESS.md) owns that follow-up and future SBOM/provenance automation.
+This inventory is not a complete artifact SBOM. In particular, no unverified OS/library version is invented to fill a gap. The separately scanned Playwright container trial exposed GStreamer and bundled-npm findings; rejecting that image does not establish that the retained runner is clean. [Progress](../PROGRESS.md) owns that follow-up and future SBOM/provenance automation.
 
 ## All locked npm dependencies
 
-Every non-root `packages` entry in [package-lock.json](package-lock.json) is represented below, including optional OS/architecture packages and nested duplicates. These are **271 locked entries**, not 271 packages guaranteed to be installed on every host or shipped to browsers. “Development” and “optional” are lockfile classifications. Paths disambiguate duplicate versions and can be searched directly in the lockfile.
+Every non-root `packages` entry in [package-lock.json](../package-lock.json) is represented below, including optional OS/architecture packages and nested duplicates. These are **271 locked entries**, not 271 packages guaranteed to be installed on every host or shipped to browsers. “Development” and “optional” are lockfile classifications. Paths disambiguate duplicate versions and can be searched directly in the lockfile.
 
 | Package | Locked version | Lock scope | Lock path |
 | --- | --- | --- | --- |
@@ -435,20 +435,20 @@ These SHA256 values identify the source inputs used above. Any change requires a
 
 | Input | SHA256 |
 | --- | --- |
-| [package.json](package.json) | `6e81d313b97be9d843b3a3547187bcdf2a28bb592a7b7585c1b9b06acdb42fc5` |
-| [package-lock.json](package-lock.json) | `afc7e3de7e7637e6158a449149e196c30542a32579ebfc7a7bf6de6b158f881d` |
-| [backend/pyproject.toml](backend/pyproject.toml) | `85aaa5e760bb7acf12fbd2a18e46bdb927d6d77368ef66780cf6b69cbdefaee9` |
-| [backend/requirements.lock](backend/requirements.lock) | `98d634b5342229a80ae1d17b330f95969076c5bd7eac0780eb59d5ce50d7e1a3` |
-| [backend/requirements-test.lock](backend/requirements-test.lock) | `3f233cce42b451c422ecc94b58546da782c6f92f2cb04ba1e335b3fc322e0e4a` |
-| [backend/Dockerfile](backend/Dockerfile) | `f1f5810efd4ac06b15b305ed4b88dc6667af6dcdd18ad30d5e5d34c770bfb87f` |
-| [backend/compose.yaml](backend/compose.yaml) | `5bcd4982a2c36fac48f59b2bf4ea72a713d7036e23db45eb2f4e36b9bb810a7b` |
-| [backend/compose.browser.yaml](backend/compose.browser.yaml) | `b0a7da6ed501b990f3536e3043b8a175fd53206d1e3d3fefcd744b9201f77a8a` |
-| [backend/infrastructure/test-foundation.json](backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
-| [.github/workflows/aws-image-accept.yml](.github/workflows/aws-image-accept.yml) | `8cac2acb8dde0e980c70aac9dc286f97224e1695672511b759168a472c3f1fed` |
-| [.github/workflows/aws-image.yml](.github/workflows/aws-image.yml) | `53fd7514b330737ed79152df7afd64dd1d9902f527eed8b52ff68cb807177205` |
-| [.github/workflows/aws-private-runtime.yml](.github/workflows/aws-private-runtime.yml) | `a2d2b24bd9988c02c69085a58eefd2670ec2d3526c25f8a2059bb3b5cd159336` |
-| [.github/workflows/aws-test-hosting.yml](.github/workflows/aws-test-hosting.yml) | `39d5b78260e3c435460a81d16c2bab62a4106acfb22c7fbbf6a69c6db301d172` |
-| [.github/workflows/aws-verify.yml](.github/workflows/aws-verify.yml) | `dd35a9ec51f96c20b2e884f137cccc989dbce0e3be0a265506b6d0b2c5fc28e4` |
-| [.github/workflows/infrastructure.yml](.github/workflows/infrastructure.yml) | `f2c9c46692bd58d7806d2147d6a93cfe508473183a1220b6ee5e375c92b4a942` |
-| [.github/workflows/pages.yml](.github/workflows/pages.yml) | `43859f616032d14fad386850f0c17df3fbcdfcf4e5c6f0d9953897f42e34c558` |
-| [.github/workflows/verify.yml](.github/workflows/verify.yml) | `f01328b42a3b3b4642e9c8d3c8ed22ef05d093bd033e45a16db5217b4fa86923` |
+| [package.json](../package.json) | `6e81d313b97be9d843b3a3547187bcdf2a28bb592a7b7585c1b9b06acdb42fc5` |
+| [package-lock.json](../package-lock.json) | `afc7e3de7e7637e6158a449149e196c30542a32579ebfc7a7bf6de6b158f881d` |
+| [backend/pyproject.toml](../backend/pyproject.toml) | `85aaa5e760bb7acf12fbd2a18e46bdb927d6d77368ef66780cf6b69cbdefaee9` |
+| [backend/requirements.lock](../backend/requirements.lock) | `98d634b5342229a80ae1d17b330f95969076c5bd7eac0780eb59d5ce50d7e1a3` |
+| [backend/requirements-test.lock](../backend/requirements-test.lock) | `3f233cce42b451c422ecc94b58546da782c6f92f2cb04ba1e335b3fc322e0e4a` |
+| [backend/Dockerfile](../backend/Dockerfile) | `f1f5810efd4ac06b15b305ed4b88dc6667af6dcdd18ad30d5e5d34c770bfb87f` |
+| [backend/compose.yaml](../backend/compose.yaml) | `5bcd4982a2c36fac48f59b2bf4ea72a713d7036e23db45eb2f4e36b9bb810a7b` |
+| [backend/compose.browser.yaml](../backend/compose.browser.yaml) | `b0a7da6ed501b990f3536e3043b8a175fd53206d1e3d3fefcd744b9201f77a8a` |
+| [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
+| [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `8cac2acb8dde0e980c70aac9dc286f97224e1695672511b759168a472c3f1fed` |
+| [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `53fd7514b330737ed79152df7afd64dd1d9902f527eed8b52ff68cb807177205` |
+| [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `a2d2b24bd9988c02c69085a58eefd2670ec2d3526c25f8a2059bb3b5cd159336` |
+| [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `39d5b78260e3c435460a81d16c2bab62a4106acfb22c7fbbf6a69c6db301d172` |
+| [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `dd35a9ec51f96c20b2e884f137cccc989dbce0e3be0a265506b6d0b2c5fc28e4` |
+| [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `f2c9c46692bd58d7806d2147d6a93cfe508473183a1220b6ee5e375c92b4a942` |
+| [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `43859f616032d14fad386850f0c17df3fbcdfcf4e5c6f0d9953897f42e34c558` |
+| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `f01328b42a3b3b4642e9c8d3c8ed22ef05d093bd033e45a16db5217b4fa86923` |

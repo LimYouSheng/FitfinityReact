@@ -2,23 +2,43 @@
 
 ## Authority and document ownership
 
-This file owns engineering instructions. User instructions take precedence. Old Journey, Rules & Architecture, CODEX_CLOUD, runbook and history-folder references are superseded; do not recreate those files.
+This file owns engineering instructions. User instructions take precedence. Old Journey, Rules & Architecture, CODEX_CLOUD, AWS_DEPLOYMENT_RUNBOOK and history-folder references are superseded; do not recreate those files. The user-requested `docs/runbook.md` is the current operational procedure owner. Documentation paths under `docs/` are lowercase; keep the conventional root filenames unchanged.
 
 | File | Unique purpose |
 | --- | --- |
 | [README](README.md) | Development prerequisites, configuration and commands |
-| [Owner](docs/UAT/Owner.md), [Admin](docs/UAT/Admin.md), [Trainer](docs/UAT/Trainer.md) worksheets | Role-specific developer AWS acceptance worksheets with blank results/remarks; not executed test receipts |
-| [Code owners](docs/Code-Owners.md) | Hierarchical feature/module navigation and responsibility diagrams |
-| [Versions](Versions.md) | Repository dependency/version inventory and manual patch lookup; not deployed acceptance |
+| [Owner](docs/uat/owner.md), [Admin](docs/uat/admin.md), [Trainer](docs/uat/trainer.md) worksheets | Role-specific developer AWS acceptance worksheets with blank results/remarks; not executed test receipts |
+| [Code owners](docs/code-owners.md) | Hierarchical feature/module navigation and responsibility diagrams |
+| [Runbook](docs/runbook.md) | Operational checks, incidents, release/rollback and recovery procedures; planned capabilities labelled |
+| [Versions](docs/versions.md) | Repository dependency/version inventory and manual patch lookup; not deployed acceptance |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
 | [North Star](NORTH_STAR.md) | Current outcome and priority |
 | [Progress](PROGRESS.md) | Full milestone roadmap, current evidence, blockers, next actions and hardening backlog |
-| [Architecture explanation](docs/Architecture/README.md) | Component responsibilities and interactions |
-| [Architecture diagram](docs/Architecture/diagram.md) | Component topology and connections |
-| [Service Contracts](docs/SERVICE_CONTRACTS.md) | Part 1: business rules, design decisions, operation matrix and cross-cutting acceptance criteria; Part 2: full dated history |
+| [Architecture explanation](docs/architecture/readme.md) | Component responsibilities and interactions |
+| [Architecture diagram](docs/architecture/diagram.md) | Component topology and connections |
+| [Service Contracts](docs/service_contracts.md) | Part 1: business rules, design decisions, operation matrix and cross-cutting acceptance criteria; Part 2: full dated history |
 
 
 Use this structure as a guide for other projects, but re-establish their runtime, test commands, data boundaries, browser permissions and merge/deployment authority. Fitfinity's permissions and technology choices do not transfer automatically. Keep reusable engineering practice here and project business rules in Service Contracts; do not create parallel rulebooks.
+
+## Choose the reading path for the task
+
+Start every task with this file, [North Star](NORTH_STAR.md) and the current [Progress](PROGRESS.md) checkpoint. Then use the relevant route below; current source and actual environment evidence override assumptions from historical receipts. Read the owning BR in full, not just its Code Owners topic label.
+
+| Use case | Read next, in order | Work owner / required result |
+| --- | --- | --- |
+| Feature development or behavior change | [Service Contracts](docs/service_contracts.md#part-1--current-system-rules) → [Code Owners](docs/code-owners.md) → relevant source → [README commands](README.md#verification-commands) | Change the existing feature/domain owner; trace persistence, authority and recovery. Update applicable BR mapping and role UAT; retain meaningful acceptance evidence. |
+| Bug investigation / incorrect data | Relevant BR → [Code Owners](docs/code-owners.md#11-business-rule-to-owner-index) → [Runbook incidents](docs/runbook.md#5-incident-response-and-recovery) → failing source/tests | Reproduce and distinguish app, fixture, environment and provider failure. Preserve original evidence and verify the focused repair before full gates. |
+| Slow or unresponsive UI/API | [Runbook monitoring](docs/runbook.md#4-monitoring-and-observability) → relevant code owner → [Progress H2/H5](PROGRESS.md#m10-work-packages--planned) | Measure device/network/first-repeat/server behavior; record perceived delays. Do not invent budgets or claim planned Grafana is active. |
+| Dependency/security maintenance | [Versions](docs/versions.md) → [README policy](README.md#dependency-maintenance) → [Runbook update procedure](docs/runbook.md#3-dependency-maintenance-and-dependabot) | Patch exact owning manifests/locks/images/Action pins, refresh inventory and verify complete CI; distinguish repository alerts from deployed remediation. |
+| CI failure or PR/source merge | [README gates](README.md#verification-commands) → affected workflow/test owner → this file's Verify and publish rules | Diagnose the exact run/head; preserve inventories and budgets. Merge only after all required exact-head gates and GitHub requirements. |
+| AWS image publication / deployment / rollback | [Runbook releases](docs/runbook.md#6-deployments-and-rollback) → [README configuration](README.md#configuration) → [Contracts deployment rules](docs/service_contracts.md#deployment-migration-and-acceptance) → relevant infrastructure owner | Bind actual account/resources/source/artifacts, compatibility and concrete action plan. Source-merge authority does not authorise AWS/provider mutations. |
+| Database migration, backup or restore | [Contracts schema/recovery rules](docs/service_contracts.md#deployment-migration-and-acceptance) → [Runbook restore](docs/runbook.md#7-data-protection-and-restore) → migration/infrastructure source | Preserve applied migrations, populated evidence and external-effect consistency. Separate local preparation from authorised environment execution. |
+| Login, email or lost-authenticator incident | [Contracts identity rules](docs/service_contracts.md#authority-and-privacy) → [Runbook account recovery](docs/runbook.md#52-operator-assisted-lost-authenticator-recovery) → auth/email owner | Protect exact identity and original uncertain outcome; real recovery needs separate operator authority, never new app-admin powers. |
+| User acceptance / physical device checks | Relevant [Owner](docs/uat/owner.md), [Admin](docs/uat/admin.md) or [Trainer](docs/uat/trainer.md) worksheet → relevant BR for ambiguity | Use designated developer AWS records for live UAT; keep blank masters and completed evidence separate. Record failures, blocked cases and lag; no acceptance from drafting. |
+| Architecture or documentation changes | [Architecture explanation](docs/architecture/readme.md) → [diagrams](docs/architecture/diagram.md) → ownership table above | Edit the unique owner, maintain lowercase links, stable BR IDs and full history; validate diagrams and references. Do not duplicate procedures or acceptance ledgers. |
+
+Record **current status / next action** in Progress, **dated evidence / decisions** in Contracts Part2, **business requirements** in Contracts Part1, **code navigation** in Code Owners, **operating steps** in Runbook, **versions** in the inventory and **tester-facing actions** in the role worksheets. README owns local setup/configuration and command reference. Link to the owning document instead of copying its instructions.
 
 ## Start and verify the checkpoint
 
@@ -42,7 +62,7 @@ Edit canonical component/domain/service/style owners and remove superseded logic
 
 Trace field and rule changes through schema/migration, backend model/validation/service, API contract, frontend and affected tests. Recheck identity, current permissions, ownership and business state at the authoritative write boundary. Preserve transaction, concurrency, idempotency and recovery guarantees; a UI guard is not server authorization. Domain-specific invariants and schema-evolution rules belong to Service Contracts.
 
-Give substantial JavaScript/Python functions a short purpose or constraint summary; keep detailed rationale beside sensitive logic. Avoid redundant parameter prose, blanket comment rewrites and generated-code churn. Respect existing source/import/lint boundaries and dependency pins; dependency upgrades must be deliberate, scoped and validated. Refresh root `Versions.md` in the same PR whenever dependency manifests/locks, image references, browser engines or workflow tool pins change; preserve unknown deployed/OS versions as unknown. Never modify applied migrations or expose credentials/customer data.
+Give substantial JavaScript/Python functions a short purpose or constraint summary; keep detailed rationale beside sensitive logic. Avoid redundant parameter prose, blanket comment rewrites and generated-code churn. Respect existing source/import/lint boundaries and dependency pins; dependency upgrades must be deliberate, scoped and validated. Refresh `docs/versions.md` in the same PR whenever dependency manifests/locks, image references, browser engines or workflow tool pins change; preserve unknown deployed/OS versions as unknown. Never modify applied migrations or expose credentials/customer data.
 
 ## Verify and publish
 
@@ -60,7 +80,7 @@ Fitfinity source acceptance requires complete `verify / frontend`, `verify / bac
 
 ## Documentation and handoff
 
-Update each document's unique owner and link elsewhere. Refresh `docs/Code-Owners.md` when responsibilities move between modules; keep business rules in Service Contracts and infrastructure topology in Architecture. Preserve canonical BR IDs and anchors when moving/editing rules; allocate the next unused ID for new rules, never reuse retired IDs, and keep every current BR mapped to code or an explicitly labelled operational/planned owner in Code Owners. Update affected `docs/UAT/` worksheets when user-visible rules or workflows change; keep unexecuted cases distinct from acceptance evidence. Keep one North Star, one current progress ledger and one canonical operation matrix. Current rules precede full dated evidence in Service Contracts; historical instructions, approvals and counts do not govern current work. Preserve business/security decisions and first failures when consolidating; verify content preservation and references before deleting obsolete files.
+Update each document's unique owner and link elsewhere. Refresh `docs/code-owners.md` when responsibilities move between modules; keep business rules in Service Contracts and infrastructure topology in Architecture. Preserve canonical BR IDs and anchors when moving/editing rules; allocate the next unused ID for new rules, never reuse retired IDs, and keep every current BR mapped to code or an explicitly labelled operational/planned owner in Code Owners. Update affected `docs/uat/` worksheets when user-visible rules or workflows change; keep unexecuted cases distinct from acceptance evidence. Keep one North Star, one current progress ledger and one canonical operation matrix. Current rules precede full dated evidence in Service Contracts; historical instructions, approvals and counts do not govern current work. Preserve business/security decisions and first failures when consolidating; verify content preservation and references before deleting obsolete files.
 
 Report implemented, tested, CI-verified, merged, deployed and production/provider/device-accepted states separately. Record historical receipts once in Contracts Part 2; keep Progress limited to the current checkpoint, blockers and remaining work. Backlog entries need dependencies, acceptance evidence and rollout boundaries; a planned capability is not implemented or authorized for activation. At handoff, record the actual branch/head, dirty/stashed work, PR/CI status, unresolved failures and next action without exposing secrets.
 

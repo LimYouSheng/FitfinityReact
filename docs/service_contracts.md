@@ -1,10 +1,10 @@
 # Fitfinity — Service Contracts
 
-This is the single source for current business rules, retained design decisions and the full dated history. [Architecture](Architecture/README.md) explains components; [the diagram](Architecture/diagram.md) shows their connections. [AGENTS](../AGENTS.md) owns engineering execution. Current rules below override dated history; historical approvals never authorize new operations. An operation's intended rules do not imply that its API is integrated: the matrix records source acceptance.
+This is the single source for current business rules, retained design decisions and the full dated history. [Architecture](architecture/readme.md) explains components; [the diagram](architecture/diagram.md) shows their connections. [AGENTS](../AGENTS.md) owns engineering execution. Current rules below override dated history; historical approvals never authorize new operations. An operation's intended rules do not imply that its API is integrated: the matrix records source acceptance.
 
 ## Part 1 — Current system rules
 
-Stable rule-group IDs identify the existing paragraphs below; they do not change their requirements. Keep IDs when editing or moving a rule, never reuse retired IDs, and allocate the next unused ID for a new rule. A group may include its immediately following table. The 55-operation matrix, milestone IDs and full dated history retain their separate identities. [Code ownership mapping](Code-Owners.md#11-business-rule-to-owner-index) links every BR ID to implementation or an explicitly labelled operational/planned owner.
+Stable rule-group IDs identify the existing paragraphs below; they do not change their requirements. Keep IDs when editing or moving a rule, never reuse retired IDs, and allocate the next unused ID for a new rule. A group may include its immediately following table. The 55-operation matrix, milestone IDs and full dated history retain their separate identities. [Code ownership mapping](code-owners.md#11-business-rule-to-owner-index) links every BR ID to implementation or an explicitly labelled operational/planned owner.
 
 ### Service boundary
 
@@ -199,7 +199,7 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 <a id="br-031"></a>
 
-**BR-031** — Authentication includes enrollment/challenges, repeated login, session refresh/expiry, logout, password recovery and verified email changes. Evidence owners are [stored session lifecycle and races](../backend/tests/test_auth_sessions.py), [HTTP/JWT/cookie/CSRF security](../backend/tests/test_auth_security.py), [bootstrap and expiry](../backend/tests/test_auth_bootstrap.py), [enrollment/password/navigation browser workflows](../tests-api/authentication.spec.js), [verified email browser workflows](../tests-api/email-corrections.spec.js), [operator recovery drill](../backend/tests/test_mfa_recovery_drill.py) and [actual process restart](../backend/tests/test_process_restart.py). These use isolated storage and synthetic provider responses; live Cognito and physical-device receipts remain separate. See the implemented OpenAPI schema and [architecture explanation](Architecture/README.md). Session/calendar reads expose persisted assigned/authorized records and stable IDs; they do not add operations to this matrix. Assessment history and scoped directory routes likewise support the owning domain workflows.
+**BR-031** — Authentication includes enrollment/challenges, repeated login, session refresh/expiry, logout, password recovery and verified email changes. Evidence owners are [stored session lifecycle and races](../backend/tests/test_auth_sessions.py), [HTTP/JWT/cookie/CSRF security](../backend/tests/test_auth_security.py), [bootstrap and expiry](../backend/tests/test_auth_bootstrap.py), [enrollment/password/navigation browser workflows](../tests-api/authentication.spec.js), [verified email browser workflows](../tests-api/email-corrections.spec.js), [operator recovery drill](../backend/tests/test_mfa_recovery_drill.py) and [actual process restart](../backend/tests/test_process_restart.py). These use isolated storage and synthetic provider responses; live Cognito and physical-device receipts remain separate. See the implemented OpenAPI schema and [architecture explanation](architecture/readme.md). Session/calendar reads expose persisted assigned/authorized records and stable IDs; they do not add operations to this matrix. Assessment history and scoped directory routes likewise support the owning domain workflows.
 
 
 ### Outcome corrections and persisted progress
@@ -357,6 +357,12 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 
 ## Part 2 — Dated changes and evidence
+
+### 28 October 2026 — operations runbook, lowercase docs and task directory
+
+The user requested a Fitfinity runbook following SoccerBot's nine-section format, moved the version inventory into docs, confirmed lowercase naming for every docs file/folder, and requested a clearer AGENTS directory by use case. `docs/runbook.md` now owns routine checks, dependency procedures, current versus planned monitoring, incidents, exact-source image release, rollback, database restore, DNS/HTTPS and handover. Existing image-publication and operator MFA-recovery procedure text moved from README with root heading links retained; no new provider or deployment authority is granted. Grafana, alerts and restore drills remain pending until actual evidence.
+
+`Versions.md` moved to `docs/versions.md`; contracts, code-owner, architecture and UAT paths are lowercase. Local links follow the moved files; historical external source URLs and dated evidence remain retained. AGENTS keeps conventional root filenames and adds task-specific reading routes for development, debugging, performance, security, CI, deployment, database recovery, authentication and UAT, plus explicit document update ownership. PR109's preceding head `b64dda7` passed all required gates in run40626287538, and PR104 fresh-main run40614828297 passed; these edits still require new-head CI. No AWS execution, live test or deployment occurred.
 
 ### 28 October 2026 — developer AWS UAT worksheet scope
 

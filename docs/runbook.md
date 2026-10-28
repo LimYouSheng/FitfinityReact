@@ -1,0 +1,179 @@
+# Fitfinity operations runbook
+
+Draft — **28 October 2026**. For authorised operators of the developer AWS environment and future production releases. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Service Contracts](service_contracts.md) owns rules, and [README](../README.md#configuration) owns configuration and local commands.
+
+Navigation: [Access](#1-ownership-and-access) · [Routine checks](#2-routine-checks) · [Dependencies](#3-dependency-maintenance-and-dependabot) · [Monitoring](#4-monitoring-and-observability) · [Incidents](#5-incident-response-and-recovery) · [Releases](#6-deployments-and-rollback) · [Restore](#7-data-protection-and-restore) · [DNS](#8-domain-dns-and-https) · [Handover](#9-operational-records-and-handover).
+
+Adapted from [SoccerBot's runbook format](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/feat/version-inventory/docs/Runbook.md). Fitfinity uses its own Cognito, FastAPI, PostgreSQL and AWS deployment model; SoccerBot provider permissions and monitoring are not inherited.
+
+## 1. Ownership and access
+
+| Area | Responsible role | Boundary |
+| --- | --- | --- |
+| Business acceptance, downtime and residual risk | Business Owner | Approves operational impact and designated live test activity |
+| Application source, CI and diagnosis | Engineering maintainer | Preserves rules, final-head gates and original failure evidence |
+| AWS release, infrastructure and credentials | Authorised AWS operator | Confirms account/region/resource identities; separate approval for mutation/deployment |
+| PostgreSQL schema, migration and restore | Authorised database operator | Separate migration/runtime identities; protects populated data and rollback compatibility |
+| Staff account recovery | Authorised identity operator | Exact Cognito user plus application identity; no app-admin MFA-reset power |
+| Remuneration and credit corrections | Owner with engineering support | Uses reviewed domain actions and audit evidence; approved pay is not a payment transfer |
+| DNS and certificates | Authorised DNS/hosting owner | Preserves existing hosting and mail records; verifies actual renewal prerequisites |
+| Monitoring and incident coverage | Assigned primary/backup responders | Grafana/alerts remain pending until configured and exercised |
+
+Keep named primary/backup contacts, support channels, MFA and billing ownership in the restricted access inventory. Do not store passwords, recovery codes, signing keys or database credentials in this file.
+
+| Target | Repository reference | Verify before acting |
+| --- | --- | --- |
+| Developer/test AWS | [deployment-test.json](../backend/infrastructure/deployment-test.json): account418638389566, regionap-southeast-1, GitHub environmentaws-test | Actual caller, target resource identity and current approval; the file contains historical stage receipts |
+| AWS application runtime | [private-runtime-contract.json](../backend/infrastructure/private-runtime-contract.json) and release receipts | Current Lambda image digest, API routing, Cognito pool, database and configuration; retained fingerprints are not current-source deployment proof |
+| AWS frontend | [hosting-source.json](../backend/infrastructure/hosting-source.json) and hosting receipts | Actual CloudFront/static artifact and API origin; historical source bindings cannot accept arbitrary new bytes |
+| Pages demo | [pages.yml](../.github/workflows/pages.yml) | Demo export only; not the developer AWS API site |
+| Future production | Separately reviewed environment mapping | Do not infer a production account, domain or resource set from developer configuration |
+
+## 2. Routine checks
+
+Suggested cadence; assign coverage before operational handover.
+
+| When | Check | Record / follow-up |
+| --- | --- | --- |
+| Each operational day | Website/HTTPS, API readiness, sign-in failures, unresolved saves, AWS incidents and security notifications | Environment, deployed revision, affected operation and request ID; do not create business writes merely to check health |
+| Monday after09:00 Singapore | Dependabot jobs, update PRs, alerts and failed verification | Follow section3; scheduled jobs may start later |
+| After release/configuration changes | Actual frontend/API artifacts, readiness, permitted sign-in/read and arranged role smoke checks | Match source and artifact receipts; confirm authorization and persistence on designated records |
+| Monthly / before handover | Access, MFA, billing, certificates, backup retention, restore readiness, resource/cost trends and alert receivers | Actual observed settings; record missing coverage instead of assuming defaults |
+| After an incident | Recover unresolved outcomes, verify permissions/data and review cause | Retain first failure, repair evidence and outstanding actions |
+
+Use [Owner](uat/owner.md), [Admin](uat/admin.md) and [Trainer](uat/trainer.md) worksheets for arranged developer AWS acceptance. They are blank masters, not passed tests. Real invitations, email changes, media writes and disruptive recovery need designated test identities and applicable operator authority.
+
+## 3. Dependency maintenance and Dependabot
+
+[README's dependency policy](../README.md#dependency-maintenance) and [dependabot.yml](../.github/dependabot.yml) own schedules/groups and gates. Version checks run Monday09:00 Singapore with one open routine PR each for npm, Actions and backend Docker. Security proposals can arrive separately on any day. No eligible release may mean no new PR; a Dependabot update job is not an application deployment. GitHub notifications follow account preferences, not this chat.
+
+### Update and remediation procedure
+
+1. Read the advisory/release notes and PR diff. Use [versions.md](versions.md) to identify direct, transitive, development and image exposure. Inspect vulnerable Action internals and OS packages separately from app locks. Confirm repository alert/security-update settings with suitable access; copied YAML does not enable them.
+2. Update the owning inputs together: npm manifest/lock, Python manifest and **both hashed locks**, or reviewed full Action SHA/image references. Python and Compose PostgreSQL/RustFS maintenance remain manual. A manifest-only Python security PR is incomplete.
+3. Refresh `docs/versions.md`, including nested versions and input fingerprints. This is manually maintained; no generated freshness gate or automatic artifact SBOM is claimed. Preserve unrelated pins and verify hashes; do not use forced blanket upgrades.
+4. Run relevant checks, then require exact-head `verify / frontend`, `verify / backend` and `verify / api-browser`. The npm audit includes development tools and blocks high/critical findings and audit-service errors. It does not cover Python, OS packages or the deployed Lambda image. Diagnose failures without weakening tests, adding retries or raising timeouts.
+5. Review and merge only the tested head, then inspect fresh **main application CI**, not a Dependabot job named main. PR success, source merge, image publication and deployed remediation are different evidence.
+6. Recheck alerts/audits and, after separately authorised deployment, the actual deployed digest. Closed-as-fixed differs from dismissed. The user reported0 open/26 closed alerts after PR104; detailed API access remained403. That observation is not a continuing clean-state guarantee.
+
+Triage critical/actively exploited findings within24 hours, high severity within3 business days and others within10 business days under the retained policy. Record owner, exposure and disposition; these targets do not waive vulnerabilities. If no compatible patch exists, document containment and escalate a concrete mitigation plan. Closing bot PRs does not install a fix or disable future update proposals.
+
+## 4. Monitoring and observability
+
+### Current source capabilities
+
+| Surface | Implemented owner / signal | What it does not prove |
+| --- | --- | --- |
+| `/health/live` | [main.py](../backend/app/main.py): process responds alive | Database readiness, Cognito delivery or end-to-end workflow success |
+| `/health/ready` | Database connectivity and exact expected Alembic heads; auth must be enabled for staging/production | Every route/provider/media capability is working; no revision/digest is exposed here |
+| Structured request logs | [observability.py](../backend/app/observability.py): request_id, method, route, status, duration_ms and error_type; standard timestamp/level/event | Complete distributed traces, user-perceived latency or installed SLOs |
+| Error response | Stable code/message/requestId | An error or lost response alone does not prove a write failed before commit |
+| AWS runtime/service metrics | Inspect only the actual configured account/service/log groups | No particular dashboard, retention, alarm or receiver is claimed configured by this document |
+
+Use the API's deployed base path when checking health; do not assume a frontend-origin path reaches FastAPI. Correlate request IDs with redacted logs. Never export health answers, signatures, cookies/tokens, request bodies, raw SQL parameters or credentials. Logs and browser/device evidence need restricted storage where personal data could appear.
+
+### Planned monitoring — not activated
+
+OpenTelemetry, Grafana, measured latency budgets, SLOs, alert receivers and backup/restore monitoring remain [M10 work](../PROGRESS.md#m10-work-packages--planned). There is no Fitfinity Tail Worker, Tempo exporter, dashboard JSON or exporter command to copy from SoccerBot.
+
+Before activation: define service/environment labels and correlation; review redaction and sampling; cap cardinality, retention and cost; verify export failure isolation; measure representative cold/warm workloads; configure named responders and test actual receiver delivery. Choose thresholds from observed baselines, not invented budgets. Check ingestion with real queryable evidence; an exporter HTTP response or an empty dashboard is not proof of monitoring coverage.
+
+| Proposed alert | Investigate | Responsible operator |
+| --- | --- | --- |
+| Website/API availability or certificate failure | DNS/HTTPS, routing, recent artifact, health and AWS incidents | Hosting / release |
+| Sustained errors or slow saves | Route, request IDs, cold/warm behavior, database connections/queries and provider timing | Engineering / database |
+| Unresolved writes, duplicate-looking credits or approvals | Original command receipt, business record and immutable evidence | Engineering + Owner |
+| Database/storage saturation or backup failure | Actual metrics, capacity, retention and latest successful recoverable point | Database / AWS |
+| Telemetry loss during known traffic | Configuration/export path and receiver, not just an empty chart | Monitoring |
+| Advisories, failed update checks or cost spike | Exact dependency/digest or resource usage, account and recent changes | Maintainer / AWS |
+
+## 5. Incident response and recovery
+
+1. Record Singapore/UTC times, environment/account, hostname, deployed revision/digest, affected role/operation and safe request IDs. Assign an incident owner and update cadence.
+2. Prioritise data exposure, lost/duplicate business effects and account compromise, then availability and performance. Preserve original evidence before changing anything.
+3. Inspect recent source/configuration changes, health, AWS incidents and matching logs/receipts. An accepted source PR does not identify the current deployment.
+4. Make the smallest reviewed correction with the required authority. Do not replay an uncertain save under a new key, edit approved remuneration to force agreement, erase history, reset the database or weaken MFA/permissions.
+5. Verify the affected records and permissions, then run arranged role checks. Reconcile outstanding outcomes; one successful request does not close every affected case.
+
+### 5.1 Symptom guide
+
+| Symptom | First checks | Recovery / stop condition |
+| --- | --- | --- |
+| Wrong page or site unavailable | Hostname, TLS, CloudFront/static artifact, cache and API routing | Restore only an identified compatible artifact/route; preserve other domains and mail records |
+| API not ready | Database connection, actual migration heads, auth setting and release compatibility | Diagnose failure before retrying migration or changing grants; never reset populated data |
+| Sign-in/code fails | Correct developer identity/pool, verified email, expiry, provider status and resend limits | Reconcile pending email/provider outcomes; do not repeatedly send codes or disable required MFA |
+| Save timed out / connection lost | Original actor/key, receipt and current record; Check UI | Read original outcome first. Explicit retry retains original intent; no replacement creation/debit |
+| Conflict after another user saved | Reviewed version versus current authorised record | Refresh/review latest values and deliberately reapply; never silent overwrite |
+| Duplicate-looking credit/pay | Session acknowledgement/credit evidence, approval snapshot and original receipt | Engineering/Owner reconcile exactly-once effects. Approval is not a bank transfer; do not make a compensating financial action blindly |
+| Old private data appears after identity/assignment change | Current session, role, assignment and request generation | Contain access through authorised controls; retain evidence and fix scope regression before accepting recovery |
+| Video missing, expired or access denied | Current attachment/scope, original expiry, object bytes and cleanup leases | Do not restore expired access, extend expiry or publish metadata for missing bytes; follow retained media/Undo rules |
+| Slow but eventually successful | First/repeat action, device/network, request duration, cold starts and DB queries | Record usability impact. Do not double-click/replay writes or change timeout limits to hide it |
+| CI browser installation stalls | Failed step, runner image, source-selection output and package-download timings | [prepare-browser-apt.py](../scripts/prepare-browser-apt.py) selects the reviewed archive. Preserve budgets and verify actual download cause; this is not an application regression by default |
+
+### 5.2 Operator-assisted lost-authenticator recovery
+
+This is a controlled operator procedure, not an app-admin feature. [The recovery policy](service_contracts.md#br-008) governs it. Preparation and synthetic drills do not authorize a live reset; first bind the deployment and obtain the applicable provider/database authorization.
+
+1. Open an access-controlled recovery case. Independently verify the person against trusted records; record the verifier, approving operator, case reference and timestamps. Never collect passwords, codes or TOTP secrets in the case.
+2. Verify the AWS account, Singapore region, pool/app client, staff UUID, immutable issuer/subject and provider Username. Use `python -m app.auth.admin check-config` in the reviewed environment. Confirm the same enabled provider identity and verified recovery address. Stop on a mismatch, pending email change or unsupported second factor; pool-wide software-token MFA stays required.
+3. In a reviewed database transaction, lock the exact authentication account then mapped identity and set that identity inactive, matching all bound identifiers. The existing identity trigger advances its epoch and closes its sessions; old challenge flows also lose authority. Record the transaction receipt and verify revocation. Do not deactivate the Trainer/client business records or touch another identity.
+4. With separately authorized operator IAM, call Cognito `AdminUserGlobalSignOut`, then `AdminDeleteSoftwareToken` for that exact pool/Username. Retain sanitized request IDs and CloudTrail evidence in the case. Never replace the user/subject, disable pool MFA or use MFA preference changes as a factor reset. Runtime IAM receives no administrator recovery permissions.
+5. Confirm the same enabled subject has no old software-token registration. A timeout or uncertain response leaves the application identity inactive; reconcile the exact action and provider/audit evidence before proceeding. Do not blindly repeat a reset that could erase a newly enrolled authenticator.
+6. After confirmed reset and a coordinated handoff, restore only that mapped identity to active in a reviewed transaction. Its epoch advances again; old sessions/flows stay invalid. The staff member signs in, enrolls their own authenticator and proves fresh sign-out/re-login. Check required MFA and close the recovery case with evidence; suspend access again if verification fails.
+
+The full backend gate includes [the synthetic recovery drill](../backend/tests/test_mfa_recovery_drill.py) and [actual HTTP worker crash/restart tests](../backend/tests/test_process_restart.py), using isolated PostgreSQL. Cognito reset responses are SDK-stubbed; an authorized real-provider recovery and deployment-specific execution receipt remain separate acceptance.
+
+## 6. Deployments and rollback
+
+### 6.1 Verified image publication
+
+Normal main verification and Pages demo publishing do not queue an AWS image. For an independently authorized image candidate, open **Build and scan the verified AWS image candidate** in GitHub Actions, select `main`, and enter its exact 40-character commit SHA as `source_sha`. A mismatch stops before verification; main advancing later does not change the run’s selected commit. `AWS_IMAGE_RELEASE_ENABLED=true` must remain explicitly configured. The workflow reruns the complete frontend, backend and API-browser gates for that SHA before requesting the existing `aws-test` environment approval. Inspect the run SHA and successful gates before approving; cancel an obsolete candidate instead of approving it to clear a queue.
+
+The image retains its commit/run/attempt binding, exact AWS account/role checks, scan and receipt evidence. Historical candidates retain their original provenance rules; new manual candidates require all three verification gates. Image publication does not deploy Lambda, run migrations or authorize customer/provider actions. AWS release workflows remain serialized separately from ordinary verification/demo publishing.
+
+### 6.2 Deployment preparation and acceptance
+
+| Step | Required evidence |
+| --- | --- |
+| Bind target | Actual AWS account/region and existing Lambda, API, Cognito, database, bucket and frontend identities; stop on mismatch |
+| Bind source/artifacts | Exact verified source, release workflow/run/attempt, image digest and separately built frontend artifact |
+| Check compatibility | Current/outgoing application, migration heads, populated data, grants, feature flags and tested rollback candidate |
+| Check scan and backup | Exact artifact findings and disposition; recoverable populated data and reviewed recovery plan |
+| Review action | Concrete operator change plan, intended resources/effects and applicable approval; old bootstrap approvals are not reusable |
+| Apply and verify | Only approved actions; record results, actual deployed identity, readiness and arranged role/UAT checks |
+
+[Release image](../backend/infrastructure/release_image.py), [image acceptance](../backend/infrastructure/image_acceptance.py), [private runtime](../backend/infrastructure/private_runtime.py), [database migrations](../backend/infrastructure/database_migrations.py) and [hosting operator](../backend/infrastructure/hosting_operator.py) are source owners, not a sequential script list to execute blindly. Their retained contracts and fingerprints may bind earlier artifacts. Reconcile and review a new release binding; never rewrite history or bypass a source mismatch just to make publication pass.
+
+Frontend and Lambda releases are separate. Preserve reviewed API origin/CORS/cookies and existing resource identities. Email correction and media are default-disabled capabilities: use [README configuration](../README.md#configuration) for compatible activation. Source-present cleanup commands do not establish scheduled cloud cleanup or accepted media processing.
+
+### 6.3 Rollback
+
+Identify the failing artifact/configuration and the last verified compatible candidate. Compare current schema, new records, outstanding commands and external identity/media effects before selecting rollback. Stop incompatible new writes only through a reviewed change. Restore the approved application/configuration target, verify actual deployment/readiness and reconcile outstanding receipts.
+
+Code rollback does not reverse credits, approvals, sent emails or committed database changes. After email corrections exist, rollback must use correction-aware code; disabling new corrections does not remove pending history. Do not downgrade a populated schema that would discard attribution, receipts or action evidence. If no safe backward path exists, prepare a reviewed forward fix or restore plan instead.
+
+## 7. Data protection and restore
+
+The retained14-day backup/PITR target and capacity assumptions are planning requirements, not observed settings. Before handover, verify actual RDS retention/latest restorable time, encryption, access, snapshot ownership, media protection/retention and tested restore permissions. Define measured recovery-point/recovery-time objectives with the Owner; record costs and who receives failed-backup alerts.
+
+1. Authorise the specific drill/incident recovery and identify the cutoff, affected database/media/identity state and target environment. Preserve current evidence.
+2. Select a consistent recoverable point and restore **first to a separate isolated environment**, with external messages/provider writes and destructive cleanup disabled through reviewed configuration.
+3. Verify schema/grants, people/purchases/session identities, credits/approvals, assessment revisions, command receipts, media references/bytes and original expiries. Reconcile Cognito revocations/email changes and external effects that occurred after the selected recovery point.
+4. Prevent restored stale sessions or command history from reviving revoked access or replaying already-completed effects. A database restore is not permission to roll back provider identity or resend messages.
+5. Measure actual recovery duration/loss, run arranged read/write/permission checks and record unresolved differences. Obtain approval before any cutover and retain a rollback route for that cutover.
+
+Do not shorten original media expiry, resurrect expired data or delete retained audit evidence as an unreviewed cleanup shortcut. Restore drills, backup/alert activation and migration recovery remain pending until actual environment-specific receipts exist.
+
+## 8. Domain, DNS and HTTPS
+
+Confirm registrar, authoritative DNS owner, AWS account, approved hostnames, CloudFront distribution/static origin and API endpoint separately. Do not infer a current hostname or certificate ARN from historical artifacts.
+
+Before a change, retain the exact DNS/TTL/validation baseline, ACM certificate coverage/region, routing and rollback contact. Preserve MX/SPF/DKIM/DMARC records. Keep DNS validation records needed for managed renewal. Verify trusted HTTPS, permitted redirects, frontend-to-API origin, secure cookies, CORS and private-media behavior on each approved hostname.
+
+For certificate/routing incidents, distinguish DNS validation/CAA, certificate coverage/expiry, distribution/API association and stale caches. Correct the identified prerequisite through the authorised operator, then verify actual issuance and availability. Initial issuance is not proof of future renewal; monitoring and renewal evidence must be recorded separately. No DNS migration or production-domain cutover is authorised by this runbook.
+
+## 9. Operational records and handover
+
+For each incident/change retain: named owner, Singapore/UTC timestamps, environment/account/resource identities, source/run/artifact/digest, reason/scope, applicable BR/UAT IDs, redacted evidence, approval, observed before/after behavior and remaining actions. Store completed user worksheets and sensitive incident evidence in restricted records, not in blank worksheet masters or public PRs.
+
+Before handover, name primary/backup responders; confirm access/MFA/billing; reconcile current artifacts and dependency findings; exercise role UAT, alert delivery, rollback and restore; document residual risks and obtain Owner acceptance. [Code owners](code-owners.md) locates implementation modules, not on-call people. M7 processing, public/member delivery and M10 monitoring remain governed by [Progress](../PROGRESS.md), not completed by this document.

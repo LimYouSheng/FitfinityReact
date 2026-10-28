@@ -2,9 +2,11 @@
 
 Development entry point for the Fitfinity staff portal. See [AGENTS](AGENTS.md#authority-and-document-ownership) for the document map and engineering instructions.
 
-[Code owners and feature map](docs/Code-Owners.md) provides an overview and progressively detailed responsibility diagrams with source links.
+[Code owners and feature map](docs/code-owners.md) provides an overview and progressively detailed responsibility diagrams with source links.
 
-UAT worksheets for [Owner](docs/UAT/Owner.md), [Admin](docs/UAT/Admin.md) and [Trainer](docs/UAT/Trainer.md) provide role-specific checks on the deployed developer AWS site, with plain-language steps, expected results and blank Result/Remarks columns.
+UAT worksheets for [Owner](docs/uat/owner.md), [Admin](docs/uat/admin.md) and [Trainer](docs/uat/trainer.md) provide role-specific checks on the deployed developer AWS site, with plain-language steps, expected results and blank Result/Remarks columns.
+
+[Operations runbook](docs/runbook.md) covers routine checks, incidents, deployment/rollback and recovery.
 
 ## Development setup
 
@@ -25,7 +27,7 @@ Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies 
 | `CI=true npm run test:e2e -- --reporter=list` | Root/Pages/API-fixture builds, PWA and simulator browser suite |
 | `npm run test:api-browser` | Real frontend/FastAPI/migrations/PostgreSQL and protected-media browser suite |
 
-The [full-suite diagram](docs/Architecture/diagram.md#full-verification-suite) explains existing test scopes and planned mutation, performance, security, telemetry and operational verification. Planned suites have no executable command here until implemented.
+The [full-suite diagram](docs/architecture/diagram.md#full-verification-suite) explains existing test scopes and planned mutation, performance, security, telemetry and operational verification. Planned suites have no executable command here until implemented.
 
 CI runs the real-API suite in two complementary shards, each with its own disposable databases/storage and the existing 20-minute budget. The required `verify / api-browser` aggregate checks both successful jobs and every discovered case identity, rejecting missing, duplicated, skipped, retried or failed cases. Local `npm run test:api-browser` still runs the complete suite; `-- --shard=1/2 --reporter=list,json` selects a shard for diagnosis, with `PLAYWRIGHT_JSON_OUTPUT_FILE` selecting its report path. A shard alone is not complete acceptance. Overall job budgets are 60 minutes each for frontend/backend, 20 minutes per API-browser shard and 5 minutes for the aggregate; these are separate from test and database timeouts.
 
@@ -33,7 +35,7 @@ Required CI and evidence rules belong to [AGENTS](AGENTS.md#verify-and-publish).
 
 ## Dependency maintenance
 
-[Versions.md](Versions.md) is the root inventory of locked application/transitive dependencies, images, browser engines and CI pins, with manual patch guidance and explicit gaps for deployed/OS versions. Update it alongside dependency changes.
+[versions.md](docs/versions.md) is the dependency inventory of locked application/transitive dependencies, images, browser engines and CI pins, with manual patch guidance and explicit gaps for deployed/OS versions. Update it alongside dependency changes.
 
 The design has three layers:
 
@@ -55,9 +57,7 @@ Python version updates remain manually maintained: `pyproject.toml` feeds uv-gen
 
 ## Manual AWS image publication
 
-Normal main verification and Pages demo publishing do not queue an AWS image. For an independently authorized image candidate, open **Build and scan the verified AWS image candidate** in GitHub Actions, select `main`, and enter its exact 40-character commit SHA as `source_sha`. A mismatch stops before verification; main advancing later does not change the run’s selected commit. `AWS_IMAGE_RELEASE_ENABLED=true` must remain explicitly configured. The workflow reruns the complete frontend, backend and API-browser gates for that SHA before requesting the existing `aws-test` environment approval. Inspect the run SHA and successful gates before approving; cancel an obsolete candidate instead of approving it to clear a queue.
-
-The image retains its commit/run/attempt binding, exact AWS account/role checks, scan and receipt evidence. Historical candidates retain their original provenance rules; new manual candidates require all three verification gates. Image publication does not deploy Lambda, run migrations or authorize customer/provider actions. AWS release workflows remain serialized separately from ordinary verification/demo publishing.
+For the exact-SHA verification, protected approval and publication procedure, use [Runbook — verified image publication](docs/runbook.md#61-verified-image-publication). Publication remains separate from Lambda deployment and migrations.
 
 ## Configuration
 
@@ -73,13 +73,4 @@ Prepared environments may reuse `FITFINITY_BROWSER_BACKEND_IMAGE`, `FITFINITY_BR
 
 ## Operator-assisted lost-authenticator recovery
 
-This is a controlled operator procedure, not an app-admin feature. [The recovery policy](docs/SERVICE_CONTRACTS.md#authority-and-privacy) governs it. Preparation and synthetic drills do not authorize a live reset; first bind the deployment and obtain the applicable provider/database authorization.
-
-1. Open an access-controlled recovery case. Independently verify the person against trusted records; record the verifier, approving operator, case reference and timestamps. Never collect passwords, codes or TOTP secrets in the case.
-2. Verify the AWS account, Singapore region, pool/app client, staff UUID, immutable issuer/subject and provider Username. Use `python -m app.auth.admin check-config` in the reviewed environment. Confirm the same enabled provider identity and verified recovery address. Stop on a mismatch, pending email change or unsupported second factor; pool-wide software-token MFA stays required.
-3. In a reviewed database transaction, lock the exact authentication account then mapped identity and set that identity inactive, matching all bound identifiers. The existing identity trigger advances its epoch and closes its sessions; old challenge flows also lose authority. Record the transaction receipt and verify revocation. Do not deactivate the Trainer/client business records or touch another identity.
-4. With separately authorized operator IAM, call Cognito `AdminUserGlobalSignOut`, then `AdminDeleteSoftwareToken` for that exact pool/Username. Retain sanitized request IDs and CloudTrail evidence in the case. Never replace the user/subject, disable pool MFA or use MFA preference changes as a factor reset. Runtime IAM receives no administrator recovery permissions.
-5. Confirm the same enabled subject has no old software-token registration. A timeout or uncertain response leaves the application identity inactive; reconcile the exact action and provider/audit evidence before proceeding. Do not blindly repeat a reset that could erase a newly enrolled authenticator.
-6. After confirmed reset and a coordinated handoff, restore only that mapped identity to active in a reviewed transaction. Its epoch advances again; old sessions/flows stay invalid. The staff member signs in, enrolls their own authenticator and proves fresh sign-out/re-login. Check required MFA and close the recovery case with evidence; suspend access again if verification fails.
-
-The full backend gate includes [the synthetic recovery drill](backend/tests/test_mfa_recovery_drill.py) and [actual HTTP worker crash/restart tests](backend/tests/test_process_restart.py), using isolated PostgreSQL. Cognito reset responses are SDK-stubbed; an authorized real-provider recovery and deployment-specific execution receipt remain separate acceptance.
+The canonical procedure is [Runbook — operator-assisted lost-authenticator recovery](docs/runbook.md#52-operator-assisted-lost-authenticator-recovery). It requires exact account binding, independently verified identity, audit evidence and separately authorised provider/database actions. The app gains no recovery-admin powers; required MFA remains enabled.
