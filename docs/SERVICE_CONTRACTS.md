@@ -228,6 +228,14 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 28 October 2026 — PR104 acceptance, alert reconciliation and root version inventory
+
+PR104 head `c8f0634820758b5d5de229cfab501d7ef6726189` passed complete frontend/backend/API-browser CI in run40530155757. Both real-API shards completed in about15½ minutes, with the reviewed Ubuntu mirror selection working and the20-minute budgets unchanged. It merged as `1246fb815b1240a92fd953b85abc05f18f46bc73` at09:24 Singapore. Fresh main run40614828297 is separately in progress at this documentation checkpoint. No Lambda deployment occurred.
+
+The user reports GitHub security alerts **0 open /26 closed**. The alerts API remains403, so individual closure reasons are not independently verified. The user requested PR cleanup: routine Dependabot105/107/108 were closed unmerged, their branches preserved and107's active CI cancelled. Closing proposals is not vulnerability remediation or disabling scheduled updates.
+
+The user explicitly requested a new root version reference, extending the earlier seven-document structure with `Versions.md`. It enumerates all271 npm lock entries (including optional/platform/nested entries),42 Python distributions across both hashed locks, direct declarations, image/runtime selections,8 Action commit pins and Playwright engine revisions. Source input fingerprints, manual patch guidance and unknown deployed/OS/tool versions distinguish source inventory from artifact SBOM or live acceptance. README links it; AGENTS requires refreshing it with version changes. No dependencies or production resources changed in this documentation slice.
+
 ### 27 October 2026 — correct GitHub runner mirror-list source handling
 
 Run40516140632 at `5907f191f9e38a052f745a02e3d229d817a727c9` passed complete frontend and backend gates; both API shards failed in the new source-selection step with `Unexpected Ubuntu source layout`, before browser installation or tests. This is a setup defect in the mirror trial, not an application failure or evidence about the replacement mirror's speed. The initial fixtures covered direct URLs but missed GitHub's mirror-list transport.

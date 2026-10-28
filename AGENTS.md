@@ -7,6 +7,7 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | File | Unique purpose |
 | --- | --- |
 | [README](README.md) | Development prerequisites, configuration and commands |
+| [Versions](Versions.md) | Repository dependency/version inventory and manual patch lookup; not deployed acceptance |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
 | [North Star](NORTH_STAR.md) | Current outcome and priority |
 | [Progress](PROGRESS.md) | Full milestone roadmap, current evidence, blockers, next actions and hardening backlog |
@@ -39,7 +40,7 @@ Edit canonical component/domain/service/style owners and remove superseded logic
 
 Trace field and rule changes through schema/migration, backend model/validation/service, API contract, frontend and affected tests. Recheck identity, current permissions, ownership and business state at the authoritative write boundary. Preserve transaction, concurrency, idempotency and recovery guarantees; a UI guard is not server authorization. Domain-specific invariants and schema-evolution rules belong to Service Contracts.
 
-Give substantial JavaScript/Python functions a short purpose or constraint summary; keep detailed rationale beside sensitive logic. Avoid redundant parameter prose, blanket comment rewrites and generated-code churn. Respect existing source/import/lint boundaries and dependency pins; dependency upgrades must be deliberate, scoped and validated. Never modify applied migrations or expose credentials/customer data.
+Give substantial JavaScript/Python functions a short purpose or constraint summary; keep detailed rationale beside sensitive logic. Avoid redundant parameter prose, blanket comment rewrites and generated-code churn. Respect existing source/import/lint boundaries and dependency pins; dependency upgrades must be deliberate, scoped and validated. Refresh root `Versions.md` in the same PR whenever dependency manifests/locks, image references, browser engines or workflow tool pins change; preserve unknown deployed/OS versions as unknown. Never modify applied migrations or expose credentials/customer data.
 
 ## Verify and publish
 

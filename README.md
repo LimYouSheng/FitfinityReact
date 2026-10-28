@@ -29,6 +29,8 @@ Required CI and evidence rules belong to [AGENTS](AGENTS.md#verify-and-publish).
 
 ## Dependency maintenance
 
+[Versions.md](Versions.md) is the root inventory of locked application/transitive dependencies, images, browser engines and CI pins, with manual patch guidance and explicit gaps for deployed/OS versions. Update it alongside dependency changes.
+
 The design has three layers:
 
 | Layer | Purpose | Behaviour |

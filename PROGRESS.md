@@ -1,8 +1,8 @@
 # Fitfinity current progress
 
-## Current checkpoint — 27 October 2026 Singapore
+## Current checkpoint — 28 October 2026 Singapore
 
-Accepted **application source** is [PR103](https://github.com/LimYouSheng/FitfinityReact/pull/103), merge `bc674ad4ecd5c7c65e9326d792cd0555373b072a`. Exact head `6304c855816d9c3e9a0ad6cc54f14a47db75274a` passed all required gates in run40478715048, including the blocking npm audit. Grouped dependency maintenance and npm security fixes are merged; fresh main application verification passed in run40498328753. No current-source Lambda deployment is claimed. Full receipts and original failures remain in Contracts history.
+Accepted **application source** is [PR104](https://github.com/LimYouSheng/FitfinityReact/pull/104), merge `1246fb815b1240a92fd953b85abc05f18f46bc73`. Exact head `c8f0634820758b5d5de229cfab501d7ef6726189` passed all required gates in run40530155757, including both API shards within20 minutes. PyJWT/urllib3 fixes, offline-editor fixture readiness and the Ubuntu mirror selector are merged. Fresh main run40614828297 is in progress at this checkpoint. No current-source Lambda deployment is claimed. Full receipts and original failures remain in Contracts history.
 
 [The canonical operation matrix](docs/SERVICE_CONTRACTS.md#domain-operation-inventory) records **55/55 source accepted**: 54 server-connected operations plus one local predicate. All 18 operations remaining at the 37/55 checkpoint are complete in merged source. This does not establish deployment or blanket milestone acceptance.
 
@@ -49,7 +49,7 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 2. Scope M7 durable events, scheduling/notifications and media processing/retention, preserving provider and deployment boundaries.
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency, Grafana and supply-chain capabilities remain planned until separately implemented and evidenced.
-5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the seven-document structure and all eight existing stashes.
+5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested root Versions.md inventory and all eight existing stashes.
 
 ### Active follow-up — dependency security and controlled updates
 
@@ -63,7 +63,7 @@ Next maintenance slices: complete security reconciliation and full CI, then sepa
 
 Branch `chore/python-security-updates` builds on PR103 head `6304c855816d9c3e9a0ad6cc54f14a47db75274a`; PR103 is now merged. PyJWT2.14.0 →2.15.0 and urllib3 2.7.0 →2.8.0 address five distinct GHSA advisories (duplicate PYSEC aliases are not extra findings). Both uv-resolved hashed locks retain every other version. Hash-checked installation and `pip check` pass in a local test image; both replacement versions have no current PyPI-listed advisories. Complete local backend/PostgreSQL verification passed1,353/1,353 cases in1,087.09s; full final-head CI and merged-source acceptance remain required. This does not replace the pending detailed GitHub alert reconciliation or container/deployment acceptance. No historical AWS artifact contract is rewritten.
 
-PR104 remains draft pending complete final-head CI. Run40516140632 at `5907f19` passed frontend/backend, but both API shards stopped before installation: the source selector rejected GitHub's `mirror+file:/etc/apt/apt-mirrors.txt` URI. The exact runner-image build script confirms that format and its Azure-first priority. The correction explicitly recognises that URI alongside direct Azure URLs, retaining suites, signing keys, security sources, tests and budgets. Local checks now pass97/97 and lint passes531 files; new-head GitHub acceptance and download performance remain pending. Original failures and the source reference are retained in Contracts history.
+PR104 is now merged after complete exact-head CI. The user reports **0 open /26 closed security alerts** after merge; detailed API reads still return403, so this is user-confirmed UI evidence, not an independently queried alert list. Routine proposals105/107/108 were closed unmerged at the user's request, with branches preserved; future grouped updates remain configured. No deployed patch is inferred. Root [Versions.md](Versions.md) now provides the requested manual dependency inventory; artifact SBOM automation and CI OS/browser triage remain separate work.
 
 The official Playwright container alternative was scanned and not adopted; the user chose to retain the runner. Its7 high package findings include a Noble GStreamer fix available through Ubuntu Pro/ESM, not ordinary archive updates. The source switch addresses availability, not those vulnerabilities. CI OS/browser dependency triage remains open alongside the detailed GitHub alert reconciliation; no paid service or deployment is authorized. Full diagnosis and scan evidence are in Contracts history.
 
