@@ -6,6 +6,10 @@ This file owns the **current task, exact stopping point, blockers, next actions 
 
 Checkpoint: 28 October 2026, 16:26 Singapore. The requested documentation changes are implemented and published in **[PR109](https://github.com/LimYouSheng/FitfinityReact/pull/109)**. They are not merged or final-head CI-accepted. The active task is to complete verification and resolve the remaining CI failure before an eligible source merge; no new API feature or AWS deployment is in progress.
 
+**Latest task update — 28 October 2026: supersedes the earlier monitoring/resume status below.** The user stopped CI monitoring and requested three documentation tasks: reconcile requirement versus checkpoint wording, add synthetic API success/rejection/uncertain-outcome examples, and draft operational alert/recovery detail. The six SoccerBot files are references, not six extra tasks. Append content only within the existing structure; do not add headings, sections or files. The Owner confirmed recovery targets, responders/destinations and restore receipts are not yet agreed/available; draft proposals and an unexecuted rehearsal procedure are therefore explicitly labelled. CI has not been polled or cancelled as part of this task.
+
+**Current leave-off.** The changes append to Business Rules, the existing API transport section and Runbook sections4/7. All original rule paragraphs,64 BR IDs,55 operation rows, endpoint/schema indexes, milestone rows and prior history remain intact. JSON examples are checked against the current OpenAPI schemas and actual package/error owners; state interpretation adds no API enum. Validation passed: additions-only diff, unchanged headings and existing tables, all64 BR IDs/55 operation rows, nine synthetic JSON examples against OpenAPI and1,638 local links/anchors. Next: review the proposals with the Owner, assign responders and approve achievable targets, then scope an isolated restore drill and synthetic alert-delivery acceptance. Resume PR109 final-head CI only when requested; do not treat earlier runs or this draft as operational acceptance.
+
 ### Completed in this task
 
 | Deliverable | Current result |
