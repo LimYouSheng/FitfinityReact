@@ -358,6 +358,10 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 ## Part 2 — Dated changes and evidence
 
+### 28 October 2026 — role-specific user acceptance worksheets
+
+The user requested ready-to-fill user worksheets with less developer language, then consolidation into one UAT folder with one worksheet per role. The initial `docs/UAT.md` draft is replaced by `docs/UAT/README.md`, `Owner.md`, `Admin.md` and `Trainer.md`. The shared start page owns preparation/result instructions; each role has plain-language actions, expected outcomes, empty Result/Remarks columns, retest rows and a completion review. The original92 case IDs remain across applicable roles; UAT-T01 adds an explicit Trainer check for manager-only actions. Role actions are tailored, including Admin financial denial, Trainer self-service and manager/Trainer cooperation, rather than asking restricted users to execute Owner actions. Owner has87 main case rows, Admin85 and Trainer66 (including T01); shared IDs are intentional, not additional unique acceptance cases. Live account checks remain separate and blank. Hosting/backup/internal deployment tasks are not user worksheet steps; their canonical release/backlog ownership is unchanged. No UAT result is claimed.
+
 ### 28 October 2026 — manual staff UAT guide drafted
 
 The user requested an additional clear-language UAT Markdown guide. `docs/UAT.md` contains92 numbered manual cases across role access, accounts, people/packages, assessments, schedules/requests, plans/completion, lifecycle, messages/Undo, remuneration, reports/media, conflicts/recovery and physical-device usability. Each case has role, actions and expected result; sections link canonical BR IDs. A synthetic fixture plan, one walkthrough diagram, result/evidence template and response-time observations support actual user testing. Prepared operator fault/expiry cases and separately authorized provider/deployment/restore checks are explicit. This is a draft, not executed UAT or live acceptance; no business rule, dependency, application behavior or infrastructure changed.
