@@ -14,7 +14,7 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
 | [North Star](NORTH_STAR.md) | Current outcome and priority |
 | [Progress](PROGRESS.md) | Full milestone roadmap, current evidence, blockers, next actions and hardening backlog |
-| [Architecture explanation](docs/architecture/readme.md) | Component responsibilities and interactions |
+| [Architecture decisions](docs/architecture/adr.md) | Stack rationale, tradeoffs, scaling triggers and contingency options |
 | [Architecture diagram](docs/architecture/diagram.md) | Component topology and connections |
 | [Service Contracts](docs/service_contracts.md) | Part 1: business rules, design decisions, operation matrix and cross-cutting acceptance criteria; Part 2: full dated history |
 
@@ -36,7 +36,7 @@ Start every task with this file, [North Star](NORTH_STAR.md) and the current [Pr
 | Database migration, backup or restore | [Contracts schema/recovery rules](docs/service_contracts.md#deployment-migration-and-acceptance) → [Runbook restore](docs/runbook.md#7-data-protection-and-restore) → migration/infrastructure source | Preserve applied migrations, populated evidence and external-effect consistency. Separate local preparation from authorised environment execution. |
 | Login, email or lost-authenticator incident | [Contracts identity rules](docs/service_contracts.md#authority-and-privacy) → [Runbook account recovery](docs/runbook.md#52-operator-assisted-lost-authenticator-recovery) → auth/email owner | Protect exact identity and original uncertain outcome; real recovery needs separate operator authority, never new app-admin powers. |
 | User acceptance / physical device checks | Relevant [Owner](docs/uat/owner.md), [Admin](docs/uat/admin.md) or [Trainer](docs/uat/trainer.md) worksheet → relevant BR for ambiguity | Use designated developer AWS records for live UAT; keep blank masters and completed evidence separate. Record failures, blocked cases and lag; no acceptance from drafting. |
-| Architecture or documentation changes | [Architecture explanation](docs/architecture/readme.md) → [diagrams](docs/architecture/diagram.md) → ownership table above | Edit the unique owner, maintain lowercase links, stable BR IDs and full history; validate diagrams and references. Do not duplicate procedures or acceptance ledgers. |
+| Architecture or documentation changes | [Architecture decisions](docs/architecture/adr.md) → [diagrams](docs/architecture/diagram.md) → ownership table above | Edit the unique owner, maintain lowercase links, stable BR IDs and full history; validate diagrams and references. Do not duplicate procedures or acceptance ledgers. |
 
 Record **current status / next action** in Progress, **dated evidence / decisions** in Contracts Part2, **business requirements** in Contracts Part1, **code navigation** in Code Owners, **operating steps** in Runbook, **versions** in the inventory and **tester-facing actions** in the role worksheets. Development owns setup, development workflows and command reference; Runbook owns operational configuration. Link to the owning document instead of copying its instructions.
 

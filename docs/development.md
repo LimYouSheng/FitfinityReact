@@ -19,7 +19,7 @@ All three routes converge on the same source review and verification process. A 
 Start with [AGENTS](../AGENTS.md), [North Star](../NORTH_STAR.md) and [Progress](../PROGRESS.md), then follow AGENTS' task directory.
 
 - [Service Contracts](service_contracts.md#part-1--current-system-rules): business rules, the 55-operation matrix and acceptance boundaries; dated history follows the rules.
-- [Architecture](architecture/readme.md) and [diagrams](architecture/diagram.md): component responsibilities and test coverage.
+- [Architecture](architecture/adr.md) and [diagrams](architecture/diagram.md): component responsibilities and test coverage.
 - [Code owners](code-owners.md): feature and BR-to-module navigation.
 - [Versions](versions.md): configured and locked dependencies, not deployed versions.
 - [Runbook](runbook.md): operations, dependencies, release, configuration and recovery.

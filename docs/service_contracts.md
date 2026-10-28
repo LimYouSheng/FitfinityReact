@@ -1,6 +1,6 @@
 # Fitfinity — Service Contracts
 
-This is the single source for current business rules, retained design decisions and the full dated history. [Architecture](architecture/readme.md) explains components; [the diagram](architecture/diagram.md) shows their connections. [AGENTS](../AGENTS.md) owns engineering execution. Current rules below override dated history; historical approvals never authorize new operations. An operation's intended rules do not imply that its API is integrated: the matrix records source acceptance.
+This is the single source for current business rules, retained design decisions and the full dated history. [Architecture decisions](architecture/adr.md) explain stack choices and component responsibilities; [the diagram](architecture/diagram.md) shows their connections. [AGENTS](../AGENTS.md) owns engineering execution. Current rules below override dated history; historical approvals never authorize new operations. An operation's intended rules do not imply that its API is integrated: the matrix records source acceptance.
 
 ## Part 1 — Current system rules
 
@@ -199,7 +199,7 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 <a id="br-031"></a>
 
-**BR-031** — Authentication includes enrollment/challenges, repeated login, session refresh/expiry, logout, password recovery and verified email changes. Evidence owners are [stored session lifecycle and races](../backend/tests/test_auth_sessions.py), [HTTP/JWT/cookie/CSRF security](../backend/tests/test_auth_security.py), [bootstrap and expiry](../backend/tests/test_auth_bootstrap.py), [enrollment/password/navigation browser workflows](../tests-api/authentication.spec.js), [verified email browser workflows](../tests-api/email-corrections.spec.js), [operator recovery drill](../backend/tests/test_mfa_recovery_drill.py) and [actual process restart](../backend/tests/test_process_restart.py). These use isolated storage and synthetic provider responses; live Cognito and physical-device receipts remain separate. See the implemented OpenAPI schema and [architecture explanation](architecture/readme.md). Session/calendar reads expose persisted assigned/authorized records and stable IDs; they do not add operations to this matrix. Assessment history and scoped directory routes likewise support the owning domain workflows.
+**BR-031** — Authentication includes enrollment/challenges, repeated login, session refresh/expiry, logout, password recovery and verified email changes. Evidence owners are [stored session lifecycle and races](../backend/tests/test_auth_sessions.py), [HTTP/JWT/cookie/CSRF security](../backend/tests/test_auth_security.py), [bootstrap and expiry](../backend/tests/test_auth_bootstrap.py), [enrollment/password/navigation browser workflows](../tests-api/authentication.spec.js), [verified email browser workflows](../tests-api/email-corrections.spec.js), [operator recovery drill](../backend/tests/test_mfa_recovery_drill.py) and [actual process restart](../backend/tests/test_process_restart.py). These use isolated storage and synthetic provider responses; live Cognito and physical-device receipts remain separate. See the implemented OpenAPI schema and [architecture explanation](architecture/adr.md). Session/calendar reads expose persisted assigned/authorized records and stable IDs; they do not add operations to this matrix. Assessment history and scoped directory routes likewise support the owning domain workflows.
 
 
 ### Outcome corrections and persisted progress
@@ -357,6 +357,10 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 
 ## Part 2 — Dated changes and evidence
+
+### 28 October 2026 — architecture decision records
+
+At the user’s request, replaced `docs/architecture/readme.md` with `docs/architecture/adr.md` using the inspected SoccerBot ADR format. Ten records explain Fitfinity stack choices, rationale reconstructed from current constraints, pros/cons, measured scaling triggers and contingency alternatives. Existing component responsibilities and editor/recovery transitions are retained; commands now correctly link to Development. The user-reported alert count remains distinguished from independently verified or deployed remediation. Local links follow the rename; historical external snapshots and full prior evidence remain unchanged. This separate PR depends on PR110 head `1e4bde435180fb017fd7ca619bb4bfb11ad6b33d`. No stack migration, fallback infrastructure, observability implementation or AWS action is claimed or authorized.
 
 ### 28 October 2026 — continuous development guide
 

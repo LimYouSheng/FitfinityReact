@@ -2,7 +2,7 @@
 
 Snapshot: **28 October 2026**, based on main `1246fb815b1240a92fd953b85abc05f18f46bc73`. “Owner” means the module responsible for a behavior, not a person or GitHub review assignment. Start with the overview and follow numbered sections into smaller diagrams and linked source files. Arrows show responsibility breakdown unless explicitly labelled as request/data flow; this is not an exhaustive import graph or execution sequence.
 
-This document owns code navigation. [System topology](architecture/diagram.md) owns infrastructure/test topology, [Architecture](architecture/readme.md) explains runtime relationships, and [Service Contracts](service_contracts.md) owns business rules and the 55-operation matrix. [Progress](../PROGRESS.md) owns acceptance and planned work; [Versions](versions.md) owns dependency versions. Update this map when responsibilities move. Source ownership does not establish deployed/provider/device acceptance.
+This document owns code navigation. [System topology](architecture/diagram.md) owns infrastructure/test topology, [Architecture](architecture/adr.md) records stack rationale and runtime relationships, and [Service Contracts](service_contracts.md) owns business rules and the 55-operation matrix. [Progress](../PROGRESS.md) owns acceptance and planned work; [Versions](versions.md) owns dependency versions. Update this map when responsibilities move. Source ownership does not establish deployed/provider/device acceptance.
 
 Format reference: [SoccerBotStudioSG Code Owners](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/feat/version-inventory/docs/Code-Owners.md). Fitfinity retains its own React/FastAPI/PostgreSQL/Cognito boundaries.
 
@@ -93,7 +93,7 @@ Edit["Feature editor · draft and reviewed values"]
 
 Source owners: [review lifetime](../src/hooks/useReviewLifetime.js), [shared command](../src/services/apiCommand.js), [profile recovery](../src/services/apiProfileRecovery.js), [profile recovery UI](../src/components/ProfileSaveRecovery.jsx), [plan recovery](../src/features/sessions/SessionPlanRecovery.jsx), [media commands](../src/services/apiSessionMedia.js), [snapshot owner](../src/components/PortalDataProvider.jsx).
 
-This is a responsibility map, not a universal state machine. The [architecture lifecycle table](architecture/readme.md) explains retained editor boundaries. Receipt read, retry, refresh and authority retirement are distinct operations.
+This is a responsibility map, not a universal state machine. The [architecture lifecycle table](architecture/adr.md#adr-001) explains retained editor boundaries. Receipt read, retry, refresh and authority retirement are distinct operations.
 
 ## 4. Server entry and identity
 
