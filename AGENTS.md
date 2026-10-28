@@ -13,12 +13,12 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | [Versions](docs/versions.md) | Repository dependency/version inventory and manual patch lookup; not deployed acceptance |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
 | [North Star](NORTH_STAR.md) | Current outcome and priority |
-| [Progress](PROGRESS.md) | Full milestone roadmap, current evidence, blockers, next actions and hardening backlog |
+| [Progress](PROGRESS.md) | Current evidence, blockers, next actions and hardening backlog |
 | [Architecture decisions](docs/architecture/adr.md) | Stack rationale, tradeoffs, scaling triggers and contingency options |
 | [Architecture diagram](docs/architecture/diagram.md) | Component topology and connections |
 | [Business rules](docs/business-rules.md) | Current BR requirements, product decisions and cross-cutting acceptance criteria |
 | [API contracts](docs/api-contracts.md) | Canonical55-operation matrix, detailed HTTP/schema reference and evidence owners |
-| [Journey](docs/journey.md) | Complete dated decisions, implementation, failures, repairs and acceptance history |
+| [Journey](docs/journey.md) | Full milestone overview, followed by complete dated decisions, implementation, failures, repairs and acceptance history |
 
 
 Use this structure as a guide for other projects, but re-establish their runtime, test commands, data boundaries, browser permissions and merge/deployment authority. Fitfinity's permissions and technology choices do not transfer automatically. Keep reusable engineering practice here and project business rules in Business Rules; do not create parallel rulebooks.

@@ -244,7 +244,7 @@ Dependabot source configuration covers bounded weekly npm, GitHub Actions and Do
 
 **Alternative / contingency.** Restore to a separately verified PostgreSQL instance and private object store is a candidate recovery route; a regional standby is a larger separately designed option. Fence old writers, reconcile effects and verify permissions before resuming. There is no authorized automatic promotion, destructive downgrade or resource recreation.
 
-**Owners/evidence.** [Migrations](../../backend/migrations), [restore runbook](../runbook.md#7-data-protection-and-restore), [roadmap](../../PROGRESS.md#full-milestone-roadmap), [BR-060–064](../business-rules.md#br-060).
+**Owners/evidence.** [Migrations](../../backend/migrations), [restore runbook](../runbook.md#7-data-protection-and-restore), [roadmap](../journey.md#full-milestone-roadmap), [BR-060–064](../business-rules.md#br-060).
 
 ## Scaling review and fallback readiness
 

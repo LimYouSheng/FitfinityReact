@@ -278,7 +278,7 @@ Stable rule-group IDs identify the existing paragraphs below; they do not change
 
 <a id="br-062"></a>
 
-**BR-062** — The [full milestone roadmap in Progress](../PROGRESS.md#full-milestone-roadmap) owns M0–M10 scope, current status and milestone exit criteria. This section owns the cross-cutting acceptance requirements. The 55-operation matrix does not replace later event/media, public-site, staging or launch acceptance.
+**BR-062** — The [full milestone overview in Journey](journey.md#full-milestone-roadmap) owns M0–M10 scope and milestone exit criteria; [Progress](../PROGRESS.md) owns current status. This section owns the cross-cutting acceptance requirements. The 55-operation matrix does not replace later event/media, public-site, staging or launch acceptance.
 
 <a id="br-063"></a>
 
