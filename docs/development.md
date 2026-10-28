@@ -18,7 +18,7 @@ All three routes converge on the same source review and verification process. A 
 
 Start with [AGENTS](../AGENTS.md), [North Star](../NORTH_STAR.md) and [Progress](../PROGRESS.md), then follow AGENTS' task directory.
 
-- [Service Contracts](service_contracts.md#part-1--current-system-rules): business rules, the 55-operation matrix and acceptance boundaries; dated history follows the rules.
+- [Business rules](business-rules.md): current requirements; [API contracts](api-contracts.md): the55-operation matrix and detailed schemas; [Journey](journey.md): complete dated evidence.
 - [Architecture](architecture/adr.md) and [diagrams](architecture/diagram.md): component responsibilities and test coverage.
 - [Code owners](code-owners.md): feature and BR-to-module navigation.
 - [Versions](versions.md): configured and locked dependencies, not deployed versions.
@@ -162,7 +162,7 @@ Dependent draft PRs may target an unmerged task branch with exact ancestry recor
 
 ## Current engineering expectations
 
-[AGENTS](../AGENTS.md) remains the rules authority. Use existing owners, preserve business invariants and unknown work, keep verification strict and report implemented/tested/merged/deployed/accepted states accurately. Update the unique owning document rather than copying its rules here. Preserve stable BR IDs and their code-owner mappings, the full Contracts history and milestone roadmap.
+[AGENTS](../AGENTS.md) remains the rules authority. Use existing owners, preserve business invariants and unknown work, keep verification strict and report implemented/tested/merged/deployed/accepted states accurately. Update the unique owning document rather than copying its rules here. Preserve stable BR IDs and their code-owner mappings, the full Journey and milestone roadmap.
 
 Dependency updates follow the [runbook](runbook.md#3-dependency-maintenance-and-dependabot). Refresh the manually maintained [version inventory](versions.md) when its inputs change; Fitfinity does not currently have SoccerBot's versions generator/freshness gate. Do not use `npm audit fix --force` as routine setup.
 

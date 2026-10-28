@@ -2,7 +2,7 @@
 
 Recorded: 28 October 2026. These records explain Fitfinity's stack, tradeoffs and evolution options. **Statuses distinguish implemented source, selected hosting and planned capabilities.** Rationale is reconstructed from current code and retained contracts; it does not claim that every alternative was historically benchmarked or rejected. Alternatives are review candidates, not approved migrations or ready standby systems.
 
-[System topology and test diagrams](diagram.md) show connections; [code owners](../code-owners.md) maps implementation; [runbook](../runbook.md) owns operational procedures. Business rules and full historical evidence remain in [Service Contracts](../service_contracts.md), versions in [the inventory](../versions.md), and current acceptance/backlog in [Progress](../../PROGRESS.md). Amend a decision explicitly or add a superseding ADR when assumptions change; retain its earlier rationale and evidence.
+[System topology and test diagrams](diagram.md) show connections; [code owners](../code-owners.md) maps implementation; [runbook](../runbook.md) owns operational procedures. Business rules remain in [Business Rules](../business-rules.md), API definitions in [API Contracts](../api-contracts.md), and full historical evidence in [Journey](../journey.md), versions in [the inventory](../versions.md), and current acceptance/backlog in [Progress](../../PROGRESS.md). Amend a decision explicitly or add a superseding ADR when assumptions change; retain its earlier rationale and evidence.
 
 ## Context and decision drivers
 
@@ -33,7 +33,7 @@ The design prioritizes prototype parity, transactional correctness, maintainable
 
 **Decision.** React/Vite renders the Owner, Admin and Trainer portal. Feature screens use injected asynchronous services; `PortalDataProvider` owns authorized snapshots and `useAppNavigation` owns account-scoped history. Explicit demo mode uses prototype data and browser storage. API mode uses `apiPortalAdapter` and FastAPI without falling back to mocks. GitHub Pages hosts the separate demo export. A session-scoped recovery panel above the routes exposes uncertain simple-form commands after their editors close; the adapter retains immutable intents and the server owns receipts.
 
-UI drafts, submitted commands and post-save reads have separate lifetimes. The following maps the current implementation; [Service Contracts](../service_contracts.md#part-1--current-system-rules) owns the business invariants. `SessionsRoute` selects the session list, permitted detail or pending recovery in the established acknowledgement → summary → outcome → plan → change order. It preserves session-record keys and login-generation recovery keys. `App` retains global navigation, authentication and profile recovery. `apiBackedWorkflows` identifies API orchestration; individual capabilities still gate writes.
+UI drafts, submitted commands and post-save reads have separate lifetimes. The following maps the current implementation; [Business rules](../business-rules.md#current-business-rules) owns the business invariants. `SessionsRoute` selects the session list, permitted detail or pending recovery in the established acknowledgement → summary → outcome → plan → change order. It preserves session-record keys and login-generation recovery keys. `App` retains global navigation, authentication and profile recovery. `apiBackedWorkflows` identifies API orchestration; individual capabilities still gate writes.
 
 | Transition | Implementation owner and retained behavior |
 | --- | --- |
@@ -58,7 +58,7 @@ Keep those owners separate when extracting routes. Regression evidence spans the
 
 **Alternative / contingency.** Next.js/server rendering could serve future content needs but adds deployment/runtime responsibilities. TypeScript adoption could strengthen static contracts through an incremental migration. Neither replaces API authorization or recovery. The Pages demo is never an operational fallback for persistent API writes.
 
-**Owners/evidence.** [Frontend manifest](../../package.json), [service contracts](../../src/services/portalContracts.js), [portal data](../../src/components/PortalDataProvider.jsx), [session route](../../src/features/sessions/SessionsRoute.jsx), [BR-001](../service_contracts.md#br-001), [BR-009–011](../service_contracts.md#br-009).
+**Owners/evidence.** [Frontend manifest](../../package.json), [service contracts](../../src/services/portalContracts.js), [portal data](../../src/components/PortalDataProvider.jsx), [session route](../../src/features/sessions/SessionsRoute.jsx), [BR-001](../business-rules.md#br-001), [BR-009–011](../business-rules.md#br-009).
 
 <a id="adr-002"></a>
 
@@ -78,7 +78,7 @@ Keep those owners separate when extracting routes. Regression evidence spans the
 
 **Alternative / contingency.** A containerized FastAPI service can retain domain code while changing hosting. Django or a TypeScript backend would require substantial contract, transaction and authorization regression work. Splitting services creates distributed consistency problems and is not an automatic scalability improvement.
 
-**Owners/evidence.** [Application composition](../../backend/app/main.py), [route registration](../../backend/app/api/routes.py), [Python dependencies](../../backend/pyproject.toml), [database transactions](../../backend/app/database.py), [BR-003](../service_contracts.md#br-003).
+**Owners/evidence.** [Application composition](../../backend/app/main.py), [route registration](../../backend/app/api/routes.py), [Python dependencies](../../backend/pyproject.toml), [database transactions](../../backend/app/database.py), [BR-003](../business-rules.md#br-003).
 
 <a id="adr-003"></a>
 
@@ -98,7 +98,7 @@ Keep those owners separate when extracting routes. Regression evidence spans the
 
 **Alternative / contingency.** Another managed PostgreSQL host is the closest migration option, subject to extensions, TLS, roles, backup and networking compatibility. DynamoDB or a document database would require redesigning multi-record constraints and transactions; SQLite is not equivalent acceptance. A tested database restore is a recovery option, not yet a proven standby.
 
-**Owners/evidence.** [Database owner](../../backend/app/database.py), [models](../../backend/app/models), [migrations](../../backend/migrations), [BR-009](../service_contracts.md#br-009), [BR-017](../service_contracts.md#br-017), [BR-061](../service_contracts.md#br-061).
+**Owners/evidence.** [Database owner](../../backend/app/database.py), [models](../../backend/app/models), [migrations](../../backend/migrations), [BR-009](../business-rules.md#br-009), [BR-017](../business-rules.md#br-017), [BR-061](../business-rules.md#br-061).
 
 <a id="adr-004"></a>
 
@@ -118,7 +118,7 @@ Keep those owners separate when extracting routes. Regression evidence spans the
 
 **Alternative / contingency.** Another OIDC identity service is a possible redesign after testing account/subject mapping, session revocation, email verification and MFA re-enrollment. Self-hosting identity adds patching and recovery operations. An outage must not bypass MFA or enable demo identities. Lost MFA uses the authorized operator process, not new Owner/Admin app powers.
 
-**Owners/evidence.** [Auth service](../../backend/app/auth/service.py), [Cognito adapter](../../backend/app/auth/cognito.py), [JWT verification](../../backend/app/auth/jwt.py), [authorization](../../backend/app/authorization.py), [BR-006–008](../service_contracts.md#br-006), [BR-031](../service_contracts.md#br-031).
+**Owners/evidence.** [Auth service](../../backend/app/auth/service.py), [Cognito adapter](../../backend/app/auth/cognito.py), [JWT verification](../../backend/app/auth/jwt.py), [authorization](../../backend/app/authorization.py), [BR-006–008](../business-rules.md#br-006), [BR-031](../business-rules.md#br-031).
 
 <a id="adr-005"></a>
 
@@ -138,7 +138,7 @@ Keep those owners separate when extracting routes. Regression evidence spans the
 
 **Alternative / contingency.** ECS/Fargate or another managed container host could retain FastAPI while trading cold-start behavior for continuously running capacity and more operational configuration. Another cloud requires identity, storage, network and release adaptation. No alternate region/host is a configured hot standby; DNS switching without state and writer coordination is unsafe.
 
-**Owners/evidence.** [Runtime container](../../backend/Dockerfile), [infrastructure owners](../../backend/infrastructure), [release runbook](../runbook.md#6-deployments-and-rollback), [BR-060–061](../service_contracts.md#br-060).
+**Owners/evidence.** [Runtime container](../../backend/Dockerfile), [infrastructure owners](../../backend/infrastructure), [release runbook](../runbook.md#6-deployments-and-rollback), [BR-060–061](../business-rules.md#br-060).
 
 <a id="adr-006"></a>
 
@@ -158,7 +158,7 @@ Keep those owners separate when extracting routes. Regression evidence spans the
 
 **Alternative / contingency.** Another private S3-compatible provider may fit after signature, checksum, conditional-write, CORS and permission acceptance. Migration must preserve object identity, bytes, expiry and pending intents. Application disk is not durable fallback. Object backups and database restore points must be reconciled before reopening media access.
 
-**Owners/evidence.** [Storage adapter](../../backend/app/media_storage.py), [library cleanup](../../backend/app/library_cleanup.py), [recording cleanup](../../backend/app/session_media_cleanup.py), [media configuration](../runbook.md#10-configuration), [operation matrix](../service_contracts.md#domain-operation-inventory).
+**Owners/evidence.** [Storage adapter](../../backend/app/media_storage.py), [library cleanup](../../backend/app/library_cleanup.py), [recording cleanup](../../backend/app/session_media_cleanup.py), [media configuration](../runbook.md#10-configuration), [operation matrix](../api-contracts.md#domain-operation-inventory).
 
 <a id="adr-007"></a>
 
@@ -182,7 +182,7 @@ Mutation testing will target critical JavaScript/Python business rules, authoriz
 
 **Alternative / contingency.** Another test runner or CI host is possible if it preserves actual PostgreSQL, migrations, permission/recovery coverage and case inventory. Simulator-only or SQLite substitution is not equivalent. During infrastructure failures, preserve evidence and repair the harness rather than weaken checks.
 
-**Owners/evidence.** [Backend tests](../../backend/tests), [real-API browser tests](../../tests-api), [browser Compose](../../backend/compose.browser.yaml), [verifier](../../scripts/verify-api-browser.mjs), [test diagram](diagram.md#full-verification-suite), [BR-063–064](../service_contracts.md#br-063).
+**Owners/evidence.** [Backend tests](../../backend/tests), [real-API browser tests](../../tests-api), [browser Compose](../../backend/compose.browser.yaml), [verifier](../../scripts/verify-api-browser.mjs), [test diagram](diagram.md#full-verification-suite), [BR-063–064](../business-rules.md#br-063).
 
 <a id="adr-008"></a>
 
@@ -190,7 +190,7 @@ Mutation testing will target critical JavaScript/Python business rules, authoriz
 
 **Status.** Source workflow implemented; deployment evidence separate.
 
-**Decision.** The Docker `application` stage is shared; `test` adds test dependencies without downloading the Lambda adapter, while `runtime` adds the pinned adapter. Final-head frontend/backend/API-browser CI precedes source acceptance. Normal main verification/demo publishing is independent of AWS image approval. Image publication is manually initiated with an exact main SHA, reruns all three gates for that SHA, and then requires the protected AWS environment approval; it never deploys Lambda. Image publication, migrations, deployment and live/provider/device acceptance require their own evidence and applicable authorization. Mutation testing, measured performance budgets and OpenTelemetry/Grafana remain planned work in Progress, not existing capabilities. [Service Contracts](../service_contracts.md#deployment-migration-and-acceptance) owns release safeguards.
+**Decision.** The Docker `application` stage is shared; `test` adds test dependencies without downloading the Lambda adapter, while `runtime` adds the pinned adapter. Final-head frontend/backend/API-browser CI precedes source acceptance. Normal main verification/demo publishing is independent of AWS image approval. Image publication is manually initiated with an exact main SHA, reruns all three gates for that SHA, and then requires the protected AWS environment approval; it never deploys Lambda. Image publication, migrations, deployment and live/provider/device acceptance require their own evidence and applicable authorization. Mutation testing, measured performance budgets and OpenTelemetry/Grafana remain planned work in Progress, not existing capabilities. [Business rules](../business-rules.md#deployment-migration-and-acceptance) owns release safeguards.
 
 Dependabot source configuration covers bounded weekly npm, GitHub Actions and Dockerfile-image update PRs; the remaining floating frontend tooling declarations are pinned to their existing lockfile versions. Bot PR execution has been observed; the user reported zero open /26 closed alerts after PR104, but independent alert reads returned403; that report is not current API verification or deployed remediation. Required npm audit includes development tooling, blocks high/critical findings and retains the report; it does not cover Python or container packages. Python custom hashed locks and Compose image pins still require manual maintenance until a compatible updater is tested. [Runbook](../runbook.md#dependency-maintenance) owns review/triage instructions; Progress H4 owns remaining coverage. Assess SBOMs and artifact/source provenance against verified digests. Secret scanning and static security analysis supplement current lint and authorization tests; repository/account-level settings need verification before any claim they are enabled. Automated updates or clean scans do not replace review, full CI or release approval.
 
@@ -204,7 +204,7 @@ Dependabot source configuration covers bounded weekly npm, GitHub Actions and Do
 
 **Alternative / contingency.** Another CI service or managed runner can replace GitHub execution only after reproducing gate, isolation and artifact controls. Source revert and compatible prior-artifact recovery need explicit verification; neither reverses database/provider effects. CI unavailability does not justify an unverified deployment.
 
-**Owners/evidence.** [Workflows](../../.github/workflows), [Docker stages](../../backend/Dockerfile), [Dependabot](../../.github/dependabot.yml), [versions](../versions.md), [development](../development.md), [release rules](../service_contracts.md#deployment-migration-and-acceptance).
+**Owners/evidence.** [Workflows](../../.github/workflows), [Docker stages](../../backend/Dockerfile), [Dependabot](../../.github/dependabot.yml), [versions](../versions.md), [development](../development.md), [release rules](../business-rules.md#deployment-migration-and-acceptance).
 
 <a id="adr-009"></a>
 
@@ -224,7 +224,7 @@ Dependabot source configuration covers bounded weekly npm, GitHub Actions and Do
 
 **Alternative / contingency.** Available platform logs can support interim investigation within configured retention/access. Another OTLP receiver or self-hosted collector is a candidate, with its own operations and data-governance burden. A receiver change cannot recover events never captured; telemetry must not become write authority or block recovery.
 
-**Owners/evidence.** [Current observability](../../backend/app/observability.py), [runbook monitoring](../runbook.md#4-monitoring-and-observability), [M10 packages](../../PROGRESS.md#m10-work-packages--planned), [BR-007](../service_contracts.md#br-007).
+**Owners/evidence.** [Current observability](../../backend/app/observability.py), [runbook monitoring](../runbook.md#4-monitoring-and-observability), [M10 packages](../../PROGRESS.md#m10-work-packages--planned), [BR-007](../business-rules.md#br-007).
 
 <a id="adr-010"></a>
 
@@ -244,7 +244,7 @@ Dependabot source configuration covers bounded weekly npm, GitHub Actions and Do
 
 **Alternative / contingency.** Restore to a separately verified PostgreSQL instance and private object store is a candidate recovery route; a regional standby is a larger separately designed option. Fence old writers, reconcile effects and verify permissions before resuming. There is no authorized automatic promotion, destructive downgrade or resource recreation.
 
-**Owners/evidence.** [Migrations](../../backend/migrations), [restore runbook](../runbook.md#7-data-protection-and-restore), [roadmap](../../PROGRESS.md#full-milestone-roadmap), [BR-060–064](../service_contracts.md#br-060).
+**Owners/evidence.** [Migrations](../../backend/migrations), [restore runbook](../runbook.md#7-data-protection-and-restore), [roadmap](../../PROGRESS.md#full-milestone-roadmap), [BR-060–064](../business-rules.md#br-060).
 
 ## Scaling review and fallback readiness
 

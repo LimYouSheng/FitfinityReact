@@ -1,36 +1,38 @@
 # Fitfinity current progress
 
-## Current checkpoint — 28 October 2026, 16:01 Singapore
+## Current checkpoint — 28 October 2026, 16:19 Singapore
 
-Accepted **application source** is [PR104](https://github.com/LimYouSheng/FitfinityReact/pull/104), merge `1246fb815b1240a92fd953b85abc05f18f46bc73`. Exact head `c8f0634820758b5d5de229cfab501d7ef6726189` passed all required gates in run40530155757, including both API shards within20 minutes. PyJWT/urllib3 fixes, offline-editor fixture readiness and the Ubuntu mirror selector are merged. Fresh main run40614828297 passed. No current-source Lambda deployment is claimed. Full receipts and original failures remain in Contracts history.
+Accepted **application source** is [PR104](https://github.com/LimYouSheng/FitfinityReact/pull/104), merge `1246fb815b1240a92fd953b85abc05f18f46bc73`. Exact head `c8f0634820758b5d5de229cfab501d7ef6726189` passed all required gates in run40530155757, including both API shards within20 minutes. PyJWT/urllib3 fixes, offline-editor fixture readiness and the Ubuntu mirror selector are merged. Fresh main run40614828297 passed. No current-source Lambda deployment is claimed. Full receipts and original failures remain in Journey.
 
-[The canonical operation matrix](docs/service_contracts.md#domain-operation-inventory) records **55/55 source accepted**: 54 server-connected operations plus one local predicate. All 18 operations remaining at the 37/55 checkpoint are complete in merged source. This does not establish deployment or blanket milestone acceptance.
+[The canonical operation matrix](docs/api-contracts.md#domain-operation-inventory) records **55/55 source accepted**: 54 server-connected operations plus one local predicate. All 18 operations remaining at the 37/55 checkpoint are complete in merged source. This does not establish deployment or blanket milestone acceptance.
 
 | Acceptance | Evidence and limit |
 | --- | --- |
-| Staff-portal source | All named operations and the additional M6 source-exit implementation are source-accepted; live/provider/device acceptance below remains separate. Detailed operation receipts live in Service Contracts Part 2. |
+| Staff-portal source | All named operations and the additional M6 source-exit implementation are source-accepted; live/provider/device acceptance below remains separate. Detailed operation receipts live in Journey. |
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; local signed-token Cognito substitute and actual isolated S3-compatible media storage. No production PostgreSQL or Lambda redeployment needed. |
 | Deployment | The merged release workflow requires manual image initiation, exact main SHA, full verification and existing AWS approval. Current-source Lambda deployment, real Cognito and current device acceptance remain unrecorded. Source merge and Pages demo publishing do not establish these outcomes. |
 
-### Checkout and documentation PRs
+### Checkout and consolidated documentation PR
 
-Active checkout: `docs/architecture-adr`, inspected at `fb35106f9a7b9ead343aaaf192f4127d8b84f513` before this progress-only reconciliation. The working tree was clean; all eight existing stashes remain preserved. GitHub main is still `1246fb815b1240a92fd953b85abc05f18f46bc73`. The following changes exist in the checkout but are **not merged main**.
+Active checkout: `docs/dependency-version-inventory`, incorporating PR110/111 through `4c7495312a6903b6087681efdb755ae4e0356658` before this split. All eight existing stashes remain preserved. GitHub main remains `1246fb815b1240a92fd953b85abc05f18f46bc73`; documentation changes are not accepted main.
 
-| PR | Scope in checkout | Base / inspected head | Current acceptance |
-| --- | --- | --- | --- |
-| [109](https://github.com/LimYouSheng/FitfinityReact/pull/109) | Lowercase documentation, dependency inventory, BR/code-owner map, role UAT, runbook and AGENTS directory; root README removed | `main` / `8891030` | Draft. Latest-head [run40651160398](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40651160398) pending. Earlier green heads do not accept this head. |
-| [110](https://github.com/LimYouSheng/FitfinityReact/pull/110) | Local VS Code, Codex Cloud and ZIP development guide; setup/commands moved from runbook | PR109 branch / `1e4bde4` | Draft. No checks reported; workflow requires PR base main. |
-| [111](https://github.com/LimYouSheng/FitfinityReact/pull/111) | Architecture readme replaced by ten ADRs explaining rationale, tradeoffs, scaling and contingencies; this progress reconciliation | PR110 branch / `fb35106` before this update | Draft. No checks reported; workflow requires PR base main. |
+[PR109](https://github.com/LimYouSheng/FitfinityReact/pull/109) is the single documentation review. It includes the version inventory, BR/code-owner map, role UAT, runbook, development guide, ten architecture ADRs and the requested three-file contract split. PR110/111 are superseded by this consolidated branch; original branches/commits are preserved. No repository skill was created, as requested; AGENTS remains the entry point.
 
-The ADR change passed 886 local link/anchor checks, all 3 architecture and 21 code-owner Mermaid parses, content-preservation checks and diff whitespace checks. These documentation checks do not replace final-head application CI. [Development](docs/development.md), [ADR](docs/architecture/adr.md), [Runbook](docs/runbook.md) and [AGENTS](AGENTS.md) own their respective instructions; no duplicate root README is planned.
+| Canonical document | Current purpose |
+| --- | --- |
+| [Business rules](docs/business-rules.md) | All64 current BR groups and acceptance constraints, with stable IDs |
+| [API contracts](docs/api-contracts.md) | Unchanged55-operation matrix,159 HTTP method/path entries and246 schema references |
+| [Journey](docs/journey.md) | Complete retained dated history, first failures, decisions and acceptance evidence |
 
-**CI blocker at inspection:** PR109's preceding-head [run40650892639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40650892639), head `a5e36f0`, is still running. Backend passed, but the required API-browser aggregate failed its case-completeness step; frontend is still in its browser gate. Failed-job logs were unavailable while the run remained active, so the cause is not yet established. This is not evidence of a deployment-approval wait. The latest-head run is pending behind it under the existing concurrency policy.
+The combined Service Contracts file is removed, with links redirected to the specific owners. The full milestone roadmap and H1–H7 backlog below remain intact. This split passed1,552 local link/anchor checks, all24 current Mermaid diagrams and preservation checks for all64 BR groups,55 matrix rows and the full original history. The159-endpoint/246-schema index matches the checked-in OpenAPI snapshot. PR109 still requires full final-head CI.
 
-**Next action:** inspect the original failed aggregate evidence once available and diagnose before any retry or repair. Require complete CI for PR109's final head, then merge if GitHub requirements pass. Reconcile/retarget PR110 to main and verify its final head; repeat for PR111 after PR110 merges. Keep each PR's dependency and acceptance distinct. No merge, AWS image publication or deployment is recorded for these documentation changes.
+**CI finding:** preceding-head [run40650892639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40650892639) completed with frontend/backend and API shard2 passed. Shard1 had187 passed and1 failed: phone permanent reassignment passed its visible assignment/reload checks, then `/api/directory` verification failed with `ECONNRESET` at `tests-api/records.spec.js:221`. The aggregate correctly rejected a failed shard. This is neither an inventory mismatch nor a deployment-approval wait. Original logs were obtained through the connector and retained; the reset's root cause remains unproven. No assertion, retry or timeout was changed.
+
+**Next action:** verify PR109's consolidated final head and investigate any recurring connection failure using the retained trace/server evidence before a targeted repair. Previous-head run40651160398 was in progress at inspection and cannot accept the consolidated head. Merge only after all three exact-head gates and GitHub requirements pass. No documentation change authorizes image publication, AWS deployment or provider/device acceptance.
 
 ## Full milestone roadmap
 
-This is the current roadmap owner. Original numbering is retained, including the assessment extension without renumbering M5. Historical acceptance describes its recorded scope and is not a new production-readiness claim. The **55-operation matrix** measures domain integration within M6; it does not replace M7 event/media processing or M8/M9 staging and launch. Detailed business rules and full evidence remain in Service Contracts.
+This is the current roadmap owner. Original numbering is retained, including the assessment extension without renumbering M5. Historical acceptance describes its recorded scope and is not a new production-readiness claim. The **55-operation matrix** measures domain integration within M6; it does not replace M7 event/media processing or M8/M9 staging and launch. Detailed requirements remain in Business Rules; full dated evidence remains in Journey.
 
 | Milestone | Status | Scope | Acceptance boundary / exit criteria |
 | --- | --- | --- | --- |
@@ -61,7 +63,7 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 Follow the full roadmap above. The 55-operation source target is complete; do not repeat accepted integrations or mark later milestones complete from this count.
 
-1. Complete the documentation PR sequence and CI diagnosis above, then the remaining environment-specific M6 acceptance in the table below through the separately authorized release work. The source-exit implementation is accepted; do not repeat it or infer live acceptance from synthetic-provider tests.
+1. Complete the consolidated documentation PR and CI diagnosis above, then the remaining environment-specific M6 acceptance in the table below through the separately authorized release work. The source-exit implementation is accepted; do not repeat it or infer live acceptance from synthetic-provider tests.
 2. Scope M7 durable events, scheduling/notifications and media processing/retention, preserving provider and deployment boundaries.
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency and Grafana remain planned; dependency automation/audit is partially implemented, with remaining supply-chain work under H4.
@@ -69,7 +71,7 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 
 ### Dependency/security maintenance and deferred refactors
 
-PR103's grouped Dependabot policy and blocking npm high/critical audit are merged. PR104's PyJWT/urllib3 fixes and browser-runner mirror repair are merged and passed exact-head plus fresh-main verification. They are completed source changes, not active dependent branches. Detailed advisories, first failures and receipts remain in [Contracts history](docs/service_contracts.md#part-2--dated-changes-and-evidence).
+PR103's grouped Dependabot policy and blocking npm high/critical audit are merged. PR104's PyJWT/urllib3 fixes and browser-runner mirror repair are merged and passed exact-head plus fresh-main verification. They are completed source changes, not active dependent branches. Detailed advisories, first failures and receipts remain in [Journey](docs/journey.md#complete-journey).
 
 The latest recorded security-alert state is the user's **0 open /26 closed** report after PR104. Independent alert reads previously returned403; no fresh alert audit or deployed remediation is claimed by this documentation update. Routine proposals105/107/108 were closed unmerged; closing PRs is not a vulnerability fix. Future grouped updates remain configured under the [runbook policy](docs/runbook.md#dependency-maintenance).
 
@@ -83,7 +85,7 @@ The [UAT folder](docs/uat/) in the documentation PR stack contains separate Owne
 
 ### M6 exit evidence — source accepted, external acceptance open
 
-PR82 closes the authorized M6 source-exit work after complete final-head CI and normal merge. Full milestone/live acceptance remains distinct. Detailed first failures and the measured test-graph cleanup repair are retained once in Contracts history.
+PR82 closes the authorized M6 source-exit work after complete final-head CI and normal merge. Full milestone/live acceptance remains distinct. Detailed first failures and the measured test-graph cleanup repair are retained once in Journey.
 
 | Area | Accepted evidence | Remaining boundary |
 | --- | --- | --- |
@@ -108,4 +110,4 @@ M10 depends on stable domain contracts and isolated test evidence; environment-s
 | H6 / release | AWS release readiness and production operations (runbook drafted in PR109): health/readiness, synthetic checks, incidents, rollback, backup/restore, migration recovery, capacity/cost | Tested source/artifact and migration inventory, H2/H5 where relevant; reviewed recovery environment | Reviewed image/provenance/grants/rollout plan; version/digest-bound health and synthetic evidence, incident ownership and drills, measured RPO/RTO, populated restore/forward-recovery and rollback constraints, capacity/cost alerts | Isolated restore drills first; never replay bootstrap, rewrite applied migrations, touch customer data or deploy under source authority |
 | H7 / ongoing | Documentation/test impact and obsolete artifact audit | Source reference/loader scan and owners | Updated affected tests/fixtures/inventories, preserved first failures, no stale status, meaningful purpose comments; retain historical evidence by immutable link | No blanket deletion, architecture transplant or comment-only churn; retain the PR59/63 cleanup evidence |
 
-Full dated receipts, first failures and superseded checkpoints live only in [Service Contracts history](docs/service_contracts.md#part-2--dated-changes-and-evidence).
+Full dated receipts, first failures and superseded checkpoints live only in [Service Journey](docs/journey.md#complete-journey).
