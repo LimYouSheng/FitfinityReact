@@ -358,6 +358,10 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 ## Part 2 — Dated changes and evidence
 
+### 28 October 2026 — manual staff UAT guide drafted
+
+The user requested an additional clear-language UAT Markdown guide. `docs/UAT.md` contains92 numbered manual cases across role access, accounts, people/packages, assessments, schedules/requests, plans/completion, lifecycle, messages/Undo, remuneration, reports/media, conflicts/recovery and physical-device usability. Each case has role, actions and expected result; sections link canonical BR IDs. A synthetic fixture plan, one walkthrough diagram, result/evidence template and response-time observations support actual user testing. Prepared operator fault/expiry cases and separately authorized provider/deployment/restore checks are explicit. This is a draft, not executed UAT or live acceptance; no business rule, dependency, application behavior or infrastructure changed.
+
 ### 28 October 2026 — stable business-rule IDs and complete ownership index
 
 The user corrected the initial broad section-level ownership index: the canonical rules themselves must be numbered like SoccerBot. Existing Part1 rule groups now have stable anchors and labels BR-001 through BR-064; Code Owners section11 has exactly one corresponding row for each group, with specific implementation links and diagram-area references. Operator procedures and future scope are explicitly labelled. The lifecycle table belongs to BR-039; the55-operation matrix and milestone IDs retain their separate identities. A preservation check stripped only the new labels/anchors and confirmed unchanged original rule wording, all table rows and the full pre-existing history. All64 IDs map exactly once, all owner links resolve, and all21 Mermaid diagrams parse. AGENTS now requires stable IDs and complete mappings on future rule changes. No business requirement, application code or deployment changed.

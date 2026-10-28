@@ -4,6 +4,8 @@ Development entry point for the Fitfinity staff portal. See [AGENTS](AGENTS.md#a
 
 [Code owners and feature map](docs/Code-Owners.md) provides an overview and progressively detailed responsibility diagrams with source links.
 
+[Manual UAT walkthrough](docs/UAT.md) gives role-based steps and expected results for isolated API, physical-device and separately authorized live acceptance.
+
 ## Development setup
 
 Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies with `npm ci` from the reviewed lockfile; reuse matching dependencies, prepared images and Playwright caches during routine work. Backend versions and hashes are owned by `backend/pyproject.toml`, its requirements files and `backend/Dockerfile`.

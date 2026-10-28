@@ -7,6 +7,7 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | File | Unique purpose |
 | --- | --- |
 | [README](README.md) | Development prerequisites, configuration and commands |
+| [UAT walkthrough](docs/UAT.md) | Manual user acceptance cases, expected results and run-record format; not an executed test receipt |
 | [Code owners](docs/Code-Owners.md) | Hierarchical feature/module navigation and responsibility diagrams |
 | [Versions](Versions.md) | Repository dependency/version inventory and manual patch lookup; not deployed acceptance |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
@@ -59,7 +60,7 @@ Fitfinity source acceptance requires complete `verify / frontend`, `verify / bac
 
 ## Documentation and handoff
 
-Update each document's unique owner and link elsewhere. Refresh `docs/Code-Owners.md` when responsibilities move between modules; keep business rules in Service Contracts and infrastructure topology in Architecture. Preserve canonical BR IDs and anchors when moving/editing rules; allocate the next unused ID for new rules, never reuse retired IDs, and keep every current BR mapped to code or an explicitly labelled operational/planned owner in Code Owners. Keep one North Star, one current progress ledger and one canonical operation matrix. Current rules precede full dated evidence in Service Contracts; historical instructions, approvals and counts do not govern current work. Preserve business/security decisions and first failures when consolidating; verify content preservation and references before deleting obsolete files.
+Update each document's unique owner and link elsewhere. Refresh `docs/Code-Owners.md` when responsibilities move between modules; keep business rules in Service Contracts and infrastructure topology in Architecture. Preserve canonical BR IDs and anchors when moving/editing rules; allocate the next unused ID for new rules, never reuse retired IDs, and keep every current BR mapped to code or an explicitly labelled operational/planned owner in Code Owners. Update affected `docs/UAT.md` cases when user-visible rules or workflows change; keep unexecuted cases distinct from acceptance evidence. Keep one North Star, one current progress ledger and one canonical operation matrix. Current rules precede full dated evidence in Service Contracts; historical instructions, approvals and counts do not govern current work. Preserve business/security decisions and first failures when consolidating; verify content preservation and references before deleting obsolete files.
 
 Report implemented, tested, CI-verified, merged, deployed and production/provider/device-accepted states separately. Record historical receipts once in Contracts Part 2; keep Progress limited to the current checkpoint, blockers and remaining work. Backlog entries need dependencies, acceptance evidence and rollout boundaries; a planned capability is not implemented or authorized for activation. At handoff, record the actual branch/head, dirty/stashed work, PR/CI status, unresolved failures and next action without exposing secrets.
 

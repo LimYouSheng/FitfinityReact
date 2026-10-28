@@ -49,7 +49,7 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 2. Scope M7 durable events, scheduling/notifications and media processing/retention, preserving provider and deployment boundaries.
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency, Grafana and supply-chain capabilities remain planned until separately implemented and evidenced.
-5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested root Versions.md inventory and docs/Code-Owners.md navigation map and all eight existing stashes.
+5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested root Versions.md inventory, docs/Code-Owners.md navigation map and docs/UAT.md manual acceptance guide and all eight existing stashes.
 
 ### Active follow-up — dependency security and controlled updates
 
@@ -66,6 +66,8 @@ Branch `chore/python-security-updates` builds on PR103 head `6304c855816d9c3e9a0
 PR104 is now merged after complete exact-head CI. The user reports **0 open /26 closed security alerts** after merge; detailed API reads still return403, so this is user-confirmed UI evidence, not an independently queried alert list. Routine proposals105/107/108 were closed unmerged at the user's request, with branches preserved; future grouped updates remain configured. No deployed patch is inferred. Root [Versions.md](Versions.md) now provides the requested manual dependency inventory; artifact SBOM automation and CI OS/browser triage remain separate work.
 
 The official Playwright container alternative was scanned and not adopted; the user chose to retain the runner. Its7 high package findings include a Noble GStreamer fix available through Ubuntu Pro/ESM, not ordinary archive updates. The source switch addresses availability, not those vulnerabilities. CI OS/browser dependency triage remains open alongside the detailed GitHub alert reconciliation; no paid service or deployment is authorized. Full diagnosis and scan evidence are in Contracts history.
+
+The [manual UAT walkthrough](docs/UAT.md) is drafted with92 cases; none is marked executed or passed. Use it to record the upcoming isolated and physical-device run. Real-provider/deployed acceptance remains separate.
 
 ### M6 exit evidence — source accepted, external acceptance open
 
