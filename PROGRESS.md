@@ -1,38 +1,49 @@
-# Fitfinity current progress
+# Fitfinity current progress and handover
 
-## Current checkpoint — 28 October 2026, 16:19 Singapore
+This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. Update this checkpoint when work changes; keep detailed historical receipts in Journey instead of accumulating old handovers here.
 
-Accepted **application source** is [PR104](https://github.com/LimYouSheng/FitfinityReact/pull/104), merge `1246fb815b1240a92fd953b85abc05f18f46bc73`. Exact head `c8f0634820758b5d5de229cfab501d7ef6726189` passed all required gates in run40530155757, including both API shards within20 minutes. PyJWT/urllib3 fixes, offline-editor fixture readiness and the Ubuntu mirror selector are merged. Fresh main run40614828297 passed. No current-source Lambda deployment is claimed. Full receipts and original failures remain in Journey.
+## Current task — consolidate and accept the documentation refactor
 
-[The canonical operation matrix](docs/api-contracts.md#domain-operation-inventory) records **55/55 source accepted**: 54 server-connected operations plus one local predicate. All 18 operations remaining at the 37/55 checkpoint are complete in merged source. This does not establish deployment or blanket milestone acceptance.
+Checkpoint: 28 October 2026, 16:26 Singapore. The requested documentation changes are implemented and published in **[PR109](https://github.com/LimYouSheng/FitfinityReact/pull/109)**. They are not merged or final-head CI-accepted. The active task is to complete verification and resolve the remaining CI failure before an eligible source merge; no new API feature or AWS deployment is in progress.
 
-| Acceptance | Evidence and limit |
+### Completed in this task
+
+| Deliverable | Current result |
 | --- | --- |
-| Staff-portal source | All named operations and the additional M6 source-exit implementation are source-accepted; live/provider/device acceptance below remains separate. Detailed operation receipts live in Journey. |
-| Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; local signed-token Cognito substitute and actual isolated S3-compatible media storage. No production PostgreSQL or Lambda redeployment needed. |
-| Deployment | The merged release workflow requires manual image initiation, exact main SHA, full verification and existing AWS approval. Current-source Lambda deployment, real Cognito and current device acceptance remain unrecorded. Source merge and Pages demo publishing do not establish these outcomes. |
+| Documentation structure | Lowercase docs; root README removed; AGENTS is the entry directory. No repository skill created, as requested. |
+| Rules and API reference | [Business rules](docs/business-rules.md) retains all64 BR groups. [API contracts](docs/api-contracts.md) retains all55 operation rows and indexes159 HTTP operations /246 schemas from checked-in OpenAPI. |
+| Milestones and history | [Journey](docs/journey.md) begins with all20 milestone/extension rows (M0–M10), followed by the complete dated history. No duplicate roadmap remains here. |
+| Specialist guides | Version inventory, code-owner/BR mapping, developer AWS role UAT, runbook, development guide and ten architecture ADRs are included. |
+| PR cleanup | PR110/111 changes are incorporated into PR109; both are closed and their branches/commits preserved. GitHub marked PR110 merged into the task branch by ancestry, not into main. |
+| Local validation | Last split validation passed1,558 local links/anchors, all24 current Mermaid diagrams, preservation of rules/matrix/milestones/full history and API-index agreement. No application, dependency or workflow bytes changed. This handover wording update receives its own link/diff checks. |
 
-### Checkout and consolidated documentation PR
+### Left off — checkout, evidence and unresolved failure
 
-Active checkout: `docs/dependency-version-inventory`, incorporating PR110/111 through `4c7495312a6903b6087681efdb755ae4e0356658` before this split. All eight existing stashes remain preserved. GitHub main remains `1246fb815b1240a92fd953b85abc05f18f46bc73`; documentation changes are not accepted main.
-
-[PR109](https://github.com/LimYouSheng/FitfinityReact/pull/109) is the single documentation review. It includes the version inventory, BR/code-owner map, role UAT, runbook, development guide, ten architecture ADRs and the requested three-file contract split. PR110/111 are superseded by this consolidated branch; original branches/commits are preserved. No repository skill was created, as requested; AGENTS remains the entry point.
-
-| Canonical document | Current purpose |
+| Item | Exact handover |
 | --- | --- |
-| [Business rules](docs/business-rules.md) | All64 current BR groups and acceptance constraints, with stable IDs |
-| [API contracts](docs/api-contracts.md) | Unchanged55-operation matrix,159 HTTP method/path entries and246 schema references |
-| [Journey](docs/journey.md) | Complete retained dated history, first failures, decisions and acceptance evidence |
+| Repository / active branch | `/workspace/FitfinityReact` · `docs/dependency-version-inventory` · PR109 targets main. Use the existing checkout. |
+| Inspected source | `1b3a5cea89c79cb0ff839757c7c92d800168bc13`, before this handover-only update. Resolve the latest commit from Git/PR109 when resuming; this document cannot embed its own commit SHA. |
+| Working tree / preserved work | Clean before this update. Eight existing stashes and superseded PR branches are retained; do not reset, drop or delete them. |
+| Main / accepted application | Last verified main `1246fb815b1240a92fd953b85abc05f18f46bc73` (PR104), with successful fresh-main run40614828297. Recheck remote main before continuing. |
+| Latest inspected CI | [run40656465566](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40656465566) for `1b3a5ce` was pending. Publishing this handover creates a newer head requiring its own complete checks. Earlier-head results are not final acceptance. |
+| Known failed evidence | [run40650892639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40650892639), head `a5e36f0`: frontend/backend and API shard2 passed; shard1 had187 passed/1 failed. The aggregate correctly rejected the failed shard. |
+| Failure location | Phone permanent reassignment in `tests-api/records.spec.js:200`; visible assignment and reload checks passed, then `read()` at line221 failed on `/api/directory` with `socket hang up (ECONNRESET)`. The reset's root cause is still unproven. No code repair, retry, assertion weakening or timeout change has been made. |
+| Evidence to reopen | [Original shard1 job](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40650892639/job/122690445978); retained local log `/tmp/fitfinity-run40650892639-shard1.log`; Actions trace artifact `fitfinity-api-traces-40650892639-1-1`. Local temporary files may not survive another workspace. Detailed receipt: [Journey entry](docs/journey.md#28-october-2026--split-canonical-rules-api-contracts-and-journey-consolidate-prs). |
+| Access caveat | The GitHub connector retrieved logs when CLI log download was forbidden; CLI API credentials later returned401. Use the available authorized connector if CLI access remains unavailable; do not replace injected credentials or bypass controls. |
 
-The combined Service Contracts file is removed, with links redirected to the specific owners. The full milestone roadmap is retained at the top of Journey; the H1–H7 backlog below remains intact. This split passed1,558 local link/anchor checks, all24 current Mermaid diagrams and preservation checks for all64 BR groups,55 matrix rows, all20 milestone/extension rows and the full original history. The159-endpoint/246-schema index matches the checked-in OpenAPI snapshot. PR109 still requires full final-head CI.
+### Resume in this order
 
-**CI finding:** preceding-head [run40650892639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40650892639) completed with frontend/backend and API shard2 passed. Shard1 had187 passed and1 failed: phone permanent reassignment passed its visible assignment/reload checks, then `/api/directory` verification failed with `ECONNRESET` at `tests-api/records.spec.js:221`. The aggregate correctly rejected a failed shard. This is neither an inventory mismatch nor a deployment-approval wait. Original logs were obtained through the connector and retained; the reset's root cause remains unproven. No assertion, retry or timeout was changed.
+1. Read AGENTS and this handover; inspect working tree, latest PR109 head, main and the runs attached to that exact head. Preserve original failed evidence and unknown work.
+2. Inspect the final-head frontend/backend/API-browser results. Investigate the retained connection reset using the trace and available server evidence; distinguish a transport/environment interruption from application or fixture behavior before choosing a repair. A later green run does not establish the earlier root cause. Do not use blanket retries or longer timeouts.
+3. If a repair is justified, reproduce and validate the focused change, record its diagnosis in Journey, update this checkpoint and run the required complete final-head gates. Keep any application/fixture repair identifiable from the documentation work.
+4. Once all three exact-head gates and GitHub requirements pass, merge PR109 under existing source-merge authority and verify fresh main. Record the tested/merged SHAs and run links in Journey; replace this active task with the next actual task here.
+5. Resume the separately scoped M6 external acceptance and roadmap work below. Source merge does not authorize image publication, AWS changes, real provider actions or physical/live acceptance claims.
 
-**Next action:** verify PR109's consolidated final head and investigate any recurring connection failure using the retained trace/server evidence before a targeted repair. Previous-head run40651160398 was in progress at inspection and cannot accept the consolidated head. Merge only after all three exact-head gates and GitHub requirements pass. No documentation change authorizes image publication, AWS deployment or provider/device acceptance.
+## Current acceptance boundaries
 
-## Milestone roadmap
+The [canonical operation matrix](docs/api-contracts.md#domain-operation-inventory) remains **55/55 source accepted:54 server-connected operations and one local predicate**. M6 source exit is accepted; the remaining live/provider/device evidence is listed below. Real-API verification uses actual FastAPI/migrations/PostgreSQL and isolated object storage with synthetic records and a local signed-token Cognito substitute. It does not use production PostgreSQL and needs no Lambda redeployment.
 
-The [full M0–M10 overview in Journey](docs/journey.md#full-milestone-roadmap) owns milestone scope and exit criteria. Progress retains the current acceptance, remaining work and H1–H7 backlog below.
+No current-source Lambda deployment, real Cognito acceptance or current physical-device/UAT receipt is recorded. Historical application receipts and full milestone scope are in [Journey](docs/journey.md); the current documentation PR does not change those acceptance boundaries.
 
 ## Remaining work
 
