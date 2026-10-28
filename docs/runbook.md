@@ -1,6 +1,6 @@
 # Fitfinity operations runbook
 
-Draft — **28 October 2026**. For authorised operators of the developer AWS environment and future production releases. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Business rules](business-rules.md) owns rules, and [Development](development.md) owns local setup and verification commands.
+Draft — **28 October 2026**. For authorised operators of the developer AWS environment and future production releases. [Security infrastructure](security.md) maps controls and remaining layers. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Business rules](business-rules.md) owns rules, and [Development](development.md) owns local setup and verification commands.
 
 Navigation: [Access](#1-ownership-and-access) · [Routine checks](#2-routine-checks) · [Dependencies](#3-dependency-maintenance-and-dependabot) · [Monitoring](#4-monitoring-and-observability) · [Incidents](#5-incident-response-and-recovery) · [Releases](#6-deployments-and-rollback) · [Restore](#7-data-protection-and-restore) · [DNS](#8-domain-dns-and-https) · [Handover](#9-operational-records-and-handover).
 

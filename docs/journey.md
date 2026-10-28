@@ -33,6 +33,10 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 28 October 2026 — security infrastructure overview
+
+Added `docs/security.md` at the user’s request, following the inspected SoccerBot security format: one stakeholder-facing paragraph above the Mermaid trust-boundary overview, then assets, hosting/network, identity/session, authorization, transaction recovery, media, secrets/storage, availability, supply chain, diagnostics/operators, proposed layers and evidence owners. Source controls, prepared AWS configuration and future work are distinguished. Existing cookie SameSite=Lax, encrypted authentication material, bounded requests, prepared WAF/throttling/security headers and current manual release authority are described from their owning code; no deployed-control, new scanner, telemetry or restore acceptance is inferred. Future layers link to the existing H1–H7 backlog. No security setting, dependency, workflow or AWS resource changed.
+
 ### 28 October 2026 — standardize milestone and journey ownership
 
 The user requested the initial overall milestones at the top of Journey. M0–M10 (including the assessment extension, M6.1–M6.5 and separate public website) move here from Progress with scope and exit criteria retained. Progress links this overview and keeps current acceptance, blockers and the H1–H7 remaining-work backlog. The complete dated history follows below; no milestone is closed by this move.
