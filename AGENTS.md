@@ -7,7 +7,7 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | File | Unique purpose |
 | --- | --- |
 | [README](README.md) | Development prerequisites, configuration and commands |
-| [Owner](docs/UAT/Owner.md), [Admin](docs/UAT/Admin.md), [Trainer](docs/UAT/Trainer.md) worksheets | Role-specific user acceptance worksheets with blank results/remarks; not executed test receipts |
+| [Owner](docs/UAT/Owner.md), [Admin](docs/UAT/Admin.md), [Trainer](docs/UAT/Trainer.md) worksheets | Role-specific developer AWS acceptance worksheets with blank results/remarks; not executed test receipts |
 | [Code owners](docs/Code-Owners.md) | Hierarchical feature/module navigation and responsibility diagrams |
 | [Versions](Versions.md) | Repository dependency/version inventory and manual patch lookup; not deployed acceptance |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |

@@ -358,6 +358,12 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 ## Part 2 — Dated changes and evidence
 
+### 28 October 2026 — developer AWS UAT worksheet scope
+
+The user requested all role worksheets be written for live use in the developer AWS environment. Each now records the deployed developer URL/version and uses actual developer sign-in/authenticator, invitation/recovery/verification email, persisted records and cross-device recording reads. Only designated test identities/inboxes/records are used; no production customer environment is implied. Disabled features and unprepared expiry/fault scenarios are Blocked, not simulated substitutes. A controlled save-failure/lost-confirmation/recovery check must be arranged and its outcome verified; no worksheet instructs a tester to stop shared services or alter storage directly. The old generic service-restart wording is replaced with an agreed developer AWS interruption/recovery case.
+
+Review also corrected earlier worksheet section/role assignments: attribution stays with schedules, PDF export with session work, Trainer reactivation with lifecycle, and remuneration approval with Owner financial work. Admin cannot be asked to approve remuneration; Trainer content/history/library rows test their restrictions. All92 original cases remain across the roles, plus Trainer-only UAT-T01; role row counts are87 Owner,85 Admin and68 Trainer. Result/Remarks cells remain empty, with no UAT README, retest or completion sections restored. This is documentation only: no AWS action, provider message, deployment or UAT execution occurred.
+
 ### 28 October 2026 — simplify role worksheets
 
 At the user's request, removed the UAT-folder README and each worksheet's Retests section and all following completion/sign-off material. The folder now contains only Owner, Admin and Trainer worksheets. Existing test-case rows, expected results and blank Result/Remarks cells are unchanged; navigation links point directly to the worksheets. Earlier entries describe the prior draft, not the current folder structure. No cases were executed or accepted by this edit.

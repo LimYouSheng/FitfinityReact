@@ -67,7 +67,7 @@ PR104 is now merged after complete exact-head CI. The user reports **0 open /26 
 
 The official Playwright container alternative was scanned and not adopted; the user chose to retain the runner. Its7 high package findings include a Noble GStreamer fix available through Ubuntu Pro/ESM, not ordinary archive updates. The source switch addresses availability, not those vulnerabilities. CI OS/browser dependency triage remains open alongside the detailed GitHub alert reconciliation; no paid service or deployment is authorized. Full diagnosis and scan evidence are in Contracts history.
 
-The [UAT folder](docs/UAT/) contains separate Owner, Admin and Trainer worksheets with blank Result/Remarks columns. The original92 case IDs remain, with one additional Trainer manager-action restriction check; none is marked executed or passed. Use the role worksheets to record the upcoming isolated and physical-device run. Real-provider/deployed acceptance remains separate.
+The [UAT folder](docs/UAT/) contains separate Owner, Admin and Trainer worksheets with blank Result/Remarks columns. The original92 case IDs remain, with one additional Trainer manager-action restriction check; none is marked executed or passed. The worksheets now target the deployed developer AWS site with real Cognito/email and developer storage, using designated test records. Assisted fault/recovery checks must be arranged separately. Drafting these worksheets does not execute tests, deploy source or establish developer/live/device acceptance.
 
 ### M6 exit evidence — source accepted, external acceptance open
 
