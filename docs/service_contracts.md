@@ -358,6 +358,10 @@ Operations means Owner/Admin. Assigned-client edits require current assignment; 
 
 ## Part 2 — Dated changes and evidence
 
+### 28 October 2026 — continuous development guide
+
+Adapted the requested [SoccerBot development format](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/feat/version-inventory/docs/development.md) into `docs/development.md`: local VS Code, Codex Cloud, ZIP snapshots and PR/CI workflows. Fitfinity retains its own browser permissions, FastAPI/PostgreSQL isolation and AWS authority boundaries; no Worker, installer or versions-generator tooling was imported. Existing setup and verification reference text moved from Runbook section10; operational configuration remains there. AGENTS links the unique owners. This is a separate dependent documentation PR from PR109 head `889103010b11b2f2ba9969b88995bfe0fa068289`, not application implementation or deployment evidence.
+
 ### 28 October 2026 — remove redundant root README
 
 At the user's request, removed root README.md. Its remaining development setup, verification commands and configuration moved into Runbook section10; its three-layer dependency policy moved into section3. Image publication and MFA recovery were already owned by the runbook. Local references now point directly to those owners; AGENTS remains the task-based entry directory. Original instruction text and historical external links remain retained. No application behavior, dependency, AWS operation or test result changed.

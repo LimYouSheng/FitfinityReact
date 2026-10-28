@@ -12,6 +12,8 @@ Accepted **application source** is [PR104](https://github.com/LimYouSheng/Fitfin
 | Real API isolation | Actual FastAPI/migrations/PostgreSQL with synthetic records in disposable Docker databases; local signed-token Cognito substitute and actual isolated S3-compatible media storage. No production PostgreSQL or Lambda redeployment needed. |
 | Deployment | PR90 source now requires manual image initiation, exact main SHA, full verification and existing AWS approval. The obsolete PR88 image-approval wait was cancelled without approval; PR90 main run40458427527 is now verifying independently. No new AWS publication approval, Lambda deployment, real Cognito or current device acceptance is recorded. |
 
+The separate development-guide PR depends on PR109 head `889103010b11b2f2ba9969b88995bfe0fa068289`. [Development](docs/development.md) follows the requested SoccerBot workflow format with Fitfinity-specific tools, isolated tests and publication boundaries. Setup and commands moved from the runbook without duplication; configuration remains operational. Both documentation PRs still require exact-head CI and merge acceptance.
+
 ## Full milestone roadmap
 
 This is the current roadmap owner. Original numbering is retained, including the assessment extension without renumbering M5. Historical acceptance describes its recorded scope and is not a new production-readiness claim. The **55-operation matrix** measures domain integration within M6; it does not replace M7 event/media processing or M8/M9 staging and launch. Detailed business rules and full evidence remain in Service Contracts.

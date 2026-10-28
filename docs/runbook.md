@@ -1,6 +1,6 @@
 # Fitfinity operations runbook
 
-Draft — **28 October 2026**. For authorised operators of the developer AWS environment and future production releases. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Service Contracts](service_contracts.md) owns rules, and [section10](#10-development-and-configuration-reference) owns configuration and local commands.
+Draft — **28 October 2026**. For authorised operators of the developer AWS environment and future production releases. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Service Contracts](service_contracts.md) owns rules, and [Development](development.md) owns local setup and verification commands.
 
 Navigation: [Access](#1-ownership-and-access) · [Routine checks](#2-routine-checks) · [Dependencies](#3-dependency-maintenance-and-dependabot) · [Monitoring](#4-monitoring-and-observability) · [Incidents](#5-incident-response-and-recovery) · [Releases](#6-deployments-and-rollback) · [Restore](#7-data-protection-and-restore) · [DNS](#8-domain-dns-and-https) · [Handover](#9-operational-records-and-handover).
 
@@ -164,7 +164,7 @@ The image retains its commit/run/attempt binding, exact AWS account/role checks,
 
 [Release image](../backend/infrastructure/release_image.py), [image acceptance](../backend/infrastructure/image_acceptance.py), [private runtime](../backend/infrastructure/private_runtime.py), [database migrations](../backend/infrastructure/database_migrations.py) and [hosting operator](../backend/infrastructure/hosting_operator.py) are source owners, not a sequential script list to execute blindly. Their retained contracts and fingerprints may bind earlier artifacts. Reconcile and review a new release binding; never rewrite history or bypass a source mismatch just to make publication pass.
 
-Frontend and Lambda releases are separate. Preserve reviewed API origin/CORS/cookies and existing resource identities. Email correction and media are default-disabled capabilities: use [Runbook configuration](runbook.md#configuration) for compatible activation. Source-present cleanup commands do not establish scheduled cloud cleanup or accepted media processing.
+Frontend and Lambda releases are separate. Preserve reviewed API origin/CORS/cookies and existing resource identities. Email correction and media are default-disabled capabilities: use [Runbook configuration](runbook.md#10-configuration) for compatible activation. Source-present cleanup commands do not establish scheduled cloud cleanup or accepted media processing.
 
 ### 6.3 Rollback
 
@@ -198,34 +198,7 @@ For each incident/change retain: named owner, Singapore/UTC timestamps, environm
 
 Before handover, name primary/backup responders; confirm access/MFA/billing; reconcile current artifacts and dependency findings; exercise role UAT, alert delivery, rollback and restore; document residual risks and obtain Owner acceptance. [Code owners](code-owners.md) locates implementation modules, not on-call people. M7 processing, public/member delivery and M10 monitoring remain governed by [Progress](../PROGRESS.md), not completed by this document.
 
-## 10. Development and configuration reference
-
-### Development setup
-
-Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies with `npm ci` from the reviewed lockfile; reuse matching dependencies, prepared images and Playwright caches during routine work. Backend versions and hashes are owned by `backend/pyproject.toml`, its requirements files and `backend/Dockerfile`.
-
-`npm run dev` starts Vite; `npm run build` creates `dist/`; `npm run preview` serves it locally. `npm run build:pages-test` creates the `/FitfinityReact/` demo export. Local ports are not public preview URLs.
-
-### Verification commands
-
-| Command | Scope |
-| --- | --- |
-| `npm run verify:lint` / `verify:health` | Semantic lint and source ownership/health |
-| `npm run verify:quality-checker` / `verify:health-checker` | Verifier regressions |
-| `npm test -- --reporter=verbose` | Frontend units; append a real test path for focused work |
-| `npm run verify:assessments` | Assessment form parity |
-| `npm run verify:backend` | Full backend against isolated Docker PostgreSQL and S3-compatible storage, including offline infrastructure checks |
-| `npm run verify:infrastructure` | Offline infrastructure checks alone |
-| `CI=true npm run test:e2e -- --reporter=list` | Root/Pages/API-fixture builds, PWA and simulator browser suite |
-| `npm run test:api-browser` | Real frontend/FastAPI/migrations/PostgreSQL and protected-media browser suite |
-
-The [full-suite diagram](architecture/diagram.md#full-verification-suite) explains existing test scopes and planned mutation, performance, security, telemetry and operational verification. Planned suites have no executable command here until implemented.
-
-CI runs the real-API suite in two complementary shards, each with its own disposable databases/storage and the existing 20-minute budget. The required `verify / api-browser` aggregate checks both successful jobs and every discovered case identity, rejecting missing, duplicated, skipped, retried or failed cases. Local `npm run test:api-browser` still runs the complete suite; `-- --shard=1/2 --reporter=list,json` selects a shard for diagnosis, with `PLAYWRIGHT_JSON_OUTPUT_FILE` selecting its report path. A shard alone is not complete acceptance. Overall job budgets are 60 minutes each for frontend/backend, 20 minutes per API-browser shard and 5 minutes for the aggregate; these are separate from test and database timeouts.
-
-Required CI and evidence rules belong to [AGENTS](../AGENTS.md#verify-and-publish). Test inventories are defined by the verifiers, not historical counts in documentation.
-
-### Configuration
+## 10. Configuration
 
 Local prototype development uses `VITE_PORTAL_MODE=demo` and an empty `VITE_API_BASE_URL`. API builds explicitly select API mode and the reviewed API origin. Unsupported API operations do not fall back to demo storage. Public frontend configuration is separate from server secrets; never put credentials in a Vite bundle.
 
