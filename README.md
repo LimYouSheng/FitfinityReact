@@ -2,6 +2,8 @@
 
 Development entry point for the Fitfinity staff portal. See [AGENTS](AGENTS.md#authority-and-document-ownership) for the document map and engineering instructions.
 
+[Code owners and feature map](docs/Code-Owners.md) provides an overview and progressively detailed responsibility diagrams with source links.
+
 ## Development setup
 
 Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies with `npm ci` from the reviewed lockfile; reuse matching dependencies, prepared images and Playwright caches during routine work. Backend versions and hashes are owned by `backend/pyproject.toml`, its requirements files and `backend/Dockerfile`.

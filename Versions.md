@@ -10,6 +10,7 @@ Repository snapshot: **28 October 2026 Singapore**, dependency inputs from merge
 | --- | --- | --- |
 | Frontend application | 0.1.0 | [package.json](package.json); project metadata, not a release fingerprint |
 | Backend application | 0.1.0 | [backend/pyproject.toml](backend/pyproject.toml); project metadata |
+| FastAPI application/OpenAPI metadata | 0.2.0 | [backend/app/main.py](backend/app/main.py); API metadata differs from backend package metadata |
 | Node.js | 24 (major only; patch floats) | [.github/workflows/verify.yml](.github/workflows/verify.yml) and other workflows; build/test runtime |
 | npm | Bundled with selected Node; not independently pinned | Capture `node --version` and `npm --version` for each verification/release |
 | Python | 3.12.14; supported range >=3.12,<3.13 | [backend/Dockerfile](backend/Dockerfile), [pyproject.toml](backend/pyproject.toml) |

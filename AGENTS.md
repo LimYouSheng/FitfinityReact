@@ -7,6 +7,7 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | File | Unique purpose |
 | --- | --- |
 | [README](README.md) | Development prerequisites, configuration and commands |
+| [Code owners](docs/Code-Owners.md) | Hierarchical feature/module navigation and responsibility diagrams |
 | [Versions](Versions.md) | Repository dependency/version inventory and manual patch lookup; not deployed acceptance |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
 | [North Star](NORTH_STAR.md) | Current outcome and priority |
@@ -58,7 +59,7 @@ Fitfinity source acceptance requires complete `verify / frontend`, `verify / bac
 
 ## Documentation and handoff
 
-Update each document's unique owner and link elsewhere. Keep one North Star, one current progress ledger and one canonical operation matrix. Current rules precede full dated evidence in Service Contracts; historical instructions, approvals and counts do not govern current work. Preserve business/security decisions and first failures when consolidating; verify content preservation and references before deleting obsolete files.
+Update each document's unique owner and link elsewhere. Refresh `docs/Code-Owners.md` when responsibilities move between modules; keep business rules in Service Contracts and infrastructure topology in Architecture. Keep one North Star, one current progress ledger and one canonical operation matrix. Current rules precede full dated evidence in Service Contracts; historical instructions, approvals and counts do not govern current work. Preserve business/security decisions and first failures when consolidating; verify content preservation and references before deleting obsolete files.
 
 Report implemented, tested, CI-verified, merged, deployed and production/provider/device-accepted states separately. Record historical receipts once in Contracts Part 2; keep Progress limited to the current checkpoint, blockers and remaining work. Backlog entries need dependencies, acceptance evidence and rollout boundaries; a planned capability is not implemented or authorized for activation. At handoff, record the actual branch/head, dirty/stashed work, PR/CI status, unresolved failures and next action without exposing secrets.
 

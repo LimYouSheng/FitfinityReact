@@ -1,6 +1,6 @@
 # How the system fits together
 
-[System and verification diagrams](diagram.md) · [Current rules and dated history](../SERVICE_CONTRACTS.md)
+[Code owners and feature map](../Code-Owners.md) · [System and verification diagrams](diagram.md) · [Current rules and dated history](../SERVICE_CONTRACTS.md)
 
 **Staff interface.** React/Vite renders the Owner, Admin and Trainer portal. Feature screens use injected asynchronous services; `PortalDataProvider` owns authorized snapshots and `useAppNavigation` owns account-scoped history. Explicit demo mode uses prototype data and browser storage. API mode uses `apiPortalAdapter` and FastAPI without falling back to mocks. GitHub Pages hosts the separate demo export. A session-scoped recovery panel above the routes exposes uncertain simple-form commands after their editors close; the adapter retains immutable intents and the server owns receipts.
 

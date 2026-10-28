@@ -49,7 +49,7 @@ Follow the full roadmap above. The 55-operation source target is complete; do no
 2. Scope M7 durable events, scheduling/notifications and media processing/retention, preserving provider and deployment boundaries.
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency, Grafana and supply-chain capabilities remain planned until separately implemented and evidenced.
-5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested root Versions.md inventory and all eight existing stashes.
+5. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested root Versions.md inventory and docs/Code-Owners.md navigation map and all eight existing stashes.
 
 ### Active follow-up — dependency security and controlled updates
 

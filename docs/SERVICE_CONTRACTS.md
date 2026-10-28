@@ -228,6 +228,10 @@ All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/
 
 ## Part 2 — Dated changes and evidence
 
+### 28 October 2026 — hierarchical code ownership map
+
+The user explicitly requested one additional docs file following SoccerBot's `feat/version-inventory/docs/Code-Owners.md` format. `docs/Code-Owners.md` maps current Fitfinity source through21 Mermaid diagrams: one overview, feature/domain expansions and smaller lifecycle/storage/test expansions, with source links and an index into existing business-rule sections. “Owner” means a responsible module, not a person or GitHub reviewer. It separates code navigation from architecture topology, canonical rules, version inventory and acceptance history. The still-central staff routes and planned M7/M10 capabilities are labelled accurately; no router extraction, provider action or deployment is inferred. This extends the earlier document-count constraint by explicit user request without duplicating the business rules or historical ledger.
+
 ### 28 October 2026 — PR104 acceptance, alert reconciliation and root version inventory
 
 PR104 head `c8f0634820758b5d5de229cfab501d7ef6726189` passed complete frontend/backend/API-browser CI in run40530155757. Both real-API shards completed in about15½ minutes, with the reviewed Ubuntu mirror selection working and the20-minute budgets unchanged. It merged as `1246fb815b1240a92fd953b85abc05f18f46bc73` at09:24 Singapore. Fresh main run40614828297 is separately in progress at this documentation checkpoint. No Lambda deployment occurred.
