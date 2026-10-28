@@ -1,6 +1,6 @@
 # Security infrastructure
 
-Fitfinity protects information through several layers: staff sign in with a password and authenticator, the server checks which records and actions each person is allowed to access, and guarded saves prevent conflicting edits or repeated requests from silently changing records twice. Private media access is limited, sensitive credentials stay on the server, and software changes must pass verification before release. The AWS design adds encrypted connections, private storage and traffic filtering, while monitoring and recovery provide further protection as they are completed. The sections below distinguish controls implemented in the code from cloud settings that still need deployment verification and future improvements.
+Fitfinity uses **Amazon Cognito** for staff sign-in and authenticator-based MFA, while the **Python FastAPI** backend checks each person's role and record permissions before accessing **PostgreSQL** or saving changes. **SQLAlchemy transactions** and stored command receipts protect against conflicting edits and duplicate updates; private media uses **Amazon S3** through limited, short-lived access links. The selected AWS design uses **CloudFront**, **API Gateway**, **AWS WAF** and **Lambda** to serve and filter traffic, **Amazon RDS for PostgreSQL** for database hosting, and **Secrets Manager with IAM roles** for server credentials. **GitHub Actions**, **Dependabot**, **npm audit**, **Vitest**, **pytest** and **Playwright** support change review and verification. The document distinguishes implemented code from AWS settings requiring current deployment proof; **OpenTelemetry and Grafana** monitoring and additional scanning/recovery layers remain future work.
 
 ```mermaid
 flowchart TB
@@ -66,6 +66,33 @@ flowchart TB
 Reviewed against repository application source on **28 October 2026**. **Implemented** means code exists; **prepared** means infrastructure configuration or an operator workflow exists; **planned** means further work. Solid arrows show responsibilities and trust boundaries, not proof that the current source is deployed. Dashed arrows identify additional layers. Historical AWS receipts do not establish the present account posture or authorize new actions.
 
 This document owns the security overview and control/evidence map. [Business rules](business-rules.md) owns requirements, [API contracts](api-contracts.md) owns request schemas, [ADR](architecture/adr.md) owns architecture rationale, [Runbook](runbook.md) owns operational procedures, [Progress](../PROGRESS.md) owns current tasks and the H1–H7 backlog, and [Journey](journey.md) retains milestones and history. This is not a penetration-test report or compliance certification.
+
+## Tools and services by status
+
+Exact package, image and Action pins belong to [Versions](versions.md). This table identifies the actual owners and their security purpose; a named service is not proof of current account configuration or deployed acceptance.
+
+| Tool / service | Security responsibility | Current status and limit |
+| --- | --- | --- |
+| React + Vite | Staff UI, explicit API/demo composition and retirement of private UI on identity changes | Implemented frontend; browser controls do not grant server authority. |
+| Python FastAPI + Pydantic + Uvicorn | HTTP application, request/schema validation and controlled server entry | Implemented; current-source Lambda deployment remains separately evidenced. |
+| Amazon Cognito User Pools | Staff authentication, TOTP MFA, password and verified-email flows | Integration implemented; actual pool/client settings and current live-provider acceptance require verification. |
+| PyJWT + Python `cryptography` AES-GCM | Verify Cognito RSA-signed access tokens; encrypt retained provider authentication material with scoped context | Implemented libraries; not encryption of every business field. |
+| PostgreSQL + SQLAlchemy + psycopg | Relational constraints, reviewed-version transactions and durable command receipts | Implemented, tested against isolated Docker PostgreSQL; not browser-only persistence. |
+| Alembic | Versioned forward database migrations and compatibility evidence | Implemented; populated deployed migration/restore acceptance remains separate. |
+| Amazon RDS for PostgreSQL | Managed database hosting, private networking, encryption and backup settings | Prepared/historical AWS foundation; actual settings and recovery guarantees need current evidence. |
+| Amazon CloudFront + Amazon API Gateway + AWS WAF | HTTPS/static delivery, API routing, prepared security headers, regional/edge filtering and throttling | Infrastructure design/operator checks exist; present deployment behavior must be measured and inspected. |
+| AWS Lambda + Lambda Web Adapter | Run the ordinary FastAPI HTTP container in the selected AWS runtime | Runtime image path implemented; image publication does not update the Lambda function. |
+| Amazon S3 | Private frontend origin and separate protected-media storage responsibilities | Hosting design and media adapter implemented; bucket policies, origin access, CORS and media activation need environment acceptance. |
+| AWS Secrets Manager + IAM + GitHub OIDC | Retrieve scoped server secrets; use short-lived, purpose-specific release credentials | Managed configuration and workflow roles prepared; actual grants, trust policies and rotation/recovery require review. |
+| AWS CloudFormation + boto3 / AWS CLI operators | Prepare and validate target-bound infrastructure operations | Source tooling exists; historical templates are not permission to execute or recreate resources. |
+| GitHub Actions + Dependabot + npm audit | Required CI, grouped update proposals and blocking npm high/critical advisory checks | Implemented source policy; Python custom locks, Compose images and deployed remediation remain separate maintenance scopes. |
+| Vitest + pytest + Playwright + Docker Compose + RustFS | Unit, backend and browser permission/persistence/recovery evidence using isolated PostgreSQL and S3-compatible storage | Implemented suites; local signed-token provider substitutes Cognito. RustFS is a test service, not the production media host. |
+| Amazon ECR image scanning and repository image-acceptance operators | Inspect the candidate image digest and retain release findings | Manual publication/acceptance path exists; no new scan or finding closure is claimed by this document. |
+| Allowlisted Python JSON logging; prepared Amazon CloudWatch metrics | Request IDs/timings/error types and infrastructure signals with bounded sensitive-data exposure | Application logging implemented; prepared WAF metrics do not establish active alerts or complete monitoring. |
+| OpenTelemetry + Grafana | Proposed correlated traces, metrics, dashboards, SLOs and alerts | Planned, not implemented/activated; collector, storage backend, hosting and retention choices still require design and cost review. |
+| GitHub CodeQL or equivalent SAST; GitHub secret scanning / push protection | Proposed static security analysis and detection/prevention of committed secrets | Proposed/account availability unverified; no enabled-control claim. |
+| AWS CloudTrail, Config, GuardDuty and Security Hub | Candidate audit, configuration/compliance signals and threat/finding aggregation | Evaluate current coverage and need; not verified enabled or authorized for provisioning. |
+| SBOM and artifact-attestation tooling; media malware scanner | Proposed supply-chain provenance and content inspection | Tools not selected or implemented. Choose and test them in scoped H3/H4/M7 work; do not imply checksums perform malware scanning. |
 
 ## 1. Assets and trust boundaries
 
