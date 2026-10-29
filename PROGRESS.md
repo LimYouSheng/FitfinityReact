@@ -12,7 +12,7 @@ Checkpoint: 29 October 2026 Singapore. PR112 merged as `d5412281a4912d1e93f9abcf
 | --- | --- |
 | PR112 acceptance | [Run40715917844](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40715917844) passed frontend/backend/both API shards and aggregate; GitHub confirmed merge on 29 October at 09:56 Singapore. |
 | Operating guide | NORTH_STAR defines activation, campaign contract, loop transitions, budget checkpoints, no-progress handling, acceptance states and handover. AGENTS remains the engineering-rule authority. |
-| Local validation | 1,811 local links/anchors pass; prior Journey, business rules, API contracts and workflow budgets preserved. No diagram or application changes; full new-head CI pending. |
+| Local validation | 1,810 local links/anchors pass; prior Journey, business rules, API contracts and workflow budgets preserved. No diagram or application changes; full new-head CI pending. |
 | Goal/history preservation | Fitfinity's outcome and acceptance remain below and in the API matrix/milestone roadmap. Prior NORTH_STAR text and PR112 receipts are retained in Journey. |
 | Boundaries | No application/workflow changes, installed automation, paid service, AWS deployment or provider action. |
 
