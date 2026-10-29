@@ -33,6 +33,33 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 29 October 2026 — full documentation rendering audit
+
+Audited all 18 root/docs Markdown files with GFM parsing and local Chromium rendering: 169 tables, 41 Mermaid diagrams (including four historical Journey diagrams), 1,810 local links/anchors and balanced fences. The historical reviewed-write sequence diagram failed because Mermaid interpreted its message semicolon as syntax. Escaped it as `#59;`, retaining the displayed text “Definitive rejection; no changes”; no historical decision or application behavior changed. All 41 diagrams then rendered to nonempty SVG and all tables retained matching cell counts. This is local Markdown/Mermaid renderer evidence, not a pixel-identical GitHub UI or external-link availability audit. The earlier 37-diagram count covered current specialist documents and did not include those four historical diagrams. Correction is included in PR113; new-head CI remains required.
+
+
+### 29 October 2026 — PR112 accepted and reusable campaign guide
+
+PR112 merged on 29 October 2026 at 09:56 Singapore as `d5412281a4912d1e93f9abcf5438425893040918`. Tested head `ed5cb12721cbceaafe3ff6ad1b602674cc331fb4` passed [run40715917844](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40715917844): frontend, backend, both real-API shards and aggregate. Fresh-main verification was pending at this record; no AWS deployment is implied.
+
+Earlier [run40709497234](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40709497234), head `db6f766`, passed frontend/backend/shard1 but shard2 had 180 passed/1 failed. Tablet Trainer PDF export timed out waiting for Download PDF at `tests-api/session-handoffs.spec.js:29`; API reads and PDF modules loaded, but no usable export appeared. Artifact `fitfinity-api-traces-40709497234-1-2` (12826900606) retains the trace. The last captured frame's clipped navbar and the export timeout have not been diagnosed; passing later CI is not a repair receipt. CLI artifact download failed, but the authorized GitHub connector retrieved the artifact. No timeout/retry/assertion change was made.
+
+The user then requested turning NORTH_STAR into a reusable general instruction source with a Ralph-loop specification, campaign contract and budgets. The new guide is procedural prose, not an installed SKILL.md, scheduler or executing agent. Default bounded work blocks are 6 substantive iterations or 90 active minutes, with explicit reassessment rather than automatic abandonment; two no-progress cycles require a new diagnostic method. Existing per-job CI budgets and source/deployment permissions are unchanged. AGENTS owns engineering rules, Progress owns the actual outcome/current campaign, and Journey owns durable milestone/history evidence. No new business rule or API operation was introduced.
+
+The previous North Star outcome is retained below as historical source text; current status belongs to Progress and the operation matrix.
+
+#### Archived North Star: persistent API-backed Fitfinity prototype parity
+
+##### Current outcome — 25 October 2026 Singapore
+
+Deliver all **55 named operations** in `src/services/portalContracts.js` with durable behavior, server-enforced permissions and the approved Owner/Admin/Trainer prototype experience. Every integrated server operation must have meaningful real-API evidence against isolated Docker PostgreSQL. The separate public website remains in scope after staff-portal completion.
+
+All **55 named operations are now source-accepted**, with real isolated PostgreSQL evidence for every server operation; the one local predicate is explicitly distinguished. PR82 also completes the authorized M6 source-exit work: Trainer attribution/backfill, authentication/route parity and actual process-restart evidence. The remaining M6 acceptance is environment-specific and must retain its deployment, real-provider and current device/UAT boundaries before full milestone closure. [Progress](../PROGRESS.md) owns current work and evidence; [Business rules](business-rules.md#milestones-and-retained-acceptance-criteria) owns completion criteria. Deployment and live acceptance remain separate from source integration.
+
+The active roadmap remains **M6.1–M6.5 → M7 → staging/UAT and launch (M8/M9) → operational hardening and observability (M10)**, with the separate public website after staff-portal completion. [Full milestone overview and exit criteria](journey.md#full-milestone-roadmap) remain authoritative; 55/55 domain operations does not by itself close the later milestones.
+
+
+
 ### 28 October 2026 — data lifecycle draft and broader API examples
 
 At the user's request, extended PR112 with `docs/data-lifecycle.md`, following SoccerBot's eight-section data-lifecycle draft format while mapping Fitfinity's actual PostgreSQL/Cognito/private-S3/browser owners. The review distinguishes general disposal gaps from implemented explicit auth maintenance and leased media byte deletion. Auth cleanup predicates, recording expiry, upload/read leases, retained mutation/receipt/archive evidence and unverified backup/log/object-version settings are documented. No database/provider query, cleanup command, infrastructure change or restore was executed. Policy clauses, category-specific disposal periods, actual worker scheduling, copy coverage and tested deletion-aware restore remain pending.
@@ -7934,7 +7961,7 @@ sequenceDiagram
     API-->>UI: Canonical saved result
     UI->>API: Reload authorized state
   else Stale or unauthorized
-    API-->>UI: Definitive rejection; no changes
+    API-->>UI: Definitive rejection#59; no changes
   end
   opt Response lost after possible commit
     UI->>API: Read receipt for original actor/key

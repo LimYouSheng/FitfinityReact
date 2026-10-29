@@ -14,7 +14,7 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | [Security](docs/security.md) | Security trust boundaries, control/evidence map and future layers; not a second rules or backlog owner |
 | [Versions](docs/versions.md) | Repository dependency/version inventory and manual patch lookup; not deployed acceptance |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
-| [North Star](NORTH_STAR.md) | Current outcome and priority |
+| [Campaign operating guide](NORTH_STAR.md) | Reusable campaign contract, bounded Ralph loop, budgets, evidence and handover procedure |
 | [Progress](PROGRESS.md) | Detailed current task, completed work, exact stopping point/handover, blockers, next actions and remaining-work backlog |
 | [Architecture decisions](docs/architecture/adr.md) | Stack rationale, tradeoffs, scaling triggers and contingency options |
 | [Architecture diagram](docs/architecture/diagram.md) | Component topology and connections |
@@ -54,7 +54,9 @@ Use the existing checkout and one active feature branch. Preserve unknown edits,
 
 ## Plan and iterate
 
-Choose one ready task serving the North Star and define completion evidence before implementation: expected behavior, owning code, dependencies, failure/permission cases and applicable acceptance gates. Keep one coherent slice per PR. Fix routine implementation and test failures autonomously; seek decisions for unresolved business requirements, material architecture/security/cost tradeoffs or actions beyond existing authority. Do not repeatedly ask for permission already granted.
+For sustained work, apply the [campaign operating guide](NORTH_STAR.md). Keep the active objective, budget and leave-off in Progress; this file continues to own engineering constraints and permissions.
+
+Choose one ready task serving the active campaign outcome in Progress and define completion evidence before implementation: expected behavior, owning code, dependencies, failure/permission cases and applicable acceptance gates. Keep one coherent slice per PR. Fix routine implementation and test failures autonomously; seek decisions for unresolved business requirements, material architecture/security/cost tradeoffs or actions beyond existing authority. Do not repeatedly ask for permission already granted.
 
 Inspect → implement → review affected tests and contracts → run focused checks → diagnose → update owning documents → checkpoint. Retry a failed check only with a new diagnosis, material fix or evidence of a transient cause; preserve the first failure. Reuse findings and inspect changed sections instead of repeatedly restarting broad audits.
 
