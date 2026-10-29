@@ -12,7 +12,7 @@ Checkpoint: 29 October 2026 Singapore. PR112 merged as `d5412281a4912d1e93f9abcf
 | --- | --- |
 | PR112 acceptance | [Run40715917844](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40715917844) passed frontend/backend/both API shards and aggregate; GitHub confirmed merge on 29 October at 09:56 Singapore. |
 | Operating guide | NORTH_STAR defines activation, campaign contract, loop transitions, budget checkpoints, no-progress handling, acceptance states and handover. AGENTS remains the engineering-rule authority. |
-| Local validation | 1,810 local links/anchors pass; prior Journey, business rules, API contracts and workflow budgets preserved. No diagram or application changes; full new-head CI pending. |
+| Local validation | All 18 Markdown files rendered locally: 169 tables and 41 Mermaid diagrams (including historical Journey diagrams). Fixed one sequence-diagram semicolon escape without changing displayed wording. 1,810 local links/anchors and fence checks pass; business rules, API contracts and CI budgets unchanged. New-head CI pending. |
 | Goal/history preservation | Fitfinity's outcome and acceptance remain below and in the API matrix/milestone roadmap. Prior NORTH_STAR text and PR112 receipts are retained in Journey. |
 | Boundaries | No application/workflow changes, installed automation, paid service, AWS deployment or provider action. |
 
@@ -24,14 +24,14 @@ Checkpoint: 29 October 2026 Singapore. PR112 merged as `d5412281a4912d1e93f9abcf
 | Starting evidence | Main `d541228`; existing checkout, branch `docs/campaign-operating-guide`. Existing stashes/branches preserved. |
 | Acceptance | Coherent instruction precedence; bounded loop with falsifiable exits; existing CI budgets unchanged; valid local links; original goal/history and business/API requirements preserved. New PR requires all final-head CI gates. |
 | Work queue | Review guide/defaults → validate links/preservation → publish draft → exact-head CI → eligible merge and fresh-main verification. |
-| Budget | Initial block: at most 6 substantive iterations / 90 minutes active work, with documented reassessment; 2 consecutive no-progress iterations trigger a different diagnostic method. Drafting and validation iterations complete (2/6); publication next. Active minutes were not separately instrumented; no numerical duration is claimed. No metered spend estimate is available; no new paid resources authorized. |
-| Delivery | Documentation-only PR on accepted main. This default guide is not an implementation of a runner or CI-budget change. |
+| Budget | Initial block: at most 6 substantive iterations / 90 minutes active work, with documented reassessment; 2 consecutive no-progress iterations trigger a different diagnostic method. Drafting, validation and whole-document rendering audit complete (3/6); published as PR113, render correction requires new-head CI. Active minutes were not separately instrumented; no numerical duration is claimed. No metered spend estimate is available; no new paid resources authorized. |
+| Delivery | [Draft PR113](https://github.com/LimYouSheng/FitfinityReact/pull/113), documentation-only on accepted main. This default guide is not an implementation of a runner or CI-budget change. |
 | Unresolved evidence | Earlier PR112 tablet PDF-export timeout and clipped trace frame remain undiagnosed; the newer passing run does not prove a repair. Earlier reassignment ECONNRESET cause also remains unresolved. Evidence references in Journey. |
 | Stop / handover | Preserve failures and pending CI; no merge on an unverified new head. Any later live acceptance requires its own concrete authorization/evidence. |
 
 ### Resume in this order
 
-1. Complete local documentation review and publish this guide; inspect the exact new head and required CI.
+1. Inspect PR113 after the render correction and verify its exact latest head against required CI.
 2. Confirm PR112 fresh-main verification independently. Do not treat the earlier PR run as its result.
 3. Merge the eligible guide head under source authority, record its receipt, and proceed to the scoped remaining work below. Keep known PDF/navbar/transport findings separate from claimed fixes.
 

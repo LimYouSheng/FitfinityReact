@@ -33,6 +33,11 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 29 October 2026 — full documentation rendering audit
+
+Audited all 18 root/docs Markdown files with GFM parsing and local Chromium rendering: 169 tables, 41 Mermaid diagrams (including four historical Journey diagrams), 1,810 local links/anchors and balanced fences. The historical reviewed-write sequence diagram failed because Mermaid interpreted its message semicolon as syntax. Escaped it as `#59;`, retaining the displayed text “Definitive rejection; no changes”; no historical decision or application behavior changed. All 41 diagrams then rendered to nonempty SVG and all tables retained matching cell counts. This is local Markdown/Mermaid renderer evidence, not a pixel-identical GitHub UI or external-link availability audit. The earlier 37-diagram count covered current specialist documents and did not include those four historical diagrams. Correction is included in PR113; new-head CI remains required.
+
+
 ### 29 October 2026 — PR112 accepted and reusable campaign guide
 
 PR112 merged on 29 October 2026 at 09:56 Singapore as `d5412281a4912d1e93f9abcf5438425893040918`. Tested head `ed5cb12721cbceaafe3ff6ad1b602674cc331fb4` passed [run40715917844](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40715917844): frontend, backend, both real-API shards and aggregate. Fresh-main verification was pending at this record; no AWS deployment is implied.
@@ -7956,7 +7961,7 @@ sequenceDiagram
     API-->>UI: Canonical saved result
     UI->>API: Reload authorized state
   else Stale or unauthorized
-    API-->>UI: Definitive rejection; no changes
+    API-->>UI: Definitive rejection#59; no changes
   end
   opt Response lost after possible commit
     UI->>API: Read receipt for original actor/key
