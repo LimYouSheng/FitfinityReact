@@ -1,39 +1,38 @@
 # Fitfinity current progress and handover
 
-This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) now owns the reusable campaign procedure, not a second outcome ledger.
+This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns reusable campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns every-PR documentation reconciliation.
 
-## Current task — reusable campaign operating guide
+## Current task — documentation-state skill for every PR
 
-Checkpoint: 29 October 2026 Singapore. PR112 merged as `d5412281a4912d1e93f9abcf5438425893040918` after complete final-head CI on `ed5cb12721cbceaafe3ff6ad1b602674cc331fb4`. Fresh-main [run40803386013](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40803386013) is running; its result is separate from PR acceptance. The current request is to turn NORTH_STAR into skill-like general instructions for campaigns, bounded Ralph loops and budgets. This creates no installed skill or automatic agent runner.
+Checkpoint: 29 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9cbd76ae7d3e678bb` after all final-head gates passed on `ef458800f011570318fbb1f16d028df641a07b8c`. Fresh-main [run40811886578](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40811886578) was running at inspection; PR112 fresh-main run40803386013 passed. Current scope is a repository documentation skill with an explicit AGENTS entry point, not a CI enforcement mechanism.
 
 ### Completed in this task
 
 | Item | Current evidence |
 | --- | --- |
-| PR112 acceptance | [Run40715917844](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40715917844) passed frontend/backend/both API shards and aggregate; GitHub confirmed merge on 29 October at 09:56 Singapore. |
-| Operating guide | NORTH_STAR defines activation, campaign contract, loop transitions, budget checkpoints, no-progress handling, acceptance states and handover. AGENTS remains the engineering-rule authority. |
-| Local validation | All 18 Markdown files rendered locally: 169 tables and 41 Mermaid diagrams (including historical Journey diagrams). Fixed one sequence-diagram semicolon escape without changing displayed wording. 1,810 local links/anchors and fence checks pass; business rules, API contracts and CI budgets unchanged. New-head CI pending. |
-| Goal/history preservation | Fitfinity's outcome and acceptance remain below and in the API matrix/milestone roadmap. Prior NORTH_STAR text and PR112 receipts are retained in Journey. |
-| Boundaries | No application/workflow changes, installed automation, paid service, AWS deployment or provider action. |
+| Skill | `.agents/skills/fitfinity-documentation/SKILL.md` defines triggers, owner impact review, exact acceptance states, validation, delivery-event handling and a concise PR receipt. |
+| Discovery | AGENTS requires explicit reading for every PR; hosts with repository skill discovery can also use its frontmatter. No claim that the current session's skill catalog auto-reloads. |
+| Validation | Skill YAML/name/description, explicit AGENTS fallback, 19 Markdown files / 1,814 local links and balanced fences passed. Prior Journey, business rules, API contracts, versions and CI budgets preserved. |
+| Campaign integration | NORTH_STAR checkpoint step invokes the skill; engineering authority and campaign budgets are unchanged. |
+| State discipline | Progress/Journey updated for each PR; all other owners reviewed and changed when affected. Final-head green is recorded in the PR receipt without creating an endless status-commit loop. |
 
 ### Campaign contract and leave-off
 
 | Field | Current contract |
 | --- | --- |
-| Outcome / scope | One reusable operating guide in NORTH_STAR, accurate owner links in AGENTS, current Progress and preserved Journey; no product behavior change. |
-| Starting evidence | Main `d541228`; existing checkout, branch `docs/campaign-operating-guide`. Existing stashes/branches preserved. |
-| Acceptance | Coherent instruction precedence; bounded loop with falsifiable exits; existing CI budgets unchanged; valid local links; original goal/history and business/API requirements preserved. New PR requires all final-head CI gates. |
-| Work queue | Review guide/defaults → validate links/preservation → publish draft → exact-head CI → eligible merge and fresh-main verification. |
-| Budget | Initial block: at most 6 substantive iterations / 90 minutes active work, with documented reassessment; 2 consecutive no-progress iterations trigger a different diagnostic method. Drafting, validation and whole-document rendering audit complete (3/6); published as PR113, render correction requires new-head CI. Active minutes were not separately instrumented; no numerical duration is claimed. No metered spend estimate is available; no new paid resources authorized. |
-| Delivery | [Draft PR113](https://github.com/LimYouSheng/FitfinityReact/pull/113), documentation-only on accepted main. This default guide is not an implementation of a runner or CI-budget change. |
-| Unresolved evidence | Earlier PR112 tablet PDF-export timeout and clipped trace frame remain undiagnosed; the newer passing run does not prove a repair. Earlier reassignment ECONNRESET cause also remains unresolved. Evidence references in Journey. |
-| Stop / handover | Preserve failures and pending CI; no merge on an unverified new head. Any later live acceptance requires its own concrete authorization/evidence. |
+| Outcome / scope | A reusable documentation procedure in one SKILL.md, wired into AGENTS/campaign guide; accurate current handover and dated evidence. No application/dependency/infrastructure change. |
+| Starting evidence | Main `0a36e81`; existing checkout, branch `docs/documentation-state-skill`. Unknown work/stashes/older branches preserved. |
+| Acceptance | Valid skill frontmatter and explicit discovery fallback; every canonical owner covered; update/no-change/pending classification; link/fence checks; previous history and domain requirements retained; full final-head CI before merge. |
+| Work queue | Draft → inspect owner/discovery/acceptance semantics → validate → publish draft with documentation receipt → exact-head gates. |
+| Budget | Initial 6-iteration/90-active-minute work block; drafting and validation complete (2/6), publication next. No new paid resource authority or claimed metered spend. |
+| Unresolved evidence | Earlier PDF export timeout, clipped trace navbar and reassignment ECONNRESET remain unexplained. Subsequent green CI did not repair or diagnose them. |
+| External boundary | Real Cognito, Lambda release, physical UAT, alert activation and tested restore remain independently pending; the skill grants no authority for them. |
 
 ### Resume in this order
 
-1. Inspect PR113 after the render correction and verify its exact latest head against required CI.
-2. Confirm PR112 fresh-main verification independently. Do not treat the earlier PR run as its result.
-3. Merge the eligible guide head under source authority, record its receipt, and proceed to the scoped remaining work below. Keep known PDF/navbar/transport findings separate from claimed fixes.
+1. Validate the skill/frontmatter, owner coverage, links and preservation; publish this documentation-only PR with its documentation-state receipt.
+2. Inspect PR113 fresh-main CI separately, then this PR's exact-head gates. Preserve new failures and update the current receipt honestly.
+3. Merge only the eligible tested head. Reconcile merged/fresh-main state in the PR receipt and next substantive repository checkpoint as the skill specifies; no direct-main or recursive status-only changes.
 
 ## Current acceptance boundaries
 
@@ -45,7 +44,7 @@ No current-source Lambda deployment, real Cognito acceptance or current physical
 
 Follow the [full roadmap in Journey](docs/journey.md#full-milestone-roadmap). The 55-operation source target is complete; do not repeat accepted integrations or mark later milestones complete from this count.
 
-1. Complete the campaign-guide documentation change, then prepare the remaining environment-specific M6 acceptance in the table below through separately authorized release work. The source-exit implementation is accepted; do not repeat it or infer live acceptance from synthetic-provider tests.
+1. Complete the documentation-state skill and its verification, then prepare the remaining environment-specific M6 acceptance in the table below through separately authorized release work. The source-exit implementation is accepted; do not repeat it or infer live acceptance from synthetic-provider tests.
 2. Scope M7 durable events, scheduling/notifications and media processing/retention, preserving provider and deployment boundaries.
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency and Grafana remain planned; dependency automation/audit is partially implemented, with remaining supply-chain work under H4.

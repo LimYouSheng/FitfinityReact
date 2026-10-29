@@ -2,6 +2,8 @@
 
 ## Authority and document ownership
 
+For every PR and delivery-state review, read and apply the repository [documentation reconciliation skill](.agents/skills/fitfinity-documentation/SKILL.md). This includes documentation-only and automated dependency PRs. Read it explicitly when the host does not discover repository skills. Review all document owners, update every affected one and include its documentation-state receipt; this is an instruction requirement, not an installed CI hook.
+
 This file owns engineering instructions. User instructions take precedence. Old root Journey, Rules & Architecture, CODEX_CLOUD, AWS_DEPLOYMENT_RUNBOOK and history-folder references are superseded; do not recreate those files. The user-requested docs/journey.md is the current complete-history owner. The user-requested `docs/runbook.md` is the current operational procedure owner. Documentation paths under `docs/` are lowercase; keep the remaining conventional root filenames unchanged. Root README.md was removed at the user’s request; use this directory and the development/runbook references instead.
 
 | File | Unique purpose |
@@ -13,6 +15,7 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | [Data lifecycle](docs/data-lifecycle.md) | Source-based storage, expiry/deletion inventory and pending policy-to-implementation mapping; not disposal authorization |
 | [Security](docs/security.md) | Security trust boundaries, control/evidence map and future layers; not a second rules or backlog owner |
 | [Versions](docs/versions.md) | Repository dependency/version inventory and manual patch lookup; not deployed acceptance |
+| [Documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) | Every-PR documentation impact review, state reconciliation, validation and delivery receipts |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
 | [Campaign operating guide](NORTH_STAR.md) | Reusable campaign contract, bounded Ralph loop, budgets, evidence and handover procedure |
 | [Progress](PROGRESS.md) | Detailed current task, completed work, exact stopping point/handover, blockers, next actions and remaining-work backlog |

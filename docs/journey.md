@@ -33,6 +33,15 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 29 October 2026 — PR113 accepted and documentation-state skill
+
+PR113 merged at 11:23 Singapore as `0a36e8138be64680b349f5b9cbd76ae7d3e678bb`, after [run40804531719](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40804531719) passed frontend, backend, both real-API shards and aggregate for `ef458800f011570318fbb1f16d028df641a07b8c`. Fresh-main run40811886578 was running at inspection; PR112 fresh-main run40803386013 passed. No AWS rollout or unresolved PDF/navbar repair is implied.
+
+The user explicitly requested a documentation skill, superseding the earlier decision not to create a repository skill. Added `.agents/skills/fitfinity-documentation/SKILL.md` with standard name/description frontmatter and AGENTS instructions to read it even when automatic discovery is unavailable. It applies to every PR, including bot/dependency/docs updates: review every document owner, update affected requirements/status/evidence, retain unchanged-owner reasoning and record pending delivery boundaries. Progress and Journey receive current/historical records; other owners change when affected, not through empty edits.
+
+The skill separates repository checkpoints from later PR/CI/merge receipts so an already-tested commit is not changed merely to record its own green status. Fresh-main and external acceptance remain separate. It introduces no installed CI hook, unattended runner, extra business rule, deployment authority or claim of automatic catalog reload. NORTH_STAR links the procedure at its checkpoint step; AGENTS remains the engineering authority. Validation passed the skill frontmatter, explicit fallback, 19 Markdown files / 1,814 local links, balanced fences and preservation of prior Journey, business rules, API contracts, versions and CI budgets. No application tests were rerun locally for these instruction-only changes; the new head requires complete CI.
+
+
 ### 29 October 2026 — full documentation rendering audit
 
 Audited all 18 root/docs Markdown files with GFM parsing and local Chromium rendering: 169 tables, 41 Mermaid diagrams (including four historical Journey diagrams), 1,810 local links/anchors and balanced fences. The historical reviewed-write sequence diagram failed because Mermaid interpreted its message semicolon as syntax. Escaped it as `#59;`, retaining the displayed text “Definitive rejection; no changes”; no historical decision or application behavior changed. All 41 diagrams then rendered to nonempty SVG and all tables retained matching cell counts. This is local Markdown/Mermaid renderer evidence, not a pixel-identical GitHub UI or external-link availability audit. The earlier 37-diagram count covered current specialist documents and did not include those four historical diagrams. Correction is included in PR113; new-head CI remains required.
