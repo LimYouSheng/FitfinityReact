@@ -2,9 +2,9 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns reusable campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns every-PR documentation reconciliation.
 
-## Current task — documentation-state skill for every PR
+## Current task — documentation and testing skills for every PR
 
-Checkpoint: 29 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9cbd76ae7d3e678bb` after all final-head gates passed on `ef458800f011570318fbb1f16d028df641a07b8c`. Fresh-main [run40811886578](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40811886578) was running at inspection; PR112 fresh-main run40803386013 passed. Current scope is a repository documentation skill with an explicit AGENTS entry point, not a CI enforcement mechanism.
+Checkpoint: 29 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9cbd76ae7d3e678bb` after all final-head gates passed on `ef458800f011570318fbb1f16d028df641a07b8c`. Fresh-main [run40811886578](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40811886578) was running at inspection; PR112 fresh-main run40803386013 passed. Current scope is repository documentation and testing skills with explicit AGENTS entry points in draft PR114, not CI enforcement mechanisms.
 
 ### Completed in this task
 
@@ -12,7 +12,8 @@ Checkpoint: 29 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9
 | --- | --- |
 | Skill | `.agents/skills/fitfinity-documentation/SKILL.md` defines triggers, owner impact review, exact acceptance states, validation, delivery-event handling and a concise PR receipt. |
 | Discovery | AGENTS requires explicit reading for every PR; hosts with repository skill discovery can also use its frontmatter. No claim that the current session's skill catalog auto-reloads. |
-| Validation | Skill YAML/name/description, explicit AGENTS fallback, 19 Markdown files / 1,814 local links and balanced fences passed. Prior Journey, business rules, API contracts, versions and CI budgets preserved. |
+| Validation | Both skills’ YAML/name/description and 5 GFM tables, explicit AGENTS fallbacks, 20 Markdown files / 1,816 local links and balanced fences passed. Evidence-owner paths and prior Journey, business/API requirements, CI and verifier bytes preserved. |
+| Testing skill | Added `.agents/skills/fitfinity-testing/SKILL.md`, adapted from SoccerBot to actual Fitfinity unit/simulator/real-API/backend/infrastructure owners, strict verifiers and browser permissions. Includes every-PR test-impact receipt. |
 | Campaign integration | NORTH_STAR checkpoint step invokes the skill; engineering authority and campaign budgets are unchanged. |
 | State discipline | Progress/Journey updated for each PR; all other owners reviewed and changed when affected. Final-head green is recorded in the PR receipt without creating an endless status-commit loop. |
 
@@ -20,17 +21,17 @@ Checkpoint: 29 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9
 
 | Field | Current contract |
 | --- | --- |
-| Outcome / scope | A reusable documentation procedure in one SKILL.md, wired into AGENTS/campaign guide; accurate current handover and dated evidence. No application/dependency/infrastructure change. |
+| Outcome / scope | Two complementary documentation/testing procedures in repository SKILL.md files, wired into AGENTS/campaign guide; accurate current handover and dated evidence. No application/dependency/infrastructure change. |
 | Starting evidence | Main `0a36e81`; existing checkout, branch `docs/documentation-state-skill`. Unknown work/stashes/older branches preserved. |
 | Acceptance | Valid skill frontmatter and explicit discovery fallback; every canonical owner covered; update/no-change/pending classification; link/fence checks; previous history and domain requirements retained; full final-head CI before merge. |
 | Work queue | Draft → inspect owner/discovery/acceptance semantics → validate → publish draft with documentation receipt → exact-head gates. |
-| Budget | Initial 6-iteration/90-active-minute work block; drafting and validation complete (2/6), publication next. No new paid resource authority or claimed metered spend. |
+| Budget | Initial 6-iteration/90-active-minute work block; documentation drafting/validation and testing-skill adaptation complete (3/6); expanded-skill validation complete (4/6); publish the new PR114 head next. No new paid resource authority or claimed metered spend. |
 | Unresolved evidence | Earlier PDF export timeout, clipped trace navbar and reassignment ECONNRESET remain unexplained. Subsequent green CI did not repair or diagnose them. |
 | External boundary | Real Cognito, Lambda release, physical UAT, alert activation and tested restore remain independently pending; the skill grants no authority for them. |
 
 ### Resume in this order
 
-1. Validate the skill/frontmatter, owner coverage, links and preservation; publish this documentation-only PR with its documentation-state receipt.
+1. Validate both skills, owner/verifier references, links and preservation; update draft PR114 with documentation-state and test-impact receipts.
 2. Inspect PR113 fresh-main CI separately, then this PR's exact-head gates. Preserve new failures and update the current receipt honestly.
 3. Merge only the eligible tested head. Reconcile merged/fresh-main state in the PR receipt and next substantive repository checkpoint as the skill specifies; no direct-main or recursive status-only changes.
 

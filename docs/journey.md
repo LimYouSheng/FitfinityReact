@@ -33,6 +33,13 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 29 October 2026 — Fitfinity testing skill
+
+The user requested adapting [SoccerBot's testing skill](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/4cb7bdd157862f8dd924948889281b2023a7b9a8/.agents/skills/soccerbot-testing/SKILL.md). Added `.agents/skills/fitfinity-testing/SKILL.md` to the existing skills PR114. It follows the reference's impact mapping, meaningful expectations, fixture/inventory synchronization, diagnosis and PR-receipt structure, using actual Fitfinity source owners and all three exact-head gates. Fitfinity permits isolated Playwright execution; SoccerBot's owner-only browser restriction, Worker/D1 providers and JSON inventory files were not imported.
+
+The skill distinguishes unit/simulator evidence, real FastAPI/migrations/Docker PostgreSQL/object storage, synthetic Cognito, process restart, macOS/WebKit CI, physical-device and live AWS/provider acceptance. It requires a justified add/update/retain/retire disposition, foreign-record/stale/concurrent/interrupted-write evidence where relevant, exact verifier updates and retention of first failures. No tests, fixtures, inventories, budgets, application behavior or provider authority changed. AGENTS explicitly invokes both skills and the documentation skill includes the testing guide in its impact map. The skill is procedural, not an automatic hook or new coverage guarantee. Validation passed both skill metadata blocks and five GFM tables, 20 Markdown files / 1,816 local links, balanced fences, evidence-owner paths and preservation of prior history/domain/CI/verifier bytes. No executable suite rerun was needed locally for this instruction-only addition; new-head full CI remains pending.
+
+
 ### 29 October 2026 — PR113 accepted and documentation-state skill
 
 PR113 merged at 11:23 Singapore as `0a36e8138be64680b349f5b9cbd76ae7d3e678bb`, after [run40804531719](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40804531719) passed frontend, backend, both real-API shards and aggregate for `ef458800f011570318fbb1f16d028df641a07b8c`. Fresh-main run40811886578 was running at inspection; PR112 fresh-main run40803386013 passed. No AWS rollout or unresolved PDF/navbar repair is implied.
