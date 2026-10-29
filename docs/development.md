@@ -20,7 +20,7 @@ Start with [AGENTS](../AGENTS.md), [North Star](../NORTH_STAR.md) and [Progress]
 
 - [Business rules](business-rules.md): current requirements; [API contracts](api-contracts.md): the55-operation matrix and detailed schemas; [Journey](journey.md): complete dated evidence.
 - [Architecture](architecture/adr.md) and [diagrams](architecture/diagram.md): component responsibilities and test coverage.
-- [Code owners](code-owners.md): feature and BR-to-module navigation.
+- [Code owners](code-owners/index.md): feature and BR-to-module navigation.
 - [Versions](versions.md): configured and locked dependencies, not deployed versions.
 - [Runbook](runbook.md): operations, dependencies, release, configuration and recovery.
 - [Owner](uat/owner.md), [Admin](uat/admin.md) and [Trainer](uat/trainer.md): developer AWS acceptance worksheets, separate from local synthetic testing.

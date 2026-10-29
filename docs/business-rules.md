@@ -4,15 +4,9 @@ This document owns current business requirements, design constraints and accepta
 
 ## Current business rules
 
-Stable rule-group IDs identify the existing paragraphs below; they do not change their requirements. Keep IDs when editing or moving a rule, never reuse retired IDs, and allocate the next unused ID for a new rule. A group may include its immediately following table. The [55-operation matrix](api-contracts.md#domain-operation-inventory), milestone IDs and [complete journey](journey.md) retain their separate identities. [Code ownership mapping](code-owners.md#11-business-rule-to-owner-index) links every BR ID to implementation or an explicitly labelled operational/planned owner.
+Stable rule-group IDs identify the existing paragraphs below; they do not change their requirements. Keep IDs when editing or moving a rule, never reuse retired IDs, and allocate the next unused ID for a new rule. A group may include its immediately following table. The [55-operation matrix](api-contracts.md#domain-operation-inventory), milestone IDs and [complete journey](journey.md) retain their separate identities. [Code ownership mapping](code-owners/index.md#11-business-rule-to-owner-index) links every BR ID to implementation or an explicitly labelled operational/planned owner.
 
-**Status reconciliation — 28 October 2026.** Permanent requirements in the numbered rules remain in force regardless of a PR or deployment checkpoint. The following interpretation applies to older implementation wording retained below: the [operation inventory](api-contracts.md#domain-operation-inventory) owns the current55/55 source acceptance (54 server-connected operations and one local predicate); [Progress](../PROGRESS.md) owns the latest task/CI state; [Journey](journey.md#complete-journey) owns historical evidence. This is a repository/evidence review, not a fresh audit of deployed AWS settings. PR references and “source acceptance” sentences are dated evidence, not additional business requirements or evidence of current deployment.
-
-BR-001's unsupported-operation safeguard continues to apply to disabled capabilities and future changes; it does not mean accepted named operations remain unimplemented. BR-006's warning against inferring all Trainer fields from a single branch is a completion-evidence rule, not a current missing-profile inventory. BR-008 has an implemented operator procedure and synthetic drill; actual lost-MFA recovery remains separately authorized and unaccepted without a live receipt. BR-024/026/030 retain their original PR acceptance references; those are historical receipts for Undo, acknowledgement and email correction, not the current PR state.
-
-BR-029's “unavailable mutations remain disabled” is a capability safeguard; the retained legacy opening action is source-connected, records only opening and does not send messages. BR-031's authentication and supporting reads are additional acceptance scope, not new operations added to the55. BR-033 means outcome/progress evidence does not establish other workflows by itself; summary, acknowledgement, reports and media now have their own accepted rows. BR-034's matrix reference therefore does not imply summary persistence is still pending.
-
-BR-035's public/member website and Glofox entitlement remain future scope after the staff portal. BR-048–050 distinguish implemented private-media intent/read/cleanup code from default-disabled production activation, M7 processing and physical capture acceptance; the demo's limits are not a deployed media-policy receipt. BR-053 attribution/backfill and M6 source exit are accepted in source, but unresolved legacy originals must remain explicitly unresolved. BR-058's capacity/cost assumptions and14-day backup/PITR target are retained planning decisions; the checked-in initial TEST foundation has a one-day retention baseline and neither establishes current RDS settings or achieved RPO/RTO. BR-059–064 separate source verification, image publication, migration/deployment and external acceptance; no new AWS action or full M6/M10 closure follows from a documentation merge.
+Implementation and acceptance status belongs to the [operation inventory](api-contracts.md#domain-operation-inventory) and [Progress](../PROGRESS.md). Earlier implementation checkpoints and their reconciliation are preserved in [Journey](journey.md#28-october-2026--documentation-acceptance-and-ownership-expansion); they do not qualify the permanent requirements below.
 
 ### Service boundary
 
@@ -37,7 +31,7 @@ BR-035's public/member website and Glofox entitlement remain future scope after 
 **BR-005** — Rates are Owner-only to change; Admin cannot read rate/remuneration data. Remuneration approval is Owner-only. Trainer request cancellation is restricted to the originating Trainer and a pending request.
 <a id="br-006"></a>
 
-**BR-006** — Trainer login/recovery email changes verify the new address with a code before switching. Do not infer completion of all Trainer profile fields from one implemented branch.
+**BR-006** — Trainer login/recovery email changes verify the new address with a code before switching. Each Trainer profile field requires its own permission, validation and persistence evidence.
 <a id="br-007"></a>
 
 **BR-007** — Verified identity, HTTP-only cookies, CSRF and server-side authorization protect API writes. Browser roles, record IDs and hidden controls are never authority. Media access must be authorized; no private credentials, health data or tokens in diagnostics.
@@ -82,7 +76,7 @@ BR-035's public/member website and Glofox entitlement remain future scope after 
 **BR-017** — Package deletion retains stable session identities, typed booking archives, plans/results and audit records. Only Open or strictly future unacknowledged bookings qualify; completed/cancelled sessions, credits and approved-pay evidence remain protected. Separate deletion requires an inactive purchase and permits operations-only Undo within24 hours, subject to unchanged purchase/client/session evidence and actual unexpired media bytes. Restoration keeps original IDs/creation times, increases versions and never reactivates the purchase. Pending requests are rejected atomically; original decision history is retained. Cleanup keeps its immutable original reason and respects the earlier of the Undo hold and original media expiry. Generic Undo acceptance still requires all other permitted operation kinds.
 <a id="br-018"></a>
 
-**BR-018** — Previous Plan uses a preview and explicit confirmation before replacing the target plan (YS,23 October). That decision supersedes the historical undecided UI note; its source acceptance is recorded in the matrix. Copy prescriptions and details into new exercise identities; videos retain their original session ownership. Source selection uses the latest readable nonempty plan on a strictly earlier calendar date, excluding Open sessions.
+**BR-018** — Previous Plan uses a preview and explicit confirmation before replacing the target plan. Copy prescriptions and details into new exercise identities; videos retain their original session ownership. Source selection uses the latest readable nonempty plan on a strictly earlier calendar date, excluding Open sessions.
 <a id="br-019"></a>
 
 **BR-019** — Plans, outcomes, summaries, credit accounting, remuneration, reports and media require their own durable workflows; database models alone do not complete them. Never fabricate WhatsApp/native-share sent or delivered states.
@@ -105,7 +99,7 @@ BR-035's public/member website and Glofox entitlement remain future scope after 
 
 <a id="br-024"></a>
 
-**BR-024** — One actor-private original key governs an interrupted Undo. Recover its receipt before another write; changed intent, competing commands, expired windows and lost authority reject without partial effects. PR80 provides source acceptance for full permitted Undo; browser, PostgreSQL, migration and full final-head CI evidence is retained in [Journey](journey.md). Deployment and live acceptance remain separate.
+**BR-024** — One actor-private original key governs an interrupted Undo. Recover its receipt before another write; changed intent, competing commands, expired windows and lost authority reject without partial effects. Recovery must not grant new write authority after permissions change.
 
 ### Reviewed acknowledgement and credit accounting
 
@@ -115,7 +109,7 @@ BR-035's public/member website and Glofox entitlement remain future scope after 
 
 <a id="br-026"></a>
 
-**BR-026** — Acknowledgement, completion, any legacy numeric plan measurements, one credit debit, the two-credit renewal notice and the actor-private original-command receipt share one transaction. An explicitly saved empty outcome stays empty. A later active purchase suppresses renewal; an existing purchase notice is not duplicated. No external message or delivery is recorded. Lost responses freeze the original intent until recovery, and replay does not reauthorize a new write or debit again. Populated receipt downgrades refuse evidence loss. PR72 provides source acceptance; deployment and live acceptance remain separate.
+**BR-026** — Acknowledgement, completion, any legacy numeric plan measurements, one credit debit, the two-credit renewal notice and the actor-private original-command receipt share one transaction. An explicitly saved empty outcome stays empty. A later active purchase suppresses renewal; an existing purchase notice is not duplicated. No external message or delivery is recorded. Lost responses freeze the original intent until recovery, and replay does not reauthorize a new write or debit again. Populated receipt downgrades refuse evidence loss.
 
 ### Report actions and retained history
 
@@ -131,13 +125,13 @@ BR-035's public/member website and Glofox entitlement remain future scope after 
 
 <a id="br-029"></a>
 
-**BR-029** — API-backed sessions with integrated summary support may export the existing PDF when current scope, active lifecycle and training date permit; unavailable mutations remain disabled. `markWhatsAppOpened` remains an explicit compatibility action; the current PDF UI does not call it or display a WhatsApp button. Its server review binds the session, client/purchase lifecycle and Singapore business date. New actions reject foreign, Open, future and inactive records; terminal historical cover remains read-only. One intent increments the opening count/time and version, records truthful audit/internal notice evidence and stores the actor-private original result atomically. Replaying that intent never adds another opening, and conflicting key reuse is rejected. Completion, signatures, credits and remuneration remain unchanged. This records an opening, never sending or delivery. No real messaging provider is called.
+**BR-029** — API-backed sessions may export the existing PDF when current scope, active lifecycle and training date permit; unavailable mutations remain disabled. `markWhatsAppOpened` remains an explicit compatibility action; the current PDF UI does not call it or display a WhatsApp button. Its server review binds the session, client/purchase lifecycle and Singapore business date. New actions reject foreign, Open, future and inactive records; terminal historical cover remains read-only. One intent increments the opening count/time and version, records truthful audit/internal notice evidence and stores the actor-private original result atomically. Replaying that intent never adds another opening, and conflicting key reuse is rejected. Completion, signatures, credits and remuneration remain unchanged. This records an opening, never sending or delivery. No real messaging provider is called.
 
 ### Authentication and additional routes
 
 <a id="br-030"></a>
 
-**BR-030** — Trainer email correction: Managers must review the current pending request and Trainer version before replacing a stable requested/pending address. Sending/verifying ambiguity blocks correction. Superseded commands stay immutable, and earlier destinations remain reserved until the replacement is provider-verified; the database releases the entire predecessor chain with completion, including completion by the outgoing application. Corrections inherit send budgets/cooldowns and do not send mail. Only the account holder can send/verify a fresh code, and stale forms cannot verify a superseded request. Local login/recovery stays unchanged until verified provider readback and atomic completion revoke existing sessions. Creation is disabled by default until compatible-runtime cutover; after any correction exists, use only correction-aware rollback code. The completion compatibility regression covers reservation release, not old pending-request readers. PR77 provides source acceptance.
+**BR-030** — Trainer email correction: Managers must review the current pending request and Trainer version before replacing a stable requested/pending address. Sending/verifying ambiguity blocks correction. Superseded commands stay immutable, and earlier destinations remain reserved until the replacement is provider-verified; the database releases the entire predecessor chain with completion, including completion by the outgoing application. Corrections inherit send budgets/cooldowns and do not send mail. Only the account holder can send/verify a fresh code, and stale forms cannot verify a superseded request. Local login/recovery stays unchanged until verified provider readback and atomic completion revoke existing sessions. Creation is disabled by default until compatible-runtime cutover; after any correction exists, use only correction-aware rollback code. The completion compatibility regression covers reservation release, not old pending-request readers.
 
 <a id="br-031"></a>
 
@@ -152,13 +146,13 @@ BR-035's public/member website and Glofox entitlement remain future scope after 
 
 <a id="br-033"></a>
 
-**BR-033** — Only signed completed attended results contribute to purchase-scoped progress; no-shows are excluded. An explicitly saved empty outcome never resurrects prescription defaults. Current full-profile scope and session visibility both apply to the projection; cover-session access does not grant full client progress. Outcome persistence and progress reads do not complete summary, acknowledgement, report-export/history or media operations. The matrix records source acceptance separately from deployment.
+**BR-033** — Only signed completed attended results contribute to purchase-scoped progress; no-shows are excluded. An explicitly saved empty outcome never resurrects prescription defaults. Current full-profile scope and session visibility both apply to the projection; cover-session access does not grant full client progress. Summary, acknowledgement, report-export/history and media require independent workflow acceptance; outcome/progress evidence alone cannot establish their correctness.
 
 ### Client-facing summaries
 
 <a id="br-034"></a>
 
-**BR-034** — A summary is reviewed client-facing text, saved separately from measured outcomes and completion. Replacing it retains immutable prior text, actor/time and the original command receipt. Current session assignment and active client/purchase authority apply; completed/cancelled ad-hoc cover remains read-only. A summary save never changes signatures, credits, measurements, or WhatsApp/share/delivery state. The editor requires nonblank text; the server enforces the bounded text contract and stale-version rejection. Source acceptance remains governed by the operation matrix.
+**BR-034** — A summary is reviewed client-facing text, saved separately from measured outcomes and completion. Replacing it retains immutable prior text, actor/time and the original command receipt. Current session assignment and active client/purchase authority apply; completed/cancelled ad-hoc cover remains read-only. A summary save never changes signatures, credits, measurements, or WhatsApp/share/delivery state. The editor requires nonblank text; the server enforces the bounded text contract and stale-version rejection.
 
 ### Product scope and retained design decisions
 
@@ -168,7 +162,7 @@ BR-035's public/member website and Glofox entitlement remain future scope after 
 
 <a id="br-036"></a>
 
-**BR-036** — **Undecided scope.** Owner Profile remains read-only; additional Setup pages, payment collection and commercial overlapping-package eligibility are not inferred from existing services. Copy Previous Plan is now decided: preview, then confirm replacement. Session filming and production media processing still need separate acceptance.
+**BR-036** — **Undecided scope.** Owner Profile remains read-only; additional Setup pages, payment collection and commercial overlapping-package eligibility are not inferred from existing services. Copy Previous Plan requires preview, then confirmation of replacement. Session filming and production media processing still need separate acceptance.
 
 <a id="br-037"></a>
 
