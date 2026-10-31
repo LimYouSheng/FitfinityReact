@@ -1,12 +1,12 @@
-import { expect, test as demoTest, selectDemoIdentity, waitForPortal } from './fixtures.js'
+import { expect, test as demoTest, selectDemoIdentity, waitForPortal, expandSidebarSection } from './fixtures.js'
 import { test as apiTest, passwordSignIn, verifyAuthenticator } from './auth-api-fixture.js'
 import { directoryData } from '../src/test/directory.js'
 
 async function openCreate(page) {
-  await page.getByRole('button', { name: 'Open profile menu' }).click()
-  const menu = page.getByRole('menu', { name: 'Profile menu' })
-  await expect(menu.getByRole('menuitem').first()).toHaveText('Create Admin')
-  await menu.getByRole('menuitem', { name: 'Create Admin', exact: true }).click()
+  await expandSidebarSection(page, 'Admin', { keepOpen: true })
+  await page.getByRole('navigation', { name: 'Portal navigation' }).getByRole('button', { name: 'Admin', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Admin', exact: true })).toBeVisible()
+  await page.locator('.page-head').getByRole('button', { name: 'Create Admin', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Create Admin' })).toBeVisible()
 }
 async function details(page) {
@@ -23,7 +23,7 @@ async function apiSignIn(page, staffApi) {
   await verifyAuthenticator(page)
 }
 
-demoTest('Owner creates Admin through the first profile option and the Admin cannot open rates or remuneration', async ({ page }) => {
+demoTest('Owner creates Admin through System and the Admin cannot open rates or remuneration', async ({ page }) => {
   await page.goto('/')
   await waitForPortal(page)
   await openCreate(page)
@@ -31,7 +31,7 @@ demoTest('Owner creates Admin through the first profile option and the Admin can
   await expect(page.getByLabel('Trainer type', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Peak session rate', { exact: true })).toHaveCount(0)
   await details(page)
-  await page.getByRole('button', { name: 'Create Admin', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Create Admin', exact: true }).getByRole('button', { name: 'Create Admin', exact: true }).click()
   await expect(page.getByText('This is a demo account. No email was sent.')).toBeVisible()
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Create Admin' })).toHaveCount(0)
@@ -78,7 +78,7 @@ demoTest('Admin popup validates required fields and dirty browser Back preserves
   await page.goto('/')
   await waitForPortal(page)
   await openCreate(page)
-  await page.getByRole('button', { name: 'Create Admin', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Create Admin', exact: true }).getByRole('button', { name: 'Create Admin', exact: true }).click()
   await expect(page.getByLabel('Staff name', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   await page.getByLabel('Staff name', { exact: true }).fill('Unsaved staff')
   await page.goBack()
@@ -90,7 +90,7 @@ demoTest('Admin popup validates required fields and dirty browser Back preserves
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await guard.getByRole('button', { name: 'Leave Without Saving', exact: true }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Owner Dashboard' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Admin', exact: true })).toBeVisible()
 })
 
 demoTest('Trainer cannot reach Admin creation by a direct URL', async ({ page }) => {
@@ -108,7 +108,7 @@ demoTest('A created demo Admin can open My Profile, reload it and go Back to the
   await waitForPortal(page)
   await openCreate(page)
   await details(page)
-  await page.getByRole('button', { name: 'Create Admin', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Create Admin', exact: true }).getByRole('button', { name: 'Create Admin', exact: true }).click()
   await expect(page.getByText('This is a demo account. No email was sent.')).toBeVisible()
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   const id = await page.evaluate(() => JSON.parse(localStorage.getItem('fitfinity-m2-demo-db-v4')).users.find(row => row.email === 'admin@example.test').id)
@@ -139,7 +139,7 @@ demoTest('HTTP-preview capabilities allow Admin creation without randomUUID or a
   expect(await page.evaluate(() => typeof crypto.getRandomValues)).toBe('function')
   await openCreate(page)
   await details(page)
-  await page.getByRole('button', { name: 'Create Admin', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Create Admin', exact: true }).getByRole('button', { name: 'Create Admin', exact: true }).click()
   await expect(page.getByText('This is a demo account. No email was sent.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Creating…', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Done', exact: true }).click()

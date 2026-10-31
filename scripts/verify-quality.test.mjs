@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { API_BROWSER_CASES, cases as discoveredCases, verifyApiShards } from './verify-api-shards.mjs'
-import { verifyTestResults } from './verify-test-results.mjs'
+import { BROWSER_CASES, verifyTestResults } from './verify-test-results.mjs'
 import { test } from 'node:test'
 import { ESLint } from 'eslint'
 import { readQualitySetup, verifyQualitySetup } from './verify-quality.mjs'
@@ -124,7 +124,7 @@ function receipt(kind, contents, valid) {
 }
 test('complete unit and browser receipts pass exact inventory validation', () => {
   receipt('unit', 'Test Files 155 passed (155)\nTests 1504 passed (1504)', true)
-  receipt('browser', '1152 passed (1m)', true)
+  receipt('browser', '1155 passed (1m)', true)
   receipt('api-browser', '396 passed (1m)', true)
 })
 test('unit receipt rejects old totals, missing files, truncation and skipped tests', () => {
@@ -132,7 +132,7 @@ test('unit receipt rejects old totals, missing files, truncation and skipped tes
 })
 test('browser receipt rejects partial totals, retries, skipped tests and errors', () => {
   for (const text of ['393 passed', '396 passed\n1 skipped', '396 passed\n(retry #1)', '396 passed\nError: incomplete', '387 passed', '384 passed', '381 passed', '378 passed', '12 passed', '62 passed', '282 passed', '294 passed', '300 passed', '303 passed', '351 passed', '366 passed', '369 passed', '372 passed', '375 passed', '387 passed\n1 skipped', '387 passed\n(retry #1)', '387 passed\nError: incomplete']) receipt('api-browser', text, false)
-  for (const text of ['849 passed', '837 passed', '819 passed', '810 passed', '804 passed', '792 passed', '791 passed', '765 passed', '791 passed', '723 passed', '717 passed', '714 passed', '711 passed', '708 passed', '696 passed', '707 passed', '1152 passed\n(retry #1)', '1152 passed\n1 skipped', '1152 passed\nError: incomplete']) receipt('browser', text, false)
+  for (const text of ['1152 passed', '1153 passed', '849 passed', '837 passed', '819 passed', '810 passed', '804 passed', '792 passed', '791 passed', '765 passed', '791 passed', '723 passed', '717 passed', '714 passed', '711 passed', '708 passed', '696 passed', '707 passed', '1155 passed\n(retry #1)', '1155 passed\n1 skipped', '1155 passed\nError: incomplete']) receipt('browser', text, false)
 })
 
 
@@ -249,11 +249,11 @@ test('hosting release builds API artifact without AWS authority and retains immu
   assert.equal(state.with['if-no-files-found'], 'error')
 })
 
-test('declared API browser inventory matches actual Playwright discovery', () => {
+for (const [config, expected] of [['playwright.config.js', BROWSER_CASES], ['playwright.api.config.js', API_BROWSER_CASES]]) test(`declared ${config} inventory matches actual Playwright discovery`, () => {
   // Collect real case identities without starting browsers, providers or databases.
-  const result = spawnSync(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--config=playwright.api.config.js', '--list', '--reporter=json'], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+  const result = spawnSync(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', `--config=${config}`, '--list', '--reporter=json'], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
   assert.equal(result.status, 0, result.stderr)
-  assert.equal(discoveredCases(JSON.parse(result.stdout)).size, API_BROWSER_CASES)
+  assert.equal(discoveredCases(JSON.parse(result.stdout)).size, expected)
 })
 
 function shardFixture() {

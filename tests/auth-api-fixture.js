@@ -1,3 +1,4 @@
+import { defaultAdminApprovals } from '../src/app/adminApprovals.js'
 import { sessionReadsApiFixture } from './session-reads-api-fixture.js'
 import { clientWeeklyScheduleApiFixture } from './client-weekly-schedule-api-fixture.js'
 import { trainerDeactivationApiFixture } from './trainer-deactivation-api-fixture.js'
@@ -36,7 +37,7 @@ export const test = base.extend({
   demoSignedIn: false,
   staffApi: async ({}, use) => {
     const directory = resolve('dist-api-test')
-    const state = { csrfToken, signedIn: false, step: 'NEW_PASSWORD_REQUIRED', flow: false, accessExpired: false, unavailable: false, refreshes: 0, mutations: [], directory: emptyDirectory(), user: sessionInfo().user, adminAccounts: new Map(), adminCreateFailure: false }
+    const state = { csrfToken, signedIn: false, step: 'NEW_PASSWORD_REQUIRED', flow: false, accessExpired: false, unavailable: false, refreshes: 0, mutations: [], directory: emptyDirectory(), user: sessionInfo().user, adminAccounts: new Map(), adminProfiles: new Map(), adminCreateFailure: false }
     const currentSession = () => ({ ...sessionInfo(), user: state.user, csrfToken: state.csrfToken })
     let nextAdminExpiry = null
     const heldAdminExpiries = new Set()
@@ -104,6 +105,16 @@ export const test = base.extend({
             if (trainerApprovalApiFixture({ state, path, request, json, error })) return
             if (clientNoteApiFixture({ state, path, request, json, error })) return
             if (clientDetailApiFixture({ state, path, request, json, error })) return
+            if (path === '/api/staff/admins') {
+              if (state.user.role !== 'owner') error('forbidden', 403)
+              else json([...state.adminProfiles.values()])
+              return
+            }
+            if (path === '/api/admin-requests') {
+              if (!['owner', 'admin'].includes(state.user.role)) error('forbidden', 403)
+              else json([])
+              return
+            }
             if (path === '/api/directory') { if (state.accessExpired) error('TOKEN_EXPIRED'); else json(state.directory); return }
             if (path === '/auth/session') { json({ csrfToken: state.csrfToken, expiresAt: sessionInfo().expiresAt }); return }
             if (path === '/me') { if (state.accessExpired) error('TOKEN_EXPIRED'); else json(currentSession()); return }
@@ -176,6 +187,7 @@ export const test = base.extend({
             if (!account) {
               account = { id: '20000000-0000-4000-8000-000000000001', name: body.name, email: body.email, role: 'admin', invitation: state.adminCreateFailure ? 'unknown' : 'sent' }
               state.adminAccounts.set(key, account)
+              state.adminProfiles.set(account.id, { id: account.id, version: 1, role: 'admin', status: 'active', details: structuredClone(body), approvalNeeded: defaultAdminApprovals() })
               if (state.adminCreateFailure) { state.adminCreateFailure = false; error('INVITATION_DELIVERY_UNKNOWN', 503); return }
             }
             json(account); return
