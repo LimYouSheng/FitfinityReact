@@ -1,4 +1,4 @@
-import { test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
+import { fetchRoute, test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
 
 async function saveSummary(page, info, purpose) {
   await signIn(page, 'trainer', `${info.project.name}-${purpose}@example.test`)
@@ -58,7 +58,7 @@ test('lost committed Undo reconciles the private original receipt without a seco
   let writes = 0, key
   await page.route('**/api/session-changes/*/undo', async route => {
     writes++; key = route.request().headers()['idempotency-key']
-    const response = await route.fetch()
+    const response = await fetchRoute(route)
     expect(response.status()).toBe(200)
     await route.abort('failed')
   })

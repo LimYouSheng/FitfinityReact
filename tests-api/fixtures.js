@@ -68,3 +68,12 @@ export async function post(page, path, data, key = crypto.randomUUID()) {
 export function account(scope, role = 'owner') {
   return `${test.info().project.name}-${scope}-${role}@example.test`
 }
+
+/** Intercepted real requests must not leave pooled sockets for later assertions. */
+export async function fetchRoute(route, options = {}) {
+  const response = await route.fetch({ ...options,
+    headers: { ...route.request().headers(), ...options.headers, connection: 'close' },
+  })
+  expect(response.headers().connection).toBe('close')
+  return response
+}

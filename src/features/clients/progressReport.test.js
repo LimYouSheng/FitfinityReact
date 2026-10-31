@@ -37,7 +37,9 @@ function rasterizer({ offscreen = true, failure, controlled = false } = {}) {
       arrayBuffer: async () => new Uint8Array([255, 216, page, 255, 217]).buffer,
     }
   })
-  const context = function () {
+  const context = function (type, options) {
+    expect(type).toBe('2d')
+    expect(options).toEqual({ willReadFrequently: true })
     return failure === 'context' ? null : {
       clearRect: vi.fn(() => { this.page = null }),
       drawImage: vi.fn(image => {
@@ -48,7 +50,7 @@ function rasterizer({ offscreen = true, failure, controlled = false } = {}) {
   }
   class DetachedCanvas {
     constructor(width, height) { this.width = width; this.height = height; canvases.push(this) }
-    getContext() { return context.call(this) }
+    getContext(...args) { return context.apply(this, args) }
     convertToBlob({ type, quality }) { return encode(this, type, quality) }
     transferToImageBitmap() { const bitmap = { page: this.page, close: vi.fn() }; bitmaps.push(bitmap); return bitmap }
   }
@@ -84,9 +86,9 @@ function rasterizer({ offscreen = true, failure, controlled = false } = {}) {
     return url
   })
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function () {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (...args) {
     if (!canvases.includes(this)) canvases.push(this)
-    return context.call(this)
+    return context.apply(this, args)
   })
   vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (callback, type, quality) {
     encode(this, type, quality).then(callback)

@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+import { createServer } from 'node:http'
+import { request } from '@playwright/test'
+import { fetchRoute } from '../tests-api/fixtures.js'
 import { spawnSync } from 'node:child_process'
 import { parse } from 'yaml'
 import fs from 'node:fs'
@@ -308,4 +311,31 @@ test('unexpected Ubuntu source format is rejected without modifying repositories
     assert.match(result.stderr, /Unexpected Ubuntu source layout/)
     assert.equal(fs.readFileSync(file, 'utf8'), input)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+// Real loopback HTTP and Playwright's actual pool: no browser or provider required.
+test('intercepted API fixture requests leave no idle socket for later readback', async () => {
+  const seen = []
+  let nextSocket = 0
+  const server = createServer((incoming, response) => {
+    seen.push({ socket: incoming.socket.fixtureId, connection: incoming.headers.connection })
+    response.end('{}')
+  })
+  server.on('connection', socket => { socket.fixtureId = ++nextSocket })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const context = await request.newContext({ baseURL: `http://127.0.0.1:${server.address().port}` })
+  try {
+    const route = {
+      request: () => ({ headers: () => ({ connection: 'keep-alive' }) }),
+      fetch: options => context.get('/review', options),
+    }
+    assert.equal((await fetchRoute(route)).status(), 200)
+    assert.equal((await context.get('/readback', { headers: { connection: 'close' } })).status(), 200)
+    assert.deepEqual(seen.map(item => item.connection), ['close', 'close'])
+    assert.notEqual(seen[0].socket, seen[1].socket)
+  } finally {
+    await context.dispose()
+    server.closeAllConnections()
+    await new Promise(resolve => server.close(resolve))
+  }
 })

@@ -134,6 +134,8 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
       - name: Real API browser persistence and authority
         env:
+          # Retain browser process failures alongside traces for renderer stalls.
+          DEBUG: pw:browser
           PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/api-browser-results.json
         shell: bash
         run: |

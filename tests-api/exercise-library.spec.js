@@ -1,4 +1,4 @@
-import { test, expect, signIn, read, post, account, freshContext, confirm } from './fixtures.js'
+import { fetchRoute, test, expect, signIn, read, post, account, freshContext, confirm } from './fixtures.js'
 import { createHash } from 'node:crypto'
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMwaPj/HwAFQgKv8Qz/1QAAAABJRU5ErkJggg==', 'base64')
@@ -92,7 +92,7 @@ for (const interrupted of ['commit', 'upload']) test(`lost library ${interrupted
     }
     // WebKit interception omits File body bytes. Forward the exact selected fixture
     // while retaining its real signed checksum, conditional write and length check.
-    const response = await route.fetch(interrupted === 'upload' ? { postData: png } : {})
+    const response = await fetchRoute(route, interrupted === 'upload' ? { postData: png } : {})
     expect(response.status()).toBe(200)
     await route.abort('failed')
   })

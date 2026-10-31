@@ -1,4 +1,4 @@
-import { test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
+import { fetchRoute, test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
 
 async function open(page, info, purpose, role = 'trainer') {
   await signIn(page, role, role === 'trainer' ? `${info.project.name}-${purpose}@example.test` : account(purpose, role))
@@ -55,7 +55,7 @@ test('lost recording commit freezes the original action and recovers without ano
   page.on('request', request => { if (request.method() === 'PUT') uploads++ })
   await page.route('**/api/session-media/intents/*/commit', async route => {
     commits++
-    const response = await route.fetch()
+    const response = await fetchRoute(route)
     expect(response.status()).toBe(200)
     await route.abort('failed')
   })

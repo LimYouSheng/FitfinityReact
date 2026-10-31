@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
+import { fetchRoute, test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
 
 const workflows = [
   { kind: 'client', label: 'Client Information', heading: 'General Information', confirm: 'Save Changes' },
@@ -45,7 +45,7 @@ for (const workflow of workflows) for (const committed of [true, false]) test(`$
     if (route.request().method() !== 'POST') return route.continue()
     writes.push({ key: route.request().headers()['idempotency-key'], body: route.request().postData() })
     if (writes.length > 1) return route.continue()
-    if (committed) expect((await route.fetch()).status()).toBe(200)
+    if (committed) expect((await fetchRoute(route)).status()).toBe(200)
     await route.abort('failed')
   })
   await panel.getByRole('button', { name: kind === 'package' ? 'Save Package' : 'Save', exact: true }).click()
@@ -89,7 +89,7 @@ test('an active package creation editor retains its original receipt for Save ag
     if (route.request().method() !== 'POST') return route.continue()
     writes++
     if (writes > 1) return route.continue()
-    expect((await route.fetch()).status()).toBe(200)
+    expect((await fetchRoute(route)).status()).toBe(200)
     await route.abort('failed')
   })
   await page.getByRole('button', { name: 'Create Package', exact: true }).click()
