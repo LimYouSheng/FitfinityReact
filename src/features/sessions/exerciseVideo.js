@@ -53,8 +53,8 @@ export function readVideoDuration(file, { signal } = {}) {
   })
 }
 
-function recorderMimeType() {
-  const choices = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4']
+function recorderMimeType(includeAudio) {
+  const choices = [includeAudio ? 'video/webm;codecs=vp8,opus' : 'video/webm;codecs=vp8', 'video/webm', 'video/mp4']
   return choices.find(type => globalThis.MediaRecorder?.isTypeSupported?.(type)) ?? ''
 }
 
@@ -117,7 +117,8 @@ function drawCaptionPanel(context, captionLines, x, width, height) {
   })
 }
 
-export function compressVideoSilently(file, captionLines, onProgress = () => {}, { signal } = {}) {
+// Mix only this clip's audio into the captioned canvas; never capture a microphone.
+export function prepareExerciseVideo(file, captionLines, onProgress = () => {}, { signal, includeAudio = false } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(new DOMException('Cancelled', 'AbortError')); return }
     if (!globalThis.MediaRecorder || !globalThis.HTMLCanvasElement?.prototype.captureStream) {
@@ -129,6 +130,9 @@ export function compressVideoSilently(file, captionLines, onProgress = () => {},
     const video = document.createElement('video')
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d')
+    let audioContext
+    let audioSource
+    let audioDestination
     let recorder
     let stream
     let animationFrame = 0
@@ -143,6 +147,10 @@ export function compressVideoSilently(file, captionLines, onProgress = () => {},
       video.onloadedmetadata = null
       video.onended = null
       video.onerror = null
+      audioSource?.disconnect()
+      audioDestination?.disconnect()
+      audioDestination?.stream.getTracks().forEach(track => track.stop())
+      if (audioContext && audioContext.state !== 'closed') void audioContext.close().catch(() => {})
       video.pause()
       video.removeAttribute('src')
       URL.revokeObjectURL(sourceUrl)
@@ -185,14 +193,28 @@ export function compressVideoSilently(file, captionLines, onProgress = () => {},
       canvas.width = 720
       canvas.height = 720
       stream = canvas.captureStream(24)
-      const mimeType = recorderMimeType()
+      const mimeType = recorderMimeType(includeAudio)
       const targetBytes = 4.25 * 1024 * 1024
       const videoBitsPerSecond = Math.min(600000, Math.max(180000, Math.floor((targetBytes * 8) / duration)))
 
       try {
+        if (includeAudio) {
+          const AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext
+          if (!AudioContext) throw new Error('Audio processing is unavailable.')
+          audioContext = new AudioContext()
+          audioSource = audioContext.createMediaElementSource(video)
+          audioDestination = audioContext.createMediaStreamDestination()
+          audioSource.connect(audioDestination)
+          // No speaker connection: conversion stays quiet without muting the source.
+          video.muted = false
+          await audioContext.resume()
+          if (settled) return
+          audioDestination.stream.getAudioTracks().forEach(track => stream.addTrack(track))
+        }
         recorder = new MediaRecorder(stream, {
           ...(mimeType ? { mimeType } : {}),
           videoBitsPerSecond,
+          ...(includeAudio ? { audioBitsPerSecond: 64000 } : {}),
         })
       } catch {
         fail(new Error('Video preparation could not start in this browser.'))
@@ -213,7 +235,7 @@ export function compressVideoSilently(file, captionLines, onProgress = () => {},
           return
         }
         onProgress(100)
-        resolve({ blob, duration })
+        resolve({ blob, duration, audioIncluded: includeAudio })
       }
 
       const render = () => {

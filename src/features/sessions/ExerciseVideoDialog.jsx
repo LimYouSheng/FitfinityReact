@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { formatTimestamp } from '../../utils/date.js'
 import {
-  compressVideoSilently,
+  prepareExerciseVideo,
   exerciseVideoCaption,
   exerciseVideoCaptionLines,
   exerciseVideoFileValidation,
@@ -21,6 +21,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
   const processing = useRef(null)
   const committing = useRef(false)
   const [mode, setMode] = useState('choose')
+  const [includeAudio, setIncludeAudio] = useState(false)
   const [candidate, setCandidate] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [error, setError] = useState('')
@@ -36,6 +37,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
     }
     let cancelled = false
     setMode('choose')
+    setIncludeAudio(false)
     setCandidate(null)
     setPreviewUrl('')
     setError('')
@@ -70,12 +72,14 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
     event.target.value = ''
     if (!file || !editable || uncertain) return
     setError('')
+    setMode('compressing')
     processing.current?.abort()
     const operation = new AbortController()
     processing.current = operation
 
     const fileError = exerciseVideoFileValidation(file)
     if (fileError) {
+      setMode('choose')
       setError(fileError)
       return
     }
@@ -123,6 +127,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
 
     const sourceValidation = exerciseVideoValidation(file, duration)
     if (sourceValidation) {
+      setMode('choose')
       setError(sourceValidation)
       return
     }
@@ -130,7 +135,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
     try {
       setMode('compressing')
       setCompressionProgress(0)
-      const compressed = await compressVideoSilently(file, captionLines, setCompressionProgress, { signal: operation.signal })
+      const compressed = await prepareExerciseVideo(file, captionLines, setCompressionProgress, { signal: operation.signal, includeAudio })
       if (operation.signal.aborted) return
       const validation = exerciseVideoValidation(compressed.blob, compressed.duration)
       if (validation) throw new Error(validation)
@@ -141,6 +146,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
         source,
         name: file.name || `${exercise.name}.webm`,
         processed: true,
+        audioIncluded: compressed.audioIncluded,
       })
       setPreviewUrl(URL.createObjectURL(compressed.blob))
       setMode('preview')
@@ -164,7 +170,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
         duration: Number.isFinite(candidate.duration) ? Math.ceil(candidate.duration) : null,
         source: candidate.source,
         caption,
-        audioIncluded: candidate.processed ? false : null,
+        audioIncluded: candidate.processed ? candidate.audioIncluded : null,
         processingStatus: candidate.processed ? 'complete' : 'deferred',
       })
       onCancel()
@@ -227,17 +233,25 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
 
           {mode === 'compressing' ? (
             <div className="exercise-video-compressing" role="status">
-              <strong>Preparing silent video… {compressionProgress}%</strong>
+              <strong>Preparing {includeAudio ? 'video with original audio' : 'silent video'}… {compressionProgress}%</strong>
               <span><i style={{ width: `${compressionProgress}%` }} /></span>
               <p>Keep this popup open. Processing takes approximately the length of the clip.</p>
             </div>
           ) : previewUrl ? (
-            <video className="exercise-video-preview" src={previewUrl} controls muted playsInline preload="none" />
+            <video className="exercise-video-preview" src={previewUrl} controls playsInline preload="none" />
           ) : exercise.videoAttached ? (
             <div className="notice">A saved video is attached. Its local preview is unavailable in this browser session.</div>
           ) : null}
 
-          {editable && mode !== 'compressing' && !candidate && (
+          {editable && !uncertain && (
+            <label>
+              <input type="checkbox" checked={includeAudio}
+                disabled={mode === 'compressing' || Boolean(candidate) || saving}
+                onChange={event => setIncludeAudio(event.target.checked)} />
+              Include original audio (if present)
+            </label>
+          )}
+          {editable && !uncertain && mode !== 'compressing' && !candidate && (
             <div className="exercise-video-choices">
               <label className="primary-button exercise-video-file-action">
                 Record new video
@@ -266,15 +280,16 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
               <div><dt>Source</dt><dd>{candidate.source === 'recorded' ? 'Camera recording' : candidate.name}</dd></div>
               <div><dt>Duration</dt><dd>{Number.isFinite(candidate.duration) ? formatDuration(candidate.duration) : 'Pending'}</dd></div>
               <div><dt>Size</dt><dd>{formatSize(candidate.blob.size)}</dd></div>
-              <div><dt>Audio</dt><dd>{candidate.processed ? 'Removed' : 'Pending removal'}</dd></div>
+              <div><dt>Audio</dt><dd>{candidate.processed ? (candidate.audioIncluded ? 'Original audio included (if present)' : 'Removed') : 'Original audio unchanged; not verified'}</dd></div>
             </dl>
           )}
 
+          {candidate && !candidate.processed && <p role="status">Conversion was unavailable. This is the original file: captions and your audio option have not been applied. Cancel to choose another clip or browser.</p>}
           {error && <p className="validation-copy" role="alert">{error}</p>}
           {!candidate && exercise.video?.expiresAt && (
             <p>Available until <time dateTime={exercise.video.expiresAt}>{formatTimestamp(exercise.video.expiresAt, timeZone)}</time></p>
           )}
-          {editable && <p className="helper">Maximum 1 minute · Under 5 MB · Final video is silent</p>}
+          {editable && <p className="helper">Maximum 1 minute · Under 5 MB · Uncheck to remove audio during conversion</p>}
 
           {editable && !uncertain && exercise.videoAttached && !candidate && (
             <button type="button" className="text-action exercise-video-remove" onClick={() => setMode('remove')}>Remove saved video</button>

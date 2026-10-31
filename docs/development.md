@@ -193,3 +193,5 @@ CI runs the real-API suite in two complementary shards, each with its own dispos
 
 Required CI and evidence rules belong to [AGENTS](../AGENTS.md#verify-and-publish). Test inventories are defined by the verifiers, not historical counts in documentation.
 
+
+Browser media compatibility: automated projects cover desktop Chromium and WebKit phone/tablet profiles. Current Chrome/Edge are the first conversion candidates; Safari/iOS conversion depends on available recording APIs and input codecs, with explicit original-file fallback. Firefox is not part of the current automated matrix and has no acceptance receipt. Actual Samsung/iPad capture and audio playback still require physical UAT. Browser preparation uses no microphone permission; it processes audio already present in the selected clip.
