@@ -4,10 +4,11 @@ from datetime import date, time, timedelta
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.api.client_matching import DAYS, MatchRequest
 from app.api.client_matching import preview as match_preview
+from app.auth.errors import AuthError
 from app.authorization import Principal
 from app.models.people import Client, Trainer, TrainerAvailability
 from app.models.training import (
@@ -16,7 +17,7 @@ from app.models.training import (
     PurchaseScheduleSlot,
     TrainingSession,
 )
-from app.persistence import acknowledge, add_client, add_purchase
+from app.persistence import acknowledge, add_client, add_purchase, occupied_booking_clause
 from tests.domain_fixtures import person, purchase_parts
 from tests.test_admin_api import create_admin, login_admin
 from tests.test_admin_api import invitations as invitations
@@ -119,7 +120,11 @@ def test_review_and_matching_preserve_saved_defaults_and_all_records(api, domain
     assert viewed["package"]["id"] == str(graph["purchase_id"])
     assert viewed["package"]["sessionsPerWeek"] == 1
     assert viewed["trainerId"] == str(graph["trainer_id"])
-    assert start == graph["end_date"] + timedelta(days=1)
+    with domain_db.transaction() as session:
+        today = session.scalar(
+            text("SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Singapore')::date")
+        )
+    assert start == today + timedelta(days=1)
     assert viewed["clientPreferences"] == [
         {"days": [DAYS[graph["start_date"].weekday()]], "from": "09:00", "to": "12:00"}
     ]
@@ -175,7 +180,7 @@ def test_stale_review_rejects_changed_aggregate(api, domain_db, graph, target):
     assert preview(api, graph, body(graph, viewed)).status_code == 409
 
 
-def test_new_queued_purchase_invalidates_review_and_advances_minimum(api, domain_db, graph):
+def test_new_queued_purchase_invalidates_review_without_delaying_minimum(api, domain_db, graph):
     viewed = read(api, graph)
     with domain_db.transaction() as session:
         client = session.get(Client, graph["client_id"])
@@ -183,9 +188,8 @@ def test_new_queued_purchase_invalidates_review_and_advances_minimum(api, domain
         add_purchase(
             session, purchase, slots, preferences, bookings, expected_client_version=client.version
         )
-        end = purchase.end_date
     assert preview(api, graph, body(graph, viewed)).status_code == 409
-    assert read(api, graph)["minimumStartDate"] == str(end + timedelta(days=1))
+    assert read(api, graph)["minimumStartDate"] == viewed["minimumStartDate"]
 
 
 @pytest.mark.parametrize(
@@ -232,21 +236,11 @@ def test_admin_can_review_and_match_but_csrf_is_required(
 
 
 @pytest.mark.parametrize("completed", [False, True])
-def test_calendar_helper_retains_completed_inactive_client_bookings_for_other_trainers(
+def test_calendar_occupancy_retains_completed_inactive_bookings_and_rejects_backdated_preview(
     api, domain_db, graph, completed
 ):
     declared_hours(domain_db, graph)
     with domain_db.transaction() as session:
-        trainer = another_trainer(session)
-        other_id = trainer.id
-        session.add(
-            TrainerAvailability(
-                trainer_id=other_id,
-                weekday=graph["start_date"].weekday(),
-                starts_at=time(9),
-                ends_at=time(18),
-            )
-        )
         if completed:
             booking = session.get(TrainingSession, graph["session_id"])
             acknowledge(
@@ -254,16 +248,22 @@ def test_calendar_helper_retains_completed_inactive_client_bookings_for_other_tr
             )
     assert save(api, graph, command(deactivate_review(api, graph))).status_code == 200
     with domain_db.transaction() as session:
-        principal = Principal(
-            user_id=graph["owner_id"], name="Owner Original", role="owner", trainer_id=None
-        )
-        result = match_preview(
-            session,
-            principal,
-            MatchRequest.model_validate(request_body(graph)),
-            client_id=graph["client_id"],
-        )
-        assert (other_id in [m.trainerId for m in result.matches]) is not completed
+        occupied = session.scalars(
+            select(TrainingSession.id)
+            .join(PackagePurchase, TrainingSession.purchase_id == PackagePurchase.id)
+            .join(Client, TrainingSession.client_id == Client.id)
+            .where(TrainingSession.client_id == graph["client_id"], occupied_booking_clause())
+        ).all()
+        assert occupied == ([graph["session_id"]] if completed else [])
+        principal = Principal(graph["owner_id"], "Owner Original", "owner", None)
+        with pytest.raises(AuthError) as rejected:
+            match_preview(
+                session,
+                principal,
+                MatchRequest.model_validate(request_body(graph)),
+                client_id=graph["client_id"],
+            )
+        assert rejected.value.status == 422
 
 
 @pytest.mark.parametrize("scenario", ["preserve", "occupied", "outside_preferences"])

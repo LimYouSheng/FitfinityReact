@@ -1,12 +1,13 @@
+import { businessClock } from './clock.js'
 import { clientPackages } from './clientPackages.js'
 import { managesOperations } from './permissions.js'
 
 const packageIdFor = client => client.package.id ?? `legacy-package-${client.id}-${client.package.startDate}`
 
-// Future purchases count as renewed immediately; inactive purchases do not.
+// Another usable active or upcoming purchase suppresses renewal, even with overlapping validity.
 function hasNextPackage(client, purchased) {
   return Boolean(purchased?.endDate && clientPackages(client).some(next => next.id !== purchased.id &&
-    next.status !== 'inactive' && next.startDate > purchased.endDate))
+    next.status !== 'inactive' && next.stage !== 'archived' && next.endDate >= businessClock().date && next.used < next.total))
 }
 
 export function renewalStatus(message, client) {

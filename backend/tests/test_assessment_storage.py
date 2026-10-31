@@ -77,7 +77,7 @@ def test_saved_assessment_prevents_destructive_downgrade(domain_db, assessment, 
         assert session.get(ClientAssessmentRevision, assessment["first"]).answers == {
             "eyes_open_1": 0
         }
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261025_0046"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261101_0052"
 
 
 def test_draft_completion_correction_preserves_submitted_names_and_values(

@@ -19,7 +19,7 @@ async function confirm() {
   fireEvent.change(screen.getByLabelText('New trainer'), { target: { value: reviewed.choices[0].id } })
   fireEvent.click(screen.getByRole('button', { name: 'Review Reassignment' }))
   const dialog = await screen.findByRole('dialog', { name: `Reassign trainer for ${reviewed.name}?` })
-  expect(dialog).toHaveTextContent('1 eligible upcoming sessions and 1 current/additional packages')
+  expect(dialog).toHaveTextContent('1 eligible upcoming sessions and 1 selected package')
   fireEvent.click(within(dialog).getByRole('button', { name: 'Reassign Trainer', exact: true }))
 }
 it('keeps uncertain selection fixed and explicitly retries the original reviewed assignment', async () => {
@@ -29,7 +29,7 @@ it('keeps uncertain selection fixed and explicitly retries the original reviewed
   fireEvent.click(await screen.findByRole('button', { name: 'Check Reassignment' }))
   await waitFor(() => expect(workflow.saved).toHaveBeenCalledTimes(1))
   expect(workflow.save.mock.calls[1]).toEqual(workflow.save.mock.calls[0])
-  expect(workflow.save.mock.calls[0][0]).toMatchObject({ reviewed, trainerId: reviewed.choices[0].id })
+  expect(workflow.save.mock.calls[0][0]).toMatchObject({ reviewed, purchaseId: reviewed.purchases[0].id, trainerId: reviewed.choices[0].id })
   expect(screen.queryByRole('dialog')).toBeNull()
 })
 it('releases the edit guard before refresh and never retries a confirmed save after refresh failure', async () => {

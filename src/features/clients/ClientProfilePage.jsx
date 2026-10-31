@@ -1,4 +1,3 @@
-import ApiClientAssignmentButton from './ApiClientAssignmentButton.jsx'
 import ApiFixedWeeklySchedule from './ApiFixedWeeklySchedule.jsx'
 import ApiClientReactivationButton from './ApiClientReactivationButton.jsx'
 import ClientDeactivationButton from './ClientDeactivationButton.jsx'
@@ -8,7 +7,6 @@ import ClientGeneralInformation from './ClientGeneralInformation.jsx'
 import ClientEditableText from './ClientEditableText.jsx'
 import { clientProfileDraft } from '../../app/clientOnboarding.js'
 import ClientReactivationDialog from './ClientReactivationDialog.jsx'
-import ReassignTrainerDialog from './ReassignTrainerDialog.jsx'
 import usePageState from '../../hooks/usePageState.js'
 import { useCallback, useEffect, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -84,7 +82,7 @@ export default function ClientProfilePage({
   useEffect(() => { setActiveEditor(null) }, [client.id, client.status])
 
   useEffect(() => {
-    const label = ({ reactivation: 'Client reactivation', general: 'Client information', trainer: 'Trainer reassignment', schedule: 'Fixed weekly schedule', health: 'Health notes', remarks: 'Client remarks', assessment: 'Client assessment' })[activeEditor] ?? null
+    const label = ({ reactivation: 'Client reactivation', general: 'Client information', schedule: 'Fixed weekly schedule', health: 'Health notes', remarks: 'Client remarks', assessment: 'Client assessment' })[activeEditor] ?? null
     setActiveEdit(label)
     return () => setActiveEdit(null)
   }, [activeEditor, setActiveEdit])
@@ -164,13 +162,10 @@ export default function ClientProfilePage({
         <ClientReactivationDialog client={client} clients={clients} trainers={trainers} sessions={sessions}
           packageCreditTransactions={packageCreditTransactions} onSave={onReactivate} onClose={() => setActiveEditor(null)} />}
 
-      {activeEditor === 'trainer' && ownerEditable && <ReassignTrainerDialog client={client} trainers={trainers} sessions={sessions}
-        packageCreditTransactions={packageCreditTransactions} timeZone={timeZone} onSave={onReassignTrainer} onClose={() => setActiveEditor(null)} />}
-
       {tab === 'overview' && <>
       <div className="profile-overview-stack">
-        <ClientGeneralInformation client={client} trainer={trainer} policy={policy}
-          ownerEditable={ownerEditable} trainerAction={assignmentWorkflow && canEditClientGeneral(user, client) ? <ApiClientAssignmentButton client={client} workflow={assignmentWorkflow} timeZone={timeZone} disabled={Boolean(activeEditor)} onEditing={editing => setActiveEditor(editing ? 'trainer' : null)} /> : undefined} personalEditable={!personalReadOnly && canEditClientGeneral(user, client)} activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={onUpdateGeneral ?? onUpdate} onSaved={onGeneralSaved} />
+        <ClientGeneralInformation client={client} trainer={trainer} trainers={trainers} policy={policy}
+          ownerEditable={ownerEditable} personalEditable={!personalReadOnly && canEditClientGeneral(user, client)} activeEditor={activeEditor} setActiveEditor={setActiveEditor} onUpdate={onUpdateGeneral ?? onUpdate} onSaved={onGeneralSaved} />
 
         {weeklyScheduleWorkflow ? <ApiFixedWeeklySchedule client={client} workflow={weeklyScheduleWorkflow}
           editable={client.status !== 'inactive' && (managesOperations(user) || assignedTrainerEditable)}
@@ -234,6 +229,8 @@ export default function ClientProfilePage({
 
       {tab !== 'overview' && (
         <ClientProfileTabs
+          assignmentWorkflow={assignmentWorkflow}
+          onReassignTrainer={onReassignTrainer}
           clients={clients}
           readOnly={readOnly}
           renewalReadOnly={renewalReadOnly}

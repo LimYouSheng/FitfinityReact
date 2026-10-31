@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import Field, StrictInt, model_validator
 from sqlalchemy import select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.client_matching import MatchedSlot, MatchRequest
 from app.api.client_renewal import RenewalMatchRequest, review
 from app.api.purchase_creation import persist_purchase, prepare_purchase
@@ -51,6 +52,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("client.purchase")
 def reconcile(session, principal, key):
     principal.operations()
     saved = receipt(session, principal, key)
@@ -59,6 +61,7 @@ def reconcile(session, principal, key):
     return ClientRenewalState.model_validate(saved.result)
 
 
+@supervised("clientPackages", "client.purchase", RenewPackage, receipt=receipt, target="identity")
 def save(session, principal, identity, key, body):
     principal.operations()
     saved = receipt(session, principal, key)
@@ -77,7 +80,7 @@ def save(session, principal, identity, key, body):
     if viewed.expected != body.expected:
         raise conflict()
     if body.startDate < viewed.minimumStartDate:
-        raise AuthError("invalid_request", "Choose a date after the existing packages.", 422)
+        raise AuthError("invalid_request", "Choose a future start date.", 422)
     client = session.get(Client, identity)
     prepared = prepare_purchase(session, body, allow_subwindows=True)
     try:

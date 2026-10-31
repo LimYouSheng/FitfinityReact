@@ -21,8 +21,8 @@ def test_generated_openapi_matches_reviewed_snapshot_without_network(monkeypatch
     monkeypatch.setattr(socket, "create_connection", blocked)
     schema = generate_contract()
     check_contract(schema)
-    assert len(schema["paths"]) == 147
-    assert sum(len(methods) for methods in schema["paths"].values()) == 159
+    assert len(schema["paths"]) == 158
+    assert sum(len(methods) for methods in schema["paths"].values()) == 172
     assert schema["paths"]["/auth/session"]["get"]["security"] == [{"StaffSession": []}]
     for path, methods in schema["paths"].items():
         for method, operation in methods.items():
@@ -41,6 +41,26 @@ def test_generated_openapi_matches_reviewed_snapshot_without_network(monkeypatch
         == "__Host-fitfinity-session"
     )
     assert "HTTPValidationError" not in schema["components"]["schemas"]
+    for path, method in [
+        ("/api/report-sharing", "post"),
+        ("/api/report-sharing/{key}", "get"),
+        ("/api/report-sharing/requests/{identity}", "get"),
+        ("/api/staff/trainers", "post"),
+        ("/api/clients/{client_id}/trainer-assignment", "post"),
+        ("/api/client-trainer-assignments/{request_key}", "get"),
+        ("/api/exercise-library/save-intents/{key}/commit", "post"),
+        ("/api/exercise-library/save-intents/{key}", "get"),
+        ("/api/trainers/{trainer_id}/email-change", "post"),
+        ("/api/trainer-email-requests/{key}", "get"),
+        ("/api/session-changes/{identity}/undo", "post"),
+        ("/api/session-undos/{key}", "get"),
+        ("/api/package-actions/{identity}/undo", "post"),
+        ("/api/package-undos/{key}", "get"),
+    ]:
+        assert schema["paths"][path][method]["responses"]["202"]["content"]["application/json"][
+            "schema"
+        ] == {"$ref": "#/components/schemas/ApprovalPending"}
+    assert "202" not in schema["paths"]["/api/exercise-library"]["get"]["responses"]
 
 
 @pytest.mark.parametrize("mutation", ["remove_route", "response", "security", "required_field"])

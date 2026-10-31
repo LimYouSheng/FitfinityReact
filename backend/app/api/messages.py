@@ -16,6 +16,7 @@ from app.api.message_schemas import (
     PersonalMessage,
     RequestResolutionActor,
 )
+from app.api.renewal_policy import usable_purchase
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import MessageReadReceipt, RenewalDismissal
@@ -56,7 +57,12 @@ def scope(principal):
         .where(MessageReceipt.message_id == Message.id, StaffUser.role == "owner")
     )
     return and_(
-        or_(own, owner),
+        or_(
+            own,
+            and_(
+                owner, Message.kind.not_in(["admin_operation_request", "admin_operation_decision"])
+            ),
+        ),
         Message.remuneration_id.is_(None),
         ~Message.kind.startswith("remuneration"),
         Message.kind != "trainer_rates",
@@ -191,7 +197,7 @@ def records(session, principal):
         session,
         select(PackagePurchase).where(
             PackagePurchase.client_id.in_([row.client_id for row in purchases.values()]),
-            PackagePurchase.status == "active",
+            usable_purchase(),
         ),
     )
     dismissals = {
@@ -241,12 +247,7 @@ def records(session, principal):
             renewal = (
                 "renewed"
                 if purchase
-                and any(
-                    p.client_id == purchase.client_id
-                    and p.id != purchase.id
-                    and p.start_date > purchase.end_date
-                    for p in later
-                )
+                and any(p.client_id == purchase.client_id and p.id != purchase.id for p in later)
                 else "active"
             )
         result.append(

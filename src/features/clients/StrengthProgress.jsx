@@ -9,6 +9,7 @@ import { formatTimestamp } from '../../utils/date.js'
 import { reportShareError } from '../../services/reportService.js'
 import useReportService from '../../hooks/useReportService.js'
 import usePreparedReport from '../../hooks/usePreparedReport.js'
+import useReportSharing from '../../hooks/useReportSharing.js'
 
 import StrengthProgressChart from './StrengthProgressChart.jsx'
 import { progressNumber, progressSummary, progressChange } from './progressChart.js'
@@ -28,6 +29,8 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
   const [unsavedAction, setUnsavedAction] = useState(null)
   const reportService = useReportService()
   const report = usePreparedReport(reportService.progressFile, { client, timeZone }, reportsAvailable && exercises.length > 0)
+  const sharing = useReportSharing({ kind: 'progress', targetId: client.id, purchaseId: client.reportPackageId, includeSummary: true, videoIds: [] }, { client, timeZone }, reportService.progressFile)
+  const file = sharing.file ?? report.file
   const [shareFallback, setShareFallback] = useState(false)
   const acting = useRef(false)
 
@@ -85,14 +88,15 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
     try { await saveHistory(unsavedAction) }
     finally { acting.current = false; setBusy(false) }
   }
-  const exportReport = () => recordAction('pdf_export', () => reportService.download(report.file))
+  const exportReport = () => recordAction('pdf_export', () => reportService.download(file))
   const shareReport = () => {
-    if (acting.current || unsavedAction || !report.file) return
-    setShareFallback(!reportService.canShare(report.file))
-    return recordAction('pdf_share_opened', () => reportService.share(report.file))
+    if (acting.current || unsavedAction || !file) return
+    if (sharing.enabled && !sharing.file) return sharing.authorize()
+    setShareFallback(!reportService.canShare(file))
+    return recordAction('pdf_share_opened', () => reportService.share(file))
   }
   const openReport = () => {
-    try { reportService.open(report.file); setActionError('') }
+    try { reportService.open(file); setActionError('') }
     catch (error) { setActionError(error.message) }
   }
 
@@ -117,9 +121,11 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
         </div>}
       </Panel>}
       {actionFeedback}
+      {sharing.message && <p role="status">{sharing.message}</p>}
+      {sharing.retry && <button type="button" className="secondary-button" disabled={sharing.busy} onClick={() => sharing.authorize(true)}>Retry Original Request</button>}
       <p className="progress-report-status" role="status">{report.preparing ? 'Preparing PDF…' : ''}</p>
       {report.error && <div role="alert"><p>{report.error}</p><button type="button" className="secondary-button" onClick={report.retry}>Retry PDF</button></div>}
-      {shareFallback && report.file && <div className="report-file-actions"><button type="button" className="secondary-button" disabled={busy || Boolean(unsavedAction)} onClick={openReport}>Open PDF</button></div>}
+      {shareFallback && file && <div className="report-file-actions"><button type="button" className="secondary-button" disabled={busy || Boolean(unsavedAction)} onClick={openReport}>Open PDF</button></div>}
       {!exercises.length ? <Panel><div className="empty">No completed exercise loads yet.</div></Panel> : <Panel>
         <div className="strength-progress-head">
           <div className="strength-progress-title">
@@ -131,7 +137,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
               type="button"
               className="secondary-button strength-progress-export"
               aria-label="Download Progress Report PDF"
-              disabled={busy || Boolean(unsavedAction) || !report.file}
+              disabled={busy || sharing.busy || Boolean(unsavedAction) || !file}
               onClick={exportReport}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -143,13 +149,13 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
               type="button"
               className="secondary-button strength-progress-share"
               aria-label="Share Progress Report PDF"
-              disabled={busy || Boolean(unsavedAction) || !report.file}
+              disabled={busy || sharing.busy || Boolean(unsavedAction) || !file}
               onClick={shareReport}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 16V3m0 0-4 4m4-4 4 4M7 10H4v11h16V10h-3" />
               </svg>
-              <span>Share PDF</span>
+              <span>{sharing.busy ? 'Checking report…' : sharing.pending ? 'Check Approval' : 'Share PDF'}</span>
             </button>
           </div>}
         </div>

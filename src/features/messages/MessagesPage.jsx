@@ -1,4 +1,5 @@
 import { messageVisibleTo } from '../../app/messageInbox.js'
+import AdminApprovalInbox from './AdminApprovalInbox.jsx'
 import { canViewRemuneration } from '../../app/permissions.js'
 import { managesOperations } from '../../app/permissions.js'
 import usePageState from '../../hooks/usePageState.js'
@@ -30,6 +31,7 @@ export default function MessagesPage({ category, onCategoryChange, ...props }) {
       <div><span className="eyebrow">Updates</span><div className="heading-with-status"><h1>Messages</h1><StatusBadge tone="blue">{unread} new</StatusBadge></div></div>
     </div>
     <MessageInbox {...props} category={category ?? localCategory} onCategoryChange={onCategoryChange ?? setLocalCategory} />
+    {props.adminApprovalServices && managesOperations(props.user) && <AdminApprovalInbox services={props.adminApprovalServices} user={props.user} />}
   </>
 }
 

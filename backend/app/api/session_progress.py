@@ -7,7 +7,7 @@ from sqlalchemy import exists, select
 
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
-from app.authorization import client_record, session_scope, unavailable
+from app.authorization import can_coach_client, client_record, session_scope, unavailable
 from app.models.training import Acknowledgement, ExerciseResult, TrainingSession
 
 
@@ -35,7 +35,7 @@ class ClientProgress(Contract):
 def read(session, principal, identity):
     """Full-profile authority is required; temporary cover never expands client-history access."""
     client = client_record(session, principal, identity)
-    if not principal.manages_operations and client.trainer_id != principal.trainer_id:
+    if not can_coach_client(session, principal, client.id):
         raise unavailable()
     rows = session.execute(
         select(ExerciseResult, TrainingSession)

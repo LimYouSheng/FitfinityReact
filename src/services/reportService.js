@@ -47,9 +47,9 @@ export function canShareReport(file) {
 }
 
 export const browserReportService = {
-  async progressFile({ client, timeZone }) {
+  async progressFile({ client, timeZone, at }) {
     const { progressReportPdf } = await import('../features/clients/progressReportPdf.jsx')
-    const blob = await progressReportPdf(client, { timeZone })
+    const blob = await progressReportPdf(client, { timeZone, ...(at ? { at } : {}) })
     return new File([blob], reportFilename(client.name, 'progress-report'), { type: 'application/pdf' })
   },
   async sessionFile(input) {

@@ -15,7 +15,7 @@ it('reviews and saves only the server digest and selected Trainer through a scop
   expect(await services.previewClientAssignment({ id: saved.id, expectedVersion: 2 })).toEqual({ reviewed: assignmentReview(), trainerId: '', uncertain: false })
   expect(await services.clientService.reassignTrainer(input())).toEqual(saved)
   const [, options] = fetch.mock.calls.find(([, options]) => options.method === 'POST')
-  expect(JSON.parse(options.body)).toEqual({ expected: 'a'.repeat(64), trainerId: directoryId(31) })
+  expect(JSON.parse(options.body)).toEqual({ expected: 'a'.repeat(64), trainerId: directoryId(31), purchaseId: directoryId(9) })
   expect(options.headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/)
 })
 it('retains original selection and reconciles a committed interrupted response without replay', async () => {

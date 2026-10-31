@@ -1,4 +1,5 @@
 import { pastClientPackages, progressForPackage } from '../../app/clientPackages.js'
+import { businessClock } from '../../app/clock.js'
 import { clientProgressExercises, progressSessionSummary } from '../../app/progress.js'
 import { useMemo } from 'react'
 import { formatDate } from '../../utils/date.js'
@@ -9,10 +10,13 @@ import StrengthProgress from './StrengthProgress.jsx'
 
 export default function PackageProgress({ client, sessions = [], user, progressData, packageId, onOpenPackage, ...props }) {
   const reportClient = useMemo(() => ({ ...client, strengthProgress: progressData ?? clientProgressExercises(client, sessions) }), [client, sessions, progressData])
-  const packages = [ ...(client.package.status === 'inactive' ? [] : [client.package]), ...pastClientPackages(client) ]
+  const today = businessClock(new Date(), props.timeZone).date
+  const startedAdditional = (client.additionalPackages ?? []).filter(item => item.status !== 'inactive' && item.startDate <= today)
+  const packages = [ ...(client.package.status === 'inactive' ? [] : [client.package]), ...startedAdditional, ...pastClientPackages(client) ]
     .sort((a, b) => b.startDate.localeCompare(a.startDate) || a.id.localeCompare(b.id))
   const pages = usePagination(packages, client.id, `client.${client.id}.progressPackagesPage`)
-  const kind = purchased => purchased.id === client.package.id && purchased.status !== 'inactive' ? 'Current' : 'Past'
+  const kind = purchased => purchased.status !== 'inactive' &&
+    (purchased.id === client.package.id || startedAdditional.includes(purchased) && purchased.endDate >= today) ? 'Current' : 'Past'
   if (packageId) {
     const purchased = packages.find(item => item.id === packageId)
     if (!purchased) return <Panel><p className="empty">This package is unavailable.</p></Panel>

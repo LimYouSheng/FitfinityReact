@@ -4,6 +4,8 @@ from sqlalchemy import CheckConstraint
 
 from app.database import Base
 from app.models import (
+    admin_management,
+    admin_requests,
     api,
     assessments,
     authentication,
@@ -48,6 +50,8 @@ for table in Base.metadata.tables.values():
 
 
 __all__ = [
+    "admin_management",
+    "admin_requests",
     "api",
     "assessments",
     "authentication",

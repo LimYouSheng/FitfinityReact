@@ -7,9 +7,10 @@ from uuid import UUID
 from pydantic import Field, StrictInt, StrictStr, model_validator
 from sqlalchemy import select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
-from app.authorization import conflict, unavailable
+from app.authorization import coaching_scope, conflict, unavailable
 from app.models.api import ClientNoteAccess, ClientNoteReceipt
 from app.models.people import Client, ClientPerson
 
@@ -50,7 +51,7 @@ class NoteView(NoteState):
 def record(session, principal, client_id, *, write=False):
     query = select(Client).where(Client.id == client_id)
     if not principal.manages_operations:
-        query = query.where(Client.trainer_id == principal.trainer_id)
+        query = query.where(coaching_scope(principal))
     client = session.scalar(query.with_for_update(read=not write))
     if client is None:
         raise unavailable()
@@ -105,6 +106,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("client.notes")
 def reconcile(session, principal, key):
     saved = receipt(session, principal, key)
     if saved is None:
@@ -114,6 +116,7 @@ def reconcile(session, principal, key):
     return NoteState.model_validate(saved.result)
 
 
+@supervised("clientDetails", "client.notes", SaveNotes, receipt=receipt, target="client_id")
 def save(session, principal, client_id, key, body):
     previous = receipt(session, principal, key)
     client = record(session, principal, client_id, write=True)

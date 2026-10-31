@@ -8,18 +8,20 @@ import { businessClock } from '../../app/clock.js'
 import { trainerReassignmentAvailabilityError, trainerReassignmentSnapshot } from '../../app/trainerReassignment.js'
 import { formatTimestamp } from '../../utils/date.js'
 
-export default function ReassignTrainerDialog({ client, trainers, sessions, packageCreditTransactions = [], timeZone, onSave, onClose, reviewed, initialTrainerId = '', uncertain = false }) {
+export default function ReassignTrainerDialog({ client, purchaseId = client.package?.id, trainers, sessions, packageCreditTransactions = [], timeZone, onSave, onClose, reviewed, initialTrainerId = '', uncertain = false }) {
   const confirmAction = useActionConfirmation()
   const { guardNavigation } = useEditGuard()
   const [initial] = useState(() => ({
+    purchaseId,
     requestId: globalThis.crypto?.randomUUID?.() ?? `reassign-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    expected: reviewed ? { trainerId: reviewed.current.id, packages: reviewed.purchases, sessions: reviewed.sessions } : trainerReassignmentSnapshot(client, sessions, packageCreditTransactions, businessClock(new Date(), timeZone)),
+    expected: reviewed ? { trainerId: reviewed.current.id, packages: reviewed.purchases, sessions: reviewed.sessions } : trainerReassignmentSnapshot(client, sessions, packageCreditTransactions, businessClock(new Date(), timeZone), purchaseId),
   }))
   const [trainerId, setTrainerId] = useState(initialTrainerId)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const choices = reviewed ? reviewed.choices.map(t => ({ ...t, availabilityError: t.error })) : trainers.filter(item => item.status === 'active' && item.id !== initial.expected.trainerId)
-    .map(trainer => ({ ...trainer, availabilityError: trainerReassignmentAvailabilityError(client, trainer, initial.expected.sessions) }))
+    .map(trainer => ({ ...trainer, availabilityError: trainerReassignmentAvailabilityError(client, trainer, initial.expected.sessions, purchaseId) }))
+  const history = reviewed?.history.map(h => ({ id: h.id, at: h.at, by: h.actor, from: h.previous, to: h.replacement })) ?? (client.trainerAssignmentHistory ?? []).filter(entry => entry.packages?.some(item => item.id === purchaseId))
   const previous = reviewed?.current ?? trainers.find(item => item.id === initial.expected.trainerId)
   const selected = choices.find(item => item.id === trainerId)
   const save = async () => {
@@ -27,7 +29,7 @@ export default function ReassignTrainerDialog({ client, trainers, sessions, pack
     setSaving(true); setError('')
     try {
       const confirmed = uncertain || await confirmAction({ title: `Reassign trainer for ${client.name}?`, confirmLabel: 'Reassign Trainer',
-        message: `${previous?.name ?? 'Unknown trainer'} → ${selected.name}. Update ${initial.expected.sessions.length} eligible upcoming sessions and ${initial.expected.packages.length} current/additional packages. Completed and acknowledged sessions keep their recorded trainer.` })
+        message: `${previous?.name ?? 'Unknown trainer'} → ${selected.name}. Update ${initial.expected.sessions.length} eligible upcoming sessions and ${initial.expected.packages.length} selected package. Completed and acknowledged sessions keep their recorded trainer.` })
       if (!confirmed) return
       await onSave({ ...initial, ...(reviewed ? { reviewed } : {}), trainerId })
       onClose()
@@ -37,6 +39,7 @@ export default function ReassignTrainerDialog({ client, trainers, sessions, pack
   return <ConfirmDialog open title="Permanently Reassign Trainer" confirmLabel={saving ? 'Reassigning…' : uncertain ? 'Check Reassignment' : 'Review Reassignment'}
     confirmDisabled={saving || !selected || Boolean(selected.availabilityError)} onConfirm={save} onCancel={() => { if (!saving) guardNavigation(onClose) }}>
     <div className="stack-gap">
+      <p>Package: <strong>{reviewed?.purchases[0]?.name ?? [client.package, ...(client.additionalPackages ?? [])].find(item => item?.id === purchaseId)?.name ?? purchaseId}</strong></p>
       <p>Current trainer: <strong>{previous?.name ?? 'Unknown trainer'}</strong></p>
       <Field label="New trainer" required><SelectField aria-label="New trainer" value={trainerId} disabled={saving || uncertain} onChange={event => setTrainerId(event.target.value)}>
         <option value="">Choose trainer</option>{choices.map(trainer => <option key={trainer.id} value={trainer.id} disabled={Boolean(trainer.availabilityError)}>{trainer.name}{trainer.availabilityError ? ' — Unavailable' : ''}</option>)}
@@ -44,11 +47,11 @@ export default function ReassignTrainerDialog({ client, trainers, sessions, pack
       {!choices.length && <p>No other active trainers.</p>}
       {choices.length > 0 && !choices.some(trainer => !trainer.availabilityError) && <p>No trainer matches the saved schedules and preferences.</p>}
       {choices.filter(trainer => trainer.availabilityError).map(trainer => <p className="helper" key={trainer.id}>{trainer.name}: {trainer.availabilityError}</p>)}
-      <p>{initial.expected.sessions.length} eligible upcoming sessions · {initial.expected.packages.length} current/additional packages</p>
+      <p>{initial.expected.sessions.length} eligible upcoming sessions · {initial.expected.packages.length} selected package</p>
       {error && <p role="alert" className="onboarding-error">{error}</p>}
-      {Boolean((reviewed?.history ?? client.trainerAssignmentHistory)?.length) && <section aria-label="Trainer assignment history">
+      {Boolean(history.length) && <section aria-label="Trainer assignment history">
         <h3>Assignment History</h3>
-        <div className="client-record-list">{[...(reviewed?.history.map(h => ({ id: h.id, at: h.at, by: h.actor, from: h.previous, to: h.replacement })) ?? client.trainerAssignmentHistory)].reverse().map(entry => <div className="client-record-row" key={entry.id}>
+        <div className="client-record-list">{[...history].reverse().map(entry => <div className="client-record-row" key={entry.id}>
           <div><strong>{entry.from.name} → {entry.to.name}</strong><span><time dateTime={entry.at}>{formatTimestamp(entry.at, timeZone)}</time> · {entry.by.name}</span></div>
         </div>)}</div>
       </section>}

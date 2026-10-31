@@ -14,6 +14,7 @@ from app.api.schemas import (
     TrainerOnboardingPolicy,
 )
 from app.auth.errors import AuthError
+from app.authorization import coaching_scope
 from app.models.people import Client, ClientPerson, Trainer, TrainerAvailability
 from app.models.training import (
     CreditDebit,
@@ -43,8 +44,8 @@ def snapshot(session, principal, *, email_corrections=False):
     client_query = select(Client).order_by(Client.id)
     trainer_query = select(Trainer).order_by(Trainer.id)
     if not principal.manages_operations:
-        # Full profiles require the current permanent relationship. Session cover is separate.
-        client_query = client_query.where(Client.trainer_id == principal.trainer_id)
+        # Started concurrent purchases grant coaching scope; temporary cover does not.
+        client_query = client_query.where(coaching_scope(principal))
         trainer_query = trainer_query.where(Trainer.id == principal.trainer_id)
     clients = bounded(session, client_query.with_for_update(read=True))
     trainers = bounded(session, trainer_query.with_for_update(read=True))

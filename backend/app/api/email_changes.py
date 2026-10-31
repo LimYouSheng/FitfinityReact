@@ -9,6 +9,7 @@ from fastapi import APIRouter, Request
 from pydantic import Field, SecretStr, StrictInt, StrictStr, field_validator
 from sqlalchemy import select, text
 
+from app.api.admin_supervision import ApprovalPending, supervised, supervised_recovery
 from app.api.dependencies import authorized_transaction
 from app.api.routes import RequestKey
 from app.api.schemas import ERROR_RESPONSES, Contract
@@ -62,95 +63,122 @@ def result(change, *, signed_out=False):
     "/api/trainers/{trainer_id}/email-change",
     response_model=EmailState,
     operation_id="requestTrainerEmailChange",
+    responses={202: {"model": ApprovalPending}},
 )
 def request_change(trainer_id: UUID, body: EmailRequest, request: Request, key: RequestKey):
     """Reserve an address without changing login/recovery or sending mail to another user."""
     with authorized_transaction(request) as (session, principal):
-        principal.operations()
-        if (
-            body.supersedes is not None
-            and not request.app.state.auth_settings.staff_email_corrections_enabled
+        bind_request_context(session, request)
+        return reserve(session, principal, trainer_id, key, body)
+
+
+def bind_request_context(session, request):
+    """Trusted runtime configuration is supplied again at approval, never by a proposal."""
+    session.info["email_change_context"] = {
+        "corrections_enabled": request.app.state.auth_settings.staff_email_corrections_enabled,
+        "issuer": request.app.state.auth_settings.cognito_issuer,
+        "clock": request.app.state.auth.clock,
+    }
+
+
+def email_receipt(session, principal, key):
+    # The supervision barrier serializes this Admin key. Do not take the email
+    # lock ahead of target user/Trainer rows; reservation uses their established order.
+    return session.scalar(
+        select(StaffEmailChange).where(
+            StaffEmailChange.actor_id == principal.user_id, StaffEmailChange.request_key == key
+        )
+    )
+
+
+@supervised(
+    "trainerDetails", "trainer.email", EmailRequest, receipt=email_receipt, target="trainer_id"
+)
+def reserve(session, principal, trainer_id, key, body):
+    """Reserve the reviewed address; only the account holder can send and verify its code."""
+    context = session.info["email_change_context"]
+    principal.operations()
+    if body.supersedes is not None and not context["corrections_enabled"]:
+        raise AuthError(
+            "EMAIL_CORRECTION_UNAVAILABLE", "Pending email correction is not enabled.", 409
+        )
+    target_id = session.scalar(select(Trainer.user_id).where(Trainer.id == trainer_id))
+    user = session.scalar(select(StaffUser).where(StaffUser.id == target_id).with_for_update())
+    trainer = session.scalar(select(Trainer).where(Trainer.id == trainer_id).with_for_update())
+    if not user or not trainer or user.status != "active" or trainer.status != "active":
+        raise unavailable()
+    session.execute(text("SELECT pg_advisory_xact_lock(714602036)"))
+    prior = session.scalar(
+        select(StaffEmailChange).where(
+            StaffEmailChange.actor_id == principal.user_id, StaffEmailChange.request_key == key
+        )
+    )
+    if prior:
+        if (prior.user_id, prior.new_email, prior.trainer_version, prior.supersedes_id) != (
+            user.id,
+            body.email,
+            body.expectedVersion,
+            body.supersedes,
         ):
+            raise conflict()
+        return result(prior)
+    if trainer.version != body.expectedVersion or trainer.email != user.email:
+        raise conflict()
+    identity = session.scalar(
+        select(StaffIdentity).where(
+            StaffIdentity.user_id == user.id,
+            StaffIdentity.issuer == context["issuer"],
+            StaffIdentity.status == "active",
+        )
+    )
+    if not identity or not identity.provider_username:
+        raise conflict()
+    if body.email == user.email:
+        raise AuthError("EMAIL_UNCHANGED", "Enter a different email address.", 422)
+    pending = session.scalar(
+        select(StaffEmailChange)
+        .where(
+            StaffEmailChange.user_id == user.id,
+            StaffEmailChange.state.not_in(["completed", "superseded"]),
+        )
+        .with_for_update()
+    )
+    if pending:
+        if body.supersedes != pending.id:
             raise AuthError(
-                "EMAIL_CORRECTION_UNAVAILABLE", "Pending email correction is not enabled.", 409
+                "EMAIL_CHANGE_PENDING",
+                "Review the pending verification before correcting it.",
+                409,
             )
-        target_id = session.scalar(select(Trainer.user_id).where(Trainer.id == trainer_id))
-        user = session.scalar(select(StaffUser).where(StaffUser.id == target_id).with_for_update())
-        trainer = session.scalar(select(Trainer).where(Trainer.id == trainer_id).with_for_update())
-        if not user or not trainer or user.status != "active" or trainer.status != "active":
-            raise unavailable()
-        session.execute(text("SELECT pg_advisory_xact_lock(714602036)"))
-        prior = session.scalar(
-            select(StaffEmailChange).where(
-                StaffEmailChange.actor_id == principal.user_id, StaffEmailChange.request_key == key
+        if pending.state not in {"requested", "pending"} or pending.lease_id is not None:
+            raise AuthError(
+                "EMAIL_CHANGE_UNCERTAIN",
+                "The trainer must reconcile the current provider action before correction.",
+                409,
             )
-        )
-        if prior:
-            if (prior.user_id, prior.new_email, prior.trainer_version, prior.supersedes_id) != (
-                user.id,
-                body.email,
-                body.expectedVersion,
-                body.supersedes,
-            ):
-                raise conflict()
-            return result(prior)
-        if trainer.version != body.expectedVersion or trainer.email != user.email:
-            raise conflict()
-        identity = session.scalar(
-            select(StaffIdentity).where(
-                StaffIdentity.user_id == user.id,
-                StaffIdentity.issuer == request.app.state.auth_settings.cognito_issuer,
-                StaffIdentity.status == "active",
-            )
-        )
-        if not identity or not identity.provider_username:
-            raise conflict()
-        if body.email == user.email:
-            raise AuthError("EMAIL_UNCHANGED", "Enter a different email address.", 422)
-        pending = session.scalar(
-            select(StaffEmailChange)
-            .where(
-                StaffEmailChange.user_id == user.id,
-                StaffEmailChange.state.not_in(["completed", "superseded"]),
-            )
-            .with_for_update()
-        )
-        if pending:
-            if body.supersedes != pending.id:
-                raise AuthError(
-                    "EMAIL_CHANGE_PENDING",
-                    "Review the pending verification before correcting it.",
-                    409,
-                )
-            if pending.state not in {"requested", "pending"} or pending.lease_id is not None:
-                raise AuthError(
-                    "EMAIL_CHANGE_UNCERTAIN",
-                    "The trainer must reconcile the current provider action before correction.",
-                    409,
-                )
-            if pending.new_email == body.email:
-                raise AuthError("EMAIL_UNCHANGED", "Enter a different pending email address.", 422)
-            pending.state, pending.superseded_at = "superseded", request.app.state.auth.clock()
-            session.flush()
-        elif body.supersedes is not None:
-            raise conflict()
-        change = StaffEmailChange(
-            request_key=key,
-            supersedes_id=body.supersedes,
-            sends=pending.sends if pending else 0,
-            attempts=pending.attempts if pending else 0,
-            last_sent_at=pending.last_sent_at if pending else None,
-            trainer_version=body.expectedVersion,
-            user_id=user.id,
-            identity_id=identity.id,
-            old_email=user.email,
-            new_email=body.email,
-            actor_id=principal.user_id,
-            actor_name=principal.name,
-        )
-        session.add(change)
+        if pending.new_email == body.email:
+            raise AuthError("EMAIL_UNCHANGED", "Enter a different pending email address.", 422)
+        pending.state, pending.superseded_at = "superseded", context["clock"]()
         session.flush()
-        return result(change)
+    elif body.supersedes is not None:
+        raise conflict()
+    change = StaffEmailChange(
+        request_key=key,
+        supersedes_id=body.supersedes,
+        sends=pending.sends if pending else 0,
+        attempts=pending.attempts if pending else 0,
+        last_sent_at=pending.last_sent_at if pending else None,
+        trainer_version=body.expectedVersion,
+        user_id=user.id,
+        identity_id=identity.id,
+        old_email=user.email,
+        new_email=body.email,
+        actor_id=principal.user_id,
+        actor_name=principal.name,
+    )
+    session.add(change)
+    session.flush()
+    return result(change)
 
 
 @router.get(
@@ -172,20 +200,22 @@ def pending(request: Request):
     "/api/trainer-email-requests/{key}",
     response_model=EmailState,
     operation_id="reconcileTrainerEmailRequest",
+    responses={202: {"model": ApprovalPending}},
 )
 def request_receipt(key: UUID, request: Request):
     """Read a serialized actor-scoped request receipt without sending a verification code."""
     with authorized_transaction(request) as (session, principal):
-        principal.operations()
-        session.execute(text("SELECT pg_advisory_xact_lock(714602036)"))
-        change = session.scalar(
-            select(StaffEmailChange).where(
-                StaffEmailChange.actor_id == principal.user_id, StaffEmailChange.request_key == key
-            )
-        )
-        if change is None:
-            raise unavailable()
-        return result(change)
+        return reconcile_request(session, principal, key)
+
+
+@supervised_recovery("trainer.email")
+def reconcile_request(session, principal, key):
+    principal.operations()
+    session.execute(text("SELECT pg_advisory_xact_lock(714602036)"))
+    change = email_receipt(session, principal, key)
+    if change is None:
+        raise unavailable()
+    return result(change)
 
 
 @router.get(

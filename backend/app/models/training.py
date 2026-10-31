@@ -22,7 +22,6 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -71,13 +70,6 @@ class PackagePurchase(Versioned, Base):
         CheckConstraint("end_date = start_date + validity_days - 1", name="inclusive_validity"),
         CheckConstraint(
             "template_revision > 0 AND length(btrim(name)) > 0", name="snapshot_required"
-        ),
-        ExcludeConstraint(
-            ("client_id", "="),
-            (text("daterange(start_date, end_date, '[]')"), "&&"),
-            where=text("status = 'active'"),
-            using="gist",
-            name="ex_purchase_dates",
         ),
         Index(
             "uq_current_purchase",

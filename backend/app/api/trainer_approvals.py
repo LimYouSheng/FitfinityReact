@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import Field, StrictBool, StrictInt
 from sqlalchemy import or_, select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
@@ -52,6 +53,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("trainer.approvals")
 def reconcile(session, principal, key):
     saved = receipt(session, principal, key)
     if saved is None:
@@ -59,6 +61,9 @@ def reconcile(session, principal, key):
     return ApprovalState.model_validate(saved.result)
 
 
+@supervised(
+    "trainerAssignment", "trainer.approvals", SaveApprovals, receipt=receipt, target="trainer_id"
+)
 def save(session, principal, trainer_id, key, body):
     previous = receipt(session, principal, key)
     digest = hashlib.sha256(

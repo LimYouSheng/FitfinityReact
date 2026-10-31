@@ -1,4 +1,5 @@
-export const MAX_EXERCISE_VIDEO_BYTES = 5 * 1024 * 1024
+export const MAX_EXERCISE_VIDEO_BYTES = 10 * 1024 * 1024
+export const MAX_PREPARED_EXERCISE_VIDEO_BYTES = 5 * 1024 * 1024
 export const MAX_EXERCISE_VIDEO_SECONDS = 60
 
 export function exerciseVideoExpiresAt(video, retentionDays) {
@@ -17,7 +18,7 @@ export function exerciseVideoExpired(video, now, retentionDays) {
 export function exerciseVideoFileValidation(file) {
   if (!file || !file.type?.startsWith('video/')) return 'Choose a video file.'
   if (!file.size) return 'Choose a non-empty video file.'
-  if (file.size > MAX_EXERCISE_VIDEO_BYTES) return 'Video must be 5 MB or smaller.'
+  if (file.size > MAX_EXERCISE_VIDEO_BYTES) return 'Video must be 10 MB or smaller.'
   return null
 }
 

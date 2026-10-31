@@ -108,10 +108,9 @@ def review(session, principal, identity, *, write=False):
         ],
     }
     expected = hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest()
-    last_day = max((p.end_date for p in purchases if p.status == "active"), default=None)
     try:
         today = datetime.now(UTC).astimezone(ZoneInfo("Asia/Singapore")).date()
-        minimum = max(today, last_day + timedelta(days=1)) if last_day else today
+        minimum = today + timedelta(days=1)
     except OverflowError:
         raise AuthError(
             "invalid_request", "There is no later supported package date.", 422
@@ -161,7 +160,7 @@ def matches(session, principal, identity, body):
     if viewed.expected != body.expected:
         raise conflict()
     if body.startDate < viewed.minimumStartDate:
-        raise AuthError("invalid_request", "Choose a date after the existing packages.", 422)
+        raise AuthError("invalid_request", "Choose a future start date.", 422)
     slots = (
         None
         if body.fixedWeeklySchedule is None

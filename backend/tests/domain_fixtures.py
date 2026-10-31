@@ -85,7 +85,7 @@ def purchase_parts(graph, start_date=None, *, client_id=None, stage="queued"):
 
 
 @pytest.fixture
-def graph(domain_db):
+def graph(domain_db, request):
     with domain_db.transaction() as session:
         owner = StaffUser(name="Owner Original", email="owner@example.test", role="owner")
         user = StaffUser(name="Trainer One", email="trainer@example.test", role="trainer")
@@ -126,7 +126,13 @@ def graph(domain_db):
         today = session.scalar(
             text("SELECT (clock_timestamp() AT TIME ZONE 'Asia/Singapore')::date")
         )
-        start = (today.replace(day=1) - timedelta(days=45)).replace(day=16)
+        # New-purchase tests need future bookings; historical domain evidence retains
+        # its existing past-cycle fixture unless the test explicitly requests otherwise.
+        start = (
+            today + timedelta(days=1)
+            if getattr(request, "param", None) == "future"
+            else (today.replace(day=1) - timedelta(days=45)).replace(day=16)
+        )
         values = {
             "owner_id": owner.id,
             "user_id": user.id,

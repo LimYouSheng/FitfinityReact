@@ -13,6 +13,9 @@ import { remunerationService } from './remunerationService.js'
 // Context is adapter-owned and never merged with caller input.
 export const mockPortalOperations = {
   staffService: {
+    getAll: (_input, { actor }) => staffService.getAll(actor),
+    getById: ({ id }, { actor }) => staffService.getById(id, actor),
+    update: ({ id, body }, { actor }) => staffService.update(id, body, actor),
     createAdmin: ({ body, requestKey }, { actor }) => staffService.createAdmin(body, requestKey, actor),
   },
   contentService: {

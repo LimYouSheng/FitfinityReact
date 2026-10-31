@@ -28,6 +28,7 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
   const [busy, setBusy] = useState(false)
   const [uncertain, setUncertain] = useState(false)
   const original = useRef(null)
+  const [approvalSubmitted, setApprovalSubmitted] = useState(false)
   const [created, setCreated] = useState(null)
   const pending = useRef(false), navigated = useRef(false), fileInput = useRef(null)
   const dirty = JSON.stringify(draft) !== JSON.stringify(draftFor(exercise, categories)) || Boolean(file) || removeMedia
@@ -63,12 +64,17 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
       setEditing(false); setFile(null); setMediaError(''); setRemoveMedia(false); setActiveEdit(null)
       if (creating) setCreated(saved)
     } catch (failure) {
+      if (failure.code === 'APPROVAL_PENDING') {
+        setApprovalSubmitted(true); setEditing(false); setUncertain(false); setFile(null); setActiveEdit(null)
+        return
+      }
       setUncertain(Boolean(apiRecovery && (!failure.status || failure.status >= 500)))
       setError(failure.message || 'Could not save the exercise. Try again.')
     }
     finally { pending.current = false; setBusy(false) }
   }
 
+  if (approvalSubmitted) return <Panel><h2>Exercise submitted for approval</h2><p role="status">The Owner will review the entry and attachment. The published library has not changed.</p><button type="button" onClick={onBack}>Back to Library</button></Panel>
   if (creating && created) return <Panel><p role="status">Opening exercise…</p></Panel>
   if (!editing) return <Panel>
     <div className="section-head"><div><h2>{exercise?.name ?? created?.name}</h2><StatusBadge tone={exercise?.status === 'inactive' ? 'neutral' : 'green'}>{exercise?.status === 'inactive' ? 'Inactive' : 'Active'}</StatusBadge></div>

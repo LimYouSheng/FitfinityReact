@@ -54,7 +54,7 @@ def test_migration_matches_canonical_models(domain_db):
         )
         assert (
             connection.scalar(text("SELECT count(*) FROM pg_trigger WHERE tgname LIKE 'ff_%'"))
-            == 242
+            == 248
         )
 
 
@@ -64,7 +64,7 @@ def test_populated_downgrade_refuses_before_losing_any_data(domain_db, graph, mi
     with domain_db.transaction() as session:
         assert count(session, Client) == 1
         assert count(session, TrainingSession) == 2
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261025_0046"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261101_0052"
 
 
 def test_couple_has_two_people_in_one_atomic_transaction(domain_db, graph):
@@ -138,15 +138,28 @@ def test_stale_purchase_review_writes_nothing(domain_db, graph):
         assert count(session, PackagePurchase) == 1
 
 
-def test_overlap_rejected_even_when_no_credits_used(domain_db, graph):
-    with pytest.raises(IntegrityError, match="follow"), domain_db.transaction() as session:
-        # Insert directly to test the database invariant independently of the repository.
-        purchase, _, _, _ = purchase_parts(graph, graph["end_date"])
-        session.add(purchase)
-        session.flush()
+def test_overlapping_validity_retains_independent_purchases_and_blocks_lossy_downgrade(
+    domain_db, graph, migrate
+):
+    with domain_db.transaction() as session:
+        purchase, slots, preferences, bookings = purchase_parts(graph, graph["end_date"])
+        add_purchase(
+            session,
+            purchase,
+            slots,
+            preferences,
+            bookings,
+            expected_client_version=graph["client_version"],
+        )
     with domain_db.transaction() as session:
         assert used_credits(session, graph["purchase_id"]) == 0
-        assert count(session, PackagePurchase) == 1
+        assert count(session, PackagePurchase) == 2
+        assert count(session, TrainingSession) == 4
+    with pytest.raises(DBAPIError, match="concurrent purchase downgrade refused"):
+        migrate("downgrade", "20261031_0049")
+    with domain_db.transaction() as session:
+        assert count(session, PackagePurchase) == 2
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261101_0052"
 
 
 def test_new_template_revision_cannot_rewrite_purchase_snapshot(domain_db, graph):

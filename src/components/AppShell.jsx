@@ -301,7 +301,6 @@ export default function AppShell({
                     </span>
                   </div>
 
-                  {user.role === 'owner' && <button type="button" role="menuitem" onClick={() => onRoute('owner-profile/create-admin')}>Create Admin</button>}
 
                   <button
                     type="button"

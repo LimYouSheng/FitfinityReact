@@ -8,12 +8,14 @@ from fastapi import APIRouter, Request
 from sqlalchemy import func, select, text
 
 from app.api import trainer_creation
+from app.api.admin_supervision import ApprovalPending
 from app.api.dependencies import authorized_transaction
 from app.api.routes import RequestKey
 from app.api.schemas import ERROR_RESPONSES
 from app.api.staff_provisioning import locked, provision
 from app.api.staff_schemas import AdminCreated, NewAdmin
 from app.auth.errors import AuthError
+from app.models.admin_management import DEFAULT_APPROVAL_AREAS, AdminApprovalRequirement
 from app.models.people import StaffUser, Trainer
 from app.models.staff import AdminProfile, StaffInvitation
 
@@ -90,6 +92,11 @@ def create_admin(body: NewAdmin, request: Request, key: RequestKey):
                     gender=body.gender,
                 )
             )
+            session.flush()
+            session.add_all(
+                AdminApprovalRequirement(user_id=user.id, area=area, required=True)
+                for area in DEFAULT_APPROVAL_AREAS
+            )
             invitation = StaffInvitation(
                 user_id=user.id,
                 request_key=key,
@@ -127,7 +134,10 @@ def create_admin(body: NewAdmin, request: Request, key: RequestKey):
 
 
 @router.post(
-    "/trainers", response_model=trainer_creation.TrainerCreated, operation_id="createTrainer"
+    "/trainers",
+    response_model=trainer_creation.TrainerCreated,
+    operation_id="createTrainer",
+    responses={202: {"model": ApprovalPending}},
 )
 def create_trainer(body: trainer_creation.NewTrainer, request: Request, key: RequestKey):
     return trainer_creation.create(body, request, key)
@@ -137,6 +147,7 @@ def create_trainer(body: trainer_creation.NewTrainer, request: Request, key: Req
     "/trainer-creations/{request_key}",
     response_model=trainer_creation.TrainerCreated,
     operation_id="reconcileTrainerCreation",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_trainer_creation(request_key: UUID, request: Request):
     return trainer_creation.reconcile(request, request_key)

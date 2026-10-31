@@ -184,7 +184,7 @@ def test_open_records_block_downgrade_before_losing_unscheduled_evidence(domain_
     with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
         migrate("downgrade", "20261013_0021")
     with domain_db.transaction() as session:
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261025_0046"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261101_0052"
         assert session.get(TrainingSession, graph["session_id"]).schedule_state == "open"
 
 

@@ -8,7 +8,8 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
-from app.api.client_weekly_schedule import changes, inspect
+from app.api.admin_supervision import supervised, supervised_recovery
+from app.api.client_weekly_schedule import SaveClientWeeklySchedule, changes, inspect
 from app.api.schemas import Contract
 from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
@@ -47,6 +48,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("client.weekly")
 def reconcile(session, principal, key):
     saved = receipt(session, principal, key)
     if saved is None:
@@ -131,6 +133,13 @@ def proposal(session, principal, client, purchase, trainer, slots, body):
     return request.id
 
 
+@supervised(
+    "sessionScheduling",
+    "client.weekly",
+    SaveClientWeeklySchedule,
+    receipt=receipt,
+    target="identity",
+)
 @journal("client.weekly")
 def save(session, principal, identity, key, body):
     saved = receipt(session, principal, key)

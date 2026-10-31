@@ -23,9 +23,9 @@ const create = (name, trainerId) => api.clientService.create({ draft: draft(name
 const unchanged = before => { expect(mockDb.read()).toEqual(before); expect(mockDb.reload()).toEqual(before) }
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
-  vi.setSystemTime(new Date('2027-06-07T01:30:00Z'))
+  vi.setSystemTime(new Date('2027-06-06T01:30:00Z'))
   localStorage.clear()
-  mockDb.reset('2027-06-07')
+  mockDb.reset('2027-06-06')
   mockDb.mutate(db => {
     db.clients = []; db.sessions = []; db.messages = []; db.packageCreditTransactions = []
     db.users.push({ id: 'audit-admin', role: 'admin', status: 'active', name: 'Admin' })

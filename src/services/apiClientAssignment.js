@@ -21,7 +21,7 @@ export function validAssignmentReview(value) {
 export function clientAssignmentCommands(http, actionSession) {
   const save = reconciledCommand(http, actionSession, {
     label: 'Trainer reassignment', path: input => `/api/clients/${input.id}/trainer-assignment`, receiptPath: '/api/client-trainer-assignments',
-    bodyFor: ({ reviewed, trainerId }) => ({ expected: reviewed.expected, trainerId }),
+    bodyFor: ({ reviewed, trainerId }) => ({ expected: reviewed.expected, trainerId, purchaseId: reviewed.purchases[0]?.id }),
     validate(value, input) {
       if (!keys(value, ['id', 'version', 'trainerId', 'eventId']) || value.id !== input.id || value.version !== input.reviewed.version + 1 || value.trainerId !== input.trainerId || !uuid(value.eventId)) fail()
       return value
@@ -33,15 +33,15 @@ export function clientAssignmentCommands(http, actionSession) {
     return current.sessionGeneration
   }
   return {
-    async review({ id, expectedVersion }, generation) {
-      if (!uuid(id) || !version(expectedVersion)) throw new ApiError('INVALID_REQUEST', 'Reload the client before reassigning.')
+    async review({ id, expectedVersion, packageId }, generation) {
+      if (!uuid(id) || !version(expectedVersion) || (packageId !== undefined && !uuid(packageId))) throw new ApiError('INVALID_REQUEST', 'Reload the client before reassigning.')
       const current = await sessionFor(generation), pending = save.pendingInput(current)
       if (pending) {
-        if (pending.id !== id) throw new ApiError('SAVE_UNCERTAIN', 'Check the previous reassignment first.')
+        if (pending.id !== id || (packageId && pending.reviewed.purchases[0]?.id !== packageId)) throw new ApiError('SAVE_UNCERTAIN', 'Check the previous reassignment first.')
         return { reviewed: pending.reviewed, trainerId: pending.trainerId, uncertain: true }
       }
-      const reviewed = await http.get(`/api/clients/${id}/trainer-assignment-review`, { expectedGeneration: current })
-      if (!validAssignmentReview(reviewed) || reviewed.id !== id) fail()
+      const reviewed = await http.get(`/api/clients/${id}/trainer-assignment-review${packageId ? `?purchaseId=${packageId}` : ''}`, { expectedGeneration: current })
+      if (!validAssignmentReview(reviewed) || reviewed.id !== id || (packageId && (reviewed.purchases.length !== 1 || reviewed.purchases[0].id !== packageId))) fail()
       if (reviewed.version !== expectedVersion) throw new ApiError('VERSION_CONFLICT', 'This client changed. Reload before reassigning.', 409)
       return { reviewed, trainerId: '', uncertain: false }
     },

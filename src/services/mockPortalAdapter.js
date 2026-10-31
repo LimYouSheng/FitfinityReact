@@ -38,6 +38,7 @@ export const mockPortalAdapter = {
     // Report audit entries are fetched through the owner-only history operation.
     delete db.progressReportEvents
     delete db.progressMigrationArchive
+    delete db.adminChanges
     delete db.staffInvitations
     // Give a requester their original proposal without making the UI fetch owner-only messages.
     // Existing receipts acquire this read projection without rewriting stored history.

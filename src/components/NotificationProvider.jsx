@@ -52,7 +52,7 @@ export function NotificationProvider({ children }) {
     try {
       result = await operation()
     } catch (error) {
-      if (scope.current === startedIn) notify({ tone: 'error', connectionError: error?.code === 'NETWORK_ERROR' && error?.requestMethod === 'GET', message: error?.message || 'Could not complete this action. Try again.' })
+      if (scope.current === startedIn) notify({ tone: error?.code === 'APPROVAL_PENDING' ? 'info' : 'error', connectionError: error?.code === 'NETWORK_ERROR' && error?.requestMethod === 'GET', message: error?.message || 'Could not complete this action. Try again.' })
       if (scope.current === startedIn) window.dispatchEvent(new Event(PORTAL_ACTION_FAILED))
       throw error
     }

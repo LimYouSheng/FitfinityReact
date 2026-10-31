@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import Field
 from sqlalchemy import or_, select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.client_assignment import inspect
 from app.api.directory import bounded
 from app.api.schemas import Contract
@@ -28,6 +29,7 @@ from app.models.training import AssignmentChange, AssignmentEvent
 class SaveAssignment(Contract):
     expected: str = Field(pattern=r"^[0-9a-f]{64}$")
     trainerId: UUID
+    purchaseId: UUID | None = None
 
 
 class AssignmentState(Contract):
@@ -47,6 +49,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("client.assignment")
 def reconcile(session, principal, key):
     principal.operations()
     saved = receipt(session, principal, key)
@@ -55,12 +58,17 @@ def reconcile(session, principal, key):
     return AssignmentState.model_validate(saved.result)
 
 
+@supervised(
+    "trainerAssignment", "client.assignment", SaveAssignment, receipt=receipt, target="identity"
+)
 @journal("client.assignment")
 def save(session, principal, identity, key, body):
     principal.operations()
     saved = receipt(session, principal, key)
     digest = hashlib.sha256(
-        json.dumps({"id": str(identity), **body.model_dump(mode="json")}, sort_keys=True).encode()
+        json.dumps(
+            {"id": str(identity), **body.model_dump(mode="json", exclude_none=True)}, sort_keys=True
+        ).encode()
     ).hexdigest()
     if saved:
         if saved.request_sha256 != digest:
@@ -69,12 +77,12 @@ def save(session, principal, identity, key, body):
             )
         return AssignmentState.model_validate(saved.result)
     viewed, client, purchases, bookings, trainers = inspect(
-        session, principal, identity, write=True
+        session, principal, identity, write=True, purchase_id=body.purchaseId
     )
     choice = next((t for t in viewed.choices if t.id == body.trainerId), None)
     if body.expected != viewed.expected or choice is None or choice.error:
         raise conflict()
-    old_id = client.trainer_id
+    old_id = viewed.current.id
     event = AssignmentEvent(
         client_id=client.id,
         old_trainer_id=old_id,
@@ -126,9 +134,11 @@ def save(session, principal, identity, key, body):
         )
         booking.trainer_id = choice.id
         booking.version += 1
-    client.trainer_id = choice.id
+    moves_default = purchases[0].stage == "current"
+    if moves_default:
+        client.trainer_id = choice.id
     client.version += 1
-    reject_superseded(session, principal, identity, {b.id for b in bookings})
+    reject_superseded(session, principal, identity, {b.id for b in bookings}, moves_default)
     session.flush()
     result = AssignmentState(
         id=client.id, version=client.version, trainerId=choice.id, eventId=event.id
@@ -149,7 +159,7 @@ def save(session, principal, identity, key, body):
     return result
 
 
-def reject_superseded(session, principal, identity, booking_ids):
+def reject_superseded(session, principal, identity, booking_ids, moves_default=True):
     requests = bounded(
         session,
         select(ChangeRequest)
@@ -158,7 +168,8 @@ def reject_superseded(session, principal, identity, booking_ids):
             or_(
                 ChangeRequest.session_id.in_(booking_ids),
                 (ChangeRequest.kind == "fixed_weekly_schedule")
-                & (ChangeRequest.client_id == identity),
+                & (ChangeRequest.client_id == identity)
+                & moves_default,
             ),
         )
         .order_by(ChangeRequest.id)

@@ -7,6 +7,7 @@ export default function MessageUndo({ message, timeZone, onUndo }) {
   const [now, setNow] = useState(Date.now)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const locked = useRef(false), mounted = useRef(false)
   const undo = message.undo
@@ -22,7 +23,7 @@ export default function MessageUndo({ message, timeZone, onUndo }) {
   const expired = undo.status === 'expired' || !Number.isFinite(expiresAt) || now >= expiresAt
   const perform = async event => {
     event.stopPropagation()
-    if (locked.current || undone || expired) return
+    if (locked.current || undone || expired || submitted) return
     locked.current = true; setBusy(true); setError('')
     try {
       const accepted = await confirm({ title: 'Undo session change?', confirmLabel: 'Undo Change',
@@ -31,11 +32,16 @@ export default function MessageUndo({ message, timeZone, onUndo }) {
       if (Date.now() >= expiresAt) { setNow(Date.now()); throw new Error('Undo expired. The 24-hour window has ended.') }
       await onUndo(message.id)
       if (mounted.current) setDone(true)
-    } catch (failure) { if (mounted.current) setError(failure.message || 'Could not undo the change. Try again.') }
+    } catch (failure) {
+      if (mounted.current) {
+        if (failure.code === 'APPROVAL_PENDING') setSubmitted(true)
+        else setError(failure.message || 'Could not undo the change. Try again.')
+      }
+    }
     finally { locked.current = false; if (mounted.current) setBusy(false) }
   }
   return <div className="message-undo-action">
-    {undone ? <strong role="status">Undone</strong> : expired ? <span>Undo expired</span> : <>
+    {undone ? <strong role="status">Undone</strong> : submitted ? <span role="status">Undo submitted for Owner approval. The original change remains.</span> : expired ? <span>Undo expired</span> : <>
       <button type="button" className="primary-button small" aria-label={`Undo ${message.title}`} disabled={busy || undo.status === 'blocked' || !onUndo} onClick={perform}>{busy ? 'Please wait…' : 'Undo'}</button>
       <span>Until {formatTimestamp(undo.expiresAt, timeZone)}</span>
       {undo.reason && <span>{undo.reason}</span>}

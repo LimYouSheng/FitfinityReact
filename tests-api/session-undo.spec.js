@@ -183,3 +183,49 @@ test('recording removal Undo restores original media identity and expiry with pl
   await page.getByRole('button', { name: 'Manage video for Recorded squat', exact: true }).click()
   await expect(page.locator('video')).toHaveAttribute('src', /^blob:/)
 })
+
+test('Admin Undo waits for Owner approval and recovers a lost proposal without reversing twice', async ({ page, browser }, info) => {
+  const scope = 'summaryundoapproval'
+  const { session, before, notice } = await saveSummary(page, info, scope)
+  const ownerContext = await freshContext(browser, page)
+  const adminContext = await freshContext(browser, page)
+  try {
+    const owner = await ownerContext.newPage(), admin = await adminContext.newPage()
+    await signIn(owner, 'owner', account(scope))
+    const actor = (await read(owner, '/api/staff/admins')).find(row => row.details.email === account(scope, 'admin'))
+    expect(actor).toBeTruthy()
+    expect((await post(owner, `/api/staff/admins/${actor.id}`, {
+      expectedVersion: actor.version, operation: 'approvals', approvalNeeded: { ...actor.approvalNeeded, sessionContent: true },
+    })).status()).toBe(200)
+    await signIn(admin, 'admin', account(scope, 'admin'))
+    await admin.goto('/#/messages')
+    let writes = 0, key
+    const path = '**/api/session-changes/*/undo'
+    await admin.route(path, async route => {
+      writes++; key = route.request().headers()['idempotency-key']
+      const response = await fetchRoute(route)
+      expect(response.status()).toBe(202)
+      await route.abort('failed')
+    })
+    await confirmUndo(admin, notice)
+    await expect(noticeCard(admin, notice).getByRole('alert')).toBeVisible()
+    await admin.unroute(path)
+    await confirmUndo(admin, notice)
+    await expect(noticeCard(admin, notice).getByRole('status')).toHaveText('Undo submitted for Owner approval. The original change remains.')
+    expect(writes).toBe(1)
+    expect((await read(admin, `/api/sessions/${session.id}/details`)).clientSummary).toBe('Summary to reverse after review.')
+    expect((await read(admin, '/api/admin-requests')).filter(row => row.operation === 'undo.sessionContent')).toHaveLength(1)
+    await owner.goto('/#/messages')
+    const row = owner.locator('.info-row').filter({ hasText: 'summaryundoapproval admin' }).filter({ hasText: 'pending' })
+    await row.getByRole('button', { name: 'Review', exact: true }).click()
+    await expect(owner.getByRole('heading', { name: 'Undo session content change', exact: true })).toBeVisible()
+    await owner.getByRole('button', { name: 'Approve', exact: true }).click()
+    await owner.getByRole('dialog', { name: 'Approve?', exact: true }).getByRole('button', { name: 'Approve', exact: true }).click()
+    await expect(owner.getByText('summaryundoapproval admin · approved', { exact: true })).toBeVisible()
+    await admin.reload()
+    expect((await read(admin, `/api/session-undos/${key}`)).actionId).toBe(notice.undo.id)
+    retained(await read(admin, `/api/sessions/${session.id}/details`), before)
+    expect((await read(admin, '/api/messages')).find(row => row.id === notice.id).undo.status).toBe('undone')
+    expect((await owner.request.get(`/api/session-undos/${key}`)).status()).toBe(404)
+  } finally { await adminContext.close(); await ownerContext.close() }
+})

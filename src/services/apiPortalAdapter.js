@@ -1,3 +1,6 @@
+import { reportSharingCommands } from './apiReportSharing.js'
+import { adminManagementCommands } from './apiAdminManagement.js'
+import { adminRequestCommands } from './apiAdminRequests.js'
 import { profileRecoveryCommands } from './apiProfileRecovery.js'
 import { sessionMediaCommands } from './apiSessionMedia.js'
 import { packageActionCommands } from './apiPackageActions.js'
@@ -71,6 +74,7 @@ export function createApiPortalAdapter(options = {}) {
     assertSession(expected)
     return session
   }
+  const adminManagement = adminManagementCommands(http, actionSession)
   const saveTrainerRates = trainerRateCommands(http, actionSession)
   const sessionPostponement = sessionPostponementCommands(http, actionSession)
   const sessionPlans = sessionPlanCommands(http, actionSession)
@@ -97,6 +101,8 @@ export function createApiPortalAdapter(options = {}) {
   const trainerAvailability = trainerAvailabilityCommands(http, actionSession)
   const personalMessages = messageCommands(http, actionSession)
   const content = contentCommands(http, actionSession)
+  const reportSharing = reportSharingCommands(http, actionSession)
+  const adminRequests = adminRequestCommands(http, actionSession, options.fetchImpl)
   const savePackage = packageCommands(http, actionSession)
   const clientAssessments = assessmentCommands(http, actionSession)
   const clientCreation = clientCreationCommands(http, actionSession)
@@ -107,6 +113,7 @@ export function createApiPortalAdapter(options = {}) {
   const packageActions = packageActionCommands(http, actionSession)
   const packageReactivation = packageReactivationCommands(http, actionSession)
   const profileRecovery = profileRecoveryCommands({
+    admins: { label: 'Admin Account', command: adminManagement.update },
     notes: { label: 'Notes', command: saveClientNotes.recovery },
     clientDetails: { label: 'Client Information', command: saveClientDetails.recovery },
     trainerDetails: { label: 'Trainer Information', command: saveTrainerDetails.recovery },
@@ -150,6 +157,12 @@ export function createApiPortalAdapter(options = {}) {
     async recoverProfileSaves({ kind } = {}, { expectedGeneration = http.generation() } = {}) { return profileRecovery.read(expectedGeneration, kind) },
     async resumeProfileSave({ kind }, { expectedGeneration = http.generation() } = {}) { return profileRecovery.resume(kind, expectedGeneration) },
     async readContent(_input, { expectedGeneration = http.generation() } = {}) { return content.read(expectedGeneration) },
+    async readAdminAttachment(input, { expectedGeneration = http.generation() } = {}) { return adminRequests.attachment(input, expectedGeneration) },
+    async prepareReportSharing(input, { expectedGeneration = http.generation() } = {}) { return reportSharing.prepare(input, expectedGeneration) },
+    async retryReportSharing(input, { expectedGeneration = http.generation() } = {}) { return reportSharing.retry(input, expectedGeneration) },
+    async readAdminRequests(_input, { expectedGeneration = http.generation() } = {}) { return adminRequests.read(expectedGeneration) },
+    async decideAdminRequest(input, { expectedGeneration = http.generation() } = {}) { return adminRequests.decide(input, expectedGeneration) },
+    async recoverAdminDecision(_input, { expectedGeneration = http.generation() } = {}) { return adminRequests.recover(expectedGeneration) },
     async readClientNotes(client, { expectedGeneration = http.generation() } = {}) {
       if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(client?.id) || !Number.isSafeInteger(client.version) || client.version < 1 || !Array.isArray(client.people)) throw new ApiError('INVALID_REQUEST', 'Reload the client before reading notes.')
       const { sessionGeneration } = await actionSession(expectedGeneration)
@@ -302,6 +315,9 @@ export function createApiPortalAdapter(options = {}) {
       if (service === 'messageService' && ['markRead', 'markUnread'].includes(operation)) return personalMessages.save(input, operation === 'markRead', expectedGeneration)
       if (service === 'contentService') return content.save(input, expectedGeneration)
       if (service === 'packageService') return savePackage(input, expectedGeneration)
+      if (service === 'staffService' && operation === 'getAll') return adminManagement.read(null, expectedGeneration)
+      if (service === 'staffService' && operation === 'getById') return adminManagement.read(input.id, expectedGeneration)
+      if (service === 'staffService' && operation === 'update') return adminManagement.update(input, expectedGeneration)
       if (service === 'staffService' && operation === 'createAdmin') {
         const { user, sessionGeneration } = await actionSession(expectedGeneration)
         if (user.role !== 'owner') throw new ApiError('forbidden', 'Only the owner can create an Admin.', 403)

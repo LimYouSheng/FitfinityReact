@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { fetchRoute, test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
 
 async function open(page, info, purpose, role = 'trainer') {
@@ -113,5 +115,44 @@ test('stale recording review and foreign Trainer requests leave all records unch
     expect((await page.request.get(foreignPath)).status()).toBe(404)
     expect((await post(page, '/api/session-media/intents', { sessionId: booking.id, exerciseId: item.id, expected: viewed.expected, remove: true, upload: null })).status()).toBe(404)
     expect(await read(owner, `${foreignPath}/review`)).toEqual(viewed)
+  } finally { await context.close() }
+})
+
+
+test('failed conversion retains the 10 MiB camera original byte-for-byte after a fresh login', async ({ page, browser }, info) => {
+  await page.addInitScript(() => {
+    window.__recordingConversionFailures = 0
+    if (globalThis.MediaRecorder) globalThis.MediaRecorder = new Proxy(globalThis.MediaRecorder, {
+      construct() { window.__recordingConversionFailures++; throw new Error('Synthetic encoder failure') },
+    })
+  })
+  const original = await open(page, info, 'videolarge')
+  const clip = readFileSync('tests/fixtures/silent-one-second.webm')
+  // EBML Void is padding, preserving the real one-second video and its duration.
+  const total = 10 * 1024 * 1024, padding = Buffer.alloc(5)
+  padding[0] = 0xec
+  padding.writeUInt32BE(0x10000000 + total - clip.length - padding.length, 1)
+  const bytes = Buffer.concat([clip, padding, Buffer.alloc(total - clip.length - padding.length)])
+  const digest = createHash('sha256').update(bytes).digest('hex')
+  await page.getByLabel('Record new video for Recorded squat', { exact: true }).setInputFiles({ name: 'camera-original.webm', mimeType: 'video/webm', buffer: bytes })
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Save Video', exact: true })).toBeEnabled()
+  if (info.project.name === 'desktop-chromium') expect(await page.evaluate(() => window.__recordingConversionFailures)).toBe(1)
+  const intent = page.waitForRequest(request => request.url().endsWith('/api/session-media/intents') && request.method() === 'POST')
+  await save(page)
+  expect((await intent).postDataJSON()).toMatchObject({ source: 'recorded', processingStatus: 'deferred', audioIncluded: null, upload: { size: total, sha256: digest } })
+  const context = await freshContext(browser, page)
+  try {
+    const fresh = await context.newPage()
+    await signIn(fresh, 'trainer', `${info.project.name}-videolarge@example.test`)
+    await fresh.goto(`/#/sessions/${original.booking.id}`)
+    await fresh.getByRole('button', { name: 'Manage video for Recorded squat', exact: true }).click()
+    await expect(fresh.locator('video')).toHaveAttribute('src', /^blob:/)
+    const stored = await fresh.locator('video').evaluate(async video => {
+      const bytes = await (await fetch(video.src)).arrayBuffer()
+      const hash = await crypto.subtle.digest('SHA-256', bytes)
+      return { size: bytes.byteLength, sha256: Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('') }
+    })
+    expect(stored).toEqual({ size: total, sha256: digest })
+    expect((await read(fresh, `/api/sessions/${original.booking.id}/details`)).purchase.used).toBe(0)
   } finally { await context.close() }
 })

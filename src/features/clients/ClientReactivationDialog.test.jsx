@@ -94,15 +94,15 @@ it('package reactivation reviews only the selected purchase and retains a failed
   expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ packageId: 'p1', dates: { a: '2026-09-12', b: '2026-09-12' } }))
 })
 
-it('package reactivation blocks overlapping purchases and stale package state', () => {
+it('package reactivation allows overlapping validity but still rejects stale package state', () => {
   const props = fixture()
   props.client.status = 'active'
   Object.assign(props.client.package, { startDate: '2026-09-01', endDate: '2026-11-29' })
   props.client.additionalPackages = [{ id: 'other', status: 'active', startDate: '2026-10-01', endDate: '2026-12-29' }]
   props.sessions = []
   const onSave = vi.fn(), rendered = render(view({ ...props, packageId: 'p1', onSave, onClose: vi.fn() }))
-  expect(screen.getByRole('alert')).toHaveTextContent('Another active package overlaps')
-  expect(screen.getByRole('button', { name: 'Reactivate Package', exact: true })).toBeDisabled()
+  expect(screen.queryByText('Another active package overlaps')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Reactivate Package', exact: true })).toBeEnabled()
   const changed = structuredClone(props); changed.client.additionalPackages = []
   rendered.rerender(view({ ...changed, packageId: 'p1', onSave, onClose: vi.fn() }))
   expect(screen.getByRole('alert')).toHaveTextContent('Close and reopen')

@@ -9,6 +9,7 @@ from typing import Literal
 from pydantic import Field, StrictInt, StrictStr, field_validator, model_validator
 from sqlalchemy import or_, select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.client_details import Phone
 from app.api.schemas import Contract
 from app.api.trainer_rates import RateState
@@ -67,6 +68,11 @@ def allowed(principal, trainer_id, *, name=False):
 
 def receipt(session, principal, key):
     session.execute(text("SELECT pg_advisory_xact_lock(714602037)"))
+    return receipt_probe(session, principal, key)
+
+
+def receipt_probe(session, principal, key):
+    """Read under the Admin barrier without reversing the target-row lock order."""
     return session.scalar(
         select(TrainerDetailReceipt).where(
             TrainerDetailReceipt.actor_id == principal.user_id,
@@ -75,6 +81,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("trainer.details")
 def reconcile(session, principal, key):
     previous = receipt(session, principal, key)
     if previous is None:
@@ -83,6 +90,13 @@ def reconcile(session, principal, key):
     return RateState.model_validate(previous.result)
 
 
+@supervised(
+    "trainerDetails",
+    "trainer.details",
+    SaveTrainerDetails,
+    receipt=receipt_probe,
+    target="trainer_id",
+)
 def save(session, principal, trainer_id, key, body):
     allowed(principal, trainer_id, name="name" in body.patch.model_fields_set)
     # Match authentication/email writers' user -> trainer -> command-lock order.

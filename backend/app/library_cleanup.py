@@ -5,6 +5,7 @@ from datetime import timedelta
 from sqlalchemy import exists, func, select, text
 
 from app.api.exercise_library import LIBRARY_LOCK, evidence
+from app.api.library_approval import held_for_review
 from app.models.media import LibrarySaveIntent, MediaAsset, MediaDeletion
 from app.models.training import Exercise
 
@@ -23,6 +24,7 @@ def expire_uploads(database, bucket):
             .join(MediaAsset, MediaAsset.id == LibrarySaveIntent.upload_id)
             .where(
                 LibrarySaveIntent.state == "pending",
+                ~held_for_review(),
                 LibrarySaveIntent.upload_until <= now,
                 MediaAsset.bucket == bucket,
                 MediaAsset.status == "pending",

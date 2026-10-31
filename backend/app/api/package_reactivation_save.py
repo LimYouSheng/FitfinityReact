@@ -8,7 +8,8 @@ from uuid import UUID
 from pydantic import Field, StrictInt
 from sqlalchemy import select, text
 
-from app.api.client_reactivation import review
+from app.api.admin_supervision import supervised, supervised_recovery
+from app.api.client_reactivation import ReactivationDates, review
 from app.api.client_reactivation_save import apply_dates
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
@@ -36,6 +37,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("purchase.reactivate")
 def reconcile(session, principal, key):
     principal.operations()
     saved = receipt(session, principal, key)
@@ -44,6 +46,13 @@ def reconcile(session, principal, key):
     return PackageReactivationState.model_validate(saved.result)
 
 
+@supervised(
+    "clientPackages",
+    "purchase.reactivate",
+    ReactivationDates,
+    receipt=receipt,
+    target=("identity", "purchase_id"),
+)
 def save(session, principal, identity, purchase_id, key, body):
     principal.operations()
     saved = receipt(session, principal, key)

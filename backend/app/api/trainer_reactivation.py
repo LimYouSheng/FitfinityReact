@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import Field, StrictInt
 from sqlalchemy import select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.schemas import Contract
 from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
@@ -72,6 +73,11 @@ def review(session, principal, trainer_id):
 
 def receipt(session, principal, key):
     session.execute(text("SELECT pg_advisory_xact_lock(714602039)"))
+    return receipt_probe(session, principal, key)
+
+
+def receipt_probe(session, principal, key):
+    """Read under the Admin barrier without reversing the target-row lock order."""
     return session.scalar(
         select(TrainerReactivationReceipt).where(
             TrainerReactivationReceipt.actor_id == principal.user_id,
@@ -80,6 +86,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("trainer.reactivate")
 def reconcile(session, principal, key):
     allowed(principal)
     previous = receipt(session, principal, key)
@@ -88,6 +95,13 @@ def reconcile(session, principal, key):
     return ReactivationState.model_validate(previous.result)
 
 
+@supervised(
+    "trainerLifecycle",
+    "trainer.reactivate",
+    ReactivateTrainer,
+    receipt=receipt_probe,
+    target="trainer_id",
+)
 @journal("trainer.reactivate")
 def save(session, principal, trainer_id, key, body):
     allowed(principal)

@@ -9,6 +9,7 @@ from pydantic import Field, StrictStr, model_validator
 from sqlalchemy import exists, func, select, text
 
 from app.api import session_reads
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.request_cancellation import DECISION_LOCK as PLAN_LOCK
 from app.api.schemas import Contract
 from app.api.session_mutation_journal import journal
@@ -134,6 +135,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("session.plan", "session.copy_plan")
 def reconcile(session, principal, key):
     saved = receipt(session, principal, key)
     if saved is None:
@@ -141,6 +143,7 @@ def reconcile(session, principal, key):
     return decode_saved(saved.result)
 
 
+@supervised("sessionContent", "session.plan", SavePlan, receipt=receipt, target="identity")
 @journal("session.plan")
 def save(session, principal, identity, key, body):
     """Retire removals; never move results or media to newly inserted plan identities."""
@@ -307,6 +310,7 @@ def previous(session, principal, identity, *, write=False):
     return PreviousPlan(target=target, source=projected)
 
 
+@supervised("sessionContent", "session.copy_plan", CopyPlan, receipt=receipt, target="identity")
 @journal("session.copy_plan")
 def copy_previous(session, principal, identity, key, body):
     """Confirm both reviewed plans and latest-source selection before replacing the target."""

@@ -344,6 +344,40 @@ def image_fixture(source, pinned_contract):
         contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
     contract["tables"]["session_trainer_attributions"] = ["SELECT", "INSERT", "UPDATE"]
     contract["tables"]["session_trainer_assignment_history"] = ["SELECT", "INSERT"]
+    # Candidate-only Admin/independent-purchase extension; deployed bindings remain pinned.
+    contract["revisions"].extend(
+        [
+            "20261031_0047",
+            "20261031_0048",
+            "20261031_0049",
+            "20261031_0050",
+            "20261031_0051",
+            "20261101_0052",
+        ]
+    )
+    for relative in (
+        "migrations/versions/20261031_0047_concurrent_purchases.py",
+        "migrations/versions/20261031_0048_admin_management.py",
+        "migrations/versions/20261031_0049_no_report_approval.py",
+        "migrations/versions/20261031_0050_concurrent_purchase_guard.py",
+        "migrations/versions/20261031_0051_admin_requests.py",
+        "migrations/versions/20261101_0052_share_approval_policy.py",
+        "app/api/admin_management.py",
+        "app/api/admin_requests.py",
+        "app/api/admin_review.py",
+        "app/api/admin_supervision.py",
+        "app/api/library_approval.py",
+        "app/api/renewal_policy.py",
+        "app/api/report_sharing.py",
+        "app/api/session_undo_approval.py",
+        "app/models/admin_management.py",
+        "app/models/admin_requests.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    for table in ("admin_approval_requirements", "admin_operation_requests"):
+        contract["tables"][table] = ["SELECT", "INSERT", "UPDATE"]
+    for table in ("admin_management_receipts", "admin_operation_decisions"):
+        contract["tables"][table] = ["SELECT", "INSERT"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

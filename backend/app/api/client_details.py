@@ -10,6 +10,7 @@ from uuid import UUID
 from pydantic import Field, StrictInt, StrictStr, field_validator, model_validator
 from sqlalchemy import or_, select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
 from app.authorization import client_write, conflict, unavailable
@@ -111,6 +112,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("client.details")
 def reconcile(session, principal, key):
     saved = receipt(session, principal, key)
     if saved is None:
@@ -118,6 +120,9 @@ def reconcile(session, principal, key):
     return ClientDetailState.model_validate(saved.result)
 
 
+@supervised(
+    "clientDetails", "client.details", SaveClientDetails, receipt=receipt, target="client_id"
+)
 def save(session, principal, client_id, key, body):
     previous = receipt(session, principal, key)
     digest = hashlib.sha256(

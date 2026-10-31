@@ -365,7 +365,9 @@ it('prefills steps two to five, retains the saved schedule and submits once afte
   const client = seed.clients[0], onSave = vi.fn().mockResolvedValue(), onClose = vi.fn()
   render(<RenewPackageDialog client={client} trainers={seed.trainers} sessions={seed.sessions} packages={seed.packages}
     policy={seed.settings} today="2026-09-09" onSave={onSave} onClose={onClose} />, { wrapper: Wrapper })
-  expect(screen.getByLabelText('Start date')).toHaveValue('2026-11-16')
+  expect(screen.getByLabelText('Start date')).toHaveValue('2026-09-14')
+  expect(screen.getByLabelText('Start date')).toHaveAttribute('min', '2026-09-10')
+  fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-11-16' } })
   expect(screen.queryByLabelText('Client name')).not.toBeInTheDocument()
   expect(screen.queryByLabelText('Matched trainer')).not.toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('PT Package'), { target: { value: 'package-24' } })
@@ -428,6 +430,7 @@ it('lets the owner edit prefilled availability and trainer in the shared package
   const client = seed.clients[0], onSave = vi.fn().mockResolvedValue(client)
   render(<RenewPackageDialog client={client} trainers={seed.trainers} sessions={seed.sessions} packages={seed.packages}
     policy={seed.settings} today="2026-09-09" onSave={onSave} onClose={vi.fn()} />, { wrapper: Wrapper })
+  fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-11-16' } })
   fireEvent.click(screen.getByRole('button', { name: 'Continue to Client Availability' }))
   fireEvent.click(screen.getByRole('button', { name: 'Reset Availability' }))
   const trainer = seed.trainers.find(item => item.id !== client.trainerId && item.status === 'active' && item.availability.Monday?.length)
@@ -493,7 +496,7 @@ it('reviews a permanent reassignment before saving the selected trainer and orig
   fireEvent.change(screen.getByLabelText('New trainer'), { target: { value: 't2' } })
   fireEvent.click(screen.getByRole('button', { name: 'Review Reassignment' }))
   const confirm = await screen.findByRole('dialog', { name: 'Reassign trainer for Amanda Lim?' })
-  expect(confirm).toHaveTextContent('current/additional packages')
+  expect(confirm).toHaveTextContent('selected package')
   expect(onSave).not.toHaveBeenCalled()
   fireEvent.click(within(confirm).getByRole('button', { name: 'Reassign Trainer', exact: true }))
   await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
@@ -597,4 +600,22 @@ it('remote onboarding preserves an explicit non-default trainer when matching se
   fireEvent.click(screen.getByRole('button', { name: 'Continue to Review & Confirm' }))
   expect(await screen.findByRole('heading', { name: 'Review & Confirm', exact: true })).toBeVisible()
   expect(screen.getByText(trainers[1].name, { exact: true })).toBeVisible()
+})
+
+
+it('shows started additional purchases in progress without exposing future-purchase reports', () => {
+  const client = { ...structuredClone(seed.clients[0]), additionalPackages: [
+    { id: 'parallel', name: 'Concurrent package', total: 12, used: 0, status: 'active', startDate: '2020-01-01', endDate: '2099-12-31' },
+    { id: 'future', name: 'Future package', total: 12, used: 0, status: 'active', startDate: '2099-01-01', endDate: '2099-12-31' },
+  ] }
+  const onOpen = vi.fn()
+  const view = render(<PackageProgress client={client} user={owner} onOpenPackage={onOpen} />)
+  const row = screen.getByText('Concurrent package').closest('article')
+  expect(row).toHaveTextContent('Current')
+  expect(row).toHaveTextContent('0 / 12')
+  expect(screen.queryByText('Future package')).not.toBeInTheDocument()
+  fireEvent.click(within(row).getByRole('button', { name: 'View' }))
+  expect(onOpen).toHaveBeenCalledWith('parallel')
+  view.rerender(<PackageProgress client={client} user={owner} packageId="future" />)
+  expect(screen.getByText('This package is unavailable.')).toBeInTheDocument()
 })

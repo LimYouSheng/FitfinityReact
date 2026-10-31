@@ -306,8 +306,12 @@ def test_receipt_privacy_and_immutable_populated_downgrade(
     assert api.get(f"/api/client-weekly-schedules/{key}").status_code == 404
     with pytest.raises(DBAPIError, match="immutable"), domain_db.transaction() as session:
         session.delete(session.scalar(select(ClientWeeklyScheduleReceipt)))
-    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
+    # Newly created Admins retain default approval selections. Their newer migration
+    # must reject downgrade before the older attribution/weekly receipt boundary.
+    with pytest.raises(DBAPIError, match="Admin management downgrade refused"):
         migrate("downgrade", "20261013_0029")
+    with domain_db.transaction() as session:
+        assert session.scalar(select(func.count()).select_from(ClientWeeklyScheduleReceipt)) == 1
 
 
 def test_unassigned_trainer_cannot_review_preview_or_save_another_client(

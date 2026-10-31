@@ -74,6 +74,14 @@ export function createApiClient({ baseUrl = '', origin, fetchImpl = globalThis.f
       throw Object.assign(new ApiError('NETWORK_ERROR', method === 'POST' ? 'The response was interrupted. Check the current state before trying again.' : 'Unable to reach the staff service. Check your connection and retry.'), { requestMethod: method })
     }
     assertGeneration(at)
+    if (response.status === 202 && result?.approvalPending === true) {
+      if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(result.requestId ?? '')) throw new ApiError('API_RESPONSE', 'The approval request could not be verified.')
+      // Proposal submission is complete; the domain record was not saved. Existing
+      // editors retain their draft and show this explicit outcome instead of a fake result.
+      const pending = new ApiError('APPROVAL_PENDING', 'Submitted for Owner approval. No changes have been applied.', 409)
+      pending.approvalId = result.requestId
+      throw pending
+    }
     if (!response.ok) {
       const detail = result?.error
       const code = /^[A-Za-z_]{1,64}$/.test(detail?.code ?? '') ? detail.code : 'API_ERROR'

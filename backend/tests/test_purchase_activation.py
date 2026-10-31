@@ -145,7 +145,13 @@ def test_multiple_due_purchases_promote_in_date_order_once(
     second = queued(
         api,
         graph,
-        {**ready, "expected": viewed["expected"], "startDate": viewed["minimumStartDate"]},
+        {
+            **ready,
+            "expected": viewed["expected"],
+            "startDate": str(
+                datetime.fromisoformat(ready["startDate"]).date() + timedelta(days=91)
+            ),
+        },
     )
     with domain_db.transaction() as session:
         start = session.get(PackagePurchase, second).start_date

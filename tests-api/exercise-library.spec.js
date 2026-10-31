@@ -121,3 +121,65 @@ for (const interrupted of ['commit', 'upload']) test(`lost library ${interrupted
     expect(await fresh.getByAltText('Exercise reference').evaluate(image => image.naturalWidth)).toBe(1)
   } finally { await context.close() }
 })
+
+
+test('Admin library upload waits for reviewed publication and recovers a lost Owner decision', async ({ page, browser }, info) => {
+  await signIn(page, 'owner', account('libraryapproval'))
+  const admin = (await read(page, '/api/staff/admins')).find(row => row.details.email === account('libraryapproval', 'admin'))
+  expect(admin).toBeTruthy()
+  const policy = await post(page, `/api/staff/admins/${admin.id}`, {
+    expectedVersion: admin.version, operation: 'approvals',
+    approvalNeeded: { ...admin.approvalNeeded, exerciseLibrary: true },
+  })
+  expect(policy.status()).toBe(200)
+  const context = await freshContext(browser, page)
+  try {
+    const staff = await context.newPage(), name = `${info.project.name} approved library attachment`
+    await signIn(staff, 'admin', account('libraryapproval', 'admin'))
+    await staff.goto('/#/exercises/new')
+    await staff.getByLabel('Exercise name', { exact: false }).fill(name)
+    await staff.getByLabel('Photo / video', { exact: true }).setInputFiles({ name: 'reference.png', mimeType: 'image/png', buffer: png })
+    let submissions = 0
+    staff.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/commit')) submissions++ })
+    await staff.route('**/api/exercise-library/save-intents/*/commit', async route => {
+      const response = await fetchRoute(route)
+      expect(response.status()).toBe(202)
+      await route.abort('failed')
+    }, { times: 1 })
+    await confirm(staff, 'Create Exercise')
+    await staff.getByRole('button', { name: 'Check original exercise save', exact: true }).click()
+    await expect(staff.getByRole('heading', { name: 'Exercise submitted for approval', exact: true })).toBeVisible()
+    expect((await catalogue(staff)).items.some(item => item.name === name)).toBe(false)
+    expect(submissions).toBe(1)
+    const proposals = (await read(staff, '/api/admin-requests')).filter(item => item.operation === 'library.publish' && item.body.review.proposed.name === name)
+    expect(proposals).toHaveLength(1)
+    const proposal = proposals[0]
+    await page.goto('/#/messages')
+    const row = page.locator('.info-row').filter({ hasText: proposal.actorName }).filter({ hasText: 'Manage the Exercise Library' }).filter({ hasText: 'pending' })
+    await row.getByRole('button', { name: 'Review', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Save Exercise Library entry', exact: true })).toBeVisible()
+    await expect(page.getByAltText('Exercise reference')).toBeVisible()
+    expect(await page.getByAltText('Exercise reference').evaluate(image => image.naturalWidth)).toBe(1)
+    let decisions = 0
+    page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith(`/${proposal.id}/decision`)) decisions++ })
+    await page.route(`**/api/admin-requests/${proposal.id}/decision`, async route => {
+      const response = await fetchRoute(route)
+      expect(response.status()).toBe(200)
+      await route.abort('failed')
+    }, { times: 1 })
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Approve?', exact: true }).getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('button', { name: 'Check Original Decision', exact: true }).click()
+    await expect(page.getByText(`${proposal.actorName} · approved`, { exact: true })).toBeVisible()
+    expect(decisions).toBe(1)
+    expect((await page.request.get(`/api/admin-requests/${proposal.id}/attachment`)).status()).toBe(404)
+    const saved = (await catalogue(staff)).items.filter(item => item.name === name)
+    expect(saved).toHaveLength(1)
+    expect(saved[0]).toMatchObject({ version: 1, media: { name: 'reference.png', size: png.length } })
+    await staff.goto(`/#/exercises/${saved[0].id}`)
+    await staff.reload()
+    await expect(staff.getByRole('heading', { name, exact: true })).toBeVisible()
+    await expect(staff.getByAltText('Exercise reference')).toBeVisible()
+    expect(await staff.getByAltText('Exercise reference').evaluate(image => image.naturalWidth)).toBe(1)
+  } finally { await context.close() }
+})

@@ -1,4 +1,4 @@
-import { MAX_EXERCISE_VIDEO_BYTES, MAX_EXERCISE_VIDEO_SECONDS } from '../../app/video.js'
+import { MAX_PREPARED_EXERCISE_VIDEO_BYTES, MAX_EXERCISE_VIDEO_SECONDS } from '../../app/video.js'
 export { MAX_EXERCISE_VIDEO_BYTES, MAX_EXERCISE_VIDEO_SECONDS, exerciseVideoFileValidation, exerciseVideoValidation } from '../../app/video.js'
 
 const detailValue = detail => typeof detail === 'string' ? detail : detail?.value
@@ -230,7 +230,7 @@ export function prepareExerciseVideo(file, captionLines, onProgress = () => {}, 
         settled = true
         const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || 'video/webm' })
         cleanUp()
-        if (blob.size > MAX_EXERCISE_VIDEO_BYTES) {
+        if (blob.size > MAX_PREPARED_EXERCISE_VIDEO_BYTES) {
           reject(new Error('The prepared video is still above 5 MB. Try a lower-resolution clip.'))
           return
         }

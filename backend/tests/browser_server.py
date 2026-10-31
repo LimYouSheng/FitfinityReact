@@ -36,6 +36,7 @@ from app.main import create_app
 from app.migrations import expected_revisions, migration_config
 from app.models.communications import Message, MessageReceipt
 from app.models.people import Client, StaffIdentity, StaffUser, Trainer, TrainerAvailability
+from app.models.staff import AdminProfile
 from app.models.training import (
     ExercisePlanItem,
     ExerciseResult,
@@ -241,6 +242,15 @@ def seed(db, settings):
         }
         session.add_all(users.values())
         session.flush()
+        session.add(
+            AdminProfile(
+                user_id=users["admin"].id,
+                phone_country_code="+65",
+                phone_number="91234567",
+                birthday=date(1990, 1, 1),
+                gender="Other",
+            )
+        )
         for role, user in users.items():
             session.add(
                 StaffIdentity(
@@ -327,12 +337,14 @@ def seed(db, settings):
             "authnav",
             "email",
             "emailadmin",
+            "emailapproval",
             "emailstale",
             "emailloss",
             "videowrite",
             "videoloss",
             "videostale",
             "videoforeign",
+            "videolarge",
             "plan",
             "planadmin",
             "planstale",
@@ -354,6 +366,7 @@ def seed(db, settings):
             "summarystale",
             "summaryloss",
             "summaryundo",
+            "summaryundoapproval",
             "planundo",
             "videoundo",
             "postponeundo",
@@ -368,6 +381,8 @@ def seed(db, settings):
             "acklogout",
             "report",
             "reportadmin",
+            "reportshareprogress",
+            "reportsharesession",
             "reportloss",
             "reportrefresh",
             "reportforeign",
@@ -377,6 +392,7 @@ def seed(db, settings):
             "payrefresh",
             "library",
             "libraryadmin",
+            "libraryapproval",
             "librarystale",
             "libraryloss",
             "libraryuploadloss",
@@ -425,12 +441,15 @@ def seed(db, settings):
             "assignment",
             "package",
             "renewal",
+            "adminpurchase",
             "messages",
             "staff",
             "content",
             "retry",
             "create",
             "admincreate",
+            "adminapproval",
+            "admincatalogue",
             "onboarding",
             "interrupted",
             "catalogue",
@@ -454,6 +473,16 @@ def seed(db, settings):
                             provider_username=alias,
                         )
                     )
+                    if role == "admin":
+                        session.add(
+                            AdminProfile(
+                                user_id=user.id,
+                                phone_country_code="+65",
+                                phone_number="91234567",
+                                birthday=date(1990, 1, 1),
+                                gender="Other",
+                            )
+                        )
                     allowed_users.add(alias)
                     if role == "owner":
                         cohort_owners[(project, scope)] = user.id
@@ -463,12 +492,14 @@ def seed(db, settings):
             for purpose in (
                 "email",
                 "emailadmin",
+                "emailapproval",
                 "emailstale",
                 "emailloss",
                 "videowrite",
                 "videoloss",
                 "videostale",
                 "videoforeign",
+                "videolarge",
                 "plan",
                 "planadmin",
                 "planstale",
@@ -490,6 +521,7 @@ def seed(db, settings):
                 "summarystale",
                 "summaryloss",
                 "summaryundo",
+                "summaryundoapproval",
                 "planundo",
                 "videoundo",
                 "postponeundo",
@@ -504,6 +536,8 @@ def seed(db, settings):
                 "acklogout",
                 "report",
                 "reportadmin",
+                "reportshareprogress",
+                "reportsharesession",
                 "reportloss",
                 "reportrefresh",
                 "reportforeign",
@@ -555,6 +589,7 @@ def seed(db, settings):
                 "assignment",
                 "package",
                 "renewal",
+                "adminpurchase",
                 "messages",
                 "staff",
                 "assignmentcover",
@@ -685,7 +720,7 @@ def seed(db, settings):
                     else start,
                     stage="current",
                 )
-                if purpose == "renewal":
+                if purpose in {"renewal", "adminpurchase"}:
                     preferences.append(
                         PurchasePreference(
                             weekday=start.weekday(),

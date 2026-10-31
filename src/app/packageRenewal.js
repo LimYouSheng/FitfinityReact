@@ -1,13 +1,13 @@
+import { businessClock } from './clock.js'
 import { addDays, buildClientSessions, clientStepErrors, packageFor, trainerCoversBlock } from './clientOnboarding.js'
 import { GENDER_PREFERENCES } from './contact.js'
-import { clientPackages, requireActiveClient } from './clientPackages.js'
+import { requireActiveClient } from './clientPackages.js'
 import { sessionBookingConflict } from './bookingAvailability.js'
 import { selectedPackage } from './packages.js'
 
 /** The saved weekly schedule remains authoritative when opening a new purchase. */
-export function packageDraftForClient(client, sessions, packages, today) {
-  const lastDate = clientPackages(client).filter(item => item.status !== 'inactive').map(item => item.endDate).sort().at(-1)
-  const minimumStartDate = lastDate ? [today, addDays(lastDate, 1)].sort().at(-1) : today
+export function packageDraftForClient(client, sessions, packages, today, reviewedMinimumStartDate) {
+  const minimumStartDate = reviewedMinimumStartDate ?? addDays(today, 1)
   const firstScheduled = buildClientSessions({ ...client, package: { ...client.package, startDate: minimumStartDate, total: 1, validityDays: 7 } })[0]
   const clientPreferences = structuredClone(client.clientPreferences ?? [])
   for (const slot of client.fixedWeeklySchedule ?? []) {
@@ -40,6 +40,7 @@ export function packageDraftForClient(client, sessions, packages, today) {
 
 export function buildPackageRenewal(db, client, draft, id) {
   requireActiveClient(client)
+  if (draft.startDate <= businessClock(new Date(), db.settings.timeZone).date) throw new Error('Choose a future start date.')
   for (const step of ['package', 'availability', 'matching']) {
     const errors = clientStepErrors({ ...draft, minimumStartDate: undefined }, step)
     if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
@@ -49,8 +50,6 @@ export function buildPackageRenewal(db, client, draft, id) {
   if (!GENDER_PREFERENCES.includes(draft.genderPreference)) throw new Error('Choose a trainer preference.')
   if ((draft.genderPreference === 'Female trainer preferred' && trainer.gender !== 'Female') ||
       (draft.genderPreference === 'Male trainer preferred' && trainer.gender !== 'Male')) throw new Error('The selected trainer does not match this preference.')
-  const lastDay = clientPackages(client).filter(item => item.status !== 'inactive').map(item => item.endDate).sort().at(-1)
-  if (lastDay && draft.startDate <= lastDay) throw new Error(`The new package must start after ${lastDay}, the last day of the existing packages.`)
   const definition = selectedPackage(db, draft)
   const schedule = structuredClone(draft.fixedWeeklySchedule)
   const scheduleErrors = clientStepErrors({ ...draft, clientPreferences: schedule.map(slot => ({ days: [slot.day], from: slot.from, to: slot.to })) }, 'availability')

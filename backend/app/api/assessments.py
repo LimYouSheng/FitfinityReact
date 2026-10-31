@@ -7,7 +7,14 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
-from app.api.schemas import AssessmentRevision, ClientAssessmentRecords, PersonAssessmentRecords
+from app.api.admin_supervision import supervised, supervised_recovery
+from app.api.schemas import (
+    AssessmentRevision,
+    ClientAssessmentRecords,
+    NewAssessment,
+    PersonAssessmentRecords,
+    SaveAssessment,
+)
 from app.assessment_persistence import create_assessment, save_assessment
 from app.auth.errors import AuthError
 from app.authorization import client_record, conflict, unavailable
@@ -113,6 +120,16 @@ def safe_answers(fn):
     return run
 
 
+def receipt(session, principal, key):
+    principal.operations()
+    return session.scalar(
+        select(ApiReceipt).where(
+            ApiReceipt.actor_id == principal.user_id, ApiReceipt.request_key == key
+        )
+    )
+
+
+@supervised("assessments", "assessment.create", NewAssessment, receipt=receipt, target="person_id")
 @safe_answers
 def create(session, principal, person_id, key, body):
     person = person_record(session, principal, person_id, write=True)
@@ -170,6 +187,9 @@ def create(session, principal, person_id, key, body):
     return remember(session, principal, key, "assessment_create", digest, revision)
 
 
+@supervised(
+    "assessments", "assessment.save", SaveAssessment, receipt=receipt, target="assessment_id"
+)
 @safe_answers
 def save(session, principal, assessment_id, key, body):
     person, record = assessment_record(session, principal, assessment_id, write=True)
@@ -203,6 +223,7 @@ def save(session, principal, assessment_id, key, body):
     return remember(session, principal, key, "assessment_save", digest, revision)
 
 
+@supervised_recovery("assessment.create", "assessment.save")
 def reconcile(session, principal, key):
     principal.operations()
     # authorized_transaction holds this actor's auth-account lock, serializing writes and reads.

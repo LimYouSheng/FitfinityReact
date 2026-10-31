@@ -23,8 +23,8 @@ function setup() {
   render(<ExerciseVideoDialog open sessionId="session" exercise={{ id: 'exercise', name: 'Squat' }} onLoad={vi.fn()} onSaved={onSaved} onCancel={vi.fn()} />)
   return onSaved
 }
-async function choose() {
-  fireEvent.change(screen.getByLabelText('Attach video for Squat'), { target: { files: [new File(['original'], 'test.webm', { type: 'video/webm' })] } })
+async function choose(file = new File(['original'], 'test.webm', { type: 'video/webm' })) {
+  fireEvent.change(screen.getByLabelText('Attach video for Squat'), { target: { files: [file] } })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save Video' })).toBeEnabled())
 }
 
@@ -47,12 +47,14 @@ describe('session video audio selection', () => {
   })
   it('labels conversion failure honestly and never claims the option was applied', async () => {
     const saved = setup()
+    const original = new File([new Uint8Array(10 * 1024 * 1024)], 'original.webm', { type: 'video/webm' })
     prepareExerciseVideo.mockRejectedValue(new Error('Unsupported codec'))
     fireEvent.click(screen.getByRole('checkbox'))
-    await choose()
+    await choose(original)
     expect(screen.getByRole('status')).toHaveTextContent('captions and your audio option have not been applied')
     fireEvent.click(screen.getByRole('button', { name: 'Save Video' }))
-    await waitFor(() => expect(saved).toHaveBeenCalledWith(expect.any(Blob), expect.objectContaining({ audioIncluded: null, processingStatus: 'deferred' })))
+    await waitFor(() => expect(saved).toHaveBeenCalledWith(original, expect.objectContaining({ audioIncluded: null, processingStatus: 'deferred' })))
+    expect(saved.mock.calls[0][0]).toBe(original)
   })
   it('cancels preparation without presenting a late result for saving', async () => {
     setup()

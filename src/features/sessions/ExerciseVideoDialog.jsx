@@ -289,7 +289,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
           {!candidate && exercise.video?.expiresAt && (
             <p>Available until <time dateTime={exercise.video.expiresAt}>{formatTimestamp(exercise.video.expiresAt, timeZone)}</time></p>
           )}
-          {editable && <p className="helper">Maximum 1 minute · Under 5 MB · Uncheck to remove audio during conversion</p>}
+          {editable && <p className="helper">Maximum 1 minute · Original up to 10 MB · Converted up to 5 MB · Uncheck to remove audio during conversion</p>}
 
           {editable && !uncertain && exercise.videoAttached && !candidate && (
             <button type="button" className="text-action exercise-video-remove" onClick={() => setMode('remove')}>Remove saved video</button>

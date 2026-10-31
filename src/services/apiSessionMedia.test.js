@@ -56,7 +56,7 @@ it('keeps an uncertain removal tied to its original recording and never uploads 
 
 it('refuses oversized files before issuing an intent or uploading bytes', async () => {
   const http = { generation: () => 0, post: vi.fn() }, fetch = vi.fn()
-  await expect(sessionMediaCommands(http, actor, fetch).save({ ...input(), file: new Blob([new Uint8Array(5 * 1024 * 1024 + 1)], { type: 'video/webm' }) }, 0)).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
+  await expect(sessionMediaCommands(http, actor, fetch).save({ ...input(), file: new Blob([new Uint8Array(10 * 1024 * 1024 + 1)], { type: 'video/webm' }) }, 0)).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
   expect(http.post).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled()
 })
 

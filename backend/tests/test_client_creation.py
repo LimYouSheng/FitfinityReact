@@ -24,7 +24,7 @@ from tests.test_client_matching import declared_hours, request_body
 from tests.test_staff_api import api as api
 from tests.test_staff_api import trainer_login
 
-pytestmark = pytest.mark.database
+pytestmark = [pytest.mark.database, pytest.mark.parametrize("graph", ["future"], indirect=True)]
 
 
 def body(graph):

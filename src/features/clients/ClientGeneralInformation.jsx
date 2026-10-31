@@ -16,7 +16,7 @@ function displayEmergency(contact) {
   return [contact.name, contact.relationship, displayPhone(contact)].filter(Boolean).join(' · ')
 }
 
-export default function ClientGeneralInformation({ client, trainer, policy, ownerEditable, trainerAction, personalEditable = ownerEditable, activeEditor, setActiveEditor, onUpdate, onSaved }) {
+export default function ClientGeneralInformation({ client, trainer, trainers = [], policy, ownerEditable, personalEditable = ownerEditable, activeEditor, setActiveEditor, onUpdate, onSaved }) {
   const confirmAction = useActionConfirmation()
   const [draft, setDraft] = useState(() => clientProfileDraft(client, policy))
   const [activePerson, setActivePerson] = useState(0)
@@ -123,9 +123,8 @@ export default function ClientGeneralInformation({ client, trainer, policy, owne
         </div>
 
         <div className="info-row client-trainer-row">
-          <span>Trainer</span>
-          <div className="client-trainer-assignment"><strong>{trainer?.name ?? '—'}</strong>
-            {trainerAction ?? (ownerEditable && <button type="button" className="text-action" disabled={Boolean(activeEditor)} onClick={() => setActiveEditor('trainer')}>Reassign Trainer</button>)}
+          <span>Trainers</span>
+          <div className="client-trainer-assignment"><strong>{[...new Set([client.package, ...(client.additionalPackages ?? [])].filter(item => item && item.status !== 'inactive').map(item => trainers.find(person => person.id === (item.trainerId ?? client.trainerId))?.name).filter(Boolean))].join(', ') || trainer?.name || '—'}</strong>
           </div>
         </div>
 

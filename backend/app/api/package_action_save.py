@@ -6,7 +6,8 @@ from uuid import uuid4
 from sqlalchemy import select, text
 
 from app.api import package_action_review as reviews
-from app.api.package_action_schemas import PackageActionState
+from app.api.admin_supervision import supervised, supervised_recovery
+from app.api.package_action_schemas import PackageActionState, SavePackageAction
 from app.api.request_cancellation import DECISION_LOCK
 from app.api.request_resolution import notify as notify_decision
 from app.auth.errors import AuthError
@@ -51,6 +52,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("purchase.action")
 def reconcile(session, principal, key):
     principal.operations()
     saved = receipt(session, principal, key)
@@ -166,6 +168,13 @@ def detach_media(session, identities, now, undo_until, action_id):
     session.flush()
 
 
+@supervised(
+    "clientPackages",
+    "purchase.action",
+    SavePackageAction,
+    receipt=receipt,
+    target=("client_id", "purchase_id"),
+)
 def save(session, principal, client_id, purchase_id, key, body):
     """The original key recovers one immutable result; changed intent never reuses it."""
     principal.operations()

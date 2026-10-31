@@ -75,7 +75,7 @@ Config["defaultPortalServices.js<br/>Configured API or demo selection"]
   Boundary --> Report["reportService.js<br/>Browser print and download boundary"]
 ```
 
-Source owners: [configuration](../../src/services/defaultPortalServices.js), [facade](../../src/services/portalService.js), [contracts](../../src/services/portalContracts.js), [API composition](../../src/services/apiPortalAdapter.js), [transport](../../src/services/apiClient.js), [shared command](../../src/services/apiCommand.js), [demo adapter](../../src/services/mockPortalAdapter.js), [browser reports](../../src/services/reportService.js).
+Source owners: [configuration](../../src/services/defaultPortalServices.js), [facade](../../src/services/portalService.js), [contracts](../../src/services/portalContracts.js), [API composition](../../src/services/apiPortalAdapter.js), [transport](../../src/services/apiClient.js), [shared command](../../src/services/apiCommand.js), [demo adapter](../../src/services/mockPortalAdapter.js), [browser reports](../../src/services/reportService.js), [sharing authorization](../../src/services/apiReportSharing.js), [prepared sharing lifetime](../../src/hooks/useReportSharing.js), [server report review/approval](../../backend/app/api/report_sharing.py).
 
 API domain modules retain specialized review/recovery semantics where needed; they do not all use one identical lifecycle. `src/app` owns pure browser rules/projections (permissions, schedules, packages, progress, remuneration and assessments). These support UI and demo behavior; server checks remain authoritative. The service matrix owns operation coverage, not this diagram.
 
@@ -121,6 +121,9 @@ Source owners: [app entry](../../backend/app/main.py), [staff routes](../../back
 flowchart TB
 Account["Staff identity and lifecycle"]
   Account --> UI["features/account + TrainerEmailEditor.jsx<br/>Login, password and verified email UI"]
+  Account --> Admin["api/admin_management.py + features/staff/AdminManagementPage.jsx<br/>Owner-managed fixed-role Admin lifecycle and policy"]
+  Admin --> Review["api/admin_supervision.py + admin_requests.py<br/>Frozen proposals and atomic decisions"]
+  Review --> Inbox["features/messages/AdminApprovalInbox.jsx<br/>Exact proposal review and original-decision recovery"]
   Account --> Invite["api/staff.py + staff_provisioning.py<br/>Staff account provisioning"]
   Invite --> Cognito["auth/invitations.py<br/>Cognito invitation boundary"]
   Account --> Email["api/email_changes.py<br/>New-address verification and reconciliation"]
@@ -129,6 +132,8 @@ Account["Staff identity and lifecycle"]
 ```
 
 Source owners: [staff API](../../backend/app/api/staff.py), [provisioning](../../backend/app/api/staff_provisioning.py), [invitation adapter](../../backend/app/auth/invitations.py), [verified email](../../backend/app/api/email_changes.py), [authentication records](../../backend/app/models/authentication.py).
+
+The consolidated draft adds [Admin management](../../backend/app/api/admin_management.py), [proposal enforcement](../../backend/app/api/admin_supervision.py), [decision routes](../../backend/app/api/admin_requests.py) and the [review inbox](../../src/features/messages/AdminApprovalInbox.jsx). Content, package-catalogue and library publication have focused real-API approval evidence; the registry also connects client/Trainer/session/assessment commands, with broader acceptance and optional sharing enforcement still tracked in Progress. These draft paths are not deployed acceptance.
 
 The [operator recovery procedure](../runbook.md#52-operator-assisted-lost-authenticator-recovery) is an operator-owned process with test drills, not an Owner-facing MFA-reset feature. Real Cognito actions remain separately authorized.
 
@@ -269,7 +274,7 @@ Decision["Request / Undo ownership under backend/app/api"]
   Decision --> Package["package_action_undo.py<br/>Package-specific restoration rules"]
 ```
 
-Source owners: [resolve](../../backend/app/api/request_resolution.py), [apply](../../backend/app/api/request_application.py), [cancel](../../backend/app/api/request_cancellation.py), [Undo routes](../../backend/app/api/session_undo_routes.py), [Undo review](../../backend/app/api/session_undo_review.py), [Undo save](../../backend/app/api/session_undo_save.py), [mutation journal](../../backend/app/api/session_mutation_journal.py).
+Source owners: [resolve](../../backend/app/api/request_resolution.py), [apply](../../backend/app/api/request_application.py), [cancel](../../backend/app/api/request_cancellation.py), [Undo routes](../../backend/app/api/session_undo_routes.py), [Undo review](../../backend/app/api/session_undo_review.py), [Undo save](../../backend/app/api/session_undo_save.py), [Admin Undo approval](../../backend/app/api/session_undo_approval.py), [mutation journal](../../backend/app/api/session_mutation_journal.py).
 
 ## 8. Assessments, reports and media
 
@@ -282,6 +287,8 @@ Records["Client records and exercise library"]
   Server --> Rules["assessment_validation.py + assessment_persistence.py<br/>Answer validation and durable revisions"]
   Records --> Notes["useClientNotes.js → apiClientNotes.js → api/client_notes.py<br/>General health notes, separate authority from initial forms"]
   Records --> Reports["apiProgressReports.js → api/session_reports.py<br/>Report-action history"]
+  Records --> Share["apiReportSharing.js → api/report_sharing.py<br/>Frozen report review and optional Owner approval"]
+  Share --> Device["useReportSharing.js → reportService.js<br/>Explicit device Share after authorization"]
   Records --> Render["progressReportPdf.jsx + utils/reportPdf.js<br/>Browser document generation"]
   Records --> Media["8.1 · Protected library and session media"]
 ```
@@ -307,7 +314,7 @@ Media["Protected original media ownership"]
 
 Source owners: [library UI](../../src/features/exercises/ExerciseLibraryPage.jsx), [library transport](../../src/services/apiLibraryMedia.js), [video dialog](../../src/features/sessions/ExerciseVideoDialog.jsx), [recording transport](../../src/services/apiSessionMedia.js).
 
-Source owners: [library routes](../../backend/app/api/library_routes.py), [library operations](../../backend/app/api/exercise_library.py), [recording routes](../../backend/app/api/session_media_routes.py), [recording operations](../../backend/app/api/session_media.py), [storage adapter](../../backend/app/media_storage.py), [library cleanup](../../backend/app/library_cleanup.py), [recording cleanup](../../backend/app/session_media_cleanup.py).
+Source owners: [library routes](../../backend/app/api/library_routes.py), [library operations](../../backend/app/api/exercise_library.py), [draft publication approval](../../backend/app/api/library_approval.py), [recording routes](../../backend/app/api/session_media_routes.py), [recording operations](../../backend/app/api/session_media.py), [storage adapter](../../backend/app/media_storage.py), [library cleanup](../../backend/app/library_cleanup.py), [recording cleanup](../../backend/app/session_media_cleanup.py).
 
 Cleanup code ownership does not mean cloud worker scheduling, transcoding or captions are deployed. M7 processing and rollout remain in Progress. Isolated tests use real RustFS object IO; production object storage is the separately configured S3 boundary.
 
@@ -386,7 +393,7 @@ The **BR IDs are defined in [Business rules](../business-rules.md#current-busine
 | --- | --- | --- | --- |
 | [BR-001](../business-rules.md#br-001) | API/demo service boundary and explicit unsupported operations | 3 | [src/services/defaultPortalServices.js](../../src/services/defaultPortalServices.js), [src/services/portalService.js](../../src/services/portalService.js), [src/services/apiPortalAdapter.js](../../src/services/apiPortalAdapter.js), [src/services/portalContracts.js](../../src/services/portalContracts.js) |
 | [BR-002](../business-rules.md#br-002) | Additional authenticated reads and the local availability predicate | 3, 4, 6 | [src/services/apiDirectory.js](../../src/services/apiDirectory.js), [src/app/status.js](../../src/app/status.js), [backend/app/api/session_reads.py](../../backend/app/api/session_reads.py), [backend/app/api/directory.py](../../backend/app/api/directory.py) |
-| [BR-003](../business-rules.md#br-003) | Current role, assignment and transactional write authority | 4, 5, 6 | [backend/app/authorization.py](../../backend/app/authorization.py), [backend/app/api/dependencies.py](../../backend/app/api/dependencies.py), [backend/app/api/session_booking_review.py](../../backend/app/api/session_booking_review.py) |
+| [BR-003](../business-rules.md#br-003) | Current role/assignment authority and Owner-managed Admin lifecycle/approvals | 4.1, 5, 6 | [backend/app/authorization.py](../../backend/app/authorization.py), [backend/app/api/dependencies.py](../../backend/app/api/dependencies.py), [backend/app/api/session_booking_review.py](../../backend/app/api/session_booking_review.py), [Admin management](../../backend/app/api/admin_management.py), [Admin decisions](../../backend/app/api/admin_requests.py) |
 | [BR-004](../business-rules.md#br-004) | Owner/Admin initial forms; separate assigned-Trainer notes | 8 | [backend/app/api/assessments.py](../../backend/app/api/assessments.py), [backend/app/api/client_notes.py](../../backend/app/api/client_notes.py), [src/features/clients/ClientAssessmentWorkspace.jsx](../../src/features/clients/ClientAssessmentWorkspace.jsx) |
 | [BR-005](../business-rules.md#br-005) | Owner financial powers, Admin restrictions and requester-only cancellation | 7, 7.1 | [backend/app/api/trainer_rates.py](../../backend/app/api/trainer_rates.py), [backend/app/api/remuneration.py](../../backend/app/api/remuneration.py), [backend/app/api/request_cancellation.py](../../backend/app/api/request_cancellation.py) |
 | [BR-006](../business-rules.md#br-006) | Verify the new Trainer login/recovery email before switching | 4.1 | [backend/app/api/email_changes.py](../../backend/app/api/email_changes.py), [src/services/apiEmailChanges.js](../../src/services/apiEmailChanges.js), [src/features/trainers/TrainerEmailEditor.jsx](../../src/features/trainers/TrainerEmailEditor.jsx) |
@@ -396,7 +403,7 @@ The **BR IDs are defined in [Business rules](../business-rules.md#current-busine
 | [BR-010](../business-rules.md#br-010) | Session drafts, private-state retirement and caller-bound confirmations | 2.1, 3.1 | [src/features/sessions/ApiSessionDetailsRoute.jsx](../../src/features/sessions/ApiSessionDetailsRoute.jsx), [src/components/ActionConfirmationProvider.jsx](../../src/components/ActionConfirmationProvider.jsx), [src/components/EditGuardProvider.jsx](../../src/components/EditGuardProvider.jsx), [src/hooks/useReviewLifetime.js](../../src/hooks/useReviewLifetime.js) |
 | [BR-011](../business-rules.md#br-011) | Stable errors, stale-reply rejection and proposal scope | 3.1, 4, 7.1 | [src/services/apiClient.js](../../src/services/apiClient.js), [backend/app/observability.py](../../backend/app/observability.py), [backend/app/api/session_changes.py](../../backend/app/api/session_changes.py), [backend/app/api/request_resolution.py](../../backend/app/api/request_resolution.py) |
 | [BR-012](../business-rules.md#br-012) | Immutable purchased terms and inclusive package validity | 5.1 | [backend/app/api/purchase_creation.py](../../backend/app/api/purchase_creation.py), [backend/app/models/training.py](../../backend/app/models/training.py), [src/app/packages.js](../../src/app/packages.js) |
-| [BR-013](../business-rules.md#br-013) | Review-only onboarding wizard, final matching and queued activation | 5.1 | [src/features/clients/ClientOnboardingForm.jsx](../../src/features/clients/ClientOnboardingForm.jsx), [backend/app/api/client_matching.py](../../backend/app/api/client_matching.py), [backend/app/api/client_creation.py](../../backend/app/api/client_creation.py), [backend/app/api/purchase_activation.py](../../backend/app/api/purchase_activation.py) |
+| [BR-013](../business-rules.md#br-013) | Reviewed future-start purchases, concurrent validity, final matching and profile-default activation | 5.1 | [src/features/clients/ClientOnboardingForm.jsx](../../src/features/clients/ClientOnboardingForm.jsx), [backend/app/api/client_matching.py](../../backend/app/api/client_matching.py), [backend/app/api/client_creation.py](../../backend/app/api/client_creation.py), [backend/app/api/purchase_activation.py](../../backend/app/api/purchase_activation.py) |
 | [BR-014](../business-rules.md#br-014) | Stable Open-session identity, scheduling and target-only postponement | 6.1 | [backend/app/api/session_booking_save.py](../../backend/app/api/session_booking_save.py), [backend/app/api/session_postponement.py](../../backend/app/api/session_postponement.py), [backend/app/session_numbering.py](../../backend/app/session_numbering.py) |
 | [BR-015](../business-rules.md#br-015) | Supervised decisions, autonomous checks and separate permanent/weekly scope | 6.1, 7.1 | [backend/app/api/session_changes.py](../../backend/app/api/session_changes.py), [backend/app/api/request_resolution.py](../../backend/app/api/request_resolution.py), [backend/app/api/client_assignment_save.py](../../backend/app/api/client_assignment_save.py), [backend/app/api/client_weekly_schedule_save.py](../../backend/app/api/client_weekly_schedule_save.py) |
 | [BR-016](../business-rules.md#br-016) | Immutable completed evidence and lifecycle/Undo exclusions | 5.1, 6.3, 7.1 | [backend/app/api/session_acknowledgements.py](../../backend/app/api/session_acknowledgements.py), [backend/app/api/package_action_review.py](../../backend/app/api/package_action_review.py), [backend/app/api/package_reactivation_save.py](../../backend/app/api/package_reactivation_save.py), [backend/app/api/session_undo_review.py](../../backend/app/api/session_undo_review.py) |

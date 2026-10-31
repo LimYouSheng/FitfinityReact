@@ -1,33 +1,36 @@
 import { isOpenSession } from './sessionRules.js'
 import { businessClock } from './clock.js'
-import { requireActiveClient, sessionIsInactive } from './clientPackages.js'
+import { requireActiveClient, sessionIsInactive, packageForRecord } from './clientPackages.js'
 import { trainerCoversBlock } from './clientOnboarding.js'
 import { weekday } from '../utils/date.js'
 import { sessionBookingConflict } from './bookingAvailability.js'
 
-const activePurchases = client => [client.package, ...(client.additionalPackages ?? [])].filter(item => item && item.status !== 'inactive')
+const activePurchases = (client, purchaseId = client.package?.id) => [client.package, ...(client.additionalPackages ?? [])].filter(item => item && item.id === purchaseId && item.status !== 'inactive')
 
-export function trainerReassignmentSnapshot(client, sessions, transactions, clock) {
-  const eligible = sessions.filter(session => session.clientId === client.id && !sessionIsInactive(client, session) &&
+export function trainerReassignmentSnapshot(client, sessions, transactions, clock, purchaseId = client.package?.id) {
+  const purchases = activePurchases(client, purchaseId)
+  if (purchases.length !== 1) throw new Error('Choose an active package before reassigning its Trainer.')
+  const purchased = purchases[0]
+  const eligible = sessions.filter(session => session.clientId === client.id && packageForRecord(client, session)?.id === purchaseId && !sessionIsInactive(client, session) &&
     !['completed', 'cancelled'].includes(session.status) && !session.acknowledgement && !session.acknowledgementHistory?.length &&
     !transactions.some(transaction => transaction.sessionId === session.id) &&
     (isOpenSession(session) || session.date > clock.date || (session.date === clock.date && session.from > clock.time)))
   return {
-    trainerId: client.trainerId,
-    fixedWeeklySchedule: structuredClone(client.fixedWeeklySchedule ?? []),
-    packages: activePurchases(client).map(item => ({ id: item.id, trainerId: item.trainerId,
+    trainerId: purchased.trainerId ?? client.trainerId,
+    fixedWeeklySchedule: structuredClone(purchased.fixedWeeklySchedule ?? client.fixedWeeklySchedule ?? []),
+    packages: purchases.map(item => ({ id: item.id, trainerId: item.trainerId,
       fixedWeeklySchedule: structuredClone(item.fixedWeeklySchedule ?? []) })).sort((a, b) => a.id.localeCompare(b.id)),
     sessions: eligible.map(({ id, trainerId, date, from, to, scheduleState }) => ({ id, trainerId, date, from, to, ...(scheduleState ? { scheduleState } : {}) })).sort((a, b) => a.id.localeCompare(b.id)),
   }
 }
 
-export function trainerReassignmentAvailabilityError(client, trainer, sessions) {
-  if (!trainer || trainer.status !== 'active' || trainer.id === client.trainerId) return 'Choose a different active trainer.'
-  const purchases = activePurchases(client)
-  for (const preference of [client.genderPreference, ...purchases.map(item => item.genderPreference)]) {
+export function trainerReassignmentAvailabilityError(client, trainer, sessions, purchaseId = client.package?.id) {
+  const purchases = activePurchases(client, purchaseId)
+  if (!purchases.length || !trainer || trainer.status !== 'active' || trainer.id === (purchases[0].trainerId ?? client.trainerId)) return 'Choose a different active trainer.'
+  for (const preference of purchases.map(item => item.genderPreference ?? client.genderPreference)) {
     if ((preference === 'Female trainer preferred' && trainer.gender !== 'Female') || (preference === 'Male trainer preferred' && trainer.gender !== 'Male')) return 'The selected trainer does not match the saved trainer preference.'
   }
-  const slots = [...(client.fixedWeeklySchedule ?? []), ...purchases.flatMap(item => item.fixedWeeklySchedule ?? [])]
+  const slots = purchases.flatMap(item => item.fixedWeeklySchedule ?? client.fixedWeeklySchedule ?? [])
   const unavailable = slots.find(slot => !trainerCoversBlock(trainer, slot.day, slot.from, slot.to))
   if (unavailable) return `The selected trainer is unavailable for a saved weekly schedule: ${unavailable.day}, ${unavailable.from}–${unavailable.to}.`
   for (const session of sessions) {
@@ -38,12 +41,12 @@ export function trainerReassignmentAvailabilityError(client, trainer, sessions) 
 
 export function validateTrainerReassignment(db, client, draft) {
   requireActiveClient(client)
-  const expected = trainerReassignmentSnapshot(client, db.sessions, db.packageCreditTransactions ?? [], businessClock(new Date(), db.settings.timeZone))
+  const expected = trainerReassignmentSnapshot(client, db.sessions, db.packageCreditTransactions ?? [], businessClock(new Date(), db.settings.timeZone), draft.purchaseId)
   if (JSON.stringify(expected) !== JSON.stringify(draft.expected)) throw new Error('The client assignment, packages or upcoming sessions changed. Reopen Reassign Trainer to review them.')
   const trainer = db.trainers.find(item => item.id === draft.trainerId)
-  const availabilityError = trainerReassignmentAvailabilityError(client, trainer, expected.sessions)
+  const availabilityError = trainerReassignmentAvailabilityError(client, trainer, expected.sessions, draft.purchaseId)
   if (availabilityError) throw new Error(availabilityError)
-  const purchases = activePurchases(client)
+  const purchases = activePurchases(client, draft.purchaseId)
   const ids = new Set(expected.sessions.map(item => item.id))
   const sessions = db.sessions.filter(item => ids.has(item.id))
   const calendar = { ...db, sessions: db.sessions.map(item => ids.has(item.id) ? { ...item, trainerId: trainer.id } : item) }
@@ -65,12 +68,14 @@ export function applyTrainerReassignment(db, client, draft, staff) {
   }
   const { trainer, purchases, sessions } = validateTrainerReassignment(db, client, draft)
   const at = new Date().toISOString(), by = { id: staff.id, name: staff.name }
-  const oldTrainer = db.trainers.find(item => item.id === client.trainerId)
+  const oldTrainerId = purchases[0].trainerId ?? client.trainerId
+  const oldTrainer = db.trainers.find(item => item.id === oldTrainerId)
   const entry = { id: draft.requestId, request, at, by,
-    from: { id: client.trainerId, name: oldTrainer?.name ?? 'Unknown trainer' }, to: { id: trainer.id, name: trainer.name },
+    from: { id: oldTrainerId, name: oldTrainer?.name ?? 'Unknown trainer' }, to: { id: trainer.id, name: trainer.name },
     packages: purchases.map(item => ({ id: item.id, previousTrainerId: item.trainerId })),
     sessions: sessions.map(item => ({ id: item.id, previousTrainerId: item.trainerId })) }
-  client.trainerId = trainer.id
+  const movesDefault = purchases[0].id === client.package?.id
+  if (movesDefault) client.trainerId = trainer.id
   for (const purchased of purchases) purchased.trainerId = trainer.id
   for (const session of sessions) {
     session.trainerId = trainer.id
@@ -79,7 +84,7 @@ export function applyTrainerReassignment(db, client, draft, staff) {
   client.trainerAssignmentHistory = [...(client.trainerAssignmentHistory ?? []), entry]
   const changed = new Set(sessions.map(item => item.id))
   const requests = new Set(db.messages.filter(message => message.status === 'pending' &&
-    (changed.has(message.request?.sessionId) || (message.request?.type === 'fixed_weekly_schedule' && message.request.clientId === client.id))).map(message => message.id))
+    (changed.has(message.request?.sessionId) || (movesDefault && message.request?.type === 'fixed_weekly_schedule' && message.request.clientId === client.id))).map(message => message.id))
   for (const message of db.messages) if (requests.has(message.id) || requests.has(message.requestId)) {
     Object.assign(message, { status: 'rejected', decidedAt: at, decidedBy: staff.id, decisionReason: 'Superseded by permanent trainer reassignment.' })
   }

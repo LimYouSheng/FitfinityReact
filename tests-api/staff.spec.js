@@ -35,8 +35,8 @@ for (const role of ['owner', 'admin']) test(`${role} Trainer creation persists p
 
 test('Owner Admin creation retains one database identity and original receipt after reload', async ({ page }) => {
   await signIn(page, 'owner', account('admincreate'))
-  await page.getByRole('button', { name: 'Open profile menu' }).click()
-  await page.getByRole('menu', { name: 'Profile menu' }).getByRole('menuitem', { name: 'Create Admin', exact: true }).click()
+  await page.goto('/#/admins')
+  await page.getByRole('button', { name: 'Create Admin', exact: true }).click()
   const name = `Admin ${randomUUID()}`, email = `${randomUUID()}@example.test`
   await page.getByLabel('Staff name', { exact: true }).fill(name)
   await page.getByLabel('Staff email', { exact: true }).fill(email)
@@ -51,6 +51,18 @@ test('Owner Admin creation retains one database identity and original receipt af
   expect(result).toMatchObject({ name, email, role: 'admin', invitation: 'sent' })
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   await page.reload()
+  await page.goto(`/#/admins/${result.id}`)
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  const approvals = page.getByRole('button', { name: 'Approval Requirements', exact: true })
+  if (!await approvals.isVisible()) await page.locator('.profile-menu > summary').click()
+  await approvals.click()
+  const checkboxes = page.getByRole('checkbox')
+  expect(await checkboxes.count()).toBe(17)
+  await expect(page.getByRole('checkbox', { name: 'Manage the Exercise Library', exact: true })).toBeChecked()
+  await expect(page.getByRole('checkbox', { name: 'Manage content', exact: true })).toBeChecked()
+  expect(await checkboxes.evaluateAll(items => items.filter(item => item.checked).length)).toBe(2)
+  const policy = (await read(page, `/api/staff/admins/${result.id}`)).approvalNeeded
+  expect(Object.entries(policy).filter(([, required]) => required).map(([area]) => area).sort()).toEqual(['content', 'exerciseLibrary'])
   const retry = await post(page, '/api/staff/admins', body, key)
   expect(retry.status()).toBe(200)
   expect(await retry.json()).toEqual(result)

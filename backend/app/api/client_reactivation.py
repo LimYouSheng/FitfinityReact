@@ -165,16 +165,7 @@ def review(session, principal, identity, body=None, *, write=False, package_id=N
     ]
     if set(dates) - {b.id for b in retained}:
         raise AuthError("invalid_request", "Review only retained unfinished sessions.", 422)
-    active = [p for p in purchases if p.id in active_ids]
-    package_error = None
-    for index, purchase in enumerate(active):
-        if any(
-            purchase.start_date <= p.end_date and p.start_date <= purchase.end_date
-            for p in active[index + 1 :]
-        ):
-            package_error = (
-                "Active purchased dates overlap. Review the purchases before reactivation."
-            )
+    package_error = None  # Independent purchases may have overlapping validity.
     competing = bounded(
         session,
         select(TrainingSession)
