@@ -12,7 +12,7 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | --- | --- |
 | [Owner](docs/uat/owner.md), [Admin](docs/uat/admin.md), [Trainer](docs/uat/trainer.md) worksheets | Role-specific developer AWS acceptance worksheets with blank results/remarks; not executed test receipts |
 | [Code owners](docs/code-owners/index.md) | Hierarchical feature/module navigation, responsibility diagrams and the linked function-level technical-behavior/recovery map |
-| [Development](docs/development.md) | Local VS Code, Codex Cloud and ZIP workflows; setup, verification commands and PR/CI guidance |
+| [Development](docs/development.md) | Local VS Code, Cloud Containers and ZIP workflows; setup, verification commands and PR/CI guidance |
 | [Runbook](docs/runbook.md) | Operational checks, incidents, release/recovery procedures and configuration; planned capabilities labelled |
 | [Data lifecycle](docs/data-lifecycle.md) | Source-based storage, expiry/deletion inventory and pending policy-to-implementation mapping; not disposal authorization |
 | [Security](docs/security.md) | Security trust boundaries, control/evidence map and future layers; not a second rules or backlog owner |

@@ -33,6 +33,13 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 31 October 2026 — guard updates, recurring failures and Cloud Containers
+
+Extended the testing skill in PR114 to require an explicit disposition for every affected runtime, schema/migration/artifact, verifier and environment/delivery guard. Necessary changes belong in the same PR with evidence that valid cases pass and invalid cases still fail; counts, allowlists and limits cannot be relaxed to hide defects. Added recurring-failure investigation from the second comparable occurrence, preserving occurrence/run/project/condition evidence, bounded reproduction and causal verification. Passing reruns alone do not establish a repair.
+
+Renamed the development guide's Codex Cloud route to Cloud Containers, including its table-of-contents anchor and AGENTS directory label; historical references remain historical. These are instruction/naming edits, not changes to runtime guards, suites, budgets or deployment permissions. PR113 fresh-main run40811886578 is confirmed successful. PR114 remains open and its new head requires full CI. Validation passed 20 Markdown files / 1,816 local links/anchors, testing-skill metadata/four GFM tables, exact rename comparison and prior-history preservation. Executable tests, guards and verifier inventories remain unchanged; no application suite was rerun locally for this prose-only change.
+
+
 ### 29 October 2026 — Fitfinity testing skill
 
 The user requested adapting [SoccerBot's testing skill](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/4cb7bdd157862f8dd924948889281b2023a7b9a8/.agents/skills/soccerbot-testing/SKILL.md). Added `.agents/skills/fitfinity-testing/SKILL.md` to the existing skills PR114. It follows the reference's impact mapping, meaningful expectations, fixture/inventory synchronization, diagnosis and PR-receipt structure, using actual Fitfinity source owners and all three exact-head gates. Fitfinity permits isolated Playwright execution; SoccerBot's owner-only browser restriction, Worker/D1 providers and JSON inventory files were not imported.

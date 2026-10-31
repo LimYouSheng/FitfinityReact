@@ -4,7 +4,7 @@ This file owns the **current task, exact stopping point, blockers, next actions 
 
 ## Current task — documentation and testing skills for every PR
 
-Checkpoint: 29 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9cbd76ae7d3e678bb` after all final-head gates passed on `ef458800f011570318fbb1f16d028df641a07b8c`. Fresh-main [run40811886578](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40811886578) was running at inspection; PR112 fresh-main run40803386013 passed. Current scope is repository documentation and testing skills with explicit AGENTS entry points in draft PR114, not CI enforcement mechanisms.
+Checkpoint: 31 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9cbd76ae7d3e678bb` after all final-head gates passed on `ef458800f011570318fbb1f16d028df641a07b8c`. Fresh-main [run40811886578](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40811886578) passed; PR112 fresh-main run40803386013 passed. Current scope is repository documentation and testing skills with explicit AGENTS entry points in draft PR114, not CI enforcement mechanisms.
 
 ### Completed in this task
 
@@ -12,8 +12,9 @@ Checkpoint: 29 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9
 | --- | --- |
 | Skill | `.agents/skills/fitfinity-documentation/SKILL.md` defines triggers, owner impact review, exact acceptance states, validation, delivery-event handling and a concise PR receipt. |
 | Discovery | AGENTS requires explicit reading for every PR; hosts with repository skill discovery can also use its frontmatter. No claim that the current session's skill catalog auto-reloads. |
-| Validation | Both skills’ YAML/name/description and 5 GFM tables, explicit AGENTS fallbacks, 20 Markdown files / 1,816 local links and balanced fences passed. Evidence-owner paths and prior Journey, business/API requirements, CI and verifier bytes preserved. |
-| Testing skill | Added `.agents/skills/fitfinity-testing/SKILL.md`, adapted from SoccerBot to actual Fitfinity unit/simulator/real-API/backend/infrastructure owners, strict verifiers and browser permissions. Includes every-PR test-impact receipt. |
+| Validation | Both skills’ YAML/name/description and 6 GFM tables, explicit AGENTS fallbacks, 20 Markdown files / 1,816 local links and balanced fences passed. Evidence-owner paths and prior Journey, business/API requirements, CI and verifier bytes preserved. |
+| Testing skill | Expanded with same-PR runtime/schema/verifier/environment guard impact and positive/negative evidence, plus recurring-failure comparison, bounded diagnosis and causal repair criteria. Added `.agents/skills/fitfinity-testing/SKILL.md`, adapted from SoccerBot to actual Fitfinity unit/simulator/real-API/backend/infrastructure owners, strict verifiers and browser permissions. Includes every-PR test-impact receipt. |
+| Development naming | Renamed the managed development route to Cloud Containers and updated its navigation anchor and AGENTS directory label. Existing browser/data/permission boundaries remain unchanged. |
 | Campaign integration | NORTH_STAR checkpoint step invokes the skill; engineering authority and campaign budgets are unchanged. |
 | State discipline | Progress/Journey updated for each PR; all other owners reviewed and changed when affected. Final-head green is recorded in the PR receipt without creating an endless status-commit loop. |
 
@@ -25,7 +26,7 @@ Checkpoint: 29 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9
 | Starting evidence | Main `0a36e81`; existing checkout, branch `docs/documentation-state-skill`. Unknown work/stashes/older branches preserved. |
 | Acceptance | Valid skill frontmatter and explicit discovery fallback; every canonical owner covered; update/no-change/pending classification; link/fence checks; previous history and domain requirements retained; full final-head CI before merge. |
 | Work queue | Draft → inspect owner/discovery/acceptance semantics → validate → publish draft with documentation receipt → exact-head gates. |
-| Budget | Initial 6-iteration/90-active-minute work block; documentation drafting/validation and testing-skill adaptation complete (3/6); expanded-skill validation complete (4/6); publish the new PR114 head next. No new paid resource authority or claimed metered spend. |
+| Budget | Initial 6-iteration/90-active-minute work block; documentation drafting/validation and testing-skill adaptation complete (3/6); expanded-skill validation complete (4/6). New 31 October work block: guard/failure guidance and naming drafted/validated (2/6); publish next. No new paid resource authority or claimed metered spend. |
 | Unresolved evidence | Earlier PDF export timeout, clipped trace navbar and reassignment ECONNRESET remain unexplained. Subsequent green CI did not repair or diagnose them. |
 | External boundary | Real Cognito, Lambda release, physical UAT, alert activation and tested restore remain independently pending; the skill grants no authority for them. |
 

@@ -1,6 +1,6 @@
 ---
 name: fitfinity-testing
-description: Review and maintain Fitfinity tests, fixtures and strict verifier inventories for every PR and behavior change. Use during implementation, bug repair, dependency/workflow updates, CI diagnosis and release preparation; record test impact and exact evidence before publication.
+description: Review and maintain Fitfinity tests, guards, fixtures and strict verifier inventories for every PR and behavior change. Use during implementation, bug repair, dependency/workflow updates, CI diagnosis and release preparation; record test impact and exact evidence before publication.
 ---
 
 # Test maintenance and evidence
@@ -69,6 +69,17 @@ Fitfinity does **not** use SoccerBot's `test-inventory.json` or Worker inventory
 
 When adding, renaming, moving or retiring tests, update every affected verifier expectation and its regression tests in the same PR. Compare discovered and executed cases, not just unchanged totals. Do not regenerate a reduced inventory to conceal missing tests or change checker expectations to accept a failure.
 
+**Required guard impact review.** For every change, identify all guards that enforce the affected contract, including indirect callers. Give each an update or retain-with-evidence disposition in the PR; update necessary guards, fixtures and checker regressions in the same PR, not as a forgotten follow-up.
+
+| Guard family | Required review and evidence |
+| --- | --- |
+| Runtime authority and lifecycle | Server authorization, assignment/active-state checks, versions, idempotency, receipt recovery, editor/review lifetime and post-IO checks. Test allowed behavior and rejected stale/foreign/retired behavior; UI guards never replace server authority. |
+| Schema, migration and artifact compatibility | Request/response validation, OpenAPI agreement, migration readiness and outgoing-runtime/source/artifact compatibility. Update guards only for an intentional contract change, preserving wrong-version/resource and populated-data rejection. |
+| Verification and collection | Result totals, shard identity/completeness, backend/infrastructure inventories, lint/source-health constraints, forbidden patterns and quality-checker regressions. A new valid case must pass while incomplete/skipped/duplicated or otherwise invalid evidence still fails. |
+| Environment and delivery | Isolated database/storage targets, readiness checks, credential/data boundaries, workflow source bindings and protected release gates. Preserve failure paths and required approval boundaries; a new fixture must not silently bypass the production guard it exercises. |
+
+Inspect executable owners before editing counts, allowlists, thresholds, fingerprints or exclusions. A legitimate test addition or architecture change may require a narrow guard update with its rationale and positive/negative regression evidence. A guard rejecting a defective candidate is not an obsolete guard. Never loosen a limit, broaden an allowlist, skip a checker or recalculate expected evidence merely to accept the failing output. If no guard update is necessary, identify the relevant existing guards and why they remain valid.
+
 For setup races, wait on the actual observable prerequisite before dependent assertions. Verify listeners match the intended request/attempt. Never use fixed sleeps, retries, forced clicks, skipped/exclusive cases, relaxed assertions, inflated timeouts or reduced device scope to obtain green. Investigate whether an event indicates dispatch, completion or only an intermediate state before choosing the wait.
 
 ## 4. Execute, diagnose and keep evidence bounded
@@ -76,6 +87,12 @@ For setup races, wait on the actual observable prerequisite before dependent ass
 Use docs/development.md's verification commands and inspect executable harnesses before selecting focused work. Run the smallest meaningful checks, then applicable complete gates at a coherent candidate boundary. A filtered test or one API shard is not full acceptance. Reuse matching dependencies, images/browser caches and evidence; do not repeatedly run unchanged suites without a relevant change or new diagnostic evidence.
 
 Classify failures as application, test/fixture, environment, provider or unresolved. Save the first failure with source, command/run, environment, test title, expected versus observed state and available logs/traces. A passing rerun alone does not prove “flaky,” identify a root cause or repair the original defect. For perceived slowness, record first/repeat timing and where time is spent; do not loosen the timeout to hide it. Fix the owning cause and review adjacent coverage.
+
+**Recurring or frequent failures.** Search retained Journey entries, CI jobs/artifacts and adjacent tests before treating a failure as new. A second comparable occurrence triggers an explicit recurring-failure investigation; similar error text alone does not establish the same root cause. Record each source/run/test/project, stage, timing, expected/observed state and relevant runtime/fixture/load differences. Report observed failures and inspected runs together when describing frequency; do not invent a failure rate from a few anecdotes.
+
+Compare the first and latest traces/logs and test isolation, clocks, shared state, dependency startup, transport, resource pressure and browser/render lifecycle. Separate slowness, missing readiness and application deadlock from an arbitrary timeout label. Form a bounded reproduction or fault-injection hypothesis using synthetic isolated targets; record cases that cannot be reproduced. Change the owning cause and any affected guards, then verify the regression and a relevant adjacent/concurrent scenario. Broader repetition must have a stated diagnostic purpose and campaign budget, never “repeat until green.”
+
+Keep the recurring issue in Progress with the next diagnostic step and link durable occurrences/repair evidence in Journey. Mark it fixed only with a causal explanation and relevant verification; otherwise retain it as unresolved even after a passing run. Recurring unresolved failures that undermine the candidate's required acceptance remain readiness blockers; unrelated historical findings keep their recorded scope. Do not quarantine, skip, add retries, inflate timeouts, reduce parallel/device coverage or weaken assertions to hide recurrence. Escalate the missing evidence or environment constraint when the bounded investigation cannot advance.
 
 Fitfinity requires all three exact-final-head gates: **`verify / frontend`, `verify / backend`, `verify / api-browser`**, including successful API shards/aggregate and authoritative macOS/WebKit checks. Recheck complete outcomes and SHA before an authorized merge. Current workflow limits are per job: 60 minutes frontend/backend, 20 per API shard and 5 for aggregation; inspect actual source if they change. Campaign budgets do not override test/CI budgets.
 
@@ -89,9 +106,9 @@ Add a concise paragraph/table to the existing PR body alongside the documentatio
 | --- | --- |
 | Behavior / risk | Changed BR, operation or boundary and the independently expected result. |
 | Test disposition | Concrete paths/titles added, updated, retained or retired with rationale; justify no test changes for documentation-only work. |
-| Fixtures / inventories | What was reviewed/updated and why discovered/executed coverage and declared constraints agree. |
+| Fixtures / inventories / guards | Exact owners updated or retained, rationale, positive/negative checker evidence and why discovered/executed coverage and declared constraints agree. |
 | Verification | Actual commands/run links, source/environment and outcomes; distinguish focused local checks from complete CI and real provider/device evidence. |
-| Failure / gaps | Original failure receipt, diagnosis or unresolved hypothesis, blocked checks and missing acceptance. |
+| Failure / gaps | Original and recurring failure receipts, inspected occurrence count/conditions, causal diagnosis or unresolved hypothesis, blocked checks and missing acceptance. |
 | Next action | Current readiness and remaining verification; no invented success or unattended monitoring. |
 
 Use Progress for the current task and Journey for durable receipts under the documentation skill. After a final-head pass, update the PR/user receipt rather than repeatedly committing “green” and invalidating that head. Apply the same review to Dependabot updates before merge; release notes and green badges do not replace a test-impact assessment.
