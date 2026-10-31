@@ -133,7 +133,7 @@ Account["Staff identity and lifecycle"]
 
 Source owners: [staff API](../../backend/app/api/staff.py), [provisioning](../../backend/app/api/staff_provisioning.py), [invitation adapter](../../backend/app/auth/invitations.py), [verified email](../../backend/app/api/email_changes.py), [authentication records](../../backend/app/models/authentication.py).
 
-The consolidated draft adds [Admin management](../../backend/app/api/admin_management.py), [proposal enforcement](../../backend/app/api/admin_supervision.py), [decision routes](../../backend/app/api/admin_requests.py) and the [review inbox](../../src/features/messages/AdminApprovalInbox.jsx). Content, package-catalogue and library publication have focused real-API approval evidence; the registry also connects client/Trainer/session/assessment commands, with broader acceptance and optional sharing enforcement still tracked in Progress. These draft paths are not deployed acceptance.
+Merged PR116 adds [Admin management](../../backend/app/api/admin_management.py), [proposal enforcement](../../backend/app/api/admin_supervision.py), [decision routes](../../backend/app/api/admin_requests.py) and the [review inbox](../../src/features/messages/AdminApprovalInbox.jsx). Content, package-catalogue and library publication have focused real-API approval evidence; the registry also connects client/Trainer/session/assessment commands, including optional sharing enforcement; all required final-head and fresh-main gates passed. These source receipts do not establish deployed/provider acceptance.
 
 The [operator recovery procedure](../runbook.md#52-operator-assisted-lost-authenticator-recovery) is an operator-owned process with test drills, not an Owner-facing MFA-reset feature. Real Cognito actions remain separately authorized.
 
@@ -314,7 +314,7 @@ Media["Protected original media ownership"]
 
 Source owners: [library UI](../../src/features/exercises/ExerciseLibraryPage.jsx), [library transport](../../src/services/apiLibraryMedia.js), [video dialog](../../src/features/sessions/ExerciseVideoDialog.jsx), [recording transport](../../src/services/apiSessionMedia.js).
 
-Source owners: [library routes](../../backend/app/api/library_routes.py), [library operations](../../backend/app/api/exercise_library.py), [draft publication approval](../../backend/app/api/library_approval.py), [recording routes](../../backend/app/api/session_media_routes.py), [recording operations](../../backend/app/api/session_media.py), [storage adapter](../../backend/app/media_storage.py), [library cleanup](../../backend/app/library_cleanup.py), [recording cleanup](../../backend/app/session_media_cleanup.py).
+Source owners: [library routes](../../backend/app/api/library_routes.py), [library operations](../../backend/app/api/exercise_library.py), [publication approval](../../backend/app/api/library_approval.py), [recording routes](../../backend/app/api/session_media_routes.py), [recording operations](../../backend/app/api/session_media.py), [storage adapter](../../backend/app/media_storage.py), [library cleanup](../../backend/app/library_cleanup.py), [recording cleanup](../../backend/app/session_media_cleanup.py).
 
 Cleanup code ownership does not mean cloud worker scheduling, transcoding or captions are deployed. M7 processing and rollout remain in Progress. Isolated tests use real RustFS object IO; production object storage is the separately configured S3 boundary.
 
