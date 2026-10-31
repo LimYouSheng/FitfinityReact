@@ -1,6 +1,6 @@
 import { mutateSessionRecords } from './sessionMutation.js'
 import { applyClientReactivationDates } from '../app/clientReactivation.js'
-import { managesOperations } from '../app/permissions.js'
+import { managesOperations, canEditClientCoachingNotes } from '../app/permissions.js'
 import { applyTrainerReassignment } from '../app/trainerReassignment.js'
 import { clientAssignedToTrainer, clientPackages, deletablePackageSessions, ensureClientPackageReferences, requireActiveClient } from '../app/clientPackages.js'
 import { deactivatePurchase, restoreClientPurchases, restorePurchase } from '../app/packageLifecycle.js'
@@ -82,6 +82,7 @@ export const clientService = {
       )
       if (!trainer) throw new Error('Selected trainer is not active.')
 
+      if (draft.startDate <= businessClock(new Date(), db.settings.timeZone).date) throw new Error('Choose a future start date.')
       createdId = nextClientId(db.clients)
       const client = buildClientRecord(draft, createdId, selectedPackage(db, draft), db.settings)
       db.clients.push(client)
@@ -223,7 +224,7 @@ export const clientService = {
       if (!client) throw new Error('Client not found')
       requireActiveClient(client)
       const staff = requireActiveActor(db, actor)
-      if (!managesOperations(staff) && (staff.role !== 'trainer' || staff.trainerId !== client.trainerId || !db.trainers.some(item => item.id === staff.trainerId && item.status === 'active'))) throw new Error('This client is unavailable for your account.')
+      if (!managesOperations(staff) && (!canEditClientCoachingNotes(staff, client) || !db.trainers.some(item => item.id === staff.trainerId && item.status === 'active'))) throw new Error('This client is unavailable for your account.')
       if (!managesOperations(staff) && Object.keys(patch ?? {}).some(key => !['healthNotes', 'remarks', 'notes'].includes(key))) throw new Error('Client information can only be edited by the owner or Admin.')
       const fields = ['name', 'phone', 'email', 'birthday', 'gender', 'emergencyContact', 'genderPreference', 'healthNotes', 'remarks', 'notes', 'people']
       if (!patch || Object.keys(patch).some(key => !fields.includes(key))) throw new Error('Use the dedicated package, schedule or client status action for these changes.')

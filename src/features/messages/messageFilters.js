@@ -16,7 +16,7 @@ export function messageCategory(message) {
   const kind = message.kind ?? ''
   if (kind === 'renewal') return 'renewals'
   if (message.remunerationCycle || kind.startsWith('remuneration')) return 'remuneration'
-  if (message.request || message.requestId || kind.endsWith('_request') || kind === 'request_decision') return 'approvals'
+  if (message.request || message.requestId || kind.endsWith('_request') || ['request_decision', 'admin_operation_decision'].includes(kind)) return 'approvals'
   if (message.sessionId || kind === 'session' || kind.startsWith('session_') || kind === 'schedule_update') return 'sessions'
   if (kind.startsWith('client_') || kind.startsWith('trainer_') || kind === 'assignment' || kind === 'availability_update') return 'people'
   return 'updates'

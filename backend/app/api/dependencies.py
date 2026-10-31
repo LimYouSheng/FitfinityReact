@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import Request
 from sqlalchemy import select, text
 
+from app.api.admin_supervision import SUPERVISION_LOCK
 from app.api.purchase_activation import activate_due
 from app.auth.errors import expired
 from app.auth.routes import _handle
@@ -25,6 +26,14 @@ def authorized_transaction(request: Request, *, exclusive_user=False, advisory_l
     with auth.db.transaction() as maintenance:
         activate_due(maintenance)
     with auth.db.transaction() as session:
+        # Supervised Admin writes and Owner approval/policy changes share an ordering
+        # barrier before actor locks, so deactivation cannot deadlock a decision.
+        if request.method == "POST" and (
+            request.url.path.startswith(("/api/admin-requests", "/api/staff/admins"))
+            or session.scalar(select(StaffUser.role).where(StaffUser.id == verified.user_id))
+            == "admin"
+        ):
+            session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": SUPERVISION_LOCK})
         # Competing request decisions serialize before actor/Trainer row locks. Taking
         # this later could deadlock cancellation against approval's domain locks.
         if advisory_lock is not None:

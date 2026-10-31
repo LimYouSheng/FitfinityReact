@@ -159,3 +159,11 @@ it('rejects an old consuming refresh without blocking or refreshing the replacem
   expect(fetch.mock.calls.filter(([url]) => url.endsWith('/auth/refresh'))).toHaveLength(1)
   expect(fetch.mock.calls.at(-1)[1].headers['X-CSRF-Token']).toBe('b'.repeat(64))
 })
+
+it('distinguishes a verified pending approval from a saved domain record and rejects malformed proposal IDs', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce(jsonResponse({ approvalPending: true, requestId: '12345678-1234-1234-1234-123456789abc', message: 'Untrusted server prose' }, 202))
+    .mockResolvedValueOnce(jsonResponse({ approvalPending: true, requestId: 'invalid' }, 202))
+  const http = make(fetch)
+  await expect(http.post('/api/content', {})).rejects.toMatchObject({ code: 'APPROVAL_PENDING', approvalId: '12345678-1234-1234-1234-123456789abc', message: 'Submitted for Owner approval. No changes have been applied.' })
+  await expect(http.post('/api/content', {})).rejects.toMatchObject({ code: 'API_RESPONSE' })
+})

@@ -10,6 +10,8 @@ from pydantic import Field, StrictStr, model_validator
 from sqlalchemy import func, select, text
 
 from app.api import session_outcomes
+from app.api.admin_supervision import supervised, supervised_recovery
+from app.api.renewal_policy import usable_purchase
 from app.api.request_cancellation import DECISION_LOCK
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
@@ -122,6 +124,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("session.acknowledge")
 def reconcile(session, principal, key):
     found = receipt(session, principal, key)
     if found is None:
@@ -144,8 +147,8 @@ def notify_renewal(session, principal, booking, used):
         select(PackagePurchase.id)
         .where(
             PackagePurchase.client_id == purchase.client_id,
-            PackagePurchase.status == "active",
-            PackagePurchase.start_date > purchase.end_date,
+            PackagePurchase.id != purchase.id,
+            usable_purchase(),
         )
         .limit(1)
     ):
@@ -176,6 +179,13 @@ def notify_renewal(session, principal, booking, used):
         session.add(MessageReceipt(message_id=notice.id, user_id=user_id))
 
 
+@supervised(
+    "sessionAcknowledgement",
+    "session.acknowledge",
+    SaveAcknowledgement,
+    receipt=receipt,
+    target="identity",
+)
 def save(session, principal, identity, key, body):
     """A receipt failure rolls back signature, measurements, credit, notice and completion."""
     found = receipt(session, principal, key)

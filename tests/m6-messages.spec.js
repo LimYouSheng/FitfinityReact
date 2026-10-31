@@ -29,7 +29,7 @@ test('API Owner Messages recovers an interrupted read and persists personal unre
   staffApi.state.messageUnknown = true
   await noticeButton(page).click()
   await expect(page.getByRole('dialog', { name: 'Saved staff notice', exact: true })).toHaveCount(0)
-  await expect(page.getByRole('alert').first()).toBeVisible()
+  await expect(page.locator('.panel').filter({ has: page.getByRole('group', { name: 'Message categories', exact: true }) }).getByRole('alert')).toHaveText('Staff service unavailable. Please retry.')
   await noticeButton(page).click()
   const dialog = page.getByRole('dialog', { name: 'Saved staff notice', exact: true })
   await expect(dialog).toBeVisible()
@@ -81,7 +81,7 @@ test('API Messages retains a missing-receipt intent through a portal outage befo
   await openMessages(page, staffApi)
   staffApi.state.messageAbsentUnknown = true
   await noticeButton(page).click()
-  await expect(page.getByRole('alert').first()).toBeVisible()
+  await expect(page.locator('.panel').filter({ has: page.getByRole('group', { name: 'Message categories', exact: true }) }).getByRole('alert')).toHaveText('Staff service unavailable. Please retry.')
   staffApi.state.unavailable = true
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await expect(page.getByRole('heading', { name: 'Unable to load the portal', exact: true })).toBeVisible()

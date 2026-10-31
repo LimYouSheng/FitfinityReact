@@ -66,13 +66,13 @@ def reserve(api, graph, item, *, remove=False, key=None, **patch):
     return key, body, response
 
 
-def upload(api, key):
+def upload(api, key, content=VIDEO):
     lease = api.post(
         f"/api/session-media/intents/{key}/upload", json={}, headers={"Idempotency-Key": str(key)}
     )
     assert lease.status_code == 200, lease.text
     with httpx2.Client(trust_env=False) as client:
-        response = client.put(lease.json()["url"], headers=lease.json()["headers"], content=VIDEO)
+        response = client.put(lease.json()["url"], headers=lease.json()["headers"], content=content)
     assert response.status_code == 200, response.text
 
 
@@ -89,6 +89,49 @@ def publish(api, graph, item):
     saved = commit(api, key)
     assert saved.status_code == 200, saved.text
     return key, saved.json()
+
+
+def test_failed_conversion_original_at_ten_mib_is_preserved_but_larger_is_rejected(
+    api,
+    graph,
+    domain_db,
+    recording,
+):
+    store, item, foreign = recording
+    original = VIDEO + b"\x01" * (10 * 1024 * 1024 - len(VIDEO))
+    metadata = {
+        "name": "original.webm",
+        "type": "video/webm",
+        "size": len(original),
+        "sha256": hashlib.sha256(original).hexdigest(),
+    }
+    _, _, rejected = reserve(api, graph, item, upload={**metadata, "size": len(original) + 1})
+    assert rejected.status_code == 422
+    with domain_db.transaction() as session:
+        assert session.scalars(select(SessionMediaIntent)).all() == []
+    key, _, reserved = reserve(
+        api,
+        graph,
+        item,
+        upload=metadata,
+        source="recorded",
+        processingStatus="deferred",
+        audioIncluded=None,
+        duration=60,
+    )
+    assert reserved.status_code == 200, reserved.text
+    upload(api, key, original)
+    saved = commit(api, key)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["media"]["size"] == 10 * 1024 * 1024
+    assert commit(api, key).json() == saved.json()
+    lease = api.get(path(graph, item)).json()
+    with httpx2.Client(trust_env=False) as client:
+        assert client.get(lease["url"]).content == original
+    with domain_db.transaction() as session:
+        asset = session.get(MediaAsset, UUID(saved.json()["media"]["id"]))
+        assert store.verified_bytes(evidence(asset)) == original
+        assert session.get(ExercisePlanItem, foreign).name == "Other session"
 
 
 def test_real_upload_read_remove_and_private_original_receipt(api, graph, domain_db, recording):

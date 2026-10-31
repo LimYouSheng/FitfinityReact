@@ -10,12 +10,14 @@ export default function TrainerEmailEditor({ trainer, auth, onRequest, canCorrec
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [uncertain, setUncertain] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const version = useRef(null)
   const correction = useRef(null)
   useEffect(() => {
     let current = true
     setLoading(true)
     setError('')
+    setSubmitted(false)
     auth.pendingTrainerEmailChange({ id: trainer.id }).then(value => { if (current) setPending(value) })
       .catch(reason => { if (current) setError(reason.message) })
       .finally(() => { if (current) setLoading(false) })
@@ -30,10 +32,15 @@ export default function TrainerEmailEditor({ trainer, auth, onRequest, canCorrec
       const value = await onRequest({ email, ...(correction.current ? { supersedes: correction.current } : {}) }, version.current)
       setPending(value); setUncertain(false)
       onClose()
-    } catch (reason) { setError(reason.message); setUncertain(!reason.status || reason.status >= 500) }
+    } catch (reason) {
+      if (reason.code === 'APPROVAL_PENDING') {
+        setSubmitted(true); setUncertain(false); onClose()
+      } else { setError(reason.message); setUncertain(!reason.status || reason.status >= 500) }
+    }
     finally { setBusy(false) }
   }
   if (loading) return <p role="status">Checking email verification…</p>
+  if (submitted) return <p role="status">Submitted for Owner approval. The current email is still active. Review the request in Messages.</p>
   if (error && !editing) return <div role="alert">{error}<button type="button" className="text-action" onClick={() => setAttempt(value => value + 1)}>Retry Email Status</button></div>
   const activePending = pending && !['completed', 'superseded'].includes(pending.state)
   const begin = () => { version.current = trainer.version; correction.current = activePending ? pending.id : null; setEmail(activePending ? pending.email : ''); onEdit() }

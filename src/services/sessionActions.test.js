@@ -464,9 +464,10 @@ it.each([false, true])('package finality preserves Add Package after normalized 
     db.clients.find(item => item.id === 'c1').clientPreferences = [{ id: 'mon', days: ['Monday'], from: '10:00', to: '11:00' }]
   })
   const original = mockDb.read(), person = client()
-  const draft = { ...packageDraftForClient(person, original.sessions, original.packages, '2027-01-04'), requestId: 'undo-renewal',
+  const startDate = activated ? '2027-06-07' : '2027-01-04'
+  const draft = { ...packageDraftForClient(person, original.sessions, original.packages, startDate), requestId: 'undo-renewal',
     expectedPackageId: person.package.id, expectedTrainerId: person.trainerId, expectedSchedule: person.fixedWeeklySchedule,
-    packageId: 'package-12', packageVersion: 1, startDate: '2027-01-04', sessionsPerWeek: 1, genderPreference: 'No gender preference' }
+    packageId: 'package-12', packageVersion: 1, startDate, sessionsPerWeek: 1, genderPreference: 'No gender preference' }
   await api.clientService.renewPackage({ id: 'c1', draft })
   expect(mockDb.read().sessions.length).toBeGreaterThan(original.sessions.length)
   const message = mockDb.read().messages.findLast(item => item.title.startsWith('Package added:'))

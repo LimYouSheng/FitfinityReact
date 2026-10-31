@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import Field, StrictStr, field_validator
 from sqlalchemy import func, select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.request_cancellation import DECISION_LOCK
 from app.api.schemas import Contract
 from app.api.session_mutation_journal import journal
@@ -85,6 +86,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("session.summary")
 def reconcile(session, principal, key):
     found = receipt(session, principal, key)
     if found is None:
@@ -92,6 +94,7 @@ def reconcile(session, principal, key):
     return SummarySaved.model_validate(found.result)
 
 
+@supervised("sessionContent", "session.summary", SaveSummary, receipt=receipt, target="identity")
 @journal("session.summary")
 def save(session, principal, identity, key, body):
     """Commit text, prior-value audit and private retry receipt together, with no handoff effect."""

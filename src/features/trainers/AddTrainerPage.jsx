@@ -23,9 +23,9 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
   const { form: creation, update: updateCreation, setter } = useCreationForm(recovery, () => {
     const initialDraft = { ...createTrainerDraft(policy, { includeRates }), ...(realAuthentication ? { requestId: crypto.randomUUID() } : {}) }
     return { initialDraft, draft: initialDraft, stepIndex: 0, returningToReview: false, selectedDays: [],
-      from: policy.availability.from, to: policy.availability.to, errors: {}, saving: false, created: null, submitted: null }
+      from: policy.availability.from, to: policy.availability.to, errors: {}, saving: false, created: null, submitted: null, approvalSubmitted: false }
   })
-  const { initialDraft, draft, stepIndex, returningToReview, selectedDays, from, to, errors, saving, created, submitted } = creation
+  const { initialDraft, draft, stepIndex, returningToReview, selectedDays, from, to, errors, saving, created, submitted, approvalSubmitted } = creation
   const setDraft = setter('draft'), setStepIndex = setter('stepIndex'), setReturningToReview = setter('returningToReview')
   const setSelectedDays = setter('selectedDays'), setFrom = setter('from'), setTo = setter('to'), setErrors = setter('errors')
   const submissionPending = useRef(false)
@@ -41,9 +41,9 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
   const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft) || selectedDays.length > 0 || from !== policy.availability.from || to !== policy.availability.to
 
   useEffect(() => {
-    setActiveEdit(dirty && !created ? 'New trainer' : null)
+    setActiveEdit(dirty && !created && !approvalSubmitted ? 'New trainer' : null)
     return () => setActiveEdit(null)
-  }, [created, dirty, setActiveEdit])
+  }, [created, dirty, approvalSubmitted, setActiveEdit])
 
   useEffect(() => {
     if (!created || activeEdit || navigationCompleted.current) return
@@ -85,6 +85,10 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
       const result = await onCreate(original)
       updateCreation({ created: result, submitted: null, saving: false }, version)
     } catch (error) {
+      if (error.code === 'APPROVAL_PENDING') {
+        updateCreation({ saving: false, submitted: null, approvalSubmitted: true, errors: {} }, version)
+        return
+      }
       updateCreation({ saving: false, ...(error.status >= 400 && error.status < 500 ? { submitted: null } : {}),
         errors: { save: error instanceof Error ? error.message : 'Trainer creation failed. Please try again.' } }, version)
     }
@@ -132,6 +136,11 @@ export default function AddTrainerPage({ viewer, policy, trainers, onCancel, onC
     setReturningToReview(true)
     goTo(index)
   }
+
+  if (approvalSubmitted) return <Panel><h1>Trainer request submitted</h1>
+    <p role="status">Submitted for Owner approval. No Trainer account has been created yet. Owner approval will automatically request the login invitation.</p>
+    <button type="button" className="onboarding-button" onClick={onCancel}>Done</button>
+  </Panel>
 
   return (
     <div className={`trainer-onboarding${dirty ? ' editing-section' : ''}`}>

@@ -5,9 +5,10 @@ from collections import defaultdict
 from datetime import date, time, timedelta
 from typing import Literal
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from pydantic import Field, StrictInt, StrictStr, field_validator, model_validator
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 
 from app.api.directory import MAX_RECORDS, bounded
 from app.api.schemas import Contract
@@ -89,6 +90,14 @@ class MatchResult(Contract):
     matches: list[TrainerMatch]
 
 
+def require_future_start(session, start):
+    today = (
+        session.scalar(select(func.clock_timestamp())).astimezone(ZoneInfo("Asia/Singapore")).date()
+    )
+    if start <= today:
+        raise AuthError("invalid_request", "Choose a future start date.", 422)
+
+
 def package_terms(session, body):
     template = session.scalar(
         select(PackageTemplate)
@@ -114,6 +123,7 @@ def preview(
     session, principal, body, *, client_id=None, retained_trainer=None, retained_slots=None
 ):
     principal.operations()
+    require_future_start(session, body.startDate)
     terms = package_terms(session, body)
     try:
         # Every possible cadence fills within this horizon, even with a partial first week.

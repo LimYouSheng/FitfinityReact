@@ -7,6 +7,7 @@ from sqlalchemy import exists, select, text
 
 from app.api.message_schemas import RenewalState
 from app.api.messages import dismissal_evidence, visible_message
+from app.api.renewal_policy import usable_purchase
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import RenewalDismissal, RenewalDismissalReceipt
@@ -75,8 +76,7 @@ def save(session, principal, identity, key, body):
             exists().where(
                 PackagePurchase.client_id == client.id,
                 PackagePurchase.id != purchase.id,
-                PackagePurchase.status == "active",
-                PackagePurchase.start_date > purchase.end_date,
+                usable_purchase(),
             )
         )
     )

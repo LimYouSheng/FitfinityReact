@@ -219,7 +219,7 @@ export function clientStepErrors(draft, step, { requireComplete = true } = {}) {
     else if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.startDate) || !date || !Number.isFinite(date.getTime()) || isoDate(date) !== draft.startDate) {
       errors.startDate = 'Choose a valid start date.'
     } else if (draft.minimumStartDate && draft.startDate < draft.minimumStartDate) {
-      errors.startDate = `Choose ${draft.minimumStartDate} or later, after the existing packages end.`
+      errors.startDate = `Choose ${draft.minimumStartDate} or later.`
     }
     if (!Number.isInteger(requiredSlots) || requiredSlots < 1 || requiredSlots > DAYS.length) errors.sessionsPerWeek = 'Choose between one and seven sessions per week.'
   }

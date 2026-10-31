@@ -144,8 +144,8 @@ def add_purchase(
         raise ValueError("Complete purchase schedule and session set required")
     if any(booking.client_id != client.id for booking in bookings):
         raise ValueError("Session belongs to another client")
-    # All competing scheduling writers use client then sorted trainer locks. Database range
-    # constraints independently protect purchase dates; future M6 rescheduling uses this order.
+    # All competing scheduling writers use client then sorted trainer locks. Purchases may
+    # overlap in validity; actual client/Trainer booking conflicts remain authoritative.
     trainer_ids = sorted({purchase.trainer_id, *(booking.trainer_id for booking in bookings)})
     trainers = session.scalars(
         select(Trainer).where(Trainer.id.in_(trainer_ids)).order_by(Trainer.id).with_for_update()

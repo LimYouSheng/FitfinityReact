@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import Field, StrictInt, StrictStr, field_validator, model_validator
 from sqlalchemy import func, select, text
 
+from app.api.admin_supervision import proposal_outcome, supervised
 from app.api.schemas import Contract, DirectoryPackage
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
@@ -63,10 +64,14 @@ def receipt(session, principal, key):
 def reconcile(session, principal, key):
     saved = receipt(session, principal, key)
     if saved is None:
+        proposal = proposal_outcome(session, principal, key, "package.save")
+        if proposal is not None:
+            return proposal
         raise unavailable()
     return DirectoryPackage.model_validate(saved.result)
 
 
+@supervised("packageCatalogue", "package.save", SavePackage, receipt=receipt)
 def save(session, principal, key, body):
     previous = receipt(session, principal, key)
     digest = hashlib.sha256(

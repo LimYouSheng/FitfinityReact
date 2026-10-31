@@ -28,9 +28,6 @@ export function clientReactivationReview(db, client, dates = {}, at = new Date()
     if (!purchased) packageError = 'Package not found. Reopen reactivation.'
     else if (client.status === 'inactive') packageError = 'Reactivate the client before reactivating a package.'
     else {
-      const overlap = clientPackages(restored).find(item => item.id !== packageId && item.status !== 'inactive' &&
-        item.startDate <= purchased.endDate && purchased.startDate <= item.endDate)
-      if (overlap) packageError = 'Another active package overlaps these dates. Deactivate that package before reactivating this one.'
       restorePurchase(purchased, at, null)
     }
   } else {

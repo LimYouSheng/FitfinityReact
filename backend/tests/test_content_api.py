@@ -126,12 +126,24 @@ def test_trainer_cannot_read_write_or_reconcile(
     assert save(api).status_code == 403
 
 
-def test_admin_edits_but_cannot_reconcile_owner_receipt(
+def test_autonomous_admin_edits_but_cannot_reconcile_owner_receipt(
     api, invitations, auth_service, auth_settings, fake_cognito, domain_db, graph
 ):
     key = uuid4()
     original = save(api, key=key).json()
     identity = create_admin(api).json()["id"]
+    policy_path = f"/api/staff/admins/{identity}"
+    admin = api.get(policy_path).json()
+    policy = api.post(
+        policy_path,
+        json={
+            "expectedVersion": admin["version"],
+            "operation": "approvals",
+            "approvalNeeded": {**admin["approvalNeeded"], "content": False},
+        },
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert policy.status_code == 200, policy.text
     login_admin(api, auth_service, auth_settings, fake_cognito, identity)
     assert api.get("/api/content").json() == [original]
     assert api.get(f"/api/content-saves/{key}").status_code == 404

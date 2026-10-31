@@ -24,11 +24,11 @@ export default function RenewPackageDialog({ client, clients = [], trainers, ses
       }
       const saved = { ...source.client, name: reviewed.name, trainerId: reviewed.trainerId, genderPreference: reviewed.genderPreference,
         package: { ...source.client.package, ...reviewed.package }, fixedWeeklySchedule: reviewed.fixedWeeklySchedule, clientPreferences: [...grouped.values()] }
-      const draft = packageDraftForClient(saved, source.sessions, source.packages, reviewed.minimumStartDate)
+      const draft = packageDraftForClient(saved, source.sessions, source.packages, today, reviewed.minimumStartDate)
       if (current) { setInitial({ ...draft, minimumStartDate: reviewed.minimumStartDate, renewalExpected: reviewed.expected, expectedVersion: reviewed.version }); setError('') }
     }).catch(error => { if (current) setError(error.message) })
     return () => { current = false }
-  }, [readReview, attempt, source])
+  }, [readReview, attempt, source, today])
   const [saving, setSaving] = useState(false)
   const cancel = () => { if (!saving) guardNavigation(onClose) }
   return <ConfirmDialog open title="Add Package" hideConfirm onCancel={cancel}>

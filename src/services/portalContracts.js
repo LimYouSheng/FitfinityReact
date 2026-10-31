@@ -5,6 +5,9 @@ const contract = (fields, access, result, api = false) => Object.freeze({ fields
 
 export const PORTAL_CONTRACTS = Object.freeze({
   staffService: Object.freeze({
+    getAll: contract({}, 'owner', 'Admin[]', true),
+    getById: contract({ 'id': 'string' }, 'owner', 'Admin', true),
+    update: contract({ 'id': 'string', 'body': 'object' }, 'owner', 'Admin', true),
     createAdmin: contract({ 'body': 'object', 'requestKey': 'string' }, 'owner', 'AdminInvitation', true),
   }),
   contentService: Object.freeze({

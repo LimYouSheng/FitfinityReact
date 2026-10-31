@@ -222,7 +222,9 @@ def test_admin_can_apply_without_trainer_approval(
     assert save(api, graph, viewed).status_code == 200
 
 
-def test_queued_purchase_cannot_be_postponed(api, domain_db, graph):
+def test_additional_purchase_postponement_preserves_default_purchase_bookings(
+    api, domain_db, graph
+):
     with domain_db.transaction() as session:
         purchase, slots, preferences, bookings = purchase_parts(graph)
         add_purchase(
@@ -235,8 +237,18 @@ def test_queued_purchase_cannot_be_postponed(api, domain_db, graph):
         )
         identity = bookings[0].id
     before = snapshot(domain_db)
-    assert api.get(f"/api/sessions/{identity}/postponement-review").status_code == 409
+    scoped = {**graph, "session_id": identity}
+    viewed = review(api, scoped)
+    assert viewed["id"] == str(identity)
     assert snapshot(domain_db) == before
+    changed = save(api, scoped, viewed)
+    assert changed.status_code == 200, changed.text
+    with domain_db.transaction() as session:
+        assert session.get(TrainingSession, identity).schedule_state == "open"
+        for original in [graph["session_id"], graph["second_session_id"]]:
+            row = session.get(TrainingSession, original)
+            assert row.purchase_id == graph["purchase_id"]
+            assert row.schedule_state == "booked" and row.version == 1
 
 
 def test_supervised_notice_failure_rolls_back_proposal(

@@ -95,3 +95,24 @@ it('rechecks current authority after exact bytes arrive and denies revoked playb
   await expect(getLibraryMedia(http, fetch, id(2), 0, () => {})).rejects.toMatchObject({ status: 404 })
   expect(http.get.mock.calls[1][0]).toContain('/check?version=1')
 })
+
+it.each(['APPROVAL_PENDING', 'approval_closed'])('retires an uncertain upload after its original receipt confirms %s', async code => {
+  const original = input(), hash = await fileDigest(original.mediaFile)
+  const http = { generation: () => 0,
+    get: vi.fn(async () => { throw new ApiError(code, 'Original review outcome', 409) }),
+    post: vi.fn(async path => {
+      if (path.endsWith('/upload')) return { url: signed, headers: { 'Content-Type': 'image/png', 'If-None-Match': '*', 'x-amz-checksum-sha256': Buffer.from(hash, 'hex').toString('base64') } }
+      if (path.endsWith('/commit')) throw new ApiError('NETWORK_ERROR', 'Lost submission response')
+      return {}
+    }) }
+  const fetch = vi.fn(async () => new Response('', { status: 200 }))
+  const service = exerciseLibraryCommands(http, async () => ({ user: { role: 'admin' }, sessionGeneration: 0 }), fetch)
+  await expect(service.save(original, 0)).rejects.toMatchObject({ code: 'NETWORK_ERROR' })
+  expect(service.pendingInput(0)).not.toBeNull()
+  const writes = http.post.mock.calls.length
+  await expect(service.recover(0)).rejects.toMatchObject({ code })
+  expect(service.pendingInput(0)).toBeNull()
+  expect(await service.recover(0)).toBeNull()
+  expect(http.post).toHaveBeenCalledTimes(writes)
+  expect(fetch).toHaveBeenCalledTimes(1)
+})

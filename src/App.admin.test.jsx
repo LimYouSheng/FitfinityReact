@@ -22,40 +22,39 @@ function show(route = 'dashboard', { admin = false, services } = {}) {
   localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ userId: admin ? 'test-admin' : 'u-owner', expiresAt: Date.now() + 3600000 }))
   render(<NotificationProvider><ActionConfirmationProvider><EditGuardProvider><App services={services} /></EditGuardProvider></ActionConfirmationProvider></NotificationProvider>)
 }
-it('places Create Admin first in the Owner popup, opens personal details and returns through Back', async () => {
-  // This journey checks real routing and permissions, not simulated transport latency.
+async function openAdminCreationFromSystem() {
+  const navigation = within(screen.getByRole('navigation', { name: 'Portal navigation' }))
+  const system = navigation.getByRole('button', { name: 'System section', exact: true })
+  if (system.getAttribute('aria-expanded') === 'false') fireEvent.click(system)
+  fireEvent.click(navigation.getByRole('button', { name: 'Admin', exact: true }))
+  await screen.findByRole('heading', { name: 'Admin', exact: true })
+  fireEvent.click(screen.getByRole('button', { name: 'Create Admin', exact: true }))
+  await screen.findByRole('dialog', { name: 'Create Admin' })
+}
+it('opens Admin creation from System and returns to its directory through Back', async () => {
   vi.spyOn(await import('./services/mockDb.js'), 'delay').mockResolvedValue()
   await act(async () => { show() })
-  await waitFor(() => expect(document.querySelector('main.content .page-head h1')).toHaveTextContent('Owner Dashboard'))
-  expect(within(document.querySelector('main.content .page-head')).getByRole('heading', { name: 'Owner Dashboard' })).toBeVisible()
-  fireEvent.click(within(document.querySelector('.topbar')).getByRole('button', { name: 'Open profile menu' }))
-  const menu = screen.getByRole('menu', { name: 'Profile menu' })
-  expect(within(menu).getAllByRole('menuitem')[0]).toHaveTextContent('Create Admin')
-  await act(async () => { fireEvent.click(within(menu).getByRole('menuitem', { name: 'Create Admin' })) })
+  await screen.findByRole('heading', { name: 'Owner Dashboard' })
+  await openAdminCreationFromSystem()
   const dialog = screen.getByRole('dialog', { name: 'Create Admin' })
   expect(within(dialog).getByLabelText('Staff name')).toBeVisible()
   await act(async () => { history.back() })
-  // Native Back is asynchronous. Wait for its destination and the rendered page
-  // before calculating accessible names, or finishing with traversal still queued.
   await waitFor(() => {
-    expect(location.hash).toBe('#dashboard')
-    expect(document.querySelector('main.content .page-head h1')).toHaveTextContent('Owner Dashboard')
+    expect(location.hash).toBe('#/admins')
     expect(dialog).not.toBeInTheDocument()
   })
-  expect(within(document.querySelector('main.content .page-head')).getByRole('heading', { name: 'Owner Dashboard' })).toBeVisible()
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Admin', exact: true })).toBeVisible()
 })
 it('guards a dirty Admin form through native Back and Cancel without losing its draft or history entry', async () => {
   show()
   await screen.findByRole('heading', { name: 'Owner Dashboard' })
-  fireEvent.click(screen.getByRole('button', { name: 'Open profile menu' }))
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Create Admin' }))
+  await openAdminCreationFromSystem()
   await screen.findByRole('dialog', { name: 'Create Admin' })
   fireEvent.change(screen.getByLabelText('Staff name'), { target: { value: 'Unsaved staff' } })
   await act(async () => { history.back() })
   const nativeLeave = await screen.findByRole('dialog', { name: 'Leave this edit?' })
-  expect(location.hash).toBe('#/owner-profile/create-admin')
-  expect(history.state.fitfinityDepth).toBe(1)
+  expect(location.hash).toBe('#/admins/new')
+  expect(history.state.fitfinityDepth).toBe(2)
   await act(async () => { fireEvent.click(within(nativeLeave).getByRole('button', { name: 'Cancel' })) })
   expect(screen.getByLabelText('Staff name')).toHaveValue('Unsaved staff')
   fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
@@ -65,8 +64,11 @@ it('guards a dirty Admin form through native Back and Cancel without losing its 
   await act(async () => { history.back() })
   const confirmedLeave = await screen.findByRole('dialog', { name: 'Leave this edit?' })
   await act(async () => { fireEvent.click(within(confirmedLeave).getByRole('button', { name: 'Leave Without Saving' })) })
-  await screen.findByRole('heading', { name: 'Owner Dashboard' })
-  expect(history.state.fitfinityDepth).toBe(0)
+  await waitFor(() => {
+    expect(location.hash).toBe('#/admins')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+  expect(history.state.fitfinityDepth).toBe(1)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 it('gives Admin operational trainer access without rates, remuneration or privileged menu actions', async () => {
@@ -174,7 +176,10 @@ function recoveryApp(route = 'owner-profile/create-admin') {
       if (state.user.role === 'admin') for (const trainer of raw.trainers) { delete trainer.peak_rate_cents; delete trainer.off_peak_rate_cents }
       return state.unavailable ? failure('service_unavailable', 503) : jsonResponse(raw)
     }
-    if (url.endsWith('/api/staff/admins')) { state.posts.push(request); return state.post() }
+    if (url.endsWith('/api/staff/admins')) {
+      if (request.method === 'GET') return jsonResponse([])
+      state.posts.push(request); return state.post()
+    }
     throw new Error(`Unexpected request: ${url}`)
   })
   show(route, { services: createConfiguredPortalServices({ mode: 'api', baseUrl: 'https://api.example', fetchImpl }) })
@@ -331,8 +336,7 @@ it.each(['different Owner', 'lost Owner role'])('retires Admin recovery on %s ev
 
 async function openRecoveryAdmin() {
   await screen.findByRole('heading', { name: 'Your account' })
-  fireEvent.click(screen.getByRole('button', { name: 'Open profile menu' }))
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Create Admin' }))
+  await openAdminCreationFromSystem()
   await screen.findByRole('dialog', { name: 'Create Admin' })
 }
 it.each(['draft', 'uncertain POST'])('guards native Back during an outage and preserves the %s after Cancel and Retry', async stage => {
@@ -344,8 +348,8 @@ it.each(['draft', 'uncertain POST'])('guards native Back during an outage and pr
   await outage(state)
   await act(async () => { history.back() })
   const leave = await screen.findByRole('dialog', { name: 'Leave this edit?' })
-  expect(location.hash).toBe('#/owner-profile/create-admin')
-  expect(history.state.fitfinityDepth).toBe(1)
+  expect(location.hash).toBe('#/admins/new')
+  expect(history.state.fitfinityDepth).toBe(2)
   // Recovery while the prompt is open must retain the same history transaction.
   await recover(state)
   await act(async () => { fireEvent.click(within(leave).getByRole('button', { name: 'Cancel' })) })
@@ -365,11 +369,14 @@ it('explicitly discards an outage draft through Back, preserves Forward, and gua
   fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
   let leave = await screen.findByRole('dialog', { name: 'Leave this edit?' })
   await act(async () => { fireEvent.click(within(leave).getByRole('button', { name: 'Leave Without Saving' })) })
-  await screen.findByRole('heading', { name: 'Your account' })
+  await waitFor(() => {
+    expect(location.hash).toBe('#/admins')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
   await act(async () => { history.forward() })
   await screen.findByRole('dialog', { name: 'Create Admin' })
   await act(async () => { location.hash = 'account' })
-  await screen.findByRole('heading', { name: 'Owner', exact: true })
+  await screen.findByRole('heading', { name: 'Your account', exact: true })
   await act(async () => { history.back() })
   await screen.findByRole('dialog', { name: 'Create Admin' }); fillRecoveryAdmin()
   await outage(state)
@@ -377,15 +384,15 @@ it('explicitly discards an outage draft through Back, preserves Forward, and gua
     await act(async () => { traverse() })
     leave = await screen.findByRole('dialog', { name: 'Leave this edit?' })
     await act(async () => { fireEvent.click(within(leave).getByRole('button', { name: 'Cancel' })) })
-    expect(location.hash).toBe('#/owner-profile/create-admin')
+    expect(location.hash).toBe('#/admins/new')
   }
   await act(async () => { history.back() })
   leave = await screen.findByRole('dialog', { name: 'Leave this edit?' })
   await act(async () => { fireEvent.click(within(leave).getByRole('button', { name: 'Leave Without Saving' })) })
-  await waitFor(() => expect(location.hash).toBe('#dashboard'))
+  await waitFor(() => expect(location.hash).toBe('#/admins'))
   expect(screen.queryByText(/Your Admin setup progress is retained/)).not.toBeInTheDocument()
   await act(async () => { history.forward() })
-  await waitFor(() => expect(location.hash).toBe('#/owner-profile/create-admin'))
+  await waitFor(() => expect(location.hash).toBe('#/admins/new'))
   await recover(state)
   expect(screen.getByLabelText('Staff name')).toHaveValue('')
 })

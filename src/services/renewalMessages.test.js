@@ -282,11 +282,11 @@ describe('renewal follow-up cleanup', () => {
     expect(reminder()).toEqual(original)
     mockDb.reload(); expect((await projected()).renewalStatus).toBe('renewed')
   })
-  it('does not create a new follow-up when a later package has already been bought', () => {
+  it.each(['later', 'overlapping'])('does not create a new follow-up when a %s package has already been bought', timing => {
     mockDb.mutate(db => {
       const client = amanda(db)
       db.messages = db.messages.filter(item => item.id !== reminder().id)
-      client.additionalPackages = [{ ...client.package, id: 'already-bought', startDate: '2027-01-04', endDate: '2027-04-03', used: 0 }]
+      client.additionalPackages = [{ ...client.package, id: 'already-bought', startDate: timing === 'later' ? '2027-01-04' : client.package.startDate, endDate: '2027-04-03', used: 0 }]
       expect(appendRenewalMessage(db, client)).toBeNull()
     })
     expect(renewals(mockDb.read())).toEqual([])

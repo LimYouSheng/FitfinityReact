@@ -12,10 +12,13 @@ export function clientAssignmentApiFixture({ state, path, request, body, json, e
   if (receipt) { if (saved) json(saved); else error('not_found', 404); return true }
   const client = state.directory.clients.find(c => c.id === target[1])
   if (!client || client.status !== 'active') { error('not_found', 404); return true }
-  const current = state.directory.trainers.find(t => t.id === client.trainer_id)
+  const purchaseId = body?.purchaseId ?? new URL(request.url, 'http://fixture.invalid').searchParams.get('purchaseId')
+  const selected = client.purchases.find(p => purchaseId ? p.id === purchaseId : p.stage === 'current')
+  if (!selected || selected.status !== 'active' || selected.stage === 'archived') { error('state_conflict', 409); return true }
+  const current = state.directory.trainers.find(t => t.id === selected.trainer_id)
   const review = { ...assignmentReview(), id: client.id, name: client.name, version: client.version, expected: client.version.toString(16).padStart(64, '0'),
     current: { id: current.id, name: current.name },
-    purchases: client.purchases.filter(p => p.status === 'active' && p.stage !== 'archived').map(p => ({ id: p.id, version: p.version, name: p.name, trainerId: p.trainer_id })),
+    purchases: [selected].map(p => ({ id: p.id, version: p.version, name: p.name, trainerId: p.trainer_id })),
     choices: state.directory.trainers.filter(t => t.id !== current.id && t.status === 'active').map(t => ({ id: t.id, name: t.name, version: t.version, error: state.clientAssignmentConflict ? 'The selected trainer has another booking during an eligible session.' : null })),
     history: state.clientAssignmentHistory ?? [] }
   review.sessions = review.sessions.map(s => ({ ...s, trainerId: current.id, purchaseId: review.purchases[0].id }))
@@ -26,7 +29,8 @@ export function clientAssignmentApiFixture({ state, path, request, body, json, e
   const replacement = review.choices.find(t => t.id === body.trainerId)
   if (review.expected !== body.expected || !replacement || replacement.error) { error('state_conflict', 409); return true }
   if (state.clientAssignmentAbsent) { state.clientAssignmentAbsent = false; error('service_unavailable', 503); return true }
-  client.trainer_id = replacement.id; client.version++
+  if (selected.stage === 'current') client.trainer_id = replacement.id
+  client.version++
   for (const purchase of client.purchases.filter(p => review.purchases.some(r => r.id === p.id))) {
     purchase.trainer_id = replacement.id; purchase.trainer_name = replacement.name; purchase.version++
   }

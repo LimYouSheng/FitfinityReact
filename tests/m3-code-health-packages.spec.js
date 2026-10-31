@@ -1,6 +1,9 @@
 import { fillClientRequiredFields, waitForPortal, expect, test, selectDemoIdentity, expandSidebarSection } from './fixtures.js'
 import { seed } from '../src/data/seed.js'
 
+// Historical September purchase fixtures need a deterministic, earlier Singapore date.
+test.beforeEach(async ({ page }) => { await page.clock.setFixedTime(new Date('2026-08-31T04:00:00Z')) })
+
 const KEY = 'fitfinity-m2-demo-db-v4'
 async function start(page, route = 'packages', data = seed) {
   await page.addInitScript(({ key, data }) => {
@@ -134,11 +137,11 @@ for (const [total, validity, frequency] of [[12, 90, 2], [24, 180, 1], [36, 270,
   })
 }
 
-test('M3 owner Setup is reachable from the menu and both roles have a compact labelled remuneration eye without header copy', async ({ page }) => {
+test('M3 owner System is reachable from the menu and both roles have a compact labelled remuneration eye without header copy', async ({ page }) => {
   await start(page, 'dashboard')
   await openMenu(page)
   const nav = page.getByRole('navigation', { name: 'Portal navigation' })
-  await expect(nav.locator('.nav-group').filter({ hasText: 'Setup' }).getByRole('button', { name: 'Packages', exact: true })).toBeVisible()
+  await expect(nav.locator('.nav-group').filter({ hasText: 'System' }).getByRole('button', { name: 'Packages', exact: true })).toBeVisible()
   await nav.getByRole('button', { name: 'Packages', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Packages', exact: true })).toBeVisible()
   const actionStyles = []

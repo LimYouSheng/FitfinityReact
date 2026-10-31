@@ -55,6 +55,7 @@ from app.api import (
     trainer_rates,
     trainer_reactivation,
 )
+from app.api.admin_supervision import ApprovalPending
 from app.api.dependencies import authorized_transaction
 from app.api.message_schemas import (
     DismissRenewal,
@@ -109,6 +110,7 @@ RequestKey = Annotated[
     "/trainers/{trainer_id}/personal-details",
     response_model=trainer_rates.RateState,
     operation_id="saveTrainerDetails",
+    responses={202: {"model": ApprovalPending}},
 )
 def save_trainer_details(
     trainer_id: UUID, body: trainer_details.SaveTrainerDetails, request: Request, key: RequestKey
@@ -122,6 +124,7 @@ def save_trainer_details(
     "/trainer-detail-saves/{request_key}",
     response_model=trainer_rates.RateState,
     operation_id="reconcileTrainerDetails",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_trainer_details(request_key: UUID, request: Request):
     """Read this actor's immutable profile-save receipt before retrying an uncertain save."""
@@ -273,6 +276,7 @@ def person_assessments(
     response_model=AssessmentRevision,
     operation_id="createPersonAssessment",
     tags=["assessments"],
+    responses={202: {"model": ApprovalPending}},
 )
 def create_assessment(person_id: UUID, body: NewAssessment, request: Request, key: RequestKey):
     """Owner/Admin records an unfilled form with an atomic save and retry receipt.
@@ -332,6 +336,7 @@ def history(assessment_id: UUID, request: Request, limit: Limit = 25, offset: Of
     response_model=AssessmentRevision,
     operation_id="saveAssessmentRevision",
     tags=["assessments"],
+    responses={202: {"model": ApprovalPending}},
 )
 def save_assessment(assessment_id: UUID, body: SaveAssessment, request: Request, key: RequestKey):
     """Owner/Admin explicit save with reviewed version. Corrections/voids require a reason.
@@ -393,7 +398,12 @@ def session_client(session_id: UUID, request: Request):
         )
 
 
-@router.post("/packages", response_model=DirectoryPackage, operation_id="savePackage")
+@router.post(
+    "/packages",
+    response_model=DirectoryPackage,
+    operation_id="savePackage",
+    responses={202: {"model": ApprovalPending}},
+)
 def save_package(body: packages.SavePackage, request: Request, request_key: RequestKey):
     """Owner/Admin catalogue save with reviewed versions and actor-scoped durable receipts."""
     with authorized_transaction(request) as (session, principal):
@@ -404,6 +414,7 @@ def save_package(body: packages.SavePackage, request: Request, request_key: Requ
     "/packages/saves/{request_key}",
     response_model=DirectoryPackage,
     operation_id="reconcilePackageSave",
+    responses={202: {"model": ApprovalPending}},
 )
 def package_save(request_key: UUID, request: Request):
     """Read only this actor's durable save receipt before retrying an uncertain command."""
@@ -415,6 +426,7 @@ def package_save(request_key: UUID, request: Request):
     "/trainers/{trainer_id}/approvals",
     response_model=trainer_approvals.ApprovalState,
     operation_id="saveTrainerApprovals",
+    responses={202: {"model": ApprovalPending}},
 )
 def save_trainer_approvals(
     trainer_id: UUID, body: trainer_approvals.SaveApprovals, request: Request, key: RequestKey
@@ -427,6 +439,7 @@ def save_trainer_approvals(
     "/trainer-approval-saves/{request_key}",
     response_model=trainer_approvals.ApprovalState,
     operation_id="reconcileTrainerApprovals",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_trainer_approvals(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
@@ -437,6 +450,7 @@ def reconcile_trainer_approvals(request_key: UUID, request: Request):
     "/clients/{client_id}/personal-details",
     response_model=client_details.ClientDetailState,
     operation_id="saveClientPersonalDetails",
+    responses={202: {"model": ApprovalPending}},
 )
 def save_client_details(
     client_id: UUID, body: client_details.SaveClientDetails, request: Request, key: RequestKey
@@ -449,6 +463,7 @@ def save_client_details(
     "/client-detail-saves/{request_key}",
     response_model=client_details.ClientDetailState,
     operation_id="reconcileClientPersonalDetails",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_client_details(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
@@ -470,6 +485,7 @@ def get_client_notes(client_id: UUID, request: Request):
     "/clients/{client_id}/notes",
     response_model=client_notes.NoteState,
     operation_id="saveClientNotes",
+    responses={202: {"model": ApprovalPending}},
 )
 def save_client_notes(
     client_id: UUID, body: client_notes.SaveNotes, request: Request, key: RequestKey
@@ -483,6 +499,7 @@ def save_client_notes(
     "/client-note-saves/{request_key}",
     response_model=client_notes.NoteState,
     operation_id="reconcileClientNotes",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_client_notes(request_key: UUID, request: Request):
     """Current assigned authority is rechecked before returning actor-scoped receipts."""
@@ -525,7 +542,12 @@ def preview_client_matches(body: client_matching.MatchRequest, request: Request,
         return client_matching.preview(session, principal, body)
 
 
-@router.post("/clients", response_model=client_creation.CreatedClient, operation_id="createClient")
+@router.post(
+    "/clients",
+    response_model=client_creation.CreatedClient,
+    operation_id="createClient",
+    responses={202: {"model": ApprovalPending}},
+)
 def create_client(body: client_creation.CreateClient, request: Request, key: RequestKey):
     with authorized_transaction(request, advisory_lock=request_cancellation.DECISION_LOCK) as (
         session,
@@ -538,6 +560,7 @@ def create_client(body: client_creation.CreateClient, request: Request, key: Req
     "/client-creations/{request_key}",
     response_model=client_creation.CreatedClient,
     operation_id="reconcileClientCreation",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_client_creation(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
@@ -559,6 +582,7 @@ def review_trainer_reactivation(trainer_id: UUID, request: Request):
     "/trainers/{trainer_id}/reactivation",
     response_model=trainer_reactivation.ReactivationState,
     operation_id="reactivateTrainer",
+    responses={202: {"model": ApprovalPending}},
 )
 def reactivate_trainer(
     trainer_id: UUID,
@@ -581,6 +605,7 @@ def reactivate_trainer(
     "/trainer-reactivations/{request_key}",
     response_model=trainer_reactivation.ReactivationState,
     operation_id="reconcileTrainerReactivation",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_trainer_reactivation(request_key: UUID, request: Request):
     """Read this actor's receipt before explicitly retrying the identical operation."""
@@ -605,6 +630,7 @@ def client_assessment_records(client_id: UUID, request: Request):
     response_model=AssessmentRevision,
     operation_id="reconcileAssessmentSave",
     tags=["assessments"],
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_assessment_save(request_key: UUID, request: Request):
     """Read this actor's original immutable revision after an interrupted create or save."""
@@ -619,7 +645,12 @@ def staff_content(request: Request):
         return content.records(session, principal)
 
 
-@router.post("/content", response_model=content.ContentState, operation_id="saveContent")
+@router.post(
+    "/content",
+    response_model=content.ContentState,
+    operation_id="saveContent",
+    responses={202: {"model": ApprovalPending}},
+)
 def save_content(body: content.SaveContent, request: Request, key: RequestKey):
     """Save reviewed staff content and its immutable receipt/Owner notice atomically."""
     with authorized_transaction(request) as (session, principal):
@@ -630,6 +661,7 @@ def save_content(body: content.SaveContent, request: Request, key: RequestKey):
     "/content-saves/{request_key}",
     response_model=content.ContentState,
     operation_id="reconcileContent",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_content(request_key: UUID, request: Request):
     """Read only this actor's original saved content after an interrupted response."""
@@ -705,6 +737,7 @@ def review_client_deactivation(client_id: UUID, request: Request):
     "/clients/{client_id}/deactivation",
     response_model=client_deactivation.DeactivationState,
     operation_id="deactivateClient",
+    responses={202: {"model": ApprovalPending}},
 )
 def deactivate_client(
     client_id: UUID, body: client_deactivation.DeactivateClient, request: Request, key: RequestKey
@@ -721,6 +754,7 @@ def deactivate_client(
     "/client-deactivations/{request_key}",
     response_model=client_deactivation.DeactivationState,
     operation_id="reconcileClientDeactivation",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_client_deactivation(request_key: UUID, request: Request):
     """Read only this actor's original committed deactivation result."""
@@ -756,6 +790,7 @@ def preview_client_reactivation_dates(
     "/clients/{client_id}/reactivation",
     response_model=client_reactivation_save.ClientReactivationState,
     operation_id="reactivateClient",
+    responses={202: {"model": ApprovalPending}},
 )
 def reactivate_client(
     client_id: UUID, body: client_reactivation.ReactivationDates, request: Request, key: RequestKey
@@ -772,6 +807,7 @@ def reactivate_client(
     "/client-reactivations/{request_key}",
     response_model=client_reactivation_save.ClientReactivationState,
     operation_id="reconcileClientReactivation",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_client_reactivation(request_key: UUID, request: Request):
     """Reconcile only this actor's original successful command."""
@@ -860,6 +896,7 @@ def preview_client_renewal_matches(
     "/clients/{client_id}/packages",
     response_model=client_renewal_save.ClientRenewalState,
     operation_id="renewClientPackage",
+    responses={202: {"model": ApprovalPending}},
 )
 def renew_client_package(
     client_id: UUID, body: client_renewal_save.RenewPackage, request: Request, key: RequestKey
@@ -876,6 +913,7 @@ def renew_client_package(
     "/client-renewals/{request_key}",
     response_model=client_renewal_save.ClientRenewalState,
     operation_id="reconcileClientRenewal",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_client_renewal(request_key: UUID, request: Request):
     """Read this actor's original committed renewal before an explicit identical retry."""
@@ -917,6 +955,7 @@ def preview_package_reactivation_dates(
     "/clients/{client_id}/packages/{purchase_id}/reactivation",
     response_model=package_reactivation_save.PackageReactivationState,
     operation_id="reactivatePackage",
+    responses={202: {"model": ApprovalPending}},
 )
 def reactivate_package(
     client_id: UUID,
@@ -937,6 +976,7 @@ def reactivate_package(
     "/package-reactivations/{request_key}",
     response_model=package_reactivation_save.PackageReactivationState,
     operation_id="reconcilePackageReactivation",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_package_reactivation(request_key: UUID, request: Request):
     """Read only the current actor's original accepted purchase restoration."""
@@ -949,15 +989,18 @@ def reconcile_package_reactivation(request_key: UUID, request: Request):
     response_model=client_assignment.AssignmentReview,
     operation_id="reviewClientTrainerAssignment",
 )
-def review_client_trainer_assignment(client_id: UUID, request: Request):
+def review_client_trainer_assignment(
+    client_id: UUID, request: Request, purchaseId: UUID | None = None
+):
     with authorized_transaction(request) as (session, principal):
-        return client_assignment.review(session, principal, client_id)
+        return client_assignment.review(session, principal, client_id, purchaseId)
 
 
 @router.post(
     "/clients/{client_id}/trainer-assignment",
     response_model=client_assignment_save.AssignmentState,
     operation_id="saveClientTrainerAssignment",
+    responses={202: {"model": ApprovalPending}},
 )
 def save_client_trainer_assignment(
     client_id: UUID, body: client_assignment_save.SaveAssignment, request: Request, key: RequestKey
@@ -973,6 +1016,7 @@ def save_client_trainer_assignment(
     "/client-trainer-assignments/{request_key}",
     response_model=client_assignment_save.AssignmentState,
     operation_id="reconcileClientTrainerAssignment",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_client_trainer_assignment(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
@@ -1008,6 +1052,7 @@ def preview_trainer_deactivation(
     "/trainers/{trainer_id}/deactivation",
     response_model=trainer_deactivation_save.TrainerDeactivationState,
     operation_id="saveTrainerDeactivation",
+    responses={202: {"model": ApprovalPending}},
 )
 def save_trainer_deactivation(
     trainer_id: UUID,
@@ -1026,6 +1071,7 @@ def save_trainer_deactivation(
     "/trainer-deactivations/{request_key}",
     response_model=trainer_deactivation_save.TrainerDeactivationState,
     operation_id="reconcileTrainerDeactivation",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_trainer_deactivation(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
@@ -1061,6 +1107,7 @@ def preview_client_weekly_schedule(
     "/clients/{client_id}/weekly-schedule",
     response_model=client_weekly_schedule_save.ClientWeeklyState,
     operation_id="saveClientWeeklySchedule",
+    responses={202: {"model": ApprovalPending}},
 )
 def save_client_weekly_schedule(
     client_id: UUID,
@@ -1079,6 +1126,7 @@ def save_client_weekly_schedule(
     "/client-weekly-schedules/{request_key}",
     response_model=client_weekly_schedule_save.ClientWeeklyState,
     operation_id="reconcileClientWeeklySchedule",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_client_weekly_schedule(request_key: UUID, request: Request):
     with authorized_transaction(request) as (session, principal):
@@ -1131,6 +1179,7 @@ def review_session_booking(session_id: UUID, request: Request):
     "/sessions/{session_id}/booking",
     response_model=session_booking_save.SessionBookingState,
     operation_id="saveSessionBooking",
+    responses={202: {"model": ApprovalPending}},
 )
 def save_session_booking(
     session_id: UUID,
@@ -1150,6 +1199,7 @@ def save_session_booking(
     "/session-booking-saves/{request_key}",
     response_model=session_booking_save.SessionBookingState,
     operation_id="reconcileSessionBooking",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_session_booking(request_key: UUID, request: Request):
     """Read only this actor's original booking receipt after an interrupted response."""
@@ -1172,6 +1222,7 @@ def review_session_postponement(session_id: UUID, request: Request):
     "/sessions/{session_id}/postponement",
     response_model=session_postponement.PostponementState,
     operation_id="postponeSession",
+    responses={202: {"model": ApprovalPending}},
 )
 def postpone_session(
     session_id: UUID, body: session_postponement.PostponeSession, request: Request, key: RequestKey
@@ -1188,6 +1239,7 @@ def postpone_session(
     "/session-postponements/{request_key}",
     response_model=session_postponement.PostponementState,
     operation_id="reconcileSessionPostponement",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_session_postponement(request_key: UUID, request: Request):
     """Recover only this actor's original postponement outcome without resubmitting it."""
@@ -1199,6 +1251,7 @@ def reconcile_session_postponement(request_key: UUID, request: Request):
     "/requests/{request_id}/resolve",
     response_model=request_resolution.ResolutionState,
     operation_id="resolveStaffRequest",
+    responses={202: {"model": ApprovalPending}},
 )
 def resolve_staff_request(
     request_id: UUID, body: request_resolution.ResolveRequest, request: Request, key: RequestKey
@@ -1215,6 +1268,7 @@ def resolve_staff_request(
     "/request-resolutions/{request_key}",
     response_model=request_resolution.ResolutionState,
     operation_id="reconcileRequestResolution",
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_request_resolution(request_key: UUID, request: Request):
     """Reconcile only the current operations actor's original decision."""
@@ -1297,7 +1351,11 @@ def review_session_plan(session_id: UUID, request: Request):
         return session_plans.review(session, principal, session_id)
 
 
-@router.post("/sessions/{session_id}/plan", response_model=session_plans.PlanSaved)
+@router.post(
+    "/sessions/{session_id}/plan",
+    response_model=session_plans.PlanSaved,
+    responses={202: {"model": ApprovalPending}},
+)
 def save_session_plan(
     session_id: UUID, body: session_plans.SavePlan, request: Request, key: RequestKey
 ):
@@ -1312,6 +1370,7 @@ def save_session_plan(
 @router.get(
     "/session-plans/{request_key}",
     response_model=session_plans.PlanCopied | session_plans.PlanSaved,
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_session_plan(request_key: UUID, request: Request):
     """Return only the authenticated actor's original plan receipt."""
@@ -1332,7 +1391,11 @@ def previous_session_plan(session_id: UUID, request: Request):
         return session_plans.previous(session, principal, session_id)
 
 
-@router.post("/sessions/{session_id}/copy-plan", response_model=session_plans.PlanCopied)
+@router.post(
+    "/sessions/{session_id}/copy-plan",
+    response_model=session_plans.PlanCopied,
+    responses={202: {"model": ApprovalPending}},
+)
 def copy_session_plan(
     session_id: UUID, body: session_plans.CopyPlan, request: Request, key: RequestKey
 ):
@@ -1354,7 +1417,11 @@ def review_session_outcome(session_id: UUID, request: Request):
         return session_outcomes.review(session, principal, session_id)
 
 
-@router.post("/sessions/{session_id}/outcome", response_model=session_outcomes.OutcomeSaved)
+@router.post(
+    "/sessions/{session_id}/outcome",
+    response_model=session_outcomes.OutcomeSaved,
+    responses={202: {"model": ApprovalPending}},
+)
 def save_session_outcome(
     session_id: UUID, body: session_outcomes.SaveOutcome, request: Request, key: RequestKey
 ):
@@ -1366,7 +1433,11 @@ def save_session_outcome(
         return session_outcomes.save(session, principal, session_id, key, body)
 
 
-@router.get("/session-outcomes/{request_key}", response_model=session_outcomes.OutcomeSaved)
+@router.get(
+    "/session-outcomes/{request_key}",
+    response_model=session_outcomes.OutcomeSaved,
+    responses={202: {"model": ApprovalPending}},
+)
 def reconcile_session_outcome(request_key: UUID, request: Request):
     """Read the authenticated actor's original outcome receipt."""
     with authorized_transaction(request, advisory_lock=session_outcomes.DECISION_LOCK) as (
@@ -1393,7 +1464,11 @@ def review_session_summary(session_id: UUID, request: Request):
         return session_summaries.review(session, principal, session_id)
 
 
-@router.post("/sessions/{session_id}/summary", response_model=session_summaries.SummarySaved)
+@router.post(
+    "/sessions/{session_id}/summary",
+    response_model=session_summaries.SummarySaved,
+    responses={202: {"model": ApprovalPending}},
+)
 def save_session_summary(
     session_id: UUID, body: session_summaries.SaveSummary, request: Request, key: RequestKey
 ):
@@ -1405,7 +1480,11 @@ def save_session_summary(
         return session_summaries.save(session, principal, session_id, key, body)
 
 
-@router.get("/session-summaries/{request_key}", response_model=session_summaries.SummarySaved)
+@router.get(
+    "/session-summaries/{request_key}",
+    response_model=session_summaries.SummarySaved,
+    responses={202: {"model": ApprovalPending}},
+)
 def reconcile_session_summary(request_key: UUID, request: Request):
     """Recover only the authenticated actor's original summary receipt."""
     with authorized_transaction(request, advisory_lock=session_summaries.DECISION_LOCK) as (
@@ -1431,6 +1510,7 @@ def review_session_acknowledgement(session_id: UUID, request: Request):
 @router.post(
     "/sessions/{session_id}/acknowledgement",
     response_model=session_acknowledgements.AcknowledgementSaved,
+    responses={202: {"model": ApprovalPending}},
 )
 def save_session_acknowledgement(
     session_id: UUID,
@@ -1449,6 +1529,7 @@ def save_session_acknowledgement(
 @router.get(
     "/session-acknowledgements/{request_key}",
     response_model=session_acknowledgements.AcknowledgementSaved,
+    responses={202: {"model": ApprovalPending}},
 )
 def reconcile_session_acknowledgement(request_key: UUID, request: Request):
     """Recover only the authenticated actor's original acknowledgement receipt."""

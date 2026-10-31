@@ -7,8 +7,15 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.schemas import Contract
-from app.api.session_booking_review import BookingPosition, inspect, position, validate_change
+from app.api.session_booking_review import (
+    BookingPosition,
+    SaveSessionBooking,
+    inspect,
+    position,
+    validate_change,
+)
 from app.api.session_mutation_journal import journal
 from app.auth.errors import AuthError
 from app.authorization import unavailable
@@ -42,6 +49,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("session.booking")
 def reconcile(session, principal, key):
     principal.operations()
     saved = receipt(session, principal, key)
@@ -80,6 +88,9 @@ def notify(session, principal, booking, client, trainer):
     return notice.id
 
 
+@supervised(
+    "sessionScheduling", "session.booking", SaveSessionBooking, receipt=receipt, target="identity"
+)
 @journal("session.details")
 def save(session, principal, identity, key, body):
     """Retain the original result on replay; any failure rolls back the complete write."""

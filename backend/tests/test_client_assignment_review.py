@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import select, text
 
 from app.models.people import Client, Trainer, TrainerAvailability
-from app.models.training import TrainingSession
+from app.models.training import PackagePurchase, TrainingSession
 from app.persistence import acknowledge, add_client, add_purchase
 from tests.domain_fixtures import person, purchase_parts
 from tests.test_client_reactivation_review import snapshot
@@ -78,26 +78,35 @@ def test_open_sessions_are_eligible_without_an_invented_date(api, domain_db, gra
     assert row["startsAt"] is None and row["endsAt"] is None
 
 
-@pytest.mark.parametrize("preference", ["client", "purchase"])
-def test_saved_gender_preferences_exclude_an_incompatible_replacement(
-    api, domain_db, graph, replacement, preference
+@pytest.mark.parametrize("selected", [True, False])
+def test_only_selected_purchase_preference_constrains_replacement(
+    api, domain_db, graph, replacement, selected
 ):
     with domain_db.transaction() as session:
         client = session.get(Client, graph["client_id"])
-        if preference == "client":
-            client.gender_preference = "male"
-        else:
-            purchase, slots, preferences, bookings = purchase_parts(graph)
-            purchase.gender_preference = "male"
-            add_purchase(
-                session,
-                purchase,
-                slots,
-                preferences,
-                bookings,
-                expected_client_version=client.version,
-            )
-    assert "preference" in read(api, graph)["choices"][0]["error"]
+        client.gender_preference = "male"
+        session.flush()
+        purchase, slots, preferences, bookings = purchase_parts(graph)
+        purchase.gender_preference = "male"
+        add_purchase(
+            session,
+            purchase,
+            slots,
+            preferences,
+            bookings,
+            expected_client_version=client.version,
+        )
+        purchase_id = purchase.id
+    before = snapshot(domain_db)
+    path = f"/api/clients/{graph['client_id']}/trainer-assignment-review"
+    response = api.get(path, params={"purchaseId": str(purchase_id)} if selected else {})
+    assert response.status_code == 200, response.text
+    error = response.json()["choices"][0]["error"]
+    if selected:
+        assert "preference" in error
+    else:
+        assert error is None
+    assert snapshot(domain_db) == before
 
 
 def test_saved_weekly_hours_are_required_even_without_future_sessions(
@@ -162,10 +171,9 @@ def test_review_digest_changes_with_original_assignment_evidence(
 
 
 @pytest.mark.parametrize("covered", [True, False])
-def test_inactive_current_purchase_still_constrains_the_clients_standing_schedule(
+def test_inactive_purchase_cannot_be_reassigned_even_when_trainer_is_available(
     api, domain_db, graph, replacement, covered
 ):
-    from app.models.training import PackagePurchase
     from tests.test_package_reactivation_review import freeze
 
     with domain_db.transaction() as session:
@@ -176,10 +184,7 @@ def test_inactive_current_purchase_still_constrains_the_clients_standing_schedul
             ):
                 window.ends_at = time(10)
     before = snapshot(domain_db)
-    result = read(api, graph)
-    assert result["purchases"] == result["sessions"] == []
-    if covered:
-        assert result["choices"][0]["error"] is None
-    else:
-        assert "weekly schedule" in result["choices"][0]["error"]
+    response = api.get(f"/api/clients/{graph['client_id']}/trainer-assignment-review")
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "state_conflict"
     assert snapshot(domain_db) == before

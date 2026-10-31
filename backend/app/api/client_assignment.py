@@ -18,6 +18,7 @@ from app.authorization import conflict
 from app.models.people import Client, Trainer, TrainerAvailability
 from app.models.training import (
     Acknowledgement,
+    AssignmentChange,
     AssignmentEvent,
     CreditDebit,
     PackagePurchase,
@@ -76,16 +77,24 @@ class AssignmentReview(Contract):
     history: list[AssignmentHistory]
 
 
-def inspect(session, principal, identity, *, write=False):
+def inspect(session, principal, identity, *, write=False, purchase_id=None):
     principal.operations()
     client, all_purchases = target(session, identity, write=write)
     if client.status != "active":
         raise conflict()
-    purchases = [p for p in all_purchases if p.status == "active" and p.stage != "archived"]
-    purchase_ids = {p.id for p in purchases}
-    # The client's standing schedule is retained even when its current package
-    # is inactive. It constrains the replacement without moving that purchase.
-    standing_ids = purchase_ids | {p.id for p in all_purchases if p.stage == "current"}
+    selected = next(
+        (
+            p
+            for p in all_purchases
+            if (p.id == purchase_id if purchase_id is not None else p.stage == "current")
+        ),
+        None,
+    )
+    if selected is None or selected.status != "active" or selected.stage == "archived":
+        raise conflict()
+    purchases = [selected]
+    purchase_ids = {selected.id}
+    standing_ids = purchase_ids
     bookings = bounded(
         session,
         select(TrainingSession)
@@ -147,7 +156,7 @@ def inspect(session, principal, identity, *, write=False):
     )
     choices = []
     for trainer in trainers:
-        if trainer.status != "active" or trainer.id == client.trainer_id:
+        if trainer.status != "active" or trainer.id == selected.trainer_id:
             continue
         error = availability_error(client, purchases, slots, eligible, trainer, hours[trainer.id])
         if not error and any(
@@ -194,10 +203,11 @@ def inspect(session, principal, identity, *, write=False):
     history = bounded(
         session,
         select(AssignmentEvent)
-        .where(AssignmentEvent.client_id == identity)
+        .join(AssignmentChange, AssignmentChange.event_id == AssignmentEvent.id)
+        .where(AssignmentEvent.client_id == identity, AssignmentChange.purchase_id == selected.id)
         .order_by(AssignmentEvent.created_at, AssignmentEvent.id),
     )
-    current = by_id[client.trainer_id]
+    current = by_id[selected.trainer_id]
     result = AssignmentReview(
         id=client.id,
         version=client.version,
@@ -237,7 +247,7 @@ def inspect(session, principal, identity, *, write=False):
 
 
 def availability_error(client, purchases, slots, bookings, trainer, hours):
-    for preference in [client.gender_preference, *[p.gender_preference for p in purchases]]:
+    for preference in [p.gender_preference for p in purchases]:
         gender = {"female": "Female", "male": "Male"}.get(preference)
         if gender and trainer.gender != gender:
             return "The selected trainer does not match the saved trainer preference."
@@ -252,5 +262,5 @@ def availability_error(client, purchases, slots, bookings, trainer, hours):
     return None
 
 
-def review(session, principal, identity):
-    return inspect(session, principal, identity)[0]
+def review(session, principal, identity, purchase_id=None):
+    return inspect(session, principal, identity, purchase_id=purchase_id)[0]

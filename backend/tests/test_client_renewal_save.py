@@ -1,7 +1,7 @@
 """Renewal is one reviewed, idempotent purchase aggregate, never a current-package rewrite."""
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, time
+from datetime import date, time, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -36,6 +36,12 @@ pytestmark = pytest.mark.database
 def ready(api, domain_db, graph):
     viewed = read(api, graph)
     payload = body(graph, viewed)
+    # These lifecycle/retry cases use sequential purchases; concurrent validity has separate cases.
+    start = max(date.fromisoformat(payload["startDate"]), graph["end_date"] + timedelta(days=1))
+    payload["startDate"] = str(start)
+    payload["clientPreferences"] = [
+        {"days": [DAYS[start.weekday()]], "from": "10:00", "to": "11:00"}
+    ]
     day = date.fromisoformat(payload["startDate"]).weekday()
     with domain_db.transaction() as session:
         session.add(
@@ -260,7 +266,7 @@ def test_admin_can_save_and_other_actor_receipts_remain_private(
     reviewed = read(api, graph)
     next_body = {
         **ready,
-        "startDate": reviewed["minimumStartDate"],
+        "startDate": str(date.fromisoformat(ready["startDate"]) + timedelta(days=91)),
         "expected": reviewed["expected"],
     }
     assert save(api, graph, next_body).status_code == 200

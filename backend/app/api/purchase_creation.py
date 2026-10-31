@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from sqlalchemy import select
 
-from app.api.client_matching import DAYS, package_terms
+from app.api.client_matching import DAYS, package_terms, require_future_start
 from app.auth.errors import AuthError
 from app.authorization import conflict
 from app.models.people import Trainer, TrainerAvailability
@@ -32,6 +32,7 @@ class PreparedPurchase:
 
 
 def prepare_purchase(session, body, *, allow_subwindows=False):
+    require_future_start(session, body.startDate)
     terms = package_terms(session, body)
     trainer = session.scalar(select(Trainer).where(Trainer.id == body.trainerId).with_for_update())
     expected_gender = {"Female trainer preferred": "Female", "Male trainer preferred": "Male"}.get(

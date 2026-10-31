@@ -1,5 +1,8 @@
 import { mockPhysicalOrientation, expectRequiredFieldHighlights, fillClientRequiredFields, waitForPortal, expect, test, selectDemoIdentity } from './fixtures.js'
 
+// Historical September purchase fixtures need a deterministic, earlier Singapore date.
+test.beforeEach(async ({ page }) => { await page.clock.setFixedTime(new Date('2026-08-31T04:00:00Z')) })
+
 const DB_KEY = 'fitfinity-m2-demo-db-v4'
 const stepHeading = (page, name) => page.getByRole('heading', { level: 2, name, exact: true })
 const continueTo = async (page, name) => {

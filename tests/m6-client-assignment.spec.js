@@ -15,6 +15,9 @@ async function open(page, staffApi, role = 'owner') {
   await verifyAuthenticator(page)
   await page.goto(`${staffApi.origin}/#/clients/${directoryId(7)}`)
   await expect(page.getByRole('heading', { name: 'API Client', exact: true })).toBeVisible()
+  const menu = page.locator('details.profile-menu')
+  if (await menu.locator('summary').isVisible() && await menu.getAttribute('open') === null) await menu.locator('summary').click()
+  await menu.getByRole('button', { name: 'Package', exact: true }).click()
 }
 const dialog = page => page.getByRole('dialog', { name: 'Permanently Reassign Trainer', exact: true })
 async function review(page) {
@@ -28,7 +31,7 @@ async function confirm(page) {
   await expect(confirmation).toContainText('1 eligible upcoming sessions')
   await confirmation.getByRole('button', { name: 'Reassign Trainer', exact: true }).click()
 }
-const assigned = page => expect(page.locator('.client-trainer-assignment strong')).toHaveText('Replacement Trainer')
+const assigned = page => expect(page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Current Package', exact: true }) }).getByText('Replacement Trainer', { exact: true })).toBeVisible()
 for (const role of ['owner', 'admin']) test(`API ${role} permanently reassigns the reviewed client and preserves purchased terms across reload`, async ({ page, staffApi }) => {
   await open(page, staffApi, role)
   const before = structuredClone(staffApi.state.directory.clients[0].purchases[0])

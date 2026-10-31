@@ -7,6 +7,8 @@ from fastapi import APIRouter, Header, Request
 from sqlalchemy import func, select
 
 from app.api import exercise_library as library
+from app.api import library_approval
+from app.api.admin_supervision import ApprovalPending
 from app.api.dependencies import authorized_transaction
 from app.api.library_schemas import (
     Catalogue,
@@ -49,10 +51,14 @@ def reserve(body: SaveLibrary, request: Request, key: RequestKey):
         )
 
 
-@router.get("/exercise-library/save-intents/{key}", response_model=LibraryIntentView)
+@router.get(
+    "/exercise-library/save-intents/{key}",
+    response_model=LibraryIntentView,
+    responses={202: {"model": ApprovalPending}},
+)
 def recover(key: UUID, request: Request):
     with authorized_transaction(request, advisory_lock=library.LIBRARY_LOCK) as (session, actor):
-        return library.view(library.original(session, actor, key))
+        return library_approval.recovery(session, actor, key)
 
 
 @router.post("/exercise-library/save-intents/{key}/upload", response_model=UploadLease)
@@ -70,7 +76,11 @@ def upload(key: UUID, body: OriginalLibraryAction, request: Request, request_key
     return store.upload(evidence, min(300, lifetime), deadline=original.uploadUntil)
 
 
-@router.post("/exercise-library/save-intents/{key}/commit", response_model=LibraryExercise)
+@router.post(
+    "/exercise-library/save-intents/{key}/commit",
+    response_model=LibraryExercise,
+    responses={202: {"model": ApprovalPending}},
+)
 def commit(key: UUID, body: OriginalLibraryAction, request: Request, request_key: RequestKey):
     if request_key != key:
         raise conflict()
@@ -81,7 +91,8 @@ def commit(key: UUID, body: OriginalLibraryAction, request: Request, request_key
     if evidence:
         storage(request).verified_bytes(evidence)
     with authorized_transaction(request, advisory_lock=library.LIBRARY_LOCK) as (session, actor):
-        return library.commit(session, actor, key, evidence)
+        session.info["verified_library_publication"] = evidence
+        return library_approval.publish(session, actor, key, body)
 
 
 @router.get("/exercise-library/media/{identity}", response_model=ReadLease)

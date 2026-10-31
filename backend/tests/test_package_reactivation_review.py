@@ -129,7 +129,9 @@ def test_changed_reviewed_evidence_rejects(api, domain_db, graph, frozen, model,
     assert preview(api, graph, result["expected"]).status_code == 409
 
 
-def test_overlapping_active_purchase_blocks_restoration(api, domain_db, graph, frozen):
+def test_overlapping_validity_allows_restoration_only_after_booking_conflicts_resolved(
+    api, domain_db, graph, frozen
+):
     with domain_db.transaction() as session:
         purchase, slots, prefs, bookings = purchase_parts(graph, graph["start_date"])
         client = session.get(Client, graph["client_id"])
@@ -137,7 +139,23 @@ def test_overlapping_active_purchase_blocks_restoration(api, domain_db, graph, f
             session, purchase, slots, prefs, bookings, expected_client_version=client.version
         )
     result = read(api, graph)
-    assert "overlap" in result["packageError"]
+    before = snapshot(domain_db)
+    assert result["packageError"] is None
+    assert len(result["rows"]) == 2
+    assert all("Conflicts" in row["error"] for row in result["rows"])
+    moved = preview(
+        api,
+        graph,
+        result["expected"],
+        {
+            row["id"]: str(graph["start_date"] + timedelta(days=index + 1))
+            for index, row in enumerate(result["rows"])
+        },
+    )
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["packageError"] is None
+    assert all(row["error"] is None for row in moved.json()["rows"])
+    assert snapshot(domain_db) == before
 
 
 def test_completed_and_open_sessions_preserve_their_restoration_rules(api, domain_db, graph):

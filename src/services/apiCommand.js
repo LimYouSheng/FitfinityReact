@@ -21,7 +21,11 @@ export function reconciledCommand(http, actionSession, { path, receiptPath, vali
       const value = validate(await http.get(`${receiptPath}/${attempt.key}`, { expectedGeneration: generation }), attempt.body)
       return complete(value) ? { found: true, result: accept(attempt, value) } : { found: false }
     }
-    catch (error) { if (error.code !== 'not_found') throw error; return { found: false } }
+    catch (error) {
+      if (['APPROVAL_PENDING', 'approval_closed'].includes(error.code) && pending === attempt) pending = null
+      if (error.code !== 'not_found') throw error
+      return { found: false }
+    }
   }
   const command = async (input, expectedGeneration) => {
     const sessionGeneration = await sessionFor(expectedGeneration)

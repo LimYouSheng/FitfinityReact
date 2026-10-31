@@ -111,3 +111,69 @@ test('lost correction response recovers one original request and survives fresh 
     expect((await read(fresh, '/api/directory')).trainers.find(item => item.id === trainer.id).email).toBe(trainer.email)
   } finally { await context.close() }
 })
+
+test('supervised email change recovers lost submission and requires Trainer verification after Owner approval', async ({ page, browser }, info) => {
+  const scope = 'emailapproval'
+  const trainer = await openTrainer(page, info, scope)
+  const admin = (await read(page, '/api/staff/admins')).find(item => item.details.email === account(scope, 'admin'))
+  expect(admin).toBeTruthy()
+  const changed = await post(page, `/api/staff/admins/${admin.id}`, {
+    expectedVersion: admin.version, operation: 'approvals', approvalNeeded: { ...admin.approvalNeeded, trainerDetails: true },
+  })
+  expect(changed.status()).toBe(200)
+  const context = await freshContext(browser, page)
+  const address = `${info.project.name}-emailapproval-reviewed@example.test`
+  try {
+    const manager = await context.newPage()
+    await signIn(manager, 'admin', account(scope, 'admin'))
+    await manager.goto(`/#/trainers/${trainer.id}`)
+    let writes = 0, key
+    const path = `**/api/trainers/${trainer.id}/email-change`
+    await manager.route(path, async route => {
+      if (route.request().method() !== 'POST') return route.continue()
+      writes++; key = route.request().headers()['idempotency-key']
+      const response = await fetchRoute(route)
+      expect(response.status()).toBe(202)
+      await route.abort('failed')
+    })
+    await manager.getByRole('button', { name: 'Change Login Email', exact: true }).click()
+    await manager.getByLabel('New trainer login email', { exact: true }).fill(address)
+    await confirm(manager, 'Request Verification')
+    await expect(manager.getByRole('button', { name: 'Check Original Request', exact: true })).toBeVisible()
+    await manager.unroute(path)
+    await manager.getByRole('button', { name: 'Check Original Request', exact: true }).click()
+    await expect(manager.getByRole('status').filter({ hasText: 'Submitted for Owner approval.' })).toBeVisible()
+    expect(writes).toBe(1)
+    expect((await read(manager, `/api/trainers/${trainer.id}/email-change`)).change).toBeNull()
+    expect((await read(manager, '/api/directory')).trainers.find(item => item.id === trainer.id).email).toBe(trainer.email)
+    const requests = (await read(manager, '/api/admin-requests')).filter(item => item.operation === 'trainer.email')
+    expect(requests).toHaveLength(1)
+    await page.goto('/#/messages')
+    const row = page.locator('.info-row').filter({ hasText: 'emailapproval admin' }).filter({ hasText: 'pending' })
+    await row.getByRole('button', { name: 'Review', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Request verified Trainer email change', exact: true })).toBeVisible()
+    await expect(page.getByText(address, { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Approve?', exact: true }).getByRole('button', { name: 'Approve', exact: true }).click()
+    await expect(page.getByText('emailapproval admin · approved', { exact: true })).toBeVisible()
+    await manager.reload()
+    await expect(manager.getByText(`Awaiting the trainer’s verification of ${address}. The current email is still active.`, { exact: true })).toBeVisible()
+    expect((await read(manager, `/api/trainer-email-requests/${key}`)).state).toBe('requested')
+    const saved = (await read(manager, `/api/trainers/${trainer.id}/email-change`)).change
+    expect((await post(manager, `/auth/email-change/${saved.id}/send`, {})).status()).toBe(404)
+  } finally { await context.close() }
+  const holderContext = await freshContext(browser, page)
+  try {
+    const holder = await holderContext.newPage()
+    await signIn(holder, 'trainer', trainer.email)
+    await holder.goto('/#/account')
+    await expect(holder.getByRole('region', { name: 'Email verification' })).toContainText(address)
+    await holder.getByRole('button', { name: 'Send Verification Code', exact: true }).click()
+    await holder.getByLabel('Email verification code', { exact: true }).fill('100001')
+    await holder.getByRole('button', { name: 'Verify New Email', exact: true }).click()
+    await expect(holder.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible()
+    await signIn(holder, 'trainer', address)
+    expect((await read(holder, '/auth/email-change')).change).toBeNull()
+    expect((await read(page, '/api/directory')).trainers.find(item => item.id === trainer.id).email).toBe(address)
+  } finally { await holderContext.close() }
+})

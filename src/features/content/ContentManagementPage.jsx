@@ -20,11 +20,12 @@ function ContentEditor({ entry: loadedEntry, onSave, onNavigate, onBack, guardUn
   const [preview, setPreview] = useState(false)
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(null)
+  const [approvalSubmitted, setApprovalSubmitted] = useState(false)
   const [uncertain, setUncertain] = useState(null)
   const pending = useRef(false)
   const { setActiveEdit, activeEdit } = useEditGuard()
   const confirm = useActionConfirmation()
-  const dirty = !saved && JSON.stringify(draft) !== JSON.stringify(draftFor(entry))
+  const dirty = !saved && !approvalSubmitted && JSON.stringify(draft) !== JSON.stringify(draftFor(entry))
   useEffect(() => { setActiveEdit(dirty ? 'Website content' : null); return () => setActiveEdit(null) }, [dirty, setActiveEdit])
   useEffect(() => { if (saved && !activeEdit) onNavigate(`content/${saved.id}`, { replace: true }) }, [saved, activeEdit, onNavigate])
   const patch = (field, value) => { setDraft(current => ({ ...current, [field]: value })); setErrors({}); setError('') }
@@ -40,6 +41,10 @@ function ContentEditor({ entry: loadedEntry, onSave, onNavigate, onBack, guardUn
       const result = await onSave(options)
       setSaved(result); setActiveEdit(null)
     } catch (failure) {
+      if (failure.code === 'APPROVAL_PENDING') {
+        setApprovalSubmitted(true); setUncertain(null); setActiveEdit(null)
+        return
+      }
       if (guardUncertain && !(failure.status >= 400 && failure.status < 500) && !['SESSION_CHANGED', 'SESSION_EXPIRED', 'forbidden', 'INVALID_REQUEST'].includes(failure.code)) {
         setUncertain(current => current ?? { id: entry?.id, expectedVersion: entry?.version, draft: structuredClone(draft) })
       } else setUncertain(null)
@@ -47,6 +52,7 @@ function ContentEditor({ entry: loadedEntry, onSave, onNavigate, onBack, guardUn
     }
     finally { pending.current = false; setBusy(false) }
   }
+  if (approvalSubmitted) return <Panel><p role="status">Submitted for Owner approval. No changes have been applied.</p><button type="button" className="secondary-button" onClick={() => onNavigate('messages')}>View Requests</button><button type="button" className="secondary-button" onClick={onBack}>Back to Content</button></Panel>
   if (saved) return <Panel><h2>{saved.title}</h2><p>{saved.key} · {statuses[saved.status]}</p><article className="content-preview"><p>{saved.body}</p></article><button type="button" className="secondary-button" onClick={() => { setEntry(saved); setSaved(null); setDraft(draftFor(saved)) }}>Edit Content</button><button type="button" className="secondary-button" onClick={onBack}>Back to Content</button></Panel>
   return <Panel className={dirty ? 'editing-section' : ''}>
     <form className="content-form" onSubmit={submit} noValidate>

@@ -12,7 +12,7 @@ from app.api.schemas import Contract
 class RecordingUpload(Contract):
     name: StrictStr = Field(min_length=1, max_length=255)
     type: Literal["video/mp4", "video/webm", "video/quicktime"]
-    size: StrictInt = Field(gt=0, le=5 * 1024 * 1024)
+    size: StrictInt = Field(gt=0, le=10 * 1024 * 1024)
     sha256: StrictStr = Field(pattern=r"^[0-9a-f]{64}$")
 
 

@@ -67,7 +67,7 @@ export function normalizePackageLifecycle(db, client) {
   if (reactivation) restoreClientPurchases(client, reactivation.createdAt, client.reactivatedBy ?? { id: null, name: 'Unknown staff' })
   const due = (client.additionalPackages ?? []).filter(item => item.status !== 'inactive' && item.startDate <= today).sort((a, b) => a.startDate.localeCompare(b.startDate))
   for (const purchased of due) {
-    if (client.package.status !== 'inactive' && client.package.endDate >= purchased.startDate) continue
+    if (client.package.status !== 'inactive' && client.package.endDate >= today) continue
     client.packageHistory = [client.package, ...(client.packageHistory ?? [])]
     client.additionalPackages = client.additionalPackages.filter(item => item.id !== purchased.id)
     client.package = purchased

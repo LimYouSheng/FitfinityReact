@@ -88,3 +88,21 @@ it('does not offer correction before compatible-runtime activation', async () =>
   expect(screen.queryByRole('button', { name: 'Correct Pending Email' })).not.toBeInTheDocument()
   expect(request).not.toHaveBeenCalled()
 })
+
+it.each([false, true])('confirmed approval submission retires the email editor without claiming verification (lost response: %s)', async lost => {
+  const auth = { pendingTrainerEmailChange: vi.fn().mockResolvedValue(null) }
+  const approval = Object.assign(new Error('Submitted for Owner approval.'), { code: 'APPROVAL_PENDING', status: 409 })
+  const request = vi.fn().mockRejectedValue(approval)
+  if (lost) request.mockRejectedValueOnce(new Error('Lost response'))
+  render(<Wrapper trainer={trainer} auth={auth} request={request} />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Change Login Email' }))
+  fireEvent.change(screen.getByLabelText('New trainer login email'), { target: { value: 'reviewed@example.test' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Request Verification' }))
+  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Request Verification' }))
+  if (lost) fireEvent.click(await screen.findByRole('button', { name: 'Check Original Request' }))
+  expect(await screen.findByRole('status')).toHaveTextContent('Submitted for Owner approval. The current email is still active.')
+  expect(screen.queryByRole('button', { name: 'Request Verification' })).not.toBeInTheDocument()
+  expect(screen.queryByText(/Awaiting the trainer’s verification/)).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('New trainer login email')).not.toBeInTheDocument()
+  expect(request).toHaveBeenCalledTimes(lost ? 2 : 1)
+})

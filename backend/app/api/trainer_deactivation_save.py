@@ -7,9 +7,10 @@ from uuid import UUID
 
 from sqlalchemy import select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.schemas import Contract
 from app.api.session_mutation_journal import journal
-from app.api.trainer_deactivation import inspect
+from app.api.trainer_deactivation import TrainerDeactivationSelection, inspect
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
 from app.models.api import TrainerDeactivationReceipt
@@ -33,6 +34,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("trainer.deactivate")
 def reconcile(session, principal, key):
     principal.operations()
     saved = receipt(session, principal, key)
@@ -41,6 +43,13 @@ def reconcile(session, principal, key):
     return TrainerDeactivationState.model_validate(saved.result)
 
 
+@supervised(
+    "trainerLifecycle",
+    "trainer.deactivate",
+    TrainerDeactivationSelection,
+    receipt=receipt,
+    target="identity",
+)
 @journal("trainer.deactivate")
 def save(session, principal, identity, key, body):
     principal.operations()

@@ -251,6 +251,7 @@ test('M3 trainer Cancel uses the existing unsaved-edit guard and returns to Trai
 })
 
 test('M3 a newly created trainer is immediately available in automatic client matching and demo identity', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-08-31T04:00:00Z'))
   await begin(page)
   await next(page, 'Training & Rates')
   await next(page, 'Trainer Availability')

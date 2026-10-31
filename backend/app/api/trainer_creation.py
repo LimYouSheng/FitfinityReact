@@ -6,9 +6,11 @@ from typing import Literal
 from uuid import UUID, uuid4
 
 from fastapi import Request
+from fastapi.responses import JSONResponse
 from pydantic import Field, StrictStr, field_validator, model_validator
 from sqlalchemy import func, select, text
 
+from app.api.admin_supervision import proposal_outcome, supervised
 from app.api.dependencies import authorized_transaction
 from app.api.schemas import Contract
 from app.api.staff_provisioning import locked, provision
@@ -95,10 +97,97 @@ def reconcile(request, key):
             )
         )
         if invitation is None:
+            pending = proposal_outcome(session, principal, key, "trainer.create")
+            if pending is not None:
+                return pending
             raise unavailable()
         user = session.get(StaffUser, invitation.user_id)
         # Reading an existing result must not retry setup or resend an invitation.
         return result(session, user, invitation)
+
+
+def invitation_receipt(session, principal, key):
+    return session.scalar(
+        select(StaffInvitation).where(
+            StaffInvitation.request_key == key, StaffInvitation.actor_id == principal.user_id
+        )
+    )
+
+
+@supervised("trainerCreation", "trainer.create", NewTrainer, receipt=invitation_receipt)
+def reserve(session, principal, key, body):
+    """Reserve profile and invitation atomically; provider delivery runs only after commit."""
+    allowed(principal, body)
+    digest = hashlib.sha256(("trainer.create/" + body.model_dump_json()).encode()).hexdigest()
+    now = datetime.now(UTC)
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:actor, 0))"),
+        {"actor": str(principal.user_id)},
+    )
+    invitation = locked(session, key, principal.user_id, digest)
+    if invitation is None:
+        if session.scalar(
+            select(StaffUser.id).where(StaffUser.email == body.email)
+        ) or session.scalar(select(Trainer.id).where(Trainer.email == body.email)):
+            raise AuthError(
+                "STAFF_EMAIL_EXISTS",
+                "This email already belongs to a staff account or trainer.",
+                409,
+            )
+        recent = session.scalar(
+            select(func.count())
+            .select_from(StaffInvitation)
+            .where(
+                StaffInvitation.actor_id == principal.user_id,
+                StaffInvitation.created_at > now - timedelta(hours=1),
+            )
+        )
+        if recent >= 10:
+            raise AuthError("INVITATION_LIMIT", "Too many new accounts. Try again later.", 429)
+        user = StaffUser(name=body.name, email=body.email, role="trainer")
+        session.add(user)
+        session.flush()
+        rates = body.rates.model_dump() if principal.role == "owner" else DEFAULT_RATES
+        trainer = Trainer(
+            user_id=user.id,
+            name=body.name,
+            email=body.email,
+            phone_country_code=body.phone_country_code,
+            phone_number=body.phone_number,
+            birthday=body.birthday,
+            gender=body.gender,
+            trainer_type=body.trainerType,
+            qualifications=body.qualifications.strip(),
+            public_profile=body.publicProfile == "Visible",
+            peak_rate_cents=rates["peak"],
+            off_peak_rate_cents=rates["offPeak"],
+            **{column: getattr(body.approvalNeeded, field) for field, column in FIELDS.items()},
+        )
+        session.add(trainer)
+        session.flush()
+        for slot in body.slots:
+            session.add(
+                TrainerAvailability(
+                    trainer_id=trainer.id,
+                    weekday=slot.weekday,
+                    starts_at=time.fromisoformat(slot.startsAt),
+                    ends_at=time.fromisoformat(slot.endsAt),
+                )
+            )
+        invitation = StaffInvitation(
+            user_id=user.id,
+            request_key=key,
+            request_sha256=digest,
+            actor_id=principal.user_id,
+            actor_name=principal.name,
+            status="pending",
+        )
+        session.add(invitation)
+        notify(session, principal, trainer)
+    else:
+        user = active_target(session, invitation)
+    session.flush()
+    return result(session, user, invitation)
 
 
 def create(body: NewTrainer, request: Request, key: UUID):
@@ -108,100 +197,57 @@ def create(body: NewTrainer, request: Request, key: UUID):
             raise AuthError(
                 "INVITATIONS_UNAVAILABLE", "Staff invitations are not ready. Contact support.", 503
             )
-    provider = request.app.state.invitations
-    provider.check_configuration()
-    digest = hashlib.sha256(("trainer.create/" + body.model_dump_json()).encode()).hexdigest()
-    now, lease = datetime.now(UTC), uuid4()
+    request.app.state.invitations.check_configuration()
     with authorized_transaction(request) as (session, principal):
-        allowed(principal, body)
-        session.execute(
-            text("SELECT pg_advisory_xact_lock(hashtextextended(:actor, 0))"),
-            {"actor": str(principal.user_id)},
+        reserved = reserve(session, principal, key, body)
+    if isinstance(reserved, JSONResponse):
+        return reserved
+    return complete(request, key, body)
+
+
+def complete(request, key, body, *, transaction=authorized_transaction):
+    """Resume a reserved invitation without replaying an uncertain email send."""
+    if not request.app.state.auth_settings.staff_invitations_enabled:
+        raise AuthError(
+            "INVITATIONS_UNAVAILABLE", "Staff invitations are not ready. Contact support.", 503
         )
-        invitation = locked(session, key, principal.user_id, digest)
+    request.app.state.invitations.check_configuration()
+    now, lease = datetime.now(UTC), uuid4()
+    with transaction(request) as (session, principal):
+        allowed(principal)
+        invitation = invitation_receipt(session, principal, key)
         if invitation is None:
-            if session.scalar(
-                select(StaffUser.id).where(StaffUser.email == body.email)
-            ) or session.scalar(select(Trainer.id).where(Trainer.email == body.email)):
-                raise AuthError(
-                    "STAFF_EMAIL_EXISTS",
-                    "This email already belongs to a staff account or trainer.",
-                    409,
-                )
-            recent = session.scalar(
-                select(func.count())
-                .select_from(StaffInvitation)
-                .where(
-                    StaffInvitation.actor_id == principal.user_id,
-                    StaffInvitation.created_at > now - timedelta(hours=1),
-                )
+            raise unavailable()
+        digest = invitation.request_sha256
+        invitation = locked(session, key, principal.user_id, digest)
+        user = active_target(session, invitation)
+        if invitation.status == "sending" and invitation.lease_until <= now:
+            invitation.status = "unknown"
+            invitation.lease_id = invitation.lease_until = None
+        if invitation.status in {"sent", "unknown", "sending"}:
+            return result(session, user, invitation)
+        if invitation.lease_until and invitation.lease_until > now:
+            raise AuthError(
+                "INVITATION_BUSY", "Account setup is in progress. Try again shortly.", 409
             )
-            if recent >= 10:
-                raise AuthError("INVITATION_LIMIT", "Too many new accounts. Try again later.", 429)
-            user = StaffUser(name=body.name, email=body.email, role="trainer")
-            session.add(user)
-            session.flush()
-            rates = body.rates.model_dump() if principal.role == "owner" else DEFAULT_RATES
-            trainer = Trainer(
-                user_id=user.id,
-                name=body.name,
-                email=body.email,
-                phone_country_code=body.phone_country_code,
-                phone_number=body.phone_number,
-                birthday=body.birthday,
-                gender=body.gender,
-                trainer_type=body.trainerType,
-                qualifications=body.qualifications.strip(),
-                public_profile=body.publicProfile == "Visible",
-                peak_rate_cents=rates["peak"],
-                off_peak_rate_cents=rates["offPeak"],
-                **{column: getattr(body.approvalNeeded, field) for field, column in FIELDS.items()},
-            )
-            session.add(trainer)
-            session.flush()
-            for slot in body.slots:
-                session.add(
-                    TrainerAvailability(
-                        trainer_id=trainer.id,
-                        weekday=slot.weekday,
-                        starts_at=time.fromisoformat(slot.startsAt),
-                        ends_at=time.fromisoformat(slot.endsAt),
-                    )
-                )
-            invitation = StaffInvitation(
-                user_id=user.id,
-                request_key=key,
-                request_sha256=digest,
-                actor_id=principal.user_id,
-                actor_name=principal.name,
-                status="pending",
-            )
-            session.add(invitation)
-            notify(session, principal, trainer)
-        else:
-            user = active_target(session, invitation)
-            if invitation.status == "sending" and invitation.lease_until <= now:
-                invitation.status = "unknown"
-                invitation.lease_id = invitation.lease_until = None
-            if invitation.status in {"sent", "unknown", "sending"}:
-                return result(session, user, invitation)
-            if invitation.lease_until and invitation.lease_until > now:
-                raise AuthError(
-                    "INVITATION_BUSY", "Account setup is in progress. Try again shortly.", 409
-                )
         invitation.lease_id, invitation.lease_until = lease, now + timedelta(seconds=60)
-        user_id = user.id
+        if user.email != body.email:
+            raise AuthError(
+                "STAFF_IDENTITY_CONFLICT", "The reviewed invitation address changed.", 409
+            )
+        user_id, name, email = user.id, body.name, body.email
     return provision(
         request,
         key,
         digest,
         lease,
         user_id,
-        body.name,
-        body.email,
+        name,
+        email,
         authorize=allowed,
         active_target=active_target,
         project=result,
+        transaction=transaction,
     )
 
 

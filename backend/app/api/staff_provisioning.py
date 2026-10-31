@@ -29,12 +29,23 @@ def lease_check(invitation, lease):
 
 
 def provision(
-    request, key, digest, lease, user_id, name, email, *, authorize, active_target, project
+    request,
+    key,
+    digest,
+    lease,
+    user_id,
+    name,
+    email,
+    *,
+    authorize,
+    active_target,
+    project,
+    transaction=authorized_transaction,
 ):
     provider = request.app.state.invitations
     try:
         remote = provider.ensure(user_id, name, email)
-        with authorized_transaction(request) as (session, principal):
+        with transaction(request) as (session, principal):
             authorize(principal)
             invitation = locked(session, key, principal.user_id, digest)
             lease_check(invitation, lease)
@@ -76,7 +87,7 @@ def provision(
                 )
             invitation.status = "sending"
         sent = provider.send(user_id, email)
-        with authorized_transaction(request) as (session, principal):
+        with transaction(request) as (session, principal):
             authorize(principal)
             invitation = locked(session, key, principal.user_id, digest)
             lease_check(invitation, lease)

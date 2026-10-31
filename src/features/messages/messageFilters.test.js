@@ -29,6 +29,8 @@ it('classifies typed records and adapter categories without guessing from the ti
   const cases = [
     [{ kind: 'renewal' }, 'renewals'],
     [{ kind: 'request_decision' }, 'approvals'],
+    [{ kind: 'admin_operation_request' }, 'approvals'],
+    [{ kind: 'admin_operation_decision' }, 'approvals'],
     [{ kind: 'availability_request' }, 'approvals'],
     [{ request: { type: 'session_time' }, sessionId: 's1' }, 'approvals'],
     [{ kind: 'remuneration_approval', trainerId: 't1' }, 'remuneration'],

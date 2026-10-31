@@ -274,7 +274,7 @@ def test_server_date_and_schedule_reject_ineligible_completion(api, domain_db, g
         assert session.scalar(select(CreditDebit)) is None
 
 
-@pytest.mark.parametrize("renewed", [False, True])
+@pytest.mark.parametrize("renewed", [False, True, "overlapping"])
 def test_two_remaining_credits_notify_once_unless_already_renewed(api, domain_db, graph, renewed):
     from datetime import time
 
@@ -336,7 +336,8 @@ def test_two_remaining_credits_notify_once_unless_already_renewed(api, domain_db
         identity, purchase_id = bookings[0].id, purchase.id
         if renewed:
             next_purchase, slots, preferences, bookings = purchase_parts(
-                {**values, "template_id": graph["template_id"]}
+                {**values, "template_id": graph["template_id"]},
+                graph["start_date"] + timedelta(days=1) if renewed == "overlapping" else None,
             )
             add_purchase(
                 session,

@@ -12,8 +12,8 @@ const owner = () => mockDb.read().users.find(item => item.role === 'owner')
 const target = () => mockDb.read().clients.find(item => item.id === 'c1')
 const request = patch => {
   const db = mockDb.read()
-  return { requestId: 'permanent-reassign', trainerId: 't2',
-    expected: trainerReassignmentSnapshot(target(), db.sessions, db.packageCreditTransactions, businessClock(new Date(), db.settings.timeZone)), ...patch }
+  return { requestId: 'permanent-reassign', trainerId: 't2', purchaseId: patch?.purchaseId ?? target().package.id,
+    expected: trainerReassignmentSnapshot(target(), db.sessions, db.packageCreditTransactions, businessClock(new Date(), db.settings.timeZone), patch?.purchaseId), ...patch }
 }
 const reassign = draft => clientService.reassignTrainer('c1', draft ?? request(), owner())
 beforeEach(() => {
@@ -44,7 +44,7 @@ it('permanently changes active assignments and eligible sessions while preservin
   const result = await reassign(draft), after = mockDb.reload()
   expect(result.trainerId).toBe('t2')
   expect(result.package).toEqual({ ...original.package, trainerId: 't2' })
-  expect(result.additionalPackages[0]).toEqual({ ...original.additionalPackages[0], trainerId: 't2' })
+  expect(result.additionalPackages).toEqual(original.additionalPackages)
   expect(result.packageHistory).toEqual(original.packageHistory)
   expect(result.fixedWeeklySchedule).toEqual(original.fixedWeeklySchedule)
   expect(after.packageCreditTransactions).toEqual(before.packageCreditTransactions)
@@ -68,25 +68,25 @@ it('requires the authenticated owner and rejects inactive clients, inactive trai
 })
 
 it('checks saved preferences, weekly availability and actual rescheduled session times', async () => {
-  mockDb.mutate(db => { db.clients[0].genderPreference = 'Male trainer preferred'; db.trainers.find(item => item.id === 't2').gender = 'Female' })
-  await expect(reassign()).rejects.toThrow('preference')
-  mockDb.mutate(db => { db.clients[0].genderPreference = 'No gender preference'; db.trainers.find(item => item.id === 't2').availability.Monday = [] })
-  await expect(reassign()).rejects.toThrow('weekly schedule')
+  mockDb.mutate(db => { db.clients[0].additionalPackages[0].genderPreference = 'Male trainer preferred'; db.trainers.find(item => item.id === 't2').gender = 'Female' })
+  await expect(reassign(request({ purchaseId: 'queued' }))).rejects.toThrow('preference')
+  mockDb.mutate(db => { db.clients[0].additionalPackages[0].genderPreference = 'No gender preference'; db.trainers.find(item => item.id === 't2').availability.Monday = [] })
+  await expect(reassign(request({ purchaseId: 'queued' }))).rejects.toThrow('weekly schedule')
   mockDb.mutate(db => { db.trainers.find(item => item.id === 't2').availability.Monday = [['06:00', '23:00']]; db.sessions.find(item => item.id === 'queued-session').from = '05:00' })
   const before = mockDb.read()
-  await expect(reassign()).rejects.toThrow('unavailable on 2027-01-04')
+  await expect(reassign(request({ purchaseId: 'queued' }))).rejects.toThrow('unavailable on 2027-01-04')
   expect(mockDb.read()).toEqual(before)
 })
 
 it('rejects stale reviews when a booking or package changes or a session starts before confirmation', async () => {
-  let draft = request()
+  let draft = request({ purchaseId: 'queued' })
   mockDb.mutate(db => { db.sessions.find(item => item.id === 'queued-session').to = '20:00' })
   await expect(reassign(draft)).rejects.toThrow('changed')
-  draft = request()
+  draft = request({ purchaseId: 'queued' })
   mockDb.mutate(db => { db.clients[0].additionalPackages[0].trainerId = 't3' })
   await expect(reassign(draft)).rejects.toThrow('changed')
   mockDb.mutate(db => { Object.assign(db.sessions.find(item => item.id === 'queued-session'), { date: '2026-09-09', from: '12:01', to: '13:00' }) })
-  draft = request()
+  draft = request({ purchaseId: 'queued' })
   vi.setSystemTime(new Date('2026-09-09T04:02:00Z'))
   const before = mockDb.read()
   await expect(reassign(draft)).rejects.toThrow('changed')
@@ -99,7 +99,7 @@ it('rejects conflicts atomically and leaves assignments, messages and audit unto
     db.sessions.push({ ...sample, id: 'other-client-booking', clientId: 'c2', trainerId: 't2' })
   })
   const before = mockDb.read()
-  await expect(reassign()).rejects.toThrow('booking conflict')
+  await expect(reassign(request({ purchaseId: 'queued' }))).rejects.toThrow('booking conflict')
   expect(mockDb.read()).toEqual(before)
 })
 
@@ -125,15 +125,16 @@ it('supersedes only affected pending requests and receipts with the owner and ti
       { id: 'unrelated', status: 'pending', request: { type: 'trainer_availability', trainerId: 't1' } },
       { id: 'approved', status: 'approved', request: { type: 'session_time', sessionId: 'queued-session' } })
   })
-  await reassign()
+  await reassign(request({ purchaseId: 'queued' }))
   const messages = mockDb.read().messages
-  for (const id of ['pending-session', 'pending-receipt', 'pending-schedule']) expect(messages.find(item => item.id === id)).toMatchObject({ status: 'rejected', decidedBy: owner().id, decidedAt: new Date().toISOString(), decisionReason: 'Superseded by permanent trainer reassignment.' })
+  for (const id of ['pending-session', 'pending-receipt']) expect(messages.find(item => item.id === id)).toMatchObject({ status: 'rejected', decidedBy: owner().id, decidedAt: new Date().toISOString(), decisionReason: 'Superseded by permanent trainer reassignment.' })
+  expect(messages.find(item => item.id === 'pending-schedule').status).toBe('pending')
   expect(messages.find(item => item.id === 'unrelated').status).toBe('pending')
   expect(messages.find(item => item.id === 'approved').status).toBe('approved')
 })
 
 it('keeps the new assignment when a queued package activates and retains historical trainer visibility without edit rights', async () => {
-  await reassign()
+  await reassign(request({ purchaseId: 'queued' }))
   vi.setSystemTime(new Date('2027-01-04T04:00:00Z'))
   const db = mockDb.reload()
   expect(target().package.id).toBe('queued')

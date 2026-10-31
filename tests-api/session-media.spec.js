@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { fetchRoute, test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
 
 async function open(page, info, purpose, role = 'trainer') {
@@ -14,8 +16,11 @@ async function open(page, info, purpose, role = 'trainer') {
   await page.getByRole('button', { name: 'Manage video for Recorded squat', exact: true }).click()
   return { booking, item, path: `/api/sessions/${booking.id}/exercises/${item.id}/video` }
 }
-async function choose(page) {
-  await page.getByLabel('Attach video for Recorded squat', { exact: true }).setInputFiles('tests/fixtures/silent-one-second.webm')
+async function choose(page, audio = false) {
+  const checkbox = page.getByRole('checkbox', { name: 'Include original audio (if present)', exact: true })
+  await expect(checkbox).not.toBeChecked()
+  if (audio) await checkbox.check()
+  await page.getByLabel('Attach video for Recorded squat', { exact: true }).setInputFiles(audio ? 'tests/fixtures/tone-one-second.webm' : 'tests/fixtures/silent-one-second.webm')
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Save Video', exact: true })).toBeEnabled()
 }
 async function save(page) {
@@ -25,8 +30,12 @@ async function save(page) {
 
 test('Trainer recording UI persists real bytes after fresh login and removal remains durable', async ({ page, browser }, info) => {
   const original = await open(page, info, 'videowrite')
-  await choose(page)
+  await choose(page, true)
+  const converted = await page.getByText('Original audio included (if present)', { exact: true }).count() > 0
+  if (info.project.name === 'desktop-chromium') expect(converted).toBe(true)
+  const uploadIntent = page.waitForRequest(request => request.url().endsWith('/api/session-media/intents') && request.method() === 'POST')
   await save(page)
+  expect((await uploadIntent).postDataJSON()).toMatchObject({ audioIncluded: converted ? true : null, processingStatus: converted ? 'complete' : 'deferred' })
   await page.reload()
   const context = await freshContext(browser, page)
   try {
@@ -38,6 +47,17 @@ test('Trainer recording UI persists real bytes after fresh login and removal rem
     await expect(fresh.getByText('Available until', { exact: false })).toBeVisible()
     const detail = await read(fresh, `/api/sessions/${original.booking.id}/details`)
     expect(detail.exercisePlan[0]).toMatchObject({ id: original.item.id, name: 'Recorded squat', videoAttached: true })
+    if (converted) {
+      const peak = await fresh.locator('video').evaluate(async video => {
+        const context = new AudioContext()
+        try {
+          const bytes = await (await fetch(video.src)).arrayBuffer()
+          const decoded = await context.decodeAudioData(bytes)
+          return decoded.getChannelData(0).reduce((maximum, sample) => Math.max(maximum, Math.abs(sample)), 0)
+        } finally { await context.close() }
+      })
+      expect(peak).toBeGreaterThan(0.02)
+    }
     expect(detail.purchase.used).toBe(0)
     await fresh.getByRole('button', { name: 'Remove saved video', exact: true }).click()
     await fresh.getByRole('dialog').getByRole('button', { name: 'Remove Video', exact: true }).click()
@@ -95,5 +115,44 @@ test('stale recording review and foreign Trainer requests leave all records unch
     expect((await page.request.get(foreignPath)).status()).toBe(404)
     expect((await post(page, '/api/session-media/intents', { sessionId: booking.id, exerciseId: item.id, expected: viewed.expected, remove: true, upload: null })).status()).toBe(404)
     expect(await read(owner, `${foreignPath}/review`)).toEqual(viewed)
+  } finally { await context.close() }
+})
+
+
+test('failed conversion retains the 10 MiB camera original byte-for-byte after a fresh login', async ({ page, browser }, info) => {
+  await page.addInitScript(() => {
+    window.__recordingConversionFailures = 0
+    if (globalThis.MediaRecorder) globalThis.MediaRecorder = new Proxy(globalThis.MediaRecorder, {
+      construct() { window.__recordingConversionFailures++; throw new Error('Synthetic encoder failure') },
+    })
+  })
+  const original = await open(page, info, 'videolarge')
+  const clip = readFileSync('tests/fixtures/silent-one-second.webm')
+  // EBML Void is padding, preserving the real one-second video and its duration.
+  const total = 10 * 1024 * 1024, padding = Buffer.alloc(5)
+  padding[0] = 0xec
+  padding.writeUInt32BE(0x10000000 + total - clip.length - padding.length, 1)
+  const bytes = Buffer.concat([clip, padding, Buffer.alloc(total - clip.length - padding.length)])
+  const digest = createHash('sha256').update(bytes).digest('hex')
+  await page.getByLabel('Record new video for Recorded squat', { exact: true }).setInputFiles({ name: 'camera-original.webm', mimeType: 'video/webm', buffer: bytes })
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Save Video', exact: true })).toBeEnabled()
+  if (info.project.name === 'desktop-chromium') expect(await page.evaluate(() => window.__recordingConversionFailures)).toBe(1)
+  const intent = page.waitForRequest(request => request.url().endsWith('/api/session-media/intents') && request.method() === 'POST')
+  await save(page)
+  expect((await intent).postDataJSON()).toMatchObject({ source: 'recorded', processingStatus: 'deferred', audioIncluded: null, upload: { size: total, sha256: digest } })
+  const context = await freshContext(browser, page)
+  try {
+    const fresh = await context.newPage()
+    await signIn(fresh, 'trainer', `${info.project.name}-videolarge@example.test`)
+    await fresh.goto(`/#/sessions/${original.booking.id}`)
+    await fresh.getByRole('button', { name: 'Manage video for Recorded squat', exact: true }).click()
+    await expect(fresh.locator('video')).toHaveAttribute('src', /^blob:/)
+    const stored = await fresh.locator('video').evaluate(async video => {
+      const bytes = await (await fetch(video.src)).arrayBuffer()
+      const hash = await crypto.subtle.digest('SHA-256', bytes)
+      return { size: bytes.byteLength, sha256: Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('') }
+    })
+    expect(stored).toEqual({ size: total, sha256: digest })
+    expect((await read(fresh, `/api/sessions/${original.booking.id}/details`)).purchase.used).toBe(0)
   } finally { await context.close() }
 })

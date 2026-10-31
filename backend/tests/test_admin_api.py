@@ -73,7 +73,7 @@ def create_admin(api, key=None, patch=None):
     )
 
 
-def login_admin(api, auth_service, auth_settings, fake_cognito, identity):
+def login_admin(api, auth_service, auth_settings, fake_cognito, identity, email=BODY["email"]):
     fake_cognito.claims = {"sub": identity, "username": identity, "role": "owner"}
     fake_cognito.user_changes = {
         "Username": identity,
@@ -82,7 +82,7 @@ def login_admin(api, auth_service, auth_settings, fake_cognito, identity):
             {"Name": "email_verified", "Value": "true"},
         ],
     }
-    flow = auth_service.sign_in(BODY["email"], "initial-password-value")
+    flow = auth_service.sign_in(email, "initial-password-value")
     signed = auth_service.challenge(flow.flow_handle, code="123456")
     api.cookies.clear()
     api.cookies.set(auth_settings.session_cookie, signed.session_handle)

@@ -17,6 +17,7 @@ export default function PackagesPage({ readOnly = false, packages, policy, selec
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(null)
+  const [approvalSubmitted, setApprovalSubmitted] = useState(false)
   const pending = useRef(false)
   const pagination = usePagination([...packages].reverse(), 'packages')
 
@@ -49,12 +50,16 @@ export default function PackagesPage({ readOnly = false, packages, policy, selec
       const result = await onSave({ id: current?.id, expectedVersion, draft: { ...values, total: Number(values.total), status } })
       setEditing(false)
       setSaved(result)
-    } catch (error) { setErrors({ form: error.message }) }
+    } catch (error) {
+      if (error.code === 'APPROVAL_PENDING') { setEditing(false); setApprovalSubmitted(true) }
+      else setErrors({ form: error.message })
+    }
     finally { pending.current = false; setBusy(false) }
   }
 
+  if (approvalSubmitted) return <Panel><p role="status">Submitted for Owner approval. No changes have been applied.</p><button type="button" className="text-action" onClick={() => onNavigate('messages')}>View Requests</button><button type="button" className="text-action" onClick={onBack}>Back to Packages</button></Panel>
   return <div className="package-setup">
-    <div className={selectedId ? 'page-head' : 'page-head directory-page-head'}><div><span className="eyebrow">Setup</span><h1>{selectedId === 'new' ? 'New Package' : current?.name ?? 'Packages'}</h1></div>
+    <div className={selectedId ? 'page-head' : 'page-head directory-page-head'}><div><span className="eyebrow">System</span><h1>{selectedId === 'new' ? 'New Package' : current?.name ?? 'Packages'}</h1></div>
       {!readOnly && !selectedId && <button className="onboarding-button primary" onClick={() => onNavigate('packages/new')}>Add Package</button>}
     </div>
     {selectedId && selectedId !== 'new' && !current ? <Panel><p>Package unavailable.</p></Panel>

@@ -164,3 +164,63 @@ def test_immutable_receipt_and_populated_downgrade_guard(api, domain_db, graph, 
     spec.loader.exec_module(migration)
     with pytest.raises(DBAPIError), domain_db.transaction() as session:
         session.execute(text(migration.DOWNGRADE_SQL))
+
+
+@pytest.mark.parametrize("selected", ["current", "additional"])
+def test_permanent_assignment_changes_only_the_selected_purchase(
+    api, domain_db, graph, replacement, selected
+):
+    from sqlalchemy import text
+
+    from app.persistence import add_purchase
+    from tests.domain_fixtures import purchase_parts
+
+    def values(row):
+        return {column.name: getattr(row, column.name) for column in row.__table__.columns}
+
+    with domain_db.transaction() as session:
+        today = session.scalar(
+            text("SELECT (clock_timestamp() AT TIME ZONE 'Asia/Singapore')::date")
+        )
+        extra, slots, preferences, bookings = purchase_parts(graph, today + timedelta(days=8))
+        client = session.get(Client, graph["client_id"])
+        add_purchase(
+            session, extra, slots, preferences, bookings, expected_client_version=client.version
+        )
+        selected_id = graph["purchase_id"] if selected == "current" else extra.id
+        untouched_id = extra.id if selected == "current" else graph["purchase_id"]
+        untouched_purchase = values(session.get(PackagePurchase, untouched_id))
+        untouched_bookings = {
+            row.id: values(row)
+            for row in session.scalars(
+                select(TrainingSession).where(TrainingSession.purchase_id == untouched_id)
+            )
+        }
+    path = f"/api/clients/{graph['client_id']}/trainer-assignment-review?purchaseId={selected_id}"
+    reviewed = api.get(path)
+    assert reviewed.status_code == 200, reviewed.text
+    assert [row["id"] for row in reviewed.json()["purchases"]] == [str(selected_id)]
+    body = {
+        "expected": reviewed.json()["expected"],
+        "trainerId": str(replacement),
+        "purchaseId": str(selected_id),
+    }
+    key = uuid4()
+    saved = save(api, graph, body, key)
+    assert saved.status_code == 200, saved.text
+    assert save(api, graph, body, key).json() == saved.json()
+    with domain_db.transaction() as session:
+        assert values(session.get(PackagePurchase, untouched_id)) == untouched_purchase
+        assert {
+            row.id: values(row)
+            for row in session.scalars(
+                select(TrainingSession).where(TrainingSession.purchase_id == untouched_id)
+            )
+        } == untouched_bookings
+        assert session.get(PackagePurchase, selected_id).trainer_id == replacement
+        assert session.get(Client, graph["client_id"]).trainer_id == (
+            replacement if selected == "current" else graph["trainer_id"]
+        )
+    assert len(api.get(path).json()["history"]) == 1
+    assert api.get(path.replace(str(selected_id), str(untouched_id))).json()["history"] == []
+    assert save(api, graph, {**body, "purchaseId": str(untouched_id)}, key).status_code == 409

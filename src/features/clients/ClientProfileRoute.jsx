@@ -38,11 +38,11 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
         save: input => runAction(() => clientService.saveFixedWeeklySchedule({ id: selectedClient.id, ...input }), result => scheduleNotification('Fixed weekly schedule', result)),
         saved: reload,
       } : undefined}
-      assignmentWorkflow={apiMode && snapshot.capabilities?.clientAssignmentWrites ? {
-        review: () => runAction(() => services.previewClientAssignment({ id: selectedClient.id, expectedVersion: selectedClient.version })),
-        save: draft => runAction(() => clientService.reassignTrainer({ id: selectedClient.id, draft }), { message: 'Trainer permanently reassigned.' }),
+      assignmentWorkflow={apiMode && snapshot.capabilities?.clientAssignmentWrites ? packageId => ({
+        review: () => runAction(() => services.previewClientAssignment({ id: selectedClient.id, expectedVersion: selectedClient.version, packageId })),
+        save: draft => runAction(() => clientService.reassignTrainer({ id: selectedClient.id, draft }), { message: 'Package Trainer permanently reassigned.' }),
         saved: reload,
-      } : undefined}
+      }) : undefined}
       packageActionWorkflow={apiMode && snapshot.capabilities?.packageActionWrites ? (packageId, operation) => ({
         review: () => services.reviewPackageAction({ id: selectedClient.id, packageId, operation }),
         save: input => clientService[operation === 'deactivate' ? 'deactivatePackage' : 'deletePackageSessions']({ id: selectedClient.id, options: { packageId, ...input } }),
@@ -140,7 +140,7 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
       }}
       onLoadProgressReportHistory={loadProgressReportHistory}
       onReassignTrainer={async draft => {
-        const result = await runAction(() => clientService.reassignTrainer({ id: selectedClient.id, draft }), { message: 'Trainer permanently reassigned.' })
+        const result = await runAction(() => clientService.reassignTrainer({ id: selectedClient.id, draft }), { message: 'Package Trainer permanently reassigned.' })
         await reload()
         return result
       }}

@@ -3,6 +3,7 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { exerciseVideoCaption } from './exerciseVideo.js'
 import useReportService from '../../hooks/useReportService.js'
 import usePreparedReport from '../../hooks/usePreparedReport.js'
+import useReportSharing from '../../hooks/useReportSharing.js'
 import { reportShareError } from '../../services/reportService.js'
 
 export default function SessionSummaryExport({ client, session, displayedSummary, recordInactive, activeEditor, requestKind, dateError, checkTrainingDate, saving, setSaving }) {
@@ -16,6 +17,9 @@ export default function SessionSummaryExport({ client, session, displayedSummary
   const reportService = useReportService()
   const report = usePreparedReport(reportService.sessionFile, { client, session, summary: includeClientSummary ? displayedSummary : '', videos: selectedVideos }, exportOpen && hasExportSelection)
 
+  const sharing = useReportSharing({ kind: 'session', targetId: session.id, purchaseId: session.packageId, includeSummary: includeClientSummary, videoIds: selectedVideoIds }, { client, session, summary: displayedSummary }, reportService.sessionFile)
+  const file = sharing.file ?? report.file
+
   useEffect(() => { if (recordInactive) setExportOpen(false) }, [recordInactive])
 
   const openExportSummary = () => {
@@ -27,12 +31,13 @@ export default function SessionSummaryExport({ client, session, displayedSummary
   }
 
   const exportSummary = async () => {
-    if (saving || !checkTrainingDate() || !hasExportSelection || !report.file) return
+    if (saving || !checkTrainingDate() || !hasExportSelection || !file) return
+    if (sharing.enabled && !sharing.file) return sharing.authorize()
     setShareError('')
     setSaving(true)
     try {
       // Already prepared: invoke the device share from the explicit click.
-      await reportService.share(report.file)
+      await reportService.share(file)
       setExportOpen(false)
     } catch (error) {
       if (error.name !== 'AbortError') setShareError(reportShareError(error))
@@ -54,12 +59,12 @@ export default function SessionSummaryExport({ client, session, displayedSummary
           <ConfirmDialog
             open={exportOpen}
             title="Export Summary"
-            confirmLabel={saving ? 'Sharing…' : 'Share PDF'}
-            confirmDisabled={saving || Boolean(dateError) || !hasExportSelection || !report.file}
+            confirmLabel={saving ? 'Sharing…' : sharing.busy ? 'Checking report…' : sharing.pending ? 'Check Approval' : 'Share PDF'}
+            confirmDisabled={saving || sharing.busy || Boolean(dateError) || !hasExportSelection || !file}
             onCancel={() => { if (!saving) setExportOpen(false) }}
             onConfirm={exportSummary}
           >
-            <fieldset className="export-summary-section" disabled={saving}>
+            <fieldset className="export-summary-section" disabled={saving || sharing.busy}>
             <legend>Selected Videos</legend>
             {recordedVideos.length ? (
               <div className="export-video-list">
@@ -84,7 +89,7 @@ export default function SessionSummaryExport({ client, session, displayedSummary
               <p className="empty">No videos</p>
             )}
             </fieldset>
-            <fieldset className="export-summary-section" disabled={saving}>
+            <fieldset className="export-summary-section" disabled={saving || sharing.busy}>
               <legend>Select Client Facing Summary</legend>
               <label className="export-summary-option">
                 <input type="checkbox" aria-label="Include Client-Facing Summary" checked={includeClientSummary}
@@ -95,9 +100,11 @@ export default function SessionSummaryExport({ client, session, displayedSummary
             </fieldset>
             {report.preparing && <p role="status">Preparing PDF…</p>}
             {report.error && <div role="alert"><p>{report.error}</p><button type="button" className="secondary-button" onClick={report.retry}>Retry PDF</button></div>}
+            {sharing.message && <p role="status">{sharing.message}</p>}
+            {sharing.retry && <button type="button" className="secondary-button" disabled={sharing.busy} onClick={() => sharing.authorize(true)}>Retry Original Request</button>}
             {shareError && <p role="alert">{shareError}</p>}
-            {report.file && <div className="report-file-actions"><button type="button" className="secondary-button" disabled={saving} onClick={() => {
-              try { reportService.download(report.file); setShareError('') }
+            {file && <div className="report-file-actions"><button type="button" className="secondary-button" disabled={saving} onClick={() => {
+              try { reportService.download(file); setShareError('') }
               catch (error) { setShareError(error.message) }
             }}>Download PDF</button></div>}
           </ConfirmDialog>

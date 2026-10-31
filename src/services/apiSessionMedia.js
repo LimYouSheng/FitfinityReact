@@ -1,3 +1,4 @@
+import { MAX_EXERCISE_VIDEO_BYTES } from '../app/video.js'
 import { ApiError } from './apiClient.js'
 import { fileDigest, getProtectedMedia, putLibraryMedia } from './apiLibraryMedia.js'
 
@@ -9,7 +10,7 @@ const fail = () => { throw new ApiError('API_RESPONSE', 'The recording could not
 const base = '/api/session-media'
 const path = input => `/api/sessions/${input.sessionId}/exercises/${input.exerciseId}/video`
 const validTarget = input => uuid(input?.sessionId) && uuid(input.exerciseId)
-const mediaValid = value => value === null || value && uuid(value.id) && typeof value.name === 'string' && ['video/mp4', 'video/webm', 'video/quicktime'].includes(value.type) && positive(value.size) && value.size <= 5 * 1024 * 1024 && stamp(value.attachedAt) && stamp(value.expiresAt) && Date.parse(value.expiresAt) > Date.parse(value.attachedAt)
+const mediaValid = value => value === null || value && uuid(value.id) && typeof value.name === 'string' && ['video/mp4', 'video/webm', 'video/quicktime'].includes(value.type) && positive(value.size) && value.size <= MAX_EXERCISE_VIDEO_BYTES && stamp(value.attachedAt) && stamp(value.expiresAt) && Date.parse(value.expiresAt) > Date.parse(value.attachedAt)
 const reviewValid = value => validTarget(value) && positive(value.version) && hash(value.expected) && mediaValid(value.media)
 
 /** Retain one original reviewed recording command and file across ambiguous responses. */
@@ -65,7 +66,7 @@ export function sessionMediaCommands(http, actionSession, fetchImpl = globalThis
         // while preserving the exact bytes for independent server verification.
         const type = supplied instanceof Blob ? supplied.type.split(';', 1)[0].trim() : ''
         const file = supplied instanceof Blob ? supplied.slice(0, supplied.size, type) : supplied
-        if (!remove && (!(file instanceof Blob) || !file.size || file.size > 5 * 1024 * 1024 || !['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type))) throw new ApiError('INVALID_REQUEST', 'Choose a supported non-empty video up to 5 MB.', 422)
+        if (!remove && (!(file instanceof Blob) || !file.size || file.size > MAX_EXERCISE_VIDEO_BYTES || !['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type))) throw new ApiError('INVALID_REQUEST', 'Choose a supported non-empty video up to 10 MB.', 422)
         const metadata = input.metadata ?? {}
         const body = { sessionId: input.sessionId, exerciseId: input.exerciseId, expected: input.reviewed.expected, remove,
           upload: file ? { name: metadata.name || supplied.name || 'Training video', type: file.type, size: file.size, sha256: await fileDigest(file) } : null,
@@ -113,7 +114,7 @@ export function sessionMediaCommands(http, actionSession, fetchImpl = globalThis
     async load(input, generation) {
       if (!validTarget(input)) throw new ApiError('INVALID_REQUEST', 'Choose a session recording.', 422)
       await current(generation)
-      return getProtectedMedia(http, fetchImpl, path(input), generation, () => assertCurrent(generation), 5 * 1024 * 1024, true)
+      return getProtectedMedia(http, fetchImpl, path(input), generation, () => assertCurrent(generation), MAX_EXERCISE_VIDEO_BYTES, true)
     },
   }
   return commands

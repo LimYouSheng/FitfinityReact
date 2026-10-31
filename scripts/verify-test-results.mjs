@@ -1,6 +1,9 @@
+import { API_BROWSER_CASES } from './verify-api-shards.mjs'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+
+export const BROWSER_CASES = 1155
 
 const fail = message => { throw new Error(message) }
 
@@ -11,13 +14,13 @@ export function verifyTestResults(kind, logPath) {
   if (kind === 'unit') {
     const files = [...text.matchAll(/Test Files\s+(\d+) passed\s*\((\d+)\)/g)].at(-1)
     const tests = [...text.matchAll(/\bTests\s+(\d+) passed\s*\((\d+)\)/g)].at(-1)
-    if (!files || !tests || files[1] !== '150' || files[2] !== '150' || tests[1] !== '1472' || tests[2] !== '1472') fail('Unit totals must be exactly 1472 passed / 1472 in 150 passed / 150 files.')
+    if (!files || !tests || files[1] !== '155' || files[2] !== '155' || tests[1] !== '1504' || tests[2] !== '1504') fail('Unit totals must be exactly 1504 passed / 1504 in 155 passed / 155 files.')
   } else {
-    const expected = kind === 'api-browser' ? '369' : '1152'
+    const expected = kind === 'api-browser' ? String(API_BROWSER_CASES) : String(BROWSER_CASES)
     const passed = [...text.matchAll(/(?:^|\n)\s*(\d+) passed(?:\s|$)/g)].at(-1)
     if (!passed || passed[1] !== expected || /\bError:|\b(?:Timed out waiting|No tests found)\b/.test(text)) fail(`${kind} gate must finish with exactly ${expected} passed and no errors.`)
   }
-  console.log(`\u001b[32m${kind === 'unit' ? '1472/1472 unit tests in 150 files' : kind === 'api-browser' ? '369/369 real API browser cases' : '1152/1152 browser cases'} confirmed.\u001b[0m`)
+  console.log(`\u001b[32m${kind === 'unit' ? '1504/1504 unit tests in 155 files' : kind === 'api-browser' ? `${API_BROWSER_CASES}/${API_BROWSER_CASES} real API browser cases` : `${BROWSER_CASES}/${BROWSER_CASES} browser cases`} confirmed.\u001b[0m`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

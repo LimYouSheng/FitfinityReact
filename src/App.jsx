@@ -1,3 +1,4 @@
+import AdminManagementPage from './features/staff/AdminManagementPage.jsx'
 import SessionsRoute from './features/sessions/SessionsRoute.jsx'
 import ProfileSaveRecovery from './components/ProfileSaveRecovery.jsx'
 import ExerciseLibraryRecovery from './features/exercises/ExerciseLibraryRecovery.jsx'
@@ -77,7 +78,7 @@ function PortalWorkspace({ userId }) {
   const { snapshot, error, refresh, adminCreation, clientCreation, trainerCreation } = usePortalData()
   // One history owner survives directory outages without retaining private data.
   const navigation = useAppNavigation(userId)
-  const creatingAdmin = navigation.path === 'owner-profile/create-admin'
+  const creatingAdmin = ['owner-profile/create-admin', 'admins/new'].includes(navigation.path)
   useEffect(() => {
     if (!creatingAdmin) adminCreation?.reset()
   }, [creatingAdmin, adminCreation])
@@ -104,7 +105,7 @@ function StaffPortal({ navigation }) {
   const clientCreationEnabled = !apiMode || (snapshot.capabilities?.clientCreation === true && typeof services.previewClientMatches === 'function')
   const trainerCreationEnabled = !apiMode || snapshot.capabilities?.trainerCreation === true
   const packageReadOnly = apiMode && snapshot.capabilities?.packageWrites !== true
-  const enabledRoutes = apiMode ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.exerciseLibraryWorkflows ? ['exercises'] : []), ...(snapshot.capabilities?.remunerationWorkflows ? ['remuneration'] : []), ...(snapshot.capabilities?.sessionReads ? ['sessions'] : []), ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile'] : [])] : ['my-profile']), 'change-password'] : undefined
+  const enabledRoutes = apiMode ? ['dashboard', 'account', 'clients', ...(snapshot.capabilities?.exerciseLibraryWorkflows ? ['exercises'] : []), ...(snapshot.capabilities?.remunerationWorkflows ? ['remuneration'] : []), ...(snapshot.capabilities?.sessionReads ? ['sessions'] : []), ...(snapshot.capabilities?.personalMessages ? ['messages'] : []), ...(managesOperations(user) ? ['trainers', 'packages', ...(snapshot.capabilities?.contentWorkflows ? ['content'] : []), ...(user.role === 'owner' ? ['owner-profile', 'admins'] : [])] : ['my-profile']), 'change-password'] : undefined
   const [accountBusy, setAccountBusy] = useState(false)
   const switchingAccount = useRef(false)
   const { clientService, trainerService, exerciseLibraryService, packageService, messageService, requestService, remunerationService } = services
@@ -144,7 +145,7 @@ function StaffPortal({ navigation }) {
   const route = parts[0] || 'dashboard'
   const detailId = parts[1] ?? null
   const calendarDay = route === 'dashboard' && detailId === 'day' && /^\d{4}-\d{2}-\d{2}$/.test(parts[2] ?? '') ? parts[2] : null
-  const creatingAdmin = route === 'owner-profile' && detailId === 'create-admin' && user.role === 'owner'
+  const creatingAdmin = ((route === 'owner-profile' && detailId === 'create-admin') || (route === 'admins' && detailId === 'new')) && user.role === 'owner'
   const creatingClient = route === 'clients' && detailId === 'new'
   const creatingTrainer = route === 'trainers' && detailId === 'new'
 
@@ -340,6 +341,8 @@ function StaffPortal({ navigation }) {
   } else if (route === 'messages') {
     page = apiMode && snapshot.requestResolutionPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/resolution`} pending={snapshot.requestResolutionPending} services={services} resolution /> : apiMode && snapshot.requestCancellationPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/cancellation`} pending={snapshot.requestCancellationPending} services={services} cancellation /> : apiMode && snapshot.renewalDismissalPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}/renewal`} pending={snapshot.renewalDismissalPending} services={services} renewal /> : apiMode && snapshot.messageReadPending ? <MessageReadRecovery key={`${user.id}/${snapshot.sessionGeneration}`} pending={snapshot.messageReadPending} services={services} /> : (
       <MessagesPage
+        key={`${user.id}/${snapshot.sessionGeneration}`}
+        adminApprovalServices={apiMode && managesOperations(user) ? services : undefined}
         {...messageInboxProps}
         {...(apiMode ? { ...(!snapshot.capabilities.requestResolutionWrites ? { onResolveRequest: undefined } : {}), ...(!snapshot.capabilities.requestCancellationWrites ? { onCancelRequest: undefined } : {}), ...(!snapshot.capabilities.packageActionWrites && !snapshot.capabilities.sessionUndoWrites ? { onUndo: undefined } : {}), ...(!snapshot.capabilities.renewalDismissalWrites ? { onDismissRenewal: undefined } : {}) } : {})}
         category={MESSAGE_CATEGORIES.some(item => item.key === detailId && (item.key !== 'remuneration' || canViewRemuneration(user))) ? detailId : 'all'}
@@ -388,6 +391,8 @@ function StaffPortal({ navigation }) {
       }} />
   } else if (route === 'packages') {
     page = <div className="page-head"><div><h1>Packages</h1><p>Package setup is available to the owner.</p></div></div>
+  } else if (route === 'admins' && user.role === 'owner') {
+    page = <AdminManagementPage key={`${user.id}/${snapshot.sessionGeneration}`} services={services} selectedId={creatingAdmin ? undefined : detailId} today={today} onNavigate={navigate} onBack={() => goBack('admins')} onCreate={() => navigate('admins/new')} />
   } else if (route === 'change-password') {
     page = <ChangePasswordPage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} policy={policy.password} onBack={() => goBack('dashboard')} onSave={async draft => { await runAction(() => services.auth.changePassword(draft), { message: 'Password changed.' }) }} />
   } else if (route === 'owner-profile' && user.role === 'owner') {
@@ -432,7 +437,7 @@ function StaffPortal({ navigation }) {
       <ProfileSaveRecovery />
       {page}
       {creatingAdmin && adminCreation && <CreateAdminDialog today={today} creation={adminCreation} realAuthentication={snapshot.capabilities?.realAuthentication === true}
-        onClose={() => goBack('owner-profile')} onCreate={async (body, key) => {
+        onClose={() => goBack('admins')} onCreate={async (body, key) => {
           const created = await services.staffService.createAdmin({ body, requestKey: key })
           await reload()
           return created

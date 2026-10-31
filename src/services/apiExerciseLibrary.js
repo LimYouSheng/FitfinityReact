@@ -36,7 +36,11 @@ export function exerciseLibraryCommands(http, actionSession, fetchImpl = globalT
       if (!viewed || Object.keys(viewed).length !== 4 || viewed.key !== attempt.key || !['pending', 'completed', 'expired'].includes(viewed.state) || !stamp(viewed.uploadUntil) || (viewed.state === 'completed') !== (viewed.result !== null)) fail()
       if (viewed.state === 'expired') { if (pending === attempt) pending = null; throw new ApiError('SAVE_EXPIRED', 'The original upload expired. Review a new exercise save.', 409) }
       return viewed.state === 'completed' ? accept(attempt, viewed.result) : null
-    } catch (error) { if (error.code === 'not_found') return null; throw error }
+    } catch (error) {
+      if (['APPROVAL_PENDING', 'approval_closed'].includes(error.code) && pending === attempt) pending = null
+      if (error.code === 'not_found') return null
+      throw error
+    }
   }
   const optionsFor = attempt => ({ csrf: true, expectedGeneration: attempt.generation, idempotencyKey: attempt.key })
   const commands = {

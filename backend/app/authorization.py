@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import exists, or_, select, true
+from sqlalchemy import exists, or_, select, text, true
 from sqlalchemy.orm import Session
 
 from app.auth.errors import AuthError
@@ -61,6 +61,31 @@ def client_scope(principal: Principal):
                 AssignmentEvent.new_trainer_id == principal.trainer_id,
             ),
         ),
+    )
+
+
+def coaching_scope(principal: Principal):
+    """Permanent profile assignment or a started concurrent purchase, never session cover."""
+    if principal.manages_operations:
+        return true()
+    today = text("(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Singapore')::date")
+    return or_(
+        Client.trainer_id == principal.trainer_id,
+        exists().where(
+            PackagePurchase.client_id == Client.id,
+            PackagePurchase.trainer_id == principal.trainer_id,
+            PackagePurchase.stage == "queued",
+            PackagePurchase.status == "active",
+            PackagePurchase.start_date <= today,
+            PackagePurchase.end_date >= today,
+        ),
+    )
+
+
+def can_coach_client(session: Session, principal: Principal, identity: UUID):
+    return (
+        session.scalar(select(Client.id).where(Client.id == identity, coaching_scope(principal)))
+        is not None
     )
 
 
@@ -183,6 +208,6 @@ def client_write(session: Session, principal: Principal, identity: UUID, *, coac
     if not coaching:
         principal.operations()
     record = client_record(session, principal, identity, write=True)
-    if not principal.manages_operations and principal.trainer_id != record.trainer_id:
+    if not can_coach_client(session, principal, identity):
         raise unavailable()
     return record

@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from pydantic import Field, StrictStr
 from sqlalchemy import func, select, text
 
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.schemas import Contract
 from app.api.session_booking_review import BookingPosition, inspect, position
 from app.api.session_mutation_journal import journal
@@ -54,15 +55,14 @@ def review_context(session, principal, identity, *, write=False, resolving=None)
     trainer = next(t for t in trainers if t.id == booking.trainer_id)
     now = session.scalar(select(func.clock_timestamp())).astimezone(ZoneInfo("Asia/Singapore"))
     if (
-        purchase.stage != "current"
-        or booking.schedule_state != "booked"
+        booking.schedule_state != "booked"
         or trainer.status != "active"
         or (booking.training_date, booking.starts_at)
         <= (now.date(), now.time().replace(tzinfo=None))
     ):
         raise AuthError(
             "postponement_unavailable",
-            "Only an upcoming current-package booking can be postponed.",
+            "Only an upcoming booking can be postponed.",
             409,
         )
     weekly = session.scalar(
@@ -108,6 +108,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("session.postpone")
 def reconcile(session, principal, key):
     saved = receipt(session, principal, key)
     if saved is None:
@@ -148,6 +149,9 @@ def notify(session, principal, booking, client, trainer, request_id):
     return notice.id
 
 
+@supervised(
+    "sessionScheduling", "session.postpone", PostponeSession, receipt=receipt, target="identity"
+)
 @journal("session.postpone")
 def save(session, principal, identity, key, body):
     """Receipt, proposal or applied booking, history and notices share one transaction."""

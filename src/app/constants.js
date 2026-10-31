@@ -6,16 +6,17 @@ export const OWNER_NAV = [
 
   { key: 'remuneration', label: 'Remuneration', group: 'Remuneration' },
 
+  { key: 'admins', label: 'Admin', group: 'System' },
   { key: 'messages', label: 'Messages', group: 'System' },
   { key: 'owner-profile', label: 'Profile', group: 'System' },
 
-  { key: 'packages', label: 'Packages', group: 'Setup' },
+  { key: 'packages', label: 'Packages', group: 'System' },
 
   { key: 'exercises', label: 'Exercise Library', group: 'Management' },
   { key: 'content', label: 'Content Management', group: 'Management' },
 ]
 
-export const ADMIN_NAV = OWNER_NAV.filter(item => item.key !== 'remuneration').map(item => item.key === 'owner-profile' ? { ...item, key: 'account' } : item)
+export const ADMIN_NAV = OWNER_NAV.filter(item => !['remuneration', 'admins'].includes(item.key)).map(item => item.key === 'owner-profile' ? { ...item, key: 'account' } : item)
 
 export const TRAINER_NAV = [
   { key: 'dashboard', label: 'Dashboard', group: 'Trainer' },

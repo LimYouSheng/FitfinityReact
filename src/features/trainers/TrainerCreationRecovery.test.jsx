@@ -48,3 +48,17 @@ it('cannot restore a retired login from a late successful creation', async () =>
   expect(recovery.getSnapshot()).toEqual({})
   expect(onCreated).not.toHaveBeenCalled()
 })
+
+it('keeps a confirmed approval proposal separate from a created Trainer and prevents resubmission', async () => {
+  const recovery = workflow(), onCreated = vi.fn()
+  const onCreate = vi.fn().mockRejectedValue(Object.assign(new Error('Submitted'), { code: 'APPROVAL_PENDING', status: 409 }))
+  const first = setup(recovery, onCreate, onCreated)
+  await confirm()
+  expect(await screen.findByRole('status')).toHaveTextContent('No Trainer account has been created yet')
+  expect(screen.queryByRole('button', { name: 'Create Trainer', exact: true })).not.toBeInTheDocument()
+  first.unmount()
+  setup(recovery, onCreate, onCreated)
+  expect(screen.getByRole('heading', { name: 'Trainer request submitted' })).toBeVisible()
+  expect(onCreate).toHaveBeenCalledTimes(1)
+  expect(onCreated).not.toHaveBeenCalled()
+})

@@ -24,13 +24,20 @@ const draft = (patch = {}) => ({ ...packageDraftForClient(client(), mockDb.read(
   packageId: 'package-12', packageVersion: 1, startDate: '2027-01-04', sessionsPerWeek: 1,
   genderPreference: 'No gender preference', ...patch })
 const renew = request => clientService.renewPackage('c1', request ?? draft(), owner())
+// Historical assertions buy before the start date, then observe the same purchase later.
+async function buyJanuaryPackageAndAdvanceToMay(request) {
+  vi.setSystemTime(new Date('2027-01-03T04:00:00Z'))
+  await renew(request)
+  vi.setSystemTime(new Date('2027-05-01T04:00:00Z'))
+  return mockDb.reload().clients.find(item => item.id === 'c1')
+}
 const reactivateOptions = packageId => ({ packageId, expected: clientReactivationSnapshot(client(), mockDb.read().sessions, mockDb.read().packageCreditTransactions) })
 beforeEach(() => { localStorage.clear(); mockDb.reset(); vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2027-05-01T04:00:00Z')) })
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
 it('renews atomically without creating a client, overwriting a package or colliding session IDs', async () => {
   const before = mockDb.read(), original = client()
-  const result = await renew()
+  const result = await buyJanuaryPackageAndAdvanceToMay()
   const after = mockDb.reload()
   expect(after.clients).toHaveLength(before.clients.length)
   expect(result.package).toMatchObject({ total: 12, used: 0, startDate: '2027-01-04', validityDays: 90 })
@@ -46,7 +53,7 @@ it('renews atomically without creating a client, overwriting a package or collid
 })
 
 it.each([[12, 90], [24, 180], [36, 270]])('package validity gives a renewed %i-session purchase exactly %i days after reload', async (total, days) => {
-  const result = await renew(draft({ packageId: `package-${total}` }))
+  const result = await buyJanuaryPackageAndAdvanceToMay(draft({ packageId: `package-${total}` }))
   const purchased = clientPackages(result).find(item => item.renewalRequest)
   expect(purchased).toMatchObject({ total, validityDays: days, startDate: '2027-01-04', endDate: addDays('2027-01-04', days - 1) })
   expect(mockDb.reload().sessions.filter(item => item.packageId === purchased.id)).toHaveLength(total)
@@ -54,26 +61,32 @@ it.each([[12, 90], [24, 180], [36, 270]])('package validity gives a renewed %i-s
 })
 
 it('handles concurrent duplicate renewals once and rejects changed or stale requests', async () => {
+  vi.setSystemTime(new Date('2027-01-03T04:00:00Z'))
   const request = draft(), before = mockDb.read()
   const [first, second] = await Promise.all([renew(request), renew(request)])
   expect(second).toEqual(first)
   const saved = mockDb.read()
   expect(saved.sessions.length).toBe(before.sessions.length + 12)
   await expect(renew({ ...request, startDate: '2027-02-01' })).rejects.toThrow('already been used')
-  await expect(renew({ ...request, requestId: 'another' })).rejects.toThrow('changed')
+  await expect(renew({ ...request, requestId: 'another' })).rejects.toThrow('conflicts')
+  await expect(renew({ ...request, requestId: 'stale-review', expectedPackageId: 'obsolete' })).rejects.toThrow('changed')
   expect(mockDb.read()).toEqual(saved)
 })
 
 it('preserves all data if renewal persistence fails and permits a safe retry', async () => {
+  vi.setSystemTime(new Date('2027-01-03T04:00:00Z'))
   const request = draft(), before = mockDb.read()
   vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Storage full') })
   await expect(renew(request)).rejects.toThrow('Storage full')
   expect(mockDb.read()).toEqual(before)
   await renew(request)
+  vi.setSystemTime(new Date('2027-05-01T04:00:00Z'))
+  mockDb.reload()
   expect(client().packageHistory).toHaveLength(before.clients[0].packageHistory.length + 1)
 })
 
 it('validates package version, calendar date, cadence, trainer preference and schedule conflicts before writing', async () => {
+  vi.setSystemTime(new Date('2027-01-03T04:00:00Z'))
   const before = mockDb.read()
   for (const change of [{ packageVersion: 0 }, { startDate: '2027-02-30' }, { sessionsPerWeek: 2.5 },
     { sessionsPerWeek: 2 }, { genderPreference: 'Female trainer preferred' }, { startDate: '2026-08-01' },
@@ -90,7 +103,7 @@ it('validates package version, calendar date, cadence, trainer preference and sc
 it('keeps old-session progress and credit on the old package after renewal and reload', async () => {
   const previousId = client().package.id, previousUsed = client().package.used
   await sessionService.saveExercisePlan('s1', [{ id: 'row', name: 'Package Row', weight: '30 kg', reps: '8', rounds: '3' }], mockDb.read().users.find(user => user.role === 'owner'))
-  const result = await renew()
+  const result = await buyJanuaryPackageAndAdvanceToMay()
   await sessionService.acknowledge('s1', { method: 'signature', signerName: 'Amanda', signature: signatureFixture }, owner())
   mockDb.reload()
   expect(client().package.used).toBe(0)
@@ -115,7 +128,7 @@ it('preserves unresolved legacy measurements outside reports across renewal and 
   const archived = mockDb.read().progressMigrationArchive
   expect(archived).toEqual([{ clientId: 'c1', exerciseId: 'old-row', exerciseName: 'Old Row', point }])
   expect(progressForPackage(client(), null)).toEqual([])
-  await renew()
+  await buyJanuaryPackageAndAdvanceToMay()
   mockDb.mutate(db => updateClientProgress(db, 'c1'))
   mockDb.reload()
   expect(mockDb.read().progressMigrationArchive).toEqual(archived)
@@ -127,7 +140,7 @@ it('preserves unresolved legacy measurements outside reports across renewal and 
 
 it('repairs known seed sessions to their original purchase after renewal and resolves only reliable progress links', async () => {
   const originalId = client().package.id
-  await renew()
+  await buyJanuaryPackageAndAdvanceToMay()
   const db = mockDb.read(), target = db.clients[0], original = target.packageHistory.find(item => item.id === originalId)
   const session = db.sessions.find(item => item.id === 'history-c1-1')
   session.packageId = null
@@ -177,7 +190,7 @@ it('does not publish Progress cleanup when its storage write fails and retries w
 
 it('records report actions per purchase and preserves package-scoped idempotency and owner-only history', async () => {
   const previousId = client().package.id
-  await renew()
+  await buyJanuaryPackageAndAdvanceToMay()
   const action = { id: 'old-export', kind: 'pdf_export', packageId: previousId }
   await clientService.recordProgressReportAction('c1', action, owner())
   await clientService.recordProgressReportAction('c1', { id: 'new-export', kind: 'pdf_export', packageId: client().package.id }, owner())
@@ -232,7 +245,7 @@ it('keeps inactive sessions immutable during trainer deactivation and retains co
 
 it('deactivates a package once with owner evidence, retains sessions by default and freezes only its own sessions', async () => {
   const oldId = client().package.id
-  await renew()
+  await buyJanuaryPackageAndAdvanceToMay()
   const newId = client().package.id, before = mockDb.read()
   await clientService.deactivatePackage('c1', { packageId: newId }, owner())
   const inactive = client().package, after = mockDb.read()
@@ -247,7 +260,9 @@ it('deactivates a package once with owner evidence, retains sessions by default 
   await expect(sessionService.acknowledge(frozen.id, { method: 'late_no_show' }, owner())).rejects.toThrow('Package inactive')
   await sessionService.saveClientSummary('s1', 'Older active package remains editable', mockDb.read().users.find(user => user.role === 'owner'))
   expect(client().packageHistory.find(item => item.id === oldId).status).not.toBe('inactive')
-  await renew(draft({ requestId: 'corrected-renewal', startDate: '2026-11-16' }))
+  await renew(draft({ requestId: 'corrected-renewal', startDate: '2027-05-03' }))
+  vi.setSystemTime(new Date('2027-05-03T04:00:00Z'))
+  mockDb.reload()
   expect(client().packageHistory[0]).toEqual(inactive)
 })
 
@@ -356,14 +371,14 @@ it('package reactivation refuses stale reviews, unknown sessions and inactive cl
   expect(mockDb.read()).toEqual(inactive)
 })
 
-it('package reactivation rejects overlapping active purchases and inactive retained-session trainers', async () => {
+it('package reactivation allows overlapping validity but rejects inactive retained-session trainers', async () => {
   const packageId = client().package.id
   await clientService.deactivatePackage('c1', { packageId }, owner())
   const inactiveClient = client()
   mockDb.mutate(db => { db.clients[0].additionalPackages = [{ ...db.clients[0].package, id: 'overlap', status: 'active' }] })
-  const before = mockDb.read()
-  await expect(clientService.reactivatePackage('c1', reactivateOptions(packageId), owner())).rejects.toThrow('overlaps')
-  expect(mockDb.read()).toEqual(before)
+  await clientService.reactivatePackage('c1', reactivateOptions(packageId), owner())
+  expect(clientPackages(client()).find(item => item.id === packageId).status).toBe('active')
+  expect(clientPackages(client()).find(item => item.id === 'overlap')).toMatchObject({ status: 'active' })
   mockDb.mutate(db => { db.clients[0] = inactiveClient; db.trainers[0].status = 'inactive' })
   const disabled = mockDb.read()
   await expect(clientService.reactivatePackage('c1', reactivateOptions(packageId), owner())).rejects.toThrow('assigned trainer')
@@ -440,7 +455,7 @@ it('prefills current settings and applies a reviewed new trainer and schedule on
   const [from, to] = trainer.availability.Monday[0]
   const schedule = [{ id: 'replacement-slot', day: 'Monday', from, to }]
   const preferences = [{ id: 'replacement-preference', days: ['Monday'], from, to }]
-  const result = await renew({ ...initial, trainerId: trainer.id, fixedWeeklySchedule: schedule, clientPreferences: preferences })
+  const result = await buyJanuaryPackageAndAdvanceToMay({ ...initial, trainerId: trainer.id, fixedWeeklySchedule: schedule, clientPreferences: preferences })
   expect(result).toMatchObject({ trainerId: trainer.id, fixedWeeklySchedule: schedule, clientPreferences: preferences })
   expect(result.phone).toEqual(client().phone)
   expect(result.package).toMatchObject({ trainerId: trainer.id, fixedWeeklySchedule: schedule })
@@ -499,22 +514,25 @@ it('queues future purchases without replacing current terms, progress, trainer o
   expect(mockDb.reload().clients.find(item => item.id === 'c1')).toEqual(result)
 })
 
-it('rejects inclusive package overlap even without session conflicts and queues multiple distinct purchases', async () => {
+it('allows overlapping purchases with independent Trainers and credits while rejecting actual booking conflicts', async () => {
   vi.setSystemTime(new Date('2026-09-09T04:00:00Z'))
-  const initial = client(), before = mockDb.read()
-  await expect(renew(draft({ startDate: initial.package.endDate, minimumStartDate: undefined }))).rejects.toThrow('last day')
-  expect(mockDb.read()).toEqual(before)
+  const initial = client()
   const first = await renew(), existing = first.additionalPackages[0]
   const saved = mockDb.read()
-  await expect(renew(draft({ requestId: 'overlap', startDate: existing.endDate }))).rejects.toThrow('last day')
+  await expect(renew(draft({ requestId: 'conflicting-slot' }))).rejects.toThrow('conflicts')
   expect(mockDb.read()).toEqual(saved)
-  const nextDraft = packageDraftForClient(client(), saved.sessions, saved.packages, '2026-09-09')
-  expect(nextDraft.startDate > existing.endDate).toBe(true)
-  const result = await renew({ ...nextDraft, requestId: 'second-purchase', packageVersion: 1 })
+  const result = await renew(draft({ requestId: 'parallel-purchase', trainerId: 't2',
+    clientPreferences: [{ id: 'parallel', days: ['Monday'], from: '19:00', to: '20:00' }],
+    fixedWeeklySchedule: [{ id: 'parallel', day: 'Monday', from: '19:00', to: '20:00' }] }))
   expect(result.package).toEqual(initial.package)
   expect(result.additionalPackages).toHaveLength(2)
-  expect(result.additionalPackages[1].startDate > existing.endDate).toBe(true)
-  expect(new Set(mockDb.read().sessions.map(item => item.id)).size).toBe(mockDb.read().sessions.length)
+  const parallel = result.additionalPackages.find(item => item.id !== existing.id)
+  expect(parallel).toMatchObject({ startDate: existing.startDate, endDate: existing.endDate, trainerId: 't2', used: 0, total: 12 })
+  expect(result.additionalPackages.find(item => item.id === existing.id)).toEqual(existing)
+  const sessions = mockDb.reload().sessions
+  expect(sessions.filter(item => item.packageId === parallel.id)).toHaveLength(12)
+  expect(sessions.filter(item => item.packageId === parallel.id).every(item => item.trainerId === 't2' && item.from === '19:00')).toBe(true)
+  expect(new Set(sessions.map(item => item.id)).size).toBe(sessions.length)
 })
 
 it('promotes a due additional package once and preserves both trainers historical access', async () => {
@@ -642,14 +660,17 @@ it('changes current weekly times without altering a separately scheduled additio
   expect(mockDb.read().sessions.filter(item => item.packageId === client().package.id && item.date > '2026-09-09' && item.status !== 'completed').every(item => item.from === '19:00' && item.to === '20:15')).toBe(true)
 })
 
-it('defaults Add Package to the first saved weekly slot after all active purchases and today', () => {
+it('defaults Add Package to the first future saved weekly slot independently of other purchase validity', () => {
   const db = mockDb.read(), source = client()
   const make = (input, today = '2026-09-09') => packageDraftForClient(input, db.sessions, db.packages, today)
-  expect(make(source)).toMatchObject({ minimumStartDate: '2026-11-15', startDate: '2026-11-16' })
+  expect(make(source)).toMatchObject({ minimumStartDate: '2026-09-10', startDate: '2026-09-14' })
   const twice = { ...source, fixedWeeklySchedule: [{ id: 'wed', day: 'Wednesday', from: '18:00', to: '19:00' }, { id: 'sat', day: 'Saturday', from: '10:00', to: '11:00' }] }
-  expect(make(twice).startDate).toBe('2026-11-18')
-  expect(make(twice, '2027-01-02').startDate).toBe('2027-01-02')
+  expect(make(twice).startDate).toBe('2026-09-12')
+  expect(make(twice, '2027-01-02').startDate).toBe('2027-01-06')
   const queued = { ...source, additionalPackages: [{ ...source.package, id: 'next', endDate: '2027-02-01' }] }
-  expect(make(queued)).toMatchObject({ minimumStartDate: '2027-02-02', startDate: '2027-02-08' })
-  expect(make({ ...queued, additionalPackages: [{ ...queued.additionalPackages[0], status: 'inactive' }] }).startDate).toBe('2026-11-16')
+  expect(make(queued)).toMatchObject({ minimumStartDate: '2026-09-10', startDate: '2026-09-14' })
+  expect(make({ ...queued, additionalPackages: [{ ...queued.additionalPackages[0], status: 'inactive' }] }).startDate).toBe('2026-09-14')
+  // A server-reviewed Monday minimum is already tomorrow, not a date to increment again.
+  expect(packageDraftForClient(source, db.sessions, db.packages, '2026-09-13', '2026-09-14'))
+    .toMatchObject({ minimumStartDate: '2026-09-14', startDate: '2026-09-14' })
 })

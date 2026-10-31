@@ -93,3 +93,18 @@ it('retains the reviewed edit version across refresh and uses current terms for 
   await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Deactivate Package', exact: true }))
   expect(onSave.mock.calls[1][0]).toMatchObject({ expectedVersion: 3, draft: { name: 'Latest terms', total: 36, status: 'inactive' } })
 })
+
+it('does not navigate to a fabricated saved package after an approval submission', async () => {
+  const user = userEvent.setup(), onNavigate = vi.fn()
+  const onSave = vi.fn().mockRejectedValue(Object.assign(new Error('Pending approval'), { code: 'APPROVAL_PENDING', status: 409 }))
+  show({ onSave, onNavigate })
+  await user.type(screen.getByLabelText('Package name'), 'Reviewed package')
+  await user.type(screen.getByLabelText('Package session count'), '18')
+  await user.click(screen.getByRole('button', { name: 'Create Package', exact: true }))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Create Package', exact: true }))
+  expect(await screen.findByRole('status')).toHaveTextContent('No changes have been applied.')
+  expect(screen.queryByRole('button', { name: 'Create Package', exact: true })).not.toBeInTheDocument()
+  expect(onNavigate).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'View Requests' }))
+  expect(onNavigate).toHaveBeenCalledExactlyOnceWith('messages')
+})

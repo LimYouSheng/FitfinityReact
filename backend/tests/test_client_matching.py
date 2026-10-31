@@ -1,6 +1,6 @@
 """Matching reads current PostgreSQL bookings and never reserves or discloses health."""
 
-from datetime import time
+from datetime import time, timedelta
 from uuid import uuid4
 
 import pytest
@@ -14,7 +14,7 @@ from tests.test_admin_api import invitations as invitations
 from tests.test_staff_api import api as api
 from tests.test_staff_api import trainer_login
 
-pytestmark = pytest.mark.database
+pytestmark = [pytest.mark.database, pytest.mark.parametrize("graph", ["future"], indirect=True)]
 
 
 def request_body(graph):
@@ -126,3 +126,16 @@ def test_authenticated_admin_can_preview_and_csrf_remains_required(
     assert preview(api, graph).status_code == 200
     api.headers.pop("X-CSRF-Token")
     assert preview(api, graph).status_code == 403
+
+
+@pytest.mark.parametrize("days_before_future_start", [1, 2])
+def test_onboarding_rejects_today_and_past_start_without_writes(
+    api, domain_db, graph, days_before_future_start
+):
+    declared_hours(domain_db, graph)
+    start = graph["start_date"] - timedelta(days=days_before_future_start)
+    response = preview(api, graph, startDate=start.isoformat())
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["message"] == "Choose a future start date."
+    with domain_db.transaction() as session:
+        assert session.scalar(select(func.count()).select_from(TrainingSession)) == 2

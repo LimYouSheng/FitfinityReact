@@ -48,10 +48,12 @@ def activate_due(session):
                 or purchased.start_date > today
             ):
                 continue
-            if current.status == "active" and current.end_date >= purchased.start_date:
-                raise AuthError(
-                    "state_conflict", "Purchased dates overlap. Review the packages.", 409
-                )
+            if current.status == "active" and current.end_date >= today:
+                # Concurrent purchases retain their own Trainer/settings. The current
+                # row is the profile default, not exclusive ownership of usable credits.
+                if purchased.activated_at is None:
+                    purchased.activated_at = now
+                continue
             current.stage = "archived"
             session.flush()  # Release the immediate one-current-purchase constraint first.
             purchased.stage = "current"

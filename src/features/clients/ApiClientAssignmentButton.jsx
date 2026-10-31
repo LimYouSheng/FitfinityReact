@@ -34,7 +34,7 @@ export default function ApiClientAssignmentButton({ client, workflow, timeZone, 
       } catch (failure) { if (isCurrent()) setError(failure.message) }
       finally { locked.current = false; setBusy(false) }
     }}>{busy ? 'Checking Trainers…' : 'Reassign Trainer'}</button>
-    {draft && <ReassignTrainerDialog client={client} trainers={[]} sessions={[]} timeZone={timeZone}
+    {draft && <ReassignTrainerDialog client={client} purchaseId={draft.reviewed.purchases[0].id} trainers={[]} sessions={[]} timeZone={timeZone}
       reviewed={draft.reviewed} initialTrainerId={draft.trainerId} uncertain={draft.uncertain}
       onSave={async value => {
         try { await workflow.save(value); setSaved(true) }

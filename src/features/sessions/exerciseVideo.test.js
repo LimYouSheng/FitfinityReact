@@ -43,9 +43,9 @@ describe('exercise video rules', () => {
     })).toEqual(['Romanian Deadlift', '40 kg', '8 reps', '2 rounds', '1 minute rest interval'])
 
     expect(exerciseVideoFileValidation({ type: 'video/mp4', size: MAX_EXERCISE_VIDEO_BYTES })).toBeNull()
-    expect(exerciseVideoFileValidation({ type: 'video/mp4', size: MAX_EXERCISE_VIDEO_BYTES + 1 })).toBe('Video must be 5 MB or smaller.')
+    expect(exerciseVideoFileValidation({ type: 'video/mp4', size: MAX_EXERCISE_VIDEO_BYTES + 1 })).toBe('Video must be 10 MB or smaller.')
     expect(exerciseVideoValidation({ type: 'video/mp4', size: MAX_EXERCISE_VIDEO_BYTES }, 60)).toBeNull()
-    expect(exerciseVideoValidation({ type: 'video/mp4', size: MAX_EXERCISE_VIDEO_BYTES + 1 }, 60)).toBe('Video must be 5 MB or smaller.')
+    expect(exerciseVideoValidation({ type: 'video/mp4', size: MAX_EXERCISE_VIDEO_BYTES + 1 }, 60)).toBe('Video must be 10 MB or smaller.')
     expect(exerciseVideoValidation({ type: 'video/mp4', size: 10 }, 60.01)).toBe('Video must be 1 minute or shorter.')
     expect(exerciseVideoValidation({ type: 'image/png', size: 10 }, 1)).toBe('Choose a video file.')
   })

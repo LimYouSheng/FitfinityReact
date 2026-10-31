@@ -10,6 +10,7 @@ from pydantic import Field, StrictInt, ValidationError
 from sqlalchemy import select, text
 
 from app.api import request_application
+from app.api.admin_supervision import supervised, supervised_recovery
 from app.api.request_cancellation import DECISION_LOCK, RequestActor
 from app.api.schemas import Contract
 from app.api.session_mutation_journal import journal
@@ -43,6 +44,7 @@ def receipt(session, principal, key):
     )
 
 
+@supervised_recovery("request.resolve")
 def reconcile(session, principal, key):
     """Return the original actor's receipt without applying a proposal again."""
     principal.operations()
@@ -90,6 +92,9 @@ def notify(session, principal, request):
         session.add(MessageReceipt(message_id=message.id, user_id=identity))
 
 
+@supervised(
+    "sessionScheduling", "request.resolve", ResolveRequest, receipt=receipt, target="identity"
+)
 @journal("request.resolve")
 def save(session, principal, identity, key, body):
     """Bind current authority, immutable proposal, decision version and exact retry intent."""
