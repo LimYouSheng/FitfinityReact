@@ -33,6 +33,16 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 31 October 2026 — PDF canvas comparison and software-backed readback mitigation
+
+Transport candidateca17e20 passed all369 local real-API cases in21.1minutes with2 workers and no retries; the strict receipt checker passed and owned Docker resources were removed. Its CI run41199629750 passed both API shards and aggregate while frontend/backend remained pending. PR114 fresh-main run41198362253 completed successfully. The obsolete PR115 docs-only run41198468301 was cancelled to release the updated candidate, not represented as passed.
+
+Primary-source investigation found that Playwright1.64.1's [WebKit source binding](https://github.com/microsoft/playwright/blob/v1.64.1/browser_patches/webkit/UPSTREAM_CONFIG.sh) uses56453fdfe, the same revision used by the investigation of [WebKit280745](https://bugs.webkit.org/show_bug.cgi?id=280745). Its bootstrap patch contains no identified fix for that issue. This is a related worker/GPU resource hazard; Fitfinity's original trace has no stack establishing that exact cause. A font-readiness hang is less consistent with this trace because both encoder-worker and SVG blob requests had already started after the renderer's fonts.ready await.
+
+A separate, network-isolated Linux WebKit2370 probe rendered80 synthetic PDFs while repainting page text, then repeated with willReadFrequently:true on both 2D contexts. Baseline: first791ms, mean143ms, range92–791ms; candidate: first189ms, mean69ms, range54–189ms. Both produced PDF bytes, kept page painting active and closed normally; neither reproduced the original failure. These are bounded synthetic timings, not production latency budgets or physical-device acceptance.
+
+The PDF owner now requests software-backed page/worker contexts for immediate JPEG readback, reducing exposure to the known GPU path without disabling graphics, changing runner flags, removing workers or changing PDF dimensions/quality. Existing rasterizer regressions assert that option in worker and fallback paths while retaining resource/error/order checks. Six focused units, then all1472 units across150 files passed with the strict receipt checker. All27 focused real-API report/handoff cases passed acrossdesktop/phone/tablet in1.6minutes, including persisted audits, scope rejection and lost-response recovery without duplicate device actions. Lint/code health and documentation path/fence/history-preservation checks passed. New-head CI and merge remain pending at preparation. The original rendering/capture episode remains an unproven root cause with a measured mitigation; deployment stays paused, and no blanket M6 closure is claimed.
+
 ### 31 October 2026 — M6 pre-deployment reliability investigation
 
 The user authorized developer AWS deployment for physical M6 checks, then paused deployment to resolve retained issues first. No image publication, deployment, AWS mutation or provider action occurred. Work continues in existing draftPR115 from head29f4a92, with main849b454 and all8 stashes preserved.

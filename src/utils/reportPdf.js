@@ -38,13 +38,16 @@ export function reportPdfDocument(pages, title) {
   return new Blob(chunks, { type: 'application/pdf' })
 }
 
+// PDFs immediately read pixels back for JPEG encoding. Prefer software-backed
+// canvases in both threads: avoid GPU texture transfers/cache ownership hazards
+// in Linux WebKit (upstream bug 280745) without changing browser/runner settings.
 // Keep the worker body self-contained so the PDF owner also owns its encoder.
 function reportEncoderWorker() {
   self.onmessage = async ({ data: { bitmap, width, height } }) => {
     let canvas, consumed = false
     try {
       canvas = new OffscreenCanvas(width, height)
-      const context = canvas.getContext('2d')
+      const context = canvas.getContext('2d', { willReadFrequently: true })
       if (!context) throw new Error('The progress report encoder could not create a canvas.')
       context.drawImage(bitmap, 0, 0)
       bitmap.close()
@@ -107,7 +110,7 @@ async function rasterizePage(page, encoder, canvas) {
     })
     if (canvas.width !== page.width * 2) canvas.width = page.width * 2
     if (canvas.height !== page.height * 2) canvas.height = page.height * 2
-    const context = canvas.getContext('2d')
+    const context = canvas.getContext('2d', { willReadFrequently: true })
     if (!context) throw new Error('Your browser could not create the progress report. Please try another browser.')
     context.clearRect(0, 0, canvas.width, canvas.height)
     context.drawImage(image, 0, 0, canvas.width, canvas.height)

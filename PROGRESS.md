@@ -4,7 +4,7 @@ This file owns the **current task, exact stopping point, blockers, next actions 
 
 ## Current task — resolve retained M6 reliability findings before AWS deployment
 
-Checkpoint: 31 October 2026. The user requested developer AWS deployment for physical M6 testing, then paused it to resolve the retained PDF/rendering and transport findings first. No AWS action has been executed. PR114 is merged at `849b45442b2afe61ab0e92f5954f58a7884c577e`; its fresh-main run41198362253 was still running at this inspection. PR115 is the existing draft on `docs/development-handover`; this reliability slice extends that draft rather than creating competing handovers.
+Checkpoint: 31 October 2026. The user requested developer AWS deployment for physical M6 testing, then paused it to resolve the retained PDF/rendering and transport findings first. No AWS action has been executed. PR114 is merged at `849b45442b2afe61ab0e92f5954f58a7884c577e`; fresh-main run41198362253 has now passed. PR115 is the existing draft on `docs/development-handover`; this reliability slice extends that draft rather than creating competing handovers.
 
 ### Completed in this task
 
@@ -14,7 +14,7 @@ Checkpoint: 31 October 2026. The user requested developer AWS deployment for phy
 | Transport mechanism reproduced | A loopback server recorded Playwright `route.fetch()` leaving socket2 idle; the later readback with `Connection: close` reused socket2. Closing intercepted requests changes the readback to socket3. This establishes a pooling hazard, not retrospective proof of the server's exact reset timing. |
 | Fixture repair prepared | Shared `fetchRoute` closes all nine intercepted requests across eight specs and asserts the response closes. Original writes, response-loss scenarios, permissions and persistence assertions remain. A real HTTP regression verifies distinct connections. |
 | Focused baseline and stress evidence | Unchanged9-case PDF/reassignment pass; subsequent6-case diagnostic pass includes24 PDF preparations and desktop/tablet sidebar bounds. First PDF readiness:268ms desktop,2319ms phone,797ms tablet; repeats21–337ms. Linux synthetic-provider evidence, not physical-device acceptance. |
-| Rendering diagnosis improved | Retained DOM contains the Export Summary dialog and Preparing PDF, while the last image still shows damaged pre-dialog content; page teardown also timed out. No independent navbar layout defect or definitive renderer cause established. Added explicit modal/file readiness assertions, timing annotation and browser-process logging. |
+| Rendering diagnosis and mitigation | Retained DOM contains the Export Summary dialog and Preparing PDF, while the last image still shows damaged pre-dialog content; page teardown also timed out. No independent navbar layout defect or definitive renderer cause established. Added explicit modal/file readiness assertions, timing annotation and browser-process logging. A controlled80-export comparison found software-backed canvas readback faster (69ms mean versus143ms), and the renderer now requests it on both threads; exact original root cause remains unproven. |
 
 ### Campaign contract and leave-off
 
@@ -23,15 +23,15 @@ Checkpoint: 31 October 2026. The user requested developer AWS deployment for phy
 | Outcome / scope | Resolve the three retained symptoms before developer AWS physical M6 acceptance; BR029/035/047/064. Isolated synthetic storage only during this campaign. |
 | Repository / branch | Existing `/workspace/FitfinityReact`, `docs/development-handover`, based on main849b454; preserve all8 stashes. PR115 previously had head29f4a92. |
 | Acceptance | Causal repair evidence, relevant persistence/authority regressions, complete369-case real-API suite and all three exact-head CI gates. A passing rerun alone cannot close the rendering finding. |
-| Verification in progress | Full local369-case suite running with2 workers and no retries; isolated Docker PostgreSQL/storage. Semantic lint passed;98 quality/guard regressions passed. Final-head CI and merge pending. |
+| Verification in progress | Transport candidate ca17e20 passed all369 local real-API cases in21.1minutes and both CI API shards/aggregate in run41199629750. PDF-context mitigation passed all1472 units/150 files and27 focused real-API export/recovery cases across3 projects; lint and code health passed again. Final-head CI/merge pending;98 quality guards passed on the unchanged fixture/tooling inputs. |
 | Unresolved | PDF/browser stall and damaged capture remain unproven despite bounded successful probes. Obtain browser-process evidence if it recurs; do not alter timeouts, renderer selection, worker counts or assertions to hide it. |
-| Budget | First bounded90-minute block; transport hypothesis/repair and renderer lifetime probe completed. Full-suite evidence next; reassess after6 substantive iterations or90 active minutes. |
+| Budget | First bounded90-minute block; transport repair, renderer lifetime/full-suite probes and controlled canvas comparison completed. Full-suite evidence next; reassess after6 substantive iterations or90 active minutes. |
 | External boundary | AWS deployment remains user-paused until reliability disposition. Real Cognito, populated recovery and physical desktop/Samsung/iPad UAT remain subsequent acceptance, not locally fixable evidence. |
 
 ### Resume in this order
 
-1. Finish and inspect the running local real-API suite, preserving failures; verify the fixture repair across all intercepted scenarios and retain strict369-case discovery/receipt checks.
-2. Use complete-suite/browser-process evidence to continue the renderer investigation. Current evidence narrows the damaged navbar image to the same stalled rendering episode; it does not prove a fix. No arbitrary CSS or encoder replacement.
+1. Inspect the newest PR115 head and all3 required CI gates. Local1472-unit and27-case PDF checks pass; the preceding369-case transport pass is recorded separately and does not replace complete new-head CI.
+2. Use final-head browser-process evidence to assess the renderer mitigation. Current evidence narrows the damaged navbar image to the same stalled rendering episode; it does not prove a fix. No arbitrary CSS or encoder replacement.
 3. Update PR115's final scope and evidence, then require all final-head frontend/backend/API-browser gates and normal GitHub requirements. Record fresh-main separately; preserve original failures even if CI passes.
 4. Return to the authorized developer AWS preparation only after the user's paused reliability objective is resolved or they explicitly accept a remaining blocker. Bind current source/artifacts, migrations, backup/recovery and rollback before deployment; no bootstrap replay.
 5. Complete designated real-Cognito and physical M6 worksheets before M7. Keep planned mutation/latency/Grafana and operational work in the backlog below.
