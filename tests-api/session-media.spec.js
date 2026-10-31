@@ -14,8 +14,11 @@ async function open(page, info, purpose, role = 'trainer') {
   await page.getByRole('button', { name: 'Manage video for Recorded squat', exact: true }).click()
   return { booking, item, path: `/api/sessions/${booking.id}/exercises/${item.id}/video` }
 }
-async function choose(page) {
-  await page.getByLabel('Attach video for Recorded squat', { exact: true }).setInputFiles('tests/fixtures/silent-one-second.webm')
+async function choose(page, audio = false) {
+  const checkbox = page.getByRole('checkbox', { name: 'Include original audio (if present)', exact: true })
+  await expect(checkbox).not.toBeChecked()
+  if (audio) await checkbox.check()
+  await page.getByLabel('Attach video for Recorded squat', { exact: true }).setInputFiles(audio ? 'tests/fixtures/tone-one-second.webm' : 'tests/fixtures/silent-one-second.webm')
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Save Video', exact: true })).toBeEnabled()
 }
 async function save(page) {
@@ -25,8 +28,12 @@ async function save(page) {
 
 test('Trainer recording UI persists real bytes after fresh login and removal remains durable', async ({ page, browser }, info) => {
   const original = await open(page, info, 'videowrite')
-  await choose(page)
+  await choose(page, true)
+  const converted = await page.getByText('Original audio included (if present)', { exact: true }).count() > 0
+  if (info.project.name === 'desktop-chromium') expect(converted).toBe(true)
+  const uploadIntent = page.waitForRequest(request => request.url().endsWith('/api/session-media/intents') && request.method() === 'POST')
   await save(page)
+  expect((await uploadIntent).postDataJSON()).toMatchObject({ audioIncluded: converted ? true : null, processingStatus: converted ? 'complete' : 'deferred' })
   await page.reload()
   const context = await freshContext(browser, page)
   try {
@@ -38,6 +45,17 @@ test('Trainer recording UI persists real bytes after fresh login and removal rem
     await expect(fresh.getByText('Available until', { exact: false })).toBeVisible()
     const detail = await read(fresh, `/api/sessions/${original.booking.id}/details`)
     expect(detail.exercisePlan[0]).toMatchObject({ id: original.item.id, name: 'Recorded squat', videoAttached: true })
+    if (converted) {
+      const peak = await fresh.locator('video').evaluate(async video => {
+        const context = new AudioContext()
+        try {
+          const bytes = await (await fetch(video.src)).arrayBuffer()
+          const decoded = await context.decodeAudioData(bytes)
+          return decoded.getChannelData(0).reduce((maximum, sample) => Math.max(maximum, Math.abs(sample)), 0)
+        } finally { await context.close() }
+      })
+      expect(peak).toBeGreaterThan(0.02)
+    }
     expect(detail.purchase.used).toBe(0)
     await fresh.getByRole('button', { name: 'Remove saved video', exact: true }).click()
     await fresh.getByRole('dialog').getByRole('button', { name: 'Remove Video', exact: true }).click()

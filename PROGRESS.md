@@ -2,39 +2,38 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns reusable campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns every-PR documentation reconciliation.
 
-## Current task — resolve retained M6 reliability findings before AWS deployment
+## Current task — optional recording audio and monthly cleanup policy
 
-Checkpoint: 31 October 2026. The user requested developer AWS deployment for physical M6 testing, then paused it to resolve the retained PDF/rendering and transport findings first. No AWS action has been executed. PR114 is merged at `849b45442b2afe61ab0e92f5954f58a7884c577e`; fresh-main run41198362253 has now passed. PR115 is the existing draft on `docs/development-handover`; this reliability slice extends that draft rather than creating competing handovers.
+Checkpoint: 31 October 2026. The user requested an original-audio checkbox and selected monthly S3 cleanup. Existing limits and seven-day playback expiry remain unchanged. AWS deployment remains paused; no AWS action or scheduler activation has occurred. PR115 merged at `764ce1fff6c6c4c602b9f6caea949bc7e1279b30` after exact-head run 41201564978 passed all three required gates; fresh-main verification is separate. The earlier PDF stall's exact cause remains unproven despite the accepted mitigation and retained evidence in Journey.
 
 ### Completed in this task
 
 | Item | Evidence / limitation |
 | --- | --- |
-| Original evidence recovered | PDF run40709497234/artifact12826900606 and reassignment run40650892639/artifact12800252129 inspected. First failures retained in Journey. |
-| Transport mechanism reproduced | A loopback server recorded Playwright `route.fetch()` leaving socket2 idle; the later readback with `Connection: close` reused socket2. Closing intercepted requests changes the readback to socket3. This establishes a pooling hazard, not retrospective proof of the server's exact reset timing. |
-| Fixture repair prepared | Shared `fetchRoute` closes all nine intercepted requests across eight specs and asserts the response closes. Original writes, response-loss scenarios, permissions and persistence assertions remain. A real HTTP regression verifies distinct connections. |
-| Focused baseline and stress evidence | Unchanged9-case PDF/reassignment pass; subsequent6-case diagnostic pass includes24 PDF preparations and desktop/tablet sidebar bounds. First PDF readiness:268ms desktop,2319ms phone,797ms tablet; repeats21–337ms. Linux synthetic-provider evidence, not physical-device acceptance. |
-| Rendering diagnosis and mitigation | Retained DOM contains the Export Summary dialog and Preparing PDF, while the last image still shows damaged pre-dialog content; page teardown also timed out. No independent navbar layout defect or definitive renderer cause established. Added explicit modal/file readiness assertions, timing annotation and browser-process logging. A controlled80-export comparison found software-backed canvas readback faster (69ms mean versus143ms), and the renderer now requests it on both threads; exact original root cause remains unproven. |
+| Optional original audio | Checkbox defaults off and freezes with the prepared candidate. Canvas caption conversion uses Web Audio only when requested; no microphone capture or speaker output. Preview playback can be heard. Deferred originals explicitly say captions/audio selection were not applied. |
+| Actual encoded output | Chromium synthetic 440Hz clip: unchecked output has VP8 video only; checked output has VP8+Opus with audible samples (mean−21.1dB). Roughly 1.1s conversion for a 1s clip; not a device latency budget. |
+| Isolated persistence |9/9 focused session-media browser cases passed across desktop Chromium and phone/tablet WebKit profiles, including audible saved bytes after fresh sign-in where converted, lost-response recovery, stale writes, foreign denial and durable removal. Actual PostgreSQL and isolated object storage; no AWS/customer data. |
+| Unit/guard coverage | Four dialog regressions cover default silent, opted-in audio, honest fallback and cancelled late result. Unit inventory updated to 1476 cases/151 files; full candidate run passed (112.87s). API inventory remains369; existing cases were strengthened. Lint, code health and98 quality guards passed, including the additional stale-inventory rejection fixture. |
+| Monthly policy | Routine session-media physical cleanup selected for the first day in Asia/Singapore; exact time and activation remain release work. Runbook requires draining beyond the 100-item CLI bound, retry execution and backlog evidence. Expiry still denies playback after 7 days; S3 versions/backups need separate inspection. |
 
 ### Campaign contract and leave-off
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Resolve the three retained symptoms before developer AWS physical M6 acceptance; BR029/035/047/064. Isolated synthetic storage only during this campaign. |
-| Repository / branch | Existing `/workspace/FitfinityReact`, `docs/development-handover`, based on main849b454; preserve all8 stashes. PR115 previously had head29f4a92. |
-| Acceptance | Causal repair evidence, relevant persistence/authority regressions, complete369-case real-API suite and all three exact-head CI gates. A passing rerun alone cannot close the rendering finding. |
-| Verification in progress | Transport candidate ca17e20 passed all369 local real-API cases in21.1minutes and both CI API shards/aggregate in run41199629750. PDF-context mitigation passed all1472 units/150 files and27 focused real-API export/recovery cases across3 projects; lint and code health passed again. Final-head CI/merge pending;98 quality guards passed on the unchanged fixture/tooling inputs. |
-| Unresolved | PDF/browser stall and damaged capture remain unproven despite bounded successful probes. Obtain browser-process evidence if it recurs; do not alter timeouts, renderer selection, worker counts or assertions to hide it. |
-| Budget | First bounded90-minute block; transport repair, renderer lifetime/full-suite probes and controlled canvas comparison completed. Full-suite evidence next; reassess after6 substantive iterations or90 active minutes. |
-| External boundary | AWS deployment remains user-paused until reliability disposition. Real Cognito, populated recovery and physical desktop/Samsung/iPad UAT remain subsequent acceptance, not locally fixable evidence. |
+| Outcome / scope | Add optional original audio with truthful browser fallback and record monthly cleanup policy; BR049/050. |
+| Repository / branch | Existing checkout, `feat/session-video-audio`, based on main764ce1f. Preserve all 8 existing stashes. |
+| Acceptance | Meaningful silent/audio output checks, focused real-API persistence and all three final-head CI gates before eligible merge. |
+| Budget | One bounded 90-minute block; no new dependencies, cloud services or AWS changes. |
+| Unresolved | Safari/physical capture/audio behavior remains device acceptance; Firefox is outside automated coverage. Monthly scheduler, retry orchestration, bucket versioning/copy erasure and measured cleanup cost remain unverified. Original PDF stall remains a mitigation with unproven root cause. |
+| External boundary | Current-source Lambda, real Cognito, populated recovery and desktop/Samsung/iPad UAT remain separate from source acceptance. |
 
 ### Resume in this order
 
-1. Inspect the newest PR115 head and all3 required CI gates. Local1472-unit and27-case PDF checks pass; the preceding369-case transport pass is recorded separately and does not replace complete new-head CI.
-2. Use final-head browser-process evidence to assess the renderer mitigation. Current evidence narrows the damaged navbar image to the same stalled rendering episode; it does not prove a fix. No arbitrary CSS or encoder replacement.
-3. Update PR115's final scope and evidence, then require all final-head frontend/backend/API-browser gates and normal GitHub requirements. Record fresh-main separately; preserve original failures even if CI passes.
-4. Return to the authorized developer AWS preparation only after the user's paused reliability objective is resolved or they explicitly accept a remaining blocker. Bind current source/artifacts, migrations, backup/recovery and rollback before deployment; no bootstrap replay.
-5. Complete designated real-Cognito and physical M6 worksheets before M7. Keep planned mutation/latency/Grafana and operational work in the backlog below.
+1. Publish the separately verified audio/policy PR and inspect final-head CI. Full 1476-unit/151-file validation, 9 focused API cases, 98 quality guards, lint/code health and documentation checks passed.
+2. Require all three exact-head CI gates and normal GitHub requirements before source merge; track fresh-main separately. Do not claim unchecked browser/physical compatibility.
+3. Prepare developer AWS acceptance only after the user's paused reliability objective is resolved or remaining uncertainty is explicitly accepted. Bind source/artifacts, migrations, backup/recovery and rollback; no bootstrap replay.
+4. During separately authorized media rollout, implement and verify the monthly schedule, bounded draining/retries and actual bucket-copy deletion behavior. A documented policy is not a running scheduler.
+5. Complete designated real-Cognito and physical M6 worksheets before M7; keep remaining engineering packages below.
 
 ## Current acceptance boundaries
 
