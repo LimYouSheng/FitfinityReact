@@ -2,6 +2,8 @@
 
 > **Guidance only, not a strict requirement.** These workflows are practical examples. [AGENTS](../AGENTS.md) owns engineering rules and action boundaries; this guide does not expand merge, deployment or provider authority.
 
+**Where development left off:** read the [current task, evidence and ordered resume steps](../PROGRESS.md#resume-in-this-order) before starting. Progress is the single current checkpoint; [Journey](journey.md#complete-journey) retains decisions and completed receipts.
+
 Commands assume the repository root. GitHub is canonical; a checkout or attached ZIP is a revision snapshot. Establish its branch and revision before combining work.
 
 ## Choose a development workflow

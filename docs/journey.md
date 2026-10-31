@@ -33,6 +33,13 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 31 October 2026 — PR114 merged and development leave-off
+
+At the user's request, merged PR114 on 31 October at 19:48 Singapore as `849b45442b2afe61ab0e92f5954f58a7884c577e`, binding tested head `37e7ccb835c07737950fc9987b479d8eb364ddcb`. [Run41165881878](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41165881878) passed frontend/backend/both real-API shards/aggregate. Fresh-main [run41198362253](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41198362253) was running at the handover checkpoint; merge is not fresh-main or AWS acceptance.
+
+The user also requested updating where development left off. Replaced the obsolete draft-PR114 task in Progress with merged evidence, the exact pending main run, completed documentation/skills, unresolved PDF/navbar/transport findings and ordered resume steps before physical acceptance. Development links to that canonical checkpoint instead of duplicating it. No application logic, guards, tests, inventories, infrastructure or acceptance policy changed; earlier failures and full roadmap remain retained.
+
+
 ### 31 October 2026 — guard updates, recurring failures and Cloud Containers
 
 Extended the testing skill in PR114 to require an explicit disposition for every affected runtime, schema/migration/artifact, verifier and environment/delivery guard. Necessary changes belong in the same PR with evidence that valid cases pass and invalid cases still fail; counts, allowlists and limits cannot be relaxed to hide defects. Added recurring-failure investigation from the second comparable occurrence, preserving occurrence/run/project/condition evidence, bounded reproduction and causal verification. Passing reruns alone do not establish a repair.

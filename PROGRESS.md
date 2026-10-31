@@ -2,39 +2,39 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns reusable campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns every-PR documentation reconciliation.
 
-## Current task — documentation and testing skills for every PR
+## Current task — development handover after PR114
 
-Checkpoint: 31 October 2026 Singapore. PR113 merged as `0a36e8138be64680b349f5b9cbd76ae7d3e678bb` after all final-head gates passed on `ef458800f011570318fbb1f16d028df641a07b8c`. Fresh-main [run40811886578](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40811886578) passed; PR112 fresh-main run40803386013 passed. Current scope is repository documentation and testing skills with explicit AGENTS entry points in draft PR114, not CI enforcement mechanisms.
+Checkpoint: 31 October 2026, 19:48 Singapore. PR114 merged as `849b45442b2afe61ab0e92f5954f58a7884c577e`. Its exact head `37e7ccb835c07737950fc9987b479d8eb364ddcb` passed [run41165881878](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41165881878): frontend, backend, both real-API shards and aggregate. Fresh-main [run41198362253](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41198362253) is running at this checkpoint, not yet accepted. The user requested this development leave-off update; no new application implementation or AWS action is in progress.
 
 ### Completed in this task
 
-| Item | Current evidence |
+| Item | Accepted source / evidence |
 | --- | --- |
-| Skill | `.agents/skills/fitfinity-documentation/SKILL.md` defines triggers, owner impact review, exact acceptance states, validation, delivery-event handling and a concise PR receipt. |
-| Discovery | AGENTS requires explicit reading for every PR; hosts with repository skill discovery can also use its frontmatter. No claim that the current session's skill catalog auto-reloads. |
-| Validation | Both skills’ YAML/name/description and 6 GFM tables, explicit AGENTS fallbacks, 20 Markdown files / 1,816 local links and balanced fences passed. Evidence-owner paths and prior Journey, business/API requirements, CI and verifier bytes preserved. |
-| Testing skill | Expanded with same-PR runtime/schema/verifier/environment guard impact and positive/negative evidence, plus recurring-failure comparison, bounded diagnosis and causal repair criteria. Added `.agents/skills/fitfinity-testing/SKILL.md`, adapted from SoccerBot to actual Fitfinity unit/simulator/real-API/backend/infrastructure owners, strict verifiers and browser permissions. Includes every-PR test-impact receipt. |
-| Development naming | Renamed the managed development route to Cloud Containers and updated its navigation anchor and AGENTS directory label. Existing browser/data/permission boundaries remain unchanged. |
-| Campaign integration | NORTH_STAR checkpoint step invokes the skill; engineering authority and campaign budgets are unchanged. |
-| State discipline | Progress/Journey updated for each PR; all other owners reviewed and changed when affected. Final-head green is recorded in the PR receipt without creating an endless status-commit loop. |
+| Documentation foundation | Rules/API/history split, architecture decisions, security/lifecycle/runbook, version inventory, role UAT and code-owner/technical-behavior maps are merged. Original rules and history retained. |
+| Campaign guide | NORTH_STAR is a reusable campaign/Ralph-loop/budget/handover procedure. AGENTS remains the engineering authority and Progress owns current work. |
+| Every-PR skills | Documentation and testing skills are merged and explicitly invoked from AGENTS; test guidance includes affected guard updates and recurring-failure diagnosis. These are instructions, not automatic CI enforcement. |
+| Development workflow | Cloud Containers naming/navigation is merged. Documentation rendering audit passed all 18 then-current root/docs files, 169 tables and 41 diagrams; skill additions subsequently passed metadata/table/link checks. |
+| Application scope | All 55 named domain operations remain source accepted (54 server-connected and one local predicate); M6 live/provider/device acceptance remains open. No documentation merge deployed Lambda. |
 
 ### Campaign contract and leave-off
 
-| Field | Current contract |
+| Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Two complementary documentation/testing procedures in repository SKILL.md files, wired into AGENTS/campaign guide; accurate current handover and dated evidence. No application/dependency/infrastructure change. |
-| Starting evidence | Main `0a36e81`; existing checkout, branch `docs/documentation-state-skill`. Unknown work/stashes/older branches preserved. |
-| Acceptance | Valid skill frontmatter and explicit discovery fallback; every canonical owner covered; update/no-change/pending classification; link/fence checks; previous history and domain requirements retained; full final-head CI before merge. |
-| Work queue | Draft → inspect owner/discovery/acceptance semantics → validate → publish draft with documentation receipt → exact-head gates. |
-| Budget | Initial 6-iteration/90-active-minute work block; documentation drafting/validation and testing-skill adaptation complete (3/6); expanded-skill validation complete (4/6). New 31 October work block: guard/failure guidance and naming drafted/validated (2/6); publish next. No new paid resource authority or claimed metered spend. |
-| Unresolved evidence | Earlier PDF export timeout, clipped trace navbar and reassignment ECONNRESET remain unexplained. Subsequent green CI did not repair or diagnose them. |
-| External boundary | Real Cognito, Lambda release, physical UAT, alert activation and tested restore remain independently pending; the skill grants no authority for them. |
+| Repository / branch | Existing `/workspace/FitfinityReact`; `docs/development-handover`, based on accepted main `849b454`. Preserve existing stashes, older branches and unknown work. |
+| Current slice | User-requested handover only: Progress checkpoint, Development pointer and Journey merge receipt. No test, fixture, guard, dependency, workflow or business-rule edits. |
+| Required validation | Local link/structure/preservation checks, then all three exact-head CI gates for the handover PR. Observe PR114 fresh-main independently. |
+| Budget | Bounded documentation block under NORTH_STAR; one drafting iteration, validation/publication next. No new paid resources or metered-spend claim. |
+| Pending PDF/UI diagnosis | Earlier PR112 tablet Trainer PDF export timed out before Download PDF appeared; its last trace frame had a clipped navbar. Both causes remain unproven. Original [run40709497234](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40709497234), artifact `fitfinity-api-traces-40709497234-1-2` (12826900606). Passing later runs do not prove repair. |
+| Pending transport diagnosis | Earlier reassignment directory readback failed with ECONNRESET after visible save/reload assertions. Cause unresolved; [run40650892639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40650892639) and original trace references remain in Journey. |
+| External acceptance | Real Cognito, current desktop/Samsung/iPad UAT, current-source Lambda rollout, assigned alert responders and tested restore remain separately pending. Synthetic PostgreSQL tests are not provider/deployment acceptance. |
 
 ### Resume in this order
 
-1. Validate both skills, owner/verifier references, links and preservation; update draft PR114 with documentation-state and test-impact receipts.
-2. Inspect PR113 fresh-main CI separately, then this PR's exact-head gates. Preserve new failures and update the current receipt honestly.
-3. Merge only the eligible tested head. Reconcile merged/fresh-main state in the PR receipt and next substantive repository checkpoint as the skill specifies; no direct-main or recursive status-only changes.
+1. Inspect the current checkout/PR and PR114 fresh-main run; complete this handover PR's own final-head gates. Keep exact run/head evidence rather than assuming an older pass applies.
+2. Before the physical-test campaign, inspect the retained tablet PDF trace and reproduce export/navbar behavior in the corresponding isolated browser/viewport. Compare any recurring occurrences and identify whether the cause is application, fixture, renderer or environment; do not label either fixed from a green rerun.
+3. Investigate the retained transport reset with its original evidence and a bounded hypothesis when resuming the reliability campaign. Update affected guards/tests only for a demonstrated cause; preserve all existing assertions, inventories and budgets.
+4. Once the reliability scope has evidence or explicit unresolved dispositions, prepare developer AWS release/provider/device acceptance under the existing runbook and UAT worksheets. Review the concrete source/artifact/migrations/backup/rollback plan before separately authorized AWS/provider actions.
+5. Continue the roadmap and prioritized M10 backlog below. Mutation/latency campaigns, OpenTelemetry/Grafana and operational restore/alert acceptance are planned, not already implemented.
 
 ## Current acceptance boundaries
 
@@ -46,7 +46,7 @@ No current-source Lambda deployment, real Cognito acceptance or current physical
 
 Follow the [full roadmap in Journey](docs/journey.md#full-milestone-roadmap). The 55-operation source target is complete; do not repeat accepted integrations or mark later milestones complete from this count.
 
-1. Complete the documentation-state skill and its verification, then prepare the remaining environment-specific M6 acceptance in the table below through separately authorized release work. The source-exit implementation is accepted; do not repeat it or infer live acceptance from synthetic-provider tests.
+1. Resolve or explicitly disposition the retained UI/transport findings below before physical acceptance, then prepare the remaining environment-specific M6 acceptance in the table below through separately authorized release work. The source-exit implementation is accepted; do not repeat it or infer live acceptance from synthetic-provider tests.
 2. Scope M7 durable events, scheduling/notifications and media processing/retention, preserving provider and deployment boundaries.
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency and Grafana remain planned; dependency automation/audit is partially implemented, with remaining supply-chain work under H4.
