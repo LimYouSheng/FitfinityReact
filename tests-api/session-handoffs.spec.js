@@ -23,10 +23,15 @@ function unchanged(after, before) {
 
 for (const [purpose, role] of [['handoff', 'trainer'], ['handoffadmin', 'admin']]) test(`${role} PDF UI does not fabricate handoff; explicit compatibility action persists once`, async ({ page, browser }, info) => {
   const { session, before } = await open(page, info, purpose, role)
+  const preparationStarted = performance.now()
   await page.getByRole('button', { name: 'Export Summary', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Export Summary', exact: true })
+  await expect(dialog).toBeVisible()
+  const downloadButton = dialog.getByRole('button', { name: 'Download PDF', exact: true })
+  await expect(downloadButton).toBeEnabled()
+  info.annotations.push({ type: 'pdf-ready-ms', description: String(Math.round(performance.now() - preparationStarted)) })
   const download = page.waitForEvent('download')
-  await dialog.getByRole('button', { name: 'Download PDF', exact: true }).click()
+  await downloadButton.click()
   const file = await download
   expect(await file.failure()).toBeNull()
   expect((await readFile(await file.path())).subarray(0, 5).toString()).toBe('%PDF-')

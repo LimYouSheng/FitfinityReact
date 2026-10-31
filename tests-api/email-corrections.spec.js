@@ -1,4 +1,4 @@
-import { test, expect, signIn, read, post, account, freshContext, confirm } from './fixtures.js'
+import { fetchRoute, test, expect, signIn, read, post, account, freshContext, confirm } from './fixtures.js'
 
 async function openTrainer(page, info, scope, role = 'owner') {
   await signIn(page, role, account(scope, role))
@@ -88,7 +88,7 @@ test('lost correction response recovers one original request and survives fresh 
   await page.route(path, async route => {
     if (route.request().method() !== 'POST') return route.continue()
     writes++; key = route.request().headers()['idempotency-key']
-    const response = await route.fetch()
+    const response = await fetchRoute(route)
     expect(response.status()).toBe(200)
     await route.abort('failed')
   })

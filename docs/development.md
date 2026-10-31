@@ -160,7 +160,7 @@ Dependent draft PRs may target an unmerged task branch with exact ancestry recor
 | Manual AWS image workflow | Exact main revision, fresh verification and existing release/approval gates | Automatic runtime deployment; dispatch still needs authority |
 | Dependabot generation | Grouped version proposals; security proposals may arrive separately | A patch merged or deployed |
 
-[Workflows](../.github/workflows) own executable behavior; the [runbook](runbook.md#6-deployments-and-rollback) owns release procedures. Preserve original failing logs/traces and distinguish failed, cancelled, queued and approval-blocked jobs. A green update-generation job is not application CI. Keep a PR draft until ready; all three required gates and GitHub requirements must pass for the exact final head before the authorized source merge. Verify main separately; deployment/provider acceptance remains separate again.
+[Workflows](../.github/workflows) own executable behavior; the [runbook](runbook.md#6-deployments-and-rollback) owns release procedures. API-browser evidence includes browser-process diagnostics (`pw:browser`) and PDF readiness timing annotations. Intercepted real requests use `tests-api/fixtures.js`’s `fetchRoute` to close pooled test connections; browser-originated traffic is unchanged. Preserve original failing logs/traces and distinguish failed, cancelled, queued and approval-blocked jobs. A green update-generation job is not application CI. Keep a PR draft until ready; all three required gates and GitHub requirements must pass for the exact final head before the authorized source merge. Verify main separately; deployment/provider acceptance remains separate again.
 
 ## Current engineering expectations
 

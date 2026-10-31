@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
+import { fetchRoute, test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
 
 /** Open a real seeded client dedicated to this browser project and workflow. */
 async function clientPage(page, info, purpose) {
@@ -188,7 +188,7 @@ async function holdReview(page, path) {
   const ready = new Promise(resolve => { arrived = resolve })
   const gate = new Promise(resolve => { release = resolve })
   await page.route(`**${path}`, async route => {
-    const response = await route.fetch()
+    const response = await fetchRoute(route)
     expect(response.status()).toBe(200)
     arrived()
     await gate

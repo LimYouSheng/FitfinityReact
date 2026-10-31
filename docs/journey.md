@@ -33,6 +33,18 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 31 October 2026 — M6 pre-deployment reliability investigation
+
+The user authorized developer AWS deployment for physical M6 checks, then paused deployment to resolve retained issues first. No image publication, deployment, AWS mutation or provider action occurred. Work continues in existing draftPR115 from head29f4a92, with main849b454 and all8 stashes preserved.
+
+Recovered original PDF artifact12826900606 (run40709497234, Linux WebKit1.64.1, tablet810×1080 at2×). At trace487328ms the DOM contains the Export Summary dialog and Preparing PDF; the final image at487507ms shows stale pre-dialog content with damaged text beyond the sidebar. Further DOM snapshots stop and context teardown also times out. This is evidence of a broader rendering stall, not proof that CSS clipped the navbar or that the PDF worker caused it. Original server calls succeeded; root cause remains unresolved.
+
+Recovered reassignment artifact12800252129 (run40650892639): save and reload passed before the directory readback reset. A separate real loopback HTTP/Playwright probe demonstrated that route.fetch leaves a pooled keep-alive socket and the later Connection:close readback still reuses it. After using the shared fetchRoute helper, the server observed distinct sockets for intercepted review and readback. All9 intercepted calls across8 specs now close their connection, with a response-header assertion; a new real HTTP guard regression verifies distinct sockets. This removes the demonstrated pooling hazard without retries, timeout changes or altering browser-originated traffic. Exact historic FIN/reset timing cannot be reconstructed from the retained trace.
+
+On unchanged application source, a focused9-case real-API pass covered PDF and permanent reassignment on all3 projects. A temporary bounded diagnostic then passed6 cases:8 PDF open/prepare/close cycles per project (24 total), sidebar bounds after close on desktop/tablet, and repaired reassignment on all3. First-ready milliseconds: desktop268, phone2319, tablet797; repeats21–337. Tests use actual isolated Docker PostgreSQL/storage and synthetic Cognito. The temporary diagnostic was removed after retaining its result; no suite inventory was reduced. These passes do not establish physical-device performance or repair the original stall.
+
+Session PDF tests now assert modal visibility and file readiness separately and retain pdf-ready-ms annotations. API CI retains pw:browser process diagnostics alongside existing traces/results. Semantic lint, code health and98 quality/guard checks passed; changed-document paths/fences and complete prior Journey preservation were checked. The first code-health attempt was blocked by sandbox subprocess EPERM; the supported-permission run passed without source changes. Full369-case local API execution, new-head CI and merge remain pending at preparation. Business rules, API schemas, production runtime, dependencies, permissions and deployed state remain unchanged. Deployment stays paused while the renderer finding remains unresolved.
+
 ### 31 October 2026 — PR114 merged and development leave-off
 
 At the user's request, merged PR114 on 31 October at 19:48 Singapore as `849b45442b2afe61ab0e92f5954f58a7884c577e`, binding tested head `37e7ccb835c07737950fc9987b479d8eb364ddcb`. [Run41165881878](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41165881878) passed frontend/backend/both real-API shards/aggregate. Fresh-main [run41198362253](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41198362253) was running at the handover checkpoint; merge is not fresh-main or AWS acceptance.

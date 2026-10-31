@@ -2,39 +2,39 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns reusable campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns every-PR documentation reconciliation.
 
-## Current task — development handover after PR114
+## Current task — resolve retained M6 reliability findings before AWS deployment
 
-Checkpoint: 31 October 2026, 19:48 Singapore. PR114 merged as `849b45442b2afe61ab0e92f5954f58a7884c577e`. Its exact head `37e7ccb835c07737950fc9987b479d8eb364ddcb` passed [run41165881878](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41165881878): frontend, backend, both real-API shards and aggregate. Fresh-main [run41198362253](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41198362253) is running at this checkpoint, not yet accepted. The user requested this development leave-off update; no new application implementation or AWS action is in progress.
+Checkpoint: 31 October 2026. The user requested developer AWS deployment for physical M6 testing, then paused it to resolve the retained PDF/rendering and transport findings first. No AWS action has been executed. PR114 is merged at `849b45442b2afe61ab0e92f5954f58a7884c577e`; its fresh-main run41198362253 was still running at this inspection. PR115 is the existing draft on `docs/development-handover`; this reliability slice extends that draft rather than creating competing handovers.
 
 ### Completed in this task
 
-| Item | Accepted source / evidence |
+| Item | Evidence / limitation |
 | --- | --- |
-| Documentation foundation | Rules/API/history split, architecture decisions, security/lifecycle/runbook, version inventory, role UAT and code-owner/technical-behavior maps are merged. Original rules and history retained. |
-| Campaign guide | NORTH_STAR is a reusable campaign/Ralph-loop/budget/handover procedure. AGENTS remains the engineering authority and Progress owns current work. |
-| Every-PR skills | Documentation and testing skills are merged and explicitly invoked from AGENTS; test guidance includes affected guard updates and recurring-failure diagnosis. These are instructions, not automatic CI enforcement. |
-| Development workflow | Cloud Containers naming/navigation is merged. Documentation rendering audit passed all 18 then-current root/docs files, 169 tables and 41 diagrams; skill additions subsequently passed metadata/table/link checks. |
-| Application scope | All 55 named domain operations remain source accepted (54 server-connected and one local predicate); M6 live/provider/device acceptance remains open. No documentation merge deployed Lambda. |
+| Original evidence recovered | PDF run40709497234/artifact12826900606 and reassignment run40650892639/artifact12800252129 inspected. First failures retained in Journey. |
+| Transport mechanism reproduced | A loopback server recorded Playwright `route.fetch()` leaving socket2 idle; the later readback with `Connection: close` reused socket2. Closing intercepted requests changes the readback to socket3. This establishes a pooling hazard, not retrospective proof of the server's exact reset timing. |
+| Fixture repair prepared | Shared `fetchRoute` closes all nine intercepted requests across eight specs and asserts the response closes. Original writes, response-loss scenarios, permissions and persistence assertions remain. A real HTTP regression verifies distinct connections. |
+| Focused baseline and stress evidence | Unchanged9-case PDF/reassignment pass; subsequent6-case diagnostic pass includes24 PDF preparations and desktop/tablet sidebar bounds. First PDF readiness:268ms desktop,2319ms phone,797ms tablet; repeats21–337ms. Linux synthetic-provider evidence, not physical-device acceptance. |
+| Rendering diagnosis improved | Retained DOM contains the Export Summary dialog and Preparing PDF, while the last image still shows damaged pre-dialog content; page teardown also timed out. No independent navbar layout defect or definitive renderer cause established. Added explicit modal/file readiness assertions, timing annotation and browser-process logging. |
 
 ### Campaign contract and leave-off
 
 | Field | Current checkpoint |
 | --- | --- |
-| Repository / branch | Existing `/workspace/FitfinityReact`; `docs/development-handover`, based on accepted main `849b454`. Preserve existing stashes, older branches and unknown work. |
-| Current slice | User-requested handover only: Progress checkpoint, Development pointer and Journey merge receipt. No test, fixture, guard, dependency, workflow or business-rule edits. |
-| Required validation | Local link/structure/preservation checks, then all three exact-head CI gates for the handover PR. Observe PR114 fresh-main independently. |
-| Budget | Bounded documentation block under NORTH_STAR; one drafting iteration, validation/publication next. No new paid resources or metered-spend claim. |
-| Pending PDF/UI diagnosis | Earlier PR112 tablet Trainer PDF export timed out before Download PDF appeared; its last trace frame had a clipped navbar. Both causes remain unproven. Original [run40709497234](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40709497234), artifact `fitfinity-api-traces-40709497234-1-2` (12826900606). Passing later runs do not prove repair. |
-| Pending transport diagnosis | Earlier reassignment directory readback failed with ECONNRESET after visible save/reload assertions. Cause unresolved; [run40650892639](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40650892639) and original trace references remain in Journey. |
-| External acceptance | Real Cognito, current desktop/Samsung/iPad UAT, current-source Lambda rollout, assigned alert responders and tested restore remain separately pending. Synthetic PostgreSQL tests are not provider/deployment acceptance. |
+| Outcome / scope | Resolve the three retained symptoms before developer AWS physical M6 acceptance; BR029/035/047/064. Isolated synthetic storage only during this campaign. |
+| Repository / branch | Existing `/workspace/FitfinityReact`, `docs/development-handover`, based on main849b454; preserve all8 stashes. PR115 previously had head29f4a92. |
+| Acceptance | Causal repair evidence, relevant persistence/authority regressions, complete369-case real-API suite and all three exact-head CI gates. A passing rerun alone cannot close the rendering finding. |
+| Verification in progress | Full local369-case suite running with2 workers and no retries; isolated Docker PostgreSQL/storage. Semantic lint passed;98 quality/guard regressions passed. Final-head CI and merge pending. |
+| Unresolved | PDF/browser stall and damaged capture remain unproven despite bounded successful probes. Obtain browser-process evidence if it recurs; do not alter timeouts, renderer selection, worker counts or assertions to hide it. |
+| Budget | First bounded90-minute block; transport hypothesis/repair and renderer lifetime probe completed. Full-suite evidence next; reassess after6 substantive iterations or90 active minutes. |
+| External boundary | AWS deployment remains user-paused until reliability disposition. Real Cognito, populated recovery and physical desktop/Samsung/iPad UAT remain subsequent acceptance, not locally fixable evidence. |
 
 ### Resume in this order
 
-1. Inspect the current checkout/PR and PR114 fresh-main run; complete this handover PR's own final-head gates. Keep exact run/head evidence rather than assuming an older pass applies.
-2. Before the physical-test campaign, inspect the retained tablet PDF trace and reproduce export/navbar behavior in the corresponding isolated browser/viewport. Compare any recurring occurrences and identify whether the cause is application, fixture, renderer or environment; do not label either fixed from a green rerun.
-3. Investigate the retained transport reset with its original evidence and a bounded hypothesis when resuming the reliability campaign. Update affected guards/tests only for a demonstrated cause; preserve all existing assertions, inventories and budgets.
-4. Once the reliability scope has evidence or explicit unresolved dispositions, prepare developer AWS release/provider/device acceptance under the existing runbook and UAT worksheets. Review the concrete source/artifact/migrations/backup/rollback plan before separately authorized AWS/provider actions.
-5. Continue the roadmap and prioritized M10 backlog below. Mutation/latency campaigns, OpenTelemetry/Grafana and operational restore/alert acceptance are planned, not already implemented.
+1. Finish and inspect the running local real-API suite, preserving failures; verify the fixture repair across all intercepted scenarios and retain strict369-case discovery/receipt checks.
+2. Use complete-suite/browser-process evidence to continue the renderer investigation. Current evidence narrows the damaged navbar image to the same stalled rendering episode; it does not prove a fix. No arbitrary CSS or encoder replacement.
+3. Update PR115's final scope and evidence, then require all final-head frontend/backend/API-browser gates and normal GitHub requirements. Record fresh-main separately; preserve original failures even if CI passes.
+4. Return to the authorized developer AWS preparation only after the user's paused reliability objective is resolved or they explicitly accept a remaining blocker. Bind current source/artifacts, migrations, backup/recovery and rollback before deployment; no bootstrap replay.
+5. Complete designated real-Cognito and physical M6 worksheets before M7. Keep planned mutation/latency/Grafana and operational work in the backlog below.
 
 ## Current acceptance boundaries
 

@@ -1,4 +1,4 @@
-import { test, expect, signIn, read, account, freshContext } from './fixtures.js'
+import { fetchRoute, test, expect, signIn, read, account, freshContext } from './fixtures.js'
 
 /** Wait for assessment cards above Remarks before choosing click coordinates. */
 async function openNotesEditor(page, panel) {
@@ -132,7 +132,7 @@ for (const committed of [true, false]) test(`cancelled notes recover their origi
     if (route.request().method() !== 'POST') return route.continue()
     writes.push({ body: route.request().postData(), key: route.request().headers()['idempotency-key'] })
     if (writes.length > 1) return route.continue()
-    if (committed) expect((await route.fetch()).status()).toBe(200)
+    if (committed) expect((await fetchRoute(route)).status()).toBe(200)
     await route.abort('failed')
   })
   await panel.getByRole('button', { name: 'Save', exact: true }).click()

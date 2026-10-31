@@ -1,4 +1,4 @@
-import { test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
+import { fetchRoute, test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
 
 async function openPackage(page, info, purpose) {
   await signIn(page, 'owner', account(purpose))
@@ -49,7 +49,7 @@ test('lost package deactivation response recovers the original write without res
   let writes = 0
   await page.route('**/api/clients/*/purchases/*/actions', async route => {
     writes++
-    const response = await route.fetch()
+    const response = await fetchRoute(route)
     expect(response.status()).toBe(200)
     await route.abort('failed')
   })
