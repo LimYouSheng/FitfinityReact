@@ -9,7 +9,7 @@ Commands assume the repository root. GitHub is canonical; a checkout or attached
 | Way | Best suited to | Where work happens | How changes return |
 | --- | --- | --- | --- |
 | [1. Local VS Code](#1-local-development-with-vs-code) | Interactive editing, debugging and local browser checks | Your computer and task branch | Reviewed commit, push and draft PR |
-| [2. Codex Cloud](#2-development-with-codex-cloud) | Repository investigation, implementation and isolated verification | Connected repository and managed workspace | Task branch and draft PR |
+| [2. Cloud Containers](#2-development-with-cloud-containers) | Repository investigation, implementation and isolated verification | Connected repository and managed workspace | Task branch and draft PR |
 | [3. ZIP attached to chat](#3-development-through-a-zip-attached-to-chat) | Review when repository access is unavailable | Identified source snapshot | Reviewed patch integrated into a task branch, then normal CI |
 
 All three routes converge on the same source review and verification process. A chat response or ZIP is not a deployment pipeline.
@@ -77,7 +77,7 @@ Edit the existing owning module and meaningful affected tests. Run focused check
 
 Install matching Playwright browsers/system dependencies when needed; do not upgrade the package just to obtain an executable. Fitfinity permits Codex browser preparation and Playwright execution. Simulator tests establish frontend contracts; real API tests exercise FastAPI, migrations, PostgreSQL and protected storage with a synthetic Cognito provider. Real Cognito, physical devices and deployed AWS acceptance remain separate.
 
-## 2. Development with Codex Cloud
+## 2. Development with Cloud Containers
 
 Connect the intended repository/account and verify workspace readiness, branch, HEAD, working tree, remote main, open PRs and CI. A reused workspace may contain unfinished work. Follow its runtime instructions and network/CA policy; check credential presence without printing values.
 

@@ -33,6 +33,29 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 31 October 2026 — guard updates, recurring failures and Cloud Containers
+
+Extended the testing skill in PR114 to require an explicit disposition for every affected runtime, schema/migration/artifact, verifier and environment/delivery guard. Necessary changes belong in the same PR with evidence that valid cases pass and invalid cases still fail; counts, allowlists and limits cannot be relaxed to hide defects. Added recurring-failure investigation from the second comparable occurrence, preserving occurrence/run/project/condition evidence, bounded reproduction and causal verification. Passing reruns alone do not establish a repair.
+
+Renamed the development guide's Codex Cloud route to Cloud Containers, including its table-of-contents anchor and AGENTS directory label; historical references remain historical. These are instruction/naming edits, not changes to runtime guards, suites, budgets or deployment permissions. PR113 fresh-main run40811886578 is confirmed successful. PR114 remains open and its new head requires full CI. Validation passed 20 Markdown files / 1,816 local links/anchors, testing-skill metadata/four GFM tables, exact rename comparison and prior-history preservation. Executable tests, guards and verifier inventories remain unchanged; no application suite was rerun locally for this prose-only change.
+
+
+### 29 October 2026 — Fitfinity testing skill
+
+The user requested adapting [SoccerBot's testing skill](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/4cb7bdd157862f8dd924948889281b2023a7b9a8/.agents/skills/soccerbot-testing/SKILL.md). Added `.agents/skills/fitfinity-testing/SKILL.md` to the existing skills PR114. It follows the reference's impact mapping, meaningful expectations, fixture/inventory synchronization, diagnosis and PR-receipt structure, using actual Fitfinity source owners and all three exact-head gates. Fitfinity permits isolated Playwright execution; SoccerBot's owner-only browser restriction, Worker/D1 providers and JSON inventory files were not imported.
+
+The skill distinguishes unit/simulator evidence, real FastAPI/migrations/Docker PostgreSQL/object storage, synthetic Cognito, process restart, macOS/WebKit CI, physical-device and live AWS/provider acceptance. It requires a justified add/update/retain/retire disposition, foreign-record/stale/concurrent/interrupted-write evidence where relevant, exact verifier updates and retention of first failures. No tests, fixtures, inventories, budgets, application behavior or provider authority changed. AGENTS explicitly invokes both skills and the documentation skill includes the testing guide in its impact map. The skill is procedural, not an automatic hook or new coverage guarantee. Validation passed both skill metadata blocks and five GFM tables, 20 Markdown files / 1,816 local links, balanced fences, evidence-owner paths and preservation of prior history/domain/CI/verifier bytes. No executable suite rerun was needed locally for this instruction-only addition; new-head full CI remains pending.
+
+
+### 29 October 2026 — PR113 accepted and documentation-state skill
+
+PR113 merged at 11:23 Singapore as `0a36e8138be64680b349f5b9cbd76ae7d3e678bb`, after [run40804531719](https://github.com/LimYouSheng/FitfinityReact/actions/runs/40804531719) passed frontend, backend, both real-API shards and aggregate for `ef458800f011570318fbb1f16d028df641a07b8c`. Fresh-main run40811886578 was running at inspection; PR112 fresh-main run40803386013 passed. No AWS rollout or unresolved PDF/navbar repair is implied.
+
+The user explicitly requested a documentation skill, superseding the earlier decision not to create a repository skill. Added `.agents/skills/fitfinity-documentation/SKILL.md` with standard name/description frontmatter and AGENTS instructions to read it even when automatic discovery is unavailable. It applies to every PR, including bot/dependency/docs updates: review every document owner, update affected requirements/status/evidence, retain unchanged-owner reasoning and record pending delivery boundaries. Progress and Journey receive current/historical records; other owners change when affected, not through empty edits.
+
+The skill separates repository checkpoints from later PR/CI/merge receipts so an already-tested commit is not changed merely to record its own green status. Fresh-main and external acceptance remain separate. It introduces no installed CI hook, unattended runner, extra business rule, deployment authority or claim of automatic catalog reload. NORTH_STAR links the procedure at its checkpoint step; AGENTS remains the engineering authority. Validation passed the skill frontmatter, explicit fallback, 19 Markdown files / 1,814 local links, balanced fences and preservation of prior Journey, business rules, API contracts, versions and CI budgets. No application tests were rerun locally for these instruction-only changes; the new head requires complete CI.
+
+
 ### 29 October 2026 — full documentation rendering audit
 
 Audited all 18 root/docs Markdown files with GFM parsing and local Chromium rendering: 169 tables, 41 Mermaid diagrams (including four historical Journey diagrams), 1,810 local links/anchors and balanced fences. The historical reviewed-write sequence diagram failed because Mermaid interpreted its message semicolon as syntax. Escaped it as `#59;`, retaining the displayed text “Definitive rejection; no changes”; no historical decision or application behavior changed. All 41 diagrams then rendered to nonempty SVG and all tables retained matching cell counts. This is local Markdown/Mermaid renderer evidence, not a pixel-identical GitHub UI or external-link availability audit. The earlier 37-diagram count covered current specialist documents and did not include those four historical diagrams. Correction is included in PR113; new-head CI remains required.
