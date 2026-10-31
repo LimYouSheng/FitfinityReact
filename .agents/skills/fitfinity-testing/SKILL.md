@@ -62,7 +62,7 @@ Fitfinity does **not** use SoccerBot's `test-inventory.json` or Worker inventory
 | Owner | What must remain synchronized |
 | --- | --- |
 | `scripts/verify-test-results.mjs` and its regression tests | Declared unit file/case totals and browser/API-browser totals; rejection of failed, skipped, retried/flaky, interrupted and incomplete output. Totals alone do not establish behavioral coverage. |
-| `scripts/verify-api-shards.mjs`, its tests and `verify.yml` | Fresh full Playwright discovery compared with two complementary shard reports, exact case identity and complete execution once. Preserve worker/retry/repeat settings and shard-success requirements. |
+| `scripts/verify-api-shards.mjs`, its tests and `verify.yml` | Shared API-browser count in `verify-api-shards.mjs`, consumed by text receipts and checked against actual Playwright discovery in the quality suite; two complementary shard reports, exact case identity and complete execution once. Preserve worker/retry/repeat settings and shard-success requirements. |
 | `backend/scripts/verify.py` | Backend collection/execution acceptance and declared constraints; inspect its actual collection/report checks before changing tests. |
 | `backend/scripts/verify-infrastructure.py` | Explicit suite/file inventories and per-suite case counts, including rejection of skips and expected failures. |
 | Playwright/Vitest/pytest configuration and owning harnesses | Project, fixture, collection, isolation and timeout behavior; do not silently omit a device, file or runtime path. |

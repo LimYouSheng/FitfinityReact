@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+export const API_BROWSER_CASES = 396
+
 const fail = message => { throw new Error(`API browser shards: ${message}`) }
 
 /** Compare stable case identities, not just totals, across independently executed shards. */
@@ -29,7 +31,7 @@ export function cases(report) {
 export function verifyApiShards(inventory, reports, jobResult) {
   if (jobResult !== 'success') fail('both shard jobs must succeed')
   const expected = cases(inventory)
-  if (inventory.config?.shard != null || expected.size !== 369) fail('full inventory must contain exactly 369 cases')
+  if (inventory.config?.shard != null || expected.size !== API_BROWSER_CASES) fail(`full inventory must contain exactly ${API_BROWSER_CASES} cases`)
   if (reports.length !== 2) fail('exactly two shard reports required')
   const seen = new Set(), shards = new Set()
   for (const report of reports) {

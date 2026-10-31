@@ -7,7 +7,7 @@ import { parse } from 'yaml'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { verifyApiShards } from './verify-api-shards.mjs'
+import { API_BROWSER_CASES, cases as discoveredCases, verifyApiShards } from './verify-api-shards.mjs'
 import { verifyTestResults } from './verify-test-results.mjs'
 import { test } from 'node:test'
 import { ESLint } from 'eslint'
@@ -249,15 +249,22 @@ test('hosting release builds API artifact without AWS authority and retains immu
   assert.equal(state.with['if-no-files-found'], 'error')
 })
 
+test('declared API browser inventory matches actual Playwright discovery', () => {
+  // Collect real case identities without starting browsers, providers or databases.
+  const result = spawnSync(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--config=playwright.api.config.js', '--list', '--reporter=json'], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(discoveredCases(JSON.parse(result.stdout)).size, API_BROWSER_CASES)
+})
+
 function shardFixture() {
-  const specs = Array.from({ length: 369 }, (_, index) => ({ id: `case-${index}`, file: 'workflow.spec.js', line: index + 1, column: 1, title: `Case ${index}`, tests: [{ projectId: ['desktop-chromium', 'phone', 'tablet'][index % 3], expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed', retry: 0, errors: [] }] }] }))
+  const specs = Array.from({ length: 396 }, (_, index) => ({ id: `case-${index}`, file: 'workflow.spec.js', line: index + 1, column: 1, title: `Case ${index}`, tests: [{ projectId: ['desktop-chromium', 'phone', 'tablet'][index % 3], expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed', retry: 0, errors: [] }] }] }))
   const report = (items, current) => ({ errors: [], config: { shard: current ? { current, total: 2 } : null, workers: 2, projects: [{ retries: 0, repeatEach: 1 }] }, suites: [{ title: 'workflow.spec.js', specs: items }], stats: { expected: items.length, unexpected: 0, flaky: 0, skipped: 0 } })
   return { inventory: report(specs), reports: [report(structuredClone(specs.slice(0, 141)), 1), report(structuredClone(specs.slice(141)), 2)] }
 }
 
 test('complete complementary shard identities pass regardless of report order', () => {
   const { inventory, reports } = shardFixture()
-  assert.equal(verifyApiShards(inventory, reports.reverse(), 'success'), 369)
+  assert.equal(verifyApiShards(inventory, reports.reverse(), 'success'), 396)
 })
 for (const [name, mutate] of [
   ['missing shard', data => data.reports.pop()],
