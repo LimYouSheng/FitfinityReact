@@ -2,11 +2,11 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns reusable campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns every-PR documentation reconciliation.
 
-## Current task — post-merge review and documentation reconciliation
+## Current task — PR117 documentation reconciliation and minimatch security repair
 
 Checkpoint: 1 November 2026 (Singapore). PR116 is merged as `1aafcbef6377f36d093260d4a63e57239cfcaefc`. Its exact final head `f4fb46acd6f3332088973dd7b3578aca6f8df987` passed [all required gates](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41233711408). [Fresh-main verification and staff-demo publishing](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41236825212) also passed. This accepts source and demo publishing, not a current-source Lambda rollout or real-provider/physical-device acceptance.
 
-The user requested a new review and accurate documentation. This follow-up removes stale draft/pending claims, corrects the API snapshot totals and records the completed evidence. It does not change runtime behavior or implement the deferred approval-vetting redesign or global2px typography increase.
+The user requested a new review and accurate documentation. This follow-up removes stale draft/pending claims, corrects the API snapshot totals and records the completed evidence. The user also requested remediation of the reported security finding in this same PR. The candidate pins the lint dependency minimatch11.0.1, refreshes its lock/inventory and adds a resolved-dependency guard. It does not change application business behavior or implement deferred approval-vetting/global2px typography work.
 
 ### Completed in this task
 
@@ -24,16 +24,16 @@ The user requested a new review and accurate documentation. This follow-up remov
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Reconcile every affected documentation owner with accepted PR116 source and fresh-main evidence; retain product rules, full history and external acceptance boundaries. |
-| Repository / branch | Existing checkout on `docs/post-116-reconciliation`, based on main1aafcbe. PR116 is closed/merged. Preserve all8 stashes. This documentation follow-up needs its own published-head CI before merge. |
-| Acceptance | Verify operation/schema counts and evidence links; inspect affected rule, security, lifecycle, navigation and UAT owners; validate links/fences and unchanged diagram bodies. Full local runtime suites are reused from identical accepted source; follow-up GitHub gates remain required. |
-| Budget | One bounded documentation-review block, up to6 substantive iterations/90 minutes; no unrelated code changes, agents, paid resources or production data. |
-| Unresolved | Documentation PR117 is open; its final-head CI/merge remains pending. GitHub reports one open moderate alert; detailed access returns403 and needs authorized-account inspection. Local Linux synthetic-touch limitations are recorded, not a failed macOS source gate. AWS/provider/device/recovery work remains below; deferred UI work remains deferred. |
+| Outcome / scope | Reconcile PR116 documentation and remediate GHSA-g3hv-75wg-m249 in PR117; retain product rules, full history and external acceptance boundaries. |
+| Repository / branch | Existing checkout on `docs/post-116-reconciliation`, based on main1aafcbe. PR116 is closed/merged. Preserve all8 stashes. PR117 now includes the dependency repair and needs complete new-head CI before merge. |
+| Acceptance | Verify operation/schema counts and evidence links; inspect affected rule, security, lifecycle, navigation and UAT owners; validate links/fences and unchanged diagram bodies. Clean npm install, complete npm audit, lint, quality/rejection checks and unit compatibility validate the changed lint dependency locally; all three new-head GitHub gates remain required. |
+| Budget | One bounded documentation-review block, up to6 substantive iterations/90 minutes; includes the user-authorized security patch and focused compatibility checks; no agents, paid resources or production data. |
+| Unresolved | Documentation PR117 is open; its final-head CI/merge remains pending. Clean install and full npm audit report zero vulnerabilities; lint546, quality101, unit1504/155, build/PWA and source health passed locally; GitHub alert27 details/closure still require authorized-account inspection because direct reads return403. No merge or alert closure is yet claimed. Local Linux synthetic-touch limitations are recorded, not a failed macOS source gate. AWS/provider/device/recovery work remains below; deferred UI work remains deferred. |
 | External boundary | No Lambda deployment, live invitation or cleanup activation occurred. Current-source real Cognito, populated recovery and physical desktop/Samsung/iPad UAT require separate evidence. General inactive-record disposal remains undecided. |
 
 ### Resume in this order
 
-1. Validate and publish this documentation reconciliation; require its complete exact-head CI and GitHub requirements before source merge. Do not redo accepted PR116 implementation.
+1. Validate and publish this documentation/security reconciliation; require its complete exact-head CI and GitHub requirements before source merge. Do not redo accepted PR116 implementation.
 2. Resume the separately scoped developer-AWS/M6 acceptance plan only through a concrete reviewed deployment plan and applicable authorization. Verify source/artifact/schema bindings and rollback compatibility first.
 3. Perform real-provider and physical-device acceptance with the role worksheets, recording failures and perceived lag. Synthetic Cognito and native-share substitutions are not live-provider/device evidence.
 4. Keep approval-vetting redesign and global2px typography work deferred until resumed. Monthly cleanup activation and general inactive-record disposal remain distinct operational/policy tasks.
@@ -65,7 +65,7 @@ PR103's grouped Dependabot policy and blocking npm high/critical audit are merge
 
 Latest observation,1 November2026: GitHub's authenticated push response reports **one open moderate vulnerability**, linking [Dependabot alert27](https://github.com/LimYouSheng/FitfinityReact/security/dependabot/27). Reading that alert through the integration returned403, so its package/advisory and relationship to the recorded minimatch audit findings remain unverified. The earlier user-reported0 open/26 closed state is historical, not current. No deployed remediation is claimed. Routine proposals105/107/108 were closed unmerged; closing PRs is not a vulnerability fix. Future grouped updates remain configured under the [runbook policy](docs/runbook.md#dependency-maintenance).
 
-Current observed npm audit in run41228690689 reports five moderate development-dependency findings rooted in minimatch glob-parts amplification, propagated through ESLint packages; the configured high/critical gate passed. This is an npm audit receipt, not a fresh GitHub-alert count. Triage a compatible upstream patch under H4; no forced downgrade/upgrade or vulnerability suppression is included in the approval-workflow candidate.
+Current PR117 security candidate: npm audit identified [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249), minimatch glob-parts amplification affecting versions below11.0.1, propagated through ESLint development tooling (six entries at this observation). A package-wide11.0.1 override removes both vulnerable10.2.6 copies; clean `npm ci` and the full development-inclusive audit now report zero vulnerabilities. An initial consumer-scoped override left one nested copy and was rejected; the new quality regression checks actual consumer resolution and every locked minimatch entry. Direct tool versions are unchanged. Full new-head CI/merge and GitHub's post-merge alert refresh remain pending; alert27's exact identity is not independently readable.
 
 Remaining work: independently reconcile alert/settings access when available, extend Python custom-lock and Compose-image update coverage, assess SBOM/provenance and triage runner OS/browser dependencies. The official Playwright container trial was not adopted; its retained scan found7 high package entries, including a GStreamer fix requiring Ubuntu Pro/ESM. The Ubuntu mirror change fixes download availability, not those findings. No paid service or AWS action is authorized by this backlog.
 

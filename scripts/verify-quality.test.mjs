@@ -3,6 +3,7 @@ import { createServer } from 'node:http'
 import { request } from '@playwright/test'
 import { fetchRoute } from '../tests-api/fixtures.js'
 import { spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { parse } from 'yaml'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -110,6 +111,29 @@ test('manual release source gate executes only for the exact entered SHA', () =>
     const result = spawnSync('bash', ['-c', script], { encoding: 'utf8', env: { PATH: process.env.PATH, EXPECTED_SHA: expected, GITHUB_SHA: sha } })
     assert.ifError(result.error)
     assert.equal(result.status === 0, expected === sha)
+  }
+})
+
+test('lint consumers and the lock contain no minimatch version affected by GHSA-g3hv-75wg-m249', () => {
+  // Check actual resolution as well as the lock: a scoped override once left a nested copy behind.
+  const require = createRequire(import.meta.url)
+  const patched = version => {
+    const [major, minor, patch] = version.split('.').map(Number)
+    assert(major > 11 || (major === 11 && (minor > 0 || patch >= 1)), `Affected minimatch ${version}`)
+  }
+  const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'))
+  const entries = Object.entries(lock.packages).filter(([name]) => name.endsWith('node_modules/minimatch'))
+  assert(entries.length > 0)
+  for (const [, entry] of entries) patched(entry.version)
+  for (const owner of ['eslint', '@eslint/config-array']) {
+    const consumer = createRequire(require.resolve(owner))
+    patched(consumer('minimatch/package.json').version)
+    const { Minimatch } = consumer('minimatch')
+    const matcher = new Minimatch('src/**/*.{js,jsx}', { dot: true })
+    assert(matcher.match('src/features/clients/ClientDetails.jsx'))
+    assert(matcher.match('src/.internal/helper.js'))
+    assert.equal(matcher.match('tests/client.spec.js'), false)
+    assert.equal(matcher.match('src/styles.css'), false)
   }
 })
 
