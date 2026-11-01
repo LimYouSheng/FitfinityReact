@@ -316,7 +316,7 @@ for (const outcome of ['failure', 'cancelled', 'skipped', undefined]) test(`aggr
 })
 
 
-for (const source of ['http://azure.archive.ubuntu.com/ubuntu/', 'https://azure.archive.ubuntu.com/ubuntu/', 'mirror+file:/etc/apt/apt-mirrors.txt']) test(`Ubuntu mirror selection preserves signed suites from ${source}`, () => {
+for (const source of ['http://azure.archive.ubuntu.com/ubuntu/', 'https://azure.archive.ubuntu.com/ubuntu/', 'mirror+file:/etc/apt/apt-mirrors.txt', 'https://us.archive.ubuntu.com/ubuntu/', 'https://archive.ubuntu.com/ubuntu/']) test(`Ubuntu mirror selection preserves signed suites from ${source}`, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fitfinity-apt-'))
   try {
     const file = path.join(dir, 'ubuntu.sources')
@@ -324,7 +324,7 @@ for (const source of ['http://azure.archive.ubuntu.com/ubuntu/', 'https://azure.
     fs.writeFileSync(file, input)
     const result = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
-    const expected = input.replace(source, 'https://us.archive.ubuntu.com/ubuntu/')
+    const expected = input.replace(source, 'https://archive.ubuntu.com/ubuntu/')
     assert.equal(fs.readFileSync(file, 'utf8'), expected)
     const again = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
     assert.equal(again.status, 0, again.stderr)

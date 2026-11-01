@@ -20,8 +20,8 @@ Repository snapshot: **1 November 2026 Singapore**, dependency inputs from main 
 | RDS engine configuration | PostgreSQL 17.11 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json); desired configuration, not a current live query |
 | Isolated S3-compatible test storage | `ghcr.io/rustfs/rustfs:1.0.3@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b` | Compose; synthetic test media only, not production S3 |
 | Frontend CI host | `macos-15` | verify.yml; runner image/tool patches change outside this repository |
-| Backend/API/release CI host | `ubuntu-latest` | Workflows; alias floats; latest investigated run used Ubuntu 24.04.5 image20261012.334.1 |
-| Browser system packages | Installed by Playwright through APT; exact versions not locked | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) selects official US archive; signing keys and suites retained |
+| Backend/API/release CI host | `ubuntu-latest` | Workflows; alias floats; latest investigated run used Ubuntu 24.04.5 image20261025.353 |
+| Browser system packages | Installed by Playwright through APT; exact versions not locked | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) selects official main archive; signing keys and suites retained |
 | Perl/OpenSSL build floors | `perl-base >=5.40.1-6+deb13u1`; `libssl3t64 >=3.5.7-1~deb13u2` | Dockerfile runs APT upgrade then checks these minimums; actual installed versions may be newer |
 
 The optional `FITFINITY_BROWSER_BACKEND_IMAGE` and `FITFINITY_BROWSER_RUNNER_IMAGE` overrides select environment-prepared images, not additional production pins. Their actual digest and contents must be captured when used. The rejected official Playwright container trial is not part of the selected runtime.
@@ -452,3 +452,5 @@ These SHA256 values identify the source inputs used above. Any change requires a
 | [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `f2c9c46692bd58d7806d2147d6a93cfe508473183a1220b6ee5e375c92b4a942` |
 | [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `43859f616032d14fad386850f0c17df3fbcdfcf4e5c6f0d9953897f42e34c558` |
 | [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `f01328b42a3b3b4642e9c8d3c8ed22ef05d093bd033e45a16db5217b4fa86923` |
+
+Browser-source helper fingerprint: `scripts/prepare-browser-apt.py` SHA-256 `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f`. PR117 replaces the unreachable US regional archive with the official main archive; package suites, signing keys, runner label and Playwright version are unchanged.
