@@ -1,6 +1,6 @@
 # Fitfinity versions
 
-Repository snapshot: **28 October 2026 Singapore**, dependency inputs from merged main **`1246fb815b1240a92fd953b85abc05f18f46bc73` (PR104)**. This is a searchable inventory for manual vulnerability triage, not a clean scan certificate or a list of what is currently deployed. Manifests, lockfiles and workflow pins remain authoritative. Refresh this file in every PR that changes them; do not patch versions only in this document.
+Repository snapshot: **1 November 2026 Singapore**, dependency inputs from main `1aafcbef6377f36d093260d4a63e57239cfcaefc` plus the minimatch security repair in PR117 (pending source acceptance). This is a searchable inventory for manual vulnerability triage, not a clean scan certificate or a list of what is currently deployed. Manifests, lockfiles and workflow pins remain authoritative. Refresh this file in every PR that changes them; do not patch versions only in this document.
 
 [Runtime and images](#runtime-and-images) · [Direct npm](#direct-npm-dependencies) · [All npm](#all-locked-npm-dependencies) · [Python](#all-locked-python-dependencies) · [GitHub Actions](#github-actions) · [Browser engines](#browser-engines) · [Manual patching](#manual-patch-guide) · [Unknown versions](#versions-that-require-artifact-or-environment-inspection)
 
@@ -20,8 +20,8 @@ Repository snapshot: **28 October 2026 Singapore**, dependency inputs from merge
 | RDS engine configuration | PostgreSQL 17.11 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json); desired configuration, not a current live query |
 | Isolated S3-compatible test storage | `ghcr.io/rustfs/rustfs:1.0.3@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b` | Compose; synthetic test media only, not production S3 |
 | Frontend CI host | `macos-15` | verify.yml; runner image/tool patches change outside this repository |
-| Backend/API/release CI host | `ubuntu-latest` | Workflows; alias floats; latest investigated run used Ubuntu 24.04.5 image20261012.334.1 |
-| Browser system packages | Installed by Playwright through APT; exact versions not locked | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) selects official US archive; signing keys and suites retained |
+| Backend/API/release CI host | `ubuntu-latest` | Workflows; alias floats; latest investigated run used Ubuntu 24.04.5 image20261025.353 |
+| Browser system packages | Installed by Playwright through APT; exact versions not locked | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) selects official main archive; signing keys and suites retained |
 | Perl/OpenSSL build floors | `perl-base >=5.40.1-6+deb13u1`; `libssl3t64 >=3.5.7-1~deb13u2` | Dockerfile runs APT upgrade then checks these minimums; actual installed versions may be newer |
 
 The optional `FITFINITY_BROWSER_BACKEND_IMAGE` and `FITFINITY_BROWSER_RUNNER_IMAGE` overrides select environment-prepared images, not additional production pins. Their actual digest and contents must be captured when used. The rejected official Playwright container trial is not part of the selected runtime.
@@ -49,6 +49,8 @@ Resolved versions come from [package-lock.json](../package-lock.json), including
 | `vite` | `^8.3.5` | `8.3.5` | development/build/test |
 | `vitest` | `^4.1.12` | `4.1.12` | development/build/test |
 | `yaml` | `2.9.1` | `2.9.1` | development/build/test |
+
+The `minimatch` override pins11.0.1 for ESLint and its config-array dependency to remediate [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249). Upstream ESLint10.14.0 still requests vulnerable10.x, so upgrading ESLint alone does not repair this advisory. Only minimatch and its new nonrecursive matcher dependency change versions; direct tooling stays pinned. Remove the override only when upstream resolves a patched version and clean-install, audit, lint/quality and full-CI evidence agree. No advisory is suppressed.
 
 ## All locked Python dependencies
 
@@ -153,7 +155,7 @@ This inventory is not a complete artifact SBOM. In particular, no unverified OS/
 
 ## All locked npm dependencies
 
-Every non-root `packages` entry in [package-lock.json](../package-lock.json) is represented below, including optional OS/architecture packages and nested duplicates. These are **271 locked entries**, not 271 packages guaranteed to be installed on every host or shipped to browsers. “Development” and “optional” are lockfile classifications. Paths disambiguate duplicate versions and can be searched directly in the lockfile.
+Every non-root `packages` entry in [package-lock.json](../package-lock.json) is represented below, including optional OS/architecture packages and nested duplicates. These are **269 locked entries**, not 269 packages guaranteed to be installed on every host or shipped to browsers. “Development” and “optional” are lockfile classifications. Paths disambiguate duplicate versions and can be searched directly in the lockfile.
 
 | Package | Locked version | Lock scope | Lock path |
 | --- | --- | --- | --- |
@@ -165,6 +167,7 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `@babel/core` | `7.29.7` | development | `node_modules/@babel/core` |
 | `@babel/generator` | `7.29.8` | development | `node_modules/@babel/generator` |
 | `@babel/helper-compilation-targets` | `7.29.7` | development | `node_modules/@babel/helper-compilation-targets` |
+| `lru-cache` | `5.1.1` | development | `node_modules/@babel/helper-compilation-targets/node_modules/lru-cache` |
 | `@babel/helper-globals` | `7.29.7` | development | `node_modules/@babel/helper-globals` |
 | `@babel/helper-module-imports` | `7.29.7` | development | `node_modules/@babel/helper-module-imports` |
 | `@babel/helper-module-transforms` | `7.29.7` | development | `node_modules/@babel/helper-module-transforms` |
@@ -187,6 +190,7 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `@csstools/css-syntax-patches-for-csstree` | `1.1.12` | development | `node_modules/@csstools/css-syntax-patches-for-csstree` |
 | `@csstools/css-tokenizer` | `4.0.0` | development | `node_modules/@csstools/css-tokenizer` |
 | `@eslint-community/eslint-utils` | `4.10.1` | development | `node_modules/@eslint-community/eslint-utils` |
+| `eslint-visitor-keys` | `3.4.3` | development | `node_modules/@eslint-community/eslint-utils/node_modules/eslint-visitor-keys` |
 | `@eslint-community/regexpp` | `4.12.2` | development | `node_modules/@eslint-community/regexpp` |
 | `@eslint/config-array` | `0.23.5` | development | `node_modules/@eslint/config-array` |
 | `@eslint/config-helpers` | `0.7.0` | development | `node_modules/@eslint/config-helpers` |
@@ -200,6 +204,7 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `@humanfs/types` | `0.15.0` | development | `node_modules/@humanfs/types` |
 | `@humanwhocodes/module-importer` | `1.0.1` | development | `node_modules/@humanwhocodes/module-importer` |
 | `@humanwhocodes/retry` | `0.4.3` | development | `node_modules/@humanwhocodes/retry` |
+| `@isaacs/nonrecursive-glob-match` | `1.0.3` | development | `node_modules/@isaacs/nonrecursive-glob-match` |
 | `@jridgewell/gen-mapping` | `0.3.13` | development | `node_modules/@jridgewell/gen-mapping` |
 | `@jridgewell/remapping` | `2.3.5` | development | `node_modules/@jridgewell/remapping` |
 | `@jridgewell/resolve-uri` | `3.1.2` | development | `node_modules/@jridgewell/resolve-uri` |
@@ -208,42 +213,27 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `@keyv/bigmap` | `1.3.1` | development | `node_modules/@keyv/bigmap` |
 | `@keyv/serialize` | `1.1.1` | development | `node_modules/@keyv/serialize` |
 | `@oxc-project/types` | `0.147.0` | development | `node_modules/@oxc-project/types` |
-| `@oxc-project/types` | `0.155.0` | development | `node_modules/vite/node_modules/@oxc-project/types` |
 | `@playwright/test` | `1.64.1` | development | `node_modules/@playwright/test` |
 | `@rolldown/binding-android-arm-eabi` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-android-arm-eabi` |
-| `@rolldown/binding-android-arm-eabi` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-android-arm-eabi` |
 | `@rolldown/binding-android-arm64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-android-arm64` |
-| `@rolldown/binding-android-arm64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-android-arm64` |
 | `@rolldown/binding-darwin-arm64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-darwin-arm64` |
-| `@rolldown/binding-darwin-arm64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-darwin-arm64` |
 | `@rolldown/binding-darwin-x64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-darwin-x64` |
-| `@rolldown/binding-darwin-x64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-darwin-x64` |
 | `@rolldown/binding-freebsd-x64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-freebsd-x64` |
-| `@rolldown/binding-freebsd-x64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-freebsd-x64` |
 | `@rolldown/binding-linux-arm-gnueabihf` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-arm-gnueabihf` |
-| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm-gnueabihf` |
 | `@rolldown/binding-linux-arm64-gnu` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-arm64-gnu` |
-| `@rolldown/binding-linux-arm64-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm64-gnu` |
 | `@rolldown/binding-linux-arm64-musl` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-arm64-musl` |
-| `@rolldown/binding-linux-arm64-musl` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm64-musl` |
 | `@rolldown/binding-linux-ppc64-gnu` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-ppc64-gnu` |
-| `@rolldown/binding-linux-ppc64-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-ppc64-gnu` |
 | `@rolldown/binding-linux-s390x-gnu` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-s390x-gnu` |
-| `@rolldown/binding-linux-s390x-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-s390x-gnu` |
 | `@rolldown/binding-linux-x64-gnu` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-x64-gnu` |
-| `@rolldown/binding-linux-x64-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-x64-gnu` |
 | `@rolldown/binding-linux-x64-musl` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-x64-musl` |
-| `@rolldown/binding-linux-x64-musl` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-x64-musl` |
 | `@rolldown/binding-openharmony-arm64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-openharmony-arm64` |
-| `@rolldown/binding-openharmony-arm64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-openharmony-arm64` |
 | `@rolldown/binding-win32-arm64-msvc` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-win32-arm64-msvc` |
-| `@rolldown/binding-win32-arm64-msvc` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-win32-arm64-msvc` |
 | `@rolldown/binding-win32-x64-msvc` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-win32-x64-msvc` |
-| `@rolldown/binding-win32-x64-msvc` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-win32-x64-msvc` |
 | `@rolldown/pluginutils` | `1.0.1` | development | `node_modules/@rolldown/pluginutils` |
 | `@standard-schema/spec` | `1.1.0` | development | `node_modules/@standard-schema/spec` |
 | `@testing-library/dom` | `10.4.1` | development | `node_modules/@testing-library/dom` |
 | `@testing-library/jest-dom` | `7.0.1` | development | `node_modules/@testing-library/jest-dom` |
+| `dom-accessibility-api` | `0.6.3` | development | `node_modules/@testing-library/jest-dom/node_modules/dom-accessibility-api` |
 | `@testing-library/react` | `16.3.3` | development | `node_modules/@testing-library/react` |
 | `@testing-library/user-event` | `14.6.6` | development | `node_modules/@testing-library/user-event` |
 | `@types/aria-query` | `5.0.4` | development | `node_modules/@types/aria-query` |
@@ -267,12 +257,10 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `ansi-styles` | `5.2.0` | development | `node_modules/ansi-styles` |
 | `aria-query` | `5.3.0` | development | `node_modules/aria-query` |
 | `assertion-error` | `2.0.1` | development | `node_modules/assertion-error` |
-| `balanced-match` | `4.0.4` | development | `node_modules/@eslint/config-array/node_modules/balanced-match` |
-| `balanced-match` | `4.0.4` | development | `node_modules/eslint/node_modules/balanced-match` |
+| `balanced-match` | `4.0.4` | development | `node_modules/balanced-match` |
 | `baseline-browser-mapping` | `2.11.26` | development | `node_modules/baseline-browser-mapping` |
 | `bidi-js` | `1.0.3` | development | `node_modules/bidi-js` |
-| `brace-expansion` | `5.0.12` | development | `node_modules/@eslint/config-array/node_modules/brace-expansion` |
-| `brace-expansion` | `5.0.12` | development | `node_modules/eslint/node_modules/brace-expansion` |
+| `brace-expansion` | `5.0.12` | development | `node_modules/brace-expansion` |
 | `browserslist` | `4.29.1` | development | `node_modules/browserslist` |
 | `cacheable` | `2.5.0` | development | `node_modules/cacheable` |
 | `caniuse-lite` | `1.0.30001812` | development | `node_modules/caniuse-lite` |
@@ -282,12 +270,12 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `css-tree` | `3.2.1` | development | `node_modules/css-tree` |
 | `css.escape` | `1.5.1` | development | `node_modules/css.escape` |
 | `data-urls` | `7.0.0` | development | `node_modules/data-urls` |
+| `whatwg-url` | `16.0.1` | development | `node_modules/data-urls/node_modules/whatwg-url` |
 | `debug` | `4.4.3` | development | `node_modules/debug` |
 | `decimal.js` | `10.6.0` | development | `node_modules/decimal.js` |
 | `deep-is` | `0.1.4` | development | `node_modules/deep-is` |
 | `dequal` | `2.0.3` | development | `node_modules/dequal` |
 | `detect-libc` | `2.1.2` | development | `node_modules/detect-libc` |
-| `dom-accessibility-api` | `0.6.3` | development | `node_modules/@testing-library/jest-dom/node_modules/dom-accessibility-api` |
 | `dom-accessibility-api` | `0.5.16` | development | `node_modules/dom-accessibility-api` |
 | `electron-to-chromium` | `1.5.439` | development | `node_modules/electron-to-chromium` |
 | `entities` | `8.0.0` | development | `node_modules/entities` |
@@ -297,7 +285,6 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `eslint` | `10.11.0` | development | `node_modules/eslint` |
 | `eslint-plugin-react-hooks` | `7.1.1` | development | `node_modules/eslint-plugin-react-hooks` |
 | `eslint-scope` | `9.1.2` | development | `node_modules/eslint-scope` |
-| `eslint-visitor-keys` | `3.4.3` | development | `node_modules/@eslint-community/eslint-utils/node_modules/eslint-visitor-keys` |
 | `eslint-visitor-keys` | `5.0.1` | development | `node_modules/eslint-visitor-keys` |
 | `espree` | `11.2.0` | development | `node_modules/espree` |
 | `esquery` | `1.7.0` | development | `node_modules/esquery` |
@@ -314,7 +301,6 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `find-up` | `5.0.0` | development | `node_modules/find-up` |
 | `flat-cache` | `6.1.23` | development | `node_modules/flat-cache` |
 | `flatted` | `3.4.4` | development | `node_modules/flatted` |
-| `fsevents` | `2.3.3` | development; optional | `node_modules/vite/node_modules/fsevents` |
 | `gensync` | `1.0.0-beta.2` | development | `node_modules/gensync` |
 | `glob-parent` | `6.0.2` | development | `node_modules/glob-parent` |
 | `globals` | `17.12.0` | development | `node_modules/globals` |
@@ -322,7 +308,6 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `hermes-estree` | `0.25.1` | development | `node_modules/hermes-estree` |
 | `hermes-parser` | `0.25.1` | development | `node_modules/hermes-parser` |
 | `hookified` | `1.15.1` | development | `node_modules/hookified` |
-| `hookified` | `2.2.0` | development | `node_modules/qified/node_modules/hookified` |
 | `html-encoding-sniffer` | `6.0.0` | development | `node_modules/html-encoding-sniffer` |
 | `ignore` | `5.3.2` | development | `node_modules/ignore` |
 | `imurmurhash` | `0.1.4` | development | `node_modules/imurmurhash` |
@@ -352,14 +337,12 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `lightningcss-win32-arm64-msvc` | `1.33.0` | development; optional | `node_modules/lightningcss-win32-arm64-msvc` |
 | `lightningcss-win32-x64-msvc` | `1.33.0` | development; optional | `node_modules/lightningcss-win32-x64-msvc` |
 | `locate-path` | `6.0.0` | development | `node_modules/locate-path` |
-| `lru-cache` | `5.1.1` | development | `node_modules/@babel/helper-compilation-targets/node_modules/lru-cache` |
 | `lru-cache` | `11.5.2` | development | `node_modules/lru-cache` |
 | `lz-string` | `1.5.0` | development | `node_modules/lz-string` |
 | `magic-string` | `0.30.21` | development | `node_modules/magic-string` |
 | `mdn-data` | `2.27.1` | development | `node_modules/mdn-data` |
 | `min-indent` | `1.0.1` | development | `node_modules/min-indent` |
-| `minimatch` | `10.2.6` | development | `node_modules/@eslint/config-array/node_modules/minimatch` |
-| `minimatch` | `10.2.6` | development | `node_modules/eslint/node_modules/minimatch` |
+| `minimatch` | `11.0.1` | development | `node_modules/minimatch` |
 | `ms` | `2.1.3` | development | `node_modules/ms` |
 | `nanoid` | `3.3.20` | development | `node_modules/nanoid` |
 | `natural-compare` | `1.4.0` | development | `node_modules/natural-compare` |
@@ -381,13 +364,13 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `pretty-format` | `27.5.1` | development | `node_modules/pretty-format` |
 | `punycode` | `2.3.1` | development | `node_modules/punycode` |
 | `qified` | `0.10.1` | development | `node_modules/qified` |
+| `hookified` | `2.2.0` | development | `node_modules/qified/node_modules/hookified` |
 | `react` | `19.2.0` | application | `node_modules/react` |
 | `react-dom` | `19.2.0` | application | `node_modules/react-dom` |
 | `react-is` | `17.0.2` | development | `node_modules/react-is` |
 | `redent` | `3.0.0` | development | `node_modules/redent` |
 | `require-from-string` | `2.0.2` | development | `node_modules/require-from-string` |
 | `rolldown` | `1.2.6` | development | `node_modules/rolldown` |
-| `rolldown` | `1.2.15` | development | `node_modules/vite/node_modules/rolldown` |
 | `saxes` | `6.0.0` | development | `node_modules/saxes` |
 | `scheduler` | `0.27.0` | application | `node_modules/scheduler` |
 | `semver` | `6.3.1` | development | `node_modules/semver` |
@@ -412,11 +395,28 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `update-browserslist-db` | `1.3.3` | development | `node_modules/update-browserslist-db` |
 | `uri-js` | `4.4.1` | development | `node_modules/uri-js` |
 | `vite` | `8.3.5` | development | `node_modules/vite` |
+| `@oxc-project/types` | `0.155.0` | development | `node_modules/vite/node_modules/@oxc-project/types` |
+| `@rolldown/binding-android-arm-eabi` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-android-arm-eabi` |
+| `@rolldown/binding-android-arm64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-android-arm64` |
+| `@rolldown/binding-darwin-arm64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-darwin-arm64` |
+| `@rolldown/binding-darwin-x64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-darwin-x64` |
+| `@rolldown/binding-freebsd-x64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-freebsd-x64` |
+| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm-gnueabihf` |
+| `@rolldown/binding-linux-arm64-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm64-gnu` |
+| `@rolldown/binding-linux-arm64-musl` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm64-musl` |
+| `@rolldown/binding-linux-ppc64-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-ppc64-gnu` |
+| `@rolldown/binding-linux-s390x-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-s390x-gnu` |
+| `@rolldown/binding-linux-x64-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-x64-gnu` |
+| `@rolldown/binding-linux-x64-musl` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-x64-musl` |
+| `@rolldown/binding-openharmony-arm64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-openharmony-arm64` |
+| `@rolldown/binding-win32-arm64-msvc` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-win32-arm64-msvc` |
+| `@rolldown/binding-win32-x64-msvc` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-win32-x64-msvc` |
+| `fsevents` | `2.3.3` | development; optional | `node_modules/vite/node_modules/fsevents` |
+| `rolldown` | `1.2.15` | development | `node_modules/vite/node_modules/rolldown` |
 | `vitest` | `4.1.12` | development | `node_modules/vitest` |
 | `w3c-xmlserializer` | `5.0.0` | development | `node_modules/w3c-xmlserializer` |
 | `webidl-conversions` | `8.0.1` | development | `node_modules/webidl-conversions` |
 | `whatwg-mimetype` | `5.0.0` | development | `node_modules/whatwg-mimetype` |
-| `whatwg-url` | `16.0.1` | development | `node_modules/data-urls/node_modules/whatwg-url` |
 | `whatwg-url` | `17.1.0` | development | `node_modules/whatwg-url` |
 | `which` | `2.0.2` | development | `node_modules/which` |
 | `why-is-node-running` | `2.3.0` | development | `node_modules/why-is-node-running` |
@@ -435,8 +435,8 @@ These SHA256 values identify the source inputs used above. Any change requires a
 
 | Input | SHA256 |
 | --- | --- |
-| [package.json](../package.json) | `6e81d313b97be9d843b3a3547187bcdf2a28bb592a7b7585c1b9b06acdb42fc5` |
-| [package-lock.json](../package-lock.json) | `afc7e3de7e7637e6158a449149e196c30542a32579ebfc7a7bf6de6b158f881d` |
+| [package.json](../package.json) | `fe9b1f4ae20b3be5d3221ab1fc2098ea4fd4b37b456b1a7c5ccc7bb9e30b5dc1` |
+| [package-lock.json](../package-lock.json) | `10c300da62ca5e378a6e97f6d05c799d0c41c6f9b4e724efd1a482d1062da73c` |
 | [backend/pyproject.toml](../backend/pyproject.toml) | `85aaa5e760bb7acf12fbd2a18e46bdb927d6d77368ef66780cf6b69cbdefaee9` |
 | [backend/requirements.lock](../backend/requirements.lock) | `98d634b5342229a80ae1d17b330f95969076c5bd7eac0780eb59d5ce50d7e1a3` |
 | [backend/requirements-test.lock](../backend/requirements-test.lock) | `3f233cce42b451c422ecc94b58546da782c6f92f2cb04ba1e335b3fc322e0e4a` |
@@ -452,3 +452,5 @@ These SHA256 values identify the source inputs used above. Any change requires a
 | [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `f2c9c46692bd58d7806d2147d6a93cfe508473183a1220b6ee5e375c92b4a942` |
 | [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `43859f616032d14fad386850f0c17df3fbcdfcf4e5c6f0d9953897f42e34c558` |
 | [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `f01328b42a3b3b4642e9c8d3c8ed22ef05d093bd033e45a16db5217b4fa86923` |
+
+Browser-source helper fingerprint: `scripts/prepare-browser-apt.py` SHA-256 `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f`. PR117 replaces the unreachable US regional archive with the official main archive; package suites, signing keys, runner label and Playwright version are unchanged.

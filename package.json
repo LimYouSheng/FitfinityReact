@@ -43,5 +43,8 @@
     "yaml": "2.9.1",
     "css-tree": "3.2.1",
     "rolldown": "1.2.6"
+  },
+  "overrides": {
+    "minimatch": "11.0.1"
   }
 }
