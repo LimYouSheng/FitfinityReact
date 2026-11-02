@@ -90,6 +90,10 @@ Fitfinity requires complete exact-final-head `verify / frontend`, `verify / back
 
 Keep source suitability, CI acceptance, physical platform/device acceptance and deployment separate. Check rollback feasibility, including artifact/runtime/storage compatibility where applicable; reverting a lockfile is not proof of safe data rollback. Do not perform deployment or real provider acceptance without its existing authorization.
 
+Lead the PR assessment with who is affected: **testing-tool support**, **verified test coverage**, and **actual customer impact**. A removed test-host OS does not establish that customers using that OS can no longer open Fitfinity. Conversely, newer bundled-engine passes do not certify older customer browsers. State any actual application-code, UI, browser restriction or minimum customer OS/browser change; if none, say so explicitly without promising unknown combinations work. React/runtime library upgrades may affect the shipped bundle even when no application source changes, so assess them separately from test-only tooling.
+
+Keep the PR description focused on final behavior, current exact-head evidence and outstanding work. Rewrite obsolete scope/status rather than appending successive pending/green notes. Link original failures and superseded runs from Journey or artifacts; retain their evidence without presenting them as current blockers.
+
 Include a concise dependency assessment in the existing PR body:
 
 | Field                     | Required evidence                                                                                                                                                                  |

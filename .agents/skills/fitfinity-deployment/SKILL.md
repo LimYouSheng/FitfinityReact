@@ -21,6 +21,8 @@ State the target and outcome: read-only inspection, foundation preparation, ECR 
 
 Verify repository, branch/head, PR/merge state, workflow/event and actor. Confirm AWS account, region, exact resource IDs/ARNs and resource ownership against the current reviewed configuration. A connector login, role name, display name or available token does not prove target identity or authorization. Check separate verification, image-publication and runtime/hosting role scopes in the executable workflows; never substitute broader credentials to bypass a denied operation. Preserve unknown edits, existing resources and explicitly protected runs.
 
+Record deployment defaults and the intended activation state explicitly. A closed-by-default configuration can be correct: for example, Fitfinity’s image workflow requires `AWS_IMAGE_RELEASE_ENABLED == 'true'` as well as manual dispatch and source/account gates. An absent/false flag is not itself a defect or permission to enable it. Inspect actual configuration separately from the source default. When a test requires activation, prepare an exact scoped activation/reversion plan and obtain any missing authorization; do not turn production/provider effects on merely to pass readiness checks.
+
 ## 2. Trace source to the release artifact
 
 - Bind repository/source SHA, successful verification run/attempt, expected job set, artifact identity/digest and release receipt. Full PR verification, fresh-main verification, image publication and deployment are different events. A skipped main-only publish on a PR is expected.

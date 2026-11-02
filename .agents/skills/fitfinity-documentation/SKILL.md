@@ -76,7 +76,7 @@ Record actual commands/tools, source head, environment and outcome. If a check c
 
 ## 5. PR documentation-state receipt
 
-Add a short paragraph or compact table to the existing PR description; follow its established structure instead of creating a second report. Include:
+Keep the PR description as one current account of final behavior, exact-head CI and unresolved work. Rewrite stale scope/status paragraphs rather than accumulating chronological appendices. Preserve original failures and superseded runs in Journey/artifacts and link them concisely; never erase evidence or imply an earlier failure passed. Add a short paragraph or compact table for documentation impact within that current description. Include:
 
 - **Updated owners:** paths and the state/behavior reconciled.
 - **Reviewed unchanged:** grouped owners and why the change does not affect them.
