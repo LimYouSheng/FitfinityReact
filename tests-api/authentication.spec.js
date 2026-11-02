@@ -1,4 +1,4 @@
-import { test, expect, signIn, read, account, freshContext } from './fixtures.js'
+import { test, expect, signIn, read, account, freshContext, fetchRoute } from './fixtures.js'
 
 async function password(page, email, value = 'browser-test-password-only') {
   await page.goto('/')
@@ -60,10 +60,32 @@ for (const mode of ['change', 'reset']) test(`password ${mode} revokes existing 
       await page.goto('/#/account')
       await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
       await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
-      await page.getByLabel('Email', { exact: true }).fill(email)
-      await page.getByRole('button', { name: 'Forgot password?', exact: true }).click()
-      await page.getByRole('button', { name: 'Send recovery code', exact: true }).click()
-      await page.getByLabel('Recovery code').fill('654321')
+      // Reproduce the CI race with a real signed-out /me response delivered only
+      // after recovery succeeds. No fake API data or timing sleeps.
+      let release, observed, delivered
+      const held = new Promise(resolve => { release = resolve })
+      const captured = new Promise(resolve => { observed = resolve })
+      const finished = new Promise(resolve => { delivered = resolve })
+      const staleSession = async route => {
+        const response = await fetchRoute(route)
+        expect(response.status()).toBe(401)
+        observed()
+        await held
+        await route.fulfill({ response })
+        delivered()
+      }
+      await page.route('**/me', staleSession, { times: 1 })
+      try {
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+        await captured
+        await page.getByLabel('Email', { exact: true }).fill(email)
+        await page.getByRole('button', { name: 'Forgot password?', exact: true }).click()
+        await page.getByRole('button', { name: 'Send recovery code', exact: true }).click()
+        await expect(page.getByRole('heading', { name: 'Enter recovery code', exact: true })).toBeFocused()
+        release()
+        await finished
+        await page.getByLabel('Recovery code').fill('654321')
+      } finally { release(); await page.unroute('**/me', staleSession) }
       await page.getByLabel('New password', { exact: true }).fill(nextPassword)
       await page.getByLabel('Confirm new password').fill(nextPassword)
       await page.getByRole('button', { name: 'Reset Password', exact: true }).click()

@@ -2,7 +2,7 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns reusable campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns every-PR documentation reconciliation.
 
-## Current task — PR120 dependency maintenance fixes and consolidated updates
+## Current task — PR120 dependency maintenance and authentication race repair
 
 Checkpoint: **2 November 2026 (Singapore)**. Accepted main remains `cc243fb7fa82035c0452cd6c03c93b42fe767161` (PR117); [final-head verification](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41257522245) and [fresh-main verification/demo publication](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41260731060) passed. PR120 now implements the maintenance gaps identified by the bounded review and incorporates the reviewed PR118/119 commits. It is a candidate, not accepted main or an AWS rollout.
 
@@ -22,19 +22,21 @@ Checkpoint: **2 November 2026 (Singapore)**. Accepted main remains `cc243fb7fa82
 | Current PR review and deployment defaults | Adapted SoccerBot PR17’s distinction between testing-tool support, verified coverage and actual customer impact; runtime bundle upgrades remain separately assessed. PR descriptions must replace stale status notes while linking retained failures. Deployment skill/runbook explicitly preserve intentional closed defaults and separately authorized test activation. |
 | Prior token review | No repository GitHub installation-token length/prefix parsing found. Local SHA-256 review tokens and Cognito JWT bounds are unrelated. New-format GitHub tokens and external connectors were not exercised/certified. |
 
+| Authentication lifecycle repair | Starting sign-in/MFA/recovery retires older provider loads and pauses automatic refresh until explicit identity verification. Seven unit regressions cover delayed errors/stale identities, preserved inputs, resumed refresh and genuine recovery errors. The real-API reset case now holds an actual signed-out /me response until recovery succeeds. |
+
 ### Campaign contract and leave-off
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Fix the audit's dependency-maintenance gaps in existing PR120, including inventory and tests for the consolidated npm/Actions proposals. |
-| Repository / branch | `docs/dependency-audit-20261102`, PR120; based on maincc243fb. Initial audit commit52da6a1, imported Actions5503bff and npmd66fbdb, followed by maintenance commit998b44b dependency skillb921271 and CI/deployment skillsb95cafd, support/coverage refinement01cd5a9, and this final PR-review/default-state instruction change. Existing checkout and all8 stashes preserved. |
-| Budget / evidence | Bounded implementation after one audit pass. Focused quality120, lint547 and source/CSS health passed. Clean npm ci, development-inclusive npm audit (zero findings), all1504 units/155 files (112.94s), production build and PWA validation passed. Combined final-head frontend/backend/API CI remains required. |
-| Unresolved | Head01cd5a9 passed all required gates in run41381753436. This subsequent documentation-only head requires its own complete CI; source merge and fresh-main/demo publication remain pending. Close PR118/119 as superseded only after PR120 acceptance; no independent merge of the older unguarded candidates. Alert27 closure remains independently unverified (last direct read403). |
+| Outcome / scope | Complete the consolidated dependency updates and repair the authentication lifecycle race exposed by PR120 CI, without weakening session guards. |
+| Repository / branch | `docs/dependency-audit-20261102`, PR120; based on maincc243fb. Initial audit commit52da6a1, imported Actions5503bff and npmd66fbdb, followed by maintenance commit998b44b dependency skillb921271 and CI/deployment skillsb95cafd, support/coverage refinement01cd5a9, PR-review/default-state instruction commit eafeb00, followed by this authentication repair. Existing checkout and all8 stashes preserved. |
+| Budget / evidence | Bounded implementation after one audit pass. Focused quality120, lint547 and source/CSS health passed. Clean npm ci, development-inclusive npm audit (zero findings), all1504 units/155 files (112.94s), production build and PWA validation passed. The authentication repair passed all1511 units/155 files (107.34s), quality120 and all12 real-API authentication cases across three configured profiles against isolated Docker PostgreSQL (52.2s). Strict unit inventory and rejection fixtures updated together. Complete new-head frontend/backend/API CI remains required. |
+| Unresolved | Head eafeb00 failed API shard1 in run41385159923 (197 passed/1 failed); frontend/backend/shard2 passed. Trace proved a delayed /me error destroyed the recovery form after forgot-password succeeded. Six new regressions reproduced the defect before the repair; local repair checks passed. New-head CI, source merge and fresh-main/demo publication remain pending. Close PR118/119 as superseded only after PR120 acceptance; no independent merge of the older unguarded candidates. Alert27 closure remains independently unverified (last direct read403). |
 | External boundary | No AWS, Lambda, provider, production database, image-release or new-format token operation. No deployed remediation inferred. |
 
 ### Resume in this order
 
-1. Publish these final review/default-state instructions on PR120 and replace its description with current scope/evidence. Head01cd5a9 passed frontend/backend/API verification in run41381753436; retain that receipt but require all gates again on this new documentation head before merge.
+1. Publish the authentication repair on PR120 with the current evidence and require all three complete gates on its final head. Keep draft until acceptance; preserve the failed run and trace in Journey. No retry, timeout or runner change is part of this repair.
 2. After eligible PR120 merge, verify fresh main/demo publication and close PR118/119 unmerged as superseded by their included changes. Record immutable receipts in the PR; avoid recursive status commits.
 3. Keep reviewing future dependency updates through clean install → inventory refresh/diff review → consistency/audit/full CI. Python lock regeneration and Compose updates remain manual; automatic drift detection does not automate upgrades or vulnerability scanning.
 4. Resume separately reviewed developer-AWS/M6 acceptance preparation. Approval-vetting redesign, global2px typography, cleanup activation and general inactive-record disposal retain their existing deferred/undecided boundaries.

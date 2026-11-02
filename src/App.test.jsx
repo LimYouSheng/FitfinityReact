@@ -625,3 +625,65 @@ it('opens a package report through shared navigation and restores its package li
   expect(screen.getByRole('heading', { name: 'Upcoming Sessions' })).toBeVisible()
   expect(location.hash).toBe('#/clients/c1')
 })
+
+for (const flow of ['sign-in', 'recovery']) for (const outcome of ['SESSION_CHANGED', 'NETWORK_ERROR', 'stale account']) it(`retires a ${outcome} background load when ${flow} starts`, async () => {
+  const snapshot = { user: null, data: null, accounts: [], capabilities: { realAuthentication: true }, policy: { timeZone: 'Asia/Singapore', password: { minimumLength: 15, maximumLength: 128 } } }
+  let resolveLoad, rejectLoad
+  const pendingLoad = new Promise((resolve, reject) => { resolveLoad = resolve; rejectLoad = reject })
+  const services = {
+    load: vi.fn().mockResolvedValue(snapshot),
+    auth: {
+      signIn: vi.fn().mockResolvedValue({ challenge: 'SOFTWARE_TOKEN_MFA', expiresAt: new Date(Date.now() + 300000).toISOString() }),
+      challenge: vi.fn(),
+      forgotPassword: vi.fn().mockResolvedValue({ message: 'Enter the recovery code.' }),
+    },
+  }
+  show('dashboard', false, services)
+  await screen.findByRole('heading', { name: 'Sign in', exact: true })
+  services.load.mockReturnValueOnce(pendingLoad)
+  await act(async () => { window.dispatchEvent(new Event('focus')) })
+  expect(services.load).toHaveBeenCalledTimes(2)
+  change('Email', 'owner@example.test')
+  if (flow === 'sign-in') { change('Password', 'browser-test-password-only'); click('Sign In') }
+  else { click('Forgot password?'); click('Send recovery code') }
+  const label = flow === 'sign-in' ? 'Authenticator code' : 'Recovery code'
+  await screen.findByLabelText(label)
+  change(label, '123456')
+  await act(async () => {
+    if (outcome === 'stale account') resolveLoad({ ...snapshot, user: mockDb.read().users[0], data: mockDb.read() })
+    else rejectLoad(Object.assign(new Error('Retired background failure'), { code: outcome }))
+  })
+  expect(screen.getByLabelText(label)).toHaveValue('123456')
+  expect(screen.queryByRole('heading', { name: 'Unable to load the portal' })).not.toBeInTheDocument()
+  expect(document.querySelector('.portal-shell')).toBeNull()
+  await act(async () => { window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('storage')) })
+  expect(services.load).toHaveBeenCalledTimes(2)
+  expect(screen.getByLabelText(label)).toHaveValue('123456')
+  if (flow === 'recovery') {
+    click('Back to sign in'); change('Password', 'browser-test-password-only'); click('Sign In')
+    await screen.findByLabelText('Authenticator code')
+    change('Authenticator code', '123456')
+  }
+  services.auth.challenge.mockResolvedValue({})
+  services.load.mockResolvedValue({ ...snapshot, user: mockDb.read().users[0], data: mockDb.read() })
+  click('Continue')
+  await screen.findByRole('heading', { name: 'Owner Dashboard', exact: true })
+  expect(services.load).toHaveBeenCalledTimes(3)
+  await act(async () => { window.dispatchEvent(new Event('focus')) })
+  expect(services.load).toHaveBeenCalledTimes(4)
+})
+
+it('shows a current recovery failure and allows an explicit retry', async () => {
+  const services = {
+    load: vi.fn().mockResolvedValue({ user: null, data: null, accounts: [], capabilities: { realAuthentication: true }, policy: { timeZone: 'Asia/Singapore' } }),
+    auth: { challenge: vi.fn(), forgotPassword: vi.fn().mockRejectedValueOnce(new Error('Recovery unavailable')).mockResolvedValue({ message: 'Enter the recovery code.' }) },
+  }
+  show('dashboard', false, services)
+  await screen.findByRole('heading', { name: 'Sign in', exact: true })
+  change('Email', 'owner@example.test'); click('Forgot password?'); click('Send recovery code')
+  await screen.findByText('Recovery unavailable')
+  expect(screen.getByLabelText('Email')).toHaveValue('owner@example.test')
+  click('Send recovery code')
+  await screen.findByLabelText('Recovery code')
+  expect(services.auth.forgotPassword).toHaveBeenCalledTimes(2)
+})
