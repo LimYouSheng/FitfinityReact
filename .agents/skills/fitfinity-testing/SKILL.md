@@ -13,6 +13,8 @@ Review tests during implementation and before publication, not only after merge.
 
 Fitfinity permits Codex to run Playwright and inspect isolated internal previews. Use synthetic records, isolated Docker PostgreSQL/object storage and the local signed-token Cognito substitute. Never use production PostgreSQL or real customer data for routine tests. Real Cognito/email/invitations, AWS changes, image publication, deployment, provider operations and production load require their own authority. Local emulation, simulator browsers, real-API browsers, process restart, authoritative macOS/WebKit CI, physical devices and deployed acceptance are distinct evidence scopes. Do not copy SoccerBot's owner-only browser restriction or its Worker/provider architecture.
 
+For dependency work, also apply the [dependency review skill](../fitfinity-dependencies/SKILL.md) before changing code; it owns suitability and upstream research, while this skill owns the verification impact.
+
 ## 1. Map the whole change to existing tests
 
 1. Inspect the full PR diff against its actual base, exact source head, working tree and relevant CI receipts. Identify inherited changes in a stacked PR separately. Preserve unknown edits and original failures.
