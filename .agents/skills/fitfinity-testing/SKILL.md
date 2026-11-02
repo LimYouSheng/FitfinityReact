@@ -102,6 +102,8 @@ Fitfinity requires all three exact-final-head gates: **`verify / frontend`, `ver
 
 Keep local simulated-provider acceptance separate from real Cognito, current physical devices, AWS image publication, Lambda rollout and deployed recovery. Fresh-main verification is separate from PR success. No test-suite command grants permission to invoke real invitations, send customer messages or exercise production storage.
 
+Keep upstream-supported ranges, repository configuration and exact tested configurations separate in receipts. Browser engine metadata describes bundled configuration, not an observed browser.version() receipt; emulation does not certify its named physical device or OS. Physical evidence requires model, exact OS/browser versions, deployed revision and outcome.
+
 ## 5. PR test-impact receipt and handover
 
 Add a concise paragraph/table to the existing PR body alongside the documentation-state receipt:

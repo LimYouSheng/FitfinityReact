@@ -64,6 +64,8 @@ Fitfinity’s required gates are `verify / frontend`, `verify / backend` and `ve
 5. Inspect active, pending and superseded runs before managing them. Preserve explicit user instructions to let a run finish or leave it untouched. Any authorized cancellation must preserve available evidence and must not be represented as a successful run; unavailable cancellation tools are not a reason to bypass access controls.
 6. Recheck the exact head and every required gate after completion. Distinguish PR verification, main verification, staged release and production deployment. Report remaining failures or blockers without weakening the release rules.
 
+Upstream-supported ranges, repository-selected versions/profiles and observed test coverage are different claims. Use the [development coverage matrix](../../../docs/development.md#browser-testing-coverage) and exact runner/browser evidence; do not turn two passing endpoint versions into a continuous tested range or label emulation as a physical device.
+
 ## 6. Diagnosis and handover receipt
 
 Record the original run/job/case and artifact links; expected versus observed behavior; confirmed cause and unresolved hypotheses; changed owner and why it is correct; regression/guard evidence; resource and timing measurements where relevant; final source/run/attempt and gate results; and the next action. Use the existing PR description and Progress/Journey owners, not a separate permanent incident ledger. A later pass cannot erase the original failure. Report any unverified platform/provider or resource limit explicitly; do not promise future CI cannot fail.

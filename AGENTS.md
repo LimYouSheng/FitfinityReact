@@ -6,7 +6,7 @@ For every PR, implementation change and CI diagnosis, read and apply the [testin
 
 For every PR and delivery-state review, read and apply the repository [documentation reconciliation skill](.agents/skills/fitfinity-documentation/SKILL.md). This includes documentation-only and automated dependency PRs. Read it explicitly when the host does not discover repository skills. Review all document owners, update every affected one and include its documentation-state receipt; this is an instruction requirement, not an installed CI hook.
 
-For dependency additions, replacements, upgrades, Dependabot reviews and security fixes, read and apply the [dependency review skill](.agents/skills/fitfinity-dependencies/SKILL.md) before editing or recommending merge. It owns upstream research, suitability and the dependency assessment; testing and documentation remain with their existing skills.
+For dependency additions, replacements, upgrades, Dependabot reviews and security fixes, read and apply the [dependency review skill](.agents/skills/fitfinity-dependencies/SKILL.md) before editing or recommending merge. It owns upstream research, suitability and the dependency assessment, including mandatory before/after support requirements and separate upstream support, configured targets and exact tested coverage; testing and documentation remain with their existing skills.
 
 For failed, queued or inefficient CI, apply the [CI diagnosis skill](.agents/skills/fitfinity-ci-diagnosis/SKILL.md). For deployment/configuration preparation, failed release, activation or rollback, apply the [deployment readiness skill](.agents/skills/fitfinity-deployment/SKILL.md). They guide investigation and evidence; neither expands execution authority.
 

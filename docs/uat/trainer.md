@@ -4,9 +4,12 @@
 | --- | --- |
 | Tester / date | |
 | Developer AWS website URL | |
-| Deployed version supplied by organiser | |
+| Deployed revision supplied by organiser | |
 | Test account / receiving email address | |
-| Device / browser | |
+| Device manufacturer and model | |
+| Exact operating system version | |
+| Browser name and exact version | |
+| Overall result: Pass / Fail / Blocked / Not tested | |
 | Browser tab or installed app | |
 | Partner for two-person checks | |
 | Test client / purchase / session names | |

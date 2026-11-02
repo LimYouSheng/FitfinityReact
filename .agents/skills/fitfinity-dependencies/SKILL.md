@@ -48,6 +48,24 @@ Fitfinity’s concrete owners are `.nvmrc` and package.json engines for Node sel
 
 The [maintenance commands](../../../docs/development.md) and [version inventory](../../../docs/versions.md) own refresh/verification. `scripts/dependency-maintenance.mjs` checks inputs and derived inventory; it is not an advisory scanner or proof of package suitability. Review valid duplicates rather than forcing deduplication. Inspect security overrides on each affected upstream update: keep an explicit reason and removal condition, require every installed/locked copy to resolve safely, and never remove a patched override solely to restore the original vulnerable range. A newer override needs compatibility and audit evidence too.
 
+### Required support-range comparison in every dependency PR
+
+Include a before/after compatibility table in each dependency update PR, even if all relevant requirements are unchanged. Cover the updated dependency and any changed transitive requirement; group identical rows with an explicit rationale. Use exact versions, minimum/maximum bounds or upstream semver expressions, not “latest”, “modern” or “older versions”. Separate these three meanings:
+
+1. **Upstream-supported range:** the dependency maintainer's documented Node/runtime, OS/architecture, peer/framework, browser or runner requirements. Cite the exact-version package metadata/support documentation and date checked. Preserve qualifiers and platform-specific exclusions. Do not infer a full range from a removal announcement or assume every intermediate version works.
+2. **Project-configured target:** the exact pins, images, peers, platform/profile choices and supported deployment configuration actually selected by this repository. Explain any narrower scope, exception or externally pending environment update.
+3. **Project-verified coverage:** exact tested versions/profiles, source SHA and CI run or owner-device evidence. Successful endpoint versions do not establish a continuous tested range. An emulated iPhone/WebKit profile is not physical iOS/Safari acceptance.
+
+Use this compact PR table and add rows as relevant:
+
+| Compatibility surface                                                                 | Before                                          | After                                      | Added/removed support or impact | Source / verification                                                            |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------ | ------------------------------- | -------------------------------------------------------------------------------- |
+| Runtime / OS / architecture / peers / runner / browser (one row per relevant surface) | Previous documented requirement and project pin | New documented requirement and project pin | Explicit change, or unchanged   | Upstream link and exact-version metadata; tested configuration/run or not tested |
+
+For physical-device acceptance, require device model, exact OS/browser version, deployed revision and outcome; never infer those facts from an emulation descriptor or user-agent string. Follow the table with exact project-tested coverage and outstanding owner/platform work. If upstream gives no bounded range, write **not specified by upstream**; if research or acceptance is missing, write **unverified**, not supported. For irrelevant surfaces state **not applicable** with a reason. Include unchanged requirements explicitly; do not silently omit the table for patch or Actions updates. Explain whether a change affects developer/CI hosts, deployed runtime, or customer browsers. Tooling host support changes do not automatically change the application's customer support policy.
+
+Update the [browser testing coverage owner](../../../docs/development.md#browser-testing-coverage) when browser engines, device profiles or test-host requirements change, and the [Owner](../../../docs/uat/owner.md), [Admin](../../../docs/uat/admin.md) and [Trainer](../../../docs/uat/trainer.md) worksheets when physical acceptance expectations change. Keep package inventory generated in versions.md; do not hand-edit it into a support policy. A customer minimum-browser policy needs a separate explicit decision and evidence. Reflect the final support comparison in the merge/defer/reject recommendation; green CI does not waive unsupported required targets.
+
 ## 4. Decide which code, if any, should change
 
 | Finding                                                                            | Required response                                                                                                                                                                           |
@@ -78,7 +96,7 @@ Include a concise dependency assessment in the existing PR body:
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Candidate and benefit     | Exact versions/SHAs, exposure and why this upgrade is useful now.                                                                                                                  |
 | Research                  | Dated authoritative links, applicable changes across the version jump, known issues and unresolved facts.                                                                          |
-| Compatibility and changes | Relevant platform/peer/runtime matrix; application changes with reasons, or an explicit no-application-change conclusion; tooling/environment updates and remaining external work. |
+| Compatibility and changes | Required before/after support-range table, configured targets and exact verified coverage; added/removed/unchanged support with authoritative sources; application changes with reasons, or an explicit no-application-change conclusion; tooling/environment updates and remaining external work. |
 | Validation                | Companion test/documentation receipts, original failures and explanations, exact-head CI and scope limits. Link rather than duplicate detailed evidence.                           |
 | Decision                  | **Merge**, **defer** or **reject**, with risks, blockers, rollback considerations and any owner action. A provisional recommendation must say which evidence is pending.           |
 

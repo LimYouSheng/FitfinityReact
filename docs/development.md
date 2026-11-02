@@ -194,8 +194,42 @@ CI runs the real-API suite in two complementary shards, each with its own dispos
 Required CI and evidence rules belong to [AGENTS](../AGENTS.md#verify-and-publish). Test inventories are defined by the verifiers, not historical counts in documentation.
 
 
-Browser media compatibility: automated projects cover desktop Chromium and WebKit phone/tablet profiles. Current Chrome/Edge are the first conversion candidates; Safari/iOS conversion depends on available recording APIs and input codecs, with explicit original-file fallback. Firefox is not part of the current automated matrix and has no acceptance receipt. Actual Samsung/iPad capture and audio playback still require physical UAT. Browser preparation uses no microphone permission; it processes audio already present in the selected clip.
+Browser media compatibility is a feature-specific acceptance question under the [coverage matrix](#browser-testing-coverage), not a blanket browser support guarantee. Conversion depends on recording APIs and input codecs, with explicit original-file fallback. Actual Samsung/iPad capture and audio playback still require physical UAT. Browser preparation uses no microphone permission; it processes audio already present in the selected clip.
 
 Dependency updates: run `npm ci`, then `npm run versions:refresh` and review `docs/versions.md`; `npm run verify:dependencies` is the read-only CI/local gate. It validates Python manifest/runtime/test pins, Node/Action/Compose consistency, React pairing, browser metadata and the security override before checking generated inventory. Refresh is not permission to accept a version change or rewrite a security/resource guard. The generator requires the lock-matching installed Playwright package.
 
 For failed/queued CI, follow the [CI diagnosis skill](../.agents/skills/fitfinity-ci-diagnosis/SKILL.md) for exact-run evidence and bounded experiments; this document remains the setup/command owner.
+
+
+## Browser testing coverage
+
+This section owns configured browser coverage and its limits; [Versions](versions.md#browser-engines) owns the generated package/engine inventory. Every dependency PR needs the [before/after support comparison](../.agents/skills/fitfinity-dependencies/SKILL.md#required-support-range-comparison-in-every-dependency-pr). **Upstream-supported ranges, repository configuration and verified coverage are three different claims.** No customer minimum-browser policy or continuous supported range is established by this matrix.
+
+Checkpoint:2 November2026. Accepted maincc243fb and PR120 both pin Playwright1.64.1. The following engine versions/revisions are from the exact installed playwright-core1.64.1 browsers.json, checked against the lock; they are bundled configuration, not independently captured browser.version() output. Hosted runner images and platform-specific engine overrides require their own run evidence.
+
+| Configured engine | Bundled version / revision | Platform qualification |
+| --- | --- | --- |
+| Chromium and Chromium headless shell |156.0.8078.4 /1248 | Selected by desktop-chromium; not branded Chrome/Edge certification |
+| WebKit |27.2 /2370 | Selected by phone/tablet; package records mac14 and mac14-arm64 revision2251 overrides, which are not evidence those hosts were tested |
+| Firefox |157.0 /1555 | Available in the package but not selected by either suite; no Firefox acceptance |
+
+[playwright.config.js](../playwright.config.js) defines these projects; [playwright.api.config.js](../playwright.api.config.js) reuses them. Descriptor fields below come from the installed Playwright1.64.1 device registry; screen/scale/user-agent settings are emulation inputs, not physical hardware or OS evidence.
+
+| Project | Engine / descriptor | Viewport, CSS pixels | Screen, CSS pixels / scale | Mobile / touch | Evidence limit |
+| --- | --- | --- | --- | --- | --- |
+| desktop-chromium | Chromium / Desktop Chrome |1280 ×720 |1920 ×1080 /1 |no /no | Descriptor's Windows user agent does not establish Windows execution; CI host is macOS for the frontend suite and Ubuntu for API shards |
+| phone | WebKit / iPhone13 |390 ×664 |390 ×844 /3 |yes /yes | Emulation, not a physical iPhone, iOS version or installed Safari release |
+| tablet | WebKit / iPad(gen7) |810 ×1080 |No separate screen field in this descriptor /2 |yes /yes | Emulation, not physical iPadOS/Safari acceptance |
+
+Playwright1.64 forwards descriptor screen dimensions ([upstream release notes](https://github.com/microsoft/playwright/releases/tag/v1.64.0)); viewport alone does not fully describe the profile. The descriptor user-agent's OS/version text is not an observed OS. Capture actual browser/host versions when an acceptance claim requires them.
+
+| Evidence observation | Source / configured hosts | What passed / what remains unverified |
+| --- | --- | --- |
+| Accepted main after PR117 |cc243fb; [run41260731060](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41260731060); frontend macos-15, real-API shards ubuntu-latest | Complete frontend/backend/API gates, including1155 frontend browser and396 real-API cases. Exact hosted OS patch/browser.version() values are not recorded in this table; labels do not prove them. |
+| Separate reviewed dependency candidates | PR118 head50c1335 [run41371397837](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41371397837); PR119 head6ad701a [run41371414485](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41371414485); same configured profiles/host labels | All required gates passed on those separate heads. They do not accept the combined PR120 head. |
+| PR120 local implementation receipt |998b44b; Node24.19.0, Linux x64 |1504 units,120 quality regressions,21 source-health checker tests, build/PWA and npm audit passed. These are not a new browser/device run; exact Linux distro/kernel is not retained as browser acceptance. Final combined-head CI is required. |
+| Physical developer-AWS acceptance | Designated Owner/Admin/Trainer records | Current deployed revision/device evidence remains pending; no real Samsung/iPad, branded Edge or Firefox acceptance inferred. |
+
+These are discrete source/configuration observations, not coverage of every earlier, later or intermediate browser/runtime version. Playwright's [exact package metadata](https://registry.npmjs.org/@playwright/test/1.64.1) declares Node>=20; Fitfinity deliberately selects Node24 via .nvmrc with a >=24.15.0,<25 project range and checks all locked engine requirements. That declared range is a configuration policy, not proof every patch in it has been tested. `macos-15` and `ubuntu-latest` are workflow selections, not a complete upstream OS/architecture support matrix; consult the selected release's documented platform requirements before changing hosts. Externally prepared browser images/caches need their own matching metadata and acceptance.
+
+Record physical results in the [Owner](uat/owner.md), [Admin](uat/admin.md) and [Trainer](uat/trainer.md) worksheets: device model, exact OS and browser versions, deployed revision, outcome and remarks/lag. Leave unexecuted cases blank. A customer minimum-browser policy requires a separate explicit decision and evidence; developer tooling requirements do not automatically change customer support policy.
