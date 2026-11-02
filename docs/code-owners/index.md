@@ -381,7 +381,7 @@ CI["verify.yml · required gates"]
   Browser --> Aggregate["verify-api-shards.mjs<br/>Complete discovered inventory, no omitted cases"]
 ```
 
-Source owners: [backend harness](../../scripts/verify-backend.mjs), [browser harness](../../scripts/verify-api-browser.mjs), [shard aggregate](../../scripts/verify-api-shards.mjs), [quality gates](../../scripts/verify-quality.mjs), [result inventory](../../scripts/verify-test-results.mjs), [source health](../../scripts/verify-code-health.mjs).
+Source owners: [backend harness](../../scripts/verify-backend.mjs), [browser harness](../../scripts/verify-api-browser.mjs), [shard aggregate](../../scripts/verify-api-shards.mjs), [frontend/backend group verification](../../scripts/verify-ci-groups.mjs), [backend partition ownership](../../backend/scripts/test-groups.json), [quality gates](../../scripts/verify-quality.mjs), [result inventory](../../scripts/verify-test-results.mjs), [source health](../../scripts/verify-code-health.mjs).
 
 [Real-API browser cases](../../tests-api), [backend tests](../../backend/tests) and [browser server](../../backend/tests/browser_server.py) own acceptance probes. Simulator tests are frontend evidence; synthetic Cognito is not live-provider acceptance. Physical-device, deployed-service and operational-drill evidence remain distinct.
 

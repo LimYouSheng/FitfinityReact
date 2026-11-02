@@ -1,3 +1,4 @@
+import './verify-ci-groups.test.mjs'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { request } from '@playwright/test'
@@ -47,13 +48,21 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   verifyQualitySetup(readQualitySetup())
 })
 const mutations = [
-  ['missing dependency consistency gate', setup => { const step = setup.verify.jobs.frontend.steps.find(item => item.run?.includes('npm run verify:dependencies')); step.run = step.run.replace('npm run verify:dependencies', '') }],
+  ['unbound browser build', setup => { setup.verify.jobs['browser-profile'].steps = setup.verify.jobs['browser-profile'].steps.filter(step => step.name !== 'Verify build identity') }],
+  ['lost failed group evidence', setup => { setup.verify.jobs['backend-group'].steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
+  ['missing browser profile', setup => { setup.verify.jobs['browser-profile'].strategy.matrix.profile.pop() }],
+  ['sequential independent checks', setup => { setup.verify.jobs.unit.needs = 'quality' }],
+  ['missing backend domain group', setup => { setup.verify.jobs['backend-group'].strategy.matrix.group.pop() }],
+  ['forged frontend dependency evidence', setup => { setup.verify.jobs.frontend.steps.find(step => step.env?.CI_NEEDS).env.CI_NEEDS = '{}' }],
+  ['lost frontend aggregate dependency', setup => { setup.verify.jobs.frontend.needs.pop() }],
+
+  ['missing dependency consistency gate', setup => { const step = setup.verify.jobs.quality.steps.find(item => item.run?.includes('npm run verify:dependencies')); step.run = step.run.replace('npm run verify:dependencies', '') }],
   ['missing reviewed Ubuntu source selection', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('prepare-browser-apt.py')) }],
   ['missing API browser engines', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('playwright install')) }],
 
-  ['missing blocking audit', setup => { setup.verify.jobs.frontend.steps = setup.verify.jobs.frontend.steps.filter(step => !step.run?.includes('npm audit')) }],
-  ['optional audit', setup => { setup.verify.jobs.frontend.steps.find(step => step.run?.includes('npm audit'))['continue-on-error'] = true }],
-  ['lost audit evidence', setup => { setup.verify.jobs.frontend.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
+  ['missing blocking audit', setup => { setup.verify.jobs.quality.steps = setup.verify.jobs.quality.steps.filter(step => !step.run?.includes('npm audit')) }],
+  ['optional audit', setup => { setup.verify.jobs.quality.steps.find(step => step.run?.includes('npm audit'))['continue-on-error'] = true }],
+  ['lost audit evidence', setup => { setup.verify.jobs.quality.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
   ['grouped sensitive tooling', setup => { delete setup.dependabot.updates[0].groups['npm-minor-patch']['exclude-patterns'] }],
   ['grouped major security upgrade', setup => { setup.dependabot.updates[0].groups['npm-security']['update-types'].push('major') }],
   ['missing shard', setup => { delete setup.verify.jobs['api-browser-shard'] }],
@@ -70,9 +79,9 @@ const mutations = [
   ['missing PR verification', setup => { delete setup.pages.on.pull_request }],
   ['path-filtered PR checks', setup => { setup.pages.on.pull_request.paths = ['backend/**'] }],
   ['optional shared verification', setup => { setup.pages.jobs.verify.if = 'false' }],
-  ['missing semantic gate', setup => { setup.verify.jobs.frontend.steps = setup.verify.jobs.frontend.steps.filter(step => !step.run?.includes('verify:lint')) }],
-  ['suppressed unit failure', setup => { setup.verify.jobs.frontend.steps.find(step => step.name === 'Unit gate')['continue-on-error'] = true }],
-  ['lost pipeline failure status', setup => { const step = setup.verify.jobs.frontend.steps.find(step => step.name === 'Unit gate'); step.run = step.run.replace('set -euo pipefail', 'set -eu') }],
+  ['missing semantic gate', setup => { setup.verify.jobs.quality.steps = setup.verify.jobs.quality.steps.filter(step => !step.run?.includes('verify:lint')) }],
+  ['suppressed unit failure', setup => { setup.verify.jobs.unit.steps.find(step => step.name === 'Unit gate')['continue-on-error'] = true }],
+  ['lost pipeline failure status', setup => { const step = setup.verify.jobs.unit.steps.find(step => step.name === 'Unit gate'); step.run = step.run.replace('set -euo pipefail', 'set -eu') }],
   ['missing backend and infrastructure verification', setup => { delete setup.verify.jobs.backend }],
   ['PR deployment', setup => { delete setup.pages.jobs.deploy.if }],
   ['deployment before verification', setup => { delete setup.pages.jobs.build.needs }],
