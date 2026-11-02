@@ -58,25 +58,29 @@ for (const mode of ['change', 'reset']) test(`password ${mode} revokes existing 
       await page.getByRole('dialog').getByRole('button', { name: 'Change Password', exact: true }).click()
     } else {
       await page.goto('/#/account')
-      await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
-      await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
       // Reproduce the CI race with a real signed-out /me response delivered only
       // after recovery succeeds. No fake API data or timing sleeps.
       let release, observed, delivered
       const held = new Promise(resolve => { release = resolve })
       const captured = new Promise(resolve => { observed = resolve })
       const finished = new Promise(resolve => { delivered = resolve })
+      let capturedOnce = false
       const staleSession = async route => {
         const response = await fetchRoute(route)
+        if (response.status() !== 401 || capturedOnce) { await route.fulfill({ response }); return }
+        capturedOnce = true
         expect(response.status()).toBe(401)
         observed()
         await held
         await route.fulfill({ response })
         delivered()
       }
-      await page.route('**/me', staleSession, { times: 1 })
+      // Arm before sign-out starts its anonymous refresh. A later focus can reuse
+      // that in-flight request instead of making a new interceptable request.
+      await page.route('**/me', staleSession)
       try {
-        await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+        await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
+        await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
         await captured
         await page.getByLabel('Email', { exact: true }).fill(email)
         await page.getByRole('button', { name: 'Forgot password?', exact: true }).click()
