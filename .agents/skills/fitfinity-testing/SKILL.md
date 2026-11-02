@@ -86,6 +86,8 @@ For setup races, wait on the actual observable prerequisite before dependent ass
 
 ## 4. Execute, diagnose and keep evidence bounded
 
+Use the [CI diagnosis skill](../fitfinity-ci-diagnosis/SKILL.md) for exact-run failure classification and resource/queue investigation; use the [deployment readiness skill](../fitfinity-deployment/SKILL.md) for release configuration and artifact/account evidence. Neither replaces these test acceptance requirements.
+
 Use docs/development.md's verification commands and inspect executable harnesses before selecting focused work. Run the smallest meaningful checks, then applicable complete gates at a coherent candidate boundary. A filtered test or one API shard is not full acceptance. Reuse matching dependencies, images/browser caches and evidence; do not repeatedly run unchanged suites without a relevant change or new diagnostic evidence.
 
 Classify failures as application, test/fixture, environment, provider or unresolved. Save the first failure with source, command/run, environment, test title, expected versus observed state and available logs/traces. A passing rerun alone does not prove “flaky,” identify a root cause or repair the original defect. For perceived slowness, record first/repeat timing and where time is spent; do not loosen the timeout to hide it. Fix the owning cause and review adjacent coverage.

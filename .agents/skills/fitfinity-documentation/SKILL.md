@@ -43,6 +43,7 @@ For every PR, review all rows for impact. Update every affected owner; leave una
 | `docs/uat/owner.md`, `admin.md`, `trainer.md` | Update affected role workflows, expected outcomes and permission boundaries. Preserve blank worksheet masters; never turn a newly drafted case into a completed physical/live test. |
 | `.agents/skills/fitfinity-testing/SKILL.md` | Reconcile test-impact guidance when suites, fixture owners, verifiers or execution boundaries change. Keep its PR receipt aligned with actual checks. |
 | `.agents/skills/fitfinity-dependencies/SKILL.md` | Reconcile dependency research/suitability instructions when maintenance owners, compatibility requirements or assessment procedure change. |
+| `.agents/skills/fitfinity-ci-diagnosis/SKILL.md` and `fitfinity-deployment/SKILL.md` | Reconcile diagnosis/readiness guidance when gate owners, configuration stores, release evidence or operational boundaries change. |
 | This skill | Reconcile the procedure and owner map if documentation ownership or delivery mechanics change; preserve its AGENTS entry point. |
 
 A reviewer should be able to answer: **what changed, what is true now, what evidence supports it, what remains unverified, and where does the next developer resume?**

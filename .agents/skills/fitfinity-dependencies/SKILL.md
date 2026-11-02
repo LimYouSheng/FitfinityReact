@@ -64,6 +64,8 @@ Do not loosen assertions, retries, timeouts, browser/device coverage, inventorie
 
 ## 5. Verify and recommend
 
+Use the [CI diagnosis skill](../fitfinity-ci-diagnosis/SKILL.md) when verification fails and the [deployment readiness skill](../fitfinity-deployment/SKILL.md) when an update affects release/configuration readiness. Keep their evidence and authority boundaries distinct.
+
 Apply both companion skills to the whole change. Review guards and installation/runtime compatibility before publishing; consolidate known repairs, run meaningful local checks, then the required exact-final-head CI gates. Reuse valid unchanged evidence; do not rerun blindly or conceal the first failure. New head means new final-head evidence. Preserve test discovery, case identities, shard completeness and error propagation when the test runner changes.
 
 Fitfinity requires complete exact-final-head `verify / frontend`, `verify / backend` and `verify / api-browser`, including both shards and aggregate. Actual FastAPI/migrations/PostgreSQL and isolated object storage use synthetic records and the local signed-token Cognito substitute. Simulator-only browser results do not establish persistence. Keep all required case identities/counts and meaningful rejection/recovery tests; a parser/tooling dependency still needs the affected guard regressions and full final-head CI. Real Cognito, invitations, S3/customer records and physical-device acceptance remain outside routine dependency testing.

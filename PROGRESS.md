@@ -17,6 +17,7 @@ Checkpoint: **2 November 2026 (Singapore)**. Accepted main remains `cc243fb7fa82
 | Guard regressions | Quality suite expanded103→120 cases: invalid manifest-only Python updates, runtime/test divergence, missing pins, duplicate normalized Python names, old Node, higher dependency floor, Action/Compose mismatches, stale inventory/browser metadata, removed mandatory gate and invalid override are rejected. Coordinated upgrades and later patched matching overrides pass. |
 | Dependency handling | Existing legitimate transitive duplicates remain. New exact development dependencies semver7.8.5 and smol-toml1.9.1 parse version ranges/TOML instead of relying on undeclared transitive tools or an ad-hoc TOML parser. No runtime Python package or AWS/resource safety check changed. |
 | Dependency review skill | Added `.agents/skills/fitfinity-dependencies/SKILL.md`, adapted from the user-linked SoccerBot reference. AGENTS requires research/suitability review before dependency edits or merge recommendations; existing testing/documentation skills retain their owners. Instruction discovery is reinforced by explicit AGENTS links, not claimed as a new CI hook. |
+| CI/deployment skills | Added Fitfinity CI diagnosis and deployment readiness skills from the same user-linked reference folder. AGENTS and companion skills route exact-run diagnosis and AWS readiness reviews to their respective owners. Fitfinity permits isolated assistant browser checks; production/provider effects still require separate scope. |
 | Prior token review | No repository GitHub installation-token length/prefix parsing found. Local SHA-256 review tokens and Cognito JWT bounds are unrelated. New-format GitHub tokens and external connectors were not exercised/certified. |
 
 ### Campaign contract and leave-off
@@ -24,14 +25,14 @@ Checkpoint: **2 November 2026 (Singapore)**. Accepted main remains `cc243fb7fa82
 | Field | Current checkpoint |
 | --- | --- |
 | Outcome / scope | Fix the audit's dependency-maintenance gaps in existing PR120, including inventory and tests for the consolidated npm/Actions proposals. |
-| Repository / branch | `docs/dependency-audit-20261102`, PR120; based on maincc243fb. Initial audit commit52da6a1, imported Actions5503bff and npmd66fbdb, followed by maintenance commit998b44b and this documentation-only skill addition. Existing checkout and all8 stashes preserved. |
+| Repository / branch | `docs/dependency-audit-20261102`, PR120; based on maincc243fb. Initial audit commit52da6a1, imported Actions5503bff and npmd66fbdb, followed by maintenance commit998b44b dependency skill commitb921271, and this documentation-only CI/deployment skill addition. Existing checkout and all8 stashes preserved. |
 | Budget / evidence | Bounded implementation after one audit pass. Focused quality120, lint547 and source/CSS health passed. Clean npm ci, development-inclusive npm audit (zero findings), all1504 units/155 files (112.94s), production build and PWA validation passed. Combined final-head frontend/backend/API CI remains required. |
 | Unresolved | New-head CI, source merge and fresh-main/demo publication remain pending. Close PR118/119 as superseded only after PR120 acceptance; no independent merge of the older unguarded candidates. Alert27 closure remains independently unverified (last direct read403). |
 | External boundary | No AWS, Lambda, provider, production database, image-release or new-format token operation. No deployed remediation inferred. |
 
 ### Resume in this order
 
-1. Publish the dependency-review skill addition on PR120; implementation998b44b is already pushed. Its run41377492431 was in progress when this follow-up began and is superseded by the new documentation head. Require all three exact-head CI gates and GitHub requirements; diagnose any failures without weakening checks.
+1. Publish the two additional skills on PR120; implementation998b44b and dependency skillb921271 are already pushed. Earlier-head runs41376614625/41377492431 were cancelled as superseded; inspect current run41378951820 before replacing it with this final documentation head. Require all three exact-head CI gates and GitHub requirements; diagnose any failures without weakening checks.
 2. After eligible PR120 merge, verify fresh main/demo publication and close PR118/119 unmerged as superseded by their included changes. Record immutable receipts in the PR; avoid recursive status commits.
 3. Keep reviewing future dependency updates through clean install → inventory refresh/diff review → consistency/audit/full CI. Python lock regeneration and Compose updates remain manual; automatic drift detection does not automate upgrades or vulnerability scanning.
 4. Resume separately reviewed developer-AWS/M6 acceptance preparation. Approval-vetting redesign, global2px typography, cleanup activation and general inactive-record disposal retain their existing deferred/undecided boundaries.
