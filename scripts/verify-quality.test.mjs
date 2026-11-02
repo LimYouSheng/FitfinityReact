@@ -14,6 +14,8 @@ import { test } from 'node:test'
 import { ESLint } from 'eslint'
 import { readQualitySetup, verifyQualitySetup } from './verify-quality.mjs'
 
+import { readDependencies, validateDependencies, renderInventory, pythonLock } from './dependency-maintenance.mjs'
+
 const lint = new ESLint()
 const cases = [
   ['undefined runtime variables', 'export const answer = missingValue + 1', 'no-undef', 'src/quality-fixture.js'],
@@ -45,6 +47,7 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   verifyQualitySetup(readQualitySetup())
 })
 const mutations = [
+  ['missing dependency consistency gate', setup => { const step = setup.verify.jobs.frontend.steps.find(item => item.run?.includes('npm run verify:dependencies')); step.run = step.run.replace('npm run verify:dependencies', '') }],
   ['missing reviewed Ubuntu source selection', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('prepare-browser-apt.py')) }],
   ['missing API browser engines', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('playwright install')) }],
 
@@ -369,4 +372,76 @@ test('intercepted API fixture requests leave no idle socket for later readback',
     server.closeAllConnections()
     await new Promise(resolve => server.close(resolve))
   }
+})
+
+
+test('dependency inputs and generated inventory agree on the actual checkout', () => {
+  const state = readDependencies()
+  validateDependencies(state)
+  assert.equal(renderInventory(state), state.document)
+})
+
+for (const [name, change, message] of [
+  ['Python manifest-only update', state => { state.python.dependencies[0] = 'fastapi==99.0.0' }, /manifest\/runtime/],
+  ['test lock replaces runtime package', state => { state.test.fastapi = '99.0.0' }, /runtime\/test/],
+  ['test-only dependency drift', state => { state.test.pytest = '99.0.0' }, /manifest\/test/],
+  ['missing runtime package in test lock', state => { delete state.test.fastapi }, /runtime\/test/],
+  ['divergent Node workflow', state => { state.workflows['.github/workflows/verify.yml'] = state.workflows['.github/workflows/verify.yml'].replace('node-version-file: .nvmrc', "node-version: '22'") }, /Node selection/],
+  ['divergent Action pin', state => { state.workflows['.github/workflows/verify.yml'] = state.workflows['.github/workflows/verify.yml'].replace(/actions\/setup-node@[a-f0-9]{40}/, `actions/setup-node@${'a'.repeat(40)}`) }, /conflicting Action/],
+  ['divergent PostgreSQL images', state => { state.compose.services[Object.keys(state.compose.services).find(name => state.compose.services[name].image?.startsWith('postgres:'))].image = 'postgres:99.0' }, /PostgreSQL/],
+  ['unpatched override', state => { state.manifest.overrides.minimatch = '10.2.6' }, /minimatch/],
+  ['stale installed browser metadata', state => { state.browserVersion = '0.0.0' }, /Playwright/],
+]) test(`dependency gate rejects ${name}`, () => {
+  const state = readDependencies()
+  change(state)
+  assert.throws(() => validateDependencies(state), message)
+})
+
+test('Node compatibility rejects an older patch and a dependency with a higher runtime floor', () => {
+  const state = readDependencies()
+  assert.throws(() => validateDependencies(state, '24.14.0'), /Node/)
+  validateDependencies(state, '24.19.0')
+  state.lock.packages['node_modules/jsdom'].engines.node = '>=24.20.0'
+  assert.throws(() => validateDependencies(state, '24.19.0'), /jsdom/)
+})
+
+test('Python lock parsing rejects duplicate normalized distribution names', () => {
+  assert.throws(() => pythonLock('typing_extensions==1.0\ntyping-extensions==2.0\n'), /duplicate/)
+})
+
+test('inventory refresh detects stale tables even if fingerprints have not changed', () => {
+  const state = readDependencies()
+  state.document = state.document.replace('| `react` |', '| `wrong-react` |')
+  assert.notEqual(renderInventory(state), state.document)
+})
+
+test('inventory accepts a coordinated dependency upgrade and retains surrounding explanation', () => {
+  const state = readDependencies()
+  state.python.dependencies[0] = 'fastapi==99.0.0'
+  state.runtime.fastapi = state.test.fastapi = '99.0.0'
+  validateDependencies(state)
+  const rendered = renderInventory(state)
+  assert.match(rendered, /\| `fastapi` \| 99\.0\.0 \| 99\.0\.0 \| direct \|/)
+  assert.ok(rendered.includes('This inventory is not a complete artifact SBOM.'))
+  state.document = rendered
+  assert.equal(renderInventory(state), rendered)
+})
+
+test('inventory refresh follows changed inputs and browser revisions instead of accepting stale evidence', () => {
+  const state = readDependencies()
+  state.inputs['backend/Dockerfile'] += '\n# reviewed image update\n'
+  state.browsers.browsers.find(browser => browser.name === 'webkit').revision = '9999'
+  const rendered = renderInventory(state)
+  assert.notEqual(rendered, state.document)
+  assert.match(rendered, /\| webkit \| [^|]+ \| 9999 \|/)
+  state.document = rendered
+  assert.equal(renderInventory(state), rendered)
+})
+
+test('a newer patched minimatch override is accepted only with matching lock resolution', () => {
+  const state = readDependencies()
+  state.manifest.overrides.minimatch = '11.0.2'
+  assert.throws(() => validateDependencies(state), /minimatch override\/lock drift/)
+  for (const [name, entry] of Object.entries(state.lock.packages)) if (name.endsWith('node_modules/minimatch')) entry.version = '11.0.2'
+  validateDependencies(state)
 })

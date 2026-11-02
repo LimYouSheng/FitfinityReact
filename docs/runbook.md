@@ -47,7 +47,7 @@ Use [Owner](uat/owner.md), [Admin](uat/admin.md) and [Trainer](uat/trainer.md) w
 
 ### Dependency maintenance
 
-[versions.md](versions.md) is the dependency inventory of locked application/transitive dependencies, images, browser engines and CI pins, with manual patch guidance and explicit gaps for deployed/OS versions. Update it alongside dependency changes.
+[versions.md](versions.md) is the dependency inventory of locked application/transitive dependencies, images, browser engines and CI pins, with manual patch guidance and explicit gaps for deployed/OS versions. Update it alongside dependency changes using `npm ci` → `npm run versions:refresh` → review the diff → `npm run verify:dependencies`. The blocking consistency gate validates inputs before regenerating tables; manually review prose, security-override removal criteria and deployment boundaries.
 
 The design has three layers:
 

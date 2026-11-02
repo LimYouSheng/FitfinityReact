@@ -50,7 +50,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (aggregateStep.env?.API_BROWSER_SHARD_RESULT !== '${{ needs.api-browser-shard.result }}') fail('aggregate must verify successful shard job outcomes')
   const frontend = verify.jobs?.frontend, backend = verify.jobs?.backend
   if (frontend?.['runs-on'] !== 'macos-15') fail('browser gates require the reviewed macOS WebKit runner')
-  for (const command of ['npm ci', 'npm audit --include=dev --audit-level=high --json', 'npm run verify:lint', 'npm run verify:quality-checker', 'npm test -- --reporter=verbose', 'node scripts/verify-test-results.mjs unit', 'npx playwright install --with-deps chromium webkit', 'npm run test:e2e -- --reporter=list', 'node scripts/verify-test-results.mjs browser', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(frontend, command)
+  for (const command of ['npm ci', 'npm audit --include=dev --audit-level=high --json', 'npm run verify:lint', 'npm run verify:dependencies', 'npm run verify:quality-checker', 'npm test -- --reporter=verbose', 'node scripts/verify-test-results.mjs unit', 'npx playwright install --with-deps chromium webkit', 'npm run test:e2e -- --reporter=list', 'node scripts/verify-test-results.mjs browser', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(frontend, command)
   const auditArtifacts = frontend.steps.filter(step => step.uses?.startsWith('actions/upload-artifact@') && step.with?.path?.split('\n').includes('${{ runner.temp }}/fitfinity-npm-audit.json'))
   if (auditArtifacts.length !== 1 || auditArtifacts[0].if !== 'always()') fail('npm audit evidence must survive failed verification')
   for (const command of ['node scripts/verify-assessment-forms.mjs', 'node scripts/verify-backend.mjs']) requireGate(backend, command)
@@ -84,7 +84,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   requireGate(acceptJob, 'test "$IMAGE_ROLE" = \'arn:aws:iam::418638389566:role/fitfinity-test-github-image\'')
   requireGate(acceptJob, 'python3 backend/infrastructure/deploy.py image-accept --actions --digest')
   if (!Object.hasOwn(infrastructure.on ?? {}, 'workflow_call') || !Object.hasOwn(infrastructure.on, 'workflow_dispatch') || Object.hasOwn(infrastructure.on, 'pull_request')) fail('standalone infrastructure checks must remain manual/callable without duplicating full PR gates')
-  for (const name of ['eslint', '@eslint/js', 'eslint-plugin-react-hooks', 'globals', 'rolldown', 'css-tree', 'yaml', '@testing-library/jest-dom', '@testing-library/react', '@testing-library/user-event', '@vitejs/plugin-react', 'jsdom']) {
+  for (const name of ['eslint', '@eslint/js', 'eslint-plugin-react-hooks', 'globals', 'rolldown', 'css-tree', 'yaml', '@testing-library/jest-dom', '@testing-library/react', '@testing-library/user-event', '@vitejs/plugin-react', 'jsdom', 'semver', 'smol-toml']) {
     const version = packageJson.devDependencies?.[name]
     if (!/^\d+\.\d+\.\d+$/.test(version ?? '') || lock.packages?.['']?.devDependencies?.[name] !== version || lock.packages?.[`node_modules/${name}`]?.version !== version) fail(`declare and lock direct tooling dependency: ${name}`)
   }

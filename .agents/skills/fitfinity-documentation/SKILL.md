@@ -53,7 +53,7 @@ A reviewer should be able to answer: **what changed, what is true now, what evid
 - For contract changes, compare matrix/endpoint/schema references with actual source and validate example payloads against the owning schemas plus relevant domain restrictions. Placeholders must be unmistakable and must not contain real credentials or customer data.
 - For code-owner changes, confirm named paths/functions exist and the behavior/guard/recovery description matches their implementation and evidence. A link existing alone does not prove the description.
 - For rule moves, preserve stable IDs/anchors and all decisions; for history moves, compare retained content and record any purely syntactic rendering correction.
-- For dependency changes, compare the inventory with manifests/locks/workflows; do not invent current vulnerability or deployed-image status without a receipt.
+- For dependency changes, run `npm run versions:refresh` after a clean locked install, review its diff, and run `npm run verify:dependencies`; compare handwritten explanations with manifests/locks/workflows as well; do not invent current vulnerability or deployed-image status without a receipt.
 - Use meaningful existing checks and applicable complete gates under AGENTS. A documentation check does not replace required final-head frontend/backend/API-browser CI. Do not weaken assertions or rerun unchanged failures to obtain green.
 
 Record actual commands/tools, source head, environment and outcome. If a check cannot run, say which one and why; do not call the review complete without the required evidence. An external link's existence or a local renderer pass does not prove GitHub's current UI or an external service's acceptance.

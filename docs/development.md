@@ -170,7 +170,7 @@ Dependency updates follow the [runbook](runbook.md#3-dependency-maintenance-and-
 
 ## Development setup
 
-Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies with `npm ci` from the reviewed lockfile; reuse matching dependencies, prepared images and Playwright caches during routine work. Backend versions and hashes are owned by `backend/pyproject.toml`, its requirements files and `backend/Dockerfile`.
+Use Node24.15.0 or newer within major24, Python3.12, Git and Docker Compose. `.nvmrc` owns the selected Node major for local `nvm use` and every setup-node workflow; `package.json` engines owns the supported patch floor. `npm run verify:dependencies` checks the actual runtime against every locked npm engine requirement. Install frontend dependencies with `npm ci` from the reviewed lockfile; reuse matching dependencies, prepared images and Playwright caches during routine work. Backend versions and hashes are owned by `backend/pyproject.toml`, its requirements files and `backend/Dockerfile`.
 
 `npm run dev` starts Vite; `npm run build` creates `dist/`; `npm run preview` serves it locally. `npm run build:pages-test` creates the `/FitfinityReact/` demo export. Local ports are not public preview URLs.
 
@@ -195,3 +195,5 @@ Required CI and evidence rules belong to [AGENTS](../AGENTS.md#verify-and-publis
 
 
 Browser media compatibility: automated projects cover desktop Chromium and WebKit phone/tablet profiles. Current Chrome/Edge are the first conversion candidates; Safari/iOS conversion depends on available recording APIs and input codecs, with explicit original-file fallback. Firefox is not part of the current automated matrix and has no acceptance receipt. Actual Samsung/iPad capture and audio playback still require physical UAT. Browser preparation uses no microphone permission; it processes audio already present in the selected clip.
+
+Dependency updates: run `npm ci`, then `npm run versions:refresh` and review `docs/versions.md`; `npm run verify:dependencies` is the read-only CI/local gate. It validates Python manifest/runtime/test pins, Node/Action/Compose consistency, React pairing, browser metadata and the security override before checking generated inventory. Refresh is not permission to accept a version change or rewrite a security/resource guard. The generator requires the lock-matching installed Playwright package.

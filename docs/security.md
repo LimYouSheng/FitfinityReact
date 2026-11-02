@@ -213,3 +213,5 @@ These are proposed or incomplete acceptance items, not newly enabled capabilitie
 Update this overview when a trust boundary, identity scheme, permission model, secret/storage policy or release path changes. Change the owning BR/API/runbook rather than duplicating mutable requirements here. Keep observed findings and exact remediation status in Progress, dated decisions in Journey, and verify deployed controls independently from source CI.
 
 Format reference: [SoccerBot security overview at the inspected revision](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/fc6ea03c9aaebafd76ac0eec2c14a6f3c1b26703/docs/security.md). Fitfinity retains its own React/FastAPI/PostgreSQL/Cognito/AWS architecture and permissions.
+
+PR120 adds a read-only dependency consistency gate in full frontend verification: Python manifest/two-lock agreement, installed Node compatibility, shared workflow/runtime pins, minimatch override resolution and generated inventory freshness. These checks detect drift; they are not a Python/OS vulnerability scanner or evidence of deployed remediation. Existing npm audit and full application gates remain required.

@@ -286,3 +286,5 @@ No screenshots or new live acceptance were captured for this documentation chang
 | TB-UI-09 | Pay-cycle approval and forbidden Admin view | Remuneration owner | [Remuneration](../../tests-api/remuneration.spec.js) |
 
 Include perceived lag and failed/blocked outcomes in actual capture remarks. Passing a source test does not fill a UAT result column automatically.
+
+Dependency checks: `readDependencies` reads canonical manifests, Python locks, workflows and installed lock-matching Playwright metadata; `validateDependencies` rejects inconsistent or unsupported inputs; `renderInventory` preserves prose while deriving version tables/fingerprints; `verifyDependencies` rejects stale documentation or explicitly refreshes it with `--write`. CI uses read-only mode. A failed refresh requires fixing the owning inputs; it must not silently bless manifest-only Python changes or an incompatible runtime.
