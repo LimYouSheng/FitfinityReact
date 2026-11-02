@@ -48,6 +48,7 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   verifyQualitySetup(readQualitySetup())
 })
 const mutations = [
+  ['runner expression before job scheduling', setup => { setup.verify.jobs['backend-group'].env.INVALID = '${{ runner.temp }}' }],
   ['unbound browser build', setup => { setup.verify.jobs['browser-profile'].steps = setup.verify.jobs['browser-profile'].steps.filter(step => step.name !== 'Verify build identity') }],
   ['lost failed group evidence', setup => { setup.verify.jobs['backend-group'].steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
   ['missing browser profile', setup => { setup.verify.jobs['browser-profile'].strategy.matrix.profile.pop() }],

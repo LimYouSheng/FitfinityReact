@@ -441,6 +441,6 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `dd35a9ec51f96c20b2e884f137cccc989dbce0e3be0a265506b6d0b2c5fc28e4` |
 | [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `9b95b45934b3d72e34227547426b7aa88d3f0b41d4b4f315a3e05703a9180bdd` |
 | [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `b82ab304be4d2b27774c916ecc27b52b9f2f7b399f00df17d305957a57b46a36` |
-| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `48b176e2e7b9d8822d46e3e925e9f1374ea37c3779859c2275bb93ff44582853` |
+| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `7fc1f13951e3bd9ec8db6d128d4a0bbc2c06897545d96c5e6e518d4c3804aad9` |
 
 Browser-source helper fingerprint: `scripts/prepare-browser-apt.py` SHA-256 `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f`. PR117 replaces the unreachable US regional archive with the official main archive; package suites, signing keys, runner label and Playwright version are unchanged.

@@ -35,6 +35,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (caller?.uses !== './.github/workflows/verify.yml' || caller.if != null || caller.secrets != null || caller['continue-on-error']) fail('PR and main must call the complete verification workflow unconditionally')
   if (!Object.hasOwn(verify.on ?? {}, 'workflow_call') || !equal(verify.permissions, { contents: 'read' })) fail('shared verification must be callable with read-only repository access')
   for (const [name, job] of Object.entries(verify.jobs ?? {})) {
+    if (Object.values(job.env ?? {}).some(value => /\$\{\{[^}]*\brunner\./.test(String(value)))) fail('runner context is only available after job scheduling; use step env')
     if ((job.if != null && !(['api-browser', 'frontend', 'backend'].includes(name) && job.if === 'always()')) || job['continue-on-error'] || job.environment || job.secrets || Object.entries(job.permissions ?? {}).some(([key, value]) => key !== 'contents' || value !== 'read')) fail('verification jobs must be unconditional without deployment credentials')
     if ((job.steps ?? []).some(step => /configure-aws-credentials|deploy-pages/.test(step.uses ?? ''))) fail('deployment action in verification')
   }
@@ -60,7 +61,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   }
   if (browser?.['runs-on'] !== 'macos-15' || browser.needs !== 'browser-build' || !equal(browser.strategy, { 'fail-fast': false, matrix: { profile: ['desktop-chromium', 'phone', 'tablet'] } })) fail('complete macOS browser profile matrix required')
   if (!equal(jobs['backend-group'].strategy, { 'fail-fast': false, matrix: { group: ['identity-clients', 'scheduling-packages', 'records-platform'] } })) fail('complete backend domain partition required')
-  if (jobs['backend-group'].env?.FITFINITY_TEST_GROUP !== '${{ matrix.group }}' || jobs['backend-group'].env?.FITFINITY_BACKEND_RECEIPT !== '${{ runner.temp }}/backend-group.json') fail('backend group binding required')
+  if (jobs['backend-group'].env?.FITFINITY_TEST_GROUP !== '${{ matrix.group }}' || jobs['backend-group'].steps.find(step => step.name === 'Isolated backend group')?.env?.FITFINITY_BACKEND_RECEIPT !== '${{ runner.temp }}/backend-group.json') fail('backend group binding required')
   for (const command of ['npm ci', 'npm audit --include=dev --audit-level=high --json', 'npm run verify:lint', 'npm run verify:dependencies', 'npm run verify:quality-checker', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(quality, command)
   for (const command of ['npm test -- --reporter=verbose', 'node scripts/verify-test-results.mjs unit']) requireGate(jobs.unit, command)
   for (const command of ['npm run build', 'npm run build:pages-test', 'npm run build:api-test', 'npm run verify:pwa -- dist /', 'npm run verify:pwa -- dist-pages /FitfinityReact/', 'npm run verify:pwa -- dist-api-test /']) requireGate(jobs['browser-build'], command)

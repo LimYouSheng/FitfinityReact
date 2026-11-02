@@ -259,7 +259,6 @@ jobs:
       FORCE_COLOR: "1"
       PLAYWRIGHT_FORCE_TTY: "0"
       FITFINITY_TEST_GROUP: ${{ matrix.group }}
-      FITFINITY_BACKEND_RECEIPT: ${{ runner.temp }}/backend-group.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -268,6 +267,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Isolated backend group
+        env:
+          FITFINITY_BACKEND_RECEIPT: ${{ runner.temp }}/backend-group.json
         shell: bash
         run: |
           set -euo pipefail
