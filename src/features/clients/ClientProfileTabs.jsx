@@ -67,8 +67,7 @@ function PackageTab({ assignmentWorkflow, onReassignTrainer, readOnly = false, r
         </div>
         {!client.package || client.package.status === 'inactive' ? <p className="empty">No active current package.</p> : <>
         {packageActionWorkflow && client.status !== 'inactive' && <ApiPackageActionButton recordId={client.package.id} operation="deactivate" disabled={Boolean(activeEdit)} workflow={packageActionWorkflow(client.package.id, 'deactivate')} />}
-        <p>Trainer: <strong>{trainerName(client.package)}</strong></p>
-        {assignment(client.package)}
+        <div className="package-trainer-assignment"><p>Trainer: <strong>{trainerName(client.package)}</strong></p>{assignment(client.package)}</div>
         <div className="client-package-grid">
           <div><span>Total sessions</span><strong>{(client.package?.total ?? 0)}</strong></div>
           <div><span>Completed</span><strong>{(client.package?.used ?? 0)}</strong></div>
@@ -87,12 +86,11 @@ function PackageTab({ assignmentWorkflow, onReassignTrainer, readOnly = false, r
         <div className="section-head"><h2>Additional Packages</h2></div>
         <div className="client-record-list" aria-label="Additional packages">
           {additional.map(item => <article className="client-record-row" key={item.id}>
-            <div><strong>{item.name ?? `${item.total} Sessions`}</strong><span>Trainer: {trainerName(item)}</span>
+            <div><strong>{item.name ?? `${item.total} Sessions`}</strong><div className="package-trainer-assignment"><span>Trainer: {trainerName(item)}</span>{assignment(item)}</div>
               <span>{formatDate(item.startDate)} – {formatDate(item.endDate)}</span>
               <span>{weeklyFrequencyLabel(item.sessionsPerWeek, true)}</span>
               <span>{item.used} / {item.total} used</span>
             </div>
-            {assignment(item)}
             {packageActionWorkflow && client.status !== 'inactive' && <ApiPackageActionButton recordId={item.id} operation="deactivate" disabled={Boolean(activeEdit)} workflow={packageActionWorkflow(item.id, 'deactivate')} />}
             {!readOnly && managesOperations(user) && client.status !== 'inactive' && <button type="button" className="secondary-button" onClick={() => {
               setDeleteUpcoming(false); setDeactivationError(''); setDeactivateOpen(item)

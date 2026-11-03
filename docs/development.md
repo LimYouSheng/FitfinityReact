@@ -73,6 +73,74 @@ Use the URL printed by Vite. Default local composition is demo; an API build mus
 
 Use VS Code and browser breakpoints to reproduce a problem. Record steps, expected/actual behavior, perceived delays and redacted evidence. Routine development and isolated tests require no production database or AWS credentials.
 
+### Real API tests with disposable PostgreSQL
+
+The commands below use a POSIX shell (macOS/Linux, or Windows with WSL2 plus Docker Desktop integration). Node24.15+ within major24 and a running Docker daemon/Compose are required. The database and Python runtime run in containers; a separate local Python install is not required for these two npm wrappers. Use the repository root, close any existing local API-test stack on ports4180/4181, and keep production credentials out of this session.
+
+```bash
+npm ci
+docker info
+npx playwright install --with-deps chromium webkit
+npm run verify:backend
+npm run test:api-browser
+```
+
+`verify:backend` creates its own Compose project with isolated PostgreSQL and S3-compatible storage, applies migrations and runs backend/infrastructure checks. `test:api-browser` first builds the API frontend, starts a separate isolated database/storage/API project, seeds synthetic identities and runs the browser suite. Each wrapper removes its own containers and volumes on completion, including normal test failure; these are not servers to leave running for manual use. After abrupt process termination, inspect `docker compose ls` and remove only the specific abandoned test project, never another developer's project. A focused command such as `npm run test:api-browser -- tests-api/staff.spec.js --workers=1` is useful for diagnosis but is not full-suite acceptance.
+
+The suites use real FastAPI, migrations, PostgreSQL, JWT verification, cookies, CSRF and storage IO. Cognito/invitation delivery is substituted locally. They never use RDS, production PostgreSQL or paid AWS services. Browser downloads/container registries still require network access; preserve proxy/CA trust in Cloud Containers rather than disabling TLS. On Windows, run these wrappers inside WSL2 because they use POSIX process/user IDs.
+
+### Manual browser session with the isolated API
+
+Use a dedicated project name and the existing browser harness; it serves the built frontend and real API together. This test database is disposable, not a durable development database. Ports4180 and4181 must be free; do not run the automated API suite simultaneously.
+
+```bash
+npm run build:api-test
+export FITFINITY_BROWSER_UID="$(id -u)"
+export FITFINITY_BROWSER_GID="$(id -g)"
+docker compose -p fitfinity-manual-api -f backend/compose.yaml -f backend/compose.browser.yaml --profile test --profile browser up -d --build --wait browser-api
+curl --fail http://127.0.0.1:4180/health/ready
+curl --fail -H 'X-Fitfinity-Browser-Worker: 0' http://127.0.0.1:4180/auth/policy
+```
+
+The user/group exports let the container read your mounted checkout without changing file permissions. The harness deliberately requires a bounded worker header, including for frontend files. A normal browser opened directly at the address receives400; it does not mean the database failed. On a computer with a graphical desktop and installed Playwright Chromium, open this dedicated browser context so every request carries the same isolated worker identity:
+
+```bash
+node --input-type=module <<'JS'
+import { chromium } from '@playwright/test'
+const browser = await chromium.launch({ headless: false })
+const context = await browser.newContext({
+  extraHTTPHeaders: { 'X-Fitfinity-Browser-Worker': '0' },
+})
+const page = await context.newPage()
+await page.goto('http://127.0.0.1:4180')
+await new Promise(resolve => browser.on('disconnected', resolve))
+JS
+```
+
+Synthetic sign-in: `owner@example.test`, `admin@example.test` or `trainer@example.test`; password `browser-test-password-only`; authenticator code `123456`. These are local fixture identities, not usable Cognito/customer credentials. Use Owner for Admin management. Writes survive browser reload while that API process/database is running. The fixture creates fresh migrated/seeded databases at startup; an API restart or teardown is not a way to retain manual-test data. Invitations/recovery use local substitutes, so this does not accept email delivery, real Cognito or physical devices.
+
+This is a built frontend, not Vite hot reload: rebuild with `npm run build:api-test` after UI changes and open a fresh context to avoid a retained service-worker build. Restart the owned API service after backend changes, understanding that its synthetic data will be recreated. Inspect errors with `docker compose -p fitfinity-manual-api -f backend/compose.yaml -f backend/compose.browser.yaml --profile test --profile browser logs browser-api`. Close the browser and remove only this test stack when finished:
+
+```bash
+docker compose -p fitfinity-manual-api -f backend/compose.yaml -f backend/compose.browser.yaml --profile test --profile browser down --volumes --remove-orphans
+```
+
+Cloud Containers may reuse an inspected, dependency-matching test image through `FITFINITY_BROWSER_BACKEND_IMAGE` and an inspected browser image through `FITFINITY_BROWSER_RUNNER_IMAGE`; those are environment-specific accelerators, not prerequisites or production images. The published commands above use the checked-in Docker build. Do not copy another environment's image name without verifying its inputs.
+
+### Persistent local backend — a different workflow
+
+For database/backend development with records retained across restarts, the base Compose file owns a named local PostgreSQL volume and a one-shot migration service:
+
+```bash
+docker compose -p fitfinity-local -f backend/compose.yaml up -d --build --wait api
+curl --fail http://127.0.0.1:8080/health/live
+curl --fail http://127.0.0.1:8080/health/ready
+docker compose -p fitfinity-local -f backend/compose.yaml logs api migrate
+docker compose -p fitfinity-local -f backend/compose.yaml down
+```
+
+The dependency chain starts `db`, completes `alembic upgrade head`, then starts `api`. Plain `down` retains this project's `dev-postgres` volume; adding `--volumes` deliberately deletes those local records. No database port is exposed on the host. Authentication is disabled by default and this stack has no synthetic staff seed or local identity substitute: successful health checks do **not** enable interactive staff workflows. Use the isolated browser workflow above for those. Real Cognito configuration requires its separately reviewed configuration/authority; do not point local tests at production. The base `api`/`migrate` services build the runtime stage, which downloads the Lambda adapter; the isolated test stage intentionally does not.
+
 ### Iterate and verify
 
 Edit the existing owning module and meaningful affected tests. Run focused checks from the [command reference](#verification-commands), then applicable full gates. Trace permission, persistence, stale/conflicting requests and interrupted writes through the authoritative backend boundary. For new writes, exercise UI save and reload or fresh-login persistence against isolated Docker PostgreSQL, with foreign-record and unauthorized cases.

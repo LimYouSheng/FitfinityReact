@@ -392,7 +392,7 @@ function StaffPortal({ navigation }) {
   } else if (route === 'packages') {
     page = <div className="page-head"><div><h1>Packages</h1><p>Package setup is available to the owner.</p></div></div>
   } else if (route === 'admins' && user.role === 'owner') {
-    page = <AdminManagementPage key={`${user.id}/${snapshot.sessionGeneration}`} services={services} selectedId={creatingAdmin ? undefined : detailId} today={today} onNavigate={navigate} onBack={() => goBack('admins')} onCreate={() => navigate('admins/new')} />
+    page = <AdminManagementPage key={`${user.id}/${snapshot.sessionGeneration}`} services={services} creating={creatingAdmin} selectedId={creatingAdmin ? undefined : detailId} today={today} onNavigate={navigate} onBack={() => goBack('admins')} onCreate={() => navigate('admins/new')} />
   } else if (route === 'change-password') {
     page = <ChangePasswordPage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} policy={policy.password} onBack={() => goBack('dashboard')} onSave={async draft => { await runAction(() => services.auth.changePassword(draft), { message: 'Password changed.' }) }} />
   } else if (route === 'owner-profile' && user.role === 'owner') {

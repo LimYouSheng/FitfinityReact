@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { ActionConfirmationProvider } from '../../components/ActionConfirmationProvider.jsx'
 import { EditGuardProvider } from '../../components/EditGuardProvider.jsx'
 import { ADMIN_APPROVAL_FIELDS } from '../../app/adminApprovals.js'
@@ -33,4 +33,49 @@ it('keeps an uncertain Admin policy save frozen until the original attempt is re
   expect(screen.getByRole('checkbox', { name: 'Manage content', exact: true })).not.toBeChecked()
   expect(update).toHaveBeenCalledTimes(2)
   expect(update.mock.calls[1][0]).toEqual(update.mock.calls[0][0])
+})
+
+function adminRecord(id, name, gender = 'Female', status = 'active') {
+  return { id, role: 'admin', version: 1, status,
+    details: { name, email: `${id}@example.test`, phone_country_code: '+65', phone_number: '91234567', birthday: '1990-01-01', gender },
+    approvalNeeded: Object.fromEntries(ADMIN_APPROVAL_FIELDS.map(([area]) => [area, false])),
+  }
+}
+
+it('keeps list and profile responses bound to the selected route during click-through and Back', async () => {
+  const record = adminRecord('first', 'First Admin')
+  let finishDetail
+  const getById = vi.fn(() => new Promise(resolve => { finishDetail = resolve }))
+  const services = { staffService: { getAll: vi.fn().mockResolvedValue([record]), getById } }
+  const onNavigate = vi.fn()
+  const view = selectedId => <ActionConfirmationProvider><EditGuardProvider><AdminManagementPage services={services} selectedId={selectedId} onNavigate={onNavigate} today="2026-11-03" /></EditGuardProvider></ActionConfirmationProvider>
+  const { rerender } = render(view())
+  await screen.findByText('First Admin')
+  rerender(view('first'))
+  expect(screen.getByText('Loading Admin details…')).toBeVisible()
+  await act(async () => finishDetail(record))
+  expect(screen.getByRole('heading', { name: 'First Admin' })).toBeVisible()
+  expect(screen.getByRole('heading', { name: 'General Information' })).toBeVisible()
+  rerender(view())
+  await screen.findByText('First Admin')
+  expect(screen.queryByRole('heading', { name: 'General Information' })).not.toBeInTheDocument()
+})
+
+it('filters and paginates Admin records independently and opens the selected result', async () => {
+  const records = Array.from({ length: 12 }, (_, i) => adminRecord(`admin${i}`, `Admin ${String(i).padStart(2, '0')}`, i % 2 ? 'Male' : 'Female', i === 11 ? 'inactive' : 'active'))
+  const onNavigate = vi.fn()
+  render(<AdminManagementPage services={{ staffService: { getAll: async () => records } }} onNavigate={onNavigate} />)
+  const list = await screen.findByLabelText('Admin list')
+  expect(within(list).getAllByRole('button', { name: /^View / })).toHaveLength(10)
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+  expect(within(list).getAllByRole('button', { name: /^View / })).toHaveLength(2)
+  fireEvent.change(screen.getByLabelText('Filter admins by status'), { target: { value: 'inactive' } })
+  expect(within(list).getAllByRole('button', { name: /^View / })).toHaveLength(1)
+  fireEvent.change(screen.getByLabelText('Filter admins by gender'), { target: { value: 'Female' } })
+  expect(screen.getByText('No matching admins.')).toBeVisible()
+  fireEvent.change(screen.getByLabelText('Filter admins by status'), { target: { value: 'all' } })
+  expect(within(list).getAllByRole('button', { name: /^View / })).toHaveLength(6)
+  fireEvent.change(screen.getByLabelText('Search admin'), { target: { value: 'admin4@example.test' } })
+  fireEvent.click(within(list).getByRole('button', { name: 'View Admin 04' }))
+  expect(onNavigate).toHaveBeenCalledWith('admins/admin4')
 })

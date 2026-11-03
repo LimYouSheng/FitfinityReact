@@ -1,8 +1,8 @@
 # Code owners and feature map
 
-Source review: **3 November 2026**, PR120 candidate `7f36ae8`; accepted main remains PR117. “Owner” means the module responsible for a behavior, not a person or GitHub review assignment. Start with the overview and follow numbered sections into smaller diagrams and linked source files. Arrows show responsibility breakdown unless explicitly labelled as request/data flow; this is not an exhaustive import graph or execution sequence.
+Source review: **3 November 2026**, accepted main `1ba1573` plus the Admin/Trainer UI candidate. “Owner” means the module responsible for a behavior, not a person or GitHub review assignment. Start with the overview and follow numbered sections into smaller diagrams and linked source files. Arrows show responsibility breakdown unless explicitly labelled as request/data flow; this is not an exhaustive import graph or execution sequence.
 
-This document owns code navigation. [System topology](../architecture/diagram.md) owns infrastructure/test topology, [Architecture](../architecture/adr.md) records stack rationale and runtime relationships, and [Business rules](../business-rules.md) owns requirements, [API contracts](../api-contracts.md) owns the55-operation matrix and schemas, and [Journey](../journey.md) owns full history. [Progress](../../PROGRESS.md) owns acceptance and planned work; [Versions](../versions.md) owns dependency versions. Update this map when responsibilities move. Source ownership does not establish deployed/provider/device acceptance.
+This document owns code navigation. [Database schema](../architecture/database-schema.md) owns the table/key/relationship inventory. [System topology](../architecture/diagram.md) owns infrastructure/test topology, [Architecture](../architecture/adr.md) records stack rationale and runtime relationships, and [Business rules](../business-rules.md) owns requirements, [API contracts](../api-contracts.md) owns the55-operation matrix and schemas, and [Journey](../journey.md) owns full history. [Progress](../../PROGRESS.md) owns acceptance and planned work; [Versions](../versions.md) owns dependency versions. Update this map when responsibilities move. Source ownership does not establish deployed/provider/device acceptance.
 
 See [Technical behavior](technical-behavior.md) for named functions, visible behavior, guards, failures, recovery and evidence.
 
@@ -114,6 +114,8 @@ Source owners: [app entry](../../backend/app/main.py), [staff routes](../../back
 `api/routes.py` still registers many domains; the earlier broad domain-router extraction is not merged and is not shown as implemented. Authenticated API registration is controlled by app configuration. Client capabilities and hidden buttons do not authorize writes.
 
 ### 4.1 Staff account expansion
+
+[AdminDirectory](../../src/features/staff/AdminDirectory.jsx) owns Admin-specific filters, suggestions, pagination and row presentation. [AdminManagementPage](../../src/features/staff/AdminManagementPage.jsx) binds loaded records to navigation, refreshes after creation and owns detail editing/lifecycle.
 
 ```mermaid
 flowchart TB
