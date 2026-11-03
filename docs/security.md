@@ -149,7 +149,7 @@ Cognito and S3 effects do not share a PostgreSQL transaction. Email-change reser
 
 Media is default-disabled until an authorized release supplies an existing private bucket, runtime IAM and reviewed CORS. Local RustFS tests prove real object IO and application controls, not AWS S3 permissions or a deployed lifecycle policy. Transcoding, captions, malware/content scanning and scheduled worker acceptance remain future work. MIME/checksum validation is not malware detection.
 
-Provider clients use reviewed configuration rather than accepting arbitrary caller-selected credentials or endpoints. [Managed secrets](../backend/app/managed_secrets.py) checks complete same-account Singapore secret references; [settings](../backend/app/config.py) restrict identity/origin configuration. Future Glofox entitlement/public-site integrations and real messaging must receive their own authorization, validation and threat review. Fitfinity does not inherit SoccerBot's payment/webhook architecture; PDF/share or WhatsApp-open audit is not proof of message delivery.
+Provider clients use reviewed configuration rather than accepting arbitrary caller-selected credentials or endpoints. [Managed secrets](../backend/app/managed_secrets.py) checks complete same-account Singapore secret references; [settings](../backend/app/config.py) restrict identity/origin configuration. Future Glofox entitlement/public-site integrations and real messaging must receive their own authorization, validation and threat review. PDF/share or WhatsApp-open audit is not proof of message delivery.
 
 ## 7. Secrets, encryption, retention and restore
 
@@ -211,7 +211,5 @@ These are proposed or incomplete acceptance items, not newly enabled capabilitie
 | Browser/device workflows | [Owner](uat/owner.md), [Admin](uat/admin.md), [Trainer](uat/trainer.md) worksheets | Executed developer AWS/physical-device results; blank worksheets are not passed tests. |
 
 Update this overview when a trust boundary, identity scheme, permission model, secret/storage policy or release path changes. Change the owning BR/API/runbook rather than duplicating mutable requirements here. Keep observed findings and exact remediation status in Progress, dated decisions in Journey, and verify deployed controls independently from source CI.
-
-Format reference: [SoccerBot security overview at the inspected revision](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/fc6ea03c9aaebafd76ac0eec2c14a6f3c1b26703/docs/security.md). Fitfinity retains its own React/FastAPI/PostgreSQL/Cognito/AWS architecture and permissions.
 
 PR120 adds a read-only dependency consistency gate in full frontend verification: Python manifest/two-lock agreement, installed Node compatibility, shared workflow/runtime pins, minimatch override resolution and generated inventory freshness. These checks detect drift; they are not a Python/OS vulnerability scanner or evidence of deployed remediation. Existing npm audit and full application gates remain required.

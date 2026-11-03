@@ -11,8 +11,6 @@ Read [AGENTS](../../../AGENTS.md), [North Star](../../../NORTH_STAR.md), [Progre
 
 This skill owns diagnosis, experiment selection and CI resource assessment; it does not duplicate test contracts or runner commands. Follow existing authorization, preserve explicitly protected runs and unknown local work, and do not change billing, runner plans, credentials, protection or deployment policy merely to unblock CI. Fitfinity permits assistant-run isolated Playwright checks using synthetic records, Docker PostgreSQL/object storage and the local signed-token Cognito substitute. Never connect routine tests to production PostgreSQL or invoke real provider/customer effects. Authoritative macOS/WebKit CI and physical-device acceptance remain separate. This is an instruction source, not a standing monitor or automatic Actions summary.
 
-Adapted from the [SoccerBot CI diagnosis skill](https://github.com/soccerbotstudiosg/soccerbotstudioSG/blob/docs/dependency-review-skill/.agents/skills/soccerbot-ci-diagnosis/SKILL.md), inspected2 November2026. Fitfinity instructions and actual workflows govern.
-
 ## 1. Establish which run and what actually failed
 
 Capture repository, workflow/event, PR/branch, exact source SHA, target/profile, run ID, attempt, job/matrix shard, timestamps and conclusion. Match the head to the current PR before calling it final. Distinguish old/superseded runs and jobs with similar names; trace reusable workflows and triggers before claiming duplicate execution.
@@ -20,6 +18,8 @@ Capture repository, workflow/event, PR/branch, exact source SHA, target/profile,
 Read job logs and relevant reports/receipts, not just the red badge. Locate the earliest causal failure and any independent failures; downstream skipped gates or missing artifacts can be consequences. An intentionally skipped deploy is different from a failed verification. A queued job or a billing/permission rejection that never started is not a test failure. Verify runner labels, image/version and resource evidence rather than inferring public/private repository hardware from visibility alone.
 
 Retain original logs, artifacts and failure context. Redact credentials and customer data from any diagnostic excerpts. Establish the expected outcome from the owning contract and describe observed behavior. Separate evidence, hypothesis and unknowns; a successful rerun alone does not explain a previous failure or establish flakiness.
+
+Before treating absent failures as success, verify the required guard invocation and receipt exist. Apply the [dependent-guard review](../fitfinity-testing/SKILL.md#required-dependent-guard-review) for missing/skipped/empty execution and committed executable modes. A wrapper returning success without running its required child is a guard defect. Use the [code-writing skill](../fitfinity-code-writing/SKILL.md) to repair the owning cause without retries or success-shaped fallback.
 
 ## 2. Classify before choosing a repair
 

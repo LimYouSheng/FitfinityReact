@@ -13,7 +13,7 @@ This skill owns readiness investigation and evidence-based go/hold recommendatio
 
 Explicit user instructions take precedence. Reuse authorization already given for the same operation/scope; do not ask repeatedly. Existing source-merge authority does not authorize AWS mutations, image publication/scans, deployment, IAM/secrets changes, schedule activation, rollback or real customer/provider effects. Complete independent authorized preparation and make the exact action reviewable before requesting any missing authorization. Never print credentials, tokens or customer data. This is an instruction source, not an automatic deploy hook or standing monitor.
 
-Adapted from the [SoccerBot deployment skill](https://github.com/soccerbotstudiosg/soccerbotstudioSG/blob/docs/dependency-review-skill/.agents/skills/soccerbot-deployment/SKILL.md), inspected2 November2026. Fitfinity’s actual AWS architecture, evidence owners and authority govern.
+For implementation repairs, apply the [code-writing skill](../fitfinity-code-writing/SKILL.md) and [guard-execution review](../fitfinity-testing/SKILL.md#required-dependent-guard-review). Keep the readiness/compatibility assessment separate from actual execution and acceptance.
 
 ## 1. Identify the intended operation
 

@@ -2,6 +2,8 @@
 
 ## Authority and document ownership
 
+For implementation and code review, apply the [code-writing skill](.agents/skills/fitfinity-code-writing/SKILL.md): repair the owning cause, source values from their authoritative owner, and use the testing skill to prove regression detection and actual guard execution.
+
 For every PR, implementation change and CI diagnosis, read and apply the [testing skill](.agents/skills/fitfinity-testing/SKILL.md). It owns test-impact review, fixture/verifier synchronization and the PR test-impact receipt. Read it explicitly if repository skills are not automatically discovered; Fitfinity permits isolated browser execution under the boundaries below.
 
 For every PR and delivery-state review, read and apply the repository [documentation reconciliation skill](.agents/skills/fitfinity-documentation/SKILL.md). This includes documentation-only and automated dependency PRs. Read it explicitly when the host does not discover repository skills. Review all document owners, update every affected one and include its documentation-state receipt; this is an instruction requirement, not an installed CI hook.
@@ -24,17 +26,17 @@ This file owns engineering instructions. User instructions take precedence. Old 
 | [CI diagnosis skill](.agents/skills/fitfinity-ci-diagnosis/SKILL.md) | Exact-run diagnosis, bounded experiments, lifecycle/resource evidence and queue assessment |
 | [Deployment readiness skill](.agents/skills/fitfinity-deployment/SKILL.md) | Source/artifact/account/configuration readiness and go/hold recommendation |
 | [Dependency review skill](.agents/skills/fitfinity-dependencies/SKILL.md) | Dependency research, suitability, compatibility classification and merge/defer/reject assessment |
+| [Code-writing skill](.agents/skills/fitfinity-code-writing/SKILL.md) | Root-cause repair, authoritative values and whole-candidate implementation review |
 | [Testing skill](.agents/skills/fitfinity-testing/SKILL.md) | Every-PR test impact, meaningful regression evidence, fixtures/inventories and diagnosis |
 | [Documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) | Every-PR documentation impact review, state reconciliation, validation and delivery receipts |
 | [AGENTS](AGENTS.md) | Engineering workflow, verification and action boundaries |
 | [Campaign operating guide](NORTH_STAR.md) | Reusable campaign contract, bounded Ralph loop, budgets, evidence and handover procedure |
-| [Progress](PROGRESS.md) | Detailed current task, completed work, exact stopping point/handover, blockers, next actions and remaining-work backlog |
+| [Progress](PROGRESS.md) | Latest task/acceptance checkpoint, exact handover, blockers, next actions and remaining-work backlog; completed execution history belongs in Journey |
 | [Architecture decisions](docs/architecture/adr.md) | Stack rationale, tradeoffs, scaling triggers and contingency options |
 | [Architecture diagram](docs/architecture/diagram.md) | Component topology and connections |
 | [Business rules](docs/business-rules.md) | Current BR requirements, product decisions and cross-cutting acceptance criteria |
 | [API contracts](docs/api-contracts.md) | Canonical55-operation matrix, detailed HTTP/schema reference and evidence owners |
 | [Journey](docs/journey.md) | Full milestone overview, followed by complete dated decisions, implementation, failures, repairs and acceptance history |
-
 
 Use this structure as a guide for other projects, but re-establish their runtime, test commands, data boundaries, browser permissions and merge/deployment authority. Fitfinity's permissions and technology choices do not transfer automatically. Keep reusable engineering practice here and project business rules in Business Rules; do not create parallel rulebooks.
 
@@ -101,7 +103,7 @@ Fitfinity source acceptance requires complete `verify / frontend`, `verify / bac
 
 Update each document's unique owner and link elsewhere. Refresh `docs/code-owners/index.md` when responsibilities move between modules; keep business rules in Business Rules and infrastructure topology in Architecture. Preserve canonical BR IDs and anchors when moving/editing rules; allocate the next unused ID for new rules, never reuse retired IDs, and keep every current BR mapped to code or an explicitly labelled operational/planned owner in Code Owners. Update affected `docs/uat/` worksheets when user-visible rules or workflows change; keep unexecuted cases distinct from acceptance evidence. Keep one North Star, one current progress ledger and one canonical operation matrix. Business Rules, API Contracts and Journey own current rules, the operation matrix/schema reference and full dated evidence respectively; historical instructions, approvals and counts do not govern current work. Preserve business/security decisions and first failures when consolidating; verify content preservation and references before deleting obsolete files.
 
-Report implemented, tested, CI-verified, merged, deployed and production/provider/device-accepted states separately. Record historical receipts once in Journey; keep Progress focused on the current task: completed work, exact checkout/PR/CI evidence, unresolved issues, the stopping point and ordered resume actions, followed by remaining work. Link to Journey for milestone scope and historical receipts; replace stale handovers rather than accumulating them. Backlog entries need dependencies, acceptance evidence and rollout boundaries; a planned capability is not implemented or authorized for activation. At handoff, record the actual branch/head, dirty/stashed work, PR/CI status, unresolved failures and next action without exposing secrets.
+Report implemented, tested, CI-verified, merged, deployed and production/provider/device-accepted states separately. Record historical receipts once in Journey; keep Progress focused on the current task: concise outcome, exact checkout/PR/CI reference, unresolved issues, the stopping point and ordered resume actions, followed by remaining work. Link to Journey for milestone scope and historical receipts; replace stale handovers rather than accumulating them. Backlog entries need dependencies, acceptance evidence and rollout boundaries; a planned capability is not implemented or authorized for activation. At handoff, record the actual branch/head, dirty/stashed work, PR/CI status, unresolved failures and next action without exposing secrets.
 
 ## Execution environment and boundaries
 

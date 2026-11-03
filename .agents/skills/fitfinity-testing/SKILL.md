@@ -11,9 +11,11 @@ Apply this procedure to every PR, including documentation-only, dependency, work
 
 Review tests during implementation and before publication, not only after merge. This is an instruction skill, **not an automatic CI hook**. Existing verifiers enforce declared inventories/outcomes but cannot prove that every changed behavior has a meaningful assertion. Include a review receipt in the PR. AGENTS directs agents here explicitly if automatic repository-skill discovery is unavailable.
 
-Fitfinity permits Codex to run Playwright and inspect isolated internal previews. Use synthetic records, isolated Docker PostgreSQL/object storage and the local signed-token Cognito substitute. Never use production PostgreSQL or real customer data for routine tests. Real Cognito/email/invitations, AWS changes, image publication, deployment, provider operations and production load require their own authority. Local emulation, simulator browsers, real-API browsers, process restart, authoritative macOS/WebKit CI, physical devices and deployed acceptance are distinct evidence scopes. Do not copy SoccerBot's owner-only browser restriction or its Worker/provider architecture.
+Fitfinity permits Codex to run Playwright and inspect isolated internal previews. Use synthetic records, isolated Docker PostgreSQL/object storage and the local signed-token Cognito substitute. Never use production PostgreSQL or real customer data for routine tests. Real Cognito/email/invitations, AWS changes, image publication, deployment, provider operations and production load require their own authority. Local emulation, simulator browsers, real-API browsers, process restart, authoritative macOS/WebKit CI, physical devices and deployed acceptance are distinct evidence scopes.
 
 For dependency work, also apply the [dependency review skill](../fitfinity-dependencies/SKILL.md) before changing code; it owns suitability and upstream research, while this skill owns the verification impact.
+
+For implementation changes, apply the [code-writing skill](../fitfinity-code-writing/SKILL.md) for owning-cause repair and authoritative value ownership. This skill retains detailed regression and guard-execution evidence.
 
 ## 1. Map the whole change to existing tests
 
@@ -55,11 +57,19 @@ Derive expected results from rules/contracts or independently constructed fixtur
 
 If requirements legitimately change, update obsolete assertions and fixtures in the **same PR**, explaining the old/new contract. If requirements do not change, repair the defect rather than rewriting expectations. Removing/renaming a test must preserve its behavioral coverage or explain authorized retirement. Retain original failures in Journey under the documentation skill.
 
+### Prove the test can detect the defect
+
+For a substantive bug fix, prefer a bounded pre-fix or narrow mutation demonstration: restore only the defect in an isolated fixture or temporary source copy, run the named regression and require failure at the intended assertion, then require the corrected case to pass. Assert that the mutation actually changed its input. Compilation/setup failure, an unrelated failure or an unchanged replacement is not regression proof. Never reset the user's working tree or invoke prohibited browser/provider work. Record the test, mutation/pre-fix revision, observed reason and result; if the required environment is unavailable or execution is disproportionate for harmless copy/style work, record that limitation rather than claiming mutation coverage. This is targeted evidence, not a requirement to install a mutation framework or repeatedly run the full suite.
+
+Pair negative safety assertions with positive evidence that the scenario ran: expected result/state, meaningful response content, relevant provider effect or preserved original attempt. Absence of error text, empty output or a generic success code alone cannot prove the behavior. Negative assertions remain essential for unauthorized access, duplicate effects and protected data; do not remove them in favor of positive-only checks.
+
+For UI copy changes, search old full messages and distinctive substrings across component and browser assertions, accessible names, fixtures and inventories. For motion/layout changes, distinguish interim animated geometry from final dimensions: synchronize the actual lifecycle where final size is required, without arbitrary sleeps or relaxing dimensions. Keep immediate confirmation/timing assertions before any purely visual completion wait.
+
 ## 3. Synchronize fixtures and strict inventories
 
 Fixtures must represent valid and deliberately invalid domain states, current role/assignment, bounded clocks and real persistence constraints. Synthetic Cognito still exercises JWT verification/cookies/CSRF; it does not establish provider delivery. Keep simulator fixtures aligned with supported contracts without treating their responses as real PostgreSQL acceptance. Each isolated run/shard owns its disposable data/resources; cleanup must not target unrelated databases or containers.
 
-Fitfinity does **not** use SoccerBot's `test-inventory.json` or Worker inventory. Inspect the actual current inventory owners:
+Inspect Fitfinity’s actual inventory owners; do not assume another repository’s file names or runner model apply:
 
 | Owner | What must remain synchronized |
 | --- | --- |
@@ -71,6 +81,14 @@ Fitfinity does **not** use SoccerBot's `test-inventory.json` or Worker inventory
 | Playwright/Vitest/pytest configuration and owning harnesses | Project, fixture, collection, isolation and timeout behavior; do not silently omit a device, file or runtime path. |
 
 When adding, renaming, moving or retiring tests, update every affected verifier expectation and its regression tests in the same PR. Compare discovered and executed cases, not just unchanged totals. Do not regenerate a reduced inventory to conceal missing tests or change checker expectations to accept a failure.
+
+### Required dependent-guard review
+
+Prove actual guard execution from the workflow/wrapper invocation and its receipt. Missing/skipped required guards, empty collection and absent reports must fail. Check the Git index executable mode for directly invoked scripts; local filesystem permissions alone can hide an incorrectly committed mode.
+
+Run affected guard tests and the owning verification wrapper, not only raw test cases. For browser/backend group changes, inspect `scripts/verify-ci-groups.mjs`, `backend/scripts/ci_groups.py`, `backend/scripts/test-ci-groups.py` and `scripts/verify-backend.mjs`; for API shards, inspect `scripts/verify-api-shards.mjs`. Replay complete retained evidence only when its source/runtime inputs remain applicable to a guard-only repair, and label diagnostic edits separately from execution acceptance. Source/runtime changes require new applicable execution.
+
+Preserve ordering where the actual parser requires it and exact case identity everywhere; independent shard completion order is not a contract. Parameterized cases need stable identities across fresh collectors. Search old titles, counts and indirect consumers; ensure each negative fixture mutation changes its input rather than silently becoming a no-op. Preserve independent expectations and duplicate/missing/skipped/failed/foreign-source rejection.
 
 **Required guard impact review.** For every change, identify all guards that enforce the affected contract, including indirect callers. Give each an update or retain-with-evidence disposition in the PR; update necessary guards, fixtures and checker regressions in the same PR, not as a forgotten follow-up.
 

@@ -1,10 +1,8 @@
 # Fitfinity operations runbook
 
-Draft — **28 October 2026**. For authorised operators of the developer AWS environment and future production releases. [Security infrastructure](security.md) maps controls and remaining layers. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Business rules](business-rules.md) owns rules, and [Development](development.md) owns local setup and verification commands.
+Operational proposals remain draft; source review **3 November 2026**, PR120 candidate `7f36ae8`. For authorised operators of the developer AWS environment and future production releases. [Security infrastructure](security.md) maps controls and remaining layers. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Business rules](business-rules.md) owns rules, and [Development](development.md) owns local setup and verification commands.
 
 Navigation: [Access](#1-ownership-and-access) · [Routine checks](#2-routine-checks) · [Dependencies](#3-dependency-maintenance-and-dependabot) · [Monitoring](#4-monitoring-and-observability) · [Incidents](#5-incident-response-and-recovery) · [Releases](#6-deployments-and-rollback) · [Restore](#7-data-protection-and-restore) · [DNS](#8-domain-dns-and-https) · [Handover](#9-operational-records-and-handover).
-
-Adapted from [SoccerBot's runbook format](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/feat/version-inventory/docs/Runbook.md). Fitfinity uses its own Cognito, FastAPI, PostgreSQL and AWS deployment model; SoccerBot provider permissions and monitoring are not inherited.
 
 ## 1. Ownership and access
 
@@ -71,7 +69,7 @@ Python version updates remain manually maintained: `pyproject.toml` feeds uv-gen
 
 1. Read the advisory/release notes and PR diff. Use [versions.md](versions.md) to identify direct, transitive, development and image exposure. Inspect vulnerable Action internals and OS packages separately from app locks. Confirm repository alert/security-update settings with suitable access; copied YAML does not enable them.
 2. Update the owning inputs together: npm manifest/lock, Python manifest and **both hashed locks**, or reviewed full Action SHA/image references. Python and Compose PostgreSQL/RustFS maintenance remain manual. A manifest-only Python security PR is incomplete.
-3. Refresh `docs/versions.md`, including nested versions and input fingerprints. This is manually maintained; no generated freshness gate or automatic artifact SBOM is claimed. Preserve unrelated pins and verify hashes; do not use forced blanket upgrades.
+3. After a locked install, run `npm run versions:refresh`, review `docs/versions.md` and run `npm run verify:dependencies`. PR120 implements generated tables/fingerprints and a blocking freshness/consistency gate; explanatory prose and deployed state remain reviewed manually. No automatic artifact SBOM is claimed. Preserve unrelated pins and verify hashes; do not use forced blanket upgrades.
 4. Run relevant checks, then require exact-head `verify / frontend`, `verify / backend` and `verify / api-browser`. The npm audit includes development tools and blocks high/critical findings and audit-service errors. It does not cover Python, OS packages or the deployed Lambda image. Diagnose failures without weakening tests, adding retries or raising timeouts.
 5. Review and merge only the tested head, then inspect fresh **main application CI**, not a Dependabot job named main. PR success, source merge, image publication and deployed remediation are different evidence.
 6. Recheck alerts/audits and, after separately authorised deployment, the actual deployed digest. Closed-as-fixed differs from dismissed. The user reported0 open/26 closed alerts after PR104; detailed API access remained403. That observation is not a continuing clean-state guarantee.
@@ -94,7 +92,7 @@ Use the API's deployed base path when checking health; do not assume a frontend-
 
 ### Planned monitoring — not activated
 
-OpenTelemetry, Grafana, measured latency budgets, SLOs, alert receivers and backup/restore monitoring remain [M10 work](../PROGRESS.md#m10-work-packages--planned). There is no Fitfinity Tail Worker, Tempo exporter, dashboard JSON or exporter command to copy from SoccerBot.
+OpenTelemetry, Grafana, measured latency budgets, SLOs, alert receivers and backup/restore monitoring remain [M10 work](../PROGRESS.md#m10-work-packages--planned). No telemetry exporter or dashboard installation is claimed.
 
 Before activation: define service/environment labels and correlation; review redaction and sampling; cap cardinality, retention and cost; verify export failure isolation; measure representative cold/warm workloads; configure named responders and test actual receiver delivery. Choose thresholds from observed baselines, not invented budgets. Check ingestion with real queryable evidence; an exporter HTTP response or an empty dashboard is not proof of monitoring coverage.
 

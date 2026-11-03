@@ -1,6 +1,6 @@
 # Technical behavior and recovery map
 
-Source snapshot: main `08220b9969ad71933bde0c4f5458eef9e1190bc1` (28 October 2026). This is the function-level companion to the [feature ownership map](index.md): named operations, visible results, guards, failure recovery and evidence. It covers principal feature entry points and state changes, not every private helper or JSX callback. “Owner” means code responsibility, not an assigned incident responder.
+Source review: PR120 candidate `7f36ae8` (3 November 2026); accepted main remains PR117. Source and deployment acceptance are separate. This is the function-level companion to the [feature ownership map](index.md): named operations, visible results, guards, failure recovery and evidence. It covers principal feature entry points and state changes, not every private helper or JSX callback. “Owner” means code responsibility, not an assigned incident responder.
 
 [Business rules](../business-rules.md) own invariants, [API contracts](../api-contracts.md) own the 55-operation inventory and wire schemas, and the [runbook](../runbook.md) owns operator procedures. Source behavior does not prove deployed AWS configuration. Demo adapters and simulated Cognito remain distinct from real-API PostgreSQL evidence and live acceptance.
 

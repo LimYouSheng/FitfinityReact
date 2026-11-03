@@ -13,7 +13,7 @@ This skill owns research, suitability, change classification and the merge/defer
 
 This is an agent instruction, not a GitHub Actions hook, automatic summary, unattended monitor or guarantee of compatibility. Put the assessment in the PR description. It grants no additional browser, provider, merge, deployment, secret or account authority. Existing source-merge authority in AGENTS still applies: eligible exact-head source merges do not require repeated approval. This skill grants no AWS, provider or deployment authority and never permits bypassing GitHub requirements.
 
-Adapted from the [SoccerBot dependency-review skill](https://github.com/soccerbotstudiosg/soccerbotstudioSG/blob/docs/dependency-review-skill/.agents/skills/soccerbot-dependencies/SKILL.md), inspected2 November2026. Fitfinity’s source and rules govern; no SoccerBot architecture or operational permissions transfer.
+For implementation repairs, apply the [code-writing skill](../fitfinity-code-writing/SKILL.md) and [guard-execution review](../fitfinity-testing/SKILL.md#required-dependent-guard-review). Keep the readiness/compatibility assessment separate from actual execution and acceptance.
 
 ## 1. Establish the candidate and reason
 

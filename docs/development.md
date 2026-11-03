@@ -126,7 +126,7 @@ Request a changed-file summary, patch or complete changed files, test evidence, 
 
 Integrate into a branch matching the supplied baseline. Review deletions/configuration carefully and use `git apply --check` before applying a returned patch. Reconcile intervening changes explicitly; do not force mismatched patches. Restore local secrets through secure setup.
 
-Run affected checks on the integrated bytes and use the normal PR process. Snapshot test reports do not replace final-head CI. Fitfinity has no documented guarded installer delivery workflow; do not copy SoccerBot installer commands or run an unreviewed bundled script.
+Run affected checks on the integrated bytes and use the normal PR process. Snapshot test reports do not replace final-head CI. Fitfinity has no documented guarded installer delivery workflow; do not run an unreviewed bundled installer script.
 
 ## GitHub publishing and what CI does
 
@@ -166,7 +166,7 @@ Dependent draft PRs may target an unmerged task branch with exact ancestry recor
 
 [AGENTS](../AGENTS.md) remains the rules authority. Use existing owners, preserve business invariants and unknown work, keep verification strict and report implemented/tested/merged/deployed/accepted states accurately. Update the unique owning document rather than copying its rules here. Preserve stable BR IDs and their code-owner mappings, the full Journey and milestone roadmap.
 
-Dependency updates follow the [runbook](runbook.md#3-dependency-maintenance-and-dependabot). Refresh the manually maintained [version inventory](versions.md) when its inputs change; Fitfinity does not currently have SoccerBot's versions generator/freshness gate. Do not use `npm audit fix --force` as routine setup.
+Dependency updates follow the [runbook](runbook.md#3-dependency-maintenance-and-dependabot). Run `npm run versions:refresh` after a locked install when inventory inputs change, review the [generated inventory](versions.md), then run `npm run verify:dependencies`. The blocking freshness/consistency gate is implemented in PR120; handwritten explanations and deployed state still require review. Do not use `npm audit fix --force` as routine setup.
 
 ## Development setup
 
@@ -195,10 +195,9 @@ Independent CI work starts concurrently: quality/audit, frontend units, browser 
 
 Backend ownership is explicit in [test-groups.json](../backend/scripts/test-groups.json): identity/clients628, scheduling/packages449 and records/platform345 cases at this checkpoint. Each group discovers the complete1422-case inventory before selecting whole files, owns separate Docker PostgreSQL/storage and retains setup/call/teardown outcomes. New/unassigned or duplicate files fail. Backend source checks also collect all cases in two fresh processes and require identical stable IDs; random scenario data must not make case identities vary between shards. The [group verifier](../scripts/verify-ci-groups.mjs) checks complete identity coverage and successful dependencies under the unchanged frontend/backend gate names; missing, duplicated, failed, skipped or wrong-source backend receipts are rejected. Local full-suite commands remain available. `FITFINITY_TEST_GROUP=<group> FITFINITY_BACKEND_RECEIPT=/absolute/path/report.json node scripts/verify-backend.mjs` selects a diagnostic group; it is not complete acceptance.
 
-Browser jobs consume one build artifact bound to the current source SHA and run attempt. Browser and backend jobs retain disk/process or Docker resource snapshots around execution. This is diagnostic evidence, not a latency or memory-peak benchmark. Automatic one/two-case runtime recycling is not enabled: SoccerBot’s Miniflare/SQLite lifecycle does not transfer directly to PostgreSQL, and restarting hundreds of processes adds overhead. Revisit measured growth/leaks before selecting a batch size; preserve complete transaction/race/restart scenarios and cleanup.
+Browser jobs consume one build artifact bound to the current source SHA and run attempt. Browser and backend jobs retain disk/process or Docker resource snapshots around execution. This is diagnostic evidence, not a latency or memory-peak benchmark. Automatic one/two-case runtime recycling is not enabled: restart frequency must follow measured PostgreSQL/browser lifecycle needs, and restarting hundreds of processes adds overhead. Revisit measured growth/leaks before selecting a batch size; preserve complete transaction/race/restart scenarios and cleanup.
 
 Required CI and evidence rules belong to [AGENTS](../AGENTS.md#verify-and-publish). Test inventories are defined by the verifiers, not historical counts in documentation.
-
 
 Browser media compatibility is a feature-specific acceptance question under the [coverage matrix](#browser-testing-coverage), not a blanket browser support guarantee. Conversion depends on recording APIs and input codecs, with explicit original-file fallback. Actual Samsung/iPad capture and audio playback still require physical UAT. Browser preparation uses no microphone permission; it processes audio already present in the selected clip.
 
@@ -206,12 +205,11 @@ Dependency updates: run `npm ci`, then `npm run versions:refresh` and review `do
 
 For failed/queued CI, follow the [CI diagnosis skill](../.agents/skills/fitfinity-ci-diagnosis/SKILL.md) for exact-run evidence and bounded experiments; this document remains the setup/command owner.
 
-
 ## Browser testing coverage
 
 This section owns configured browser coverage and its limits; [Versions](versions.md#browser-engines) owns the generated package/engine inventory. Every dependency PR needs the [before/after support comparison](../.agents/skills/fitfinity-dependencies/SKILL.md#required-support-range-comparison-in-every-dependency-pr). **Upstream-supported ranges, repository configuration and verified coverage are three different claims.** No customer minimum-browser policy or continuous supported range is established by this matrix.
 
-Checkpoint:2 November2026. Accepted maincc243fb and PR120 both pin Playwright1.64.1. The following engine versions/revisions are from the exact installed playwright-core1.64.1 browsers.json, checked against the lock; they are bundled configuration, not independently captured browser.version() output. Hosted runner images and platform-specific engine overrides require their own run evidence.
+Configuration reviewed:3 November2026. Accepted maincc243fb and PR120 both pin Playwright1.64.1. The following engine versions/revisions are from the exact installed playwright-core1.64.1 browsers.json, checked against the lock; they are bundled configuration, not independently captured browser.version() output. Hosted runner images and platform-specific engine overrides require their own run evidence.
 
 | Configured engine | Bundled version / revision | Platform qualification |
 | --- | --- | --- |
@@ -233,7 +231,7 @@ Playwright1.64 forwards descriptor screen dimensions ([upstream release notes](h
 | --- | --- | --- |
 | Accepted main after PR117 |cc243fb; [run41260731060](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41260731060); frontend macos-15, real-API shards ubuntu-latest | Complete frontend/backend/API gates, including1155 frontend browser and396 real-API cases. Exact hosted OS patch/browser.version() values are not recorded in this table; labels do not prove them. |
 | Separate reviewed dependency candidates | PR118 head50c1335 [run41371397837](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41371397837); PR119 head6ad701a [run41371414485](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41371414485); same configured profiles/host labels | All required gates passed on those separate heads. They do not accept the combined PR120 head. |
-| PR120 local implementation receipt |998b44b; Node24.19.0, Linux x64 |1504 units,120 quality regressions,21 source-health checker tests, build/PWA and npm audit passed. These are not a new browser/device run; exact Linux distro/kernel is not retained as browser acceptance. Final combined-head CI is required. |
+| PR120 verified candidate |7f36ae8; [run41403809510](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41403809510); macos-15 unit/build/browser profiles; ubuntu-latest quality/backend/API groups | All16 verification jobs passed:1511 units,1155 simulator browser cases,1422 backend cases,636 infrastructure cases and396 real-API cases, plus133 quality regressions. Exact OS patch/browser.version() observations are not retained here. Later source heads require fresh CI; merge/deployment remain separate. |
 | Physical developer-AWS acceptance | Designated Owner/Admin/Trainer records | Current deployed revision/device evidence remains pending; no real Samsung/iPad, branded Edge or Firefox acceptance inferred. |
 
 These are discrete source/configuration observations, not coverage of every earlier, later or intermediate browser/runtime version. Playwright's [exact package metadata](https://registry.npmjs.org/@playwright/test/1.64.1) declares Node>=20; Fitfinity deliberately selects Node24 via .nvmrc with a >=24.15.0,<25 project range and checks all locked engine requirements. That declared range is a configuration policy, not proof every patch in it has been tested. `macos-15` and `ubuntu-latest` are workflow selections, not a complete upstream OS/architecture support matrix; consult the selected release's documented platform requirements before changing hosts. Externally prepared browser images/caches need their own matching metadata and acceptance.
