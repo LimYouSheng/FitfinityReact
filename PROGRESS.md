@@ -2,25 +2,25 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — skill adaptation and documentation reconciliation
+## Current task — Admin navigation, Trainer layout and local API setup
 
-Checkpoint: **3 November 2026 (Singapore)**. Accepted main is `cc243fb7fa82035c0452cd6c03c93b42fe767161` (PR117). PR120 remains draft/open on `docs/dependency-audit-20261102`; PR118/119 are still open and their changes are already included in PR120. This documentation work stays on the existing PR rather than creating a competing branch.
+Checkpoint: **3 November 2026 (Singapore)**. Accepted main is `1ba1573de046bc1c0eef9e83d1481313f892eb39` (PR120); its final-head and fresh-main verification passed. PR118/119 were closed unmerged as superseded. Current branch: `fix/admin-directory-trainer-layout`; source changes are prepared locally, with new-head CI and merge pending.
 
 ### Campaign contract and leave-off
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Adapt updated engineering skills to Fitfinity, remove external-project documentation references, separate current handover from history and reconcile source/status claims across all document owners. No application, workflow, dependency or business-policy change in this documentation slice. |
-| Starting evidence | Inspected head `7f36ae8281879f259900aa32ce18a8a91a6d87ba`; [run41403809510](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41403809510) passed all16 verification jobs. Main remains PR117; no PR120 merge or AWS deployment is claimed. |
-| Prepared changes | New code-writing skill; stronger regression/guard-execution and documentation-ownership guidance; obsolete Progress details retained in Journey; generator, CI budgets, source snapshots and coverage descriptions reconciled. |
-| Acceptance / budget | Documentation-only local checks: full-document links/anchors, Markdown/diagrams, rule/operation/history preservation and stale-reference review. Three bounded iterations completed (review, reconciliation, validation); block limit6 substantive iterations/90 minutes; no paid services or heavy local application rerun solely for prose. New pushed head requires all three complete GitHub gates. |
-| Preserved work | Existing checkout and all8 stashes; no unknown edits at task start. Source-merge authority does not authorize AWS/provider actions. |
-| Leave-off / blocker | Documentation reconciliation locally validated; publish this candidate, then require new-head CI before the authorized merge. Prior green CI accepts only7f36ae8. Alert27/settings remain independently unverified; current-source live/provider/device acceptance is still open. |
+| Outcome / scope | Repair Admin list/profile navigation, match the Trainer visual format using Admin fields, place package reassignment beside its Trainer, stack associated Trainer names, and document complete isolated local API startup/testing. No permission, API/schema or AWS change. |
+| Starting evidence | Accepted main1ba1573; [fresh-main run41571995126](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41571995126) passed. Original Admin list-to-detail regression reproduced a TypeError before the repair. |
+| Prepared changes | Selection-bound Admin reads, search/status/gender filters and pagination, creation-return refresh, shared profile styles; per-package Trainer action and stacked names. Development now distinguishes demo, disposable real-API tests/manual browser and persistent local backend. |
+| Acceptance / budget |1513 units/155 files;133 quality guards;9 targeted real-API cases and3 targeted simulator cases passed across desktop/phone/tablet profiles. Local manual API readiness, synthetic Owner login, detail navigation/reload and desktop screenshots checked. Complete new-head CI remains required; bounded campaign limit6 substantive iterations/90 minutes. |
+| Preserved work | Existing checkout and all8 stashes. No production PostgreSQL, AWS resources or provider actions. |
+| Leave-off / blocker | Finish final source/document guards and publish candidate. Manual startup validated with a dependency-matching prebuilt image and headless Chromium; fresh Docker build and a headed desktop session were not repeated. Persistent local backend commands are source-reviewed, not a new executed acceptance receipt. |
 
 ### Resume in this order
 
-1. Publish this locally validated documentation/skill change to PR120, update its current receipt and require complete exact-head frontend/backend/API-browser gates.
-2. After eligible PR120 merge, verify fresh-main/demo publication and close PR118/119 unmerged as superseded. Record final results in the PR receipt; do not create recursive status commits.
+1. Publish the UI/setup candidate with regression and documentation receipts; require complete exact-head frontend/backend/API-browser gates before eligible source merge.
+2. Verify fresh-main/demo publication separately after merge. Record the result in the PR receipt; reconcile this checkpoint on the next substantive change.
 3. Resume separately scoped developer-AWS/M6 acceptance preparation. Approval-vetting redesign, global2px typography, cleanup activation and general inactive-record disposal retain their deferred/undecided boundaries.
 
 ## Current acceptance boundaries
@@ -46,7 +46,7 @@ Follow the [full roadmap in Journey](docs/journey.md#full-milestone-roadmap). Th
 
 ### Dependency/security maintenance and deferred refactors
 
-PR117's minimatch override is merged; PR120's dependency/inventory guards and consolidated updates passed on `7f36ae8` but remain unmerged. Preserve the patched override until reviewed upstream resolution and complete verification justify removal. [Journey](docs/journey.md#complete-journey) retains advisories, rejected attempts and historical scans; the [runbook](docs/runbook.md#dependency-maintenance) owns update policy.
+PR117's minimatch override is merged; PR120's dependency/inventory guards and consolidated updates are merged in1ba1573 with final-head and fresh-main verification passed. Preserve the patched override until reviewed upstream resolution and complete verification justify removal. [Journey](docs/journey.md#complete-journey) retains advisories, rejected attempts and historical scans; the [runbook](docs/runbook.md#dependency-maintenance) owns update policy.
 
 Remaining: verify alert27 identity/closure and repository settings when access permits (last direct read denied); implement reviewed Python custom-lock/Compose update automation and broader vulnerability coverage; assess SBOM/provenance and runner OS/browser dependencies. An old zero-audit receipt does not establish today's alert count or deployed remediation. The unadopted browser-image trial does not describe the current runner. Backend router extraction and further feature extraction remain deferred, not active open PRs; preserve stashed work and do not repeat accepted PR91/92 changes.
 

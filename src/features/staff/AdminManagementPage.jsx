@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useState } from 'react'
+import AdminDirectory from './AdminDirectory.jsx'
 import ProfileAvatar from '../../components/ProfileAvatar.jsx'
 import Panel from '../../components/Panel.jsx'
 import ProfileNavigation from '../../components/ProfileNavigation.jsx'
@@ -11,26 +12,22 @@ import { ADMIN_APPROVAL_FIELDS } from '../../app/adminApprovals.js'
 import { adminErrors, adminPayload } from '../../app/adminOnboarding.js'
 import { formatDate } from '../../utils/date.js'
 
-export default function AdminManagementPage({ services, selectedId, today, onNavigate, onBack, onCreate }) {
-  const [records, setRecords] = useState(null)
+export default function AdminManagementPage({ services, selectedId, today, onNavigate, onBack, onCreate, creating = false }) {
+  const [loaded, setLoaded] = useState(null)
+  const selection = `${selectedId ?? 'list'}/${creating}`
+  const records = loaded?.selection === selection ? loaded.value : null
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
   const load = useEffectEvent(() => selectedId ? services.staffService.getById({ id: selectedId }) : services.staffService.getAll())
   useEffect(() => {
     let current = true
-    setRecords(null); setError('')
-    load().then(value => { if (current) setRecords(value) }).catch(failure => { if (current) setError(failure.message) })
+    setLoaded(null); setError('')
+    load().then(value => { if (current) setLoaded({ selection, value }) }).catch(failure => { if (current) setError(failure.message) })
     return () => { current = false }
-  }, [selectedId, revision])
+  }, [selectedId, revision, selection])
   if (!records) return <section aria-busy={!error}>{error ? <><p role="alert">{error}</p><button type="button" onClick={() => setRevision(value => value + 1)}>Retry</button></> : <p>Loading Admin details…</p>}</section>
-  if (selectedId) return <AdminProfile key={selectedId} record={records} today={today} onBack={onBack} onSave={body => services.staffService.update({ id: selectedId, body })} onSaved={setRecords} />
-  return <>
-    <div className="page-head"><h1>Admin</h1><button type="button" className="primary-button" onClick={onCreate}>Create Admin</button></div>
-    <Panel><div className="info-list">{records.map(record => <div className="info-row" key={record.id}>
-      <button type="button" className="text-action" onClick={() => onNavigate(`admins/${record.id}`)}>{record.details.name}</button>
-      <span>{record.details.email}</span><StatusBadge tone={record.status === 'active' ? 'green' : 'amber'}>{record.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge>
-    </div>)}{!records.length && <p>No Admin accounts.</p>}</div></Panel>
-  </>
+  if (selectedId) return <AdminProfile key={selectedId} record={records} today={today} onBack={onBack} onSave={body => services.staffService.update({ id: selectedId, body })} onSaved={value => setLoaded({ selection, value })} />
+  return <AdminDirectory records={records} onNavigate={onNavigate} onCreate={onCreate} />
 }
 
 function personalDraft(record) {
@@ -76,7 +73,8 @@ function AdminProfile({ record, today, onBack, onSave, onSaved }) {
       if (failure.status >= 400 && failure.status < 500) setAttempt(null)
     } finally { setBusy(false) }
   }
-  const heading = (label, kind) => <div className="section-heading"><h2>{label}</h2><div className="section-actions">
+  const supervised = Object.values(record.approvalNeeded).filter(Boolean).length
+  const heading = (label, kind) => <div className="section-head"><h2>{label}</h2><div className="inline-actions">
     {editor === kind ? <><button type="button" className="text-action" disabled={busy || Boolean(attempt)} onClick={() => { setEditor(null); setAttempt(null); setErrors({}) }}>Cancel</button>
       <button type="button" className="text-action" disabled={busy} onClick={() => save(kind)}>{busy ? 'Saving…' : attempt ? 'Retry Original Save' : 'Save'}</button></>
       : record.status === 'active' && <button type="button" className="text-action" disabled={Boolean(editor) || busy} onClick={() => begin(kind)}>Edit</button>}
@@ -84,7 +82,7 @@ function AdminProfile({ record, today, onBack, onSave, onSaved }) {
   return <>
     <button type="button" className="text-action" disabled={busy || Boolean(attempt)} onClick={() => guardNavigation(onBack)}>Back to Admin</button>
     <div className="page-head profile-identity-card"><div className="profile-identity-main"><ProfileAvatar name={record.details.name} /><div><span className="eyebrow">Admin</span><h1>{record.details.name}</h1></div></div>
-      <div className="profile-card-statuses" aria-label="Admin status"><StatusBadge tone={record.status === 'active' ? 'green' : 'amber'}>{record.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge></div>
+      <div className="profile-card-statuses" aria-label="Admin status"><StatusBadge className="profile-autonomy-badge" tone={supervised ? 'amber' : 'green'}>{supervised ? `${supervised} approval controls` : 'Fully autonomous'}</StatusBadge><StatusBadge tone={record.status === 'active' ? 'green' : 'amber'}>{record.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge></div>
     </div>
       <ProfileNavigation items={[["general", "General Details"], ["approvals", "Approval Requirements"], ["lifecycle", record.status === 'active' ? 'Deactivate' : 'Reactivate']]} activeKey={tab}
         onSelect={key => { if (!busy && !attempt) guardNavigation(() => { setEditor(null); setErrors({}); setTab(key) }) }} />
@@ -98,7 +96,7 @@ function AdminProfile({ record, today, onBack, onSave, onSaved }) {
         </Panel>}
         {tab === 'approvals' && <Panel className={editor === 'approvals' ? 'editing-section' : ''}>
           {heading('Approval Requirements', 'approvals')}<p>Role: Admin. New Admins require approval for Exercise Library and Content by default. Downloads and uploads do not require approval. Checked actions require Owner approval. Read access and Owner-only restrictions remain unchanged.</p>
-          {ADMIN_APPROVAL_FIELDS.map(([key, label]) => <ApprovalSetting key={key} label={label} checked={editor === 'approvals' ? requirements[key] : record.approvalNeeded[key]} disabled={editor !== 'approvals' || busy || Boolean(attempt)} onChange={checked => setRequirements(value => ({ ...value, [key]: checked }))} />)}
+          <div className="approval-grid">{ADMIN_APPROVAL_FIELDS.map(([key, label]) => <ApprovalSetting key={key} label={label} checked={editor === 'approvals' ? requirements[key] : record.approvalNeeded[key]} disabled={editor !== 'approvals' || busy || Boolean(attempt)} onChange={checked => setRequirements(value => ({ ...value, [key]: checked }))} />)}</div>
         </Panel>}
         {tab === 'lifecycle' && <Panel><h2>{record.status === 'active' ? 'Deactivate Admin' : 'Reactivate Admin'}</h2>
           <p>The account and its recorded history are retained. Reactivation requires a fresh sign-in.</p>

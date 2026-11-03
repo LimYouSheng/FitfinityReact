@@ -71,6 +71,9 @@ export default function ClientGeneralInformation({ client, trainer, trainers = [
     if (Object.keys(generalErrors).length) generalFields.current?.querySelector('[aria-invalid="true"]')?.focus()
   }, [generalErrors, activePerson])
 
+  const trainerIds = [...new Set([client.package, ...(client.additionalPackages ?? [])]
+    .filter(item => item && item.status !== 'inactive').map(item => item.trainerId ?? client.trainerId))]
+
   return (
     <Panel className={activeEditor === 'general' ? 'editing-section' : ''}>
       <div className="section-head">
@@ -124,7 +127,8 @@ export default function ClientGeneralInformation({ client, trainer, trainers = [
 
         <div className="info-row client-trainer-row">
           <span>Trainers</span>
-          <div className="client-trainer-assignment"><strong>{[...new Set([client.package, ...(client.additionalPackages ?? [])].filter(item => item && item.status !== 'inactive').map(item => trainers.find(person => person.id === (item.trainerId ?? client.trainerId))?.name).filter(Boolean))].join(', ') || trainer?.name || '—'}</strong>
+          <div className="client-trainer-assignment" aria-label="Client Trainers">
+            {trainerIds.length ? trainerIds.map(id => <strong key={id}>{trainers.find(person => person.id === id)?.name ?? (trainer?.id === id ? trainer.name : '—')}</strong>) : <strong>{trainer?.name ?? '—'}</strong>}
           </div>
         </div>
 

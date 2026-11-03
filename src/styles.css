@@ -1551,14 +1551,11 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
   letter-spacing:.4px;
 }
 .info-row strong{font-size:12px;text-align:right}
-.client-trainer-assignment{display:grid;justify-items:end;gap:10px;min-width:0}
+.client-trainer-assignment{display:grid;justify-items:end;gap:6px;min-width:0}
 .client-trainer-assignment strong{overflow-wrap:anywhere}
-@media(min-width:700px){
-  .info-row.client-trainer-row{display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:8px}
-  .client-trainer-assignment{display:contents}
-  .client-trainer-assignment strong{grid-column:3;grid-row:1;justify-self:end;text-align:right}
-  .client-trainer-assignment button{grid-column:2;grid-row:1}
-}
+.package-trainer-assignment{display:flex;align-items:center;gap:12px;min-width:0;margin:10px 0}
+.package-trainer-assignment>span,.package-trainer-assignment p{margin:0;min-width:0;overflow-wrap:anywhere}
+.package-trainer-assignment>.text-action{flex:0 0 auto}
 .notice{
   border:1px solid #343946;
   background:#0d0f14;
@@ -1733,6 +1730,8 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
   margin-bottom:10px;
 }
 .trainer-client-controls{grid-template-columns:minmax(220px,1.35fr) repeat(2,minmax(120px,.55fr))}
+.list-controls.admin-controls{grid-template-columns:minmax(220px,1.35fr) repeat(2,minmax(120px,.55fr))}
+
 .list-controls input,
 .list-controls select,
 .message-search-controls input,
@@ -1902,6 +1901,9 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
     grid-template-columns:repeat(3,minmax(0,1fr));
     gap:5px;
   }
+
+  .list-controls.admin-controls{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  .admin-controls .search-suggest-wrap{grid-column:1 / -1}
 
   .client-controls.trainer-client-controls{grid-template-columns:repeat(2,minmax(0,1fr))}
 
@@ -2743,7 +2745,7 @@ fieldset.session-request-fields legend{margin-bottom:8px;font-weight:600}
   }
   .info-row strong{text-align:left}
   .client-trainer-assignment{justify-items:stretch}
-  .client-trainer-assignment button{justify-self:end}
+
   .package-progress-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 38px 48px;gap:5px}
   .package-progress-grid>div{gap:4px}
   .package-progress-grid strong{font-size:11px}

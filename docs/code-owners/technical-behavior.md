@@ -1,6 +1,6 @@
 # Technical behavior and recovery map
 
-Source review: PR120 candidate `7f36ae8` (3 November 2026); accepted main remains PR117. Source and deployment acceptance are separate. This is the function-level companion to the [feature ownership map](index.md): named operations, visible results, guards, failure recovery and evidence. It covers principal feature entry points and state changes, not every private helper or JSX callback. “Owner” means code responsibility, not an assigned incident responder.
+Source review: accepted main `1ba1573` plus the Admin/Trainer UI candidate (3 November 2026). Source and deployment acceptance are separate. This is the function-level companion to the [feature ownership map](index.md): named operations, visible results, guards, failure recovery and evidence. It covers principal feature entry points and state changes, not every private helper or JSX callback. “Owner” means code responsibility, not an assigned incident responder.
 
 [Business rules](../business-rules.md) own invariants, [API contracts](../api-contracts.md) own the 55-operation inventory and wire schemas, and the [runbook](../runbook.md) owns operator procedures. Source behavior does not prove deployed AWS configuration. Demo adapters and simulated Cognito remain distinct from real-API PostgreSQL evidence and live acceptance.
 
@@ -43,12 +43,13 @@ Scope --> Draft
 | Function / operation | Behavior and visible result | Guards | Failure and recovery |
 | --- | --- | --- | --- |
 | [PortalDataProvider / refresh / retireWorkflows](../../src/components/PortalDataProvider.jsx) | Loads scoped snapshots and owns shared session/draft lifetime. | Generation and identity scope reject superseded responses; changed authority retires private work. Public sign-in/MFA/recovery invalidates older loads (successes and errors) and pauses focus/storage/timer refresh; explicit post-authentication verification resumes it. | A failed refresh is distinct from a failed save; recover the original command rather than create another. |
+| [AdminManagementPage / AdminDirectory](../../src/features/staff/AdminManagementPage.jsx) · [directory](../../src/features/staff/AdminDirectory.jsx) | Loads Owner-managed Admin list/profile; name/email search, status/gender filters and pagination use shared directory presentation. Returning from creation refreshes the list. | Loaded values are bound to the current selected route and creation state; retired reads cannot populate a different screen. | Read errors offer Retry. Detail save retains original uncertain intent; directory state never acts as write authority. |
 | [ApiSessionDetailsRoute](../../src/features/sessions/ApiSessionDetailsRoute.jsx) | Owns API detail loading and editor selection around the session detail view. | Current record identity, authority and edit lifetime determine whether a draft survives refresh. | Temporary outages retain eligible editing; definitive access loss clears private detail. Cancel reloads current values. |
 | [useReviewLifetime](../../src/hooks/useReviewLifetime.js) | Binds a delayed opening review to the enabled record that requested it. | Effect lifetime changes on disabled state, identity or unmount. | Discard late review results; they must not reopen a retired dialog. |
 | [ActionConfirmationProvider](../../src/components/ActionConfirmationProvider.jsx) | Presents reviewed confirmation owned by its caller. | Caller retirement and session lifetime invalidate pending decisions. | Closing a dialog does not cancel a command already dispatched. |
 | [EditGuardProvider](../../src/components/EditGuardProvider.jsx) | Coordinates navigation/discard decisions for active editors. | A navigation decision is separate from mutation confirmation. | Preserve an uncertain command after leaving its editor; do not clear its receipt recovery. |
 
-Evidence: [session-refresh.spec.js](../../tests-api/session-refresh.spec.js), [profile-recovery.spec.js](../../tests-api/profile-recovery.spec.js).
+Evidence: [AdminManagementPage.test.jsx](../../src/features/staff/AdminManagementPage.test.jsx), [staff.spec.js](../../tests-api/staff.spec.js), [session-refresh.spec.js](../../tests-api/session-refresh.spec.js), [profile-recovery.spec.js](../../tests-api/profile-recovery.spec.js).
 
 ## 2. Browser commands, transport and uncertain outcomes
 
