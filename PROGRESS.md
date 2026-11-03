@@ -2,20 +2,20 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Admin navigation, Trainer layout and local API setup
+## Current task — Admin/Trainer UI, local API setup and database schema
 
-Checkpoint: **3 November 2026 (Singapore)**. Accepted main is `1ba1573de046bc1c0eef9e83d1481313f892eb39` (PR120); its final-head and fresh-main verification passed. PR118/119 were closed unmerged as superseded. Current branch: `fix/admin-directory-trainer-layout`; source changes are prepared locally, with new-head CI and merge pending.
+Checkpoint: **3 November 2026 (Singapore)**. Accepted main is `1ba1573de046bc1c0eef9e83d1481313f892eb39` (PR120); its final-head and fresh-main verification passed. PR118/119 were closed unmerged as superseded. Current branch: `fix/admin-directory-trainer-layout`; PR121 is open. Its UI/setup head68b2eb2 passed all16 verification jobs in run41576385000; the requested database-schema documentation is being added to that same PR and requires new-head CI.
 
 ### Campaign contract and leave-off
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Repair Admin list/profile navigation, match the Trainer visual format using Admin fields, place package reassignment beside its Trainer, stack associated Trainer names, and document complete isolated local API startup/testing. No permission, API/schema or AWS change. |
+| Outcome / scope | Repair Admin list/profile navigation, match the Trainer visual format using Admin fields, place package reassignment beside its Trainer, stack associated Trainer names, document complete isolated local API startup/testing, and map actual PostgreSQL tables/keys/relationships. No permission, API/schema or AWS change. |
 | Starting evidence | Accepted main1ba1573; [fresh-main run41571995126](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41571995126) passed. Original Admin list-to-detail regression reproduced a TypeError before the repair. |
-| Prepared changes | Selection-bound Admin reads, search/status/gender filters and pagination, creation-return refresh, shared profile styles; per-package Trainer action and stacked names. Development now distinguishes demo, disposable real-API tests/manual browser and persistent local backend. |
-| Acceptance / budget |1513 units/155 files;133 quality guards;9 targeted real-API cases and3 targeted simulator cases passed across desktop/phone/tablet profiles. Local manual API readiness, synthetic Owner login, detail navigation/reload and desktop screenshots checked. Complete new-head CI remains required; bounded campaign limit6 substantive iterations/90 minutes. |
+| Prepared changes | Selection-bound Admin reads, search/status/gender filters and pagination, creation-return refresh, shared profile styles; per-package Trainer action and stacked names. Development now distinguishes demo, disposable real-API tests/manual browser and persistent local backend. New architecture/database-schema.md maps104 application tables across8 domains, with9 diagrams and source-linked inventories. |
+| Acceptance / budget |1513 units/155 files;133 quality guards;9 targeted real-API cases and3 targeted simulator cases passed across desktop/phone/tablet profiles. Local manual API readiness, synthetic Owner login, detail navigation/reload and desktop screenshots checked. Schema validation applied all52 migrations to disposable PostgreSQL17.11 and inspected the actual104-table schema; all50 Mermaid diagrams parsed, all9 new diagrams rendered in Chromium, and2181 local links/anchors passed. Complete new-head CI remains required; bounded campaign limit6 substantive iterations/90 minutes. |
 | Preserved work | Existing checkout and all8 stashes. No production PostgreSQL, AWS resources or provider actions. |
-| Leave-off / blocker | Finish final source/document guards and publish candidate. Manual startup validated with a dependency-matching prebuilt image and headless Chromium; fresh Docker build and a headed desktop session were not repeated. Persistent local backend commands are source-reviewed, not a new executed acceptance receipt. |
+| Leave-off / blocker | Schema, render and link validation completed; push the documentation addition to PR121 and require new-head CI. The migrated uq_current_purchase index remains present although absent from model index declarations; the map records this accurately without changing schema. Manual startup validated with a dependency-matching prebuilt image and headless Chromium; fresh Docker build and a headed desktop session were not repeated. Persistent local backend commands are source-reviewed, not a new executed acceptance receipt. |
 
 ### Resume in this order
 
