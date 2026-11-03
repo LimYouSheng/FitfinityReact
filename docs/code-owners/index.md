@@ -1,12 +1,10 @@
 # Code owners and feature map
 
-Snapshot: **28 October 2026**, based on main `08220b9969ad71933bde0c4f5458eef9e1190bc1`. “Owner” means the module responsible for a behavior, not a person or GitHub review assignment. Start with the overview and follow numbered sections into smaller diagrams and linked source files. Arrows show responsibility breakdown unless explicitly labelled as request/data flow; this is not an exhaustive import graph or execution sequence.
+Source review: **3 November 2026**, PR120 candidate `7f36ae8`; accepted main remains PR117. “Owner” means the module responsible for a behavior, not a person or GitHub review assignment. Start with the overview and follow numbered sections into smaller diagrams and linked source files. Arrows show responsibility breakdown unless explicitly labelled as request/data flow; this is not an exhaustive import graph or execution sequence.
 
 This document owns code navigation. [System topology](../architecture/diagram.md) owns infrastructure/test topology, [Architecture](../architecture/adr.md) records stack rationale and runtime relationships, and [Business rules](../business-rules.md) owns requirements, [API contracts](../api-contracts.md) owns the55-operation matrix and schemas, and [Journey](../journey.md) owns full history. [Progress](../../PROGRESS.md) owns acceptance and planned work; [Versions](../versions.md) owns dependency versions. Update this map when responsibilities move. Source ownership does not establish deployed/provider/device acceptance.
 
 See [Technical behavior](technical-behavior.md) for named functions, visible behavior, guards, failures, recovery and evidence.
-
-Format reference: [SoccerBotStudioSG Code Owners](https://github.com/LimYouSheng/SoccerBotStudioSG/tree/b137a79b3451e33fa8c9573d8532976872f64269/docs/code-owners). Fitfinity retains its own React/FastAPI/PostgreSQL/Cognito boundaries.
 
 ## 1. Overview
 
@@ -381,7 +379,7 @@ CI["verify.yml · required gates"]
   Browser --> Aggregate["verify-api-shards.mjs<br/>Complete discovered inventory, no omitted cases"]
 ```
 
-Source owners: [backend harness](../../scripts/verify-backend.mjs), [browser harness](../../scripts/verify-api-browser.mjs), [shard aggregate](../../scripts/verify-api-shards.mjs), [quality gates](../../scripts/verify-quality.mjs), [result inventory](../../scripts/verify-test-results.mjs), [source health](../../scripts/verify-code-health.mjs).
+Source owners: [backend harness](../../scripts/verify-backend.mjs), [browser harness](../../scripts/verify-api-browser.mjs), [shard aggregate](../../scripts/verify-api-shards.mjs), [frontend/backend group verification](../../scripts/verify-ci-groups.mjs), [backend partition ownership](../../backend/scripts/test-groups.json), [quality gates](../../scripts/verify-quality.mjs), [result inventory](../../scripts/verify-test-results.mjs), [source health](../../scripts/verify-code-health.mjs).
 
 [Real-API browser cases](../../tests-api), [backend tests](../../backend/tests) and [browser server](../../backend/tests/browser_server.py) own acceptance probes. Simulator tests are frontend evidence; synthetic Cognito is not live-provider acceptance. Physical-device, deployed-service and operational-drill evidence remain distinct.
 
@@ -455,3 +453,5 @@ The **BR IDs are defined in [Business rules](../business-rules.md#current-busine
 | [BR-062](../business-rules.md#br-062) | M0–M10 roadmap separate from the 55-operation matrix | 10 · milestone owner; not an application automation | [PROGRESS.md](../journey.md#full-milestone-roadmap) |
 | [BR-063](../business-rules.md#br-063) | Durable 55-operation/auth/parity acceptance and meaningful real DB evidence | 10.1 · cross-cutting implementation and acceptance | [src/services/portalContracts.js](../../src/services/portalContracts.js), [tests-api](../../tests-api), [backend/tests](../../backend/tests), [PROGRESS.md](../../PROGRESS.md) |
 | [BR-064](../business-rules.md#br-064) | Final-head gates and distinct provider/device/public-site acceptance | 10.1 · CI plus separately authorized operator acceptance | [.github/workflows/verify.yml](../../.github/workflows/verify.yml), [backend/tests/test_mfa_recovery_drill.py](../../backend/tests/test_mfa_recovery_drill.py), [tests-api/authentication.spec.js](../../tests-api/authentication.spec.js), [PROGRESS.md](../../PROGRESS.md) |
+
+Dependency maintenance owner: [scripts/dependency-maintenance.mjs](../../scripts/dependency-maintenance.mjs) validates runtime and lock consistency and regenerates the source-owned tables in [Versions](../versions.md). Its negative/valid-upgrade regressions live in [verify-quality.test.mjs](../../scripts/verify-quality.test.mjs); [verify-quality.mjs](../../scripts/verify-quality.mjs) rejects removal of the mandatory CI gate. `.nvmrc` owns workflow Node selection and package.json engines owns its supported range.

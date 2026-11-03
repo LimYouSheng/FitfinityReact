@@ -98,13 +98,13 @@ def test_contract_validation_rejects_dangling_refs_and_duplicate_operation_ids()
     [
         "/api/clock",
         "/api/directory",
-        f"/api/sessions/{uuid4()}/client",
+        pytest.param(f"/api/sessions/{uuid4()}/client", id="session-client"),
         "/api/clients",
         "/api/trainers",
         "/api/sessions",
         "/api/assessment-forms",
-        f"/api/people/{uuid4()}/assessments",
-        f"/api/assessments/{uuid4()}",
+        pytest.param(f"/api/people/{uuid4()}/assessments", id="person-assessments"),
+        pytest.param(f"/api/assessments/{uuid4()}", id="assessment-detail"),
     ],
 )
 def test_all_staff_routes_require_an_actual_session(auth_settings, path):

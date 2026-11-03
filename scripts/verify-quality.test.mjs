@@ -1,3 +1,4 @@
+import './verify-ci-groups.test.mjs'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { request } from '@playwright/test'
@@ -13,6 +14,8 @@ import { BROWSER_CASES, verifyTestResults } from './verify-test-results.mjs'
 import { test } from 'node:test'
 import { ESLint } from 'eslint'
 import { readQualitySetup, verifyQualitySetup } from './verify-quality.mjs'
+
+import { readDependencies, validateDependencies, renderInventory, pythonLock } from './dependency-maintenance.mjs'
 
 const lint = new ESLint()
 const cases = [
@@ -45,12 +48,22 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   verifyQualitySetup(readQualitySetup())
 })
 const mutations = [
+  ['runner expression before job scheduling', setup => { setup.verify.jobs['backend-group'].env.INVALID = '${{ runner.temp }}' }],
+  ['unbound browser build', setup => { setup.verify.jobs['browser-profile'].steps = setup.verify.jobs['browser-profile'].steps.filter(step => step.name !== 'Verify build identity') }],
+  ['lost failed group evidence', setup => { setup.verify.jobs['backend-group'].steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
+  ['missing browser profile', setup => { setup.verify.jobs['browser-profile'].strategy.matrix.profile.pop() }],
+  ['sequential independent checks', setup => { setup.verify.jobs.unit.needs = 'quality' }],
+  ['missing backend domain group', setup => { setup.verify.jobs['backend-group'].strategy.matrix.group.pop() }],
+  ['forged frontend dependency evidence', setup => { setup.verify.jobs.frontend.steps.find(step => step.env?.CI_NEEDS).env.CI_NEEDS = '{}' }],
+  ['lost frontend aggregate dependency', setup => { setup.verify.jobs.frontend.needs.pop() }],
+
+  ['missing dependency consistency gate', setup => { const step = setup.verify.jobs.quality.steps.find(item => item.run?.includes('npm run verify:dependencies')); step.run = step.run.replace('npm run verify:dependencies', '') }],
   ['missing reviewed Ubuntu source selection', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('prepare-browser-apt.py')) }],
   ['missing API browser engines', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('playwright install')) }],
 
-  ['missing blocking audit', setup => { setup.verify.jobs.frontend.steps = setup.verify.jobs.frontend.steps.filter(step => !step.run?.includes('npm audit')) }],
-  ['optional audit', setup => { setup.verify.jobs.frontend.steps.find(step => step.run?.includes('npm audit'))['continue-on-error'] = true }],
-  ['lost audit evidence', setup => { setup.verify.jobs.frontend.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
+  ['missing blocking audit', setup => { setup.verify.jobs.quality.steps = setup.verify.jobs.quality.steps.filter(step => !step.run?.includes('npm audit')) }],
+  ['optional audit', setup => { setup.verify.jobs.quality.steps.find(step => step.run?.includes('npm audit'))['continue-on-error'] = true }],
+  ['lost audit evidence', setup => { setup.verify.jobs.quality.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
   ['grouped sensitive tooling', setup => { delete setup.dependabot.updates[0].groups['npm-minor-patch']['exclude-patterns'] }],
   ['grouped major security upgrade', setup => { setup.dependabot.updates[0].groups['npm-security']['update-types'].push('major') }],
   ['missing shard', setup => { delete setup.verify.jobs['api-browser-shard'] }],
@@ -67,9 +80,9 @@ const mutations = [
   ['missing PR verification', setup => { delete setup.pages.on.pull_request }],
   ['path-filtered PR checks', setup => { setup.pages.on.pull_request.paths = ['backend/**'] }],
   ['optional shared verification', setup => { setup.pages.jobs.verify.if = 'false' }],
-  ['missing semantic gate', setup => { setup.verify.jobs.frontend.steps = setup.verify.jobs.frontend.steps.filter(step => !step.run?.includes('verify:lint')) }],
-  ['suppressed unit failure', setup => { setup.verify.jobs.frontend.steps.find(step => step.name === 'Unit gate')['continue-on-error'] = true }],
-  ['lost pipeline failure status', setup => { const step = setup.verify.jobs.frontend.steps.find(step => step.name === 'Unit gate'); step.run = step.run.replace('set -euo pipefail', 'set -eu') }],
+  ['missing semantic gate', setup => { setup.verify.jobs.quality.steps = setup.verify.jobs.quality.steps.filter(step => !step.run?.includes('verify:lint')) }],
+  ['suppressed unit failure', setup => { setup.verify.jobs.unit.steps.find(step => step.name === 'Unit gate')['continue-on-error'] = true }],
+  ['lost pipeline failure status', setup => { const step = setup.verify.jobs.unit.steps.find(step => step.name === 'Unit gate'); step.run = step.run.replace('set -euo pipefail', 'set -eu') }],
   ['missing backend and infrastructure verification', setup => { delete setup.verify.jobs.backend }],
   ['PR deployment', setup => { delete setup.pages.jobs.deploy.if }],
   ['deployment before verification', setup => { delete setup.pages.jobs.build.needs }],
@@ -147,12 +160,12 @@ function receipt(kind, contents, valid) {
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 }
 test('complete unit and browser receipts pass exact inventory validation', () => {
-  receipt('unit', 'Test Files 155 passed (155)\nTests 1504 passed (1504)', true)
+  receipt('unit', 'Test Files 155 passed (155)\nTests 1511 passed (1511)', true)
   receipt('browser', '1155 passed (1m)', true)
   receipt('api-browser', '396 passed (1m)', true)
 })
 test('unit receipt rejects old totals, missing files, truncation and skipped tests', () => {
-  for (const text of ['Test Files 155 passed (155)\nTests 1503 passed (1503)', 'Test Files 155 passed (155)\nTests 1504 passed (1504)\n1 skipped', 'Test Files 154 passed (154)\nTests 1499 passed (1499)', 'Test Files 155 passed (155)\nTests 1503 passed (1503)\n1 skipped', 'Test Files 153 passed (153)\nTests 1495 passed (1495)', 'Test Files 154 passed (154)\nTests 1499 passed (1499)\n1 skipped', 'Test Files 153 passed (153)\nTests 1494 passed (1494)', 'Test Files 153 passed (153)\nTests 1492 passed (1492)', 'Test Files 153 passed (153)\nTests 1490 passed (1490)', 'Test Files 153 passed (153)\nTests 1488 passed (1488)', 'Test Files 153 passed (153)\nTests 1486 passed (1486)', 'Test Files 151 passed (151)\nTests 1478 passed (1478)', 'Test Files 151 passed (151)\nTests 1476 passed (1476)', 'Test Files 150 passed (150)\nTests 1472 passed (1472)', 'Test Files 149 passed (149)\nTests 1436 passed (1436)', 'Test Files 149 passed (149)\nTests 1423 passed (1423)', 'Test Files 146 passed (146)\nTests 1392 passed (1392)', 'Test Files 145 passed (145)\nTests 1387 passed (1387)', 'Test Files 141 passed (141)\nTests 1247 passed (1247)', 'Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 887 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 153 passed (153)\nTests 1495 passed (1495)\n1 skipped']) receipt('unit', text, false)
+  for (const text of ['Test Files 155 passed (155)\nTests 1504 passed (1504)', 'Test Files 155 passed (155)\nTests 1503 passed (1503)', 'Test Files 155 passed (155)\nTests 1504 passed (1504)\n1 skipped', 'Test Files 154 passed (154)\nTests 1499 passed (1499)', 'Test Files 155 passed (155)\nTests 1503 passed (1503)\n1 skipped', 'Test Files 153 passed (153)\nTests 1495 passed (1495)', 'Test Files 154 passed (154)\nTests 1499 passed (1499)\n1 skipped', 'Test Files 153 passed (153)\nTests 1494 passed (1494)', 'Test Files 153 passed (153)\nTests 1492 passed (1492)', 'Test Files 153 passed (153)\nTests 1490 passed (1490)', 'Test Files 153 passed (153)\nTests 1488 passed (1488)', 'Test Files 153 passed (153)\nTests 1486 passed (1486)', 'Test Files 151 passed (151)\nTests 1478 passed (1478)', 'Test Files 151 passed (151)\nTests 1476 passed (1476)', 'Test Files 150 passed (150)\nTests 1472 passed (1472)', 'Test Files 149 passed (149)\nTests 1436 passed (1436)', 'Test Files 149 passed (149)\nTests 1423 passed (1423)', 'Test Files 146 passed (146)\nTests 1392 passed (1392)', 'Test Files 145 passed (145)\nTests 1387 passed (1387)', 'Test Files 141 passed (141)\nTests 1247 passed (1247)', 'Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 887 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 153 passed (153)\nTests 1495 passed (1495)\n1 skipped']) receipt('unit', text, false)
 })
 test('browser receipt rejects partial totals, retries, skipped tests and errors', () => {
   for (const text of ['393 passed', '396 passed\n1 skipped', '396 passed\n(retry #1)', '396 passed\nError: incomplete', '387 passed', '384 passed', '381 passed', '378 passed', '12 passed', '62 passed', '282 passed', '294 passed', '300 passed', '303 passed', '351 passed', '366 passed', '369 passed', '372 passed', '375 passed', '387 passed\n1 skipped', '387 passed\n(retry #1)', '387 passed\nError: incomplete']) receipt('api-browser', text, false)
@@ -369,4 +382,76 @@ test('intercepted API fixture requests leave no idle socket for later readback',
     server.closeAllConnections()
     await new Promise(resolve => server.close(resolve))
   }
+})
+
+
+test('dependency inputs and generated inventory agree on the actual checkout', () => {
+  const state = readDependencies()
+  validateDependencies(state)
+  assert.equal(renderInventory(state), state.document)
+})
+
+for (const [name, change, message] of [
+  ['Python manifest-only update', state => { state.python.dependencies[0] = 'fastapi==99.0.0' }, /manifest\/runtime/],
+  ['test lock replaces runtime package', state => { state.test.fastapi = '99.0.0' }, /runtime\/test/],
+  ['test-only dependency drift', state => { state.test.pytest = '99.0.0' }, /manifest\/test/],
+  ['missing runtime package in test lock', state => { delete state.test.fastapi }, /runtime\/test/],
+  ['divergent Node workflow', state => { state.workflows['.github/workflows/verify.yml'] = state.workflows['.github/workflows/verify.yml'].replace('node-version-file: .nvmrc', "node-version: '22'") }, /Node selection/],
+  ['divergent Action pin', state => { state.workflows['.github/workflows/verify.yml'] = state.workflows['.github/workflows/verify.yml'].replace(/actions\/setup-node@[a-f0-9]{40}/, `actions/setup-node@${'a'.repeat(40)}`) }, /conflicting Action/],
+  ['divergent PostgreSQL images', state => { state.compose.services[Object.keys(state.compose.services).find(name => state.compose.services[name].image?.startsWith('postgres:'))].image = 'postgres:99.0' }, /PostgreSQL/],
+  ['unpatched override', state => { state.manifest.overrides.minimatch = '10.2.6' }, /minimatch/],
+  ['stale installed browser metadata', state => { state.browserVersion = '0.0.0' }, /Playwright/],
+]) test(`dependency gate rejects ${name}`, () => {
+  const state = readDependencies()
+  change(state)
+  assert.throws(() => validateDependencies(state), message)
+})
+
+test('Node compatibility rejects an older patch and a dependency with a higher runtime floor', () => {
+  const state = readDependencies()
+  assert.throws(() => validateDependencies(state, '24.14.0'), /Node/)
+  validateDependencies(state, '24.19.0')
+  state.lock.packages['node_modules/jsdom'].engines.node = '>=24.20.0'
+  assert.throws(() => validateDependencies(state, '24.19.0'), /jsdom/)
+})
+
+test('Python lock parsing rejects duplicate normalized distribution names', () => {
+  assert.throws(() => pythonLock('typing_extensions==1.0\ntyping-extensions==2.0\n'), /duplicate/)
+})
+
+test('inventory refresh detects stale tables even if fingerprints have not changed', () => {
+  const state = readDependencies()
+  state.document = state.document.replace('| `react` |', '| `wrong-react` |')
+  assert.notEqual(renderInventory(state), state.document)
+})
+
+test('inventory accepts a coordinated dependency upgrade and retains surrounding explanation', () => {
+  const state = readDependencies()
+  state.python.dependencies[0] = 'fastapi==99.0.0'
+  state.runtime.fastapi = state.test.fastapi = '99.0.0'
+  validateDependencies(state)
+  const rendered = renderInventory(state)
+  assert.match(rendered, /\| `fastapi` \| 99\.0\.0 \| 99\.0\.0 \| direct \|/)
+  assert.ok(rendered.includes('This inventory is not a complete artifact SBOM.'))
+  state.document = rendered
+  assert.equal(renderInventory(state), rendered)
+})
+
+test('inventory refresh follows changed inputs and browser revisions instead of accepting stale evidence', () => {
+  const state = readDependencies()
+  state.inputs['backend/Dockerfile'] += '\n# reviewed image update\n'
+  state.browsers.browsers.find(browser => browser.name === 'webkit').revision = '9999'
+  const rendered = renderInventory(state)
+  assert.notEqual(rendered, state.document)
+  assert.match(rendered, /\| webkit \| [^|]+ \| 9999 \|/)
+  state.document = rendered
+  assert.equal(renderInventory(state), rendered)
+})
+
+test('a newer patched minimatch override is accepted only with matching lock resolution', () => {
+  const state = readDependencies()
+  state.manifest.overrides.minimatch = '11.0.2'
+  assert.throws(() => validateDependencies(state), /minimatch override\/lock drift/)
+  for (const [name, entry] of Object.entries(state.lock.packages)) if (name.endsWith('node_modules/minimatch')) entry.version = '11.0.2'
+  validateDependencies(state)
 })

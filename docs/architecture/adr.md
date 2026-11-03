@@ -1,6 +1,6 @@
 # Architecture decision records
 
-Recorded: 28 October 2026. These records explain Fitfinity's stack, tradeoffs and evolution options. **Statuses distinguish implemented source, selected hosting and planned capabilities.** Rationale is reconstructed from current code and retained contracts; it does not claim that every alternative was historically benchmarked or rejected. Alternatives are review candidates, not approved migrations or ready standby systems.
+Recorded: 28 October 2026; reconciled against PR120 candidate `7f36ae8` on 3 November 2026. These records explain Fitfinity's stack, tradeoffs and evolution options. **Statuses distinguish implemented source, selected hosting and planned capabilities.** Rationale is reconstructed from current code and retained contracts; it does not claim that every alternative was historically benchmarked or rejected. Alternatives are review candidates, not approved migrations or ready standby systems.
 
 [Security infrastructure](../security.md) maps trust boundaries and protection layers; [system topology and test diagrams](diagram.md) show connections; [code owners](../code-owners/index.md) maps implementation; [runbook](../runbook.md) owns operational procedures. Business rules remain in [Business Rules](../business-rules.md), API definitions in [API Contracts](../api-contracts.md), and full historical evidence in [Journey](../journey.md), versions in [the inventory](../versions.md), and current acceptance/backlog in [Progress](../../PROGRESS.md). Amend a decision explicitly or add a superseding ADR when assumptions change; retain its earlier rationale and evidence.
 
@@ -261,5 +261,3 @@ Dependabot source configuration covers bounded weekly npm, GitHub Actions and Do
 | CI/dependency disruption | First failure, exact source and verified artifact | Repair runner/source dependencies or reviewed delivery recovery | Complete gates, trusted bytes and no unverified deployment |
 
 No alternate stack above is configured as hot standby. Before calling an option a backup, define ownership, current costs/limits, RPO/RTO, data and object export/restore, identity/session reconciliation, secrets/network/DNS cutover, single-writer fencing, acceptance and rollback. Rehearse with populated isolated data before separately authorized environment execution. A source ZIP, static demo or database snapshot alone is not a complete recoverable system.
-
-Format reference: [SoccerBot ADR at the inspected revision](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/1b25b892165934282479e3676d4456d2a3403045/docs/architecture/adr.md). Its Cloudflare, provider and deployment decisions are not imported into Fitfinity.

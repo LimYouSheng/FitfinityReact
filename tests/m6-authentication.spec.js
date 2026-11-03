@@ -3,12 +3,15 @@ import { expect, passwordSignIn, test, verifyAuthenticator } from './auth-api-fi
 test('completed MFA loads independently of a pending anonymous account read', async ({ page, staffApi }) => {
   staffApi.state.step = 'SOFTWARE_TOKEN_MFA'
   await page.goto(staffApi.origin)
-  await passwordSignIn(page)
-  await expect(page.getByLabel('Authenticator code')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
   const held = staffApi.holdNextAnonymousSession()
   try {
+    // Capture an already-running anonymous read before authentication pauses
+    // automatic refresh; it must not block MFA or replace the verified account.
     await page.evaluate(() => window.dispatchEvent(new Event('focus')))
     await expect.poll(() => held.request).toEqual({ path: '/me', signedIn: false })
+    await passwordSignIn(page)
+    await expect(page.getByLabel('Authenticator code')).toBeVisible()
     await verifyAuthenticator(page)
     expect(held.sent).toBe(false)
     const stale = page.waitForResponse(response => response.url().endsWith('/me') && response.status() === 401)

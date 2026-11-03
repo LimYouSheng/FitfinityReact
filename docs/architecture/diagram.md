@@ -97,8 +97,8 @@ flowchart TB
     Static["Lint, source health and verifier regressions"]
     Audit["npm audit including development: block high/critical; retain report"]
     Unit["Frontend units: components, services and business rules"]
-    Simulator["Simulator browser: UI contracts, navigation and responsive behavior"]
-    Database["Backend and PostgreSQL: transactions, authorization and migrations"]
+    Simulator["Simulator browser: three concurrent macOS profiles; one worker each"]
+    Database["Backend and PostgreSQL: three isolated domain groups"]
     Browser["Real-API browser: two isolated shards, full identity gate, persistence and recovery"]
     ObjectTests["Media tests: signed IO, exact bytes, CORS and interrupted cleanup on real local storage"]
     Recovery["HTTP crash/restart; operator MFA recovery drill with synthetic provider"]
@@ -119,10 +119,13 @@ flowchart TB
   Evidence["Evidence review: scope, source, environment, results and limits"]
   Live["Separate acceptance: real Cognito, deployed restart, devices and live environment"]
   Change --> Existing
-  Existing --> Gates --> Evidence
+  Build -->|"Same source artifact"| Simulator
+  Existing -->|"All groups; exact case coverage"| Gates --> Evidence
   Change -.-> Future
   Future -.->|"Baseline and justified gates before adoption"| Evidence
   Evidence -.->|"Applicable authorization and prerequisites"| Live
 ```
 
 Existing suites already cover selected permission, conflict and response-loss cases; the planned resilience suite expands those boundaries rather than implying they are absent. Functional test timing is not a latency benchmark. Mutation scores, performance budgets, SLOs and new security gates require measured baselines and review. **Planned suites are not current CI checks or completed acceptance.** Physical-device/provider evidence is not replaced by simulated browsers or local signed tokens.
+
+Independent verification jobs start together; only shared-build consumers and final evidence aggregates wait. Offline infrastructure and backend source checks run separately from database groups. Resource snapshots support future measured recycling decisions; no two-case restart policy is enabled. See [Development](../development.md#verification-commands) for group boundaries and budgets.

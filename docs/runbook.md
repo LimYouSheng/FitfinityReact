@@ -1,10 +1,8 @@
 # Fitfinity operations runbook
 
-Draft — **28 October 2026**. For authorised operators of the developer AWS environment and future production releases. [Security infrastructure](security.md) maps controls and remaining layers. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Business rules](business-rules.md) owns rules, and [Development](development.md) owns local setup and verification commands.
+Operational proposals remain draft; source review **3 November 2026**, PR120 candidate `7f36ae8`. For authorised operators of the developer AWS environment and future production releases. [Security infrastructure](security.md) maps controls and remaining layers. This document owns operating procedures; it does not claim that current source is deployed or planned monitoring is active. Confirm the target account, environment and deployed revision before acting. [Progress](../PROGRESS.md) owns current evidence and pending work, [Business rules](business-rules.md) owns rules, and [Development](development.md) owns local setup and verification commands.
 
 Navigation: [Access](#1-ownership-and-access) · [Routine checks](#2-routine-checks) · [Dependencies](#3-dependency-maintenance-and-dependabot) · [Monitoring](#4-monitoring-and-observability) · [Incidents](#5-incident-response-and-recovery) · [Releases](#6-deployments-and-rollback) · [Restore](#7-data-protection-and-restore) · [DNS](#8-domain-dns-and-https) · [Handover](#9-operational-records-and-handover).
-
-Adapted from [SoccerBot's runbook format](https://github.com/LimYouSheng/SoccerBotStudioSG/blob/feat/version-inventory/docs/Runbook.md). Fitfinity uses its own Cognito, FastAPI, PostgreSQL and AWS deployment model; SoccerBot provider permissions and monitoring are not inherited.
 
 ## 1. Ownership and access
 
@@ -47,7 +45,7 @@ Use [Owner](uat/owner.md), [Admin](uat/admin.md) and [Trainer](uat/trainer.md) w
 
 ### Dependency maintenance
 
-[versions.md](versions.md) is the dependency inventory of locked application/transitive dependencies, images, browser engines and CI pins, with manual patch guidance and explicit gaps for deployed/OS versions. Update it alongside dependency changes.
+[versions.md](versions.md) is the dependency inventory of locked application/transitive dependencies, images, browser engines and CI pins, with manual patch guidance and explicit gaps for deployed/OS versions. Update it alongside dependency changes using `npm ci` → `npm run versions:refresh` → review the diff → `npm run verify:dependencies`. The blocking consistency gate validates inputs before regenerating tables; manually review prose, security-override removal criteria and deployment boundaries.
 
 The design has three layers:
 
@@ -71,7 +69,7 @@ Python version updates remain manually maintained: `pyproject.toml` feeds uv-gen
 
 1. Read the advisory/release notes and PR diff. Use [versions.md](versions.md) to identify direct, transitive, development and image exposure. Inspect vulnerable Action internals and OS packages separately from app locks. Confirm repository alert/security-update settings with suitable access; copied YAML does not enable them.
 2. Update the owning inputs together: npm manifest/lock, Python manifest and **both hashed locks**, or reviewed full Action SHA/image references. Python and Compose PostgreSQL/RustFS maintenance remain manual. A manifest-only Python security PR is incomplete.
-3. Refresh `docs/versions.md`, including nested versions and input fingerprints. This is manually maintained; no generated freshness gate or automatic artifact SBOM is claimed. Preserve unrelated pins and verify hashes; do not use forced blanket upgrades.
+3. After a locked install, run `npm run versions:refresh`, review `docs/versions.md` and run `npm run verify:dependencies`. PR120 implements generated tables/fingerprints and a blocking freshness/consistency gate; explanatory prose and deployed state remain reviewed manually. No automatic artifact SBOM is claimed. Preserve unrelated pins and verify hashes; do not use forced blanket upgrades.
 4. Run relevant checks, then require exact-head `verify / frontend`, `verify / backend` and `verify / api-browser`. The npm audit includes development tools and blocks high/critical findings and audit-service errors. It does not cover Python, OS packages or the deployed Lambda image. Diagnose failures without weakening tests, adding retries or raising timeouts.
 5. Review and merge only the tested head, then inspect fresh **main application CI**, not a Dependabot job named main. PR success, source merge, image publication and deployed remediation are different evidence.
 6. Recheck alerts/audits and, after separately authorised deployment, the actual deployed digest. Closed-as-fixed differs from dismissed. The user reported0 open/26 closed alerts after PR104; detailed API access remained403. That observation is not a continuing clean-state guarantee.
@@ -94,7 +92,7 @@ Use the API's deployed base path when checking health; do not assume a frontend-
 
 ### Planned monitoring — not activated
 
-OpenTelemetry, Grafana, measured latency budgets, SLOs, alert receivers and backup/restore monitoring remain [M10 work](../PROGRESS.md#m10-work-packages--planned). There is no Fitfinity Tail Worker, Tempo exporter, dashboard JSON or exporter command to copy from SoccerBot.
+OpenTelemetry, Grafana, measured latency budgets, SLOs, alert receivers and backup/restore monitoring remain [M10 work](../PROGRESS.md#m10-work-packages--planned). No telemetry exporter or dashboard installation is claimed.
 
 Before activation: define service/environment labels and correlation; review redaction and sampling; cap cardinality, retention and cost; verify export failure isolation; measure representative cold/warm workloads; configure named responders and test actual receiver delivery. Choose thresholds from observed baselines, not invented budgets. Check ingestion with real queryable evidence; an exporter HTTP response or an empty dashboard is not proof of monitoring coverage.
 
@@ -237,3 +235,7 @@ Pending Trainer email correction is disabled by default (`FITFINITY_STAFF_EMAIL_
 Protected media is disabled by default. An authorized deployment must explicitly set `FITFINITY_MEDIA_ENABLED=true` and `FITFINITY_MEDIA_BUCKET` for an existing private bucket; source code does not create AWS resources. The runtime uses its workload identity and Singapore S3 endpoint. Reviewed bucket CORS must permit only the staff origin, GET/PUT/HEAD and the required content-type/checksum/conditional-write headers. Test endpoints and synthetic credentials exist only in test fixtures. `python -m app.library_cleanup` performs a bounded cleanup sweep after configuration; scheduling, grants and production activation remain release tasks in Progress. It retains durable work after failure and never deletes a library object while it is attached or its upload lease remains valid. `python -m app.session_media_cleanup` similarly performs a bounded session-media sweep, respecting package-deletion Undo holds, original fixed expiry and worker leases. Both commands require separate release activation; source integration does not schedule them. The selected routine session-recording cleanup cadence is monthly on the first day in Asia/Singapore; exact execution time is to be bound in the release plan. Seven-day playback expiry remains unchanged. The session CLI processes at most 100 items per invocation: deployment must provide bounded continuation until eligible monthly work is drained, failure retries and an observable overdue/failed-work signal. A one-minute retry eligibility timestamp does not execute a retry itself. Verify private bucket versioning/noncurrent-version retention and backup/replica coverage before claiming permanent erasure; deleting a key alone can create a delete marker. Library retention is separate and must not inherit the recording expiry. No cloud scheduler is activated by this policy update.
 
 Prepared environments may reuse `FITFINITY_BROWSER_BACKEND_IMAGE`, `FITFINITY_BROWSER_RUNNER_IMAGE` and `PLAYWRIGHT_BROWSERS_PATH` with matching source/engine inputs. Keep public CA/proxy settings and TLS verification intact; cloud-specific trust setup stays outside tracked source. If Docker or trust is unavailable, record the blocker rather than substitute SQLite or a simulator.
+
+For release/configuration readiness reviews, apply the [deployment readiness skill](../.agents/skills/fitfinity-deployment/SKILL.md); this runbook remains the operational command/recovery owner. A go/hold assessment grants no new AWS/provider authority.
+
+Deployment default interpretation: the image workflow requires `AWS_IMAGE_RELEASE_ENABLED == 'true'`, manual dispatch and its source/account gates. An absent/false activation flag can be an intentional closed state, not a failure to fix automatically. Inspect actual settings separately from defaults; test activation and its reversion require a concrete scoped plan and applicable authorization. This statement does not claim the current live variable value or activate any workflow.

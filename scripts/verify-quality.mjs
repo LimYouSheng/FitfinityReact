@@ -35,7 +35,8 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (caller?.uses !== './.github/workflows/verify.yml' || caller.if != null || caller.secrets != null || caller['continue-on-error']) fail('PR and main must call the complete verification workflow unconditionally')
   if (!Object.hasOwn(verify.on ?? {}, 'workflow_call') || !equal(verify.permissions, { contents: 'read' })) fail('shared verification must be callable with read-only repository access')
   for (const [name, job] of Object.entries(verify.jobs ?? {})) {
-    if ((job.if != null && !(name === 'api-browser' && job.if === 'always()')) || job['continue-on-error'] || job.environment || job.secrets || Object.entries(job.permissions ?? {}).some(([key, value]) => key !== 'contents' || value !== 'read')) fail('verification jobs must be unconditional without deployment credentials')
+    if (Object.values(job.env ?? {}).some(value => /\$\{\{[^}]*\brunner\./.test(String(value)))) fail('runner context is only available after job scheduling; use step env')
+    if ((job.if != null && !(['api-browser', 'frontend', 'backend'].includes(name) && job.if === 'always()')) || job['continue-on-error'] || job.environment || job.secrets || Object.entries(job.permissions ?? {}).some(([key, value]) => key !== 'contents' || value !== 'read')) fail('verification jobs must be unconditional without deployment credentials')
     if ((job.steps ?? []).some(step => /configure-aws-credentials|deploy-pages/.test(step.uses ?? ''))) fail('deployment action in verification')
   }
   const shard = verify.jobs?.['api-browser-shard'], aggregate = verify.jobs?.['api-browser']
@@ -48,12 +49,33 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   requireGate(aggregate, 'node scripts/verify-api-shards.mjs')
   const aggregateStep = aggregate.steps.find(step => step.run?.includes('node scripts/verify-api-shards.mjs'))
   if (aggregateStep.env?.API_BROWSER_SHARD_RESULT !== '${{ needs.api-browser-shard.result }}') fail('aggregate must verify successful shard job outcomes')
-  const frontend = verify.jobs?.frontend, backend = verify.jobs?.backend
-  if (frontend?.['runs-on'] !== 'macos-15') fail('browser gates require the reviewed macOS WebKit runner')
-  for (const command of ['npm ci', 'npm audit --include=dev --audit-level=high --json', 'npm run verify:lint', 'npm run verify:quality-checker', 'npm test -- --reporter=verbose', 'node scripts/verify-test-results.mjs unit', 'npx playwright install --with-deps chromium webkit', 'npm run test:e2e -- --reporter=list', 'node scripts/verify-test-results.mjs browser', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(frontend, command)
-  const auditArtifacts = frontend.steps.filter(step => step.uses?.startsWith('actions/upload-artifact@') && step.with?.path?.split('\n').includes('${{ runner.temp }}/fitfinity-npm-audit.json'))
+  const jobs = verify.jobs, quality = jobs.quality, browser = jobs['browser-profile']
+  for (const [name, needs] of Object.entries({ frontend: ['quality', 'unit', 'browser-build', 'browser-profile'], backend: ['backend-checks', 'infrastructure', 'backend-group'] })) {
+    const job = jobs[name]
+    if (!equal(job?.needs, needs) || job.if !== 'always()') fail('complete aggregate dependencies required')
+    requireGate(job, `node scripts/verify-ci-groups.mjs ${name}`)
+    if (job.steps.find(step => step.run?.includes('verify-ci-groups')).env?.CI_NEEDS !== '${{ toJSON(needs) }}') fail('aggregate needs must be authentic')
+  }
+  for (const name of ['quality', 'unit', 'browser-build', 'backend-checks', 'infrastructure', 'backend-group', 'api-browser-shard']) {
+    if (!jobs[name] || jobs[name].needs != null) fail('independent verification must start concurrently')
+  }
+  if (browser?.['runs-on'] !== 'macos-15' || browser.needs !== 'browser-build' || !equal(browser.strategy, { 'fail-fast': false, matrix: { profile: ['desktop-chromium', 'phone', 'tablet'] } })) fail('complete macOS browser profile matrix required')
+  if (!equal(jobs['backend-group'].strategy, { 'fail-fast': false, matrix: { group: ['identity-clients', 'scheduling-packages', 'records-platform'] } })) fail('complete backend domain partition required')
+  if (jobs['backend-group'].env?.FITFINITY_TEST_GROUP !== '${{ matrix.group }}' || jobs['backend-group'].steps.find(step => step.name === 'Isolated backend group')?.env?.FITFINITY_BACKEND_RECEIPT !== '${{ runner.temp }}/backend-group.json') fail('backend group binding required')
+  for (const command of ['npm ci', 'npm audit --include=dev --audit-level=high --json', 'npm run verify:lint', 'npm run verify:dependencies', 'npm run verify:quality-checker', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(quality, command)
+  for (const command of ['npm test -- --reporter=verbose', 'node scripts/verify-test-results.mjs unit']) requireGate(jobs.unit, command)
+  for (const command of ['npm run build', 'npm run build:pages-test', 'npm run build:api-test', 'npm run verify:pwa -- dist /', 'npm run verify:pwa -- dist-pages /FitfinityReact/', 'npm run verify:pwa -- dist-api-test /']) requireGate(jobs['browser-build'], command)
+  for (const command of ['npx playwright install --with-deps chromium webkit', 'npx playwright test --project=${{ matrix.profile }} --workers=1 --reporter=list,json']) requireGate(browser, command)
+  requireGate(browser, 'test "$(cat browser-build-sha.txt)" = "$GITHUB_SHA"')
+  for (const name of ['browser-profile', 'backend-group']) {
+    const retained = jobs[name].steps.filter(step => step.uses?.startsWith('actions/upload-artifact@'))
+    if (retained.length !== 1 || retained[0].if !== 'always()' || retained[0].with?.['if-no-files-found'] !== 'error') fail('group evidence must survive failures and reject missing reports')
+  }
+  const auditArtifacts = quality.steps.filter(step => step.uses?.startsWith('actions/upload-artifact@') && step.with?.path?.split('\n').includes('${{ runner.temp }}/fitfinity-npm-audit.json'))
   if (auditArtifacts.length !== 1 || auditArtifacts[0].if !== 'always()') fail('npm audit evidence must survive failed verification')
-  for (const command of ['node scripts/verify-assessment-forms.mjs', 'node scripts/verify-backend.mjs']) requireGate(backend, command)
+  for (const command of ['node scripts/verify-assessment-forms.mjs', 'node scripts/verify-backend.mjs backend-checks']) requireGate(jobs['backend-checks'], command)
+  requireGate(jobs.infrastructure, 'node scripts/verify-infrastructure.mjs')
+  requireGate(jobs['backend-group'], 'node scripts/verify-backend.mjs')
   const mainOnly = "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
   if (pages.jobs?.build?.needs !== 'verify' || pages.jobs.build.if !== mainOnly || pages.jobs?.deploy?.needs !== 'build' || pages.jobs.deploy.if !== mainOnly) fail('Pages build and publish must depend on full verification and the main-branch guard')
   const imageJob = image?.jobs?.image
@@ -84,7 +106,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   requireGate(acceptJob, 'test "$IMAGE_ROLE" = \'arn:aws:iam::418638389566:role/fitfinity-test-github-image\'')
   requireGate(acceptJob, 'python3 backend/infrastructure/deploy.py image-accept --actions --digest')
   if (!Object.hasOwn(infrastructure.on ?? {}, 'workflow_call') || !Object.hasOwn(infrastructure.on, 'workflow_dispatch') || Object.hasOwn(infrastructure.on, 'pull_request')) fail('standalone infrastructure checks must remain manual/callable without duplicating full PR gates')
-  for (const name of ['eslint', '@eslint/js', 'eslint-plugin-react-hooks', 'globals', 'rolldown', 'css-tree', 'yaml', '@testing-library/jest-dom', '@testing-library/react', '@testing-library/user-event', '@vitejs/plugin-react', 'jsdom']) {
+  for (const name of ['eslint', '@eslint/js', 'eslint-plugin-react-hooks', 'globals', 'rolldown', 'css-tree', 'yaml', '@testing-library/jest-dom', '@testing-library/react', '@testing-library/user-event', '@vitejs/plugin-react', 'jsdom', 'semver', 'smol-toml']) {
     const version = packageJson.devDependencies?.[name]
     if (!/^\d+\.\d+\.\d+$/.test(version ?? '') || lock.packages?.['']?.devDependencies?.[name] !== version || lock.packages?.[`node_modules/${name}`]?.version !== version) fail(`declare and lock direct tooling dependency: ${name}`)
   }

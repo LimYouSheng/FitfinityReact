@@ -81,6 +81,10 @@ services:
       context: .
       target: test
     environment:
+      FITFINITY_TEST_GROUP: ${FITFINITY_TEST_GROUP:-all}
+      GITHUB_SHA: ${GITHUB_SHA:-local}
+      GITHUB_RUN_ID: ${GITHUB_RUN_ID:-local}
+      GITHUB_RUN_ATTEMPT: ${GITHUB_RUN_ATTEMPT:-local}
       FITFINITY_ENVIRONMENT: test
       FITFINITY_TEST_DATABASE_URL: postgresql+psycopg://fitfinity_test:fitfinity-test-only@test-db:5432/fitfinity_test
       FITFINITY_TEST_MEDIA_ENDPOINT: http://test-media:9000
@@ -118,6 +122,21 @@ services:
       interval: 2s
       timeout: 2s
       retries: 15
+
+  backend-checks:
+    profiles: [test]
+    build:
+      context: .
+      target: test
+    command: [python, scripts/verify.py]
+    network_mode: none
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      FITFINITY_TEST_GROUP: checks
+      AWS_EC2_METADATA_DISABLED: 'true'
 
   infrastructure-tests:
     profiles: [test]

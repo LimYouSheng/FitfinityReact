@@ -1,29 +1,21 @@
 name: Complete application verification
-
 on:
-  workflow_call:
-
+  workflow_call: null
 permissions:
   contents: read
-
 jobs:
-  frontend:
-    # WebKit media coverage targets Safari's macOS implementation.
-    runs-on: macos-15
-    timeout-minutes: 60
-    permissions:
-      contents: read
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
-      CI: 'true'
-      FORCE_COLOR: '1'
-      PLAYWRIGHT_FORCE_TTY: '0'
-      VITE_PORTAL_MODE: 'demo'
-      VITE_API_BASE_URL: ''
+      CI: "true"
+      FORCE_COLOR: "1"
+      PLAYWRIGHT_FORCE_TTY: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - name: Audit locked npm dependencies including development tooling
@@ -36,24 +28,9 @@ jobs:
         run: |
           set -euo pipefail
           unset NO_COLOR NODE_DISABLE_COLORS
+          npm run verify:dependencies
           npm run verify:lint 2>&1 | tee "$RUNNER_TEMP/fitfinity-lint.log"
           npm run verify:quality-checker 2>&1 | tee "$RUNNER_TEMP/fitfinity-quality-checker.log"
-      - name: Unit gate
-        shell: bash
-        run: |
-          set -euo pipefail
-          unset NO_COLOR NODE_DISABLE_COLORS
-          npm test -- --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/fitfinity-unit.log"
-          node scripts/verify-test-results.mjs unit "$RUNNER_TEMP/fitfinity-unit.log"
-      - name: Install browser engines
-        run: npx playwright install --with-deps chromium webkit
-      - name: Browser gate at root and repository paths
-        shell: bash
-        run: |
-          set -euo pipefail
-          unset NO_COLOR NODE_DISABLE_COLORS
-          npm run test:e2e -- --reporter=list 2>&1 | tee "$RUNNER_TEMP/fitfinity-browser.log"
-          node scripts/verify-test-results.mjs browser "$RUNNER_TEMP/fitfinity-browser.log"
       - name: Shared source health and checker rejection gate
         shell: bash
         run: |
@@ -61,72 +38,313 @@ jobs:
           unset NO_COLOR NODE_DISABLE_COLORS
           npm run verify:health-checker 2>&1 | tee "$RUNNER_TEMP/fitfinity-health-checker.log"
           npm run verify:health 2>&1 | tee "$RUNNER_TEMP/fitfinity-code-health.log"
-      - name: Retain complete verification logs and browser failure details
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: fitfinity-verification-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
+          name: fitfinity-quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |-
+            ${{ runner.temp }}/fitfinity-*.log
             ${{ runner.temp }}/fitfinity-npm-audit.json
-            ${{ runner.temp }}/fitfinity-lint.log
-            ${{ runner.temp }}/fitfinity-quality-checker.log
-            ${{ runner.temp }}/fitfinity-unit.log
-            ${{ runner.temp }}/fitfinity-browser.log
-            ${{ runner.temp }}/fitfinity-health-checker.log
-            ${{ runner.temp }}/fitfinity-code-health.log
-            test-results/
-            playwright-report/
-          if-no-files-found: warn
-
-  backend:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+          if-no-files-found: error
+  unit:
+    runs-on: macos-15
+    timeout-minutes: 20
     env:
-      FORCE_COLOR: '1'
+      CI: "true"
+      FORCE_COLOR: "1"
+      PLAYWRIGHT_FORCE_TTY: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '24'
-      - name: Container, backend, PostgreSQL and infrastructure gates
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Unit gate
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/verify-assessment-forms.mjs 2>&1 | tee "$RUNNER_TEMP/fitfinity-assessment-forms.log"
-          # Keep every test line in the artifact without throttling the job on console replay.
-          backend_status=0
-          node scripts/verify-backend.mjs > "$RUNNER_TEMP/fitfinity-backend.log" 2>&1 || backend_status=$?
-          tail -n 60 "$RUNNER_TEMP/fitfinity-backend.log"
-          exit "$backend_status"
-      - name: Retain complete backend verification log
+          unset NO_COLOR NODE_DISABLE_COLORS
+          npm test -- --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/fitfinity-unit.log"
+          node scripts/verify-test-results.mjs unit "$RUNNER_TEMP/fitfinity-unit.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: fitfinity-backend-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/fitfinity-assessment-forms.log
-            ${{ runner.temp }}/fitfinity-backend.log
-            backend/contracts/openapi.json
-          if-no-files-found: warn
-
-
+          name: fitfinity-unit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fitfinity-unit.log
+          if-no-files-found: error
+  browser-build:
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      FORCE_COLOR: "1"
+      PLAYWRIGHT_FORCE_TTY: "0"
+      VITE_PORTAL_MODE: demo
+      VITE_API_BASE_URL: ""
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build and validate all browser paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build
+          npm run build:pages-test
+          npm run build:api-test
+          npm run verify:pwa -- dist /
+          npm run verify:pwa -- dist-pages /FitfinityReact/
+          npm run verify:pwa -- dist-api-test /
+          printf '%s\n' "$GITHUB_SHA" > browser-build-sha.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: fitfinity-browser-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |-
+            dist/
+            dist-pages/
+            dist-api-test/
+            browser-build-sha.txt
+          if-no-files-found: error
+  browser-profile:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      CI: "true"
+      FORCE_COLOR: "1"
+      PLAYWRIGHT_FORCE_TTY: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: fitfinity-browser-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .
+      - name: Verify build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat browser-build-sha.txt)" = "$GITHUB_SHA"
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Browser profile
+        shell: bash
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/browser-results.json
+        run: |
+          set -euo pipefail
+          df -h > "$RUNNER_TEMP/resources-before.txt"
+          ps -axo pid,rss,comm >> "$RUNNER_TEMP/resources-before.txt"
+          npx playwright test --project=${{ matrix.profile }} --workers=1 --reporter=list,json 2>&1 | tee "$RUNNER_TEMP/fitfinity-browser.log"
+      - name: Resource evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          df -h > "$RUNNER_TEMP/resources-after.txt"
+          ps -axo pid,rss,comm >> "$RUNNER_TEMP/resources-after.txt"
+        if: always()
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: fitfinity-browser-profile-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.profile }}
+          path: |-
+            ${{ runner.temp }}/browser-results.json
+            ${{ runner.temp }}/fitfinity-browser.log
+            ${{ runner.temp }}/resources-*.txt
+            test-results/
+          if-no-files-found: error
+    needs: browser-build
+    strategy:
+      fail-fast: false
+      matrix:
+        profile:
+          - desktop-chromium
+          - phone
+          - tablet
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CI: "true"
+      FORCE_COLOR: "1"
+      PLAYWRIGHT_FORCE_TTY: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: fitfinity-browser-profile-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/browser-profiles
+      - name: Verify all frontend groups
+        shell: bash
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          npx playwright test --list --reporter=json > "$RUNNER_TEMP/browser-inventory.json"
+          node scripts/verify-ci-groups.mjs frontend "$RUNNER_TEMP/browser-profiles" "$RUNNER_TEMP/browser-inventory.json"
+    needs:
+      - quality
+      - unit
+      - browser-build
+      - browser-profile
+    if: always()
+  backend-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CI: "true"
+      FORCE_COLOR: "1"
+      PLAYWRIGHT_FORCE_TTY: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Backend source and partition guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-assessment-forms.mjs
+          node scripts/verify-backend.mjs backend-checks 2>&1 | tee "$RUNNER_TEMP/backend-checks.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: fitfinity-backend-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/backend-checks.log
+          if-no-files-found: error
+  infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CI: "true"
+      FORCE_COLOR: "1"
+      PLAYWRIGHT_FORCE_TTY: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Offline infrastructure
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-infrastructure.mjs > "$RUNNER_TEMP/infrastructure.log" 2>&1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: fitfinity-infrastructure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/infrastructure.log
+          if-no-files-found: error
+  backend-group:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CI: "true"
+      FORCE_COLOR: "1"
+      PLAYWRIGHT_FORCE_TTY: "0"
+      FITFINITY_TEST_GROUP: ${{ matrix.group }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Isolated backend group
+        env:
+          FITFINITY_BACKEND_RECEIPT: ${{ runner.temp }}/backend-group.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          df -h > "$RUNNER_TEMP/resources-before.txt"
+          node scripts/verify-backend.mjs > "$RUNNER_TEMP/backend-group.log" 2>&1
+      - name: Resource evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          df -h > "$RUNNER_TEMP/resources-after.txt"
+          docker system df >> "$RUNNER_TEMP/resources-after.txt"
+        if: always()
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: fitfinity-backend-group-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.group }}
+          path: |-
+            ${{ runner.temp }}/backend-group.json
+            ${{ runner.temp }}/backend-group.log
+            ${{ runner.temp }}/resources-*.txt
+          if-no-files-found: error
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - identity-clients
+          - scheduling-packages
+          - records-platform
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CI: "true"
+      FORCE_COLOR: "1"
+      PLAYWRIGHT_FORCE_TTY: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: fitfinity-backend-group-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/backend-groups
+      - name: Verify all backend groups
+        shell: bash
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          node scripts/verify-ci-groups.mjs backend "$RUNNER_TEMP/backend-groups"
+    needs:
+      - backend-checks
+      - infrastructure
+      - backend-group
+    if: always()
   api-browser-shard:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
-    # Real FastAPI/PostgreSQL path complements the existing macOS UI/fixture gate.
+        shard:
+          - 1
+          - 2
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
     env:
-      CI: 'true'
+      CI: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - name: Use Ubuntu archive for browser system packages
@@ -134,7 +352,6 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
       - name: Real API browser persistence and authority
         env:
-          # Retain browser process failures alongside traces for renderer stalls.
           DEBUG: pw:browser
           PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/api-browser-results.json
         shell: bash
@@ -157,18 +374,16 @@ jobs:
           name: fitfinity-api-traces-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
           path: test-results-api/
           if-no-files-found: warn
-
   api-browser:
-    # Keep the required gate name; cancelled/failed shards can never become a green aggregate.
     needs: api-browser-shard
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4

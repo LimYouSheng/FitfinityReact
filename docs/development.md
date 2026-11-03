@@ -126,7 +126,7 @@ Request a changed-file summary, patch or complete changed files, test evidence, 
 
 Integrate into a branch matching the supplied baseline. Review deletions/configuration carefully and use `git apply --check` before applying a returned patch. Reconcile intervening changes explicitly; do not force mismatched patches. Restore local secrets through secure setup.
 
-Run affected checks on the integrated bytes and use the normal PR process. Snapshot test reports do not replace final-head CI. Fitfinity has no documented guarded installer delivery workflow; do not copy SoccerBot installer commands or run an unreviewed bundled script.
+Run affected checks on the integrated bytes and use the normal PR process. Snapshot test reports do not replace final-head CI. Fitfinity has no documented guarded installer delivery workflow; do not run an unreviewed bundled installer script.
 
 ## GitHub publishing and what CI does
 
@@ -166,11 +166,11 @@ Dependent draft PRs may target an unmerged task branch with exact ancestry recor
 
 [AGENTS](../AGENTS.md) remains the rules authority. Use existing owners, preserve business invariants and unknown work, keep verification strict and report implemented/tested/merged/deployed/accepted states accurately. Update the unique owning document rather than copying its rules here. Preserve stable BR IDs and their code-owner mappings, the full Journey and milestone roadmap.
 
-Dependency updates follow the [runbook](runbook.md#3-dependency-maintenance-and-dependabot). Refresh the manually maintained [version inventory](versions.md) when its inputs change; Fitfinity does not currently have SoccerBot's versions generator/freshness gate. Do not use `npm audit fix --force` as routine setup.
+Dependency updates follow the [runbook](runbook.md#3-dependency-maintenance-and-dependabot). Run `npm run versions:refresh` after a locked install when inventory inputs change, review the [generated inventory](versions.md), then run `npm run verify:dependencies`. The blocking freshness/consistency gate is implemented in PR120; handwritten explanations and deployed state still require review. Do not use `npm audit fix --force` as routine setup.
 
 ## Development setup
 
-Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies with `npm ci` from the reviewed lockfile; reuse matching dependencies, prepared images and Playwright caches during routine work. Backend versions and hashes are owned by `backend/pyproject.toml`, its requirements files and `backend/Dockerfile`.
+Use Node24.15.0 or newer within major24, Python3.12, Git and Docker Compose. `.nvmrc` owns the selected Node major for local `nvm use` and every setup-node workflow; `package.json` engines owns the supported patch floor. `npm run verify:dependencies` checks the actual runtime against every locked npm engine requirement. Install frontend dependencies with `npm ci` from the reviewed lockfile; reuse matching dependencies, prepared images and Playwright caches during routine work. Backend versions and hashes are owned by `backend/pyproject.toml`, its requirements files and `backend/Dockerfile`.
 
 `npm run dev` starts Vite; `npm run build` creates `dist/`; `npm run preview` serves it locally. `npm run build:pages-test` creates the `/FitfinityReact/` demo export. Local ports are not public preview URLs.
 
@@ -189,9 +189,51 @@ Use Node 24, Python 3.12, Git and Docker Compose. Install frontend dependencies 
 
 The [full-suite diagram](architecture/diagram.md#full-verification-suite) explains existing test scopes and planned mutation, performance, security, telemetry and operational verification. Planned suites have no executable command here until implemented.
 
-CI runs the real-API suite in two complementary shards, each with its own disposable databases/storage and the existing 20-minute budget. The required `verify / api-browser` aggregate checks both successful jobs and every discovered case identity, rejecting missing, duplicated, skipped, retried or failed cases. Local `npm run test:api-browser` still runs the complete suite; `-- --shard=1/2 --reporter=list,json` selects a shard for diagnosis, with `PLAYWRIGHT_JSON_OUTPUT_FILE` selecting its report path. A shard alone is not complete acceptance. Overall job budgets are 60 minutes each for frontend/backend, 20 minutes per API-browser shard and 5 minutes for the aggregate; these are separate from test and database timeouts.
+CI runs the real-API suite in two complementary shards, each with its own disposable databases/storage and the existing 20-minute budget. The required `verify / api-browser` aggregate checks both successful jobs and every discovered case identity, rejecting missing, duplicated, skipped, retried or failed cases. Local `npm run test:api-browser` still runs the complete suite; `-- --shard=1/2 --reporter=list,json` selects a shard for diagnosis, with `PLAYWRIGHT_JSON_OUTPUT_FILE` selecting its report path. A shard alone is not complete acceptance. Job limits are60 minutes for each macOS browser profile and backend execution/check group,20 for quality/unit/browser-build and each API shard, and5 for the three aggregate gates. These limits are distinct from test and database timeouts.
+
+Independent CI work starts concurrently: quality/audit, frontend units, browser builds, backend source checks, offline infrastructure, three backend domain groups and the existing two API shards. Only browser profiles wait for their shared root/Pages/API-fixture build; aggregate gates wait for complete evidence. Desktop Chromium, phone WebKit and tablet WebKit each run385 cases on macos-15 with one browser worker. Unit/build jobs also retain macOS; quality and backend jobs use Ubuntu. This separates job concurrency from per-job worker concurrency without changing the device matrix.
+
+Backend ownership is explicit in [test-groups.json](../backend/scripts/test-groups.json): identity/clients628, scheduling/packages449 and records/platform345 cases at this checkpoint. Each group discovers the complete1422-case inventory before selecting whole files, owns separate Docker PostgreSQL/storage and retains setup/call/teardown outcomes. New/unassigned or duplicate files fail. Backend source checks also collect all cases in two fresh processes and require identical stable IDs; random scenario data must not make case identities vary between shards. The [group verifier](../scripts/verify-ci-groups.mjs) checks complete identity coverage and successful dependencies under the unchanged frontend/backend gate names; missing, duplicated, failed, skipped or wrong-source backend receipts are rejected. Local full-suite commands remain available. `FITFINITY_TEST_GROUP=<group> FITFINITY_BACKEND_RECEIPT=/absolute/path/report.json node scripts/verify-backend.mjs` selects a diagnostic group; it is not complete acceptance.
+
+Browser jobs consume one build artifact bound to the current source SHA and run attempt. Browser and backend jobs retain disk/process or Docker resource snapshots around execution. This is diagnostic evidence, not a latency or memory-peak benchmark. Automatic one/two-case runtime recycling is not enabled: restart frequency must follow measured PostgreSQL/browser lifecycle needs, and restarting hundreds of processes adds overhead. Revisit measured growth/leaks before selecting a batch size; preserve complete transaction/race/restart scenarios and cleanup.
 
 Required CI and evidence rules belong to [AGENTS](../AGENTS.md#verify-and-publish). Test inventories are defined by the verifiers, not historical counts in documentation.
 
+Browser media compatibility is a feature-specific acceptance question under the [coverage matrix](#browser-testing-coverage), not a blanket browser support guarantee. Conversion depends on recording APIs and input codecs, with explicit original-file fallback. Actual Samsung/iPad capture and audio playback still require physical UAT. Browser preparation uses no microphone permission; it processes audio already present in the selected clip.
 
-Browser media compatibility: automated projects cover desktop Chromium and WebKit phone/tablet profiles. Current Chrome/Edge are the first conversion candidates; Safari/iOS conversion depends on available recording APIs and input codecs, with explicit original-file fallback. Firefox is not part of the current automated matrix and has no acceptance receipt. Actual Samsung/iPad capture and audio playback still require physical UAT. Browser preparation uses no microphone permission; it processes audio already present in the selected clip.
+Dependency updates: run `npm ci`, then `npm run versions:refresh` and review `docs/versions.md`; `npm run verify:dependencies` is the read-only CI/local gate. It validates Python manifest/runtime/test pins, Node/Action/Compose consistency, React pairing, browser metadata and the security override before checking generated inventory. Refresh is not permission to accept a version change or rewrite a security/resource guard. The generator requires the lock-matching installed Playwright package.
+
+For failed/queued CI, follow the [CI diagnosis skill](../.agents/skills/fitfinity-ci-diagnosis/SKILL.md) for exact-run evidence and bounded experiments; this document remains the setup/command owner.
+
+## Browser testing coverage
+
+This section owns configured browser coverage and its limits; [Versions](versions.md#browser-engines) owns the generated package/engine inventory. Every dependency PR needs the [before/after support comparison](../.agents/skills/fitfinity-dependencies/SKILL.md#required-support-range-comparison-in-every-dependency-pr). **Upstream-supported ranges, repository configuration and verified coverage are three different claims.** No customer minimum-browser policy or continuous supported range is established by this matrix.
+
+Configuration reviewed:3 November2026. Accepted maincc243fb and PR120 both pin Playwright1.64.1. The following engine versions/revisions are from the exact installed playwright-core1.64.1 browsers.json, checked against the lock; they are bundled configuration, not independently captured browser.version() output. Hosted runner images and platform-specific engine overrides require their own run evidence.
+
+| Configured engine | Bundled version / revision | Platform qualification |
+| --- | --- | --- |
+| Chromium and Chromium headless shell |156.0.8078.4 /1248 | Selected by desktop-chromium; not branded Chrome/Edge certification |
+| WebKit |27.2 /2370 | Selected by phone/tablet; package records mac14 and mac14-arm64 revision2251 overrides, which are not evidence those hosts were tested |
+| Firefox |157.0 /1555 | Available in the package but not selected by either suite; no Firefox acceptance |
+
+[playwright.config.js](../playwright.config.js) defines these projects; [playwright.api.config.js](../playwright.api.config.js) reuses them. Descriptor fields below come from the installed Playwright1.64.1 device registry; screen/scale/user-agent settings are emulation inputs, not physical hardware or OS evidence.
+
+| Project | Engine / descriptor | Viewport, CSS pixels | Screen, CSS pixels / scale | Mobile / touch | Evidence limit |
+| --- | --- | --- | --- | --- | --- |
+| desktop-chromium | Chromium / Desktop Chrome |1280 ×720 |1920 ×1080 /1 |no /no | Descriptor's Windows user agent does not establish Windows execution; CI host is macOS for the frontend suite and Ubuntu for API shards |
+| phone | WebKit / iPhone13 |390 ×664 |390 ×844 /3 |yes /yes | Emulation, not a physical iPhone, iOS version or installed Safari release |
+| tablet | WebKit / iPad(gen7) |810 ×1080 |No separate screen field in this descriptor /2 |yes /yes | Emulation, not physical iPadOS/Safari acceptance |
+
+Playwright1.64 forwards descriptor screen dimensions ([upstream release notes](https://github.com/microsoft/playwright/releases/tag/v1.64.0)); viewport alone does not fully describe the profile. The descriptor user-agent's OS/version text is not an observed OS. Capture actual browser/host versions when an acceptance claim requires them.
+
+| Evidence observation | Source / configured hosts | What passed / what remains unverified |
+| --- | --- | --- |
+| Accepted main after PR117 |cc243fb; [run41260731060](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41260731060); frontend macos-15, real-API shards ubuntu-latest | Complete frontend/backend/API gates, including1155 frontend browser and396 real-API cases. Exact hosted OS patch/browser.version() values are not recorded in this table; labels do not prove them. |
+| Separate reviewed dependency candidates | PR118 head50c1335 [run41371397837](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41371397837); PR119 head6ad701a [run41371414485](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41371414485); same configured profiles/host labels | All required gates passed on those separate heads. They do not accept the combined PR120 head. |
+| PR120 verified candidate |7f36ae8; [run41403809510](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41403809510); macos-15 unit/build/browser profiles; ubuntu-latest quality/backend/API groups | All16 verification jobs passed:1511 units,1155 simulator browser cases,1422 backend cases,636 infrastructure cases and396 real-API cases, plus133 quality regressions. Exact OS patch/browser.version() observations are not retained here. Later source heads require fresh CI; merge/deployment remain separate. |
+| Physical developer-AWS acceptance | Designated Owner/Admin/Trainer records | Current deployed revision/device evidence remains pending; no real Samsung/iPad, branded Edge or Firefox acceptance inferred. |
+
+These are discrete source/configuration observations, not coverage of every earlier, later or intermediate browser/runtime version. Playwright's [exact package metadata](https://registry.npmjs.org/@playwright/test/1.64.1) declares Node>=20; Fitfinity deliberately selects Node24 via .nvmrc with a >=24.15.0,<25 project range and checks all locked engine requirements. That declared range is a configuration policy, not proof every patch in it has been tested. `macos-15` and `ubuntu-latest` are workflow selections, not a complete upstream OS/architecture support matrix; consult the selected release's documented platform requirements before changing hosts. Externally prepared browser images/caches need their own matching metadata and acceptance.
+
+Record physical results in the [Owner](uat/owner.md), [Admin](uat/admin.md) and [Trainer](uat/trainer.md) worksheets: device model, exact OS and browser versions, deployed revision, outcome and remarks/lag. Leave unexecuted cases blank. A customer minimum-browser policy requires a separate explicit decision and evidence; developer tooling requirements do not automatically change customer support policy.

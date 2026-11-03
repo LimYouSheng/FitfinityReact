@@ -13,6 +13,8 @@ Read root AGENTS.md, NORTH_STAR.md and PROGRESS.md first. Resolve all paths belo
 
 Some hosts discover `.agents/skills/*/SKILL.md`; others do not. AGENTS explicitly directs readers here so the procedure remains available without automatic skill discovery. This is an instruction skill, **not a CI-enforced hook or unattended automation**. An agent must perform and report the checks.
 
+For implementation changes, apply the [code-writing skill](../fitfinity-code-writing/SKILL.md); for dependency changes, apply the [dependency skill](../fitfinity-dependencies/SKILL.md). The [testing skill](../fitfinity-testing/SKILL.md) owns guard execution and regression evidence.
+
 ## 1. Establish the change and checkpoint
 
 1. Identify the current user request, repository, branch, base/head, working tree, preserved work and open PR. Preserve unknown edits and stashes.
@@ -27,8 +29,8 @@ For every PR, review all rows for impact. Update every affected owner; leave una
 
 | Owner | Required reconciliation when affected |
 | --- | --- |
-| `PROGRESS.md` — every PR | Replace the current-task/leave-off checkpoint with actual outcome, branch/PR, tested/inspected source, validations, failures, blockers and next action. Move completed work out of the active queue; preserve remaining work and current campaign budget. Never accumulate competing “latest” notes. |
-| `docs/journey.md` — every PR | Append a dated Singapore-time record of the material change, decision and available evidence. Preserve original failures and full historical content. A follow-up updates delivery evidence without rewriting an earlier event to pretend it already knew the outcome. |
+| `PROGRESS.md` — every PR | Replace the current-task/leave-off checkpoint with actual outcome, branch/PR, tested/inspected source, validations, failures, blockers and next action. Move completed work out of the active queue; preserve remaining work and current campaign budget. Keep only the latest checkpoint, immediate next actions and the remaining-work backlog. Move completed checks, earlier delivery tables and superseded handovers into Journey; link evidence instead of repeating it. Never append iteration receipts or accumulate competing “latest” notes. |
+| `docs/journey.md` — every PR | Append a dated Singapore-time record of the material change, decision and available evidence. Preserve original failures and full historical content. Journey owns milestones and dated evidence, not a second current-flow manual: rules/contracts own behavior, role worksheets own UAT and Runbook owns operating procedures. A follow-up updates delivery evidence without rewriting an earlier event to pretend it already knew the outcome. |
 | `AGENTS.md` | Update reading paths, unique owners and engineering instructions if tools, commands, permissions, document paths or ownership change. Do not silently broaden standing authority. |
 | `NORTH_STAR.md` | Update only when the reusable campaign/loop/budget procedure changes. Active product status stays in Progress; avoid embedding each PR's checkpoint here. |
 | `docs/business-rules.md` | Reconcile permanent requirements with the final behavior. Preserve BR IDs/anchors and link changed/new rules to code owners; move superseded implementation checkpoints to Journey. Do not silently change an undecided product policy. |
@@ -42,6 +44,9 @@ For every PR, review all rows for impact. Update every affected owner; leave una
 | `docs/versions.md` | Refresh affected manifests, locks, image references, browser engines, Action pins and fingerprints in the same PR. Keep deployed/OS values unknown unless observed. Security remediation is separate from optional upgrades and deployed patch acceptance. |
 | `docs/uat/owner.md`, `admin.md`, `trainer.md` | Update affected role workflows, expected outcomes and permission boundaries. Preserve blank worksheet masters; never turn a newly drafted case into a completed physical/live test. |
 | `.agents/skills/fitfinity-testing/SKILL.md` | Reconcile test-impact guidance when suites, fixture owners, verifiers or execution boundaries change. Keep its PR receipt aligned with actual checks. |
+| `.agents/skills/fitfinity-dependencies/SKILL.md` | Reconcile dependency research/suitability instructions when maintenance owners, compatibility requirements or assessment procedure change. |
+| `.agents/skills/fitfinity-ci-diagnosis/SKILL.md` and `fitfinity-deployment/SKILL.md` | Reconcile diagnosis/readiness guidance when gate owners, configuration stores, release evidence or operational boundaries change. |
+| `.agents/skills/fitfinity-code-writing/SKILL.md` | Reconcile owning-cause repair, authoritative value sourcing and links to testing/guard evidence without adding operational permissions. |
 | This skill | Reconcile the procedure and owner map if documentation ownership or delivery mechanics change; preserve its AGENTS entry point. |
 
 A reviewer should be able to answer: **what changed, what is true now, what evidence supports it, what remains unverified, and where does the next developer resume?**
@@ -49,11 +54,11 @@ A reviewer should be able to answer: **what changed, what is true now, what evid
 ## 3. Validate the documentation delta
 
 - Inspect the final diff for contradictions, duplicate instructions, stale filenames, accidental history/rule loss and misleading acceptance claims.
-- Validate local links and anchors, including root docs and this skill. Check fenced blocks and GFM tables; render every changed Mermaid diagram. For a structural move or a requested full audit, include historical diagrams in Journey as well as current architecture diagrams.
+- Validate local links and anchors, including root docs and this skill. Check fenced blocks and GFM tables; parse all reviewed Mermaid diagrams and render every changed diagram. A parser pass establishes syntax, not visual layout or GitHub UI acceptance. For a structural move or a requested full audit, include historical diagrams in Journey as well as current architecture diagrams.
 - For contract changes, compare matrix/endpoint/schema references with actual source and validate example payloads against the owning schemas plus relevant domain restrictions. Placeholders must be unmistakable and must not contain real credentials or customer data.
 - For code-owner changes, confirm named paths/functions exist and the behavior/guard/recovery description matches their implementation and evidence. A link existing alone does not prove the description.
 - For rule moves, preserve stable IDs/anchors and all decisions; for history moves, compare retained content and record any purely syntactic rendering correction.
-- For dependency changes, compare the inventory with manifests/locks/workflows; do not invent current vulnerability or deployed-image status without a receipt.
+- For dependency changes, run `npm run versions:refresh` after a clean locked install, review its diff, and run `npm run verify:dependencies`; compare handwritten explanations with manifests/locks/workflows as well; do not invent current vulnerability or deployed-image status without a receipt.
 - Use meaningful existing checks and applicable complete gates under AGENTS. A documentation check does not replace required final-head frontend/backend/API-browser CI. Do not weaken assertions or rerun unchanged failures to obtain green.
 
 Record actual commands/tools, source head, environment and outcome. If a check cannot run, say which one and why; do not call the review complete without the required evidence. An external link's existence or a local renderer pass does not prove GitHub's current UI or an external service's acceptance.
@@ -74,7 +79,7 @@ Record actual commands/tools, source head, environment and outcome. If a check c
 
 ## 5. PR documentation-state receipt
 
-Add a short paragraph or compact table to the existing PR description; follow its established structure instead of creating a second report. Include:
+Keep the PR description as one current account of final behavior, exact-head CI and unresolved work. Rewrite stale scope/status paragraphs rather than accumulating chronological appendices. Preserve original failures and superseded runs in Journey/artifacts and link them concisely; never erase evidence or imply an earlier failure passed. Add a short paragraph or compact table for documentation impact within that current description. Include:
 
 - **Updated owners:** paths and the state/behavior reconciled.
 - **Reviewed unchanged:** grouped owners and why the change does not affect them.

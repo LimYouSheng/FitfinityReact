@@ -128,6 +128,26 @@ test('successful backend gate retains streamed output without replay and still c
   assert.deepEqual(up.slice(-3), ['--exit-code-from', 'tests', 'tests'])
   assert.ok(!calls.some(args => args.includes('logs')))
   assert.equal(calls.find(args => args.includes('down'))[2], up[2])
+  const previous = process.env.FITFINITY_BACKEND_RECEIPT
+  try {
+    process.env.FITFINITY_BACKEND_RECEIPT = '/tmp/synthetic-backend-group.json'
+    for (const copyStatus of [0, 1, 2]) {
+      const grouped = []
+      const run = () => verifyBackend((_command, args) => {
+        grouped.push(args)
+        return { status: args.includes('logs') && copyStatus === 1 ? 1 : 0, stdout: copyStatus === 2 ? '' : 'FITFINITY_BACKEND_RECEIPT={"synthetic":true}\n' }
+      })
+      if (copyStatus) assert.throws(run, /receipt could not be retained/)
+      else run()
+      const copy = grouped.find(args => args.includes('logs'))
+      assert.deepEqual(copy.slice(-2), ['--no-log-prefix', 'tests'])
+      assert.equal(grouped.find(args => args.includes('down'))[2], copy[2])
+    }
+  } finally {
+    fs.rmSync('/tmp/synthetic-backend-group.json', { force: true })
+    if (previous === undefined) delete process.env.FITFINITY_BACKEND_RECEIPT
+    else process.env.FITFINITY_BACKEND_RECEIPT = previous
+  }
 })
 
 test('infrastructure failure retains logs and cleans only its isolated container project', () => {

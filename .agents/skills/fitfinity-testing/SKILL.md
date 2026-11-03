@@ -11,7 +11,11 @@ Apply this procedure to every PR, including documentation-only, dependency, work
 
 Review tests during implementation and before publication, not only after merge. This is an instruction skill, **not an automatic CI hook**. Existing verifiers enforce declared inventories/outcomes but cannot prove that every changed behavior has a meaningful assertion. Include a review receipt in the PR. AGENTS directs agents here explicitly if automatic repository-skill discovery is unavailable.
 
-Fitfinity permits Codex to run Playwright and inspect isolated internal previews. Use synthetic records, isolated Docker PostgreSQL/object storage and the local signed-token Cognito substitute. Never use production PostgreSQL or real customer data for routine tests. Real Cognito/email/invitations, AWS changes, image publication, deployment, provider operations and production load require their own authority. Local emulation, simulator browsers, real-API browsers, process restart, authoritative macOS/WebKit CI, physical devices and deployed acceptance are distinct evidence scopes. Do not copy SoccerBot's owner-only browser restriction or its Worker/provider architecture.
+Fitfinity permits Codex to run Playwright and inspect isolated internal previews. Use synthetic records, isolated Docker PostgreSQL/object storage and the local signed-token Cognito substitute. Never use production PostgreSQL or real customer data for routine tests. Real Cognito/email/invitations, AWS changes, image publication, deployment, provider operations and production load require their own authority. Local emulation, simulator browsers, real-API browsers, process restart, authoritative macOS/WebKit CI, physical devices and deployed acceptance are distinct evidence scopes.
+
+For dependency work, also apply the [dependency review skill](../fitfinity-dependencies/SKILL.md) before changing code; it owns suitability and upstream research, while this skill owns the verification impact.
+
+For implementation changes, apply the [code-writing skill](../fitfinity-code-writing/SKILL.md) for owning-cause repair and authoritative value ownership. This skill retains detailed regression and guard-execution evidence.
 
 ## 1. Map the whole change to existing tests
 
@@ -29,7 +33,7 @@ Fitfinity permits Codex to run Playwright and inspect isolated internal previews
 | API authorization, persistence, concurrency and migration compatibility | `backend/tests/test_*.py`, actual domain/HTTP fixtures, `backend/tests/test_process_restart.py`, `backend/scripts/verify.py`, `scripts/verify-backend.mjs` and backend Compose/Docker owners. Use actual isolated PostgreSQL, not a SQLite replacement or mocked transaction result. |
 | Infrastructure/configuration/artifact/release behavior | `backend/infrastructure/verify-*.py`, related fixtures/tests, `backend/scripts/verify-infrastructure.py`, `scripts/verify-infrastructure.mjs` and workflow owners. Tests are offline; actual infrastructure execution is separate. |
 | Tooling, lint/source health and result verifiers | `scripts/*.test.mjs`, `scripts/verify-quality.mjs`, `scripts/verify-code-health.mjs`, result/shard verifiers and `.github/workflows/verify.yml`. Preserve wrong-source/resource, incomplete execution and checker-rejection cases. |
-| Dependencies/runtime/container/browser updates | Affected consumers and compatibility suites, lockfiles, build paths and all required CI. An unchanged application diff does not imply no runtime risk. Distinguish security remediation from optional upgrades. |
+| Dependencies/runtime/container/browser updates | Affected consumers and compatibility suites, lockfiles, build paths and all required CI. An unchanged application diff does not imply no runtime risk. Run `npm run verify:dependencies` after `npm ci`; use `npm run versions:refresh` only for reviewed changes, then inspect the generated diff. Preserve negative drift cases and valid-upgrade regressions in verify-quality.test.mjs. Distinguish security remediation from optional upgrades. |
 | Documentation-only or low-impact prose/presentation | Validate affected links, schemas/examples, diagrams, tables and preservation. Explain why executable assertions/fixtures/inventories remain valid; do not invent tests or change unrelated expectations just to satisfy this skill. |
 | Planned mutation, latency/load, observability and recovery work | Review H1–H6 in Progress and the full-suite diagram before claiming a tool or command exists. These planned campaigns are not implemented suites merely because the backlog describes them. Use a separately scoped implementation and synthetic isolated targets. |
 
@@ -53,21 +57,38 @@ Derive expected results from rules/contracts or independently constructed fixtur
 
 If requirements legitimately change, update obsolete assertions and fixtures in the **same PR**, explaining the old/new contract. If requirements do not change, repair the defect rather than rewriting expectations. Removing/renaming a test must preserve its behavioral coverage or explain authorized retirement. Retain original failures in Journey under the documentation skill.
 
+### Prove the test can detect the defect
+
+For a substantive bug fix, prefer a bounded pre-fix or narrow mutation demonstration: restore only the defect in an isolated fixture or temporary source copy, run the named regression and require failure at the intended assertion, then require the corrected case to pass. Assert that the mutation actually changed its input. Compilation/setup failure, an unrelated failure or an unchanged replacement is not regression proof. Never reset the user's working tree or invoke prohibited browser/provider work. Record the test, mutation/pre-fix revision, observed reason and result; if the required environment is unavailable or execution is disproportionate for harmless copy/style work, record that limitation rather than claiming mutation coverage. This is targeted evidence, not a requirement to install a mutation framework or repeatedly run the full suite.
+
+Pair negative safety assertions with positive evidence that the scenario ran: expected result/state, meaningful response content, relevant provider effect or preserved original attempt. Absence of error text, empty output or a generic success code alone cannot prove the behavior. Negative assertions remain essential for unauthorized access, duplicate effects and protected data; do not remove them in favor of positive-only checks.
+
+For UI copy changes, search old full messages and distinctive substrings across component and browser assertions, accessible names, fixtures and inventories. For motion/layout changes, distinguish interim animated geometry from final dimensions: synchronize the actual lifecycle where final size is required, without arbitrary sleeps or relaxing dimensions. Keep immediate confirmation/timing assertions before any purely visual completion wait.
+
 ## 3. Synchronize fixtures and strict inventories
 
 Fixtures must represent valid and deliberately invalid domain states, current role/assignment, bounded clocks and real persistence constraints. Synthetic Cognito still exercises JWT verification/cookies/CSRF; it does not establish provider delivery. Keep simulator fixtures aligned with supported contracts without treating their responses as real PostgreSQL acceptance. Each isolated run/shard owns its disposable data/resources; cleanup must not target unrelated databases or containers.
 
-Fitfinity does **not** use SoccerBot's `test-inventory.json` or Worker inventory. Inspect the actual current inventory owners:
+Inspect Fitfinity’s actual inventory owners; do not assume another repository’s file names or runner model apply:
 
 | Owner | What must remain synchronized |
 | --- | --- |
 | `scripts/verify-test-results.mjs` and its regression tests | Declared unit file/case totals and browser/API-browser totals; actual Playwright discovery checks both browser inventories, including navigation-generated cases; rejection of failed, skipped, retried/flaky, interrupted and incomplete output. Totals alone do not establish behavioral coverage. |
 | `scripts/verify-api-shards.mjs`, its tests and `verify.yml` | Shared API-browser count in `verify-api-shards.mjs`, consumed by text receipts and checked against actual Playwright discovery in the quality suite; two complementary shard reports, exact case identity and complete execution once. Preserve worker/retry/repeat settings and shard-success requirements. |
+| `scripts/verify-ci-groups.mjs`, `backend/scripts/ci_groups.py` and `test-groups.json` | Exact browser-profile/backend-group case coverage, source/run-bound backend receipts and complete setup/call/teardown outcomes. Reject unassigned files, missing/duplicate/foreign cases and failed/skipped dependencies; independent jobs must not acquire unnecessary dependency chains. |
 | `backend/scripts/verify.py` | Backend collection/execution acceptance and declared constraints; inspect its actual collection/report checks before changing tests. |
 | `backend/scripts/verify-infrastructure.py` | Explicit suite/file inventories and per-suite case counts, including rejection of skips and expected failures. |
 | Playwright/Vitest/pytest configuration and owning harnesses | Project, fixture, collection, isolation and timeout behavior; do not silently omit a device, file or runtime path. |
 
 When adding, renaming, moving or retiring tests, update every affected verifier expectation and its regression tests in the same PR. Compare discovered and executed cases, not just unchanged totals. Do not regenerate a reduced inventory to conceal missing tests or change checker expectations to accept a failure.
+
+### Required dependent-guard review
+
+Prove actual guard execution from the workflow/wrapper invocation and its receipt. Missing/skipped required guards, empty collection and absent reports must fail. Check the Git index executable mode for directly invoked scripts; local filesystem permissions alone can hide an incorrectly committed mode.
+
+Run affected guard tests and the owning verification wrapper, not only raw test cases. For browser/backend group changes, inspect `scripts/verify-ci-groups.mjs`, `backend/scripts/ci_groups.py`, `backend/scripts/test-ci-groups.py` and `scripts/verify-backend.mjs`; for API shards, inspect `scripts/verify-api-shards.mjs`. Replay complete retained evidence only when its source/runtime inputs remain applicable to a guard-only repair, and label diagnostic edits separately from execution acceptance. Source/runtime changes require new applicable execution.
+
+Preserve ordering where the actual parser requires it and exact case identity everywhere; independent shard completion order is not a contract. Parameterized cases need stable identities across fresh collectors. Search old titles, counts and indirect consumers; ensure each negative fixture mutation changes its input rather than silently becoming a no-op. Preserve independent expectations and duplicate/missing/skipped/failed/foreign-source rejection.
 
 **Required guard impact review.** For every change, identify all guards that enforce the affected contract, including indirect callers. Give each an update or retain-with-evidence disposition in the PR; update necessary guards, fixtures and checker regressions in the same PR, not as a forgotten follow-up.
 
@@ -84,6 +105,8 @@ For setup races, wait on the actual observable prerequisite before dependent ass
 
 ## 4. Execute, diagnose and keep evidence bounded
 
+Use the [CI diagnosis skill](../fitfinity-ci-diagnosis/SKILL.md) for exact-run failure classification and resource/queue investigation; use the [deployment readiness skill](../fitfinity-deployment/SKILL.md) for release configuration and artifact/account evidence. Neither replaces these test acceptance requirements.
+
 Use docs/development.md's verification commands and inspect executable harnesses before selecting focused work. Run the smallest meaningful checks, then applicable complete gates at a coherent candidate boundary. A filtered test or one API shard is not full acceptance. Reuse matching dependencies, images/browser caches and evidence; do not repeatedly run unchanged suites without a relevant change or new diagnostic evidence.
 
 Classify failures as application, test/fixture, environment, provider or unresolved. Save the first failure with source, command/run, environment, test title, expected versus observed state and available logs/traces. A passing rerun alone does not prove “flaky,” identify a root cause or repair the original defect. For perceived slowness, record first/repeat timing and where time is spent; do not loosen the timeout to hide it. Fix the owning cause and review adjacent coverage.
@@ -94,9 +117,11 @@ Compare the first and latest traces/logs and test isolation, clocks, shared stat
 
 Keep the recurring issue in Progress with the next diagnostic step and link durable occurrences/repair evidence in Journey. Mark it fixed only with a causal explanation and relevant verification; otherwise retain it as unresolved even after a passing run. Recurring unresolved failures that undermine the candidate's required acceptance remain readiness blockers; unrelated historical findings keep their recorded scope. Do not quarantine, skip, add retries, inflate timeouts, reduce parallel/device coverage or weaken assertions to hide recurrence. Escalate the missing evidence or environment constraint when the bounded investigation cannot advance.
 
-Fitfinity requires all three exact-final-head gates: **`verify / frontend`, `verify / backend`, `verify / api-browser`**, including successful API shards/aggregate and authoritative macOS/WebKit checks. Recheck complete outcomes and SHA before an authorized merge. Current workflow limits are per job: 60 minutes frontend/backend, 20 per API shard and 5 for aggregation; inspect actual source if they change. Campaign budgets do not override test/CI budgets.
+Fitfinity requires all three exact-final-head gates: **`verify / frontend`, `verify / backend`, `verify / api-browser`**, including successful API shards/aggregate and authoritative macOS/WebKit checks. Recheck complete outcomes and SHA before an authorized merge. Current limits are per job:60 minutes for browser profiles and backend execution/check groups,20 for quality/unit/build and API shards,5 for aggregates; inspect workflow source if they change. Campaign budgets do not override test/CI budgets.
 
 Keep local simulated-provider acceptance separate from real Cognito, current physical devices, AWS image publication, Lambda rollout and deployed recovery. Fresh-main verification is separate from PR success. No test-suite command grants permission to invoke real invitations, send customer messages or exercise production storage.
+
+Keep upstream-supported ranges, repository configuration and exact tested configurations separate in receipts. Browser engine metadata describes bundled configuration, not an observed browser.version() receipt; emulation does not certify its named physical device or OS. Physical evidence requires model, exact OS/browser versions, deployed revision and outcome.
 
 ## 5. PR test-impact receipt and handover
 

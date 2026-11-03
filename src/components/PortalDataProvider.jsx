@@ -15,6 +15,7 @@ export function PortalDataProvider({ services = portalServices, children }) {
   const [clock, setClock] = useState(() => new Date())
   const generation = useRef(0)
   const mounted = useRef(false)
+  const publicAuthentication = useRef(false)
   const adminRecovery = useRef(null)
   const clientRecovery = useRef(null)
   const trainerRecovery = useRef(null)
@@ -36,6 +37,8 @@ export function PortalDataProvider({ services = portalServices, children }) {
   const retireWorkflows = useCallback(() => { verifiedScope.current = null; drafts.current.clear(); retireAdminCreation(); retireClientCreation(); retireTrainerCreation() }, [retireAdminCreation, retireClientCreation, retireTrainerCreation])
   const invalidateRequests = useCallback(() => { ++generation.current }, [])
   const refresh = useCallback(async () => {
+    // Explicit refresh after authentication re-verifies identity before private UI returns.
+    publicAuthentication.current = false
     const request = ++generation.current
     try {
       const snapshot = await services.load()
@@ -74,11 +77,11 @@ export function PortalDataProvider({ services = portalServices, children }) {
   useEffect(() => {
     mounted.current = true
     void refresh().catch(() => {})
-    const synchronize = () => { setClock(new Date()); void refresh().catch(() => {}) }
+    const synchronize = () => { setClock(new Date()); if (!publicAuthentication.current) void refresh().catch(() => {}) }
     const discard = () => drafts.current.clear()
     const timer = setInterval(() => {
       setClock(new Date())
-      if (sessionScope.current) void refresh().catch(() => {})
+      if (sessionScope.current && !publicAuthentication.current) void refresh().catch(() => {})
     }, 30000)
     window.addEventListener(PORTAL_DRAFT_DISCARDED, discard)
     window.addEventListener('storage', synchronize)
@@ -90,6 +93,7 @@ export function PortalDataProvider({ services = portalServices, children }) {
   const guardedServices = useMemo(() => {
     const scopedServices = renderedGeneration === undefined ? services : services.forSession?.(renderedGeneration) ?? services
     const signOutSnapshot = () => {
+      publicAuthentication.current = false
       invalidateRequests()
       sessionScope.current = null
       verifiedScope.current = null
@@ -98,7 +102,14 @@ export function PortalDataProvider({ services = portalServices, children }) {
       window.dispatchEvent(new Event(PORTAL_SESSION_ENDED))
       setState(current => ({ ...current, adminCreation: null, clientCreation: null, trainerCreation: null, snapshot: current.snapshot ? { ...current.snapshot, user: null, data: null } : null, error: '', loading: false }))
     }
-    const wrap = (operation, clearSession = false, creationType = null) => async (...args) => {
+    const wrap = (operation, clearSession = false, creationType = null, authenticationStep = false) => async (...args) => {
+      if (authenticationStep) {
+        // Retire both late successes and errors before the adapter advances its session
+        // generation. Focus/storage refreshes must not dismantle an MFA/recovery form.
+        publicAuthentication.current = true
+        invalidateRequests()
+        retireWorkflows()
+      }
       const recovery = () => creationType === 'client' ? clientRecovery.current : creationType === 'trainer' ? trainerRecovery.current : adminRecovery.current
       const recoveryAtStart = recovery()
       const scopeAtStart = renderedScope
@@ -121,7 +132,7 @@ export function PortalDataProvider({ services = portalServices, children }) {
         throw error
       }
     }
-    return Object.fromEntries(Object.entries(scopedServices).filter(([key]) => key !== 'forSession').map(([key, value]) => [key, key === 'reportService' ? value : typeof value === 'function' ? wrap(value) : Object.fromEntries(Object.entries(value).map(([method, operation]) => [method, wrap(operation, key === 'auth' && method === 'signOut', key === 'staffService' && method === 'createAdmin' ? 'admin' : key === 'clientService' && method === 'create' ? 'client' : key === 'trainerService' && method === 'create' ? 'trainer' : null)]))]))
+    return Object.fromEntries(Object.entries(scopedServices).filter(([key]) => key !== 'forSession').map(([key, value]) => [key, key === 'reportService' ? value : typeof value === 'function' ? wrap(value) : Object.fromEntries(Object.entries(value).map(([method, operation]) => [method, wrap(operation, key === 'auth' && method === 'signOut', key === 'staffService' && method === 'createAdmin' ? 'admin' : key === 'clientService' && method === 'create' ? 'client' : key === 'trainerService' && method === 'create' ? 'trainer' : null, key === 'auth' && ['signIn', 'challenge', 'forgotPassword', 'resetPassword'].includes(method))]))]))
   }, [services, renderedScope, renderedGeneration, refresh, invalidateRequests, retireWorkflows])
   // Drafts never leave memory and are inaccessible until this exact login is verified again.
   const draftRecovery = useMemo(() => {

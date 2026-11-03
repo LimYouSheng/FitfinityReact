@@ -8,18 +8,38 @@ from xml.etree import ElementTree
 
 
 def main() -> None:
-    if not os.getenv("FITFINITY_TEST_DATABASE_URL"):
+    mode = os.getenv("FITFINITY_TEST_GROUP", "all")
+    from ci_groups import GROUPS
+
+    if mode not in ["all", "checks", *GROUPS]:
+        raise RuntimeError("Unknown backend verification group")
+    if mode != "checks" and not os.getenv("FITFINITY_TEST_DATABASE_URL"):
         raise RuntimeError("A dedicated test PostgreSQL URL is required; no skipped DB tests")
-    for args in [
-        ["ruff", "check", "."],
-        ["ruff", "format", "--check", "."],
-        ["app.api.contract"],
-    ]:
+    for args in (
+        [
+            ["ruff", "check", "."],
+            ["ruff", "format", "--check", "."],
+            ["app.api.contract"],
+        ]
+        if mode in ["all", "checks"]
+        else []
+    ):
         print("Running backend gate: " + " ".join(args), flush=True)
         subprocess.run([sys.executable, "-m", *args], check=True)
-    subprocess.run(
-        [sys.executable, str(Path(__file__).with_name("verify-infrastructure.py"))], check=True
-    )
+    if mode in ["all", "checks"]:
+        subprocess.run([sys.executable, "scripts/test-ci-groups.py"], check=True)
+    if mode == "checks":
+        return
+    if mode == "all":
+        subprocess.run(
+            [sys.executable, str(Path(__file__).with_name("verify-infrastructure.py"))], check=True
+        )
+    else:
+        env = {**os.environ, "PYTHONPATH": str(Path("scripts").resolve())}
+        subprocess.run(
+            [sys.executable, "-m", "pytest", "-p", "ci_groups", "-vv", "-rA"], env=env, check=True
+        )
+        return
     args = ["pytest", "--color=yes", "-vv", "-rA", "--junitxml=/tmp/fitfinity-backend.xml"]
     print("Running backend gate: " + " ".join(args), flush=True)
     subprocess.run([sys.executable, "-m", *args], check=True)

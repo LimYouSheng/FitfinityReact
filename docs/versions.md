@@ -1,6 +1,6 @@
 # Fitfinity versions
 
-Repository snapshot: **1 November 2026 Singapore**, dependency inputs from main `1aafcbef6377f36d093260d4a63e57239cfcaefc` plus the minimatch security repair in PR117 (pending source acceptance). This is a searchable inventory for manual vulnerability triage, not a clean scan certificate or a list of what is currently deployed. Manifests, lockfiles and workflow pins remain authoritative. Refresh this file in every PR that changes them; do not patch versions only in this document.
+Repository inputs unchanged; status reviewed **3 November 2026 Singapore**, PR120 candidate incorporating the reviewed npm/Actions updates from PR119/118 and dependency-maintenance guards. Combined head `7f36ae8` passed [complete CI](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41403809510); source merge remains pending. Later documentation heads require their own final-head gates. This is a searchable inventory for manual vulnerability triage, not a clean scan certificate or a list of what is currently deployed. Manifests, lockfiles and workflow pins remain authoritative. Run `npm run versions:refresh` after reviewing input changes, inspect the resulting diff, then run `npm run verify:dependencies`. CI rejects stale generated tables/fingerprints; explanatory prose and deployment claims still require human review.
 
 [Runtime and images](#runtime-and-images) · [Direct npm](#direct-npm-dependencies) · [All npm](#all-locked-npm-dependencies) · [Python](#all-locked-python-dependencies) · [GitHub Actions](#github-actions) · [Browser engines](#browser-engines) · [Manual patching](#manual-patch-guide) · [Unknown versions](#versions-that-require-artifact-or-environment-inspection)
 
@@ -11,7 +11,7 @@ Repository snapshot: **1 November 2026 Singapore**, dependency inputs from main 
 | Frontend application | 0.1.0 | [package.json](../package.json); project metadata, not a release fingerprint |
 | Backend application | 0.1.0 | [backend/pyproject.toml](../backend/pyproject.toml); project metadata |
 | FastAPI application/OpenAPI metadata | 0.2.0 | [backend/app/main.py](../backend/app/main.py); API metadata differs from backend package metadata |
-| Node.js | 24 (major only; patch floats) | [.github/workflows/verify.yml](../.github/workflows/verify.yml) and other workflows; build/test runtime |
+| Node.js | 24 selected by .nvmrc; supported >=24.15.0 <25 | [.github/workflows/verify.yml](../.github/workflows/verify.yml) and other workflows; build/test runtime |
 | npm | Bundled with selected Node; not independently pinned | Capture `node --version` and `npm --version` for each verification/release |
 | Python | 3.12.14; supported range >=3.12,<3.13 | [backend/Dockerfile](../backend/Dockerfile), [pyproject.toml](../backend/pyproject.toml) |
 | Backend base image | `python:3.12.14-slim-trixie` | Dockerfile; Debian 13 (Trixie); tag is not a digest lock |
@@ -32,25 +32,27 @@ Resolved versions come from [package-lock.json](../package-lock.json), including
 
 | Package | Manifest constraint | Locked version | Scope |
 | --- | --- | --- | --- |
-| `react` | `19.2.0` | `19.2.0` | application |
-| `react-dom` | `19.2.0` | `19.2.0` | application |
+| `react` | `19.3.1` | `19.3.1` | application |
+| `react-dom` | `19.3.1` | `19.3.1` | application |
 | `@eslint/js` | `10.0.1` | `10.0.1` | development/build/test |
 | `@playwright/test` | `1.64.1` | `1.64.1` | development/build/test |
 | `@testing-library/jest-dom` | `7.0.1` | `7.0.1` | development/build/test |
 | `@testing-library/react` | `16.3.3` | `16.3.3` | development/build/test |
-| `@testing-library/user-event` | `14.6.6` | `14.6.6` | development/build/test |
-| `@vitejs/plugin-react` | `6.1.1` | `6.1.1` | development/build/test |
+| `@testing-library/user-event` | `14.6.8` | `14.6.8` | development/build/test |
+| `@vitejs/plugin-react` | `6.1.2` | `6.1.2` | development/build/test |
 | `css-tree` | `3.2.1` | `3.2.1` | development/build/test |
 | `eslint` | `10.11.0` | `10.11.0` | development/build/test |
 | `eslint-plugin-react-hooks` | `7.1.1` | `7.1.1` | development/build/test |
-| `globals` | `17.12.0` | `17.12.0` | development/build/test |
-| `jsdom` | `30.0.1` | `30.0.1` | development/build/test |
-| `rolldown` | `1.2.6` | `1.2.6` | development/build/test |
+| `globals` | `17.13.0` | `17.13.0` | development/build/test |
+| `jsdom` | `30.1.3` | `30.1.3` | development/build/test |
+| `rolldown` | `1.2.16` | `1.2.16` | development/build/test |
+| `semver` | `7.8.5` | `7.8.5` | development/build/test |
+| `smol-toml` | `1.9.1` | `1.9.1` | development/build/test |
 | `vite` | `^8.3.5` | `8.3.5` | development/build/test |
 | `vitest` | `^4.1.12` | `4.1.12` | development/build/test |
 | `yaml` | `2.9.1` | `2.9.1` | development/build/test |
 
-The `minimatch` override pins11.0.1 for ESLint and its config-array dependency to remediate [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249). Upstream ESLint10.14.0 still requests vulnerable10.x, so upgrading ESLint alone does not repair this advisory. Only minimatch and its new nonrecursive matcher dependency change versions; direct tooling stays pinned. Remove the override only when upstream resolves a patched version and clean-install, audit, lint/quality and full-CI evidence agree. No advisory is suppressed.
+The `minimatch` override pins11.0.1 for ESLint and its config-array dependency to remediate [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249). Upstream ESLint10.14.0 still requests vulnerable10.x, so upgrading ESLint alone does not repair this advisory. PR117 introduced this override; PR120 also carries the independently reviewed direct dependency updates. The guard accepts later patched overrides only when every locked minimatch copy agrees; the existing quality regression checks actual ESLint consumer resolution and glob behavior. Remove the override only when upstream resolves a patched version and clean-install, audit, lint/quality and full-CI evidence agree. No advisory is suppressed.
 
 ## All locked Python dependencies
 
@@ -109,9 +111,9 @@ Full commit SHA is the effective pin. Version labels below are comments from the
 | --- | --- | --- | --- |
 | `actions/checkout` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | v7 | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [pages.yml](../.github/workflows/pages.yml), [verify.yml](../.github/workflows/verify.yml) |
 | `actions/configure-pages` | `45bfe0192ca1faeb007ade9deae92b16b8254a0d` | v6 | [pages.yml](../.github/workflows/pages.yml) |
-| `actions/deploy-pages` | `cd2ce8fcbc39b97be8ca5fce6e763baed58fa128` | v5 | [pages.yml](../.github/workflows/pages.yml) |
+| `actions/deploy-pages` | `368f82528645a54fb793d4d04e342629a3f51346` | v5 | [pages.yml](../.github/workflows/pages.yml) |
 | `actions/download-artifact` | `d3f86a106a0bac45b974a628896c90dbdf5c8093` | v4 | [verify.yml](../.github/workflows/verify.yml) |
-| `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` | v7 | [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [pages.yml](../.github/workflows/pages.yml), [verify.yml](../.github/workflows/verify.yml) |
+| `actions/setup-node` | `949feb2413d6458794dcd2491c4babbbce0c15c1` | v7 | [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [pages.yml](../.github/workflows/pages.yml), [verify.yml](../.github/workflows/verify.yml) |
 | `actions/upload-artifact` | `ea165f8d65b6e75b540449e92b4886f43607fa02` | v4.6.2 | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [verify.yml](../.github/workflows/verify.yml) |
 | `actions/upload-pages-artifact` | `fc324d3547104276b827a68afc52ff2a11cc49c9` | v5 | [pages.yml](../.github/workflows/pages.yml) |
 | `aws-actions/configure-aws-credentials` | `e3dd6a429d7300a6a4c196c26e071d42e0343502` | No tag label; use SHA | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml) |
@@ -125,7 +127,7 @@ Source: `playwright-core@1.64.1` package's `browsers.json`, checked against the 
 | chromium | 156.0.8078.4 | 1248 | CI browser engine |
 | chromium-headless-shell | 156.0.8078.4 | 1248 | CI browser engine |
 | firefox | 157.0 | 1555 | Available in package; not selected by current CI |
-| webkit | 27.2 | 2370 | CI browser engine; mac14: revision 2251, mac14-arm64: revision 2251 |
+| webkit | 27.2 | 2370 | CI browser engine; mac14: revision 2251; mac14-arm64: revision 2251 |
 | ffmpeg | Not provided by package | 1013 | Playwright recording helper |
 | winldd | Not provided by package | 1007 | Available in package; not selected by current CI |
 | android | Not provided by package | 1001 | Available in package; not selected by current CI |
@@ -155,19 +157,21 @@ This inventory is not a complete artifact SBOM. In particular, no unverified OS/
 
 ## All locked npm dependencies
 
-Every non-root `packages` entry in [package-lock.json](../package-lock.json) is represented below, including optional OS/architecture packages and nested duplicates. These are **269 locked entries**, not 269 packages guaranteed to be installed on every host or shipped to browsers. “Development” and “optional” are lockfile classifications. Paths disambiguate duplicate versions and can be searched directly in the lockfile.
+Every non-root `packages` entry in [package-lock.json](../package-lock.json) is represented below, including optional OS/architecture packages and nested duplicates. These are **253 locked entries**, not 253 packages guaranteed to be installed on every host or shipped to browsers. “Development” and “optional” are lockfile classifications. Paths disambiguate duplicate versions and can be searched directly in the lockfile.
 
 | Package | Locked version | Lock scope | Lock path |
 | --- | --- | --- | --- |
 | `@adobe/css-tools` | `4.5.0` | development | `node_modules/@adobe/css-tools` |
-| `@asamuzakjp/css-color` | `6.0.7` | development | `node_modules/@asamuzakjp/css-color` |
-| `@asamuzakjp/dom-selector` | `8.3.2` | development | `node_modules/@asamuzakjp/dom-selector` |
+| `@asamuzakjp/css-color` | `7.1.9` | development | `node_modules/@asamuzakjp/css-color` |
+| `@asamuzakjp/dom-selector` | `10.0.5` | development | `node_modules/@asamuzakjp/dom-selector` |
 | `@babel/code-frame` | `7.29.7` | development | `node_modules/@babel/code-frame` |
 | `@babel/compat-data` | `7.29.7` | development | `node_modules/@babel/compat-data` |
 | `@babel/core` | `7.29.7` | development | `node_modules/@babel/core` |
+| `semver` | `6.3.1` | development | `node_modules/@babel/core/node_modules/semver` |
 | `@babel/generator` | `7.29.8` | development | `node_modules/@babel/generator` |
 | `@babel/helper-compilation-targets` | `7.29.7` | development | `node_modules/@babel/helper-compilation-targets` |
 | `lru-cache` | `5.1.1` | development | `node_modules/@babel/helper-compilation-targets/node_modules/lru-cache` |
+| `semver` | `6.3.1` | development | `node_modules/@babel/helper-compilation-targets/node_modules/semver` |
 | `@babel/helper-globals` | `7.29.7` | development | `node_modules/@babel/helper-globals` |
 | `@babel/helper-module-imports` | `7.29.7` | development | `node_modules/@babel/helper-module-imports` |
 | `@babel/helper-module-transforms` | `7.29.7` | development | `node_modules/@babel/helper-module-transforms` |
@@ -183,12 +187,12 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `@bramus/specificity` | `2.4.2` | development | `node_modules/@bramus/specificity` |
 | `@cacheable/memory` | `2.2.0` | development | `node_modules/@cacheable/memory` |
 | `@cacheable/utils` | `2.5.0` | development | `node_modules/@cacheable/utils` |
-| `@csstools/color-helpers` | `6.1.1` | development | `node_modules/@csstools/color-helpers` |
-| `@csstools/css-calc` | `3.3.0` | development | `node_modules/@csstools/css-calc` |
-| `@csstools/css-color-parser` | `4.2.2` | development | `node_modules/@csstools/css-color-parser` |
-| `@csstools/css-parser-algorithms` | `4.0.0` | development | `node_modules/@csstools/css-parser-algorithms` |
-| `@csstools/css-syntax-patches-for-csstree` | `1.1.12` | development | `node_modules/@csstools/css-syntax-patches-for-csstree` |
-| `@csstools/css-tokenizer` | `4.0.0` | development | `node_modules/@csstools/css-tokenizer` |
+| `@csstools/color-helpers` | `6.1.2` | development | `node_modules/@csstools/color-helpers` |
+| `@csstools/css-calc` | `3.4.3` | development | `node_modules/@csstools/css-calc` |
+| `@csstools/css-color-parser` | `4.2.7` | development | `node_modules/@csstools/css-color-parser` |
+| `@csstools/css-parser-algorithms` | `4.0.2` | development | `node_modules/@csstools/css-parser-algorithms` |
+| `@csstools/css-syntax-patches-for-csstree` | `1.1.16` | development | `node_modules/@csstools/css-syntax-patches-for-csstree` |
+| `@csstools/css-tokenizer` | `4.0.2` | development | `node_modules/@csstools/css-tokenizer` |
 | `@eslint-community/eslint-utils` | `4.10.1` | development | `node_modules/@eslint-community/eslint-utils` |
 | `eslint-visitor-keys` | `3.4.3` | development | `node_modules/@eslint-community/eslint-utils/node_modules/eslint-visitor-keys` |
 | `@eslint-community/regexpp` | `4.12.2` | development | `node_modules/@eslint-community/regexpp` |
@@ -198,7 +202,7 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `@eslint/js` | `10.0.1` | development | `node_modules/@eslint/js` |
 | `@eslint/object-schema` | `3.0.5` | development | `node_modules/@eslint/object-schema` |
 | `@eslint/plugin-kit` | `0.7.3` | development | `node_modules/@eslint/plugin-kit` |
-| `@exodus/bytes` | `1.15.1` | development | `node_modules/@exodus/bytes` |
+| `@exodus/bytes` | `1.16.0` | development | `node_modules/@exodus/bytes` |
 | `@humanfs/core` | `0.19.2` | development | `node_modules/@humanfs/core` |
 | `@humanfs/node` | `0.16.8` | development | `node_modules/@humanfs/node` |
 | `@humanfs/types` | `0.15.0` | development | `node_modules/@humanfs/types` |
@@ -212,37 +216,37 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `@jridgewell/trace-mapping` | `0.3.31` | development | `node_modules/@jridgewell/trace-mapping` |
 | `@keyv/bigmap` | `1.3.1` | development | `node_modules/@keyv/bigmap` |
 | `@keyv/serialize` | `1.1.1` | development | `node_modules/@keyv/serialize` |
-| `@oxc-project/types` | `0.147.0` | development | `node_modules/@oxc-project/types` |
+| `@oxc-project/types` | `0.156.0` | development | `node_modules/@oxc-project/types` |
 | `@playwright/test` | `1.64.1` | development | `node_modules/@playwright/test` |
-| `@rolldown/binding-android-arm-eabi` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-android-arm-eabi` |
-| `@rolldown/binding-android-arm64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-android-arm64` |
-| `@rolldown/binding-darwin-arm64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-darwin-arm64` |
-| `@rolldown/binding-darwin-x64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-darwin-x64` |
-| `@rolldown/binding-freebsd-x64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-freebsd-x64` |
-| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-arm-gnueabihf` |
-| `@rolldown/binding-linux-arm64-gnu` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-arm64-gnu` |
-| `@rolldown/binding-linux-arm64-musl` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-arm64-musl` |
-| `@rolldown/binding-linux-ppc64-gnu` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-ppc64-gnu` |
-| `@rolldown/binding-linux-s390x-gnu` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-s390x-gnu` |
-| `@rolldown/binding-linux-x64-gnu` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-x64-gnu` |
-| `@rolldown/binding-linux-x64-musl` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-linux-x64-musl` |
-| `@rolldown/binding-openharmony-arm64` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-openharmony-arm64` |
-| `@rolldown/binding-win32-arm64-msvc` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-win32-arm64-msvc` |
-| `@rolldown/binding-win32-x64-msvc` | `1.2.6` | development; optional | `node_modules/@rolldown/binding-win32-x64-msvc` |
+| `@rolldown/binding-android-arm-eabi` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-android-arm-eabi` |
+| `@rolldown/binding-android-arm64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-android-arm64` |
+| `@rolldown/binding-darwin-arm64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-darwin-arm64` |
+| `@rolldown/binding-darwin-x64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-darwin-x64` |
+| `@rolldown/binding-freebsd-x64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-freebsd-x64` |
+| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-arm-gnueabihf` |
+| `@rolldown/binding-linux-arm64-gnu` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-arm64-gnu` |
+| `@rolldown/binding-linux-arm64-musl` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-arm64-musl` |
+| `@rolldown/binding-linux-ppc64-gnu` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-ppc64-gnu` |
+| `@rolldown/binding-linux-s390x-gnu` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-s390x-gnu` |
+| `@rolldown/binding-linux-x64-gnu` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-x64-gnu` |
+| `@rolldown/binding-linux-x64-musl` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-x64-musl` |
+| `@rolldown/binding-openharmony-arm64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-openharmony-arm64` |
+| `@rolldown/binding-win32-arm64-msvc` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-win32-arm64-msvc` |
+| `@rolldown/binding-win32-x64-msvc` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-win32-x64-msvc` |
 | `@rolldown/pluginutils` | `1.0.1` | development | `node_modules/@rolldown/pluginutils` |
 | `@standard-schema/spec` | `1.1.0` | development | `node_modules/@standard-schema/spec` |
 | `@testing-library/dom` | `10.4.1` | development | `node_modules/@testing-library/dom` |
 | `@testing-library/jest-dom` | `7.0.1` | development | `node_modules/@testing-library/jest-dom` |
 | `dom-accessibility-api` | `0.6.3` | development | `node_modules/@testing-library/jest-dom/node_modules/dom-accessibility-api` |
 | `@testing-library/react` | `16.3.3` | development | `node_modules/@testing-library/react` |
-| `@testing-library/user-event` | `14.6.6` | development | `node_modules/@testing-library/user-event` |
+| `@testing-library/user-event` | `14.6.8` | development | `node_modules/@testing-library/user-event` |
 | `@types/aria-query` | `5.0.4` | development | `node_modules/@types/aria-query` |
 | `@types/chai` | `5.2.3` | development | `node_modules/@types/chai` |
 | `@types/deep-eql` | `4.0.2` | development | `node_modules/@types/deep-eql` |
 | `@types/esrecurse` | `4.3.1` | development | `node_modules/@types/esrecurse` |
 | `@types/estree` | `1.0.9` | development | `node_modules/@types/estree` |
 | `@types/json-schema` | `7.0.15` | development | `node_modules/@types/json-schema` |
-| `@vitejs/plugin-react` | `6.1.1` | development | `node_modules/@vitejs/plugin-react` |
+| `@vitejs/plugin-react` | `6.1.2` | development | `node_modules/@vitejs/plugin-react` |
 | `@vitest/expect` | `4.1.12` | development | `node_modules/@vitest/expect` |
 | `@vitest/mocker` | `4.1.12` | development | `node_modules/@vitest/mocker` |
 | `@vitest/pretty-format` | `4.1.12` | development | `node_modules/@vitest/pretty-format` |
@@ -259,7 +263,7 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `assertion-error` | `2.0.1` | development | `node_modules/assertion-error` |
 | `balanced-match` | `4.0.4` | development | `node_modules/balanced-match` |
 | `baseline-browser-mapping` | `2.11.26` | development | `node_modules/baseline-browser-mapping` |
-| `bidi-js` | `1.0.3` | development | `node_modules/bidi-js` |
+| `bidi-js` | `1.1.0` | development | `node_modules/bidi-js` |
 | `brace-expansion` | `5.0.12` | development | `node_modules/brace-expansion` |
 | `browserslist` | `4.29.1` | development | `node_modules/browserslist` |
 | `cacheable` | `2.5.0` | development | `node_modules/cacheable` |
@@ -269,8 +273,7 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `cross-spawn` | `7.0.6` | development | `node_modules/cross-spawn` |
 | `css-tree` | `3.2.1` | development | `node_modules/css-tree` |
 | `css.escape` | `1.5.1` | development | `node_modules/css.escape` |
-| `data-urls` | `7.0.0` | development | `node_modules/data-urls` |
-| `whatwg-url` | `16.0.1` | development | `node_modules/data-urls/node_modules/whatwg-url` |
+| `data-urls` | `8.0.0` | development | `node_modules/data-urls` |
 | `debug` | `4.4.3` | development | `node_modules/debug` |
 | `decimal.js` | `10.6.0` | development | `node_modules/decimal.js` |
 | `deep-is` | `0.1.4` | development | `node_modules/deep-is` |
@@ -303,12 +306,12 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `flatted` | `3.4.4` | development | `node_modules/flatted` |
 | `gensync` | `1.0.0-beta.2` | development | `node_modules/gensync` |
 | `glob-parent` | `6.0.2` | development | `node_modules/glob-parent` |
-| `globals` | `17.12.0` | development | `node_modules/globals` |
+| `globals` | `17.13.0` | development | `node_modules/globals` |
 | `hashery` | `1.5.1` | development | `node_modules/hashery` |
 | `hermes-estree` | `0.25.1` | development | `node_modules/hermes-estree` |
 | `hermes-parser` | `0.25.1` | development | `node_modules/hermes-parser` |
 | `hookified` | `1.15.1` | development | `node_modules/hookified` |
-| `html-encoding-sniffer` | `6.0.0` | development | `node_modules/html-encoding-sniffer` |
+| `html-encoding-sniffer` | `7.0.0` | development | `node_modules/html-encoding-sniffer` |
 | `ignore` | `5.3.2` | development | `node_modules/ignore` |
 | `imurmurhash` | `0.1.4` | development | `node_modules/imurmurhash` |
 | `indent-string` | `4.0.0` | development | `node_modules/indent-string` |
@@ -317,7 +320,7 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `is-potential-custom-element-name` | `1.0.1` | development | `node_modules/is-potential-custom-element-name` |
 | `isexe` | `2.0.0` | development | `node_modules/isexe` |
 | `js-tokens` | `4.0.0` | development | `node_modules/js-tokens` |
-| `jsdom` | `30.0.1` | development | `node_modules/jsdom` |
+| `jsdom` | `30.1.3` | development | `node_modules/jsdom` |
 | `jsesc` | `3.1.0` | development | `node_modules/jsesc` |
 | `json-schema-traverse` | `0.4.1` | development | `node_modules/json-schema-traverse` |
 | `json-stable-stringify-without-jsonify` | `1.0.1` | development | `node_modules/json-stable-stringify-without-jsonify` |
@@ -325,19 +328,19 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `keyv` | `5.6.0` | development | `node_modules/keyv` |
 | `levn` | `0.4.1` | development | `node_modules/levn` |
 | `lightningcss` | `1.33.0` | development | `node_modules/lightningcss` |
-| `lightningcss-android-arm64` | `1.33.0` | development; optional | `node_modules/lightningcss-android-arm64` |
-| `lightningcss-darwin-arm64` | `1.33.0` | development; optional | `node_modules/lightningcss-darwin-arm64` |
-| `lightningcss-darwin-x64` | `1.33.0` | development; optional | `node_modules/lightningcss-darwin-x64` |
-| `lightningcss-freebsd-x64` | `1.33.0` | development; optional | `node_modules/lightningcss-freebsd-x64` |
-| `lightningcss-linux-arm-gnueabihf` | `1.33.0` | development; optional | `node_modules/lightningcss-linux-arm-gnueabihf` |
-| `lightningcss-linux-arm64-gnu` | `1.33.0` | development; optional | `node_modules/lightningcss-linux-arm64-gnu` |
-| `lightningcss-linux-arm64-musl` | `1.33.0` | development; optional | `node_modules/lightningcss-linux-arm64-musl` |
-| `lightningcss-linux-x64-gnu` | `1.33.0` | development; optional | `node_modules/lightningcss-linux-x64-gnu` |
-| `lightningcss-linux-x64-musl` | `1.33.0` | development; optional | `node_modules/lightningcss-linux-x64-musl` |
-| `lightningcss-win32-arm64-msvc` | `1.33.0` | development; optional | `node_modules/lightningcss-win32-arm64-msvc` |
-| `lightningcss-win32-x64-msvc` | `1.33.0` | development; optional | `node_modules/lightningcss-win32-x64-msvc` |
+| `lightningcss-android-arm64` | `1.33.0` | development, optional | `node_modules/lightningcss-android-arm64` |
+| `lightningcss-darwin-arm64` | `1.33.0` | development, optional | `node_modules/lightningcss-darwin-arm64` |
+| `lightningcss-darwin-x64` | `1.33.0` | development, optional | `node_modules/lightningcss-darwin-x64` |
+| `lightningcss-freebsd-x64` | `1.33.0` | development, optional | `node_modules/lightningcss-freebsd-x64` |
+| `lightningcss-linux-arm-gnueabihf` | `1.33.0` | development, optional | `node_modules/lightningcss-linux-arm-gnueabihf` |
+| `lightningcss-linux-arm64-gnu` | `1.33.0` | development, optional | `node_modules/lightningcss-linux-arm64-gnu` |
+| `lightningcss-linux-arm64-musl` | `1.33.0` | development, optional | `node_modules/lightningcss-linux-arm64-musl` |
+| `lightningcss-linux-x64-gnu` | `1.33.0` | development, optional | `node_modules/lightningcss-linux-x64-gnu` |
+| `lightningcss-linux-x64-musl` | `1.33.0` | development, optional | `node_modules/lightningcss-linux-x64-musl` |
+| `lightningcss-win32-arm64-msvc` | `1.33.0` | development, optional | `node_modules/lightningcss-win32-arm64-msvc` |
+| `lightningcss-win32-x64-msvc` | `1.33.0` | development, optional | `node_modules/lightningcss-win32-x64-msvc` |
 | `locate-path` | `6.0.0` | development | `node_modules/locate-path` |
-| `lru-cache` | `11.5.2` | development | `node_modules/lru-cache` |
+| `lru-cache` | `11.5.3` | development | `node_modules/lru-cache` |
 | `lz-string` | `1.5.0` | development | `node_modules/lz-string` |
 | `magic-string` | `0.30.21` | development | `node_modules/magic-string` |
 | `mdn-data` | `2.27.1` | development | `node_modules/mdn-data` |
@@ -365,23 +368,23 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `punycode` | `2.3.1` | development | `node_modules/punycode` |
 | `qified` | `0.10.1` | development | `node_modules/qified` |
 | `hookified` | `2.2.0` | development | `node_modules/qified/node_modules/hookified` |
-| `react` | `19.2.0` | application | `node_modules/react` |
-| `react-dom` | `19.2.0` | application | `node_modules/react-dom` |
+| `react` | `19.3.1` | application | `node_modules/react` |
+| `react-dom` | `19.3.1` | application | `node_modules/react-dom` |
 | `react-is` | `17.0.2` | development | `node_modules/react-is` |
 | `redent` | `3.0.0` | development | `node_modules/redent` |
 | `require-from-string` | `2.0.2` | development | `node_modules/require-from-string` |
-| `rolldown` | `1.2.6` | development | `node_modules/rolldown` |
+| `rolldown` | `1.2.16` | development | `node_modules/rolldown` |
 | `saxes` | `6.0.0` | development | `node_modules/saxes` |
-| `scheduler` | `0.27.0` | application | `node_modules/scheduler` |
-| `semver` | `6.3.1` | development | `node_modules/semver` |
+| `scheduler` | `0.28.0` | application | `node_modules/scheduler` |
+| `semver` | `7.8.5` | development | `node_modules/semver` |
 | `shebang-command` | `2.0.0` | development | `node_modules/shebang-command` |
 | `shebang-regex` | `3.0.0` | development | `node_modules/shebang-regex` |
 | `siginfo` | `2.0.0` | development | `node_modules/siginfo` |
+| `smol-toml` | `1.9.1` | development | `node_modules/smol-toml` |
 | `source-map-js` | `1.2.2` | development | `node_modules/source-map-js` |
 | `stackback` | `0.0.2` | development | `node_modules/stackback` |
 | `std-env` | `4.2.0` | development | `node_modules/std-env` |
 | `strip-indent` | `3.0.0` | development | `node_modules/strip-indent` |
-| `symbol-tree` | `3.2.4` | development | `node_modules/symbol-tree` |
 | `tinybench` | `2.9.0` | development | `node_modules/tinybench` |
 | `tinyexec` | `1.3.0` | development | `node_modules/tinyexec` |
 | `tinyglobby` | `0.2.17` | development | `node_modules/tinyglobby` |
@@ -389,35 +392,18 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `tldts` | `7.4.11` | development | `node_modules/tldts` |
 | `tldts-core` | `7.4.11` | development | `node_modules/tldts-core` |
 | `tough-cookie` | `6.0.2` | development | `node_modules/tough-cookie` |
-| `tr46` | `6.0.0` | development | `node_modules/tr46` |
+| `tr46` | `7.0.0` | development | `node_modules/tr46` |
 | `type-check` | `0.4.0` | development | `node_modules/type-check` |
 | `undici` | `8.12.3` | development | `node_modules/undici` |
 | `update-browserslist-db` | `1.3.3` | development | `node_modules/update-browserslist-db` |
 | `uri-js` | `4.4.1` | development | `node_modules/uri-js` |
 | `vite` | `8.3.5` | development | `node_modules/vite` |
-| `@oxc-project/types` | `0.155.0` | development | `node_modules/vite/node_modules/@oxc-project/types` |
-| `@rolldown/binding-android-arm-eabi` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-android-arm-eabi` |
-| `@rolldown/binding-android-arm64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-android-arm64` |
-| `@rolldown/binding-darwin-arm64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-darwin-arm64` |
-| `@rolldown/binding-darwin-x64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-darwin-x64` |
-| `@rolldown/binding-freebsd-x64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-freebsd-x64` |
-| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm-gnueabihf` |
-| `@rolldown/binding-linux-arm64-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm64-gnu` |
-| `@rolldown/binding-linux-arm64-musl` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm64-musl` |
-| `@rolldown/binding-linux-ppc64-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-ppc64-gnu` |
-| `@rolldown/binding-linux-s390x-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-s390x-gnu` |
-| `@rolldown/binding-linux-x64-gnu` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-x64-gnu` |
-| `@rolldown/binding-linux-x64-musl` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-linux-x64-musl` |
-| `@rolldown/binding-openharmony-arm64` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-openharmony-arm64` |
-| `@rolldown/binding-win32-arm64-msvc` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-win32-arm64-msvc` |
-| `@rolldown/binding-win32-x64-msvc` | `1.2.15` | development; optional | `node_modules/vite/node_modules/@rolldown/binding-win32-x64-msvc` |
-| `fsevents` | `2.3.3` | development; optional | `node_modules/vite/node_modules/fsevents` |
-| `rolldown` | `1.2.15` | development | `node_modules/vite/node_modules/rolldown` |
+| `fsevents` | `2.3.3` | development, optional | `node_modules/vite/node_modules/fsevents` |
 | `vitest` | `4.1.12` | development | `node_modules/vitest` |
-| `w3c-xmlserializer` | `5.0.0` | development | `node_modules/w3c-xmlserializer` |
+| `w3c-xmlserializer` | `6.0.0` | development | `node_modules/w3c-xmlserializer` |
 | `webidl-conversions` | `8.0.1` | development | `node_modules/webidl-conversions` |
 | `whatwg-mimetype` | `5.0.0` | development | `node_modules/whatwg-mimetype` |
-| `whatwg-url` | `17.1.0` | development | `node_modules/whatwg-url` |
+| `whatwg-url` | `17.3.0` | development | `node_modules/whatwg-url` |
 | `which` | `2.0.2` | development | `node_modules/which` |
 | `why-is-node-running` | `2.3.0` | development | `node_modules/why-is-node-running` |
 | `word-wrap` | `1.2.5` | development | `node_modules/word-wrap` |
@@ -431,26 +417,30 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 
 ## Inventory input fingerprints
 
-These SHA256 values identify the source inputs used above. Any change requires a refresh; this document is manually maintained, with no automatic freshness gate claimed.
+These SHA256 values identify the source inputs used above. The dependency guard checks this complete input set and regenerated npm/Python/Action/browser tables against source; refresh updates the inventory only after consistency checks pass. It does not certify hand-written explanations, image contents or deployment state.
 
 | Input | SHA256 |
 | --- | --- |
-| [package.json](../package.json) | `fe9b1f4ae20b3be5d3221ab1fc2098ea4fd4b37b456b1a7c5ccc7bb9e30b5dc1` |
-| [package-lock.json](../package-lock.json) | `10c300da62ca5e378a6e97f6d05c799d0c41c6f9b4e724efd1a482d1062da73c` |
+| [package.json](../package.json) | `16ef5df3c193c97473228fe7ab4b8121d368a5acf47658561fd9057971bc0593` |
+| [package-lock.json](../package-lock.json) | `5ec6d175cc5a54b0ff8ecc7b841c8c6f428aa0a5bc387dd263c4ebaaa5ac2282` |
+| [.nvmrc](../.nvmrc) | `68ca3fba3b7e864770cb61aeb306d4bd4354b68ab4dd38450860c5d823e42a53` |
+| [.github/dependabot.yml](../.github/dependabot.yml) | `9d19275b4b5adc5b7c27af967b5c90299d983cd82799a04a638f1bf0e4024377` |
+| [backend/app/main.py](../backend/app/main.py) | `74954d2bcebc5c6c9926e314f2982bbbe4f3a6f3cfafe015d9a6c0dbfb0e4bc2` |
 | [backend/pyproject.toml](../backend/pyproject.toml) | `85aaa5e760bb7acf12fbd2a18e46bdb927d6d77368ef66780cf6b69cbdefaee9` |
 | [backend/requirements.lock](../backend/requirements.lock) | `98d634b5342229a80ae1d17b330f95969076c5bd7eac0780eb59d5ce50d7e1a3` |
 | [backend/requirements-test.lock](../backend/requirements-test.lock) | `3f233cce42b451c422ecc94b58546da782c6f92f2cb04ba1e335b3fc322e0e4a` |
 | [backend/Dockerfile](../backend/Dockerfile) | `f1f5810efd4ac06b15b305ed4b88dc6667af6dcdd18ad30d5e5d34c770bfb87f` |
-| [backend/compose.yaml](../backend/compose.yaml) | `5bcd4982a2c36fac48f59b2bf4ea72a713d7036e23db45eb2f4e36b9bb810a7b` |
+| [backend/compose.yaml](../backend/compose.yaml) | `37c4bda2719b16fd16632803ef5b786bb13068f71a551dc28ae565196a9d6754` |
 | [backend/compose.browser.yaml](../backend/compose.browser.yaml) | `b0a7da6ed501b990f3536e3043b8a175fd53206d1e3d3fefcd744b9201f77a8a` |
 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
+| [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) | `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f` |
 | [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `8cac2acb8dde0e980c70aac9dc286f97224e1695672511b759168a472c3f1fed` |
 | [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `53fd7514b330737ed79152df7afd64dd1d9902f527eed8b52ff68cb807177205` |
 | [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `a2d2b24bd9988c02c69085a58eefd2670ec2d3526c25f8a2059bb3b5cd159336` |
-| [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `39d5b78260e3c435460a81d16c2bab62a4106acfb22c7fbbf6a69c6db301d172` |
+| [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `287435b16f73b6b84c09f37b820d521cb900adafb68d0bbb3a6c99d42ddb2bbd` |
 | [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `dd35a9ec51f96c20b2e884f137cccc989dbce0e3be0a265506b6d0b2c5fc28e4` |
-| [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `f2c9c46692bd58d7806d2147d6a93cfe508473183a1220b6ee5e375c92b4a942` |
-| [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `43859f616032d14fad386850f0c17df3fbcdfcf4e5c6f0d9953897f42e34c558` |
-| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `f01328b42a3b3b4642e9c8d3c8ed22ef05d093bd033e45a16db5217b4fa86923` |
+| [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `9b95b45934b3d72e34227547426b7aa88d3f0b41d4b4f315a3e05703a9180bdd` |
+| [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `b82ab304be4d2b27774c916ecc27b52b9f2f7b399f00df17d305957a57b46a36` |
+| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `7fc1f13951e3bd9ec8db6d128d4a0bbc2c06897545d96c5e6e518d4c3804aad9` |
 
 Browser-source helper fingerprint: `scripts/prepare-browser-apt.py` SHA-256 `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f`. PR117 replaces the unreachable US regional archive with the official main archive; package suites, signing keys, runner label and Playwright version are unchanged.
