@@ -940,13 +940,14 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:#d
 .exercise-video-caption strong{font-size:14px;line-height:1.5}
 .exercise-video-preview{
   width:100%;
-  max-height:min(48dvh,440px);
+  height:min(48dvh,440px);
   display:block;
   border:1px solid #343a47;
   border-radius:8px;
   background:#050608;
   object-fit:contain;
 }
+.exercise-video-placeholder{display:grid;place-items:center;padding:16px;text-align:center}
 .exercise-video-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 .exercise-video-file-action{
   position:relative;
@@ -2761,7 +2762,7 @@ fieldset.session-request-fields legend{margin-bottom:8px;font-weight:600}
   .modal-backdrop{padding:10px}
   .modal-card{max-height:calc(100dvh - 20px)}
   .exercise-video-dialog{gap:10px}
-  .exercise-video-preview{max-height:28dvh}
+  .exercise-video-preview{height:28dvh}
   .exercise-video-caption{padding:9px}
 }
 

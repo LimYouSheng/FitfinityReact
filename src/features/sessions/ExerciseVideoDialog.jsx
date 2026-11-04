@@ -24,6 +24,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
   const [includeAudio, setIncludeAudio] = useState(false)
   const [candidate, setCandidate] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
+  const [previewUnavailable, setPreviewUnavailable] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [resumable, setResumable] = useState(false)
@@ -40,6 +41,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
     setIncludeAudio(false)
     setCandidate(null)
     setPreviewUrl('')
+    setPreviewUnavailable(false)
     setError('')
     setSaving(false)
     setCompressionProgress(0)
@@ -48,8 +50,8 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
       loadVideo().then(blob => {
         if (cancelled) return
         if (blob) setPreviewUrl(URL.createObjectURL(blob))
-        else setError('The saved video is no longer available.')
-      }).catch(failure => { if (!cancelled) setError(failure.message || 'The stored video could not be loaded.') })
+        else { setPreviewUnavailable(true); setError('The saved video is no longer available.') }
+      }).catch(failure => { if (!cancelled) { setPreviewUnavailable(true); setError(failure.message || 'The stored video could not be loaded.') } })
     }
 
     return () => {
@@ -240,7 +242,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
           ) : previewUrl ? (
             <video className="exercise-video-preview" src={previewUrl} controls playsInline preload="none" />
           ) : exercise.videoAttached ? (
-            <div className="notice">A saved video is attached. Its local preview is unavailable in this browser session.</div>
+            <div className="exercise-video-preview exercise-video-placeholder" role="status">{previewUnavailable ? 'A saved video is attached. Its local preview is unavailable in this browser session.' : 'Loading saved video…'}</div>
           ) : null}
 
           {editable && !uncertain && (
