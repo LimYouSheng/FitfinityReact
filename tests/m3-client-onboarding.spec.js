@@ -233,7 +233,7 @@ test('M3 Add Client keeps Client name clear of Client type and uses compact acti
     const box = await button.boundingBox()
     expect(box.height).toBeLessThanOrEqual(40)
     expect(box.width).toBeLessThanOrEqual(name === 'Add Time' ? 100 : 150)
-    await expect(button).toHaveCSS('font-size', '11px')
+    await expect(button).toHaveCSS('font-size', '13px')
   }
   await noHorizontalOverflow(page)
 })

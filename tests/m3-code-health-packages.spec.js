@@ -177,7 +177,7 @@ test('M3 owner System is reachable from the menu and both roles have a compact l
       expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
     }
     expect(await eye.evaluate(element => getComputedStyle(element).borderTopWidth)).toBe('1px')
-    expect(await eye.evaluate(element => getComputedStyle(element).fontSize)).toBe('11px')
+    expect(await eye.evaluate(element => getComputedStyle(element).fontSize)).toBe('13px')
     await eye.click()
     const hide = page.getByRole('button', { name: 'Hide remuneration amounts', exact: true })
     await expect(hide).toBeVisible()

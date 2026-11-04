@@ -14,7 +14,7 @@ const cycleLabel = cycle => { return `${formatDate(cycle.start)} – ${formatDat
 function MoneyToggle({ hidden, onClick }) {
   return <button type="button" className="secondary-button remuneration-money-toggle" aria-label={hidden ? 'Show remuneration amounts' : 'Hide remuneration amounts'} aria-pressed={hidden} onClick={onClick}>
     <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />{hidden && <path d="m3 3 18 18" />}</svg>
-    {hidden ? 'Show amounts' : 'Hide amounts'}
+    <span>{hidden ? 'Show amounts' : 'Hide amounts'}</span>
   </button>
 }
 function Totals({ records, money }) {

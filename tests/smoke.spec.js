@@ -80,7 +80,7 @@ async function expectStandardSectionHeadings(page) {
     })
   )
 
-  expect([...new Set(styles.map(style => style.fontSize))]).toEqual(['16px'])
+  expect([...new Set(styles.map(style => style.fontSize))]).toEqual(['18px'])
   expect([...new Set(styles.map(style => style.color))]).toEqual(['rgb(207, 213, 255)'])
 }
 

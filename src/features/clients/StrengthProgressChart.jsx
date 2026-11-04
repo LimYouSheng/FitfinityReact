@@ -29,7 +29,7 @@ export default function StrengthProgressChart({ exercise, ...placement }) {
       const y = CHART.top + ((CHART.bottom - CHART.top) / 4) * index
       return <line key={index} x1={CHART.left} x2={CHART.right} y1={y} y2={y} stroke="#292f39" strokeWidth="1" />
     })}
-    <text x="18" y="142" fill="#747d8d" fontSize="9" transform="rotate(-90 18 142)">Load (kg)</text>
+    <text x="18" y="142" fill="#747d8d" fontSize="11" transform="rotate(-90 18 142)">Load (kg)</text>
     {points.length > 1 && <>
       <polygon points={area} fill={`url(#${areaId})`} />
       <polyline points={line} fill="none" stroke={`url(#${lineId})`} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
@@ -40,8 +40,8 @@ export default function StrengthProgressChart({ exercise, ...placement }) {
         <title>{`${formatDate(point.date)}: ${progressNumber(point.load)} kg`}</title>
         <circle cx={point.x} cy={point.y} r={latest ? 7 : 5} fill={latest ? '#ff3e9c' : '#11141a'}
           stroke={latest ? '#ffe0ef' : '#6676ff'} strokeWidth="3" />
-        {labelVisible(index, 20) && <text x={point.x} y={point.y - 13} textAnchor="middle" fill="#c8ced8" fontSize="9" fontWeight="800">{progressNumber(point.load)}</text>}
-        {labelVisible(index, 12) && <text x={point.x} y="258" textAnchor="middle" fill="#747d8d" fontSize="9">{formatDate(point.date).replace(/ \d{4}$/, '')}</text>}
+        {labelVisible(index, 20) && <text x={point.x} y={point.y - 13} textAnchor="middle" fill="#c8ced8" fontSize="11" fontWeight="800">{progressNumber(point.load)}</text>}
+        {labelVisible(index, 12) && <text x={point.x} y="258" textAnchor="middle" fill="#747d8d" fontSize="11">{formatDate(point.date).replace(/ \d{4}$/, '')}</text>}
       </g>
     })}
   </svg>

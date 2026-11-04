@@ -46,6 +46,15 @@ test('React component references, complete dependencies and Playwright fixture c
 })
 test('the actual workflows and direct tooling dependencies satisfy the complete gate contract', () => {
   verifyQualitySetup(readQualitySetup())
+  const codeql = parse(fs.readFileSync('.github/workflows/codeql.yml', 'utf8'))
+  assert.deepEqual(codeql.on.push.branches, ['main'])
+  assert.deepEqual(codeql.on.pull_request.branches, ['main'])
+  assert.equal(codeql.on.schedule[0].cron, '0 1 * * 1')
+  assert.deepEqual(codeql.jobs.analyze.strategy.matrix.language, ['javascript-typescript', 'python'])
+  assert.equal(codeql.jobs.analyze.needs, undefined)
+  assert.deepEqual(codeql.jobs.analyze.permissions, { contents: 'read', 'security-events': 'write' })
+  assert.equal(codeql.jobs.analyze.steps.find(step => step.name === 'Initialize CodeQL').with['build-mode'], 'none')
+  assert.ok(codeql.jobs.analyze.steps.some(step => step.uses?.startsWith('github/codeql-action/analyze@')))
 })
 const mutations = [
   ['runner expression before job scheduling', setup => { setup.verify.jobs['backend-group'].env.INVALID = '${{ runner.temp }}' }],

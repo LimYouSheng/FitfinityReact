@@ -109,14 +109,16 @@ Full commit SHA is the effective pin. Version labels below are comments from the
 
 | Action | Pinned commit | Workflow label | Used in |
 | --- | --- | --- | --- |
-| `actions/checkout` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | v7 | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [pages.yml](../.github/workflows/pages.yml), [verify.yml](../.github/workflows/verify.yml) |
+| `actions/checkout` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | v7 | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml), [codeql.yml](../.github/workflows/codeql.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [pages.yml](../.github/workflows/pages.yml), [verify.yml](../.github/workflows/verify.yml) |
 | `actions/configure-pages` | `45bfe0192ca1faeb007ade9deae92b16b8254a0d` | v6 | [pages.yml](../.github/workflows/pages.yml) |
 | `actions/deploy-pages` | `368f82528645a54fb793d4d04e342629a3f51346` | v5 | [pages.yml](../.github/workflows/pages.yml) |
 | `actions/download-artifact` | `d3f86a106a0bac45b974a628896c90dbdf5c8093` | v4 | [verify.yml](../.github/workflows/verify.yml) |
 | `actions/setup-node` | `949feb2413d6458794dcd2491c4babbbce0c15c1` | v7 | [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [pages.yml](../.github/workflows/pages.yml), [verify.yml](../.github/workflows/verify.yml) |
-| `actions/upload-artifact` | `ea165f8d65b6e75b540449e92b4886f43607fa02` | v4.6.2 | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [verify.yml](../.github/workflows/verify.yml) |
+| `actions/upload-artifact` | `ea165f8d65b6e75b540449e92b4886f43607fa02` | v4.6.2 | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml), [codeql.yml](../.github/workflows/codeql.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [verify.yml](../.github/workflows/verify.yml) |
 | `actions/upload-pages-artifact` | `fc324d3547104276b827a68afc52ff2a11cc49c9` | v5 | [pages.yml](../.github/workflows/pages.yml) |
 | `aws-actions/configure-aws-credentials` | `e3dd6a429d7300a6a4c196c26e071d42e0343502` | No tag label; use SHA | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml) |
+| `github/codeql-action/analyze` | `1fc58d04a4d4374f921bdac573c3811c240f9c26` | v4 | [codeql.yml](../.github/workflows/codeql.yml) |
+| `github/codeql-action/init` | `1fc58d04a4d4374f921bdac573c3811c240f9c26` | v4 | [codeql.yml](../.github/workflows/codeql.yml) |
 
 ## Browser engines
 
@@ -439,6 +441,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `a2d2b24bd9988c02c69085a58eefd2670ec2d3526c25f8a2059bb3b5cd159336` |
 | [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `287435b16f73b6b84c09f37b820d521cb900adafb68d0bbb3a6c99d42ddb2bbd` |
 | [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `dd35a9ec51f96c20b2e884f137cccc989dbce0e3be0a265506b6d0b2c5fc28e4` |
+| [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `b9747b9151994f9137b8632d058c81c0ae8d4a8fc55eccc191505d66152b4039` |
 | [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `9b95b45934b3d72e34227547426b7aa88d3f0b41d4b4f315a3e05703a9180bdd` |
 | [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `b82ab304be4d2b27774c916ecc27b52b9f2f7b399f00df17d305957a57b46a36` |
 | [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `7fc1f13951e3bd9ec8db6d128d4a0bbc2c06897545d96c5e6e518d4c3804aad9` |
