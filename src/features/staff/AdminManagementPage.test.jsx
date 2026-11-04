@@ -32,7 +32,7 @@ it('keeps an uncertain Admin policy save frozen until the original attempt is re
   expect(screen.getByRole('checkbox', { name: 'Manage content', exact: true })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'General Details', exact: true }))
   expect(screen.getByRole('heading', { name: 'Approval Requirements', exact: true })).toBeVisible()
-  fireEvent.click(screen.getByRole('button', { name: 'Retry Original Save' }))
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry Original Save' })) })
   await screen.findByRole('button', { name: 'Edit', exact: true })
   expect(screen.getByRole('checkbox', { name: 'Manage content', exact: true })).not.toBeChecked()
   expect(update).toHaveBeenCalledTimes(2)

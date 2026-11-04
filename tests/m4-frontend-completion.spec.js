@@ -448,6 +448,12 @@ test('M4 Oracle calendars show owner counts, every trainer weekly row and groupe
       expect(emptyMonthDay.locator('time')).toHaveText('4'),
     ])
     expect(await todayHead.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0)
+    const countBox = await count.boundingBox()
+    const labelBox = await count.locator('.calendar-count-label').boundingBox()
+    expect(labelBox.x).toBeGreaterThanOrEqual(countBox.x)
+    expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(countBox.x + countBox.width)
+    expect(labelBox.height).toBeLessThanOrEqual(await count.locator('.calendar-count-label').evaluate(element => parseFloat(getComputedStyle(element).lineHeight)) + 1)
+    expect(await count.locator('.calendar-count-label').evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0)
     await page.getByRole('button', { name: 'Weekly', exact: true }).click()
     await expectCalendarDates(page, ['2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07', '2026-09-08'])
     const busy = page.locator('.calendar-day').filter({ has: page.getByRole('button', { name: 'Show sessions for 2026-09-02', exact: true }) })

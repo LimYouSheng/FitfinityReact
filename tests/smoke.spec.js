@@ -1404,7 +1404,7 @@ test('client contact editing uses structured phone and emergency fields', async 
     return [style.fontSize, style.fontWeight, style.color]
   }))
   expect(new Set(labelStyles.map(style => JSON.stringify(style))).size).toBe(1)
-  expect(labelStyles[0][0]).toBe('11px')
+  expect(labelStyles[0][0]).toBe('13px')
   await expect(genderPreference.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " onboarding-field ")][1]').locator('.onboarding-label')).toHaveText('Gender preference')
   await genderPreference.selectOption('Female trainer preferred')
   await general.getByRole('button', { name: 'Save', exact: true }).click()

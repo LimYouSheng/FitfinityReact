@@ -150,7 +150,7 @@ Trainer A requires approval for schedule changes; Trainer B has the permitted ap
 
 | Case | What to do | What should happen | Result | Remarks |
 | --- | --- | --- | --- | --- |
-| UAT-087 | Use only the keyboard for menus, fields, date/select/suggestion controls and dialogs. Try required and disabled controls. | Labels, focus and errors are clear. Menus stay on screen. Disabled controls do nothing; closing a dialog leaves focus in a sensible place. | | |
+| UAT-087 | Use only the keyboard for menus, fields, date/select/suggestion controls and dialogs. Try required and disabled controls. | Larger labels, focus and errors are clear. Check narrow-screen calendar labels, status badges, forms and dialogs for overlapping or clipped text. Menus stay on screen. Disabled controls do nothing; closing a dialog leaves focus in a sensible place. | | |
 | UAT-088 | Edit a client, weekly schedule and plan. Sign, record video and share PDF. Scroll long pages and use date/file pickers. | No trapped scrolling, missed taps or hidden Save/Cancel. Drafts are retained. Signature, recording and sharing are usable; note any lag. | | |
 | UAT-089 | Rotate while editing. Open/close keyboard. Switch apps and return; use Back/Forward. | Portrait handling keeps your draft. Opening the keyboard does not wrongly rotate the interface. Another account’s private screen never flashes. | | |
 | UAT-090 | Use lists with many records. Change filters/pages, open a profile/session, go Back and refresh. | Counts, sorting and selected views remain correct. Navigation starts collapsed and only one category expands. Missing records do not become invented sessions. | | |
