@@ -289,7 +289,3 @@ Implementation and acceptance status belongs to the [operation inventory](api-co
 <a id="br-064"></a>
 
 **BR-064** — All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in [Journey](journey.md); no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
-
-
-
-
