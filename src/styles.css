@@ -1591,6 +1591,7 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
   gap:8px;
 }
 .time-fields input{width:100%;min-width:0;max-width:100%}
+.approval-group>h3{margin:0 0 12px;color:#cfd5ff;font-size:16px}
 .approval-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .approval-setting{
   display:flex;

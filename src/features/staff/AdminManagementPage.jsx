@@ -96,7 +96,7 @@ function AdminProfile({ record, today, onBack, onSave, onSaved }) {
         </Panel>}
         {tab === 'approvals' && <Panel className={editor === 'approvals' ? 'editing-section' : ''}>
           {heading('Approval Requirements', 'approvals')}
-          <div className="stack-gap">{ADMIN_APPROVAL_GROUPS.map(([group, fields]) => <section key={group} aria-label={group}>
+          <div className="stack-gap">{ADMIN_APPROVAL_GROUPS.map(([group, fields]) => <section key={group} className="approval-group" aria-label={group}>
             <h3>{group}</h3><div className="approval-grid">{fields.map(([key, label]) => <ApprovalSetting key={key} label={label} checked={editor === 'approvals' ? requirements[key] : record.approvalNeeded[key]} disabled={editor !== 'approvals' || busy || Boolean(attempt)} onChange={checked => setRequirements(value => ({ ...value, [key]: checked }))} />)}</div>
           </section>)}</div>
         </Panel>}
