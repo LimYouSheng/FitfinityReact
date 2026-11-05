@@ -98,6 +98,21 @@ const mutations = [
   ['release preparation suppressed build', setup => { setup.preparation.jobs['runtime-build'].steps.find(step => step.run?.includes('docker build'))['continue-on-error'] = true }],
   ['release preparation loses failure artifact', setup => { setup.preparation.jobs['runtime-build'].steps.find(step => step.uses?.startsWith('actions/upload-artifact')).if = 'success()' }],
   ['release preparation publication', setup => { setup.preparation.jobs['runtime-build'].steps.push({ run: 'docker push example' }) }],
+  ['release observation on pull requests', setup => { setup.observation.on.pull_request = {} }],
+  ['release observation outside protected environment', setup => { delete setup.observation.jobs.observe.environment }],
+  ['release observation on unreviewed branch', setup => { delete setup.observation.jobs.observe.if }],
+  ['release observation mutating policy', setup => {
+    const step = setup.observation.jobs.observe.steps.find(step => step.uses?.startsWith('aws-actions/'))
+    const policy = JSON.parse(step.with['inline-session-policy'])
+    policy.Statement[0].Action = 'lambda:UpdateFunctionCode'
+    step.with['inline-session-policy'] = JSON.stringify(policy)
+  }],
+  ['release observation secret retrieval', setup => {
+    const step = setup.observation.jobs.observe.steps.find(step => step.uses?.startsWith('aws-actions/'))
+    const policy = JSON.parse(step.with['inline-session-policy'])
+    policy.Statement[0].Action = 'secretsmanager:GetSecretValue'
+    step.with['inline-session-policy'] = JSON.stringify(policy)
+  }],
   ['missing backend and infrastructure verification', setup => { delete setup.verify.jobs.backend }],
   ['PR deployment', setup => { delete setup.pages.jobs.deploy.if }],
   ['deployment before verification', setup => { delete setup.pages.jobs.build.needs }],

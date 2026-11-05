@@ -1,0 +1,55 @@
+name: Observe current developer AWS release
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: fitfinity-aws-test
+  cancel-in-progress: false
+jobs:
+  offline:
+    uses: ./.github/workflows/infrastructure.yml
+  observe:
+    needs: offline
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: aws-test
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Require the existing exact hosting role
+        env:
+          HOSTING_ROLE: ${{ vars.AWS_HOSTING_ROLE_ARN }}
+        run: test "$HOSTING_ROLE" = 'arn:aws:iam::418638389566:role/fitfinity-test-github-hosting'
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_HOSTING_ROLE_ARN }}
+          role-session-name: fitfinity-observe-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ap-southeast-1
+          allowed-account-ids: '418638389566'
+          unset-current-credentials: true
+          inline-session-policy: >-
+            {"Version":"2012-10-17","Statement":[
+            {"Effect":"Allow","Action":"sts:GetCallerIdentity","Resource":"*"},
+            {"Effect":"Allow","Action":["cloudformation:DescribeStacks","cloudformation:GetTemplate"],"Resource":"arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-login/*"},
+            {"Effect":"Allow","Action":["lambda:GetFunction","lambda:GetAlias"],"Resource":["arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api","arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api:*"]},
+            {"Effect":"Allow","Action":"rds:DescribeDBInstances","Resource":"arn:aws:rds:ap-southeast-1:418638389566:db:fitfinity-test-db"}]}
+      - name: Collect selected metadata without writes or secret retrieval
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 backend/infrastructure/release_observation.py --output "$RUNNER_TEMP/release-observation.json" 2>&1 | tee "$RUNNER_TEMP/release-observation.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: fitfinity-release-observation-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/release-observation.json
+            ${{ runner.temp }}/release-observation.log
+          if-no-files-found: error
+          retention-days: 14
