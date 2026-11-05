@@ -73,11 +73,36 @@ class ObservationTests(unittest.TestCase):
         self.assertNotIn("sensitive-marker", json.dumps(result))
         self.assertNotIn("https://", json.dumps(result))
         self.assertEqual(result["deployment_decision"], "HOLD")
-        self.assertEqual(result["runtime"]["feature_flags"]["FITFINITY_AUTH_ENABLED"], "true")
         self.assertEqual(
-            result["runtime"]["feature_flags"]["FITFINITY_MEDIA_ENABLED"], "unset-or-invalid"
+            result["runtime"]["latest_configuration"]["feature_flags"]["FITFINITY_AUTH_ENABLED"],
+            "true",
+        )
+        self.assertEqual(
+            result["runtime"]["latest_configuration"]["feature_flags"]["FITFINITY_MEDIA_ENABLED"],
+            "unset-or-invalid",
         )
         self.assertTrue(all((s, o) in observation.READS for s, o, _ in self.calls))
+
+    def test_serving_flags_are_not_inferred_from_latest(self):
+        def call(service, operation, *args):
+            result = self.call(service, operation, *args)
+            if operation == "get-function":
+                variables = result["Configuration"]["Environment"]["Variables"]
+                variables["FITFINITY_MEDIA_ENABLED"] = "true" if "--qualifier" in args else "false"
+                if "--qualifier" in args:
+                    variables["SERVING_ONLY_SECRET"] = "sensitive-marker"
+            return result
+
+        result = observation.observe(call)["runtime"]
+        self.assertEqual(
+            result["latest_configuration"]["feature_flags"]["FITFINITY_MEDIA_ENABLED"], "false"
+        )
+        self.assertEqual(
+            result["serving_configuration"]["feature_flags"]["FITFINITY_MEDIA_ENABLED"], "true"
+        )
+        self.assertNotIn("SERVING_ONLY_SECRET", result["latest_configuration"]["environment_keys"])
+        self.assertIn("SERVING_ONLY_SECRET", result["serving_configuration"]["environment_keys"])
+        self.assertNotIn("sensitive-marker", json.dumps(result))
 
     def test_wrong_account_stops_before_resource_access(self):
         self.identity["Account"] = "000000000000"

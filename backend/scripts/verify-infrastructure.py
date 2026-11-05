@@ -26,7 +26,7 @@ SUITES = {
     "verify-deployment.py": 30,
     "verify-release-image.py": 30,
     "verify-release-readiness.py": 8,
-    "verify-release-observation.py": 7,
+    "verify-release-observation.py": 8,
     "verify-release-plan.py": 6,
     "verify-image-acceptance.py": 29,
     "verify-private-runtime.py": 63,

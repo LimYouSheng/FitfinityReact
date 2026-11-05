@@ -50,6 +50,19 @@ def aws(service, operation, *args):
     return json.loads(result.stdout)
 
 
+def configuration_summary(config):
+    variables = config.get("Environment", {}).get("Variables", {})
+    return {
+        "environment_keys": sorted(variables),
+        "feature_flags": {
+            key: variables.get(key, "").lower()
+            if variables.get(key, "").lower() in {"true", "false"}
+            else "unset-or-invalid"
+            for key in FLAGS
+        },
+    }
+
+
 def observe(call=aws):
     identity = call("sts", "get-caller-identity")
     require(
@@ -97,7 +110,6 @@ def observe(call=aws):
         "Database identity differs",
     )
     db = databases[0]
-    variables = config.get("Environment", {}).get("Variables", {})
     # Never retain environment values, stack parameters/template or Code.Location URLs.
     return {
         "observed_at": datetime.now(UTC).isoformat(),
@@ -118,13 +130,8 @@ def observe(call=aws):
             "serving_image": serving["Code"].get("ResolvedImageUri"),
             "serving_configuration_sha256": digest(serving["Configuration"]),
             "configuration_sha256": digest(config),
-            "environment_keys": sorted(variables),
-            "feature_flags": {
-                key: variables.get(key, "").lower()
-                if variables.get(key, "").lower() in {"true", "false"}
-                else "unset-or-invalid"
-                for key in FLAGS
-            },
+            "latest_configuration": configuration_summary(config),
+            "serving_configuration": configuration_summary(serving["Configuration"]),
             "alias_version": alias["FunctionVersion"],
             "alias_revision_id": alias["RevisionId"],
             "alias_has_weighted_routing": bool(

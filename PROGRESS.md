@@ -2,23 +2,23 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Current-release upgrade and observation preparation on PR124
+## Current task — Verify deployed schema and distinguish serving configuration
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Prepare a populated upgrade, non-destructive runtime/frontend template plan and Actions read-only observation before current-source AWS rollout. Preserve PR124's message UI and parallel build preparation. |
-| Starting evidence | PR124 head290adfa had complete application CI41969294827, CodeQL41969294919 and preparation41969294884 success. Those receipts do not accept this follow-up head. |
-| Prepared changes | Atomic targeted upgrade primitive; template planner retaining resources/versions; manual main-only observation using the protected hosting role with a read-only session policy and redacted metadata. No live executor or AWS mutation is added. |
-| Acceptance / budget | Seven new actual isolated PostgreSQL probes, all658 offline infrastructure tests and144 quality/guard cases passed. Backend inventory1429 includes the7 new cases; source lint/health and dependency consistency passed. One focused validation block followed by complete exact-head CI. |
-| Preserved work | Existing checkout and8 stashes; historical release contracts untouched. No AWS identity is configured in this workspace; no production database/provider action or live workflow dispatch. |
-| Leave-off / blocker | Publish/verify this PR124 follow-up. After merge, dispatch **Observe current developer AWS release** on main and complete its existing GitHub environment approval. Observation is required before specifying live migration executor, exact runtime grants/feature IAM/configuration, backup and change-set execution. The connected tools lack dispatch and local CLI authentication is unavailable. |
+| Outcome / scope | User requested the actual deployed database state. Fix latest-versus-serving Lambda flag reporting and prepare a read-only PostgreSQL catalog receipt without customer rows. |
+| Starting evidence | PR124 merged as574fd95 after all required exact-head gates, CodeQL and build preparation passed. New branch `fix/release-observation-schema` starts from that merged main; current AWS schema is still unobserved. |
+| Prepared changes | Separate latest/serving configuration summaries and divergent-version regression. Read-only SQL inventory reports Alembic revisions, tables/columns, constraints/triggers/indexes and runtime grants; tests cover old/current isolated schemas. |
+| Acceptance / budget | Backend inventory1431 and offline infrastructure659; existing quality144. All9 focused PostgreSQL cases,659 infrastructure cases,144 quality cases and complete backend source checks passed; new-head CI remains required. |
+| Preserved work | Existing checkout and8 stashes. No AWS identity, credentials or private database connection is configured. Historical private probes were temporary; no standing VPN/bastion was found in source. User is unsure of an existing access path. |
+| Leave-off / blocker | Actual AWS SQL cannot run from this workspace. Read-only metadata observation41981485762 was dispatched on merged main through the verified GitHub CLI identity; inspect its run and existing environment approval. Publish the observer correction and tested SQL receipt, then establish an approved private connection or separately reviewed temporary probe. Do not replay historical bootstrap or make RDS public. The metadata observation workflow alone cannot report schema/grants. |
 
 ### Resume in this order
 
-1. Validate PR124's combined final head and merge only after all required gates/GitHub requirements; inspect fresh main separately.
-2. Run the [read-only observation](docs/runbook.md#62-deployment-preparation-and-acceptance), review resource/image/alias/configuration and backup metadata, and obtain the private observed schema/grant evidence. No SQL/schema is inferred from RDS instance metadata.
-3. Finish the current-source private migration executor and artifact/scan/change-set/health controls against that observed state. Keep execution blocked until populated-data, grants, backup/recovery, compatibility and explicit rollout authority are satisfied.
-4. Complete M6 live Cognito/device/recovery acceptance after rollout; approval-vetting design remains deferred. Then scope M7 and prioritize M10 work below.
+1. Complete and verify this follow-up PR, preserving the distinction between source/test evidence and observed AWS state.
+2. Run the manual metadata observation on reviewed main through GitHub and its existing environment approval; inspect current resource/runtime evidence.
+3. Establish an authorized private SQL path, then execute the [read-only schema inventory](backend/infrastructure/read-schema.sql) under the [runbook](docs/runbook.md#62-deployment-preparation-and-acceptance). Never request passwords in chat or infer deployed revisions from migration files.
+4. Use actual schema/grants, backup and feature configuration to finish the private migration executor and current rollout controls. Live M6 acceptance and subsequent M7/M10 work remain separate.
 
 ## Current acceptance boundaries
 

@@ -161,3 +161,41 @@ def test_populated_later_release_preserves_client_package_and_session_graph(doma
                 == 2
             )
             assert connection.scalar(text("SELECT count(*) FROM credit_debits")) == 0
+
+
+@pytest.mark.parametrize("target", [BASE, HEAD])
+def test_read_only_schema_receipt_reports_actual_revision_without_business_rows(outgoing, target):
+    import json
+    from pathlib import Path
+
+    import psycopg
+
+    engine, kwargs = outgoing
+    if target == HEAD:
+        upgrade_existing(engine, **kwargs)
+    before = owner(engine)
+    script = (Path(__file__).parents[1] / "infrastructure/read-schema.sql").read_text()
+    dsn = engine.url.set(drivername="postgresql").render_as_string(hide_password=False)
+    results = []
+    with psycopg.connect(dsn, autocommit=True) as connection, connection.cursor() as cursor:
+        cursor.execute(script)
+        while True:
+            if cursor.description:
+                results.append(cursor.fetchone()[0])
+            if not cursor.nextset():
+                break
+        assert connection.info.transaction_status == psycopg.pq.TransactionStatus.IDLE
+    assert len(results) == 1
+    receipt = results[0]
+    assert receipt["alembic_revisions"] == [target]
+    assert receipt["transaction_read_only"] == "on"
+    assert receipt["database"] == kwargs["expected_database"]
+    tables = {item["name"]: item for item in receipt["tables"]}
+    assert "staff_users" in tables
+    assert ("session_trainer_attributions" in tables) == (target == HEAD)
+    assert {column["name"] for column in tables["staff_users"]["columns"]} >= {"id", "email"}
+    assert receipt["constraints"] and receipt["triggers"] and receipt["indexes"]
+    assert "owner@example.test" not in json.dumps(receipt)
+    assert "Synthetic Owner" not in json.dumps(receipt)
+    assert owner(engine) == before
+    assert revision(engine) == target
