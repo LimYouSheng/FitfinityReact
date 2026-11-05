@@ -49,6 +49,11 @@ describe('production-shaped demo data', () => {
 
   it('keeps session chronology, package usage, debit evidence and every plotted measurement coherent', () => {
     for (const demo of [seed, createDemoSeed('2026-09-10'), createDemoSeed('2027-01-04')]) {
+      for (const message of demo.messages.filter(item => item.id.startsWith('demo-message-'))) {
+        expect(demo.sessions.find(session => session.id === message.sessionId)).toMatchObject({
+          clientId: message.clientId, trainerId: message.trainerId, date: message.createdAt.slice(0, 10), status: 'completed',
+        })
+      }
       for (const client of demo.clients) {
         const sessions = demo.sessions.filter(item => item.clientId === client.id).sort((a, b) => a.sessionNumber - b.sessionNumber)
         const scheduled = buildClientSessions(client)

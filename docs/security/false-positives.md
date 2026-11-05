@@ -12,6 +12,8 @@ The complete main-branch scan of `00bcda0` in [run41946923319](https://github.co
 
 The eight false-positive assessments above are source-specific, not query exclusions or blanket approvals of dynamic execution, logs or arbitrary uploads. No CodeQL rule/path suppression or weakened test guard is added. GitHub alert state and deployed acceptance remain separate from this source review; the complete dated evidence is in [Journey](../journey.md).
 
+Merged-main verification on5 November2026: PR123 is merged as `e0ecc3a`. [CodeQL run41957060518](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41957060518) contains three Python and five JavaScript results, exactly the assessed paths above. The repaired Ubuntu URI finding is absent from these SARIF results. This does not establish GitHub alert dismissal or deployed remediation.
+
 ## Targeted assertions and falsification probes
 
 | Reviewed path | Independent assertions | Evidence that the checks detect unsafe behavior |

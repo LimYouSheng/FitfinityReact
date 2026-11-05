@@ -1,7 +1,7 @@
 import { clientPackages, packageForRecord } from '../app/clientPackages.js'
 import { updateClientProgress } from '../app/progress.js'
 import { normalizePackageLifecycle } from '../app/packageLifecycle.js'
-import { createDemoSeed, normalizeDemoPackageValidity, seed } from '../data/seed.js'
+import { createDemoSeed, normalizeDemoPackageValidity, normalizeDemoSessionMessages, seed } from '../data/seed.js'
 import { businessClock } from '../app/clock.js'
 import { migrateRenewalMessages } from '../app/renewals.js'
 import { normalizeMessageReceipts } from '../app/messageInbox.js'
@@ -51,6 +51,7 @@ function load() {
   const before = JSON.stringify(loaded)
   for (const client of normalized.clients) normalizeClientRecords(normalized, client)
   const renewalChanged = migrateRenewalMessages(normalized)
+  normalizeDemoSessionMessages(normalized)
   normalizeMessageReceipts(normalized)
   if (!stored || renewalChanged || JSON.stringify(normalized) !== before) localStorage.setItem(KEY, JSON.stringify(normalized))
   return normalized

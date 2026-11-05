@@ -21,16 +21,39 @@ export function readQualitySetup(root = process.cwd()) {
     infrastructure: parse(read('.github/workflows/infrastructure.yml')),
     image: parse(read('.github/workflows/aws-image.yml')),
     acceptance: parse(read('.github/workflows/aws-image-accept.yml')),
+    preparation: parse(read('.github/workflows/aws-release-prepare.yml')),
+    observation: parse(read('.github/workflows/aws-release-observe.yml')),
     packageJson: JSON.parse(read('package.json')),
     lock: JSON.parse(read('package-lock.json')),
   }
 }
 
-export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, packageJson, lock }) {
+export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, preparation, observation, packageJson, lock }) {
   for (const event of ['pull_request', 'push']) {
     if (!equal(pages.on?.[event]?.branches, ['main']) || Object.keys(pages.on[event]).some(key => key !== 'branches')) fail(`${event} must run all gates for main without path filtering`)
   }
   if (Object.hasOwn(pages.on, 'pull_request_target')) fail('PR checks must use pull_request')
+  if (!equal(preparation.permissions, { contents: 'read' }) || Object.hasOwn(preparation.on, 'pull_request_target')) fail('release preparation must be credential-free')
+  if (!equal(Object.keys(preparation.jobs).sort(), ['frontend-and-schema', 'runtime-build'])) fail('release preparation jobs differ')
+  for (const job of Object.values(preparation.jobs)) {
+    if (job.needs || job.if || job.environment || job.secrets || job.permissions || job['continue-on-error'] || job['timeout-minutes'] > 60) fail('release preparation must run concurrently without deployment authority')
+    for (const step of job.steps) {
+      if (step.uses && !/^actions\/(checkout|setup-node|upload-artifact)@[0-9a-f]{40}$/.test(step.uses)) fail('unexpected action in credential-free release preparation')
+      if (/secrets\.|id-token|configure-aws-credentials|docker push|deploy\.py/.test(JSON.stringify(step))) fail('release preparation must not deploy or receive credentials')
+      if (step.uses?.startsWith('actions/checkout@') && step.with?.['persist-credentials'] !== false) fail('release preparation must not persist credentials')
+      if (step.uses?.startsWith('actions/upload-artifact@') && step.if !== 'always()') fail('release preparation must retain failures')
+    }
+  }
+  requireGate(preparation.jobs['frontend-and-schema'], 'python3 backend/infrastructure/release_readiness.py')
+  requireGate(preparation.jobs['runtime-build'], 'docker build --pull --platform linux/amd64 --target runtime')
+  const observe = observation.jobs?.observe
+  if (!equal(Object.keys(observation.on), ['workflow_dispatch']) || !equal(observation.permissions, { contents: 'read' }) || observe?.needs !== 'offline' || observe.environment !== 'aws-test' || observe.if !== "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'") fail('release observation must stay manual, main-only and protected')
+  const observationCredentials = observe.steps.find(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
+  if (observationCredentials?.with?.['allowed-account-ids'] !== '418638389566' || observationCredentials.with['role-to-assume'] !== '${{ vars.AWS_HOSTING_ROLE_ARN }}') fail('release observation identity differs')
+  const readPolicy = JSON.parse(observationCredentials.with['inline-session-policy'])
+  const allowedReads = ['sts:GetCallerIdentity', 'cloudformation:DescribeStacks', 'cloudformation:GetTemplate', 'lambda:GetFunction', 'lambda:GetAlias', 'rds:DescribeDBInstances']
+  if (readPolicy.Statement.some(statement => statement.Effect !== 'Allow' || statement.NotAction || statement.NotResource || [].concat(statement.Action).some(action => !allowedReads.includes(action)))) fail('release observation policy must be read-only without secret access')
+  requireGate(observe, 'python3 backend/infrastructure/release_observation.py --output')
   const caller = pages.jobs?.verify
   if (caller?.uses !== './.github/workflows/verify.yml' || caller.if != null || caller.secrets != null || caller['continue-on-error']) fail('PR and main must call the complete verification workflow unconditionally')
   if (!Object.hasOwn(verify.on ?? {}, 'workflow_call') || !equal(verify.permissions, { contents: 'read' })) fail('shared verification must be callable with read-only repository access')

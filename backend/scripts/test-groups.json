@@ -96,6 +96,7 @@
     "tests/test_persistence.py",
     "tests/test_process_restart.py",
     "tests/test_progress_reports_api.py",
+    "tests/test_release_upgrade.py",
     "tests/test_remuneration_api.py",
     "tests/test_report_sharing_approvals.py"
   ]

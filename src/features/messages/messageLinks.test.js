@@ -30,6 +30,13 @@ it('uses stored IDs despite ambiguous names and keeps trainer links within scope
   const data = { user: { role: 'trainer', trainerId: 't1' }, clients: [{ id: 'c1', name: 'Test', trainerId: 't1' }, { id: 'c2', name: 'Test', trainerId: 't2' }], trainers: [], sessions: [] }
   expect(relatedMessageLinks({ clientId: 'c2', body: 'Test' }, data)).toEqual([])
   expect(relatedMessageLinks({ clientId: 'c1', body: 'Test' }, data).map(link => link.id)).toEqual(['c1'])
+  const notice = { kind: 'session', sessionId: 's1', clientId: 'c1', trainerId: 't1' }
+  const sessions = [{ id: 's1', clientId: 'c1', trainerId: 't1', date: '2026-09-02' }]
+  for (const user of [{ role: 'owner' }, { role: 'admin' }, data.user]) {
+    expect(relatedMessageLinks(notice, { ...data, user, sessions }).map(link => `${link.type}:${link.id}`)).toEqual(['session:s1'])
+  }
+  expect(relatedMessageLinks(notice, { ...data, sessions, user: { role: 'trainer', trainerId: 't2' } })).toEqual([])
+  expect(relatedMessageLinks({ ...notice, sessionId: 'missing' }, { ...data, sessions })).toEqual([])
 })
 it('routes remuneration notifications by cycle and trainer IDs with access scope', () => {
   const message = { remunerationCycle: '2026-09', trainerId: 't1' }

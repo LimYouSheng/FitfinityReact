@@ -73,3 +73,26 @@ it('preserves explicit WhatsApp nulls and zero counts across reloads and migrate
   expect(mockDb.reload().sessions).toEqual(expected)
   expect(JSON.parse(localStorage.getItem(KEY)).sessions).toEqual(expected)
 })
+
+it('persists only unambiguous legacy demo session links before publishing them', () => {
+  const stored = mockDb.read()
+  const notices = stored.messages.filter(message => message.id.startsWith('demo-message-'))
+  const expected = notices[0].sessionId
+  delete notices[0].sessionId
+  delete notices[1].sessionId
+  stored.sessions.push({ ...stored.sessions.find(session => session.id === mockDb.read().messages.find(message => message.id === notices[1].id).sessionId), id: 'ambiguous-session' })
+  const custom = { ...notices[0], id: 'custom-notice' }
+  stored.messages.push(custom)
+  localStorage.setItem(KEY, JSON.stringify(stored))
+  const before = mockDb.read()
+  const failure = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage full') })
+  expect(() => mockDb.reload()).toThrow('Storage full')
+  expect(mockDb.read()).toEqual(before)
+  failure.mockRestore()
+  const migrated = mockDb.reload()
+  expect(migrated.messages.find(message => message.id === notices[0].id).sessionId).toBe(expected)
+  expect(migrated.messages.find(message => message.id === notices[1].id).sessionId).toBeUndefined()
+  expect(migrated.messages.find(message => message.id === custom.id)).toEqual(custom)
+  expect(JSON.parse(localStorage.getItem(KEY))).toEqual(migrated)
+  expect(mockDb.reload()).toEqual(migrated)
+})

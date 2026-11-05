@@ -1,0 +1,82 @@
+name: Prepare developer AWS release evidence
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: fitfinity-release-prepare-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  frontend-and-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Inventory exact source and build API-connected frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 backend/infrastructure/release_readiness.py \
+            --revision "$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/release-readiness.json" \
+            --frontend "$RUNNER_TEMP/release-frontend" \
+            2>&1 | tee "$RUNNER_TEMP/release-prepare.log"
+      - name: Explain release boundary
+        if: always()
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'
+          ## Deployment HOLD — preparation only
+          This workflow builds frontend bytes and inventories source migrations; the parallel runtime job builds the production Docker target without pushing it.
+          A green run does not approve deployment. Review the exact-source application verification and CodeQL runs separately.
+          Current populated migration/hosting rollout, observed AWS configuration, backup/restore, exact published-image scan acceptance and provider/device acceptance remain required.
+          No AWS credentials, environment approval or deployment action is used here. PR artifacts describe the tested merge SHA, not a future main release.
+          SUMMARY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: fitfinity-release-prepare-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/release-readiness.json
+            ${{ runner.temp }}/release-prepare.log
+            ${{ runner.temp }}/release-frontend/dist-api-test/
+          if-no-files-found: error
+          retention-days: 14
+  runtime-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build production Lambda target without publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --pull --platform linux/amd64 --target runtime \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --iidfile "$RUNNER_TEMP/runtime-image-id.txt" \
+            -t fitfinity-runtime-preparation backend \
+            2>&1 | tee "$RUNNER_TEMP/runtime-build.log"
+          docker image inspect fitfinity-runtime-preparation > "$RUNNER_TEMP/runtime-image.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: fitfinity-runtime-build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/runtime-build.log
+            ${{ runner.temp }}/runtime-image-id.txt
+            ${{ runner.temp }}/runtime-image.json
+          if-no-files-found: error
+          retention-days: 14

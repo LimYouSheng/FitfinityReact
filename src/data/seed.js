@@ -182,6 +182,16 @@ export function normalizeDemoPackageValidity(client) {
 }
 
 // Build a fresh demo around a supplied business date; persisted bookings never move on reload.
+/** Recover only identifiable demo notices with one exact recorded session; never guess by text. */
+export function normalizeDemoSessionMessages(db) {
+  for (const message of db.messages ?? []) {
+    if (message.sessionId || message.kind !== 'session' || !/^demo-message-\d+$/.test(message.id)) continue
+    const matches = db.sessions.filter(session => session.clientId === message.clientId &&
+      session.trainerId === message.trainerId && session.date === message.createdAt?.slice(0, 10) && session.status === 'completed')
+    if (matches.length === 1) message.sessionId = matches[0].id
+  }
+}
+
 export function createDemoSeed(referenceDate) {
   // Every booking uses the production weekly scheduler.
   const allClients = [...baseClients, ...additionalClients].map(source => {
@@ -263,6 +273,7 @@ export function createDemoSeed(referenceDate) {
 
   const generatedMessages = allClients.slice(0, 12).map((client, index) => ({
     id: `demo-message-${index + 1}`,
+    sessionId: seedSessions.find(session => session.clientId === client.id && session.date === client.lastTrained && session.status === 'completed')?.id,
     createdAt: `${client.lastTrained}T21:00:00+08:00`,
     recipientRole: 'owner',
     clientId: client.id,

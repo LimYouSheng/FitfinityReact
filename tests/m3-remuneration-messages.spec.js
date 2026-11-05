@@ -2,7 +2,7 @@ import { waitForPortal, expect, test, selectDemoIdentity, drawClientSignature } 
 import { seed } from '../src/data/seed.js'
 import { signatureFixture } from '../src/test/fixtures/signature.js'
 const KEY = 'fitfinity-m2-demo-db-v4'
-async function start(page, route = 'messages', extraSessions = []) {
+async function start(page, route = 'messages', extraSessions = [], extraMessages = []) {
   const db = structuredClone(seed)
   const completed = db.sessions.find(session => session.status === 'completed')
   const base = { ...completed, acknowledgement: { method: 'signature', signerName: 'Amanda Lim', signature: structuredClone(signatureFixture), recordedAt: '2020-08-21T12:00:00+08:00' }, outcome: null, whatsappOpenedAt: null }
@@ -18,6 +18,7 @@ async function start(page, route = 'messages', extraSessions = []) {
     { id:'general', recipientRole:'owner', title:'General update', body:'The latest announcement is available.', createdAt:'2026-09-05T10:00:00Z', read:false },
     { id:'linked', recipientRole:'owner', title:'Linked session update', body:'The latest session update is available.', sessionId:'pay-peak', createdAt:'2026-09-05T09:00:00Z', read:false, kind:'request_decision', status:'approved' },
   ]
+  db.messages.push(...extraMessages)
   delete db.remunerationEntries; delete db.remunerationApprovals
   await page.addInitScript(({key,data})=>{if(!localStorage.getItem(key)) localStorage.setItem(key,JSON.stringify(data))},{key:KEY,data:db})
   await page.goto(`/#/${route}`)
@@ -34,13 +35,19 @@ async function showBreakdown(page) {
 }
 
 test('M3 a newly created Test client never attaches itself to unrelated messages', async ({page}) => {
-  await start(page)
+  await start(page, 'messages', [], [{ id: 'ready', recipientRole: 'owner', kind: 'session', title: 'Session ready for review', body: 'Ready for review.', sessionId: 'pay-peak', clientId: 'c1', trainerId: 't1', createdAt: '2026-09-05T08:00:00Z', read: false }])
   let dialog = await openMessage(page,'General update')
   await expect(dialog.getByRole('navigation',{name:'Related records'})).toHaveCount(0)
   await dialog.getByRole('button',{name:'Close message'}).click()
   dialog = await openMessage(page,'Linked session update')
   await expect(dialog.getByRole('button',{name:'View Client · Amanda Lim',exact:true})).toBeVisible()
   await expect(dialog.getByRole('button',{name:'View Client · Test',exact:true})).toHaveCount(0)
+  await dialog.getByRole('button', { name: 'Close message' }).click()
+  dialog = await openMessage(page, 'Session ready for review')
+  const related = dialog.getByRole('navigation', { name: 'Related records' })
+  await expect(related.getByRole('button')).toHaveCount(1)
+  await related.getByRole('button', { name: /^View Session/ }).click()
+  await expect(page).toHaveURL(/#\/sessions\/pay-peak$/)
 })
 test('M3 popup Mark as Unread closes, persists across refresh and preserves the approval badge', async ({page}) => {
   await start(page)
