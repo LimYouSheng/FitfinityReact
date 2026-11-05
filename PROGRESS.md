@@ -2,19 +2,20 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Post-merge logic and security review
+## Current task — Message status badges and direct session-review links
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | One bounded logic pass and one security pass on merged main e0ecc3a; no new confirmed defect in the reviewed paths. Scope and limits are recorded in Journey. |
-| Starting evidence | PR123 merged after all exact-head gates passed. Fresh-main verification41957060696 and CodeQL41957060518 both passed. The main SARIF reports contain the eight already-assessed findings; the Ubuntu URI finding is absent. This is scanner evidence, not alert dismissal or deployed remediation. |
-| Acceptance / budget | Source review plus129 selected backend/isolated PostgreSQL regressions,65 offline authentication/security checks and18 approval/media UI service tests passed. npm audit reports zero known advisories. One bounded pass per area; no assertion, inventory or runtime changes. |
-| Preserved work | Existing checkout and8 stashes retained. Only documentation receipt/handover changes; no production database, AWS or provider actions. |
-| Leave-off / blocker | Publish the review checkpoint and verify its documentation PR. M6 source remains accepted; approval-vetting UI design is deferred and current-source developer AWS/provider/device acceptance remains open. Eight CodeQL assessments are not blanket exceptions; alert-management access was previously denied. |
+| Outcome / scope | Show closed renewal notices as grey statuses beside Read/Unread, including the popup; ready-for-review session notices offer only their exact permitted session link. |
+| Starting evidence | PR123 merged as e0ecc3a; fresh-main verification41957060696 and CodeQL41957060518 passed. The requested bounded logic/security review found no new confirmed defect; evidence is retained in Journey and PR124. |
+| Prepared changes | Reuse neutral StatusBadge and the existing status column, with narrow-screen layout. Seed session notices carry explicit session IDs; saved demo notices recover an ID only from one matching completed client/trainer/date record, persisted before publication. Unrelated and ambiguous notices are not guessed from text. |
+| Acceptance / budget | One additional migration unit case; unit inventory becomes1518/155 files. Existing message-link and browser cases now verify exact navigation, grey badges, adjacency and retained recovery. All1518 units,133 quality checks, lint/source health and15 desktop/phone/tablet browser cases passed; receipts belong in Journey. Complete new-head CI remains required. No backend/API contract or dependency change. |
+| Preserved work | Existing checkout and8 stashes retained. PR124 includes the preceding review checkpoint and these follow-up UI changes. No production database, AWS or provider actions. |
+| Leave-off / blocker | Finish focused/full-unit checks, publish the consolidated PR124 update and inspect exact-head CI. M6 developer AWS/provider/device acceptance remains open; the broader approval-vetting design remains deferred. |
 
 ### Resume in this order
 
-1. Finish the documentation checkpoint's exact-head CI; retain the review scope/evidence in Journey.
+1. Verify PR124's message UI changes and complete exact-head CI before eligible source merge.
 2. Agree on the deferred approval-vetting UI design before implementing it; preserve exact-intent and recovery safeguards.
 3. Prepare the current-source developer AWS release and M6 Cognito/device/recovery acceptance under the existing separate authorization boundary.
 4. After M6 external acceptance, scope M7 durable events, scheduling/notifications and media processing/retention. Prioritize the M10 mutation/latency and security-maintenance work below alongside that plan.

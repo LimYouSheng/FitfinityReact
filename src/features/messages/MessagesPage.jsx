@@ -237,7 +237,7 @@ export function MessageInbox({
           />
         </div>}
 
-        <div className="message-title-list" aria-label={embedded ? 'Renewal messages' : 'Message list'}>
+        <div className={`message-title-list${!embedded && visible.some(message => message.renewalStatus && message.renewalStatus !== 'active') ? ' has-renewal-status' : ''}`} aria-label={embedded ? 'Renewal messages' : 'Message list'}>
           {!embedded && <div className="message-title-head message-title-grid" aria-hidden="true">
             <span>Message</span>
             <span>Date &amp; time</span>
@@ -268,7 +268,9 @@ export function MessageInbox({
               </time>}
 
               {!embedded && <div className="message-approval-status">
-                <RequestStatusBadge message={message} />
+                {message.renewalStatus && message.renewalStatus !== 'active'
+                  ? <StatusBadge className="renewal-closed-status">{message.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</StatusBadge>
+                  : <RequestStatusBadge message={message} />}
               </div>}
 
               <button
@@ -279,7 +281,6 @@ export function MessageInbox({
                 {message.read ? 'Read' : 'Unread'}
               </button>
               {!embedded && category === 'renewals' && removeAction(message)}
-              {!embedded && message.renewalStatus && message.renewalStatus !== 'active' && <span className="renewal-closed-status">{message.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</span>}
               {!embedded && message.undo && <MessageUndo key={`${user.id}:${message.undo.id}`} message={message} timeZone={timeZone} onUndo={onUndo} />}
             </article>
           ))}
@@ -365,7 +366,7 @@ export function MessageInbox({
               <div className="modal-actions message-popup-actions">
                 {messageError && <p role="alert">{messageError}</p>}
                 {removeAction(selected)}
-                {selected.renewalStatus && selected.renewalStatus !== 'active' && <span role="status">{selected.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</span>}
+                {selected.renewalStatus && selected.renewalStatus !== 'active' && <StatusBadge className="renewal-closed-status">{selected.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</StatusBadge>}
                 <button type="button" className="secondary-button" disabled={unreadBusy} onClick={markSelectedUnread}>
                   {unreadBusy ? 'Marking…' : 'Mark as Unread'}
                 </button>

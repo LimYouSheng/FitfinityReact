@@ -616,7 +616,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .renewal-heading{flex-wrap:wrap;gap:12px}
 .renewal-total{display:flex;align-items:center;gap:14px;min-width:0}
 .renewal-remove-action{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.message-title-row>.renewal-remove-action,.renewal-closed-status{grid-column:1/-1}
+.message-title-row>.renewal-remove-action{grid-column:1/-1}
 .renewal-remove-action button{min-height:44px}
 .renewal-remove-action p{flex-basis:100%;margin:0}
 .renewal-count{display:grid;place-items:center;min-width:48px;min-height:48px;padding:6px 10px;border:1px solid #af8850;border-radius:10px;background:#372a1d;color:#ffce88;font-size:25.4px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums}
@@ -2209,6 +2209,8 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
   gap:8px;
 }
 
+.has-renewal-status .message-title-grid{grid-template-columns:minmax(0,1fr) minmax(132px,.34fr) 164px 74px}
+
 .message-title-grid.message-title-preview{
   grid-template-columns:minmax(0,1fr) auto;
   min-height:44px;
@@ -2590,6 +2592,9 @@ fieldset.session-request-fields legend{margin-bottom:8px;font-weight:600}
   .message-title-head{display:none}
   .message-title-grid:not(.message-title-preview){grid-template-columns:minmax(0,1fr) auto auto;gap:3px 8px}
   .message-title-row:not(.message-title-preview) .message-title-button{grid-column:1 / -1;padding-bottom:4px}
+  .has-renewal-status .message-title-grid:not(.message-title-preview){grid-template-columns:minmax(0,1fr) auto}
+  .has-renewal-status .message-title-time{grid-column:1 / -1}
+  .has-renewal-status .message-approval-status{justify-content:flex-end}
   .message-title-time{padding:0 0 9px 11px}
   .message-approval-status,.message-title-row:not(.message-title-preview) .message-state-button{margin-bottom:8px}
   .profile-info-grid{grid-template-columns:1fr}

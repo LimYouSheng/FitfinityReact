@@ -255,6 +255,8 @@ Ops["Staff operations"]
   Content --> ContentServer["api/content.py<br/>Versioned content save/read"]
 ```
 
+Session-review navigation is owned by [relatedMessageLinks](../../src/features/messages/messageLinks.js); session-kind review notices return only an explicitly identified, permitted session. The inbox places neutral renewal statuses beside read controls. [Demo seed](../../src/data/seed.js) provides session IDs; [mockDb](../../src/services/mockDb.js) persists conservative missing-ID repairs before publishing saved demo state.
+
 Source owners: [inbox](../../src/features/messages/MessagesPage.jsx), [request review](../../src/features/messages/RequestReview.jsx), [Undo UI](../../src/features/messages/MessageUndo.jsx), [remuneration commands](../../src/services/apiRemuneration.js), [content workspace](../../src/features/content/ApiContentWorkspace.jsx).
 
 Source owners: [message state](../../backend/app/api/messages.py), [renewal dismissal](../../backend/app/api/renewal_dismissal.py), [remuneration](../../backend/app/api/remuneration.py), [content](../../backend/app/api/content.py).

@@ -25,8 +25,21 @@ async function confirmRemoval(page) {
 async function retainedNotice(page, origin) {
   await page.goto(`${origin}/#/messages`)
   await expect(page.getByRole('button', { name: 'Open Renewal follow-up', exact: true })).toBeVisible()
-  await expect(page.getByText('Removed from renewals', { exact: true })).toBeVisible()
+  const badge = page.getByText('Removed from renewals', { exact: true })
+  await expect(badge).toBeVisible()
+  await expect(badge).toHaveClass(/status-badge neutral/)
+  const row = page.getByRole('article').filter({ has: badge })
+  const state = row.getByRole('button', { name: /^(Read|Unread) Renewal follow-up$/ })
+  const badgeBox = await badge.boundingBox(), stateBox = await state.boundingBox()
+  expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(stateBox.x)
+  expect(Math.abs(badgeBox.y + badgeBox.height / 2 - stateBox.y - stateBox.height / 2)).toBeLessThan(2)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await expect(remove(page)).toHaveCount(0)
+  await row.getByRole('button', { name: 'Open Renewal follow-up', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Renewal follow-up', exact: true })
+  await expect(dialog.getByText('Removed from renewals', { exact: true })).toHaveClass(/status-badge neutral/)
+  await expect(dialog.getByRole('button', { name: 'Mark as Unread', exact: true })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Close message', exact: true }).click()
 }
 
 test('API Owner renewal dismissal recovers a committed interrupted response and keeps the notice after reload', async ({ page, staffApi }) => {
