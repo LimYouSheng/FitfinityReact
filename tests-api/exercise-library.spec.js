@@ -40,7 +40,14 @@ for (const role of ['owner', 'admin']) test(`${role} library UI stores real medi
     expect(await fresh.evaluate(() => globalThis.mediaInjected)).toBeUndefined()
     await expect(fresh.locator('[onerror]')).toHaveCount(0)
     await fresh.getByRole('button', { name: 'Edit Exercise', exact: true }).click()
-    await fresh.getByRole('button', { name: 'Remove Attachment', exact: true }).click()
+    const remove = fresh.getByRole('button', { name: 'Remove Attachment', exact: true })
+    // Finish phone viewport scrolling before click performs its stability checks.
+    // The editor mounts a fresh protected preview while this control is below the fold.
+    await remove.scrollIntoViewIfNeeded()
+    await remove.click()
+    await expect(remove).toHaveCount(0)
+    await expect(fresh.getByAltText('Exercise reference')).toHaveCount(0)
+    await expect(fresh.getByRole('button', { name: 'Save Exercise', exact: true })).toBeEnabled()
     await confirm(fresh, 'Save Exercise')
     await expect(fresh.getByText('No attachment', { exact: true })).toBeVisible()
     await fresh.reload()

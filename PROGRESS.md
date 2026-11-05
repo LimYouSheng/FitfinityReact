@@ -2,23 +2,25 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Current-release upgrade and observation preparation on PR124
+## Current task — Close PR125 verification and AWS observation gaps
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Prepare a populated upgrade, non-destructive runtime/frontend template plan and Actions read-only observation before current-source AWS rollout. Preserve PR124's message UI and parallel build preparation. |
-| Starting evidence | PR124 head290adfa had complete application CI41969294827, CodeQL41969294919 and preparation41969294884 success. Those receipts do not accept this follow-up head. |
-| Prepared changes | Atomic targeted upgrade primitive; template planner retaining resources/versions; manual main-only observation using the protected hosting role with a read-only session policy and redacted metadata. No live executor or AWS mutation is added. |
-| Acceptance / budget | Seven new actual isolated PostgreSQL probes, all658 offline infrastructure tests and144 quality/guard cases passed. Backend inventory1429 includes the7 new cases; source lint/health and dependency consistency passed. One focused validation block followed by complete exact-head CI. |
-| Preserved work | Existing checkout and8 stashes; historical release contracts untouched. No AWS identity is configured in this workspace; no production database/provider action or live workflow dispatch. |
-| Leave-off / blocker | Publish/verify this PR124 follow-up. After merge, dispatch **Observe current developer AWS release** on main and complete its existing GitHub environment approval. Observation is required before specifying live migration executor, exact runtime grants/feature IAM/configuration, backup and change-set execution. The connected tools lack dispatch and local CLI authentication is unavailable. |
+| Outcome / scope | Settle the failed browser verification, publish accurate latest/serving configuration and catalog tooling, and establish concrete next steps for private schema observation and backup retention. |
+| Starting evidence | PR125 on `fix/release-observation-schema`, based on merged PR124/main574fd95. Headb673805 passed frontend/backend, CodeQL and release preparation; application run41981766901 failed one phone/Admin exercise-library case. |
+| Prepared changes | Separate latest/serving Lambda summaries and read-only SQL inventory. The library test now scrolls the removal control before click stability checks and explicitly verifies attachment removal and enabled Save before persistence. No retries, forced clicks or timeout increases. |
+| Acceptance / budget | Existing9 focused PostgreSQL,659 offline infrastructure and144 quality cases passed. All6 focused Owner/Admin real-API media cases passed across desktop/phone/tablet with isolated PostgreSQL/object storage; semantic lint551 files passed. Complete new-head CI remains required. Inventory unchanged by this repair. Continue within the6-iteration/90-minute campaign block; external approval/access is a separate stop condition. |
+| Observed AWS | Read-only run41981485762 succeeded: RDS17.11 available, encrypted/private, retention1 day; latest restorable point06:36:16UTC on5 November. Lambda aliasfirst-test version2 retains historical image86183723…, functionInactive. No health request, SQL, migration or deployment occurred. The old observer's flags describe latest only; serving flags still need the corrected observer. |
+| Preserved work | Existing checkout and8 stashes. No direct AWS identity or private SQL connection configured. Historical temporary access probes are not standing infrastructure and must not be replayed. |
+| Leave-off / blocker | Finish PR125 exact-head CI and eligible source merge. Dispatch corrected main-only observation for protected `aws-test` approval. Actual SQL needs an approved private connection/probe; the existing metadata workflow cannot provide it. Retention14 days is a proposed target, not an approved or applied change. See Runbook6.2 for the bounded access/retention plan. |
 
 ### Resume in this order
 
-1. Validate PR124's combined final head and merge only after all required gates/GitHub requirements; inspect fresh main separately.
-2. Run the [read-only observation](docs/runbook.md#62-deployment-preparation-and-acceptance), review resource/image/alias/configuration and backup metadata, and obtain the private observed schema/grant evidence. No SQL/schema is inferred from RDS instance metadata.
-3. Finish the current-source private migration executor and artifact/scan/change-set/health controls against that observed state. Keep execution blocked until populated-data, grants, backup/recovery, compatibility and explicit rollout authority are satisfied.
-4. Complete M6 live Cognito/device/recovery acceptance after rollout; approval-vetting design remains deferred. Then scope M7 and prioritize M10 work below.
+1. Verify and merge PR125 only after all required exact-head gates and GitHub requirements; retain the original browser failure in Journey.
+2. Run the corrected manual metadata observer on merged main and inspect both serving/latest flags. Its GitHub environment review remains required.
+3. Establish the reviewed private SQL path and execute the catalog-only receipt; compare actual Alembic revision/grants with source before preparing migration execution.
+4. Review the foundation change set for retention1→14 days and its cost/authority before execution; verify actual retention afterward. Do not rewrite historical foundation fingerprints or claim a restore drill.
+5. Finish current-artifact publication, migration/grant/feature configuration and rollout controls from observed evidence. Live M6/provider/device acceptance remains separate.
 
 ## Current acceptance boundaries
 
