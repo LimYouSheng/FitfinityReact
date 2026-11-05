@@ -167,8 +167,27 @@ test('recording removal Undo restores original media identity and expiry with pl
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const original = (await read(page, `${path}/review`)).media
   await page.reload()
+  let releasePreview, previewFetched
+  const heldPreview = new Promise(resolve => { releasePreview = resolve })
+  const fetchedPreview = new Promise(resolve => { previewFetched = resolve })
+  await page.route(`**${path}`, async route => {
+    const response = await fetchRoute(route)
+    previewFetched()
+    await heldPreview
+    await route.fulfill({ response })
+  })
   await page.getByRole('button', { name: 'Manage video for Recorded squat', exact: true }).click()
-  await page.getByRole('button', { name: 'Remove saved video', exact: true }).click()
+  await fetchedPreview
+  const remove = page.getByRole('button', { name: 'Remove saved video', exact: true })
+  await expect(remove).toBeVisible()
+  await expect(page.getByRole('status')).toHaveText('Loading saved video…')
+  const beforePreview = await remove.boundingBox()
+  releasePreview()
+  await expect(page.locator('video')).toHaveAttribute('src', /^blob:/)
+  const afterPreview = await remove.boundingBox()
+  expect(Math.abs(afterPreview.y - beforePreview.y)).toBeLessThanOrEqual(1)
+  await page.unroute(`**${path}`)
+  await remove.click()
   await page.getByRole('dialog').getByRole('button', { name: 'Remove Video', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   expect(await read(page, path)).toBeNull()

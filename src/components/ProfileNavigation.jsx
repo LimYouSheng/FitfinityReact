@@ -45,10 +45,10 @@ export default function ProfileNavigation({ items, activeKey, onSelect, children
           if (!inline && event.target.closest('button')) setOpen(false)
         }}
       >
-        {items.map(([key, label]) => (
+        {items.map(([key, label, className = '']) => (
           <button
             key={key}
-            className={activeKey === key ? 'active' : ''}
+            className={[activeKey === key ? 'active' : '', className].filter(Boolean).join(' ')}
             aria-current={activeKey === key ? 'true' : undefined}
             type="button"
             onClick={() => onSelect(key)}

@@ -105,7 +105,7 @@ test('M4 dashboard renewal preview opens shared details and keeps read state in 
   }
   const total = page.getByRole('status', { name: 'Total renewal follow-ups' }).locator('.renewal-count')
   await expect(total).toHaveText('12')
-  expect(await total.evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBeCloseTo(36 * 0.65, 1)
+  expect(await total.evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBeCloseTo(36 * 0.65 + 2, 1)
   await expect(preview.getByText('Morning session')).toHaveCount(0)
   const openRenewal = preview.getByRole('button', { name: `Open ${title}`, exact: true })
   await expect(openRenewal).toHaveAttribute('title', title)

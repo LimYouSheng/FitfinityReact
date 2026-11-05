@@ -67,3 +67,22 @@ describe('session video audio selection', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Save Video' })).not.toBeInTheDocument())
   })
 })
+
+
+it.each(['missing', 'failed'])('keeps removal available after a %s saved preview without claiming it is still loading', async outcome => {
+  let finish
+  const onLoad = vi.fn(() => new Promise((resolve, reject) => { finish = outcome === 'failed' ? reject : resolve }))
+  const onRemoved = vi.fn().mockResolvedValue(undefined)
+  const onSaved = vi.fn()
+  render(<ExerciseVideoDialog open sessionId="session" exercise={{ id: 'exercise', name: 'Squat', videoAttached: true }}
+    onLoad={onLoad} onSaved={onSaved} onRemoved={onRemoved} onCancel={vi.fn()} />)
+  expect(screen.getByRole('status')).toHaveTextContent('Loading saved video…')
+  finish(outcome === 'failed' ? new Error('Preview download failed') : null)
+  expect(await screen.findByRole('alert')).toHaveTextContent(outcome === 'failed' ? 'Preview download failed' : 'The saved video is no longer available.')
+  expect(screen.getByRole('status')).toHaveTextContent('Its local preview is unavailable')
+  fireEvent.click(screen.getByRole('button', { name: 'Remove saved video' }))
+  expect(onRemoved).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Video', exact: true }))
+  await waitFor(() => expect(onRemoved).toHaveBeenCalledTimes(1))
+  expect(onSaved).not.toHaveBeenCalled()
+})

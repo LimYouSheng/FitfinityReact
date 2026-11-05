@@ -22,12 +22,14 @@ flowchart TB
   end
   subgraph Delivery["Source delivery"]
     Repo["GitHub: reviewed source and lockfiles"]
+    CodeQL["CodeQL: JS/TS + Python parallel scans; baseline acceptance pending"]
+    Repo --> CodeQL
     CI["Frontend, backend and API-browser CI"]
     Merge["Exact tested head and protected source merge"]
     Image["Manual image run: entered main SHA, full CI, AWS approval and scan"]
     Release["Separate reviewed artifact, migration and rollout acceptance"]
     Supply["Dependabot source: npm, Actions, Dockerfile; planned: remaining coverage, SBOM and provenance"]
-    Security["Planned: secret scanning, static security analysis and rate-limit hardening"]
+    Security["Planned: secret scanning and rate-limit hardening"]
   end
   subgraph Operations["M10: planned observability and operations"]
     OTel["OpenTelemetry: correlated traces, metrics and structured logs"]
@@ -113,13 +115,15 @@ flowchart TB
     Performance["Performance: p50/p95/p99, throughput, errors, resources and browser vitals"]
     Resilience["Expanded resilience: rate limits, dependency faults and broader recovery campaigns"]
     SupplyTests["Remaining Python/container audit coverage, SBOM and provenance assessment"]
-    SecurityTests["Secret scanning and static security analysis"]
+    SecurityTests["Secret scanning and additional static security controls"]
     Observability["OpenTelemetry and Grafana: redaction, correlation, sampling, export failure and cost controls"]
     Drills["Operations drills: synthetic monitoring, incident alerts, rollback, backup and migration recovery"]
   end
   Gates["Required final-head frontend, backend and API-browser CI"]
   Evidence["Evidence review: scope, source, environment, results and limits"]
   Live["Separate acceptance: real Cognito, deployed restart, devices and live environment"]
+  CodeQLTests["CodeQL: configured JS/TS + Python scans; initial baseline pending"]
+  Change --> CodeQLTests --> Evidence
   Change --> Existing
   Build -->|"Same source artifact"| Simulator
   Existing -->|"All groups; exact case coverage"| Gates --> Evidence
