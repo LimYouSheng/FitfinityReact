@@ -6,12 +6,14 @@ import base64
 import copy
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import sys
+import tempfile
 import types
 import unittest
-from contextlib import ExitStack, closing
+from contextlib import ExitStack, closing, redirect_stderr, redirect_stdout
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -38,6 +40,53 @@ def load(test):
 
 
 class AuthChecks(unittest.TestCase):
+    def test_provision_serializes_only_generated_templates_and_logs_only_resource_identifiers(self):
+        sentinel = "SYNTHETIC-credential-canary-never-log-7d2a"
+        db = self.op.db
+        templates = [
+            (db.SECRETS_STACK, json.loads((ROOT / "test-db-access.json").read_text())),
+            (self.op.SECRET_STACK, self.op.secret_template()),
+        ]
+        for name, template in templates:
+            with self.subTest(stack=name), tempfile.TemporaryDirectory() as directory:
+                stack = {
+                    "StackId": "synthetic-stack-id",
+                    "StackStatus": "CREATE_COMPLETE",
+                    "SecretString": sentinel,
+                    "ClientSecret": sentinel,
+                }
+
+                def aws(service, operation, *args, stack_id=stack["StackId"], **kwargs):
+                    self.assertEqual(service, "cloudformation")
+                    self.assertIn(operation, {"validate-template", "create-stack"})
+                    self.assertNotIn(sentinel, json.dumps(args))
+                    return {"StackId": stack_id, "SecretString": sentinel}
+
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with (
+                    patch.object(db, "owned_stack", side_effect=[None, stack]),
+                    patch.object(db, "stack_template", return_value=template),
+                    patch.object(db, "aws", side_effect=aws) as calls,
+                    redirect_stdout(stdout),
+                    redirect_stderr(stderr),
+                ):
+                    result = db.provision(name, template, Path(directory))
+                self.assertEqual(result["StackId"], "synthetic-stack-id")
+                self.assertEqual(calls.call_count, 2)
+                persisted = (Path(directory) / (name + ".json")).read_text()
+                self.assertEqual(json.loads(persisted), template)
+                self.assertEqual(stdout.getvalue(), name + ": CREATE_COMPLETE\n")
+                self.assertEqual(stderr.getvalue(), "")
+                for output in (
+                    persisted,
+                    stdout.getvalue(),
+                    stderr.getvalue(),
+                    json.dumps(db.context.report),
+                ):
+                    self.assertNotIn(sentinel, output)
+                for resource in json.loads(persisted)["Resources"].values():
+                    self.assertNotIn("SecretString", resource.get("Properties", {}))
+
     def setUp(self):
         self.pinned_contract = (ROOT / "test-db-migration-contract.json").read_bytes()
         self.op, self.rt = load(self)

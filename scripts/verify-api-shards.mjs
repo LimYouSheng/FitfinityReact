@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export const API_BROWSER_CASES = 396
+export const API_BROWSER_CASES = 402
 
 const fail = message => { throw new Error(`API browser shards: ${message}`) }
 

@@ -1135,14 +1135,27 @@ class DiagnosticChecks(unittest.TestCase):
             connect.assert_not_called()
 
     def test_44_tampered_source_never_executes(self):
-        payload = self.payload()
-        payload["bootstrap_source"] = 'raise RuntimeError("ATTACK_EXECUTED")'
-        with self.transport() as c, patch("builtins.exec") as execute:
-            proof = c.post("/events", json=payload).json()
-            execute.assert_not_called()
-            self.assertFalse(proof["ok"])
-            self.assertEqual(proof["stage"], "bootstrap_transport")
-            self.assertNotIn("ATTACK_EXECUTED", json.dumps(proof))
+        import hashlib
+
+        attack = 'raise RuntimeError("ATTACK_EXECUTED")'
+        for source in (attack, self.payload()["bootstrap_source"] + "\n" + attack):
+            payload = {**self.payload(), "bootstrap_source": source}
+            # Even a matching hash supplied by the caller cannot replace the
+            # independently configured ImageConfig pin.
+            payload["SOURCE_SHA256"] = hashlib.sha256(source.encode()).hexdigest()
+            with self.subTest(source_length=len(source)), self.transport() as c:
+                execute = Mock()
+                loader_globals = next(
+                    route.endpoint.__globals__ for route in c.app.routes if route.path == "/events"
+                )
+                # Scope the spy to the loader; mocking builtins.exec also breaks
+                # unrelated lazy imports when this test runs independently.
+                with patch.dict(loader_globals, {"exec": execute}):
+                    proof = c.post("/events", json=payload).json()
+                    execute.assert_not_called()
+                    self.assertFalse(proof["ok"])
+                    self.assertEqual(proof["stage"], "bootstrap_transport")
+                    self.assertNotIn("ATTACK_EXECUTED", json.dumps(proof))
 
     def test_45_oversized_source_stops_before_aws(self):
         original = Path.read_bytes

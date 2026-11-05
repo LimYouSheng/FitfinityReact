@@ -241,7 +241,7 @@ Future -.-> Alerts["Proposed alerts; recipients unassigned"]
 | [RequestContextMiddleware / JsonFormatter](../../backend/app/observability.py) | Generates request IDs and allowlisted JSON status/duration/error-type events. | No bodies, credentials, raw URLs or SQL exception details in the event fields. | Generic server errors carry a request ID; failed log delivery is not proof of a successful request. |
 | [Managed secrets module](../../backend/app/managed_secrets.py) | Loads configured runtime secrets through the managed boundary. | Scoped configuration and secret handling, separate runtime/migration identities. | Startup loading is not an automated rotation worker; no secret values in diagnostic output. |
 
-Evidence: [test_process_restart.py](../../backend/tests/test_process_restart.py), [security.md](../../docs/security.md), [runbook.md](../../docs/runbook.md).
+Evidence: [test_process_restart.py](../../backend/tests/test_process_restart.py), [Security infrastructure](../../docs/security/security-infrastructure.md), [runbook.md](../../docs/runbook.md).
 
 ## 10. Verification, release and recovery boundaries
 

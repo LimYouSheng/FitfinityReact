@@ -169,15 +169,15 @@ function receipt(kind, contents, valid) {
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 }
 test('complete unit and browser receipts pass exact inventory validation', () => {
-  receipt('unit', 'Test Files 155 passed (155)\nTests 1515 passed (1515)', true)
+  receipt('unit', 'Test Files 155 passed (155)\nTests 1517 passed (1517)', true)
   receipt('browser', '1155 passed (1m)', true)
-  receipt('api-browser', '396 passed (1m)', true)
+  receipt('api-browser', '402 passed (1m)', true)
 })
 test('unit receipt rejects old totals, missing files, truncation and skipped tests', () => {
-  for (const text of ['Test Files 155 passed (155)\nTests 1513 passed (1513)', 'Test Files 155 passed (155)\nTests 1511 passed (1511)', 'Test Files 155 passed (155)\nTests 1504 passed (1504)', 'Test Files 155 passed (155)\nTests 1503 passed (1503)', 'Test Files 155 passed (155)\nTests 1504 passed (1504)\n1 skipped', 'Test Files 154 passed (154)\nTests 1499 passed (1499)', 'Test Files 155 passed (155)\nTests 1503 passed (1503)\n1 skipped', 'Test Files 153 passed (153)\nTests 1495 passed (1495)', 'Test Files 154 passed (154)\nTests 1499 passed (1499)\n1 skipped', 'Test Files 153 passed (153)\nTests 1494 passed (1494)', 'Test Files 153 passed (153)\nTests 1492 passed (1492)', 'Test Files 153 passed (153)\nTests 1490 passed (1490)', 'Test Files 153 passed (153)\nTests 1488 passed (1488)', 'Test Files 153 passed (153)\nTests 1486 passed (1486)', 'Test Files 151 passed (151)\nTests 1478 passed (1478)', 'Test Files 151 passed (151)\nTests 1476 passed (1476)', 'Test Files 150 passed (150)\nTests 1472 passed (1472)', 'Test Files 149 passed (149)\nTests 1436 passed (1436)', 'Test Files 149 passed (149)\nTests 1423 passed (1423)', 'Test Files 146 passed (146)\nTests 1392 passed (1392)', 'Test Files 145 passed (145)\nTests 1387 passed (1387)', 'Test Files 141 passed (141)\nTests 1247 passed (1247)', 'Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 887 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 153 passed (153)\nTests 1495 passed (1495)\n1 skipped']) receipt('unit', text, false)
+  for (const text of ['Test Files 155 passed (155)\nTests 1515 passed (1515)', 'Test Files 155 passed (155)\nTests 1513 passed (1513)', 'Test Files 155 passed (155)\nTests 1511 passed (1511)', 'Test Files 155 passed (155)\nTests 1504 passed (1504)', 'Test Files 155 passed (155)\nTests 1503 passed (1503)', 'Test Files 155 passed (155)\nTests 1504 passed (1504)\n1 skipped', 'Test Files 154 passed (154)\nTests 1499 passed (1499)', 'Test Files 155 passed (155)\nTests 1503 passed (1503)\n1 skipped', 'Test Files 153 passed (153)\nTests 1495 passed (1495)', 'Test Files 154 passed (154)\nTests 1499 passed (1499)\n1 skipped', 'Test Files 153 passed (153)\nTests 1494 passed (1494)', 'Test Files 153 passed (153)\nTests 1492 passed (1492)', 'Test Files 153 passed (153)\nTests 1490 passed (1490)', 'Test Files 153 passed (153)\nTests 1488 passed (1488)', 'Test Files 153 passed (153)\nTests 1486 passed (1486)', 'Test Files 151 passed (151)\nTests 1478 passed (1478)', 'Test Files 151 passed (151)\nTests 1476 passed (1476)', 'Test Files 150 passed (150)\nTests 1472 passed (1472)', 'Test Files 149 passed (149)\nTests 1436 passed (1436)', 'Test Files 149 passed (149)\nTests 1423 passed (1423)', 'Test Files 146 passed (146)\nTests 1392 passed (1392)', 'Test Files 145 passed (145)\nTests 1387 passed (1387)', 'Test Files 141 passed (141)\nTests 1247 passed (1247)', 'Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 887 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 153 passed (153)\nTests 1495 passed (1495)\n1 skipped']) receipt('unit', text, false)
 })
 test('browser receipt rejects partial totals, retries, skipped tests and errors', () => {
-  for (const text of ['393 passed', '396 passed\n1 skipped', '396 passed\n(retry #1)', '396 passed\nError: incomplete', '387 passed', '384 passed', '381 passed', '378 passed', '12 passed', '62 passed', '282 passed', '294 passed', '300 passed', '303 passed', '351 passed', '366 passed', '369 passed', '372 passed', '375 passed', '387 passed\n1 skipped', '387 passed\n(retry #1)', '387 passed\nError: incomplete']) receipt('api-browser', text, false)
+  for (const text of ['396 passed', '393 passed', '402 passed\n1 skipped', '402 passed\n(retry #1)', '402 passed\nError: incomplete', '387 passed', '384 passed', '381 passed', '378 passed', '12 passed', '62 passed', '282 passed', '294 passed', '300 passed', '303 passed', '351 passed', '366 passed', '369 passed', '372 passed', '375 passed', '387 passed\n1 skipped', '387 passed\n(retry #1)', '387 passed\nError: incomplete']) receipt('api-browser', text, false)
   for (const text of ['1152 passed', '1153 passed', '849 passed', '837 passed', '819 passed', '810 passed', '804 passed', '792 passed', '791 passed', '765 passed', '791 passed', '723 passed', '717 passed', '714 passed', '711 passed', '708 passed', '696 passed', '707 passed', '1155 passed\n(retry #1)', '1155 passed\n1 skipped', '1155 passed\nError: incomplete']) receipt('browser', text, false)
 })
 
@@ -303,14 +303,14 @@ for (const [config, expected] of [['playwright.config.js', BROWSER_CASES], ['pla
 })
 
 function shardFixture() {
-  const specs = Array.from({ length: 396 }, (_, index) => ({ id: `case-${index}`, file: 'workflow.spec.js', line: index + 1, column: 1, title: `Case ${index}`, tests: [{ projectId: ['desktop-chromium', 'phone', 'tablet'][index % 3], expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed', retry: 0, errors: [] }] }] }))
+  const specs = Array.from({ length: 402 }, (_, index) => ({ id: `case-${index}`, file: 'workflow.spec.js', line: index + 1, column: 1, title: `Case ${index}`, tests: [{ projectId: ['desktop-chromium', 'phone', 'tablet'][index % 3], expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed', retry: 0, errors: [] }] }] }))
   const report = (items, current) => ({ errors: [], config: { shard: current ? { current, total: 2 } : null, workers: 2, projects: [{ retries: 0, repeatEach: 1 }] }, suites: [{ title: 'workflow.spec.js', specs: items }], stats: { expected: items.length, unexpected: 0, flaky: 0, skipped: 0 } })
   return { inventory: report(specs), reports: [report(structuredClone(specs.slice(0, 141)), 1), report(structuredClone(specs.slice(141)), 2)] }
 }
 
 test('complete complementary shard identities pass regardless of report order', () => {
   const { inventory, reports } = shardFixture()
-  assert.equal(verifyApiShards(inventory, reports.reverse(), 'success'), 396)
+  assert.equal(verifyApiShards(inventory, reports.reverse(), 'success'), 402)
 })
 for (const [name, mutate] of [
   ['missing shard', data => data.reports.pop()],
@@ -357,12 +357,19 @@ test('unexpected Ubuntu source format is rejected without modifying repositories
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fitfinity-apt-'))
   try {
     const file = path.join(dir, 'ubuntu.sources')
-    const input = 'URIs: https://unreviewed.example/ubuntu/\nSigned-By: /keyring.gpg\n'
-    fs.writeFileSync(file, input)
-    const result = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
-    assert.notEqual(result.status, 0)
-    assert.match(result.stderr, /Unexpected Ubuntu source layout/)
-    assert.equal(fs.readFileSync(file, 'utf8'), input)
+    for (const input of [
+      'URIs: https://unreviewed.example/ubuntu/\nSigned-By: /keyring.gpg\n',
+      ...['https://unreviewed.example/ubuntu/', 'https://archive.ubuntu.com.evil.example/ubuntu/', 'https://evil.example/archive.ubuntu.com/ubuntu/', 'https://archive.ubuntu.com@evil.example/ubuntu/', 'https://archive.ubuntu.com/ubuntu/?redirect=evil', 'https://archive.ubuntu.com:444/ubuntu/'].map(uri => `URIs: https://archive.ubuntu.com/ubuntu/\nSigned-By: /keyring.gpg\n\nURIs: ${uri}\nSigned-By: /keyring.gpg\n`),
+      'URIs: https://archive.ubuntu.com/ubuntu/\n https://unreviewed.example/ubuntu/\n',
+      'URIs: https://archive.ubuntu.com/ubuntu/\n\nURIs:https://unreviewed.example/ubuntu/\n',
+      'URIs: https://archive.ubuntu.com/ubuntu/\n# comment\n https://unreviewed.example/ubuntu/\n',
+    ]) {
+      fs.writeFileSync(file, input)
+      const result = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
+      assert.notEqual(result.status, 0)
+      assert.match(result.stderr, /Unexpected Ubuntu source layout/)
+      assert.equal(fs.readFileSync(file, 'utf8'), input)
+    }
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
