@@ -2,7 +2,7 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Targeted security probes and security documentation split
+## Current task — PR123 security probes and CI repair
 
 | Field | Current checkpoint |
 | --- | --- |
@@ -11,7 +11,7 @@ This file owns the **current task, exact stopping point, blockers, next actions 
 | Prepared changes | PR123 extends actual provisioning/logging/storage checks with synthetic credential canaries, direct duration/caption sink tests, and real-browser active-content/rejection/persistence probes. `docs/security/security-infrastructure.md` owns controls; `false-positives.md` owns assessments and limits. All references updated; diagram labels shortened after render inspection. |
 | Acceptance / budget | Full1517 units/155 files and637 offline infrastructure cases passed;133 quality regressions passed. Unsafe logging/storage/source-URL/HTML-caption mutations were detected. All six new real-API content probes passed across desktop/phone/tablet; all30 adjacent media cases passed. Initial probe expectations were corrected to assert existing raw-content rejection, actual lease/review projections and explicit WebKit decoder startup for preload=none. Unit/API guards and fixtures now require1517/402 cases. Six-iteration/90-minute bounded review; complete final-head CI required. No retries, timeouts or scanner rules weakened. |
 | Preserved work | Existing checkout and8 stashes. Reused isolated Docker PostgreSQL/object storage; no production DB or live secret reads. |
-| Leave-off / blocker | Publish the validated consolidated update to PR123, then inspect new-head gates. Eight findings remain source-specific assessments, with evidence and limits in docs/security/false-positives.md. Alert-management API returns403, so no dismissal/closure is claimed. |
+| Leave-off / blocker | PR123 head c25fefd failed backend-checks in run41952342927 on Ruff B023 in the new provisioning-test callback; frontend, API-browser, infrastructure, all backend test groups and CodeQL passed. Bind the callback stack ID per iteration; the complete offline backend source/partition command and637 infrastructure tests now pass locally. Publish this repair and inspect all new-head gates. Eight findings remain source-specific assessments, with evidence and limits in docs/security/false-positives.md. Alert-management API returns403, so no dismissal/closure is claimed. |
 
 ### Resume in this order
 

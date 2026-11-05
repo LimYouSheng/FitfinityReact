@@ -56,11 +56,11 @@ class AuthChecks(unittest.TestCase):
                     "ClientSecret": sentinel,
                 }
 
-                def aws(service, operation, *args, **kwargs):
+                def aws(service, operation, *args, stack_id=stack["StackId"], **kwargs):
                     self.assertEqual(service, "cloudformation")
                     self.assertIn(operation, {"validate-template", "create-stack"})
                     self.assertNotIn(sentinel, json.dumps(args))
-                    return {"StackId": stack["StackId"], "SecretString": sentinel}
+                    return {"StackId": stack_id, "SecretString": sentinel}
 
                 stdout, stderr = io.StringIO(), io.StringIO()
                 with (
