@@ -16,7 +16,7 @@ const identity = { GITHUB_SHA: 'synthetic', GITHUB_RUN_ID: '1', GITHUB_RUN_ATTEM
 function backendEvidence() {
   const ownership = JSON.parse(readFileSync(new URL('../backend/scripts/test-groups.json', import.meta.url)))
   const files = Object.values(ownership).flat()
-  const inventory = Array.from({ length: 1431 }, (_, i) => `${files[i % files.length]}::test_${i}`)
+  const inventory = Array.from({ length: 1445 }, (_, i) => `${files[i % files.length]}::test_${i}`)
   return Object.entries(ownership).map(([group, names]) => {
     const selected = inventory.filter(id => names.includes(id.split('::')[0])).sort()
     return { identity, group, inventory, selected, exitstatus: 0, reports: selected.flatMap(id => ['setup', 'call', 'teardown'].map(phase => ({ id, phase, outcome: 'passed' }))) }

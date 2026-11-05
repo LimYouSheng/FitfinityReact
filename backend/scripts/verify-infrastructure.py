@@ -28,6 +28,7 @@ SUITES = {
     "verify-release-readiness.py": 8,
     "verify-release-observation.py": 8,
     "verify-release-plan.py": 6,
+    "verify-schema-probe.py": 8,
     "verify-image-acceptance.py": 29,
     "verify-private-runtime.py": 63,
     "verify-hosting.py": 135,

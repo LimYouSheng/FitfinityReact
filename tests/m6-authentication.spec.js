@@ -82,6 +82,11 @@ test('verified-email recovery and authenticated password change return to sign-i
 test('expired-access reload recovers CSRF; private responses stay out of storage and failures show no demo', async ({ page, staffApi }) => {
   staffApi.state.step = 'SOFTWARE_TOKEN_MFA'
   await page.goto(staffApi.origin)
+  // Establish active shell caching before auth traffic and reload. Otherwise a
+  // fast login/reload can interrupt first installation, leaving this cache-safety
+  // scenario waiting for a worker it never established as a precondition.
+  await page.evaluate(async () => { await navigator.serviceWorker.ready })
+  await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller?.state)).toBe('activated')
   await passwordSignIn(page)
   await verifyAuthenticator(page)
   staffApi.state.accessExpired = true
@@ -97,6 +102,7 @@ test('expired-access reload recovers CSRF; private responses stay out of storage
     expect(persisted.local).not.toContain(secret); expect(persisted.session).not.toContain(secret)
   }
   expect(persisted.local).not.toContain('fitfinity-demo')
+  expect(persisted.caches).toContain('/')
   expect(persisted.caches.some(path => path.startsWith('/auth/') || path === '/me' || path.startsWith('/api/'))).toBe(false)
   staffApi.state.unavailable = true
   await page.reload()

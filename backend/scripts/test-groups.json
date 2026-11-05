@@ -98,6 +98,7 @@
     "tests/test_progress_reports_api.py",
     "tests/test_release_upgrade.py",
     "tests/test_remuneration_api.py",
-    "tests/test_report_sharing_approvals.py"
+    "tests/test_report_sharing_approvals.py",
+    "tests/test_schema_probe.py"
   ]
 }

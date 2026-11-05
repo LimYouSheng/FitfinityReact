@@ -24,6 +24,7 @@ RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock \
 COPY app /app/app
 COPY alembic.ini /app/alembic.ini
 COPY migrations /app/migrations
+COPY infrastructure/read-schema.sql /app/infrastructure/read-schema.sql
 
 USER 10001:10001
 EXPOSE 8080
