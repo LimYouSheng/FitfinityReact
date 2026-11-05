@@ -435,7 +435,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [backend/compose.yaml](../backend/compose.yaml) | `37c4bda2719b16fd16632803ef5b786bb13068f71a551dc28ae565196a9d6754` |
 | [backend/compose.browser.yaml](../backend/compose.browser.yaml) | `b0a7da6ed501b990f3536e3043b8a175fd53206d1e3d3fefcd744b9201f77a8a` |
 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
-| [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) | `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f` |
+| [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) | `fdb93ce3f4a636e30a8553183f0b42bae8737c29d7c0d553a0ecf93fe124c1c0` |
 | [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `8cac2acb8dde0e980c70aac9dc286f97224e1695672511b759168a472c3f1fed` |
 | [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `53fd7514b330737ed79152df7afd64dd1d9902f527eed8b52ff68cb807177205` |
 | [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `a2d2b24bd9988c02c69085a58eefd2670ec2d3526c25f8a2059bb3b5cd159336` |

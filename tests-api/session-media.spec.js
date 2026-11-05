@@ -20,7 +20,11 @@ async function choose(page, audio = false) {
   const checkbox = page.getByRole('checkbox', { name: 'Include original audio (if present)', exact: true })
   await expect(checkbox).not.toBeChecked()
   if (audio) await checkbox.check()
-  await page.getByLabel('Attach video for Recorded squat', { exact: true }).setInputFiles(audio ? 'tests/fixtures/tone-one-second.webm' : 'tests/fixtures/silent-one-second.webm')
+  await page.getByLabel('Attach video for Recorded squat', { exact: true }).setInputFiles({
+    name: '"><img src=x onerror=globalThis.mediaInjected=true>.webm',
+    mimeType: 'video/webm',
+    buffer: readFileSync(audio ? 'tests/fixtures/tone-one-second.webm' : 'tests/fixtures/silent-one-second.webm'),
+  })
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Save Video', exact: true })).toBeEnabled()
 }
 async function save(page) {
@@ -31,6 +35,9 @@ async function save(page) {
 test('Trainer recording UI persists real bytes after fresh login and removal remains durable', async ({ page, browser }, info) => {
   const original = await open(page, info, 'videowrite')
   await choose(page, true)
+  await expect(page.locator('video')).toHaveAttribute('src', /^blob:/)
+  expect(await page.evaluate(() => globalThis.mediaInjected)).toBeUndefined()
+  await expect(page.locator('[onerror]')).toHaveCount(0)
   const converted = await page.getByText('Original audio included (if present)', { exact: true }).count() > 0
   if (info.project.name === 'desktop-chromium') expect(converted).toBe(true)
   const uploadIntent = page.waitForRequest(request => request.url().endsWith('/api/session-media/intents') && request.method() === 'POST')
@@ -44,6 +51,8 @@ test('Trainer recording UI persists real bytes after fresh login and removal rem
     await fresh.goto(`/#/sessions/${original.booking.id}`)
     await fresh.getByRole('button', { name: 'Manage video for Recorded squat', exact: true }).click()
     await expect(fresh.locator('video')).toHaveAttribute('src', /^blob:/)
+    expect(await fresh.evaluate(() => globalThis.mediaInjected)).toBeUndefined()
+    await expect(fresh.locator('[onerror]')).toHaveCount(0)
     await expect(fresh.getByText('Available until', { exact: false })).toBeVisible()
     const detail = await read(fresh, `/api/sessions/${original.booking.id}/details`)
     expect(detail.exercisePlan[0]).toMatchObject({ id: original.item.id, name: 'Recorded squat', videoAttached: true })

@@ -357,12 +357,19 @@ test('unexpected Ubuntu source format is rejected without modifying repositories
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fitfinity-apt-'))
   try {
     const file = path.join(dir, 'ubuntu.sources')
-    const input = 'URIs: https://unreviewed.example/ubuntu/\nSigned-By: /keyring.gpg\n'
-    fs.writeFileSync(file, input)
-    const result = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
-    assert.notEqual(result.status, 0)
-    assert.match(result.stderr, /Unexpected Ubuntu source layout/)
-    assert.equal(fs.readFileSync(file, 'utf8'), input)
+    for (const input of [
+      'URIs: https://unreviewed.example/ubuntu/\nSigned-By: /keyring.gpg\n',
+      ...['https://unreviewed.example/ubuntu/', 'https://archive.ubuntu.com.evil.example/ubuntu/', 'https://evil.example/archive.ubuntu.com/ubuntu/', 'https://archive.ubuntu.com@evil.example/ubuntu/', 'https://archive.ubuntu.com/ubuntu/?redirect=evil', 'https://archive.ubuntu.com:444/ubuntu/'].map(uri => `URIs: https://archive.ubuntu.com/ubuntu/\nSigned-By: /keyring.gpg\n\nURIs: ${uri}\nSigned-By: /keyring.gpg\n`),
+      'URIs: https://archive.ubuntu.com/ubuntu/\n https://unreviewed.example/ubuntu/\n',
+      'URIs: https://archive.ubuntu.com/ubuntu/\n\nURIs:https://unreviewed.example/ubuntu/\n',
+      'URIs: https://archive.ubuntu.com/ubuntu/\n# comment\n https://unreviewed.example/ubuntu/\n',
+    ]) {
+      fs.writeFileSync(file, input)
+      const result = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
+      assert.notEqual(result.status, 0)
+      assert.match(result.stderr, /Unexpected Ubuntu source layout/)
+      assert.equal(fs.readFileSync(file, 'utf8'), input)
+    }
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
