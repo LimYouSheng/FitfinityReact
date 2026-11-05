@@ -2,23 +2,25 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Verify deployed schema and distinguish serving configuration
+## Current task — Close PR125 verification and AWS observation gaps
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | User requested the actual deployed database state. Fix latest-versus-serving Lambda flag reporting and prepare a read-only PostgreSQL catalog receipt without customer rows. |
-| Starting evidence | PR124 merged as574fd95 after all required exact-head gates, CodeQL and build preparation passed. New branch `fix/release-observation-schema` starts from that merged main; current AWS schema is still unobserved. |
-| Prepared changes | Separate latest/serving configuration summaries and divergent-version regression. Read-only SQL inventory reports Alembic revisions, tables/columns, constraints/triggers/indexes and runtime grants; tests cover old/current isolated schemas. |
-| Acceptance / budget | Backend inventory1431 and offline infrastructure659; existing quality144. All9 focused PostgreSQL cases,659 infrastructure cases,144 quality cases and complete backend source checks passed; new-head CI remains required. |
-| Preserved work | Existing checkout and8 stashes. No AWS identity, credentials or private database connection is configured. Historical private probes were temporary; no standing VPN/bastion was found in source. User is unsure of an existing access path. |
-| Leave-off / blocker | Actual AWS SQL cannot run from this workspace. Read-only metadata observation41981485762 was dispatched on merged main through the verified GitHub CLI identity; inspect its run and existing environment approval. Publish the observer correction and tested SQL receipt, then establish an approved private connection or separately reviewed temporary probe. Do not replay historical bootstrap or make RDS public. The metadata observation workflow alone cannot report schema/grants. |
+| Outcome / scope | Settle the failed browser verification, publish accurate latest/serving configuration and catalog tooling, and establish concrete next steps for private schema observation and backup retention. |
+| Starting evidence | PR125 on `fix/release-observation-schema`, based on merged PR124/main574fd95. Headb673805 passed frontend/backend, CodeQL and release preparation; application run41981766901 failed one phone/Admin exercise-library case. |
+| Prepared changes | Separate latest/serving Lambda summaries and read-only SQL inventory. The library test now scrolls the removal control before click stability checks and explicitly verifies attachment removal and enabled Save before persistence. No retries, forced clicks or timeout increases. |
+| Acceptance / budget | Existing9 focused PostgreSQL,659 offline infrastructure and144 quality cases passed. All6 focused Owner/Admin real-API media cases passed across desktop/phone/tablet with isolated PostgreSQL/object storage; semantic lint551 files passed. Complete new-head CI remains required. Inventory unchanged by this repair. Continue within the6-iteration/90-minute campaign block; external approval/access is a separate stop condition. |
+| Observed AWS | Read-only run41981485762 succeeded: RDS17.11 available, encrypted/private, retention1 day; latest restorable point06:36:16UTC on5 November. Lambda aliasfirst-test version2 retains historical image86183723…, functionInactive. No health request, SQL, migration or deployment occurred. The old observer's flags describe latest only; serving flags still need the corrected observer. |
+| Preserved work | Existing checkout and8 stashes. No direct AWS identity or private SQL connection configured. Historical temporary access probes are not standing infrastructure and must not be replayed. |
+| Leave-off / blocker | Finish PR125 exact-head CI and eligible source merge. Dispatch corrected main-only observation for protected `aws-test` approval. Actual SQL needs an approved private connection/probe; the existing metadata workflow cannot provide it. Retention14 days is a proposed target, not an approved or applied change. See Runbook6.2 for the bounded access/retention plan. |
 
 ### Resume in this order
 
-1. Complete and verify this follow-up PR, preserving the distinction between source/test evidence and observed AWS state.
-2. Run the manual metadata observation on reviewed main through GitHub and its existing environment approval; inspect current resource/runtime evidence.
-3. Establish an authorized private SQL path, then execute the [read-only schema inventory](backend/infrastructure/read-schema.sql) under the [runbook](docs/runbook.md#62-deployment-preparation-and-acceptance). Never request passwords in chat or infer deployed revisions from migration files.
-4. Use actual schema/grants, backup and feature configuration to finish the private migration executor and current rollout controls. Live M6 acceptance and subsequent M7/M10 work remain separate.
+1. Verify and merge PR125 only after all required exact-head gates and GitHub requirements; retain the original browser failure in Journey.
+2. Run the corrected manual metadata observer on merged main and inspect both serving/latest flags. Its GitHub environment review remains required.
+3. Establish the reviewed private SQL path and execute the catalog-only receipt; compare actual Alembic revision/grants with source before preparing migration execution.
+4. Review the foundation change set for retention1→14 days and its cost/authority before execution; verify actual retention afterward. Do not rewrite historical foundation fingerprints or claim a restore drill.
+5. Finish current-artifact publication, migration/grant/feature configuration and rollout controls from observed evidence. Live M6/provider/device acceptance remains separate.
 
 ## Current acceptance boundaries
 
