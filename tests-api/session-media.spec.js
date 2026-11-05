@@ -1,3 +1,4 @@
+import { activeMarkup, assertInert, proveActiveControl, settleMedia, appendWebmVoid } from './mediaSecurity.js'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { fetchRoute, test, expect, signIn, read, post, account, freshContext } from './fixtures.js'
@@ -163,5 +164,50 @@ test('failed conversion retains the 10 MiB camera original byte-for-byte after a
     })
     expect(stored).toEqual({ size: total, sha256: digest })
     expect((await read(fresh, `/api/sessions/${original.booking.id}/details`)).purchase.used).toBe(0)
+  } finally { await context.close() }
+})
+
+
+test('recording preview and failed preparation retain active bytes without HTML execution', async ({ page, browser }, info) => {
+  await proveActiveControl(browser)
+  await page.addInitScript(() => {
+    if (globalThis.MediaRecorder) globalThis.MediaRecorder = new Proxy(globalThis.MediaRecorder, { construct() { throw new Error('Synthetic encoder failure') } })
+  })
+  const original = await open(page, info, 'videowrite')
+  await page.getByLabel('Attach video for Recorded squat', { exact: true }).setInputFiles({ name: 'active.webm', mimeType: 'video/webm', buffer: Buffer.from(activeMarkup) })
+  await expect(page.getByRole('button', { name: 'Save Video', exact: true })).toBeEnabled()
+  expect(await settleMedia(page.locator('video'))).toBe(false)
+  await assertInert(page)
+  expect(await page.locator('video').evaluate(async video => (await fetch(video.src)).text())).toBe(activeMarkup)
+  const rejection = page.waitForResponse(response => response.url().includes('/api/session-media/intents/') && response.url().endsWith('/commit'))
+  await page.getByRole('button', { name: 'Save Video', exact: true }).click()
+  expect((await rejection).status()).toBe(422)
+  expect(await (await rejection).json()).toMatchObject({ error: { code: 'MEDIA_INVALID' } })
+  expect(await read(page, original.path)).toBeNull()
+  await page.reload()
+  await page.getByRole('button', { name: 'Manage video for Recorded squat', exact: true }).click()
+  const bytes = appendWebmVoid(readFileSync('tests/fixtures/silent-one-second.webm'), activeMarkup)
+  await page.getByLabel('Attach video for Recorded squat', { exact: true }).setInputFiles({ name: 'embedded.webm', mimeType: 'video/webm', buffer: bytes })
+  await expect(page.getByRole('button', { name: 'Save Video', exact: true })).toBeEnabled()
+  expect(await settleMedia(page.locator('video'))).toBe(true)
+  await assertInert(page)
+  const deferred = page.waitForRequest(request => request.url().endsWith('/api/session-media/intents') && request.method() === 'POST')
+  await save(page)
+  expect((await deferred).postDataJSON()).toMatchObject({ processingStatus: 'deferred', upload: { size: bytes.length } })
+  const context = await freshContext(browser, page)
+  try {
+    const fresh = await context.newPage()
+    await signIn(fresh, 'trainer', `${info.project.name}-videowrite@example.test`)
+    await fresh.goto(`/#/sessions/${original.booking.id}`)
+    await fresh.getByRole('button', { name: 'Manage video for Recorded squat', exact: true }).click()
+    expect(await settleMedia(fresh.locator('video'))).toBe(true)
+    await assertInert(fresh)
+    expect(Buffer.from(await fresh.locator('video').evaluate(async video => Array.from(new Uint8Array(await (await fetch(video.src)).arrayBuffer()))))).toEqual(bytes)
+    const review = await read(fresh, `${original.path}/review`)
+    expect(review.media).toMatchObject({ name: 'embedded.webm', type: 'video/webm', size: bytes.length })
+    await fresh.getByRole('button', { name: 'Remove saved video', exact: true }).click()
+    await fresh.getByRole('dialog').getByRole('button', { name: 'Remove Video', exact: true }).click()
+    await expect(fresh.getByRole('dialog')).toHaveCount(0)
+    expect(await read(fresh, original.path)).toBeNull()
   } finally { await context.close() }
 })

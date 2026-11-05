@@ -2,16 +2,16 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Main-branch CodeQL investigation and URI validation repair
+## Current task — Targeted security probes and security documentation split
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Investigate all nine findings in the first complete main CodeQL baseline, repair confirmed weaknesses and retain source-specific evidence for false-positive assessments. No AWS/provider/deployment changes. |
+| Outcome / scope | Complete targeted assertions/falsification probes for all eight assessed false positives, retain the URI-validation repair on PR123, and split security infrastructure from finding assessments. No AWS/provider/deployment changes. |
 | Starting evidence | PR122 merged as00bcda0 after all16 final-head verification jobs and both CodeQL language scans passed. Main scan41946923319 reports four Python/five JavaScript findings; earlier PR reports were not a complete baseline. |
-| Prepared changes | Ubuntu setup now validates every URI against exact reviewed endpoints before writing; mixed unreviewed repositories and continuations are rejected. Existing loader regression now supplies caller-controlled hashes with replaced/appended code. Existing real-API media cases exercise hostile filenames, blob-only preview and absent injected handlers while retaining persistence/recovery checks. |
-| Acceptance / budget | Mixed-repository regression reproduced old acceptance and passes after repair. All133 quality checks and636 offline infrastructure checks passed; lint, source health, Python format/lint and documentation links passed. All30 focused real-API media cases passed across desktop/phone/tablet (3.1m). Six-iteration/90-minute bounded review; complete final-head CI required before source merge. Inventories, deadlines, retries and query coverage unchanged. |
+| Prepared changes | PR123 extends actual provisioning/logging/storage checks with synthetic credential canaries, direct duration/caption sink tests, and real-browser active-content/rejection/persistence probes. `docs/security/security-infrastructure.md` owns controls; `false-positives.md` owns assessments and limits. All references updated; diagram labels shortened after render inspection. |
+| Acceptance / budget | Full1517 units/155 files and637 offline infrastructure cases passed;133 quality regressions passed. Unsafe logging/storage/source-URL/HTML-caption mutations were detected. All six new real-API content probes passed across desktop/phone/tablet; all30 adjacent media cases passed. Initial probe expectations were corrected to assert existing raw-content rejection, actual lease/review projections and explicit WebKit decoder startup for preload=none. Unit/API guards and fixtures now require1517/402 cases. Six-iteration/90-minute bounded review; complete final-head CI required. No retries, timeouts or scanner rules weakened. |
 | Preserved work | Existing checkout and8 stashes. Reused isolated Docker PostgreSQL/object storage; no production DB or live secret reads. |
-| Leave-off / blocker | Publish the validated security-review PR and inspect new-head gates. Eight findings are assessed as false positives for the traced paths; the complete rationale is in Security. Alert-management API returns403, so no dismissal/closure is claimed. |
+| Leave-off / blocker | Publish the validated consolidated update to PR123, then inspect new-head gates. Eight findings remain source-specific assessments, with evidence and limits in docs/security/false-positives.md. Alert-management API returns403, so no dismissal/closure is claimed. |
 
 ### Resume in this order
 

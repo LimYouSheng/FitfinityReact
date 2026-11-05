@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { activeMarkup, assertInert, proveActiveControl, settleMedia, appendWebmVoid } from './mediaSecurity.js'
 import { fetchRoute, test, expect, signIn, read, post, account, freshContext, confirm } from './fixtures.js'
 import { createHash } from 'node:crypto'
 
@@ -189,4 +191,55 @@ test('Admin library upload waits for reviewed publication and recovers a lost Ow
     await expect(staff.getByAltText('Exercise reference')).toBeVisible()
     expect(await staff.getByAltText('Exercise reference').evaluate(image => image.naturalWidth)).toBe(1)
   } finally { await context.close() }
+})
+
+
+test('library image and video sinks keep active file contents inert before and after persistence', async ({ page, browser }, info) => {
+  await proveActiveControl(browser)
+  await signIn(page, 'owner', account('library'))
+  for (const [type, extension] of [['image/png', 'png'], ['video/webm', 'webm']]) {
+    await page.goto('/#/exercises/new')
+    const name = `${info.project.name} inert ${extension} content`
+    await page.getByLabel('Exercise name', { exact: false }).fill(name)
+    await page.getByLabel('Photo / video', { exact: true }).setInputFiles({ name: `payload.${extension}`, mimeType: type, buffer: Buffer.from(activeMarkup) })
+    const preview = page.locator('.library-media-preview img, .library-media-preview video')
+    if (type.startsWith('video/')) {
+      const unavailable = page.getByText('This browser cannot preview this video format.', { exact: true })
+      await expect(preview.or(unavailable)).toBeVisible()
+      // WebKit honors preload=none. Start the decoder explicitly in this
+      // content probe before requiring its real error event and error UI.
+      await preview.evaluateAll(elements => elements.forEach(video => video.load()))
+      await expect(unavailable).toBeVisible()
+    } else {
+      await settleMedia(preview)
+      expect(await preview.evaluate(async element => (await fetch(element.src)).text())).toBe(activeMarkup)
+    }
+    await assertInert(page)
+    const rejection = page.waitForResponse(response => response.url().includes('/api/exercise-library/save-intents/') && response.url().endsWith('/commit'))
+    await confirm(page, 'Create Exercise')
+    expect((await rejection).status()).toBe(422)
+    expect(await (await rejection).json()).toMatchObject({ error: { code: 'MEDIA_INVALID' } })
+    expect((await catalogue(page)).items.some(item => item.name === name)).toBe(false)
+    await page.reload()
+    const bytes = type.startsWith('image/') ? Buffer.concat([png, Buffer.from(activeMarkup)]) : appendWebmVoid(readFileSync('tests/fixtures/silent-one-second.webm'), activeMarkup)
+    await page.getByLabel('Exercise name', { exact: false }).fill(name)
+    await page.getByLabel('Photo / video', { exact: true }).setInputFiles({ name: `embedded.${extension}`, mimeType: type, buffer: bytes })
+    expect(await settleMedia(preview)).toBe(true)
+    await assertInert(page)
+    await confirm(page, 'Create Exercise')
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+    const saved = (await catalogue(page)).items.find(item => item.name === name)
+    expect(saved.media).toMatchObject({ type, size: bytes.length })
+    const context = await freshContext(browser, page)
+    try {
+      const fresh = await context.newPage()
+      await signIn(fresh, 'owner', account('library'))
+      await fresh.goto(`/#/exercises/${saved.id}`)
+      const stored = fresh.locator('.library-media-preview img, .library-media-preview video')
+      expect(await settleMedia(stored)).toBe(true)
+      await assertInert(fresh)
+      const retained = await stored.evaluate(async element => Array.from(new Uint8Array(await (await fetch(element.src)).arrayBuffer())))
+      expect(Buffer.from(retained)).toEqual(bytes)
+    } finally { await context.close() }
+  }
 })

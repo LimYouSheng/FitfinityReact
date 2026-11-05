@@ -15,7 +15,7 @@ sys.path[:0] = [str(ROOT), str(ROOT / "infrastructure")]
 SUITES = {
     "verify-db-access.py": 151,
     "verify-db-migrations.py": 42,
-    "verify-auth-secrets.py": 37,
+    "verify-auth-secrets.py": 38,
     "verify-foundation-plan.py": 9,
     "verify-foundation-execute.py": 12,
     "verify-egress-preflight.py": 10,

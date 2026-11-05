@@ -1144,7 +1144,13 @@ class DiagnosticChecks(unittest.TestCase):
             # independently configured ImageConfig pin.
             payload["SOURCE_SHA256"] = hashlib.sha256(source.encode()).hexdigest()
             with self.subTest(source_length=len(source)), self.transport() as c:
-                with patch("builtins.exec") as execute:
+                execute = Mock()
+                loader_globals = next(
+                    route.endpoint.__globals__ for route in c.app.routes if route.path == "/events"
+                )
+                # Scope the spy to the loader; mocking builtins.exec also breaks
+                # unrelated lazy imports when this test runs independently.
+                with patch.dict(loader_globals, {"exec": execute}):
                     proof = c.post("/events", json=payload).json()
                     execute.assert_not_called()
                     self.assertFalse(proof["ok"])
