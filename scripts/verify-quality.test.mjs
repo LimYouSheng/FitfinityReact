@@ -67,6 +67,7 @@ const mutations = [
   ['lost frontend aggregate dependency', setup => { setup.verify.jobs.frontend.needs.pop() }],
 
   ['missing dependency consistency gate', setup => { const step = setup.verify.jobs.quality.steps.find(item => item.run?.includes('npm run verify:dependencies')); step.run = step.run.replace('npm run verify:dependencies', '') }],
+  ['floating API browser runner', setup => { setup.verify.jobs['api-browser-shard']['runs-on'] = 'ubuntu-latest' }],
   ['missing reviewed Ubuntu source selection', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('prepare-browser-apt.py')) }],
   ['missing API browser engines', setup => { setup.verify.jobs['api-browser-shard'].steps = setup.verify.jobs['api-browser-shard'].steps.filter(step => !step.run?.includes('playwright install')) }],
 
@@ -380,6 +381,7 @@ test('unexpected Ubuntu source format is rejected without modifying repositories
     const file = path.join(dir, 'ubuntu.sources')
     for (const input of [
       'URIs: https://unreviewed.example/ubuntu/\nSigned-By: /keyring.gpg\n',
+      'URIs: https://secret-user:secret-password@unreviewed.example/private-token?secret-query=1\n',
       ...['https://unreviewed.example/ubuntu/', 'https://archive.ubuntu.com.evil.example/ubuntu/', 'https://evil.example/archive.ubuntu.com/ubuntu/', 'https://archive.ubuntu.com@evil.example/ubuntu/', 'https://archive.ubuntu.com/ubuntu/?redirect=evil', 'https://archive.ubuntu.com:444/ubuntu/'].map(uri => `URIs: https://archive.ubuntu.com/ubuntu/\nSigned-By: /keyring.gpg\n\nURIs: ${uri}\nSigned-By: /keyring.gpg\n`),
       'URIs: https://archive.ubuntu.com/ubuntu/\n https://unreviewed.example/ubuntu/\n',
       'URIs: https://archive.ubuntu.com/ubuntu/\n\nURIs:https://unreviewed.example/ubuntu/\n',
@@ -389,6 +391,7 @@ test('unexpected Ubuntu source format is rejected without modifying repositories
       const result = spawnSync('python3', ['scripts/prepare-browser-apt.py', file], { encoding: 'utf8' })
       assert.notEqual(result.status, 0)
       assert.match(result.stderr, /Unexpected Ubuntu source layout/)
+      assert.doesNotMatch(result.stderr, /secret-user|secret-password|private-token|secret-query/)
       assert.equal(fs.readFileSync(file, 'utf8'), input)
     }
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }

@@ -20,7 +20,8 @@ Repository inputs unchanged; status reviewed **3 November 2026 Singapore**. PR12
 | RDS engine configuration | PostgreSQL 17.11 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json); desired configuration, not a current live query |
 | Isolated S3-compatible test storage | `ghcr.io/rustfs/rustfs:1.0.3@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b` | Compose; synthetic test media only, not production S3 |
 | Frontend CI host | `macos-15` | verify.yml; runner image/tool patches change outside this repository |
-| Backend/API/release CI host | `ubuntu-latest` | Workflows; alias floats; latest investigated run used Ubuntu 24.04.5 image20261025.353 |
+| API browser CI host | `ubuntu-24.04` | verify.yml; explicit OS baseline, hosted image/package patches still change |
+| Other backend/release CI hosts | `ubuntu-latest` | Other workflow jobs retain the rolling alias; observed API failure before pinning used Ubuntu26.04.1 image20261101.64.1 on AWS |
 | Browser system packages | Installed by Playwright through APT; exact versions not locked | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) selects official main archive; signing keys and suites retained |
 | Perl/OpenSSL build floors | `perl-base >=5.40.1-6+deb13u1`; `libssl3t64 >=3.5.7-1~deb13u2` | Dockerfile runs APT upgrade then checks these minimums; actual installed versions may be newer |
 
@@ -435,7 +436,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [backend/compose.yaml](../backend/compose.yaml) | `37c4bda2719b16fd16632803ef5b786bb13068f71a551dc28ae565196a9d6754` |
 | [backend/compose.browser.yaml](../backend/compose.browser.yaml) | `b0a7da6ed501b990f3536e3043b8a175fd53206d1e3d3fefcd744b9201f77a8a` |
 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
-| [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) | `fdb93ce3f4a636e30a8553183f0b42bae8737c29d7c0d553a0ecf93fe124c1c0` |
+| [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) | `971764bfb3dba3e89d4261424f33c5a4cbdfc50c988d34a233d0fefd0b5f6c07` |
 | [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `8cac2acb8dde0e980c70aac9dc286f97224e1695672511b759168a472c3f1fed` |
 | [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `53fd7514b330737ed79152df7afd64dd1d9902f527eed8b52ff68cb807177205` |
 | [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `a2d2b24bd9988c02c69085a58eefd2670ec2d3526c25f8a2059bb3b5cd159336` |
@@ -446,6 +447,6 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `b9747b9151994f9137b8632d058c81c0ae8d4a8fc55eccc191505d66152b4039` |
 | [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `9b95b45934b3d72e34227547426b7aa88d3f0b41d4b4f315a3e05703a9180bdd` |
 | [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `b82ab304be4d2b27774c916ecc27b52b9f2f7b399f00df17d305957a57b46a36` |
-| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `7fc1f13951e3bd9ec8db6d128d4a0bbc2c06897545d96c5e6e518d4c3804aad9` |
+| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `16341849f91180872a8c16f28f04f0b2ed3db40af6951fb4a41446e566cc61cf` |
 
 Browser-source helper fingerprint: `scripts/prepare-browser-apt.py` SHA-256 `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f`. PR117 replaces the unreachable US regional archive with the official main archive; package suites, signing keys, runner label and Playwright version are unchanged.

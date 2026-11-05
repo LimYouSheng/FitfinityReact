@@ -1,8 +1,10 @@
 """Use Ubuntu's main archive without changing suites, keys or package policy."""
 
+import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ARCHIVE = "https://archive.ubuntu.com/ubuntu/"
 REVIEWED_ARCHIVES = {
@@ -18,6 +20,18 @@ REVIEWED_SECURITY = {
 }
 
 
+def reject(reason, uri=None):
+    # Never echo repository credentials, paths, queries or arbitrary source lines.
+    detail = {"reason": reason}
+    if uri is not None:
+        try:
+            parsed = urlsplit(uri)
+            detail.update(scheme=parsed.scheme, host=parsed.hostname)
+        except ValueError:
+            detail["uri"] = "unparseable"
+    raise SystemExit("Unexpected Ubuntu source layout; no source changes written: " + json.dumps(detail))
+
+
 def main():
     source = Path(sys.argv[1])
     original = source.read_text()
@@ -31,7 +45,7 @@ def main():
         # Deb822 supports continuation lines: reject them for URIs rather than
         # validating only the first URI and leaving an extra repository behind.
         if uri_field and line.startswith((" ", "\t")):
-            raise SystemExit("Unexpected Ubuntu source layout; no source changes written")
+            reject("URI continuation")
         match = re.fullmatch(r"(URIs:[ \t]*)([^\r\n]*?)([ \t]*)(\r?\n)?", line, re.I)
         uri_field = match is not None
         if match:
@@ -40,10 +54,10 @@ def main():
                 line = match[1] + ARCHIVE + match[3] + (match[4] or "")
                 archive_found = True
             elif uri not in REVIEWED_SECURITY:
-                raise SystemExit("Unexpected Ubuntu source layout; no source changes written")
+                reject("unreviewed URI", uri)
         replacement.append(line)
     if not archive_found:
-        raise SystemExit("Unexpected Ubuntu source layout; no source changes written")
+        reject("no reviewed archive")
     updated = "".join(replacement)
     if updated != original:
         source.write_text(updated)

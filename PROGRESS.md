@@ -2,25 +2,23 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Close PR125 verification and AWS observation gaps
+## Current task — Stabilize real-API browser runner selection
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Settle the failed browser verification, publish accurate latest/serving configuration and catalog tooling, and establish concrete next steps for private schema observation and backup retention. |
-| Starting evidence | PR125 on `fix/release-observation-schema`, based on merged PR124/main574fd95. Headb673805 passed frontend/backend, CodeQL and release preparation; application run41981766901 failed one phone/Admin exercise-library case. |
-| Prepared changes | Separate latest/serving Lambda summaries and read-only SQL inventory. The library test now scrolls the removal control before click stability checks and explicitly verifies attachment removal and enabled Save before persistence. No retries, forced clicks or timeout increases. |
-| Acceptance / budget | Existing9 focused PostgreSQL,659 offline infrastructure and144 quality cases passed. All6 focused Owner/Admin real-API media cases passed across desktop/phone/tablet with isolated PostgreSQL/object storage; semantic lint551 files passed. Complete new-head CI remains required. Inventory unchanged by this repair. Continue within the6-iteration/90-minute campaign block; external approval/access is a separate stop condition. |
-| Observed AWS | Read-only run41981485762 succeeded: RDS17.11 available, encrypted/private, retention1 day; latest restorable point06:36:16UTC on5 November. Lambda aliasfirst-test version2 retains historical image86183723…, functionInactive. No health request, SQL, migration or deployment occurred. The old observer's flags describe latest only; serving flags still need the corrected observer. |
-| Preserved work | Existing checkout and8 stashes. No direct AWS identity or private SQL connection configured. Historical temporary access probes are not standing infrastructure and must not be replayed. |
-| Leave-off / blocker | Finish PR125 exact-head CI and eligible source merge. Dispatch corrected main-only observation for protected `aws-test` approval. Actual SQL needs an approved private connection/probe; the existing metadata workflow cannot provide it. Retention14 days is a proposed target, not an approved or applied change. See Runbook6.2 for the bounded access/retention plan. |
+| Outcome / scope | Repair the fresh-main browser setup failure after PR125; retain strict APT validation and complete browser/database coverage. |
+| Starting evidence | PR125 merged as2c2ec3c after all exact-head gates passed. Fresh-main run41990213211 failed API shard2 before tests: unreviewed Ubuntu APT layout on AWS-hosted Ubuntu26.04.1 image20261101.64.1. Azure-hosted shard1 used26.04.1 image20261101.186.1 and passed. |
+| Prepared changes | Branch`fix/api-runner-baseline`: API shards select`ubuntu-24.04`, with a guard rejecting a floating runner; APT rejection prints only reason/scheme/host, excluding credentials/path/query. Repository allowlists, signatures, suites, timeouts and test inventory stay intact. |
+| Acceptance / budget | All145 quality/guard cases passed, including source rejection/redaction and floating-runner rejection; lint551 files and dependency/version consistency passed. Complete final-head CI remains required. The failed runner did not record its source file; exact rejected URI/layout remains unknown. Pinning the OS reduces drift but does not pin provider/image patches. No claim that all Ubuntu26 runners fail. |
+| AWS checkpoint | Corrected read-only observation41990257797 succeeded; no new approval is pending for that run. Schema/grants, private SQL access, proposed retention14 days and current-source rollout remain separate operational tasks under Runbook6.2. No AWS mutation or live SQL in this repair. |
+| Preserved work / next | Existing checkout and8 stashes preserved. Finish local guards, publish this repair, inspect all exact-head gates and merge when eligible. Inspect new main CI separately; do not rerun unchanged main to hunt for a favorable runner. |
 
 ### Resume in this order
 
-1. Verify and merge PR125 only after all required exact-head gates and GitHub requirements; retain the original browser failure in Journey.
-2. Run the corrected manual metadata observer on merged main and inspect both serving/latest flags. Its GitHub environment review remains required.
-3. Establish the reviewed private SQL path and execute the catalog-only receipt; compare actual Alembic revision/grants with source before preparing migration execution.
-4. Review the foundation change set for retention1→14 days and its cost/authority before execution; verify actual retention afterward. Do not rewrite historical foundation fingerprints or claim a restore drill.
-5. Finish current-artifact publication, migration/grant/feature configuration and rollout controls from observed evidence. Live M6/provider/device acceptance remains separate.
+1. Verify the explicit runner candidate and diagnostics with complete CI; retain the original main failure and exact runner differences in Journey.
+2. Merge only after the three required gates and GitHub requirements; inspect fresh-main verification.
+3. Review corrected AWS observation receipt, establish the authorized private catalog query path and compare actual schema/grants with source.
+4. Review the proposed retention1→14 foundation-only change set and current-artifact deployment controls separately; no live/provider/device acceptance is implied.
 
 ## Current acceptance boundaries
 
