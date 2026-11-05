@@ -163,6 +163,12 @@ The image retains its commit/run/attempt binding, exact AWS account/role checks,
 
 ### 6.2 Deployment preparation and acceptance
 
+[Prepare developer AWS release evidence](../.github/workflows/aws-release-prepare.yml) runs on PRs targeting main, main pushes and manual dispatch. Two independent jobs prepare the exact checkout: an API-mode same-origin frontend/PWA bundle with per-file hashes and a source migration inventory, and the production Docker `runtime` target for `linux/amd64` (including the Lambda adapter). Artifacts retain source SHA, run/attempt, logs and image inspection for14 days. No AWS credentials, ECR push, database connection or hosting change occurs. These jobs have20/35-minute limits and a separate cancellable concurrency group; they do not wait for `aws-test` approval or replace the three application gates/CodeQL. A PR receipt identifies GitHub's tested merge SHA; obtain new main evidence after merge.
+
+Read `release-readiness.json` before planning rollout. It deliberately records **HOLD**, even when preparation succeeds: migration-chain integrity and a build are not deployed compatibility. The retained bootstrap contract ends at20260924_0006 and the original private runtime binds its historical source; current migrations and their hashes are listed independently. Do not modify those historical fingerprints to authorize a new application release. The frontend artifact is a preparation candidate, not yet accepted by a current hosting rollout consumer. The runtime job retains build identity, not a deployable saved image or vulnerability scan; the separately authorized image-publication workflow still builds/scans the exact published candidate.
+
+Next release work must bind observed account/resources, current deployed schema/digest/configuration and a recoverable backup; prove a populated upgrade from that schema; implement/review a non-bootstrap migration and runtime/frontend rollout with rollback boundaries; then authorize the exact action. Existing manual hosting/private-runtime recovery modes must not be replayed as a current release recipe. Real Cognito/provider effects and physical-device UAT follow the verified rollout. Preparation does not satisfy these remaining steps.
+
 | Step | Required evidence |
 | --- | --- |
 | Bind target | Actual AWS account/region and existing Lambda, API, Cognito, database, bucket and frontend identities; stop on mismatch |

@@ -2,23 +2,23 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Message status badges and direct session-review links
+## Current task — Actions release preparation on PR124
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Show closed renewal notices as grey statuses beside Read/Unread, including the popup; ready-for-review session notices offer only their exact permitted session link. |
-| Starting evidence | PR123 merged as e0ecc3a; fresh-main verification41957060696 and CodeQL41957060518 passed. The requested bounded logic/security review found no new confirmed defect; evidence is retained in Journey and PR124. |
-| Prepared changes | Reuse neutral StatusBadge and the existing status column, with narrow-screen layout. Seed session notices carry explicit session IDs; saved demo notices recover an ID only from one matching completed client/trainer/date record, persisted before publication. Unrelated and ambiguous notices are not guessed from text. |
-| Acceptance / budget | One additional migration unit case; unit inventory becomes1518/155 files. Existing message-link and browser cases now verify exact navigation, grey badges, adjacency and retained recovery. All1518 units,133 quality checks, lint/source health and15 desktop/phone/tablet browser cases passed; receipts belong in Journey. Complete new-head CI remains required. No backend/API contract or dependency change. |
-| Preserved work | Existing checkout and8 stashes retained. PR124 includes the preceding review checkpoint and these follow-up UI changes. No production database, AWS or provider actions. |
-| Leave-off / blocker | Finish focused/full-unit checks, publish the consolidated PR124 update and inspect exact-head CI. M6 developer AWS/provider/device acceptance remains open; the broader approval-vetting design remains deferred. |
+| Outcome / scope | Build all currently safe release preparation through credential-free Actions on PR124, preserving its renewal status/session-link changes. No live AWS dispatch is included. |
+| Starting evidence | PR124 branch `docs/post-merge-review`, prior head9e77e36; main e0ecc3a. Bounded logic/security and UI evidence are retained in Journey. |
+| Prepared changes | Parallel API frontend/schema inventory and production Lambda-image build; exact-source receipts, failure artifacts and explicit deployment HOLD. Historical migration/runtime/hosting contracts are preserved. |
+| Acceptance / budget | 645 offline infrastructure and139 quality/guard cases passed, including8 new migration/report probes and6 workflow rejections; lint, Python lint, source health and dependency consistency passed. Exact-head Actions preparation/full CI remains pending; preparation jobs20/35 minutes. |
+| Preserved work | Existing checkout and8 stashes retained; no AWS credentials, production database or provider action. Existing image publication remains separately protected. |
+| Leave-off / blocker | Validate and push the consolidated PR124 changes, then inspect complete new-head CI and both preparation jobs. Current populated migration and runtime/hosting rollout are not yet implemented; existing operators bind historical releases. |
 
 ### Resume in this order
 
-1. Verify PR124's message UI changes and complete exact-head CI before eligible source merge.
-2. Agree on the deferred approval-vetting UI design before implementing it; preserve exact-intent and recovery safeguards.
-3. Prepare the current-source developer AWS release and M6 Cognito/device/recovery acceptance under the existing separate authorization boundary.
-4. After M6 external acceptance, scope M7 durable events, scheduling/notifications and media processing/retention. Prioritize the M10 mutation/latency and security-maintenance work below alongside that plan.
+1. Validate PR124 preparation and existing message UI changes through complete exact-head CI before eligible source merge; obtain fresh-main evidence separately.
+2. Use the [runbook release procedure](docs/runbook.md#62-deployment-preparation-and-acceptance) to bind current AWS read-only evidence and prepare a populated upgrade, backup/recovery and current runtime/frontend rollout. Do not replay historical bootstrap/recovery operators.
+3. Execute only the separately authorized release, then complete M6 real Cognito/device/recovery acceptance. Agree on deferred approval-vetting UI design before implementation.
+4. After M6 external acceptance, scope M7 durable events, scheduling/notifications and media processing/retention; schedule M10 work below by its dependencies.
 
 ## Current acceptance boundaries
 

@@ -21,16 +21,30 @@ export function readQualitySetup(root = process.cwd()) {
     infrastructure: parse(read('.github/workflows/infrastructure.yml')),
     image: parse(read('.github/workflows/aws-image.yml')),
     acceptance: parse(read('.github/workflows/aws-image-accept.yml')),
+    preparation: parse(read('.github/workflows/aws-release-prepare.yml')),
     packageJson: JSON.parse(read('package.json')),
     lock: JSON.parse(read('package-lock.json')),
   }
 }
 
-export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, packageJson, lock }) {
+export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, preparation, packageJson, lock }) {
   for (const event of ['pull_request', 'push']) {
     if (!equal(pages.on?.[event]?.branches, ['main']) || Object.keys(pages.on[event]).some(key => key !== 'branches')) fail(`${event} must run all gates for main without path filtering`)
   }
   if (Object.hasOwn(pages.on, 'pull_request_target')) fail('PR checks must use pull_request')
+  if (!equal(preparation.permissions, { contents: 'read' }) || Object.hasOwn(preparation.on, 'pull_request_target')) fail('release preparation must be credential-free')
+  if (!equal(Object.keys(preparation.jobs).sort(), ['frontend-and-schema', 'runtime-build'])) fail('release preparation jobs differ')
+  for (const job of Object.values(preparation.jobs)) {
+    if (job.needs || job.if || job.environment || job.secrets || job.permissions || job['continue-on-error'] || job['timeout-minutes'] > 60) fail('release preparation must run concurrently without deployment authority')
+    for (const step of job.steps) {
+      if (step.uses && !/^actions\/(checkout|setup-node|upload-artifact)@[0-9a-f]{40}$/.test(step.uses)) fail('unexpected action in credential-free release preparation')
+      if (/secrets\.|id-token|configure-aws-credentials|docker push|deploy\.py/.test(JSON.stringify(step))) fail('release preparation must not deploy or receive credentials')
+      if (step.uses?.startsWith('actions/checkout@') && step.with?.['persist-credentials'] !== false) fail('release preparation must not persist credentials')
+      if (step.uses?.startsWith('actions/upload-artifact@') && step.if !== 'always()') fail('release preparation must retain failures')
+    }
+  }
+  requireGate(preparation.jobs['frontend-and-schema'], 'python3 backend/infrastructure/release_readiness.py')
+  requireGate(preparation.jobs['runtime-build'], 'docker build --pull --platform linux/amd64 --target runtime')
   const caller = pages.jobs?.verify
   if (caller?.uses !== './.github/workflows/verify.yml' || caller.if != null || caller.secrets != null || caller['continue-on-error']) fail('PR and main must call the complete verification workflow unconditionally')
   if (!Object.hasOwn(verify.on ?? {}, 'workflow_call') || !equal(verify.permissions, { contents: 'read' })) fail('shared verification must be callable with read-only repository access')
