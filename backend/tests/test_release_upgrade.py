@@ -199,3 +199,100 @@ def test_read_only_schema_receipt_reports_actual_revision_without_business_rows(
     assert "Synthetic Owner" not in json.dumps(receipt)
     assert owner(engine) == before
     assert revision(engine) == target
+
+
+@pytest.mark.parametrize("target", [BASE, HEAD])
+def test_private_catalog_probe_preserves_real_database_and_redacts_rows(outgoing, target):
+    import hashlib
+
+    from app.schema_probe import SQL, observe
+
+    engine, kwargs = outgoing
+    if target == HEAD:
+        upgrade_existing(engine, **kwargs)
+    before = owner(engine)
+    receipt = observe(
+        engine.url.render_as_string(hide_password=False),
+        expected_database=kwargs["expected_database"],
+        expected_user=kwargs["expected_user"],
+        sql_sha256=hashlib.sha256(SQL.read_bytes()).hexdigest(),
+    )
+    assert receipt["alembic_revisions"] == [target]
+    assert receipt["transaction_read_only"] == "on"
+    assert "Synthetic Owner" not in str(receipt)
+    assert "owner@example.test" not in str(receipt)
+    assert owner(engine) == before
+    assert revision(engine) == target
+
+
+def test_probe_refuses_wrong_identity_and_changed_sql_without_mutation(outgoing):
+    import hashlib
+
+    from app.schema_probe import SQL, ObservationRefused, observe
+
+    engine, kwargs = outgoing
+    arguments = dict(
+        expected_database=kwargs["expected_database"],
+        expected_user=kwargs["expected_user"],
+        sql_sha256=hashlib.sha256(SQL.read_bytes()).hexdigest(),
+    )
+    before = owner(engine)
+    for key, value in [
+        ("expected_database", "foreign"),
+        ("expected_user", "foreign"),
+        ("sql_sha256", "0" * 64),
+    ]:
+        with pytest.raises(ObservationRefused):
+            observe(engine.url.render_as_string(hide_password=False), **{**arguments, key: value})
+        assert owner(engine) == before
+        assert revision(engine) == BASE
+
+
+def test_probe_read_only_session_rejects_even_digest_bound_write(outgoing, monkeypatch, tmp_path):
+    import hashlib
+
+    from app import schema_probe
+
+    engine, kwargs = outgoing
+    before = owner(engine)
+    # Use an unconstrained synthetic table: staff deletion is independently blocked
+    # by domain triggers and cannot prove this session's read-only protection.
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE probe_write_guard (id integer PRIMARY KEY)"))
+        connection.execute(text("INSERT INTO probe_write_guard VALUES (1)"))
+        assert connection.execute(text("DELETE FROM probe_write_guard")).rowcount == 1
+        connection.execute(text("INSERT INTO probe_write_guard VALUES (1)"))
+    script = tmp_path / "bad.sql"
+    script.write_text("DELETE FROM probe_write_guard;")
+    monkeypatch.setattr(schema_probe, "SQL", script)
+    with pytest.raises(schema_probe.ObservationRefused):
+        schema_probe.observe(
+            engine.url.render_as_string(hide_password=False),
+            expected_database=kwargs["expected_database"],
+            expected_user=kwargs["expected_user"],
+            sql_sha256=hashlib.sha256(script.read_bytes()).hexdigest(),
+        )
+    assert owner(engine) == before
+    with engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM probe_write_guard")) == 1
+
+
+def test_probe_missing_schema_fails_without_bootstrap(database_url):
+    import hashlib
+
+    from app.schema_probe import SQL, ObservationRefused, observe
+
+    url = make_url(database_url)
+    with pytest.raises(ObservationRefused, match="Catalog observation failed"):
+        observe(
+            database_url,
+            expected_database=url.database,
+            expected_user=url.username,
+            sql_sha256=hashlib.sha256(SQL.read_bytes()).hexdigest(),
+        )
+    engine = create_engine(database_url, poolclass=NullPool)
+    try:
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT to_regclass('public.alembic_version')")) is None
+    finally:
+        engine.dispose()

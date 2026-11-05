@@ -59,8 +59,8 @@ export function verifyBackendGroups(reports, identity) {
     groups.add(report.group)
     assert.deepEqual(report.identity, identity)
     assert.equal(report.exitstatus, 0)
-    assert.equal(report.inventory.length, 1431)
-    assert.equal(new Set(report.inventory).size, 1431)
+    assert.equal(report.inventory.length, 1445)
+    assert.equal(new Set(report.inventory).size, 1445)
     inventories.push([...report.inventory].sort())
     assert.deepEqual([...new Set(report.inventory.map(id => id.split('::')[0]))].sort(), Object.values(ownership).flat().sort())
     const expected = report.inventory.filter(id => ownership[report.group].includes(id.split('::')[0])).sort()
@@ -78,7 +78,7 @@ export function verifyBackendGroups(reports, identity) {
     for (const id of expected) { assert.ok(!seen.has(id)); seen.add(id) }
   }
   for (const inventory of inventories) assert.deepEqual(inventory, inventories[0])
-  assert.equal(seen.size, 1431)
+  assert.equal(seen.size, 1445)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

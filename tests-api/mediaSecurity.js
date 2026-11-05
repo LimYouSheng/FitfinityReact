@@ -22,12 +22,29 @@ export async function proveActiveControl(browser) {
 export async function settleMedia(locator) {
   await expect(locator).toHaveAttribute('src', /^blob:/)
   return locator.evaluate(element => new Promise(resolve => {
-    const finish = () => { element.removeEventListener('load', finish); element.removeEventListener('error', finish); element.removeEventListener('loadedmetadata', finish); resolve(element instanceof HTMLImageElement ? element.naturalWidth > 0 : element.readyState > 0) }
+    const finish = event => {
+      element.removeEventListener('load', finish)
+      element.removeEventListener('error', finish)
+      element.removeEventListener('loadedmetadata', finish)
+      resolve(event?.type !== 'error' && (element instanceof HTMLImageElement
+        ? element.naturalWidth > 0
+        : !element.error && element.readyState > 0
+          && Number.isFinite(element.duration) && element.duration > 0
+          && element.videoWidth > 0 && element.videoHeight > 0))
+    }
     element.addEventListener('load', finish, { once: true })
     element.addEventListener('error', finish, { once: true })
     element.addEventListener('loadedmetadata', finish, { once: true })
-    if (element instanceof HTMLImageElement ? element.complete : element.error || element.readyState > 0) finish()
-    else if (element instanceof HTMLVideoElement) element.load()
+    if (element instanceof HTMLImageElement) {
+      if (element.complete) finish()
+    } else if (element instanceof HTMLVideoElement) {
+      // Some decoders expose SVG as a zero-duration image track; metadata alone
+      // does not establish a playable video. Require duration and dimensions above.
+      // Reset any metadata belonging to the previous src and explicitly request
+      // decoding: application previews intentionally use preload=none.
+      element.preload = 'metadata'
+      element.load()
+    }
   }))
 }
 

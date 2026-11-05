@@ -2,23 +2,23 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Record backup restriction and defer retention to client AWS
+## Current task — Private schema-probe preparation and PR127 CI repair
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | User decision: retain the developer account's observed one-day backup setting; defer14-day retention until account-plan upgrade and migration to client AWS. Documentation only; no further AWS update, account upgrade or migration authorized by this entry. |
-| Starting evidence | PR126 merged asc2774c8 after complete exact-head application41993136952, CodeQL41993136771 and release-preparation41993136983 verification. Fresh-main verification is separate. |
-| AWS checkpoint | User executed the retention-only CloudFormation change on5 November. AWS rejected14 days because it exceeds the current Free Tier account-plan limit. Subsequent user-supplied RDS output: available, retention1, pending modifications empty. Last supplied stack state: UPDATE_ROLLBACK_IN_PROGRESS; completion is not yet confirmed. |
-| Prepared changes | Reconcile BR-058, Runbook, Data Lifecycle and Security with the deferred client-account target; preserve the failed execution and guard correction in Journey. No infrastructure template, applied migration, IAM or runtime change. |
-| Acceptance / budget | Changed documentation links/fences, consistency and diff-whitespace checks passed; unchanged executable behavior needs no new test cases or inventory changes. New source head still requires existing CI. |
-| Preserved work / next | Existing checkout and8 stashes preserved. Confirm foundation rollback completion read-only before any future foundation write. Continue private schema/grant and developer deployment readiness independently; retention14 is deferred to the client AWS migration work. |
+| Outcome / scope | Prepare a separate private, read-only catalog probe before developer deployment; retain one-day developer backups and defer14 days to upgraded client AWS. No AWS resources or invocations performed in this change. |
+| Checkout / PR | Existing branch `docs/defer-client-backup-retention`, PR127; published head e0f8627 failed application41998625129. Consolidated probe, browser repairs and documentation are prepared for the next PR127 head; its new CI results are not yet available. Eight existing stashes preserved. |
+| AWS checkpoint | User confirmed UPDATE_ROLLBACK_COMPLETE after the Free Tier retention rejection. Supplied RDS observation remains available, retention1, pending changes empty. Metadata observation41990257797 succeeded; actual schema/grants remain unobserved. |
+| Prepared changes | Separate fixed-intent schema-probe entry point and offline HOLD template, packaged catalog SQL, isolated PostgreSQL/security regressions and synchronized inventories. Browser repairs establish active service-worker/cache preconditions and explicitly load video metadata with positive-duration/dimension checks. |
+| Acceptance / budget | Focused probe/upgrade23 cases pass after strengthening the write-denial regression; removing read-only protection makes that regression fail. Infrastructure667 and source/inventory checks passed before final review. Authentication and media cases each pass desktop/phone/tablet;145 quality guards pass. Final Python source/OpenAPI/stable-inventory checks and frontend551-file lint passed; new-head CI remains pending. Full new-head CI required; no assertion reductions, retries or timeout changes. |
+| Blockers / handover | Current private subnet/security-group/secret references, scanned image/source binding, operator permissions, eligibility/cost and explicit temporary-resource execution review remain outstanding. The offline template does not deploy, invoke or clean up resources. |
 
 ### Resume in this order
 
-1. Publish and verify this documentation change; inspect fresh-main verification after the PR126 runner repair separately.
-2. Confirm the developer foundation reaches UPDATE_ROLLBACK_COMPLETE; database availability alone does not establish stack recovery. Do not replay either old change set.
-3. Continue the authorized private catalog-query path and compare actual schema/grants with source; corrected AWS metadata observation41990257797 already succeeded.
-4. After account-plan upgrade and migration to the identified client AWS account, verify plan eligibility, destination resources, backup-storage pricing and actual settings; prepare a newly reviewed retention14 change and verify the result. Never reuse developer-account plans/ARNs. Retain a separate populated restore drill and measured recovery objectives before client handover.
+1. Complete focused media regression, final source/guard/documentation checks and consolidated PR127 publication. Preserve both original CI failures. Fresh-main PR126 application41997933423, CodeQL41997933199 and preparation41997933252 passed.
+2. Verify complete exact-head required CI before source merge; reconcile the handover with actual results.
+3. Bind the private probe to current AWS identities/artifact and review the concrete create/invoke/cleanup plan before authorized execution. Do not replay bootstrap, rejected retention plans or expose RDS publicly.
+4. Compare the resulting catalog with source before preparing migration/rollout. Client migration retains separate14-day eligibility/cost checks and populated restore acceptance.
 
 ## Current acceptance boundaries
 

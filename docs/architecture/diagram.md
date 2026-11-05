@@ -61,6 +61,8 @@ flowchart TB
 
 API errors never switch to demo. Dependency updates pass the same final-head gates; Dependabot does not authorize automatic merging. Telemetry export must avoid sensitive data and isolate exporter failures from application behavior. New instrumentation, dashboards and operations automation remain planned; existing infrastructure alone does not establish operational acceptance.
 
+The prepared private schema observer is a separate temporary Lambda entry point using the selected private RDS boundary; it is not connected to API Gateway or the staff app. Its offline HOLD template and tests do not establish deployment. Current network/image/secret bindings and separately authorized creation, invocation and cleanup remain prerequisites; see [Runbook6.2](../runbook.md#62-deployment-preparation-and-acceptance).
+
 ## Isolated real-API testing and planned measurement
 
 ```mermaid
