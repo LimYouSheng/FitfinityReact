@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { exerciseLibraryMedia } from '../../services/exerciseLibraryMedia.js'
 import ExerciseLibraryMedia from './ExerciseLibraryMedia.jsx'
@@ -22,4 +22,30 @@ it('reports missing stored media and handles leaving before a pending load resol
   const second = render(<ExerciseLibraryMedia onLoad={exerciseLibraryMedia.load} media={{ id: 'later', type: 'image/png' }} />)
   second.unmount(); finish(new Blob(['photo']))
   await waitFor(() => expect(URL.createObjectURL).not.toHaveBeenCalled())
+})
+
+it('rejects unusable video metadata, preserves playable previews and recovers on replacement', async () => {
+  const file = name => new File(['synthetic'], name, { type: 'video/webm' })
+  const view = render(<ExerciseLibraryMedia file={file('initial.webm')} />)
+  for (const [duration, videoWidth, videoHeight, invalid] of [
+    [0, 1, 1, true], [NaN, 640, 360, true], [Infinity, 640, 360, false],
+    [1, 0, 360, true], [1, 640, 0, true], [1, 640, 360, false],
+  ]) {
+    view.rerender(<ExerciseLibraryMedia file={file(`${duration}-${videoWidth}-${videoHeight}.webm`)} />)
+    await waitFor(() => expect(view.container.querySelector('video')).not.toBeNull())
+    const video = view.container.querySelector('video')
+    Object.defineProperties(video, {
+      duration: { value: duration }, videoWidth: { value: videoWidth }, videoHeight: { value: videoHeight },
+    })
+    fireEvent.loadedMetadata(video)
+    if (invalid) {
+      expect(screen.getByRole('alert')).toHaveTextContent('This browser cannot preview this video format.')
+      expect(view.container.querySelector('video')).toBeNull()
+    } else {
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      expect(view.container.querySelector('video')).toBe(video)
+      fireEvent.error(video)
+      expect(screen.getByRole('alert')).toHaveTextContent('This browser cannot preview this video format.')
+    }
+  }
 })
