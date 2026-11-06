@@ -2,23 +2,21 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Private schema-probe preparation and PR127 CI repair
+## Current task — Exercise Library video-preview repair after main CI failure
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Prepare a separate private, read-only catalog probe before developer deployment; retain one-day developer backups and defer14 days to upgraded client AWS. No AWS resources or invocations performed in this change. |
-| Checkout / PR | Existing branch `docs/defer-client-backup-retention`, PR127; published head e0f8627 failed application41998625129. Consolidated probe, browser repairs and documentation are prepared for the next PR127 head; its new CI results are not yet available. Eight existing stashes preserved. |
-| AWS checkpoint | User confirmed UPDATE_ROLLBACK_COMPLETE after the Free Tier retention rejection. Supplied RDS observation remains available, retention1, pending changes empty. Metadata observation41990257797 succeeded; actual schema/grants remain unobserved. |
-| Prepared changes | Separate fixed-intent schema-probe entry point and offline HOLD template, packaged catalog SQL, isolated PostgreSQL/security regressions and synchronized inventories. Browser repairs establish active service-worker/cache preconditions and explicitly load video metadata with positive-duration/dimension checks. |
-| Acceptance / budget | Focused probe/upgrade23 cases pass after strengthening the write-denial regression; removing read-only protection makes that regression fail. Infrastructure667 and source/inventory checks passed before final review. Authentication and media cases each pass desktop/phone/tablet;145 quality guards pass. Final Python source/OpenAPI/stable-inventory checks and frontend551-file lint passed; new-head CI remains pending. Full new-head CI required; no assertion reductions, retries or timeout changes. |
-| Blockers / handover | Current private subnet/security-group/secret references, scanned image/source binding, operator permissions, eligibility/cost and explicit temporary-resource execution review remain outstanding. The offline template does not deploy, invoke or clean up resources. |
+| Outcome / scope | Show the existing unavailable-preview message for unusable video metadata as well as decoder errors; retain active-content, server-rejection and persistence assertions. No upload policy, backend contract or AWS change. |
+| Checkout / PR | Branch `fix/library-video-preview` from main1425ec8. PR127 merged after all final-head gates passed. Its fresh-main application run42043490623 failed one phone Exercise Library case; CodeQL42043490488 and release preparation42043490606 passed. New repair PR pending publication. |
+| Cause / repair | The library component handled only media error events. WebKit can expose SVG as a zero-duration image track, so metadata readiness does not establish playable video. Reject missing/nonpositive duration or missing video dimensions; the browser test explicitly requests metadata despite preload=none. |
+| Acceptance / budget | One new unit case fails before repair and passes after, covering invalid metadata, playable media, decoder errors and replacement recovery. Focused component/refresh11 tests pass. Full units1519/155 passed before the final WebM compatibility refinement; affected11 tests passed afterward. Final three-profile real-API regression3/3,145 quality guards,551-file lint and changed-doc links/fences passed. Complete exact-head CI remains required. One bounded repair block, unchanged retries/timeouts and browser coverage. |
+| Preserved state / blockers | Eight existing stashes preserved. Private schema probe is merged source only, not deployed/invoked. Current network/secret/image bindings, eligibility/cost and separate create/invoke/cleanup review remain outstanding. Developer retention remains1 day after user-confirmed rollback completion. |
 
 ### Resume in this order
 
-1. Complete focused media regression, final source/guard/documentation checks and consolidated PR127 publication. Preserve both original CI failures. Fresh-main PR126 application41997933423, CodeQL41997933199 and preparation41997933252 passed.
-2. Verify complete exact-head required CI before source merge; reconcile the handover with actual results.
-3. Bind the private probe to current AWS identities/artifact and review the concrete create/invoke/cleanup plan before authorized execution. Do not replay bootstrap, rejected retention plans or expose RDS publicly.
-4. Compare the resulting catalog with source before preparing migration/rollout. Client migration retains separate14-day eligibility/cost checks and populated restore acceptance.
+1. Complete local verification, publish the coherent repair and inspect full exact-head CI before merge.
+2. Verify fresh main separately and reconcile the acceptance checkpoint; do not treat PR127's passed pre-merge run as a passed main run.
+3. Resume reviewed private-schema probe activation planning before migration/rollout. Do not replay bootstrap or rejected retention plans;14 days remains deferred to upgraded client AWS.
 
 ## Current acceptance boundaries
 
