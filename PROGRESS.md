@@ -2,21 +2,22 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Exercise Library video-preview repair after main CI failure
+## Current task — PR128 async-test repair and two cleanup/review rounds
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Show the existing unavailable-preview message for unusable video metadata as well as decoder errors; retain active-content, server-rejection and persistence assertions. No upload policy, backend contract or AWS change. |
-| Checkout / PR | Branch `fix/library-video-preview` from main1425ec8. PR127 merged after all final-head gates passed. Its fresh-main application run42043490623 failed one phone Exercise Library case; CodeQL42043490488 and release preparation42043490606 passed. New repair PR pending publication. |
-| Cause / repair | The library component handled only media error events. WebKit can expose SVG as a zero-duration image track, so metadata readiness does not establish playable video. Reject missing/nonpositive duration or missing video dimensions; the browser test explicitly requests metadata despite preload=none. |
-| Acceptance / budget | One new unit case fails before repair and passes after, covering invalid metadata, playable media, decoder errors and replacement recovery. Focused component/refresh11 tests pass. Full units1519/155 passed before the final WebM compatibility refinement; affected11 tests passed afterward. Final three-profile real-API regression3/3,145 quality guards,551-file lint and changed-doc links/fences passed. Complete exact-head CI remains required. One bounded repair block, unchanged retries/timeouts and browser coverage. |
-| Preserved state / blockers | Eight existing stashes preserved. Private schema probe is merged source only, not deployed/invoked. Current network/secret/image bindings, eligibility/cost and separate create/invoke/cleanup review remain outstanding. Developer retention remains1 day after user-confirmed rollback completion. |
+| Outcome / scope | Complete the Exercise Library metadata repair, synchronize two premature unit assertions with observable async completion, remove proven unused exports and consolidate directory ordering without changing role scope. |
+| Checkout / PR | Existing checkout restored from old clean branch `work` to `fix/library-video-preview` at PR128 head8e92866. Consolidated follow-up is prepared for publication; no stashes are present in this resumed environment. Prior records of eight stashes do not establish their presence here; no saved work was deleted. |
+| CI checkpoint | PR128 run42180755679 failed two units (Admin Back navigation and historical Trainer video loading);1517/1519 passed. All browser profiles, both real-API shards, backend, CodeQL42180755910 and release preparation42180755462 passed. No merge yet. |
+| Round1 / Round2 | Round1 removes caller-free activeClients/WEEKLY_FREQUENCIES exports and fixes async assertions;73 focused tests pass. Round2 consolidates private directory comparators;12 focused cases and2880 original/refactored ordering/scope comparisons pass. Second single-reference export scan found no candidates; backend top-level undecorated-function scan found none. Static candidate checks are not proof of exhaustive dead-code removal. |
+| Acceptance / budget | Semantic lint551 files, source-health/import/layer/cycle checks (262 runtime modules) and145 quality guards pass. Full1519-unit/155-file suite passed in84.35s; build and dependency consistency passed. One bounded two-round cleanup; preserve all suites, inventories, timeouts and deployment boundaries. New full exact-head CI remains required. |
+| Deployment handover | Private schema probe remains merged source only, not deployed/invoked. Current network/secret/image bindings, eligibility/cost and create/invoke/cleanup review remain outstanding. Developer retention remains1 day after user-confirmed rollback completion;14 days is deferred to upgraded client AWS. |
 
 ### Resume in this order
 
-1. Complete local verification, publish the coherent repair and inspect full exact-head CI before merge.
-2. Verify fresh main separately and reconcile the acceptance checkpoint; do not treat PR127's passed pre-merge run as a passed main run.
-3. Resume reviewed private-schema probe activation planning before migration/rollout. Do not replay bootstrap or rejected retention plans;14 days remains deferred to upgraded client AWS.
+1. Finish consolidated local verification and update PR128 with the repair and both cleanup receipts.
+2. Verify all exact-head gates and GitHub requirements before merge; inspect fresh main separately.
+3. Resume the private-schema probe activation plan before migration/rollout; no bootstrap or rejected retention-plan replay.
 
 ## Current acceptance boundaries
 
