@@ -8,6 +8,7 @@ import re
 from copy import deepcopy
 
 from deployment_profile import DEVELOPER, identities
+from release_features import prepare as prepare_features
 from release_observation import digest, require
 
 
@@ -19,6 +20,9 @@ def prepare(
     image_digest,
     frontend_sha256,
     profile=DEVELOPER,
+    feature_values=None,
+    boundary_template=None,
+    boundary_template_sha256=None,
 ):
     target_identity = identities(profile)
     uri = target_identity["registry"] + "/" + target_identity["image_repository"]
@@ -35,6 +39,11 @@ def prepare(
         "Function identity differs",
     )
     require(properties["PackageType"] == "Image", "Image runtime required")
+    require(
+        type(properties.get("ReservedConcurrentExecutions")) is int
+        and properties["ReservedConcurrentExecutions"] >= 0,
+        "Explicit runtime concurrency required",
+    )
     previous_image = properties["Code"]["ImageUri"]
     require(
         re.fullmatch(re.escape(uri) + r"@sha256:[0-9a-f]{64}", previous_image),
@@ -58,11 +67,29 @@ def prepare(
         attribute == "Version" and resources[old_id]["Type"] == "AWS::Lambda::Version",
         "Previous version is missing",
     )
-    new_id = "ReleaseVersion" + source_sha
-    require(new_id not in resources, "Candidate version already exists; inspect before resuming")
-    candidate = deepcopy(template)
+    feature_review = None
+    if feature_values is not None:
+        feature_review = prepare_features(
+            template,
+            feature_values,
+            profile=profile,
+            boundary_template=boundary_template,
+            boundary_template_sha256=boundary_template_sha256,
+        )
+    else:
+        require(
+            boundary_template is None and boundary_template_sha256 is None,
+            "Boundary changes require an explicit feature review",
+        )
+    candidate = (
+        deepcopy(feature_review["candidate_template"]) if feature_review else deepcopy(template)
+    )
     target = candidate["Resources"]
     target["ApiFunction"]["Properties"]["Code"] = {"ImageUri": uri + "@" + image_digest}
+    target["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 0
+    configuration = {"runtime": target["ApiFunction"]["Properties"], "frontend": frontend_sha256}
+    new_id = "ReleaseVersion" + source_sha + digest(configuration)[:16]
+    require(new_id not in resources, "Candidate version already exists; inspect before resuming")
     target[new_id] = {
         "Type": "AWS::Lambda::Version",
         "DeletionPolicy": "Retain",
@@ -84,8 +111,10 @@ def prepare(
     # Keep the new version managed even when rolling code/assets back. Never remove resources.
     rollback = deepcopy(template)
     rollback["Resources"][new_id] = deepcopy(target[new_id])
+    rollback["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 0
     return {
         "deployment_decision": "HOLD",
+        **({"feature_review": feature_review} if feature_review else {}),
         "profile_sha256": target_identity["profile_sha256"],
         "source_sha": source_sha,
         "base_template_sha256": observed_template_sha256,
@@ -93,6 +122,7 @@ def prepare(
         "rollback_template": rollback,
         "preserved_resource_ids": sorted(resources),
         "migration": "Separate reviewed forward-only upgrade; no downgrade on code rollback",
+        "traffic": "Keep concurrency zero through forward/rollback; separately review resumption",
         "required_before_execution": [
             "Fresh observed stack/configuration and no unexpected change-set replacement/deletion",
             "Exact image scan/provenance and frontend manifest verification",

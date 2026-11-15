@@ -31,25 +31,34 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(self.template, original)
         candidate = result["candidate_template"]["Resources"]
         self.assertEqual(result["deployment_decision"], "HOLD")
-        self.assertEqual(set(candidate) - set(original["Resources"]), {"ReleaseVersion" + "c" * 40})
+        version = candidate["ApiAlias"]["Properties"]["FunctionVersion"]["Fn::GetAtt"][0]
+        self.assertRegex(version, r"^ReleaseVersionc{40}[0-9a-f]{16}$")
+        self.assertEqual(set(candidate) - set(original["Resources"]), {version})
         for name, resource in original["Resources"].items():
             if name not in {"ApiFunction", "ApiAlias", "Distribution"}:
                 self.assertEqual(candidate[name], resource)
         before = original["Resources"]["ApiFunction"]["Properties"]
         after = candidate["ApiFunction"]["Properties"]
         self.assertEqual(
-            {k: v for k, v in before.items() if k != "Code"},
-            {k: v for k, v in after.items() if k != "Code"},
+            {k: v for k, v in before.items() if k not in {"Code", "ReservedConcurrentExecutions"}},
+            {k: v for k, v in after.items() if k not in {"Code", "ReservedConcurrentExecutions"}},
         )
         self.assertEqual(after["Code"]["ImageUri"], URI + "@sha256:" + "d" * 64)
+        self.assertEqual(after["ReservedConcurrentExecutions"], 0)
 
     def test_rollback_keeps_all_versions_and_original_alias_assets(self):
         result = prepare(self.template, **self.arguments)
         rollback = result["rollback_template"]["Resources"]
         for name, resource in self.template["Resources"].items():
-            self.assertEqual(rollback[name], resource)
+            expected = deepcopy(resource)
+            if name == "ApiFunction":
+                expected["Properties"]["ReservedConcurrentExecutions"] = 0
+            self.assertEqual(rollback[name], expected)
         self.assertEqual(set(rollback), set(result["candidate_template"]["Resources"]))
-        self.assertEqual(rollback["ReleaseVersion" + "c" * 40]["DeletionPolicy"], "Retain")
+        version = result["candidate_template"]["Resources"]["ApiAlias"]["Properties"][
+            "FunctionVersion"
+        ]["Fn::GetAtt"][0]
+        self.assertEqual(rollback[version]["DeletionPolicy"], "Retain")
         self.assertIn("no downgrade", result["migration"])
 
     def test_stale_observation_refused(self):
@@ -101,6 +110,7 @@ class PlanTests(unittest.TestCase):
                     "Type": "AWS::Lambda::Function",
                     "Properties": {
                         "FunctionName": "client-prod-staff-api",
+                        "ReservedConcurrentExecutions": 2,
                         "PackageType": "Image",
                         "Code": {"ImageUri": uri + "@sha256:" + "f" * 64},
                     },
@@ -150,10 +160,6 @@ class PlanTests(unittest.TestCase):
         )
         with self.assertRaises(RuntimeError):
             prepare(template, **{**self.arguments, "observed_template_sha256": digest(template)})
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class MaintenanceTests(unittest.TestCase):
@@ -422,3 +428,7 @@ class MaintenanceOperatorTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 operator.fetch_prior("123", Path("/tmp/synthetic"), self.profile)
             download.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()
