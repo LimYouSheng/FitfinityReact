@@ -211,6 +211,84 @@ class PortableHostingTests(unittest.TestCase):
             )
         )
 
+    def test_enabled_features_match_target_resources_and_minimal_provider_permissions(self):
+        for profile in (CLIENT, DEVELOPER):
+            values = self.values(profile)
+            values["features"] = {"media": True, "invitations": True, "email_changes": True}
+            result = self.render(profile, values)
+            resources = result["Resources"]
+            env = resources["ApiFunction"]["Properties"]["Environment"]["Variables"]
+            self.assertEqual(env["FITFINITY_MEDIA_ENABLED"], "true")
+            self.assertEqual(env["FITFINITY_STAFF_INVITATIONS_ENABLED"], "true")
+            self.assertEqual(env["FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED"], "true")
+            self.assertEqual(
+                env["FITFINITY_STAFF_PORTAL_URL"],
+                {"Fn::Sub": "https://${Distribution.DomainName}/"},
+            )
+            bucket = (
+                profile["resource_prefix"]
+                + "-media-"
+                + profile["account"]
+                + "-"
+                + profile["region"]
+            )
+            self.assertEqual(env["FITFINITY_MEDIA_BUCKET"], bucket)
+            statements = resources["RuntimeBoundary"]["Properties"]["PolicyDocument"]["Statement"]
+            providers = [
+                item
+                for item in statements
+                if any(action.startswith(("s3:", "cognito-idp:")) for action in item["Action"])
+            ]
+            self.assertEqual(
+                providers,
+                [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "cognito-idp:DescribeUserPool",
+                            "cognito-idp:AdminGetUser",
+                            "cognito-idp:AdminCreateUser",
+                        ],
+                        "Resource": (
+                            f"arn:aws:cognito-idp:{profile['region']}:{profile['account']}"
+                            f":userpool/{values['pool']}"
+                        ),
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+                        "Resource": [
+                            f"arn:aws:s3:::{bucket}/library/*",
+                            f"arn:aws:s3:::{bucket}/recordings/*",
+                        ],
+                    },
+                ],
+            )
+            self.assertEqual(
+                resources["ApiRole"]["Properties"]["Policies"][0]["PolicyDocument"],
+                resources["RuntimeBoundary"]["Properties"]["PolicyDocument"],
+            )
+
+    def test_closed_features_have_no_provider_access_and_reject_ambiguous_flags(self):
+        result = self.render()
+        statements = result["Resources"]["RuntimeBoundary"]["Properties"]["PolicyDocument"][
+            "Statement"
+        ]
+        self.assertFalse(
+            any(
+                action.startswith(("s3:", "cognito-idp:"))
+                for item in statements
+                for action in item["Action"]
+            )
+        )
+        for flags in (
+            {"media": True},
+            {"media": "false", "invitations": False, "email_changes": False},
+            {"media": False, "invitations": False, "email_changes": False, "unknown": True},
+        ):
+            with self.assertRaises(RuntimeError):
+                self.render(values={**self.values(), "features": flags})
+
     def test_new_image_publishes_distinct_version_and_alias_tracks_it(self):
         first = self.render()
         values = self.values()
@@ -277,3 +355,69 @@ class PortableHostingTests(unittest.TestCase):
             ],
             "eu-west-1",
         )
+
+
+class MaintenanceAccessTests(unittest.TestCase):
+    def test_two_target_roles_have_exact_identity_and_no_deploy_or_secret_permissions(self):
+        from portable_services import maintenance_access
+
+        for profile in (DEVELOPER, CLIENT):
+            result = maintenance_access(profile)
+            resources = result["Resources"]
+            self.assertEqual(set(resources), {"MaintenanceRole", "MaintenanceBoundary"})
+            role = resources["MaintenanceRole"]["Properties"]
+            self.assertEqual(role["RoleName"], profile["resource_prefix"] + "-github-maintenance")
+            access = role["Policies"][0]["PolicyDocument"]
+            self.assertEqual(
+                access, resources["MaintenanceBoundary"]["Properties"]["PolicyDocument"]
+            )
+            rules = access["Statement"]
+            actions = {
+                action
+                for row in rules
+                for action in (
+                    row["Action"] if isinstance(row["Action"], list) else [row["Action"]]
+                )
+            }
+            self.assertEqual(
+                actions,
+                {
+                    "sts:GetCallerIdentity",
+                    "lambda:GetFunction",
+                    "lambda:GetFunctionConcurrency",
+                    "lambda:PutFunctionConcurrency",
+                    "lambda:TagResource",
+                    "rds:DescribeDBInstances",
+                    "rds:CreateDBSnapshot",
+                    "rds:AddTagsToResource",
+                    "rds:DescribeDBSnapshots",
+                    "rds:ListTagsForResource",
+                },
+            )
+            self.assertEqual(
+                rules[1]["Resource"],
+                f"arn:aws:lambda:{profile['region']}:{profile['account']}:function:{profile['resource_prefix']}-staff-api",
+            )
+            self.assertEqual(
+                rules[-1]["Resource"],
+                f"arn:aws:rds:{profile['region']}:{profile['account']}:snapshot:{profile['resource_prefix']}-release-*",
+            )
+            trust = role["AssumeRolePolicyDocument"]["Statement"][0]["Condition"]["StringEquals"]
+            self.assertEqual(
+                trust["token.actions.githubusercontent.com:sub"],
+                "repo:"
+                + profile["github_repository"]
+                + ":environment:"
+                + profile["github_environment"],
+            )
+            self.assertEqual(
+                rules[2]["Condition"]["ForAllValues:StringEquals"]["aws:TagKeys"],
+                ["FitfinityMaintenance", "FitfinitySnapshot"],
+            )
+
+    def test_client_maintenance_template_contains_no_developer_resource_bindings(self):
+        from portable_services import maintenance_access
+
+        rendered = json.dumps(maintenance_access(CLIENT))
+        for old in ("418638389566", "fitfinity-test", "ap-southeast-1", "LimYouSheng"):
+            self.assertNotIn(old, rendered)

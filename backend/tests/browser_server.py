@@ -21,6 +21,7 @@ import uvicorn
 from alembic import command
 from cryptography.hazmat.primitives.asymmetric import rsa
 from psycopg import sql
+from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from starlette.concurrency import run_in_threadpool
@@ -45,6 +46,7 @@ from app.models.training import (
     PurchasePreference,
 )
 from app.persistence import acknowledge, add_client, add_purchase
+from app.runtime_grants import reconcile
 from tests.domain_fixtures import person, purchase_parts
 from tests.media_fixtures import isolated_media
 from tests.test_package_reactivation_review import freeze
@@ -871,6 +873,9 @@ def browser_app(control):
     with psycopg.connect(dsn, autocommit=True) as connection:
         connection.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
     db = None
+    runtime_role = "fitfinity_browser_" + uuid4().hex
+    runtime_password = secrets.token_urlsafe(32)
+    role_created = False
     try:
         settings = Settings(
             _env_file=None,
@@ -899,6 +904,45 @@ def browser_app(control):
             engine.dispose()
         db = Database(settings)
         allowed_users = seed(db, settings)
+        with db.engine.begin() as connection:
+            with connection.connection.driver_connection.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL("CREATE ROLE {} LOGIN NOINHERIT PASSWORD {}").format(
+                        sql.Identifier(runtime_role), sql.Literal(runtime_password)
+                    )
+                )
+                cursor.execute(
+                    sql.SQL("REVOKE ALL ON DATABASE {} FROM PUBLIC").format(sql.Identifier(name))
+                )
+                cursor.execute(
+                    sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
+                        sql.Identifier(name), sql.Identifier(runtime_role)
+                    )
+                )
+                cursor.execute(
+                    sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(
+                        sql.Identifier(runtime_role)
+                    )
+                )
+            reconcile(
+                connection,
+                expected_migrator=control.username,
+                target_revision=next(iter(expected_revisions())),
+                runtime_role=runtime_role,
+                apply=True,
+            )
+        role_created = True
+        db.close()
+        settings = settings.model_copy(
+            update={
+                "database_url": SecretStr(
+                    control.set(
+                        database=name, username=runtime_role, password=runtime_password
+                    ).render_as_string(hide_password=False)
+                )
+            }
+        )
+        db = Database(settings)
         provider = BrowserIdentityProvider(settings, allowed_users)
         app = create_app(settings)
 
@@ -935,6 +979,8 @@ def browser_app(control):
             connection.execute(
                 sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(name))
             )
+            if role_created:
+                connection.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(runtime_role)))
 
 
 def main():

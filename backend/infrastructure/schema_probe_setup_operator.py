@@ -14,6 +14,7 @@ ACCOUNT = TARGET["account"]
 REGION = TARGET["region"]
 STACK = TARGET["setup_stack"]
 ROLE = TARGET["operator_role"]
+POLICY_NAME = TARGET.get("lifecycle_policy", "ProbeLifecycle")
 
 
 def require(value, message):
@@ -61,7 +62,7 @@ def verify_role(template, call):
         and role.get("AssumeRolePolicyDocument") == props["AssumeRolePolicyDocument"],
         "Created operator trust or boundary differs",
     )
-    inline = call("iam", "get-role-policy", "--role-name", ROLE, "--policy-name", "ProbeLifecycle")
+    inline = call("iam", "get-role-policy", "--role-name", ROLE, "--policy-name", POLICY_NAME)
     require(
         inline.get("PolicyDocument") == props["Policies"][0]["PolicyDocument"],
         "Operator policy differs",
@@ -72,8 +73,7 @@ def verify_role(template, call):
         "Unexpected attached operator policies",
     )
     require(
-        call("iam", "list-role-policies", "--role-name", ROLE).get("PolicyNames")
-        == ["ProbeLifecycle"],
+        call("iam", "list-role-policies", "--role-name", ROLE).get("PolicyNames") == [POLICY_NAME],
         "Unexpected inline operator policies",
     )
     for name in ("RuntimeBoundary", "OperatorBoundary"):

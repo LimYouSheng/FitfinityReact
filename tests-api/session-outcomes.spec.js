@@ -91,6 +91,7 @@ test('lost committed outcome freezes measured fields and focus refresh recovers 
   await expect(panel.getByLabel('Load (kg) for Measured squat', { exact: true })).toBeDisabled()
   await expect(panel.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled()
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect(page.getByRole('heading', { name: 'Session outcome', exact: true, level: 1 })).toBeVisible()
   await page.getByRole('button', { name: 'Check original outcome', exact: true }).click()
   await expect(page.getByText('Original session outcome confirmed.', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => window.outcomeWrites)).toBe(1)

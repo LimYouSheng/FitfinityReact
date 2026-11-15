@@ -510,8 +510,49 @@ test('a newer patched minimatch override is accepted only with matching lock res
   validateDependencies(state)
 })
 
-for (const name of ['image', 'preparation', 'observation', 'schemaProbe']) test(`deployment ${name} rejects missing repository target configuration`, () => {
+for (const name of ['image', 'preparation', 'observation', 'schemaProbe', 'schemaUpgrade', 'maintenance']) test(`deployment ${name} rejects missing repository target configuration`, () => {
   const setup = readQualitySetup()
   delete setup[name].env.FITFINITY_DEPLOYMENT_TARGETS_JSON
   assert.throws(() => verifyQualitySetup(setup), /deployment target configuration/)
+})
+
+
+test('upgrade workflow rejects bypassed activation and missing durable receipt retention', () => {
+  const activation = readQualitySetup()
+  delete activation.schemaUpgrade.jobs.upgrade.if
+  assert.throws(() => verifyQualitySetup(activation), /schema upgrade must be manual/)
+  const receipt = readQualitySetup()
+  delete receipt.schemaUpgrade.jobs.upgrade.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if
+  assert.throws(() => verifyQualitySetup(receipt), /retain failed and uncertain receipts/)
+})
+test('upgrade workflow rejects probe-role substitution and credentials before evidence', () => {
+  const role = readQualitySetup()
+  role.schemaUpgrade.jobs.target.outputs.role = '${{ steps.target.outputs.role }}'
+  assert.throws(() => verifyQualitySetup(role), /separate target role/)
+  const ordering = readQualitySetup()
+  const steps = ordering.schemaUpgrade.jobs.upgrade.steps
+  const index = steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
+  steps.unshift(...steps.splice(index, 1))
+  assert.throws(() => verifyQualitySetup(ordering), /evidence must precede AWS/)
+})
+
+
+test('maintenance rejects removed activation and failed-receipt guards', () => {
+  const activation = structuredClone(readQualitySetup())
+  delete activation.maintenance.jobs.maintenance.if
+  assert.throws(() => verifyQualitySetup(activation), /maintenance must be manual/)
+  const receipt = structuredClone(readQualitySetup())
+  delete receipt.maintenance.jobs.maintenance.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if
+  assert.throws(() => verifyQualitySetup(receipt), /maintenance must retain/)
+})
+
+test('maintenance rejects a foreign role and credentials before artifact validation', () => {
+  const role = structuredClone(readQualitySetup())
+  role.maintenance.jobs.target.outputs.role = '${{ steps.target.outputs.role }}'
+  assert.throws(() => verifyQualitySetup(role), /separate target role/)
+  const ordering = structuredClone(readQualitySetup())
+  const steps = ordering.maintenance.jobs.maintenance.steps
+  const credentials = steps.splice(steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@')), 1)[0]
+  steps.unshift(credentials)
+  assert.throws(() => verifyQualitySetup(ordering), /evidence must precede/)
 })

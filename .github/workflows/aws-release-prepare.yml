@@ -10,6 +10,14 @@ on:
         description: Deployment target name in repository configuration
         required: false
         type: string
+      maintenance_bindings:
+        description: Optional exact maintenance review JSON; metadata only
+        required: false
+        type: string
+      upgrade_bindings:
+        description: 'Optional reviewed populated-upgrade bindings JSON; metadata only'
+        required: false
+        type: string
       probe_bindings:
         description: 'Optional reviewed probe bindings JSON (metadata only; never secret values)'
         required: false
@@ -61,6 +69,30 @@ jobs:
           python3 backend/infrastructure/schema_probe_plan.py \
             "$RUNNER_TEMP/probe-bindings.json" "$RUNNER_TEMP/schema-probe-review" \
             --source-sha "$GITHUB_SHA" --profile "$DEPLOYMENT_PROFILE"
+      - name: Prepare optional private schema upgrade review
+        if: github.event_name == 'workflow_dispatch' && inputs.upgrade_bindings != ''
+        env:
+          UPGRADE_BINDINGS: ${{ inputs.upgrade_bindings }}
+          DEPLOYMENT_PROFILE: ${{ steps.target.outputs.profile }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$UPGRADE_BINDINGS" > "$RUNNER_TEMP/upgrade-bindings.json"
+          python3 backend/infrastructure/schema_upgrade_plan.py \
+            "$RUNNER_TEMP/upgrade-bindings.json" "$RUNNER_TEMP/schema-upgrade-review" \
+            --source-sha "$GITHUB_SHA" --profile "$DEPLOYMENT_PROFILE"
+      - name: Prepare optional maintenance review
+        if: github.event_name == 'workflow_dispatch' && inputs.maintenance_bindings != ''
+        env:
+          MAINTENANCE_BINDINGS: ${{ inputs.maintenance_bindings }}
+          DEPLOYMENT_PROFILE: ${{ steps.target.outputs.profile }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$MAINTENANCE_BINDINGS" > "$RUNNER_TEMP/maintenance-bindings.json"
+          python3 backend/infrastructure/maintenance_operator.py prepare \
+            --bindings "$RUNNER_TEMP/maintenance-bindings.json" \
+            --output "$RUNNER_TEMP/maintenance-review" --profile "$DEPLOYMENT_PROFILE"
       - name: Explain release boundary
         if: always()
         shell: bash
@@ -81,6 +113,8 @@ jobs:
             ${{ runner.temp }}/release-prepare.log
             ${{ runner.temp }}/release-frontend/dist-api-test/
             ${{ runner.temp }}/schema-probe-review/
+            ${{ runner.temp }}/schema-upgrade-review/
+            ${{ runner.temp }}/maintenance-review/
           if-no-files-found: error
           retention-days: 14
   runtime-build:

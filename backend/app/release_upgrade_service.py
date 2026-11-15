@@ -111,6 +111,7 @@ def create_app():
                 from_revision=start,
                 to_revision=end,
                 deadline=expires,
+                runtime_role="fitfinity_app",
             )
         finally:
             engine.dispose()

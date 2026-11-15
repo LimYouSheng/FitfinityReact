@@ -132,6 +132,7 @@ def test_managed_factory_uses_only_migrator_and_always_disposes_engine(monkeypat
         from_revision=START,
         to_revision=END,
         deadline=200,
+        runtime_role="fitfinity_app",
     )
     engine.dispose.assert_called_once_with()
 

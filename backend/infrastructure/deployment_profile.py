@@ -118,6 +118,7 @@ def identities(profile):
         ),
         "hosting_stack": prefix + "-login",
         "hosting_role": prefix + "-github-hosting",
+        "maintenance_role": prefix + "-github-maintenance",
         "image_repository": prefix + "-api",
         "image_role": prefix + "-github-image",
         "environment_tag": target["secret_prefix"].split("/")[1],
@@ -169,7 +170,11 @@ def observation_policy(profile):
             },
             {
                 "Effect": "Allow",
-                "Action": ["lambda:GetFunction", "lambda:GetAlias"],
+                "Action": [
+                    "lambda:GetFunction",
+                    "lambda:GetAlias",
+                    "lambda:GetFunctionConcurrency",
+                ],
                 "Resource": [function, function + ":*"],
             },
             {
@@ -206,7 +211,9 @@ def workflow_target(name, repository, root=None, *, configuration=None):
         "region": target["region"],
         "role": f"arn:aws:iam::{target['account']}:role/{target['operator_role']}",
         "image_role": f"arn:aws:iam::{target['account']}:role/{target['image_role']}",
+        "upgrade_role": f"arn:aws:iam::{target['account']}:role/{target['upgrade_operator_role']}",
         "hosting_role": f"arn:aws:iam::{target['account']}:role/{target['hosting_role']}",
+        "maintenance_role": f"arn:aws:iam::{target['account']}:role/{target['maintenance_role']}",
         "observation_policy": json.dumps(observation_policy(profile), separators=(",", ":")),
     }
 

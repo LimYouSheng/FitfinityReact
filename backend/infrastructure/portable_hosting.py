@@ -5,9 +5,9 @@ import json
 import re
 
 from deployment_profile import identities, template_rules
-from hosting_design import app_template, attr, resource, waf
+from hosting_design import app_template, attr, resource, sub, waf
 from operator_checks import require
-from portable_services import policy
+from portable_services import media_bucket, policy
 
 FIELDS = {
     "database_secret",
@@ -26,7 +26,11 @@ FIELDS = {
 def bindings(profile, values):
     """Reject mixed target identities and secret values before rendering hosting."""
     target = identities(profile)
-    require(isinstance(values, dict) and set(values) == FIELDS, "Exact hosting bindings required")
+    require(
+        isinstance(values, dict) and set(values) in (FIELDS, FIELDS | {"features"}),
+        "Exact hosting bindings required",
+    )
+    features(values)
     account, region = target["account"], target["region"]
     secret_root = (
         rf"arn:aws:secretsmanager:{re.escape(region)}:{account}:secret:"
@@ -68,6 +72,19 @@ def bindings(profile, values):
     return target
 
 
+def features(values):
+    """Keep optional provider features closed until each boolean is explicitly reviewed."""
+    names = {"media", "invitations", "email_changes"}
+    result = values.get("features", dict.fromkeys(names, False))
+    require(
+        isinstance(result, dict)
+        and set(result) == names
+        and all(type(value) is bool for value in result.values()),
+        "Exact boolean feature configuration required",
+    )
+    return result
+
+
 def runtime_access(target, values):
     """Limit runtime secrets/logging and prevent application use of Lambda ENI privileges."""
     account, region, function = (target[k] for k in ("account", "region", "runtime_function"))
@@ -79,6 +96,32 @@ def runtime_access(target, values):
         "ec2:AssignPrivateIpAddresses",
         "ec2:UnassignPrivateIpAddresses",
     ]
+    statements = []
+    enabled = features(values)
+    if enabled["invitations"]:
+        statements.append(
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "cognito-idp:DescribeUserPool",
+                    "cognito-idp:AdminGetUser",
+                    "cognito-idp:AdminCreateUser",
+                ],
+                "Resource": f"arn:aws:cognito-idp:{region}:{account}:userpool/{values['pool']}",
+            }
+        )
+    if enabled["media"]:
+        bucket = media_bucket(target)
+        statements.append(
+            {
+                "Effect": "Allow",
+                "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+                "Resource": [
+                    f"arn:aws:s3:::{bucket}/library/*",
+                    f"arn:aws:s3:::{bucket}/recordings/*",
+                ],
+            }
+        )
     return policy(
         [
             {
@@ -92,6 +135,7 @@ def runtime_access(target, values):
                 "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
                 "Resource": f"arn:aws:logs:{region}:{account}:log-group:/aws/lambda/{function}:*",
             },
+            *statements,
             {"Effect": "Allow", "Action": eni, "Resource": "*"},
             {
                 "Effect": "Deny",
@@ -128,6 +172,19 @@ def prepare(profile, values, *, frontend_prefix, edge_arn):
     template["Rules"] = template_rules(profile)
     template["Metadata"] = {"FitfinityProfile": target["profile_sha256"]}
     resources = template["Resources"]
+    enabled = features(values)
+    env = resources["ApiFunction"]["Properties"]["Environment"]["Variables"]
+    env.update(
+        {
+            "FITFINITY_STAFF_INVITATIONS_ENABLED": str(enabled["invitations"]).lower(),
+            "FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED": str(enabled["email_changes"]).lower(),
+            "FITFINITY_MEDIA_ENABLED": str(enabled["media"]).lower(),
+        }
+    )
+    if enabled["invitations"]:
+        env["FITFINITY_STAFF_PORTAL_URL"] = sub("https://${Distribution.DomainName}/")
+    if enabled["media"]:
+        env["FITFINITY_MEDIA_BUCKET"] = media_bucket(target)
     resources["RuntimeBoundary"] = resource(
         "IAM::ManagedPolicy",
         {

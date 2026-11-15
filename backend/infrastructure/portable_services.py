@@ -67,6 +67,13 @@ def identity(profile, *, session_hours, staff_portal_url):
     return template
 
 
+def media_bucket(target):
+    """Bind media configuration to the target storage template's retained bucket."""
+    name = f"{target['resource_prefix']}-media-{target['account']}-{target['region']}"
+    require(len(name) <= 63, "Media bucket name exceeds provider limit")
+    return name
+
+
 def storage(profile, *, browser_origin):
     """Render retained private media and immutable image storage with target-only access."""
     target = identities(profile)
@@ -83,8 +90,7 @@ def storage(profile, *, browser_origin):
         "Exact HTTPS browser origin required",
     )
     account, region, prefix = target["account"], target["region"], target["resource_prefix"]
-    bucket = f"{prefix}-media-{account}-{region}"
-    require(len(bucket) <= 63, "Media bucket name exceeds provider limit")
+    bucket = media_bucket(target)
     tags = [
         {"Key": "Application", "Value": "Fitfinity"},
         {"Key": "Environment", "Value": target["environment_tag"]},
@@ -216,30 +222,85 @@ def image_access(profile):
             },
         ]
     )
+    return access_template(profile, "Image", target["image_role"], "PublishReviewedImage", document)
+
+
+def access_template(profile, kind, role_name, policy_name, document):
+    """Keep each operator's trust and permission ceiling equal to its explicit policy."""
+    target = identities(profile)
     return {
         "AWSTemplateFormatVersion": "2010-09-09",
         "Rules": template_rules(profile),
         "Metadata": {"FitfinityProfile": target["profile_sha256"]},
         "Resources": {
-            "ImageBoundary": {
+            kind + "Boundary": {
                 "Type": "AWS::IAM::ManagedPolicy",
                 "Properties": {
-                    "ManagedPolicyName": target["image_role"] + "-boundary",
+                    "ManagedPolicyName": role_name + "-boundary",
                     "PolicyDocument": document,
                 },
             },
-            "ImageRole": {
+            kind + "Role": {
                 "Type": "AWS::IAM::Role",
                 "Properties": {
-                    "RoleName": target["image_role"],
+                    "RoleName": role_name,
                     "MaxSessionDuration": 3600,
                     "AssumeRolePolicyDocument": trust(profile),
-                    "PermissionsBoundary": {"Ref": "ImageBoundary"},
-                    "Policies": [
-                        {"PolicyName": "PublishReviewedImage", "PolicyDocument": deepcopy(document)}
-                    ],
+                    "PermissionsBoundary": {"Ref": kind + "Boundary"},
+                    "Policies": [{"PolicyName": policy_name, "PolicyDocument": deepcopy(document)}],
                 },
             },
         },
-        "Outputs": {"ImageRoleArn": {"Value": {"Fn::GetAtt": ["ImageRole", "Arn"]}}},
+        "Outputs": {kind + "RoleArn": {"Value": {"Fn::GetAtt": [kind + "Role", "Arn"]}}},
     }
+
+
+def maintenance_access(profile):
+    """Prepare a separate pause/snapshot operator with no database credential or deploy access."""
+    target = identities(profile)
+    account, region = target["account"], target["region"]
+    function = f"arn:aws:lambda:{region}:{account}:function:{target['runtime_function']}"
+    database = f"arn:aws:rds:{region}:{account}:db:{target['database']}"
+    snapshots = f"arn:aws:rds:{region}:{account}:snapshot:{target['resource_prefix']}-release-*"
+    document = policy(
+        [
+            {"Effect": "Allow", "Action": "sts:GetCallerIdentity", "Resource": "*"},
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "lambda:GetFunction",
+                    "lambda:GetFunctionConcurrency",
+                    "lambda:PutFunctionConcurrency",
+                ],
+                "Resource": function,
+            },
+            {
+                "Effect": "Allow",
+                "Action": "lambda:TagResource",
+                "Resource": function,
+                "Condition": {
+                    "ForAllValues:StringEquals": {
+                        "aws:TagKeys": ["FitfinityMaintenance", "FitfinitySnapshot"]
+                    }
+                },
+            },
+            {"Effect": "Allow", "Action": "rds:DescribeDBInstances", "Resource": database},
+            {
+                "Effect": "Allow",
+                "Action": ["rds:CreateDBSnapshot"],
+                "Resource": [database, snapshots],
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "rds:AddTagsToResource",
+                    "rds:DescribeDBSnapshots",
+                    "rds:ListTagsForResource",
+                ],
+                "Resource": snapshots,
+            },
+        ]
+    )
+    return access_template(
+        profile, "Maintenance", target["maintenance_role"], "PauseAndSnapshot", document
+    )

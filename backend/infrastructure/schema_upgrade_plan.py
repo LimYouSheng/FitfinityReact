@@ -73,7 +73,46 @@ def validate_image(review, receipt, call, *, profile, source_sha, now, migration
         now,
         profile=profile,
         required_files={
-            "backend/migrations/versions/" + row["file"]: row["sha256"]
-            for row in checked["migration_chain"]
+            **{
+                "backend/migrations/versions/" + row["file"]: row["sha256"]
+                for row in checked["migration_chain"]
+            },
+            **{
+                "backend/app/" + name: hashlib.sha256(
+                    (Path(__file__).resolve().parents[1] / "app" / name).read_bytes()
+                ).hexdigest()
+                for name in (
+                    "release_upgrade.py",
+                    "release_upgrade_service.py",
+                    "runtime_grants.py",
+                    "runtime-grants.json",
+                )
+            },
         },
     )
+
+
+def main():
+    """Write an offline review bundle from explicit metadata; do not contact AWS."""
+    import argparse
+
+    from deployment_profile import load
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("bindings", type=Path)
+    parser.add_argument("output", type=Path)
+    parser.add_argument("--profile", required=True)
+    parser.add_argument("--source-sha", required=True)
+    args = parser.parse_args()
+    result = prepare(
+        json.loads(args.bindings.read_text()),
+        profile=load(args.profile),
+        source_sha=args.source_sha,
+    )
+    args.output.mkdir(parents=True, exist_ok=False)
+    (args.output / "review.json").write_text(json.dumps(result, indent=2) + "\n")
+    print("Private upgrade review prepared; execution remains HOLD")
+
+
+if __name__ == "__main__":
+    main()

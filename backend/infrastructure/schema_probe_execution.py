@@ -49,15 +49,16 @@ def validate_image(receipt, binding, call, now, *, profile=DEVELOPER):
     )
 
 
-def preflight(binding, call, *, profile=DEVELOPER):
+def preflight(binding, call, *, profile=DEVELOPER, reserve_capacity=True):
     """Verify current private resource metadata without retrieving credentials."""
     target = identities(profile)
     account, region = target["account"], target["region"]
-    limits = call("lambda", "get-account-settings", {})
-    require(
-        limits.get("AccountLimit", {}).get("UnreservedConcurrentExecutions", 0) >= 101,
-        "Account concurrency cannot reserve one probe execution while retaining AWS headroom",
-    )
+    if reserve_capacity:
+        limits = call("lambda", "get-account-settings", {})
+        require(
+            limits.get("AccountLimit", {}).get("UnreservedConcurrentExecutions", 0) >= 101,
+            "Account concurrency cannot reserve one probe execution while retaining AWS headroom",
+        )
     databases = call("rds", "describe-db-instances", {"DBInstanceIdentifier": target["database"]})[
         "DBInstances"
     ]
@@ -104,10 +105,12 @@ def preflight(binding, call, *, profile=DEVELOPER):
     )
 
 
-def owned_stack(call, tags, template_hash, stack_id=None, *, profile=DEVELOPER):
+def owned_stack(call, tags, template_hash, stack_id=None, *, profile=DEVELOPER, purpose="probe"):
     """Refuse foreign stacks before invocation or deletion."""
     target = identities(profile)
-    account, region, name = target["account"], target["region"], target["probe_name"]
+    require(purpose in {"probe", "upgrade"}, "Unknown private worker purpose")
+    account, region = target["account"], target["region"]
+    name = target["probe_name" if purpose == "probe" else "upgrade_name"]
     rows = call("cloudformation", "describe-stacks", {"StackName": stack_id or name})["Stacks"]
     require(len(rows) == 1, "Probe stack identity differs")
     stack = rows[0]
@@ -138,6 +141,79 @@ def owned_stack(call, tags, template_hash, stack_id=None, *, profile=DEVELOPER):
     return stack
 
 
+def inspect_function(review, binding, stack, call, *, profile, purpose="probe"):
+    """Require exact private worker configuration and absence of public/event triggers."""
+    require(purpose in {"probe", "upgrade"}, "Unknown private worker purpose")
+    target = identities(profile)
+    account, region = target["account"], target["region"]
+    name = target["probe_name" if purpose == "probe" else "upgrade_name"]
+    uri = target["registry"] + "/" + target["image_repository"]
+    function = call("lambda", "get-function", {"FunctionName": name})
+    if purpose == "upgrade":
+        require(
+            isinstance(function.get("Tags"), dict) and not function.get("TagsError"),
+            "Upgrade invocation marker cannot be inspected",
+        )
+    config = function["Configuration"]
+    resource_id = "Probe" if purpose == "probe" else "Upgrade"
+    expected = review["template"]["Resources"][resource_id]["Properties"]
+    require(
+        function["Code"].get("ResolvedImageUri") == uri + "@" + binding["image_digest"]
+        and config.get("FunctionArn") == f"arn:aws:lambda:{region}:{account}:function:{name}"
+        and config.get("State") == "Active"
+        and config.get("LastUpdateStatus") == "Successful"
+        and config.get("MemorySize") == expected["MemorySize"]
+        and config.get("Timeout") == expected["Timeout"]
+        and config.get("Architectures") == expected["Architectures"]
+        and config.get("ImageConfigResponse", {}).get("ImageConfig") == expected["ImageConfig"]
+        and config.get("Environment", {}).get("Variables") == expected["Environment"]["Variables"]
+        and set(config.get("VpcConfig", {}).get("SubnetIds", []))
+        == set(expected["VpcConfig"]["SubnetIds"])
+        and set(config.get("VpcConfig", {}).get("SecurityGroupIds", []))
+        == set(expected["VpcConfig"]["SecurityGroupIds"]),
+        "Live probe configuration differs",
+    )
+    concurrency = call("lambda", "get-function-concurrency", {"FunctionName": name})
+    require(concurrency.get("ReservedConcurrentExecutions") == 1, "Probe concurrency differs")
+    role = call(
+        "cloudformation",
+        "describe-stack-resource",
+        {"StackName": stack["StackId"], "LogicalResourceId": resource_id + "Role"},
+    )["StackResourceDetail"]
+    require(
+        role.get("ResourceType") == "AWS::IAM::Role"
+        and config.get("Role")
+        == f"arn:aws:iam::{account}:role/" + role.get("PhysicalResourceId", ""),
+        "Probe execution role differs",
+    )
+    live_role = call("iam", "get-role", {"RoleName": role["PhysicalResourceId"]})["Role"]
+    role_properties = review["template"]["Resources"][resource_id + "Role"]["Properties"]
+    require(
+        live_role.get("Arn") == config["Role"]
+        and live_role.get("PermissionsBoundary", {}).get("PermissionsBoundaryArn")
+        == role_properties["PermissionsBoundary"]
+        and live_role.get("AssumeRolePolicyDocument")
+        == role_properties["AssumeRolePolicyDocument"],
+        "Live runtime role boundary or trust differs",
+    )
+    urls = call("lambda", "list-function-url-configs", {"FunctionName": name})
+    require(
+        urls.get("FunctionUrlConfigs") == [] and not urls.get("NextMarker"),
+        "Public function URL refused",
+    )
+    require(
+        call("lambda", "get-policy", {"FunctionName": name}) == {"absent": True},
+        "Probe resource policy must be absent",
+    )
+    events = call("lambda", "list-event-source-mappings", {"FunctionName": name})
+    require(
+        events.get("EventSourceMappings") == [] and not events.get("NextMarker"),
+        "Probe event source refused",
+    )
+
+    return function
+
+
 def execute(
     mode,
     review,
@@ -154,8 +230,7 @@ def execute(
 ):
     """Perform one lifecycle step without automatic mutation retries or implicit cleanup."""
     target = identities(profile)
-    account, region, name = target["account"], target["region"], target["probe_name"]
-    uri = target["registry"] + "/" + target["image_repository"]
+    account, name = target["account"], target["probe_name"]
     role_prefix = f"arn:aws:sts::{account}:assumed-role/{target['operator_role']}/"
     now = time.time() if now is None else now
     require(mode in {"create", "collect", "cleanup", "cleanup-check"}, "Unknown probe mode")
@@ -226,62 +301,7 @@ def execute(
         return {"state": "cleanup_submitted", "stack_id": stack["StackId"], "next": "cleanup-check"}
     require(status == "CREATE_COMPLETE", "Probe not ready; inspect stack before collecting")
     validate_image(image_receipt, binding, call, now, profile=profile)
-    function = call("lambda", "get-function", {"FunctionName": name})
-    config = function["Configuration"]
-    expected = review["template"]["Resources"]["Probe"]["Properties"]
-    require(
-        function["Code"].get("ResolvedImageUri") == uri + "@" + binding["image_digest"]
-        and config.get("FunctionArn") == f"arn:aws:lambda:{region}:{account}:function:{name}"
-        and config.get("State") == "Active"
-        and config.get("LastUpdateStatus") == "Successful"
-        and config.get("MemorySize") == expected["MemorySize"]
-        and config.get("Timeout") == expected["Timeout"]
-        and config.get("Architectures") == expected["Architectures"]
-        and config.get("ImageConfigResponse", {}).get("ImageConfig") == expected["ImageConfig"]
-        and config.get("Environment", {}).get("Variables") == expected["Environment"]["Variables"]
-        and set(config.get("VpcConfig", {}).get("SubnetIds", []))
-        == set(expected["VpcConfig"]["SubnetIds"])
-        and set(config.get("VpcConfig", {}).get("SecurityGroupIds", []))
-        == set(expected["VpcConfig"]["SecurityGroupIds"]),
-        "Live probe configuration differs",
-    )
-    concurrency = call("lambda", "get-function-concurrency", {"FunctionName": name})
-    require(concurrency.get("ReservedConcurrentExecutions") == 1, "Probe concurrency differs")
-    role = call(
-        "cloudformation",
-        "describe-stack-resource",
-        {"StackName": stack["StackId"], "LogicalResourceId": "ProbeRole"},
-    )["StackResourceDetail"]
-    require(
-        role.get("ResourceType") == "AWS::IAM::Role"
-        and config.get("Role")
-        == f"arn:aws:iam::{account}:role/" + role.get("PhysicalResourceId", ""),
-        "Probe execution role differs",
-    )
-    live_role = call("iam", "get-role", {"RoleName": role["PhysicalResourceId"]})["Role"]
-    role_properties = review["template"]["Resources"]["ProbeRole"]["Properties"]
-    require(
-        live_role.get("Arn") == config["Role"]
-        and live_role.get("PermissionsBoundary", {}).get("PermissionsBoundaryArn")
-        == role_properties["PermissionsBoundary"]
-        and live_role.get("AssumeRolePolicyDocument")
-        == role_properties["AssumeRolePolicyDocument"],
-        "Live runtime role boundary or trust differs",
-    )
-    urls = call("lambda", "list-function-url-configs", {"FunctionName": name})
-    require(
-        urls.get("FunctionUrlConfigs") == [] and not urls.get("NextMarker"),
-        "Public function URL refused",
-    )
-    require(
-        call("lambda", "get-policy", {"FunctionName": name}) == {"absent": True},
-        "Probe resource policy must be absent",
-    )
-    events = call("lambda", "list-event-source-mappings", {"FunctionName": name})
-    require(
-        events.get("EventSourceMappings") == [] and not events.get("NextMarker"),
-        "Probe event source refused",
-    )
+    inspect_function(review, binding, stack, call, profile=profile)
     result = call(
         "lambda",
         "invoke",

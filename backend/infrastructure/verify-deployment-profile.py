@@ -285,6 +285,7 @@ class ProfileTests(unittest.TestCase):
                 "cloudformation:GetTemplate",
                 "lambda:GetFunction",
                 "lambda:GetAlias",
+                "lambda:GetFunctionConcurrency",
                 "rds:DescribeDBInstances",
             },
         )

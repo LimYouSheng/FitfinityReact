@@ -135,6 +135,19 @@ def prepare(secret_arn, *, profile=DEVELOPER, purpose="probe"):
             allow("logs:DescribeLogGroups", "*"),
         ]
     )
+    if purpose == "upgrade":
+        operator_policy["Statement"].extend(
+            [
+                allow(
+                    ["lambda:GetFunction", "lambda:GetFunctionConcurrency"],
+                    f"arn:aws:lambda:{region}:{account}:function:{target['runtime_function']}",
+                ),
+                allow(
+                    "rds:DescribeDBSnapshots",
+                    f"arn:aws:rds:{region}:{account}:snapshot:{target['resource_prefix']}-*",
+                ),
+            ]
+        )
     trust = policy(
         [
             {
@@ -216,7 +229,7 @@ def prepare(secret_arn, *, profile=DEVELOPER, purpose="probe"):
     }
 
 
-def write_bundle(review, output):
+def write_bundle(review, output, *, purpose="probe"):
     """Package the reviewed template and tested standalone CloudShell installer."""
     target = identities(review["profile"])
     require(review["profile_sha256"] == target["profile_sha256"], "Profile fingerprint differs")
@@ -225,9 +238,16 @@ def write_bundle(review, output):
         0
     ]["Resource"]
     require(
-        template == prepare(secret, profile=review["profile"])["template"],
+        template == prepare(secret, profile=review["profile"], purpose=purpose)["template"],
         "Template differs from selected profile",
     )
+    if purpose == "upgrade":
+        target = {
+            **target,
+            "setup_stack": target["upgrade_setup_stack"],
+            "operator_role": target["upgrade_operator_role"],
+            "lifecycle_policy": "UpgradeLifecycle",
+        }
     data = json.dumps(template, sort_keys=True, separators=(",", ":")).encode()
     review = {**review, "template_sha256": hashlib.sha256(data).hexdigest()}
     output.mkdir(parents=True, exist_ok=False)
@@ -262,17 +282,21 @@ def write_bundle(review, output):
         "tfinity-probe-iam-setup/receipt.json and stack events first.') fr"
         "om None\n"
     )
+    if purpose == "upgrade":
+        entry = entry.replace("probe", "upgrade").replace("Probe", "Upgrade")
     installer = operator + entry
-    compile(installer, "fitfinity-install-probe-iam.py", "exec")
-    (output / "fitfinity-install-probe-iam.py").write_text(installer)
+    filename = f"fitfinity-install-{purpose}-iam.py"
+    compile(installer, filename, "exec")
+    (output / filename).write_text(installer)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path, required=True)
+    parser.add_argument("--purpose", choices=["probe", "upgrade"], default="probe")
     parser.add_argument("--migration-secret-arn", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    review = prepare(args.migration_secret_arn, profile=load(args.profile))
-    write_bundle(review, args.output)
+    review = prepare(args.migration_secret_arn, profile=load(args.profile), purpose=args.purpose)
+    write_bundle(review, args.output, purpose=args.purpose)
     print("IAM setup prepared locally; HOLD. No AWS calls or workflow activation.")

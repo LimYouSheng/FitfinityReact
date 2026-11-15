@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parent
 READS = {
     ("sts", "get-caller-identity"),
     ("lambda", "get-function"),
+    ("lambda", "get-function-concurrency"),
     ("lambda", "get-alias"),
     ("cloudformation", "describe-stacks"),
     ("cloudformation", "get-template"),
@@ -97,6 +98,7 @@ def observe(call=None, *, profile=DEVELOPER):
         config["FunctionArn"] == f"arn:aws:lambda:{region}:{account}:function:" + function_name,
         "Runtime identity differs",
     )
+    concurrency = call("lambda", "get-function-concurrency", "--function-name", function_name)
     alias = call(
         "lambda", "get-alias", "--function-name", function_name, "--name", target["runtime_alias"]
     )
@@ -133,6 +135,8 @@ def observe(call=None, *, profile=DEVELOPER):
         "runtime": {
             "arn": config["FunctionArn"],
             "revision_id": config["RevisionId"],
+            "reserved_concurrency": concurrency.get("ReservedConcurrentExecutions"),
+            "timeout_seconds": config.get("Timeout"),
             "state": config.get("State"),
             "update_status": config.get("LastUpdateStatus"),
             "latest_image": function["Code"].get("ResolvedImageUri"),
@@ -152,6 +156,7 @@ def observe(call=None, *, profile=DEVELOPER):
             for key in (
                 "DBInstanceIdentifier",
                 "DBInstanceArn",
+                "DbiResourceId",
                 "DBInstanceStatus",
                 "Engine",
                 "EngineVersion",

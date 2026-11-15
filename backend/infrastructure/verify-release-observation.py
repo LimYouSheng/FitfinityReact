@@ -55,6 +55,8 @@ class ObservationTests(unittest.TestCase):
                     "Location": "https://example.test/sensitive-marker",
                 },
             }
+        if operation == "get-function-concurrency":
+            return {"ReservedConcurrentExecutions": 2}
         if operation == "get-alias":
             return {"FunctionVersion": "2", "RevisionId": "alias-revision"}
         if operation == "describe-db-instances":
@@ -62,6 +64,7 @@ class ObservationTests(unittest.TestCase):
                 "DBInstances": [
                     {
                         "DBInstanceIdentifier": "fitfinity-test-db",
+                        "DbiResourceId": "db-exact-resource",
                         "MasterUsername": "sensitive-marker",
                     }
                 ]
@@ -73,6 +76,8 @@ class ObservationTests(unittest.TestCase):
         self.assertNotIn("sensitive-marker", json.dumps(result))
         self.assertNotIn("https://", json.dumps(result))
         self.assertEqual(result["deployment_decision"], "HOLD")
+        self.assertEqual(result["runtime"]["reserved_concurrency"], 2)
+        self.assertEqual(result["database"]["DbiResourceId"], "db-exact-resource")
         self.assertEqual(
             result["runtime"]["latest_configuration"]["feature_flags"]["FITFINITY_AUTH_ENABLED"],
             "true",

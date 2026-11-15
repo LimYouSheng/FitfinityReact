@@ -35,9 +35,16 @@ ALLOWED = {
 }
 
 
-def aws(service, operation, parameters, *, profile=DEVELOPER):
+def aws(service, operation, parameters, *, profile=DEVELOPER, purpose="probe"):
     """Suppress raw provider replies/errors and never retry writes automatically."""
-    require((service, operation) in ALLOWED, "AWS operation refused")
+    require(purpose in {"probe", "upgrade"}, "Unknown private operator purpose")
+    additional = (
+        {("rds", "describe-db-snapshots"), ("lambda", "tag-resource")}
+        if purpose == "upgrade"
+        else set()
+    )
+    require((service, operation) in ALLOWED | additional, "AWS operation refused")
+    read_timeout = 135 if purpose == "upgrade" and operation == "invoke" else 75
     require(
         not any(key.startswith("AWS_ENDPOINT_URL") for key in os.environ),
         "Endpoint override refused",
@@ -58,7 +65,7 @@ def aws(service, operation, parameters, *, profile=DEVELOPER):
             "--cli-connect-timeout",
             "10",
             "--cli-read-timeout",
-            "75",
+            str(read_timeout),
         ]
         if operation == "invoke":
             command.extend(["--cli-binary-format", "raw-in-base64-out", str(response)])
@@ -66,7 +73,7 @@ def aws(service, operation, parameters, *, profile=DEVELOPER):
             command,
             capture_output=True,
             text=True,
-            timeout=90,
+            timeout=read_timeout + 15,
             env={
                 **os.environ,
                 "AWS_PAGER": "",

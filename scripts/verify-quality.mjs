@@ -24,13 +24,15 @@ export function readQualitySetup(root = process.cwd()) {
     preparation: parse(read('.github/workflows/aws-release-prepare.yml')),
     observation: parse(read('.github/workflows/aws-release-observe.yml')),
     schemaProbe: parse(read('.github/workflows/aws-schema-probe.yml')),
+    schemaUpgrade: parse(read('.github/workflows/aws-schema-upgrade.yml')),
+    maintenance: parse(read('.github/workflows/aws-maintenance.yml')),
     packageJson: JSON.parse(read('package.json')),
     lock: JSON.parse(read('package-lock.json')),
   }
 }
 
-export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, preparation, observation, schemaProbe, packageJson, lock }) {
-  for (const workflow of [image, preparation, observation, schemaProbe]) {
+export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, preparation, observation, schemaProbe, schemaUpgrade, maintenance, packageJson, lock }) {
+  for (const workflow of [image, preparation, observation, schemaProbe, schemaUpgrade, maintenance]) {
     if (workflow.env?.FITFINITY_DEPLOYMENT_TARGETS_JSON !== '${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}') fail('deployment target configuration must come from repository variables')
   }
   for (const event of ['pull_request', 'push']) {
@@ -55,6 +57,38 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (prepareTarget?.env?.DEPLOYMENT_TARGET !== "${{ inputs.target || vars.DEPLOYMENT_TARGET || 'developer' }}" || prepareTarget.run.includes('${{')) fail('release preparation target selection differs')
   requireGate(preparation.jobs['frontend-and-schema'], 'python3 backend/infrastructure/release_readiness.py')
   requireGate(preparation.jobs['runtime-build'], 'docker build --pull --platform linux/amd64 --target runtime')
+  const upgrade = schemaUpgrade.jobs?.upgrade
+  if (!equal(Object.keys(schemaUpgrade.on), ['workflow_dispatch']) || !equal(schemaUpgrade.permissions, { contents: 'read' }) || !equal(upgrade?.needs, ['offline', 'target']) || upgrade?.environment !== '${{ needs.target.outputs.environment }}' || upgrade?.if !== "github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_UPGRADE_ENABLED == 'true'") fail('schema upgrade must be manual, main-only, disabled by default and protected')
+  if (!equal(upgrade.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false }) || !equal(upgrade.permissions, { contents: 'read', actions: 'read', 'id-token': 'write' }) || schemaUpgrade.jobs.offline.uses !== './.github/workflows/infrastructure.yml') fail('schema upgrade concurrency, verification or permissions differ')
+  const upgradeAuth = upgrade.steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
+  const upgradeEvidence = upgrade.steps.findIndex(step => step.run === 'python3 backend/infrastructure/schema_upgrade_artifacts.py')
+  if (upgradeEvidence < 0 || upgradeAuth <= upgradeEvidence) fail('upgrade evidence must precede AWS credentials')
+  const credentials = upgrade.steps[upgradeAuth].with
+  if (credentials['role-to-assume'] !== '${{ vars.AWS_SCHEMA_UPGRADE_ROLE_ARN }}' || credentials['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || credentials['aws-region'] !== '${{ needs.target.outputs.region }}' || credentials['unset-current-credentials'] !== true) fail('upgrade credential target differs')
+  if (schemaUpgrade.jobs.target.outputs.role !== '${{ steps.target.outputs.upgrade_role }}') fail('upgrade must use its separate target role')
+  const roleCheck = upgrade.steps.find(step => step.run === 'test "$UPGRADE_ROLE" = "$EXPECTED_ROLE"')
+  if (roleCheck?.env?.UPGRADE_ROLE !== '${{ vars.AWS_SCHEMA_UPGRADE_ROLE_ARN }}' || roleCheck?.env?.EXPECTED_ROLE !== '${{ needs.target.outputs.role }}') fail('upgrade role comparison missing')
+  const upgradeReceipt = upgrade.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'))
+  if (upgradeReceipt?.if !== 'always()' || upgradeReceipt?.with?.path !== '${{ runner.temp }}/schema-upgrade-receipt.json') fail('upgrade must retain failed and uncertain receipts')
+  for (const step of upgrade.steps) {
+    if (step['continue-on-error'] || (step.run ?? '').includes('${{ inputs.')) fail('upgrade must not interpolate input into shell or suppress errors')
+  }
+  const maintenanceJob = maintenance.jobs?.maintenance
+  if (!equal(Object.keys(maintenance.on), ['workflow_dispatch']) || !equal(maintenance.permissions, { contents: 'read' }) || !equal(maintenanceJob?.needs, ['offline', 'target']) || maintenanceJob?.environment !== '${{ needs.target.outputs.environment }}' || maintenanceJob?.if !== "github.ref == 'refs/heads/main' && vars.AWS_MAINTENANCE_ENABLED == 'true'") fail('maintenance must be manual, main-only, disabled by default and protected')
+  if (!equal(maintenanceJob.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false }) || !equal(maintenanceJob.permissions, { contents: 'read', actions: 'read', 'id-token': 'write' }) || maintenance.jobs.offline.uses !== './.github/workflows/infrastructure.yml') fail('maintenance concurrency, verification or permissions differ')
+  const maintenanceAuth = maintenanceJob.steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
+  const maintenanceEvidence = maintenanceJob.steps.findIndex(step => step.run?.includes('maintenance_operator.py fetch'))
+  if (maintenanceEvidence < 0 || maintenanceAuth <= maintenanceEvidence || maintenanceJob.steps[maintenanceEvidence].env?.REVIEW_SHA256 !== '${{ inputs.review_sha256 }}') fail('reviewed maintenance evidence must precede AWS credentials')
+  const maintenanceCredentials = maintenanceJob.steps[maintenanceAuth].with
+  if (maintenanceCredentials['role-to-assume'] !== '${{ vars.AWS_MAINTENANCE_ROLE_ARN }}' || maintenanceCredentials['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || maintenanceCredentials['aws-region'] !== '${{ needs.target.outputs.region }}' || maintenanceCredentials['unset-current-credentials'] !== true) fail('maintenance credential target differs')
+  if (maintenance.jobs.target.outputs.role !== '${{ steps.target.outputs.maintenance_role }}') fail('maintenance must use its separate target role')
+  const maintenanceRole = maintenanceJob.steps.find(step => step.run === 'test "$MAINTENANCE_ROLE" = "$EXPECTED_ROLE"')
+  if (maintenanceRole?.env?.MAINTENANCE_ROLE !== '${{ vars.AWS_MAINTENANCE_ROLE_ARN }}' || maintenanceRole?.env?.EXPECTED_ROLE !== '${{ needs.target.outputs.role }}') fail('maintenance role comparison missing')
+  const maintenanceReceipt = maintenanceJob.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'))
+  if (maintenanceReceipt?.if !== 'always()' || maintenanceReceipt?.with?.path !== '${{ runner.temp }}/maintenance-receipt.json') fail('maintenance must retain failed and uncertain receipts')
+  for (const step of maintenanceJob.steps) {
+    if (step['continue-on-error'] || (step.run ?? '').includes('${{ inputs.')) fail('maintenance must not interpolate input into shell or suppress errors')
+  }
   const probeJob = schemaProbe.jobs?.probe
   if (!equal(Object.keys(schemaProbe.on), ['workflow_dispatch']) || !equal(schemaProbe.permissions, { contents: 'read' }) || !equal(probeJob?.needs, ['offline', 'target']) || probeJob?.environment !== '${{ needs.target.outputs.environment }}' || probeJob?.if !== "github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_PROBE_ENABLED == 'true'") fail('schema probe must be manual, main-only, disabled by default and protected')
   if (!equal(probeJob.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false }) || probeJob['timeout-minutes'] !== 10 || schemaProbe.jobs.offline.uses !== './.github/workflows/infrastructure.yml') fail('schema probe lifecycle concurrency or verification differs')
