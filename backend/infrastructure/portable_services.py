@@ -89,7 +89,7 @@ def storage(profile, *, browser_origin):
         {"Key": "Application", "Value": "Fitfinity"},
         {"Key": "Environment", "Value": target["environment_tag"]},
     ]
-    functions = [target["runtime_function"], target["probe_name"], prefix + "-migration"]
+    functions = [target["runtime_function"], target["probe_name"], target["upgrade_name"]]
     return {
         "AWSTemplateFormatVersion": "2010-09-09",
         "Rules": template_rules(profile),

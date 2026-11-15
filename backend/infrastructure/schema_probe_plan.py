@@ -3,164 +3,18 @@
 import argparse
 import hashlib
 import json
-import re
-import time
 from pathlib import Path
 
 from deployment_profile import DEVELOPER, identities, load
 from operator_checks import require
-from schema_probe_iam import runtime_policy
+from private_job_template import render, validate_binding
 
 
 def prepare(binding, *, now=None, profile=DEVELOPER):
-    target = identities(profile)
-    account, region = target["account"], target["region"]
-    secret_prefix = re.escape(target["secret_prefix"])
-    uri = target["registry"] + "/" + target["image_repository"]
-    require(
-        set(binding)
-        == {
-            "account",
-            "region",
-            "source_sha",
-            "image_digest",
-            "sql_sha256",
-            "db_host",
-            "db_name",
-            "migration_secret_arn",
-            "subnet_ids",
-            "security_group_id",
-            "expires_at",
-        },
-        "Exact reviewed probe bindings required",
+    validate_binding(
+        binding, now=now, profile=profile, extra_patterns={"sql_sha256": r"[0-9a-f]{64}"}
     )
-    require(
-        binding["account"] == account and binding["region"] == region,
-        "Wrong deployment target",
-    )
-    for field, pattern in {
-        "source_sha": r"[0-9a-f]{40}",
-        "image_digest": r"sha256:[0-9a-f]{64}",
-        "sql_sha256": r"[0-9a-f]{64}",
-        "db_host": rf"[a-z0-9][a-z0-9-]{{0,62}}\.[a-z0-9]+\.{region}\.rds\.amazonaws\.com",
-        "db_name": r"[A-Za-z][A-Za-z0-9_]{0,62}",
-        "security_group_id": r"sg-[0-9a-f]{8,17}",
-        "migration_secret_arn": (
-            rf"arn:aws:secretsmanager:{region}:{account}:"
-            rf"secret:{secret_prefix}/database/migration-[A-Za-z0-9]{{6}}"
-        ),
-    }.items():
-        require(
-            isinstance(binding[field], str) and re.fullmatch(pattern, binding[field]),
-            f"Invalid {field}",
-        )
-    subnets = binding["subnet_ids"]
-    require(
-        isinstance(subnets, list)
-        and len(subnets) == 2
-        and all(
-            isinstance(value, str) and re.fullmatch(r"subnet-[0-9a-f]{8,17}", value)
-            for value in subnets
-        )
-        and len(set(subnets)) == 2,
-        "Two reviewed distinct private subnets required",
-    )
-    require(
-        type(binding["expires_at"]) is int
-        and 0 < binding["expires_at"] - (time.time() if now is None else now) <= 3600,
-        "Probe requires a future expiry within one hour",
-    )
-    name = target["probe_name"]
-    log_name = f"/aws/lambda/{name}"
-    template = {
-        "AWSTemplateFormatVersion": "2010-09-09",
-        "Description": "Temporary private catalog probe; no public trigger or migrations",
-        "Resources": {
-            "ProbeLogs": {
-                "Type": "AWS::Logs::LogGroup",
-                "Properties": {"LogGroupName": log_name, "RetentionInDays": 1},
-            },
-            "ProbeRole": {
-                "Type": "AWS::IAM::Role",
-                "Properties": {
-                    "RoleName": target["runtime_role"],
-                    "PermissionsBoundary": target["runtime_boundary"],
-                    "AssumeRolePolicyDocument": {
-                        "Version": "2012-10-17",
-                        "Statement": [
-                            {
-                                "Effect": "Allow",
-                                "Principal": {"Service": "lambda.amazonaws.com"},
-                                "Action": "sts:AssumeRole",
-                            }
-                        ],
-                    },
-                    "Policies": [
-                        {
-                            "PolicyName": "ReadCatalogProbe",
-                            "PolicyDocument": runtime_policy(
-                                binding["migration_secret_arn"], profile=profile
-                            ),
-                        }
-                    ],
-                },
-            },
-            "Probe": {
-                "Type": "AWS::Lambda::Function",
-                "DependsOn": "ProbeLogs",
-                "Properties": {
-                    "FunctionName": name,
-                    "PackageType": "Image",
-                    "Architectures": ["x86_64"],
-                    "Code": {"ImageUri": uri + "@" + binding["image_digest"]},
-                    "Role": {"Fn::GetAtt": ["ProbeRole", "Arn"]},
-                    "MemorySize": 512,
-                    "Timeout": 60,
-                    "ReservedConcurrentExecutions": 1,
-                    "VpcConfig": {
-                        "SubnetIds": list(subnets),
-                        "SecurityGroupIds": [binding["security_group_id"]],
-                    },
-                    "ImageConfig": {
-                        "EntryPoint": [],
-                        "WorkingDirectory": "/app",
-                        "Command": [
-                            "python",
-                            "-m",
-                            "uvicorn",
-                            "app.schema_probe:create_app",
-                            "--factory",
-                            "--host",
-                            "0.0.0.0",
-                            "--port",
-                            "8080",
-                            "--no-access-log",
-                            "--no-proxy-headers",
-                            "--log-level",
-                            "critical",
-                        ],
-                    },
-                    "Environment": {
-                        "Variables": {
-                            "AWS_LWA_PORT": "8080",
-                            "AWS_LWA_READINESS_CHECK_PATH": "/health/live",
-                            "AWS_LWA_PASS_THROUGH_PATH": "/events",
-                            "FITFINITY_CONFIG_SOURCE": "aws-secrets-manager",
-                            "FITFINITY_ENVIRONMENT": "staging",
-                            "FITFINITY_AWS_ACCOUNT_ID": account,
-                            "FITFINITY_AWS_REGION": region,
-                            "FITFINITY_DATABASE_SECRET_ARN": binding["migration_secret_arn"],
-                            "FITFINITY_DB_HOST": binding["db_host"],
-                            "FITFINITY_DB_NAME": binding["db_name"],
-                            "FITFINITY_PROBE_SOURCE_SHA": binding["source_sha"],
-                            "FITFINITY_PROBE_SQL_SHA256": binding["sql_sha256"],
-                            "FITFINITY_PROBE_EXPIRES_AT": str(binding["expires_at"]),
-                        }
-                    },
-                },
-            },
-        },
-    }
+    template = render(binding, profile=profile, kind="probe")
     return {
         "decision": "HOLD",
         "template": template,

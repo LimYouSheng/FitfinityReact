@@ -296,3 +296,75 @@ def test_probe_missing_schema_fails_without_bootstrap(database_url):
             assert connection.scalar(text("SELECT to_regclass('public.alembic_version')")) is None
     finally:
         engine.dispose()
+
+
+def test_private_http_upgrade_preserves_populated_rows_and_recovers_lost_receipt(outgoing):
+    from fastapi.testclient import TestClient
+
+    from app.release_upgrade_service import create_upgrade
+
+    engine, kwargs = outgoing
+    before = owner(engine)
+    app = create_upgrade(
+        lambda: upgrade_existing(engine, **kwargs),
+        operation_id="a" * 32,
+        source_sha="b" * 40,
+        from_revision=BASE,
+        to_revision=HEAD,
+    )
+    intent = b'{"operation":"upgrade-existing","operation_id":"' + b"a" * 32 + b'"}'
+    with TestClient(app) as client:
+        first = client.post("/events", content=intent)
+        assert first.status_code == 200
+        assert first.json()["outcome"] == "upgraded"
+        assert revision(engine) == HEAD
+        assert owner(engine) == before
+        recovered = client.post("/events", content=intent)
+        assert recovered.status_code == 200
+        assert recovered.json()["outcome"] == "already_at_target"
+        assert owner(engine) == before
+
+
+def test_private_http_failure_after_ddl_rolls_back_and_does_not_leak(outgoing, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.release_upgrade_service import create_upgrade
+
+    engine, kwargs = outgoing
+    before = owner(engine)
+    original = command.upgrade
+
+    def fail(config, target):
+        original(config, target)
+        raise RuntimeError("sensitive SQL and credentials")
+
+    monkeypatch.setattr(command, "upgrade", fail)
+    app = create_upgrade(
+        lambda: upgrade_existing(engine, **kwargs),
+        operation_id="a" * 32,
+        source_sha="b" * 40,
+        from_revision=BASE,
+        to_revision=HEAD,
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/events",
+            content=b'{"operation":"upgrade-existing","operation_id":"' + b"a" * 32 + b'"}',
+        )
+        assert response.status_code == 503
+        assert response.json() == {"error": "migration_failed_or_uncertain"}
+    assert revision(engine) == BASE
+    assert owner(engine) == before
+
+
+def test_upgrade_expired_during_database_preflight_cannot_start_ddl(outgoing, monkeypatch):
+    from app import release_upgrade
+
+    engine, kwargs = outgoing
+    before = owner(engine)
+    ticks = iter([100, 201])
+    monkeypatch.setattr(release_upgrade, "utc_timestamp", lambda: next(ticks))
+    with pytest.raises(UpgradeRefused, match="expired during database preflight"):
+        upgrade_existing(engine, **kwargs, deadline=200)
+    assert revision(engine) == BASE
+    assert owner(engine) == before

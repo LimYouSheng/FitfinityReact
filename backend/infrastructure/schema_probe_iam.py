@@ -1,19 +1,22 @@
 """Own the temporary probe runtime's permission ceiling."""
 
 from deployment_profile import DEVELOPER, identities
+from operator_checks import require
 
 _TARGET = identities(DEVELOPER)
 ACCOUNT, REGION = _TARGET["account"], _TARGET["region"]
 
-NAME = "fitfinity-test-schema-observe"
+NAME = _TARGET["probe_name"]
 RUNTIME_ROLE = NAME + "-runtime"
 BOUNDARY = f"arn:aws:iam::{ACCOUNT}:policy/{NAME}-runtime-boundary"
 
 
-def runtime_policy(secret_arn, *, profile=DEVELOPER):
+def runtime_policy(secret_arn, *, profile=DEVELOPER, purpose="probe"):
     """Limit runtime access to its exact migration secret, logs and managed ENIs."""
     target = identities(profile)
-    account, region, name = target["account"], target["region"], target["probe_name"]
+    require(purpose in {"probe", "upgrade"}, "Unknown private job purpose")
+    account, region = target["account"], target["region"]
+    name = target["probe_name" if purpose == "probe" else "upgrade_name"]
     function = f"arn:aws:lambda:{region}:{account}:function:{name}"
     logs = f"arn:aws:logs:{region}:{account}:log-group:/aws/lambda/{name}"
     eni = [

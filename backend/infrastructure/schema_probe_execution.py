@@ -4,11 +4,10 @@ import hashlib
 import json
 import re
 import time
-from datetime import UTC, datetime
 
 from deployment_profile import DEVELOPER, identities
 from operator_checks import require
-from release_image import scan_policy
+from release_image_validation import validate_image as validate_published_image
 from schema_probe_plan import prepare_review
 
 
@@ -39,43 +38,15 @@ def validate_review(
 
 
 def validate_image(receipt, binding, call, now, *, profile=DEVELOPER):
-    """Require a matching publication receipt and fresh live scan without starting one."""
-    target = identities(profile)
-    account, region = target["account"], target["region"]
-    uri = target["registry"] + "/" + target["image_repository"]
-    require(
-        receipt.get("profile_sha256") == target["profile_sha256"]
-        and receipt.get("account") == account
-        and receipt.get("region") == region
-        and receipt.get("revision") == binding["source_sha"]
-        and receipt.get("image_digest") == binding["image_digest"]
-        and receipt.get("image_uri") == uri + "@" + binding["image_digest"]
-        and all(
-            receipt.get(key) is True
-            for key in ("candidate_ready", "image_published", "scan_policy_passed")
-        )
-        and receipt.get("source_files", {}).get("backend/infrastructure/read-schema.sql")
-        == binding["sql_sha256"],
-        "Image publication receipt differs",
+    """Require the probe SQL in the exact published image and a fresh complete scan."""
+    validate_published_image(
+        receipt,
+        binding,
+        call,
+        now,
+        profile=profile,
+        required_files={"backend/infrastructure/read-schema.sql": binding["sql_sha256"]},
     )
-    pages, tokens = [], set()
-    arguments = {
-        "repositoryName": target["image_repository"],
-        "imageId": {"imageDigest": binding["image_digest"]},
-    }
-    while True:
-        page = call("ecr", "describe-image-scan-findings", arguments)
-        require(
-            page.get("imageScanStatus", {}).get("status") == "COMPLETE", "Image scan is incomplete"
-        )
-        pages.append(page)
-        token = page.get("nextToken")
-        if not token:
-            break
-        require(token not in tokens and len(pages) < 100, "Invalid image scan pagination")
-        tokens.add(token)
-        arguments = {**arguments, "nextToken": token}
-    scan_policy(pages, binding["image_digest"], datetime.fromtimestamp(now, UTC), profile=profile)
 
 
 def preflight(binding, call, *, profile=DEVELOPER):

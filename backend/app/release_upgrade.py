@@ -4,6 +4,8 @@ The caller owns target identity, maintenance, backup and source/artifact authori
 This primitive is not exposed by the application API and does not load AWS credentials.
 """
 
+from time import time as utc_timestamp
+
 from alembic import command
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -18,13 +20,19 @@ class UpgradeRefused(RuntimeError):
     """Safe refusal without connection strings, SQL parameters or customer records."""
 
 
-def upgrade_existing(engine, *, expected_database, expected_user, from_revision, to_revision):
+def upgrade_existing(
+    engine, *, expected_database, expected_user, from_revision, to_revision, deadline=None
+):
     """Upgrade one known nonempty schema in one transaction under an advisory lock.
 
     Repeating after a lost response returns already_at_target. This establishes only
     the schema revision, not that this invocation committed it or rollout is accepted.
     Any migration error rolls back the entire chain; caller must inspect before retry.
     """
+    if deadline is not None and (
+        type(deadline) is not int or not 0 < deadline - utc_timestamp() <= 3600
+    ):
+        raise UpgradeRefused("Migration requires an unexpired one-hour deadline")
     config = migration_config()
     scripts = ScriptDirectory.from_config(config)
     revisions = [row.revision for row in reversed(list(scripts.walk_revisions()))]
@@ -53,6 +61,8 @@ def upgrade_existing(engine, *, expected_database, expected_user, from_revision,
         if current != (from_revision,):
             raise UpgradeRefused("Observed schema differs; no bootstrap or guessed resume")
         config.attributes["connection"] = connection
+        if deadline is not None and not 0 < deadline - utc_timestamp() <= 3600:
+            raise UpgradeRefused("Migration expired during database preflight")
         command.upgrade(config, to_revision)
         if MigrationContext.configure(connection).get_current_heads() != (to_revision,):
             raise UpgradeRefused("Migration target was not reached")

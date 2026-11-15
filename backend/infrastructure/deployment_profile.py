@@ -109,6 +109,11 @@ def identities(profile):
         "setup_stack": prefix + "-schema-probe-access",
         "database": prefix + "-db",
         "runtime_function": prefix + "-staff-api",
+        "upgrade_name": prefix + "-schema-upgrade",
+        "upgrade_runtime_role": prefix + "-schema-upgrade-runtime",
+        "upgrade_boundary": (
+            f"arn:aws:iam::{account}:policy/{prefix}-schema-upgrade-runtime-boundary"
+        ),
         "hosting_stack": prefix + "-login",
         "hosting_role": prefix + "-github-hosting",
         "image_repository": prefix + "-api",
