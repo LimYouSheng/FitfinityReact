@@ -112,7 +112,7 @@ def save(session, principal, identity, key, body):
     trainer.status, trainer.version = "inactive", trainer.version + 1
     if user:
         user.status, user.version = "inactive", user.version + 1
-    # Existing epoch triggers close active application sessions in this same transaction.
+    # Epoch triggers revoke application sessions in this transaction.
     session.add(
         LifecycleEvent(
             trainer_id=trainer.id,

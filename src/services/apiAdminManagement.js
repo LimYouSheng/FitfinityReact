@@ -2,7 +2,7 @@ import { ApiError } from './apiClient.js'
 import { reconciledCommand } from './apiCommand.js'
 import { ADMIN_APPROVAL_FIELDS } from '../app/adminApprovals.js'
 
-export function adminDetails(value) {
+function adminDetails(value) {
   if (!value || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value.id) || value.role !== 'admin' ||
       !Number.isSafeInteger(value.version) || value.version < 1 || !['active', 'inactive'].includes(value.status) ||
       !value.details || ['name', 'email', 'phone_country_code', 'phone_number', 'birthday', 'gender'].some(key => typeof value.details[key] !== 'string') ||

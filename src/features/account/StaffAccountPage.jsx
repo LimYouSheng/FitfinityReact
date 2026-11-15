@@ -6,7 +6,6 @@ import ProfileAvatar from '../../components/ProfileAvatar.jsx'
 import StatusBadge from '../../components/StatusBadge.jsx'
 import StaffEmailVerification from './StaffEmailVerification.jsx'
 
-// Presentation only: App owns account-scoped routes, Back/swipe and session lifecycle.
 export default function StaffAccountPage({ user, profile = false, emailVerification, onNavigate, onSignOut, busy }) {
   if (profile && user.role === 'admin') return <>
     <div className="page-head profile-identity-card">

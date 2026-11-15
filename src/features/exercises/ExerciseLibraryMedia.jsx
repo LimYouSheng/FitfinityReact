@@ -4,7 +4,6 @@ export default function ExerciseLibraryMedia({ media, file, onLoad }) {
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')
   const mediaId = media?.id
-  // Reload on resource changes, with the latest transport callback.
   const loadMedia = useEffectEvent(id => onLoad(id))
   useEffect(() => {
     let cancelled = false, createdUrl = ''
@@ -29,9 +28,7 @@ export default function ExerciseLibraryMedia({ media, file, onLoad }) {
   const unavailable = () => setError('This browser cannot preview this video format.')
   const checkVideoMetadata = event => {
     const video = event.currentTarget
-    // Some decoders expose image payloads as zero-duration video tracks instead
-    // of raising an error. Metadata alone does not prove a playable video.
-    // WebM may initially expose Infinity until its duration is discovered.
+    // SVG may decode as a zero-duration track; valid WebM may initially report Infinity.
     if (!(video.duration > 0) || video.videoWidth <= 0 || video.videoHeight <= 0) unavailable()
   }
   return <div className="library-media-preview">

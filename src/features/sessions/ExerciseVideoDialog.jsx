@@ -99,9 +99,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
       setMode('preview')
     }
 
-    // Browser-side captioning/transcoding is an enhancement, not the upload
-    // boundary. WebKit builds without the required media APIs keep the
-    // original file for the backend media pipeline instead.
+    // Preserve original bytes when browser transcoding is unavailable.
     if (!browserCanProcessVideo()) {
       keepOriginalForDeferredProcessing(null)
       return
@@ -119,8 +117,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
     }
     if (operation.signal.aborted) return
 
-    // Some WebKit/codec combinations expose the browser APIs but cannot read
-    // this file reliably. Do not block the upload boundary on local decoding.
+    // Codec support can fail despite API availability; retain the original upload.
     if (!Number.isFinite(duration)) {
       operation.abort()
       keepOriginalForDeferredProcessing(null)
@@ -154,7 +151,6 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
       setMode('preview')
     } catch (videoError) {
       if (operation.signal.aborted) return
-      // The validated source can still be uploaded and processed later.
       keepOriginalForDeferredProcessing(duration)
     }
   }

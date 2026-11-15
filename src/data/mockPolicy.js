@@ -1,6 +1,5 @@
 import { EXERCISE_LIBRARY } from './mockExercises.js'
 
-// Initial mock configuration. The portal adapter supplies this contract to consumers.
 export const mockPolicy = {
   timeZone: 'Asia/Singapore', currency: 'SGD', locale: 'en-SG',
   packageValidity: { 12: 90, 24: 180, 36: 270 },

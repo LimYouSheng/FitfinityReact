@@ -1,6 +1,5 @@
 import { Children, cloneElement, isValidElement, useId } from 'react'
 
-// Derive the empty-required treatment from controlled values, including grouped phone controls.
 function requiredTreatment(children) {
   return Children.map(children, child => {
     if (!isValidElement(child)) return child

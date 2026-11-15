@@ -1,4 +1,4 @@
-"""Application composition. Health and staff identity; domain APIs belong to later milestones."""
+"""Compose the staff API, authentication, health checks, and domain routes."""
 
 from contextlib import asynccontextmanager
 

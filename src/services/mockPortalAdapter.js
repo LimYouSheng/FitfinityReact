@@ -23,7 +23,6 @@ const accountOperations = {
   changePassword: input => authService.changePassword(input),
 }
 
-// This adapter owns mock persistence. An API adapter implements load/session/invoke.
 export const mockPortalAdapter = {
   async load() {
     await delay(20)

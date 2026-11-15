@@ -1,4 +1,4 @@
-"""Versioned staff contracts; M6 adds domain workflow orchestration and the React API adapter."""
+"""Register versioned staff API routes."""
 
 from datetime import UTC, datetime
 from typing import Annotated

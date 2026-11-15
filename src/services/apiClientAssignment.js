@@ -9,7 +9,7 @@ const named = value => keys(value, ['id', 'name']) && uuid(value.id) && typeof v
 const time = value => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value)
 const unique = rows => Array.isArray(rows) && rows.length <= 2000 && new Set(rows.map(r => r?.id)).size === rows.length
 const fail = () => { throw new ApiError('API_RESPONSE', 'The Trainer assignment could not be verified. Check the original request again.') }
-export function validAssignmentReview(value) {
+function validAssignmentReview(value) {
   return keys(value, ['id', 'version', 'name', 'expected', 'current', 'purchases', 'sessions', 'choices', 'history']) && uuid(value.id) && version(value.version)
     && typeof value.name === 'string' && value.name.trim() && /^[0-9a-f]{64}$/.test(value.expected) && named(value.current)
     && unique(value.purchases) && value.purchases.every(p => keys(p, ['id', 'version', 'trainerId', 'name']) && uuid(p.id) && version(p.version) && uuid(p.trainerId) && typeof p.name === 'string')
