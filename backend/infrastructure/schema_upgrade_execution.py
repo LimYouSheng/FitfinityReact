@@ -7,6 +7,7 @@ from datetime import datetime
 
 from deployment_profile import identities
 from operator_checks import require
+from release_pause import require_recorded_pause
 from schema_probe_execution import compact, inspect_function, owned_stack, preflight
 from schema_upgrade_plan import prepare, validate_image
 
@@ -81,6 +82,7 @@ def readiness(binding, evidence, call, *, profile, now):
         and concurrency["ReservedConcurrentExecutions"] == 0,
         "Staff invocation must remain disabled during the upgrade",
     )
+    require_recorded_pause(call, profile)
 
 
 def execute(

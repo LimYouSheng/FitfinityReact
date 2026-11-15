@@ -13,10 +13,16 @@ from deployment_profile import identities, load
 from operation_journal import Journal
 from operator_checks import require
 from portable_services import maintenance_access
-from release_maintenance import execute, validate_review
+from release_maintenance import MODES, RECOVERY_MODES, execute, validate_review
 from schema_probe_artifacts import fetch, run_binding
 
 OPERATIONS = {
+    ("cloudformation", "describe-stacks"),
+    ("cloudformation", "get-template"),
+    ("cloudformation", "list-stack-resources"),
+    ("cloudformation", "create-change-set"),
+    ("cloudformation", "describe-change-set"),
+    ("cloudformation", "execute-change-set"),
     ("sts", "get-caller-identity"),
     ("lambda", "get-function"),
     ("lambda", "get-function-concurrency"),
@@ -39,6 +45,10 @@ def digest(value):
 def aws(service, operation, values, *, profile):
     """Call only fixed maintenance operations without retries or provider-output logging."""
     require((service, operation) in OPERATIONS, "Maintenance operation is not allowed")
+    require(
+        not any(key.startswith("AWS_ENDPOINT_URL") for key in os.environ),
+        "AWS endpoint override refused",
+    )
     result = subprocess.run(
         [
             "aws",
@@ -55,7 +65,12 @@ def aws(service, operation, values, *, profile):
         capture_output=True,
         text=True,
         timeout=60,
-        env={**os.environ, "AWS_MAX_ATTEMPTS": "1", "AWS_EC2_METADATA_DISABLED": "true"},
+        env={
+            **os.environ,
+            "AWS_MAX_ATTEMPTS": "1",
+            "AWS_EC2_METADATA_DISABLED": "true",
+            "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS": "true",
+        },
     )
     require(result.returncode == 0, "Maintenance call failed; inspect retained intent")
     return json.loads(result.stdout) if result.stdout.strip() else {}
@@ -141,8 +156,8 @@ def main():
     )
     root = Path(os.environ["RUNNER_TEMP"])
     mode = os.environ["MAINTENANCE_MODE"]
-    require(mode in {"pause", "inspect", "snapshot", "snapshot-check"}, "Unknown maintenance mode")
-    recovery = mode in {"inspect", "snapshot-check"}
+    require(mode in MODES, "Unknown maintenance mode")
+    recovery = mode in RECOVERY_MODES
     if args.phase == "fetch":
         fetch(
             "review",

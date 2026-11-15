@@ -209,6 +209,7 @@ class FeaturePlanTests(unittest.TestCase):
 class ChangeSetTests(unittest.TestCase):
     def setUp(self):
         self.original, _ = fixture(CLIENT)
+        self.original["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 0
         self.candidate = release(
             self.original,
             observed_template_sha256=digest(self.original),
@@ -226,9 +227,7 @@ class ChangeSetTests(unittest.TestCase):
             "ExecutionStatus": "AVAILABLE",
             "StackId": self.stack,
             "Changes": [
-                self.change(
-                    "ApiFunction", "AWS::Lambda::Function", ["Code", "ReservedConcurrentExecutions"]
-                ),
+                self.change("ApiFunction", "AWS::Lambda::Function", ["Code"]),
                 self.change("ApiAlias", "AWS::Lambda::Alias", ["FunctionVersion"]),
                 self.change(
                     "Distribution", "AWS::CloudFront::Distribution", ["DistributionConfig"]

@@ -189,6 +189,25 @@ class MaintenanceTests(unittest.TestCase):
         self.failure = None
         self.backup_tags = []
         self.snapshot = None
+        self.host_stack = (
+            "arn:aws:cloudformation:eu-west-1:123456789012:stack/client-prod-login/abcd"
+        )
+        self.host_template = {
+            "Resources": {
+                "ApiFunction": {
+                    "Type": "AWS::Lambda::Function",
+                    "Properties": {
+                        "FunctionName": "client-prod-staff-api",
+                        "ReservedConcurrentExecutions": 0,
+                    },
+                },
+                "ApiRole": {
+                    "Type": "AWS::IAM::Role",
+                    "Properties": {"RoleName": "client-prod-hosting-api"},
+                },
+            }
+        }
+        self.change_set = None
 
     def call(self, service, operation, values):
         self.events.append((service, operation, values))
@@ -203,6 +222,8 @@ class MaintenanceTests(unittest.TestCase):
                     "FunctionArn": "arn:aws:lambda:eu-west-1:123456789012:function:"
                     + self.target["runtime_function"],
                     "RevisionId": "exact-revision",
+                    "State": "Active",
+                    "Role": "arn:aws:iam::123456789012:role/client-prod-hosting-api",
                     "LastUpdateStatus": "Successful",
                     "Timeout": 30,
                 },
@@ -223,6 +244,83 @@ class MaintenanceTests(unittest.TestCase):
             }
         if operation == "get-function-concurrency":
             return {"ReservedConcurrentExecutions": self.concurrency}
+        if operation == "describe-stacks":
+            return {
+                "Stacks": [
+                    {
+                        "StackId": self.host_stack,
+                        "StackName": "client-prod-login",
+                        "StackStatus": "UPDATE_COMPLETE",
+                    }
+                ]
+            }
+        if operation == "get-template":
+            return {
+                "TemplateBody": deepcopy(
+                    self.change_set["template"]
+                    if values.get("ChangeSetName")
+                    else self.host_template
+                )
+            }
+        if operation == "list-stack-resources":
+            return {
+                "StackResourceSummaries": [
+                    {
+                        "LogicalResourceId": "ApiFunction",
+                        "ResourceType": "AWS::Lambda::Function",
+                        "PhysicalResourceId": "client-prod-staff-api",
+                    },
+                    {
+                        "LogicalResourceId": "ApiRole",
+                        "ResourceType": "AWS::IAM::Role",
+                        "PhysicalResourceId": "client-prod-hosting-api",
+                    },
+                ]
+            }
+        if operation == "create-change-set":
+            self.assertEqual(self.saved[-1]["pause_record"]["state"], "create_submitted")
+            self.change_set = {
+                "template": json.loads(values["TemplateBody"]),
+                "StackId": self.host_stack,
+                "ChangeSetId": "arn:aws:cloudformation:eu-west-1:123456789012:changeSet/"
+                + values["ChangeSetName"]
+                + "/abcd",
+                "ChangeSetName": values["ChangeSetName"],
+                "Description": values["Description"],
+                "Status": "CREATE_COMPLETE",
+                "ExecutionStatus": "AVAILABLE",
+                "Changes": [
+                    {
+                        "Type": "Resource",
+                        "ResourceChange": {
+                            "Action": "Modify",
+                            "LogicalResourceId": "ApiFunction",
+                            "ResourceType": "AWS::Lambda::Function",
+                            "Replacement": "False",
+                            "Scope": ["Properties"],
+                            "Details": [
+                                {
+                                    "Target": {
+                                        "Attribute": "Properties",
+                                        "Name": "ReservedConcurrentExecutions",
+                                        "RequiresRecreation": "Never",
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                ],
+            }
+            if self.failure == operation:
+                raise RuntimeError("synthetic lost response")
+            return {"Id": self.change_set["ChangeSetId"], "StackId": self.host_stack}
+        if operation == "describe-change-set":
+            return {key: value for key, value in self.change_set.items() if key != "template"}
+        if operation == "execute-change-set":
+            self.assertEqual(self.saved[-1]["pause_record"]["state"], "execute_submitted")
+            self.host_template = deepcopy(self.change_set["template"])
+            self.change_set["ExecutionStatus"] = "EXECUTE_COMPLETE"
+            return {}
         if operation == "tag-resource":
             self.tags.update(values["Tags"])
         elif operation == "put-function-concurrency":
@@ -351,6 +449,54 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(self.step("inspect", paused, now=5000)["state"], "paused")
         self.assertFalse(any(row[1] == "create-db-snapshot" for row in self.events))
 
+    def test_recorded_pause_workflow_precedes_snapshot_and_keeps_templates_out_of_receipts(self):
+        self.host_template["Resources"]["ApiFunction"]["Properties"][
+            "ReservedConcurrentExecutions"
+        ] = 2
+        self.review.update(
+            hosting_stack_arn=self.host_stack, hosting_template_sha256=digest(self.host_template)
+        )
+        paused = self.step("inspect", self.step("pause"), now=1001)
+        with self.assertRaisesRegex(RuntimeError, "CloudFormation"):
+            self.step("snapshot", paused, now=1040)
+        created = self.step("record-pause-create", paused, now=1002)
+        self.assertFalse(any(row[1] == "execute-change-set" for row in self.events))
+        observed = self.step("record-pause-inspect", created, now=1003)
+        submitted = self.step("record-pause-execute", observed, now=1004)
+        verified = self.step("record-pause-verify", submitted, now=1005)
+        self.assertEqual(verified["state"], "paused")
+        self.assertEqual(verified["pause_record"]["state"], "template_verified")
+        self.assertEqual(verified["drained_after"], 1031)
+        self.assertNotIn("TemplateBody", json.dumps(self.saved))
+        self.assertNotIn("Resources", json.dumps(self.saved))
+        with self.assertRaises(RuntimeError):
+            self.step("record-pause-execute", verified)
+        requested = self.step("snapshot", verified, now=1040)
+        self.assertEqual(
+            self.step("snapshot-check", requested, now=1041)["state"], "snapshot_ready"
+        )
+        self.assertEqual(sum(row[1] == "execute-change-set" for row in self.events), 1)
+
+    def test_record_pause_lost_response_recovers_after_expiry_without_recreation(self):
+        self.host_template["Resources"]["ApiFunction"]["Properties"][
+            "ReservedConcurrentExecutions"
+        ] = 2
+        self.review.update(
+            hosting_stack_arn=self.host_stack, hosting_template_sha256=digest(self.host_template)
+        )
+        paused = self.step("inspect", self.step("pause"))
+        self.failure = "create-change-set"
+        with self.assertRaises(RuntimeError):
+            self.step("record-pause-create", paused)
+        intent = deepcopy(self.saved[-1])
+        observed = self.step("record-pause-inspect", intent, now=5000)
+        self.assertEqual(observed["pause_record"]["change_set_arn"], self.change_set["ChangeSetId"])
+        with self.assertRaises(RuntimeError):
+            self.step("record-pause-create", observed)
+        with self.assertRaises(RuntimeError):
+            self.step("record-pause-execute", observed, now=5000)
+        self.assertEqual(sum(row[1] == "create-change-set" for row in self.events), 1)
+
 
 class MaintenanceOperatorTests(unittest.TestCase):
     setUp = MaintenanceTests.setUp
@@ -365,11 +511,18 @@ class MaintenanceOperatorTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "not allowed"):
                 operator.aws("rds", "delete-db-snapshot", {}, profile=self.profile)
             run.assert_not_called()
+            with patch.dict(operator.os.environ, {"AWS_ENDPOINT_URL": "https://foreign.invalid"}):
+                with self.assertRaisesRegex(RuntimeError, "endpoint override"):
+                    operator.aws("rds", "describe-db-instances", {}, profile=self.profile)
+            run.assert_not_called()
             run.return_value = SimpleNamespace(returncode=1, stdout="sensitive", stderr="sensitive")
             with self.assertRaisesRegex(RuntimeError, "inspect retained") as caught:
                 operator.aws("rds", "describe-db-instances", {}, profile=self.profile)
             self.assertNotIn("sensitive", str(caught.exception))
             self.assertEqual(run.call_args.kwargs["env"]["AWS_MAX_ATTEMPTS"], "1")
+            self.assertEqual(
+                run.call_args.kwargs["env"]["AWS_IGNORE_CONFIGURED_ENDPOINT_URLS"], "true"
+            )
             self.assertIn("eu-west-1", run.call_args.args[0])
 
     def test_operator_checks_review_digest_and_target_before_execution(self):

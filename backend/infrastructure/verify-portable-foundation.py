@@ -358,7 +358,7 @@ class PortableHostingTests(unittest.TestCase):
 
 
 class MaintenanceAccessTests(unittest.TestCase):
-    def test_two_target_roles_have_exact_identity_and_no_deploy_or_secret_permissions(self):
+    def test_two_target_roles_have_exact_identity_and_no_image_or_secret_permissions(self):
         from portable_services import maintenance_access
 
         for profile in (DEVELOPER, CLIENT):
@@ -383,6 +383,12 @@ class MaintenanceAccessTests(unittest.TestCase):
                 actions,
                 {
                     "sts:GetCallerIdentity",
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:GetTemplate",
+                    "cloudformation:ListStackResources",
+                    "cloudformation:CreateChangeSet",
+                    "cloudformation:DescribeChangeSet",
+                    "cloudformation:ExecuteChangeSet",
                     "lambda:GetFunction",
                     "lambda:GetFunctionConcurrency",
                     "lambda:PutFunctionConcurrency",
@@ -395,8 +401,17 @@ class MaintenanceAccessTests(unittest.TestCase):
                 },
             )
             self.assertEqual(
-                rules[1]["Resource"],
+                rules[2]["Resource"],
                 f"arn:aws:lambda:{profile['region']}:{profile['account']}:function:{profile['resource_prefix']}-staff-api",
+            )
+            self.assertEqual(
+                rules[1]["Resource"],
+                [
+                    f"arn:aws:cloudformation:{profile['region']}:{profile['account']}:stack/"
+                    + profile["resource_prefix"]
+                    + "-login/*",
+                    f"arn:aws:cloudformation:{profile['region']}:{profile['account']}:changeSet/release-*/*",
+                ],
             )
             self.assertEqual(
                 rules[-1]["Resource"],
@@ -411,7 +426,7 @@ class MaintenanceAccessTests(unittest.TestCase):
                 + profile["github_environment"],
             )
             self.assertEqual(
-                rules[2]["Condition"]["ForAllValues:StringEquals"]["aws:TagKeys"],
+                rules[3]["Condition"]["ForAllValues:StringEquals"]["aws:TagKeys"],
                 ["FitfinityMaintenance", "FitfinitySnapshot"],
             )
 

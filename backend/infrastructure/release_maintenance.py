@@ -2,25 +2,40 @@
 
 import re
 import time
+from copy import deepcopy
 
 from deployment_profile import identities
 from operator_checks import require
+from release_execution import execute as release_step
+from release_execution import template as read_template
+from release_observation import digest
+from release_pause import require_recorded_pause
+
+RECORD_MODES = {
+    "record-pause-create",
+    "record-pause-inspect",
+    "record-pause-execute",
+    "record-pause-verify",
+}
+MODES = {"pause", "inspect", "snapshot", "snapshot-check"} | RECORD_MODES
+RECOVERY_MODES = {"inspect", "snapshot-check", "record-pause-inspect", "record-pause-verify"}
 
 
 def validate_review(review, profile, now):
     """Reject incomplete, foreign or expired maintenance metadata."""
     target = identities(profile)
+    required = {
+        "profile_sha256",
+        "source_sha",
+        "operation_id",
+        "expires_at",
+        "function_revision",
+        "database_resource_id",
+        "previous_concurrency",
+    }
+    extra = {"hosting_stack_arn", "hosting_template_sha256"}
     require(
-        set(review)
-        == {
-            "profile_sha256",
-            "source_sha",
-            "operation_id",
-            "expires_at",
-            "function_revision",
-            "database_resource_id",
-            "previous_concurrency",
-        }
+        set(review) in (required, required | extra)
         and review["profile_sha256"] == target["profile_sha256"]
         and re.fullmatch(r"[a-f0-9]{40}", review["source_sha"])
         and re.fullmatch(r"[a-f0-9]{32}", review["operation_id"])
@@ -32,6 +47,16 @@ def validate_review(review, profile, now):
         and review["previous_concurrency"] > 0,
         "Exact unexpired maintenance review required",
     )
+    if extra <= set(review):
+        prefix = f"arn:aws:cloudformation:{target['region']}:{target['account']}:stack/"
+        require(
+            re.fullmatch(
+                re.escape(prefix + target["hosting_stack"] + "/") + r"[a-f0-9-]+",
+                review["hosting_stack_arn"],
+            )
+            and re.fullmatch(r"[a-f0-9]{64}", review["hosting_template_sha256"]),
+            "Exact hosting stack observation required",
+        )
     return target
 
 
@@ -84,16 +109,15 @@ def inspect(review, call, profile, now):
 
 def execute(mode, review, call, persist, *, profile, prior=None, now=None):
     """Persist intent before each write; inspect uncertain outcomes without replay."""
-    require(
-        mode in {"pause", "inspect", "snapshot", "snapshot-check"}, "Unknown maintenance operation"
-    )
+    require(mode in MODES, "Unknown maintenance operation")
     require(callable(persist), "Durable maintenance receipt writer required")
-    now = time.time() if now is None else now
+    live_clock = now is None
+    now = time.time() if live_clock else now
     target, function, concurrency = inspect(
         review,
         call,
         profile,
-        review["expires_at"] - 1 if mode in {"inspect", "snapshot-check"} else now,
+        review["expires_at"] - 1 if mode in RECOVERY_MODES else now,
     )
     operation = review["operation_id"]
     ownership = operation + ":" + review["source_sha"] + ":" + target["profile_sha256"]
@@ -102,6 +126,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
     snapshot_marker = function["Tags"].get("FitfinitySnapshot")
     marker = function["Tags"].get("FitfinityMaintenance")
     identity = {key: review[key] for key in ("profile_sha256", "source_sha", "operation_id")}
+    identity["review_sha256"] = digest(review)
     receipt = {
         "identity": identity,
         "state": "checked",
@@ -112,6 +137,22 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
             prior.get("identity") == identity
             and prior.get("previous_concurrency") == review["previous_concurrency"],
             "Prior maintenance identity differs",
+        )
+    if prior is not None:
+        for key in ("pause_record", "drained_after", "snapshot_requested", "snapshot_arn"):
+            if key in prior:
+                receipt[key] = deepcopy(prior[key])
+    if mode in RECORD_MODES:
+        require(prior is not None and marker == ownership, "Owned maintenance marker required")
+        return record_pause(
+            mode,
+            review,
+            prior,
+            receipt,
+            call,
+            persist,
+            profile=profile,
+            now=None if live_clock else now,
         )
     if mode == "pause":
         require(
@@ -152,6 +193,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
             receipt["snapshot_arn"] = arn
             receipt["snapshot_requested"] = True
             if mode == "snapshot":
+                require_recorded_pause(call, profile)
                 require(
                     prior.get("state") == "paused"
                     and not prior.get("snapshot_requested")
@@ -219,4 +261,63 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
                     "snapshot_ready" if rows[0].get("Status") == "available" else "snapshot_pending"
                 )
     persist(dict(receipt))
+    return receipt
+
+
+def record_pause(mode, review, prior, receipt, call, persist, *, profile, now):
+    """Persist only the reviewed concurrency pause without retaining raw templates in receipts."""
+    require(
+        {"hosting_stack_arn", "hosting_template_sha256"} <= set(review),
+        "Prepare maintenance with the exact hosting observation before recording its pause",
+    )
+    action = mode.removeprefix("record-pause-")
+    name = "release-" + review["operation_id"]
+    previous = prior.get("pause_record")
+    require(
+        action != "create"
+        or (
+            previous is None
+            and prior.get("state") == "paused"
+            and not prior.get("snapshot_requested")
+        ),
+        "Inspect the original pause record; do not recreate",
+    )
+    require(action == "create" or previous is not None, "Original pause-record intent required")
+    original = read_template(
+        call, review["hosting_stack_arn"], None if action == "create" else name
+    )
+    original = deepcopy(original)
+    if action != "create":
+        original["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = review[
+            "previous_concurrency"
+        ]
+    require(
+        digest(original) == review["hosting_template_sha256"], "Reviewed hosting template differs"
+    )
+    candidate = deepcopy(original)
+    candidate["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 0
+    plan = {
+        key: review[key] for key in ("profile_sha256", "source_sha", "operation_id", "expires_at")
+    }
+    plan.update(
+        stack_arn=review["hosting_stack_arn"],
+        original_template=original,
+        candidate_template=candidate,
+        mode="pause",
+        boundary_resource=None,
+        maintenance_marker=review["operation_id"]
+        + ":"
+        + review["source_sha"]
+        + ":"
+        + review["profile_sha256"],
+    )
+
+    def save(value):
+        receipt["pause_record"] = deepcopy(value)
+        receipt["state"] = (
+            "paused" if value["state"] == "template_verified" else "pause_record_" + value["state"]
+        )
+        persist(deepcopy(receipt))
+
+    release_step(action, plan, call, save, profile=profile, prior=previous, now=now)
     return receipt

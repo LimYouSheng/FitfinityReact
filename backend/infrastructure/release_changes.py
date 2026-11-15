@@ -19,7 +19,7 @@ RUNTIME_PROPERTIES = {
 
 def expected_changes(original, candidate, *, mode, boundary_resource=None):
     """Derive the exact permitted resource/property delta from reviewed templates."""
-    require(mode in {"rollout", "boundary", "resume"}, "Unknown release change mode")
+    require(mode in {"rollout", "boundary", "pause", "resume"}, "Unknown release change mode")
     require(
         {k: v for k, v in original.items() if k not in {"Resources", "Outputs"}}
         == {k: v for k, v in candidate.items() if k not in {"Resources", "Outputs"}},
@@ -63,20 +63,30 @@ def expected_changes(original, candidate, *, mode, boundary_resource=None):
             kind, allowed = "AWS::IAM::ManagedPolicy", {"PolicyDocument"}
         elif mode == "rollout" and name in RUNTIME_PROPERTIES:
             kind, allowed = RUNTIME_PROPERTIES[name]
-        elif mode == "resume" and name == "ApiFunction":
+        elif mode in {"pause", "resume"} and name == "ApiFunction":
             kind, allowed = "AWS::Lambda::Function", {"ReservedConcurrentExecutions"}
             require(
                 type(old.get("ReservedConcurrentExecutions")) is int
-                and old["ReservedConcurrentExecutions"] == 0
                 and type(new.get("ReservedConcurrentExecutions")) is int
-                and new["ReservedConcurrentExecutions"] > 0,
-                "Resumption must change explicit zero concurrency to a reviewed positive value",
+                and (
+                    old["ReservedConcurrentExecutions"] == 0
+                    and new["ReservedConcurrentExecutions"] > 0
+                    if mode == "resume"
+                    else old["ReservedConcurrentExecutions"] > 0
+                    and new["ReservedConcurrentExecutions"] == 0
+                ),
+                "Pause/resumption must change only explicit reviewed concurrency",
             )
         else:
             raise RuntimeError("Unrelated resource change refused")
         require(resource.get("Type") == kind and changed <= allowed, "Unrelated property changed")
         expected[name] = ("Modify", kind, changed)
     if mode == "rollout":
+        old_concurrency = before["ApiFunction"]["Properties"].get("ReservedConcurrentExecutions")
+        require(
+            type(old_concurrency) is int and old_concurrency == 0,
+            "CloudFormation rollback baseline must already keep traffic paused",
+        )
         concurrency = after["ApiFunction"]["Properties"].get("ReservedConcurrentExecutions")
         require(type(concurrency) is int and concurrency == 0, "Rollout must keep traffic paused")
         require(sum(row[0] == "Add" for row in expected.values()) == 1, "One new version required")

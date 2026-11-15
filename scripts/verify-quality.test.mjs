@@ -556,3 +556,12 @@ test('maintenance rejects a foreign role and credentials before artifact validat
   steps.unshift(credentials)
   assert.throws(() => verifyQualitySetup(ordering), /evidence must precede/)
 })
+
+test('maintenance requires recorded-pause recovery and cannot expose unreviewed resumption', () => {
+  const missing = readQualitySetup()
+  missing.maintenance.on.workflow_dispatch.inputs.mode.options = ['pause', 'inspect', 'snapshot', 'snapshot-check']
+  assert.throws(() => verifyQualitySetup(missing), /exact reviewed pause/)
+  const extra = readQualitySetup()
+  extra.maintenance.on.workflow_dispatch.inputs.mode.options.push('resume')
+  assert.throws(() => verifyQualitySetup(extra), /exact reviewed pause/)
+})

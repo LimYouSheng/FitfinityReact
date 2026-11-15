@@ -112,6 +112,8 @@ def prepare(
     rollback = deepcopy(template)
     rollback["Resources"][new_id] = deepcopy(target[new_id])
     rollback["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 0
+    maintenance = deepcopy(template)
+    maintenance["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 0
     return {
         "deployment_decision": "HOLD",
         **({"feature_review": feature_review} if feature_review else {}),
@@ -120,10 +122,13 @@ def prepare(
         "base_template_sha256": observed_template_sha256,
         "candidate_template": candidate,
         "rollback_template": rollback,
+        "maintenance_template": maintenance,
+        "required_rollout_base_template_sha256": digest(maintenance),
         "preserved_resource_ids": sorted(resources),
         "migration": "Separate reviewed forward-only upgrade; no downgrade on code rollback",
         "traffic": "Keep concurrency zero through forward/rollback; separately review resumption",
         "required_before_execution": [
+            "Persist and verify concurrency zero in CloudFormation before migration or rollout",
             "Fresh observed stack/configuration and no unexpected change-set replacement/deletion",
             "Exact image scan/provenance and frontend manifest verification",
             "Populated upgrade, runtime grants, maintenance and recoverable backup",

@@ -256,15 +256,29 @@ def access_template(profile, kind, role_name, policy_name, document):
 
 
 def maintenance_access(profile):
-    """Prepare a separate pause/snapshot operator with no database credential or deploy access."""
+    """Prepare a pause/snapshot operator without database credentials or image-write access."""
     target = identities(profile)
     account, region = target["account"], target["region"]
     function = f"arn:aws:lambda:{region}:{account}:function:{target['runtime_function']}"
     database = f"arn:aws:rds:{region}:{account}:db:{target['database']}"
     snapshots = f"arn:aws:rds:{region}:{account}:snapshot:{target['resource_prefix']}-release-*"
+    stack = f"arn:aws:cloudformation:{region}:{account}:stack/{target['hosting_stack']}/*"
+    changes = f"arn:aws:cloudformation:{region}:{account}:changeSet/release-*/*"
     document = policy(
         [
             {"Effect": "Allow", "Action": "sts:GetCallerIdentity", "Resource": "*"},
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:GetTemplate",
+                    "cloudformation:ListStackResources",
+                    "cloudformation:CreateChangeSet",
+                    "cloudformation:DescribeChangeSet",
+                    "cloudformation:ExecuteChangeSet",
+                ],
+                "Resource": [stack, changes],
+            },
             {
                 "Effect": "Allow",
                 "Action": [

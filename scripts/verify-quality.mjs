@@ -74,6 +74,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
     if (step['continue-on-error'] || (step.run ?? '').includes('${{ inputs.')) fail('upgrade must not interpolate input into shell or suppress errors')
   }
   const maintenanceJob = maintenance.jobs?.maintenance
+  if (!equal(maintenance.on?.workflow_dispatch?.inputs?.mode?.options, ['pause', 'inspect', 'record-pause-create', 'record-pause-inspect', 'record-pause-execute', 'record-pause-verify', 'snapshot', 'snapshot-check'])) fail('maintenance must expose the exact reviewed pause, recovery and snapshot steps')
   if (!equal(Object.keys(maintenance.on), ['workflow_dispatch']) || !equal(maintenance.permissions, { contents: 'read' }) || !equal(maintenanceJob?.needs, ['offline', 'target']) || maintenanceJob?.environment !== '${{ needs.target.outputs.environment }}' || maintenanceJob?.if !== "github.ref == 'refs/heads/main' && vars.AWS_MAINTENANCE_ENABLED == 'true'") fail('maintenance must be manual, main-only, disabled by default and protected')
   if (!equal(maintenanceJob.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false }) || !equal(maintenanceJob.permissions, { contents: 'read', actions: 'read', 'id-token': 'write' }) || maintenance.jobs.offline.uses !== './.github/workflows/infrastructure.yml') fail('maintenance concurrency, verification or permissions differ')
   const maintenanceAuth = maintenanceJob.steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))

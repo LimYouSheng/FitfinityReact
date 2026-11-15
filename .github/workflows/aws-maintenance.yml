@@ -9,7 +9,7 @@ on:
         required: true
       mode:
         type: choice
-        options: [pause, inspect, snapshot, snapshot-check]
+        options: [pause, inspect, record-pause-create, record-pause-inspect, record-pause-execute, record-pause-verify, snapshot, snapshot-check]
         required: true
       review_run:
         description: Successful manual release-preparation run containing the reviewed maintenance package

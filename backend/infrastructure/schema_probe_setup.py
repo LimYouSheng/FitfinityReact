@@ -139,6 +139,10 @@ def prepare(secret_arn, *, profile=DEVELOPER, purpose="probe"):
         operator_policy["Statement"].extend(
             [
                 allow(
+                    ["cloudformation:DescribeStacks", "cloudformation:GetTemplate"],
+                    f"arn:aws:cloudformation:{region}:{account}:stack/{target['hosting_stack']}/*",
+                ),
+                allow(
                     ["lambda:GetFunction", "lambda:GetFunctionConcurrency"],
                     f"arn:aws:lambda:{region}:{account}:function:{target['runtime_function']}",
                 ),

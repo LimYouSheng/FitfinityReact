@@ -481,6 +481,19 @@ class UpgradeExecutionTests(unittest.TestCase):
         if operation == "create-stack":
             self.assertEqual(self.saved[-1]["state"], "create_submitted")
             return {"StackId": self.stack}
+        if operation == "describe-stacks" and args.get("StackName") == "client-prod-login":
+            return {
+                "Stacks": [
+                    {
+                        "StackName": "client-prod-login",
+                        "StackId": (
+                            "arn:aws:cloudformation:eu-west-1:123456789012:stack/"
+                            "client-prod-login/abcd"
+                        ),
+                        "StackStatus": "UPDATE_COMPLETE",
+                    }
+                ]
+            }
         if operation == "describe-stacks":
             return {
                 "Stacks": [
@@ -492,6 +505,20 @@ class UpgradeExecutionTests(unittest.TestCase):
                 ]
             }
         if operation == "get-template":
+            if ":stack/client-prod-login/" in args.get("StackName", ""):
+                return {
+                    "TemplateBody": {
+                        "Resources": {
+                            "ApiFunction": {
+                                "Type": "AWS::Lambda::Function",
+                                "Properties": {
+                                    "FunctionName": "client-prod-staff-api",
+                                    "ReservedConcurrentExecutions": 0,
+                                },
+                            }
+                        }
+                    }
+                }
             return {"TemplateBody": self.review["template"]}
         if operation == "get-function":
             if args["FunctionName"] == "client-prod-staff-api":
@@ -693,6 +720,23 @@ class UpgradeExecutionTests(unittest.TestCase):
         for value in (1, False, None):
             self.overrides["get-function-concurrency"] = {"ReservedConcurrentExecutions": value}
             with self.subTest(value=value), self.assertRaises(RuntimeError):
+                readiness(self.binding, self.evidence, self.call, profile=CLIENT, now=1000)
+        self.overrides.clear()
+        for value in (2, False, None):
+            self.overrides["get-template"] = {
+                "TemplateBody": {
+                    "Resources": {
+                        "ApiFunction": {
+                            "Type": "AWS::Lambda::Function",
+                            "Properties": {
+                                "FunctionName": "client-prod-staff-api",
+                                "ReservedConcurrentExecutions": value,
+                            },
+                        }
+                    }
+                }
+            }
+            with self.subTest(saved_concurrency=value), self.assertRaises(RuntimeError):
                 readiness(self.binding, self.evidence, self.call, profile=CLIENT, now=1000)
         self.overrides.clear()
         readiness(self.binding, self.evidence, self.call, profile=CLIENT, now=1000)
