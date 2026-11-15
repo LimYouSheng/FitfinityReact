@@ -1,6 +1,7 @@
 """Offline private catalog-probe template; does not create, invoke or delete AWS resources."""
 
 import argparse
+import hashlib
 import json
 import re
 import time
@@ -9,6 +10,7 @@ from pathlib import Path
 import hosting_design as design
 from operator_checks import require
 from release_image import URI
+from schema_probe_iam import BOUNDARY, RUNTIME_ROLE, runtime_policy
 
 
 def prepare(binding, *, now=None):
@@ -42,7 +44,7 @@ def prepare(binding, *, now=None):
         "security_group_id": r"sg-[0-9a-f]{8,17}",
         "migration_secret_arn": (
             rf"arn:aws:secretsmanager:{design.REGION}:{design.ACCOUNT}:"
-            r"secret:fitfinity/test/[A-Za-z0-9/_+=.@-]+-[A-Za-z0-9]{6}"
+            r"secret:fitfinity/test/database/migration-[A-Za-z0-9]{6}"
         ),
     }.items():
         require(
@@ -66,16 +68,7 @@ def prepare(binding, *, now=None):
         "Probe requires a future expiry within one hour",
     )
     name = "fitfinity-test-schema-observe"
-    function_arn = f"arn:aws:lambda:{design.REGION}:{design.ACCOUNT}:function:{name}"
     log_name = f"/aws/lambda/{name}"
-    eni = [
-        "ec2:CreateNetworkInterface",
-        "ec2:DescribeNetworkInterfaces",
-        "ec2:DescribeSubnets",
-        "ec2:DeleteNetworkInterface",
-        "ec2:AssignPrivateIpAddresses",
-        "ec2:UnassignPrivateIpAddresses",
-    ]
     template = {
         "AWSTemplateFormatVersion": "2010-09-09",
         "Description": "Temporary private catalog probe; no public trigger or migrations",
@@ -87,6 +80,8 @@ def prepare(binding, *, now=None):
             "ProbeRole": {
                 "Type": "AWS::IAM::Role",
                 "Properties": {
+                    "RoleName": RUNTIME_ROLE,
+                    "PermissionsBoundary": BOUNDARY,
                     "AssumeRolePolicyDocument": {
                         "Version": "2012-10-17",
                         "Statement": [
@@ -100,38 +95,7 @@ def prepare(binding, *, now=None):
                     "Policies": [
                         {
                             "PolicyName": "ReadCatalogProbe",
-                            "PolicyDocument": {
-                                "Version": "2012-10-17",
-                                "Statement": [
-                                    {
-                                        "Effect": "Allow",
-                                        "Action": "secretsmanager:GetSecretValue",
-                                        "Resource": binding["migration_secret_arn"],
-                                        "Condition": {
-                                            "StringEquals": {
-                                                "secretsmanager:VersionStage": "AWSCURRENT"
-                                            }
-                                        },
-                                    },
-                                    {
-                                        "Effect": "Allow",
-                                        "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
-                                        "Resource": (
-                                            f"arn:aws:logs:{design.REGION}:{design.ACCOUNT}:"
-                                            f"log-group:{log_name}:*"
-                                        ),
-                                    },
-                                    {"Effect": "Allow", "Action": eni, "Resource": "*"},
-                                    {
-                                        "Effect": "Deny",
-                                        "Action": eni + ["ec2:DetachNetworkInterface"],
-                                        "Resource": "*",
-                                        "Condition": {
-                                            "ArnEquals": {"lambda:SourceFunctionArn": function_arn}
-                                        },
-                                    },
-                                ],
-                            },
+                            "PolicyDocument": runtime_policy(binding["migration_secret_arn"]),
                         }
                     ],
                 },
@@ -206,9 +170,45 @@ def prepare(binding, *, now=None):
     }
 
 
+def prepare_review(binding, source_sha, sql, *, now=None):
+    """Bind the offline probe review to the checked-out source and packaged SQL."""
+    require(binding.get("source_sha") == source_sha, "Probe source differs from checkout")
+    require(
+        binding.get("sql_sha256") == hashlib.sha256(sql).hexdigest(),
+        "Probe SQL differs from packaged catalog query",
+    )
+    plan = prepare(binding, now=now)
+    template_bytes = json.dumps(plan["template"], sort_keys=True, separators=(",", ":")).encode()
+    return {
+        **plan,
+        "bindings": dict(binding),
+        "source_sha": source_sha,
+        "sql_sha256": binding["sql_sha256"],
+        "template_sha256": hashlib.sha256(template_bytes).hexdigest(),
+        "expires_at": binding["expires_at"],
+        "image_attestation": "Not verified; review exact published image and scan receipt",
+    }
+
+
+def write_review(review, output):
+    """Write a new immutable review directory with the exact probe request bytes."""
+    output.mkdir(parents=True, exist_ok=False)
+    (output / "review.json").write_text(json.dumps(review, indent=2))
+    (output / "template.json").write_text(
+        json.dumps(review["template"], sort_keys=True, separators=(",", ":"))
+    )
+    (output / "invoke.json").write_text(json.dumps(review["invoke_payload"], separators=(",", ":")))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("bindings", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--source-sha", required=True)
     args = parser.parse_args()
-    args.output.write_text(json.dumps(prepare(json.loads(args.bindings.read_text())), indent=2))
+    review = prepare_review(
+        json.loads(args.bindings.read_text()),
+        args.source_sha,
+        Path(__file__).with_name("read-schema.sql").read_bytes(),
+    )
+    write_review(review, args.output)

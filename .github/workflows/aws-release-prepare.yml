@@ -4,7 +4,12 @@ on:
     branches: [main]
   push:
     branches: [main]
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      probe_bindings:
+        description: 'Optional reviewed probe bindings JSON (metadata only; never secret values)'
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -32,6 +37,17 @@ jobs:
             --output "$RUNNER_TEMP/release-readiness.json" \
             --frontend "$RUNNER_TEMP/release-frontend" \
             2>&1 | tee "$RUNNER_TEMP/release-prepare.log"
+      - name: Prepare optional private schema probe review
+        if: github.event_name == 'workflow_dispatch' && inputs.probe_bindings != ''
+        env:
+          PROBE_BINDINGS: ${{ inputs.probe_bindings }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$PROBE_BINDINGS" > "$RUNNER_TEMP/probe-bindings.json"
+          python3 backend/infrastructure/schema_probe_plan.py \
+            "$RUNNER_TEMP/probe-bindings.json" "$RUNNER_TEMP/schema-probe-review" \
+            --source-sha "$GITHUB_SHA"
       - name: Explain release boundary
         if: always()
         shell: bash
@@ -51,6 +67,7 @@ jobs:
             ${{ runner.temp }}/release-readiness.json
             ${{ runner.temp }}/release-prepare.log
             ${{ runner.temp }}/release-frontend/dist-api-test/
+            ${{ runner.temp }}/schema-probe-review/
           if-no-files-found: error
           retention-days: 14
   runtime-build:

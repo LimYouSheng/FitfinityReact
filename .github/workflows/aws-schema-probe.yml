@@ -1,0 +1,96 @@
+name: Manual private developer schema observation
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [create, collect, cleanup, cleanup-check]
+        required: true
+      review_run:
+        description: Successful manual release-preparation run containing the reviewed probe package
+        type: string
+        required: true
+      image_run:
+        description: Successful matching image-publication run (not needed for cleanup)
+        type: string
+        required: false
+      template_sha256:
+        description: Exact SHA256 from the reviewed probe template
+        type: string
+        required: true
+      operation_id:
+        description: Durable 32 lowercase hexadecimal ID; retain for collect and cleanup
+        type: string
+        required: true
+      stack_id:
+        description: Retained stack ARN; required for cleanup-check
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: fitfinity-aws-test
+  cancel-in-progress: false
+jobs:
+  offline:
+    uses: ./.github/workflows/infrastructure.yml
+  probe:
+    needs: offline
+    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_PROBE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: aws-test
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Fetch exact reviewed evidence before AWS authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROBE_MODE: ${{ inputs.mode }}
+          REVIEW_RUN: ${{ inputs.review_run }}
+          IMAGE_RUN: ${{ inputs.image_run }}
+        run: python3 backend/infrastructure/schema_probe_artifacts.py
+      - name: Require dedicated probe role
+        env:
+          PROBE_ROLE: ${{ vars.AWS_SCHEMA_PROBE_ROLE_ARN }}
+        run: test "$PROBE_ROLE" = 'arn:aws:iam::418638389566:role/fitfinity-test-github-schema-probe'
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_SCHEMA_PROBE_ROLE_ARN }}
+          role-session-name: fitfinity-schema-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ap-southeast-1
+          allowed-account-ids: '418638389566'
+          unset-current-credentials: true
+      - name: Execute one reviewed probe step
+        env:
+          PROBE_MODE: ${{ inputs.mode }}
+          TEMPLATE_SHA256: ${{ inputs.template_sha256 }}
+          OPERATION_ID: ${{ inputs.operation_id }}
+          STACK_ID: ${{ inputs.stack_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$STACK_ID" ]; then args+=(--stack-id "$STACK_ID"); fi
+          if [[ "$PROBE_MODE" != cleanup* ]]; then
+            args+=(--image-receipt "$RUNNER_TEMP/probe-image/fitfinity-image-candidate.json")
+          fi
+          python3 backend/infrastructure/schema_probe_operator.py \
+            --mode "$PROBE_MODE" \
+            --review "$RUNNER_TEMP/probe-review/schema-probe-review/review.json" \
+            --template-sha256 "$TEMPLATE_SHA256" --operation-id "$OPERATION_ID" \
+            --receipt "$RUNNER_TEMP/schema-probe-receipt.json" "${args[@]}"
+      - name: Retain operational receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-schema-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/schema-probe-receipt.json
+          if-no-files-found: warn
+          retention-days: 7

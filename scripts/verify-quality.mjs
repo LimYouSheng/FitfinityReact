@@ -23,12 +23,13 @@ export function readQualitySetup(root = process.cwd()) {
     acceptance: parse(read('.github/workflows/aws-image-accept.yml')),
     preparation: parse(read('.github/workflows/aws-release-prepare.yml')),
     observation: parse(read('.github/workflows/aws-release-observe.yml')),
+    schemaProbe: parse(read('.github/workflows/aws-schema-probe.yml')),
     packageJson: JSON.parse(read('package.json')),
     lock: JSON.parse(read('package-lock.json')),
   }
 }
 
-export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, preparation, observation, packageJson, lock }) {
+export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, preparation, observation, schemaProbe, packageJson, lock }) {
   for (const event of ['pull_request', 'push']) {
     if (!equal(pages.on?.[event]?.branches, ['main']) || Object.keys(pages.on[event]).some(key => key !== 'branches')) fail(`${event} must run all gates for main without path filtering`)
   }
@@ -44,8 +45,20 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
       if (step.uses?.startsWith('actions/upload-artifact@') && step.if !== 'always()') fail('release preparation must retain failures')
     }
   }
+  const probe = preparation.jobs['frontend-and-schema'].steps.find(step => step.name === 'Prepare optional private schema probe review')
+  if (probe?.if !== "github.event_name == 'workflow_dispatch' && inputs.probe_bindings != ''" || probe?.env?.PROBE_BINDINGS !== '${{ inputs.probe_bindings }}' || !probe.run.includes('--source-sha "$GITHUB_SHA"') || probe.run.includes('${{')) fail('probe review must bind exact source and pass metadata through environment')
   requireGate(preparation.jobs['frontend-and-schema'], 'python3 backend/infrastructure/release_readiness.py')
   requireGate(preparation.jobs['runtime-build'], 'docker build --pull --platform linux/amd64 --target runtime')
+  const probeJob = schemaProbe.jobs?.probe
+  if (!equal(Object.keys(schemaProbe.on), ['workflow_dispatch']) || !equal(schemaProbe.permissions, { contents: 'read' }) || probeJob?.needs !== 'offline' || probeJob?.environment !== 'aws-test' || probeJob?.if !== "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_PROBE_ENABLED == 'true'") fail('schema probe must be manual, main-only, disabled by default and protected')
+  if (!equal(schemaProbe.concurrency, { group: 'fitfinity-aws-test', 'cancel-in-progress': false }) || probeJob['timeout-minutes'] !== 10 || schemaProbe.jobs.offline.uses !== './.github/workflows/infrastructure.yml') fail('schema probe lifecycle concurrency or verification differs')
+  const probeCredentials = probeJob.steps.find(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
+  if (probeCredentials?.with?.['role-to-assume'] !== '${{ vars.AWS_SCHEMA_PROBE_ROLE_ARN }}' || probeCredentials.with['allowed-account-ids'] !== '418638389566') fail('schema probe must use its dedicated exact account role')
+  requireGate(probeJob, 'python3 backend/infrastructure/schema_probe_artifacts.py')
+  requireGate(probeJob, 'python3 backend/infrastructure/schema_probe_operator.py')
+  if (probeJob.steps.findIndex(step => step.run?.includes('schema_probe_artifacts.py')) > probeJob.steps.indexOf(probeCredentials)) fail('probe evidence must be fetched before authentication')
+  const probeUpload = probeJob.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'))
+  if (probeUpload?.if !== 'always()' || probeUpload.with['retention-days'] !== 7 || probeUpload.with.path !== '${{ runner.temp }}/schema-probe-receipt.json') fail('probe must retain only its operational receipt')
   const observe = observation.jobs?.observe
   if (!equal(Object.keys(observation.on), ['workflow_dispatch']) || !equal(observation.permissions, { contents: 'read' }) || observe?.needs !== 'offline' || observe.environment !== 'aws-test' || observe.if !== "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'") fail('release observation must stay manual, main-only and protected')
   const observationCredentials = observe.steps.find(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))

@@ -2,22 +2,29 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — PR128 continued audit and session-video request ownership
+## Current task — local AWS deployment preparation for physical M6 testing
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Continue bounded unused-code, lifecycle and recovery review. Repair confirmed defects with regressions; retain language-specific documentation conventions and security rationale. |
-| Checkout / PR | Existing branch `fix/library-video-preview`, PR128; published cleanup head b8625e2. The additional saved-preview race repair is prepared locally. No stashes are present in this resumed environment; no saved work was deleted. |
-| Source review | A pending saved-video download could overwrite a replacement preview or surface obsolete errors. Candidate acceptance now retires that read; invalid replacements preserve it. Object-URL cleanup has one effect owner. Five regression cases added; no server contract or business-rule change. |
-| Acceptance / budget | Three race cases reproduced before repair;53 focused tests and145 quality guards pass. Full1524/1524 units pass in84.30s; lint, source-health, build and dependency consistency pass. Final-head CI remains required. Prior cleanup AST, lint and format receipts remain in Journey. This is a bounded lifecycle audit, not an exhaustive error-free certification. |
-| CI checkpoint | Prior head b8625e2: CodeQL43683373648 and preparation43683373666 passed; application43683373700 was running at inspection. These do not accept the additional local repair. |
-| Deployment handover | Private schema probe remains merged source only, not deployed/invoked. Network/secret/image bindings, eligibility/cost and create/invoke/cleanup review remain outstanding. Developer retention remains1 day;14 days is deferred to upgraded client AWS. |
+| Campaign / budget | Developer AWS physical-test readiness; North Star block3 (probe publication and client portability review), up to6 substantive iterations/90 minutes. Single agent, existing checkout. Complete offline evidence per slice; no cloud cost or mutations. |
+| Acceptance | Wrong source/account/template/resource, stale expiry, uncertain creation, foreign cleanup and malformed probe results must be refused. Exact final-head CI precedes source acceptance; AWS/provider/UAT require separate receipts. |
+| Work queue |1–3 implemented locally: compact package, guarded lifecycle and protected workflow.4. Local verification complete; live prerequisite reconciliation blocked on access/configuration. No agents used. |
+| Delivery | Keep local deployment edits separate from published PR128; verify and review the complete candidate before publication. |
+| Outcome / scope | Prioritize the path to developer-AWS physical testing. Prepare deployment workflow locally; no cloud mutation or provider action in this work. |
+| Checkout / PR | Existing checkout now uses `feat/private-schema-probe`, based on published PR128 head6a7e9aa containing the completed audit repair. Deployment preparation is a separate dependent draft candidate; it is not part of PR128’s tested head. Preserve them when updating the branch. |
+| Prepared change | Offline three-resource IAM setup with shared runtime boundary, read-only network follow-up, source/SQL-bound review package and dedicated manual create/collect/cleanup/cleanup-check workflow. Exact compact invocation, artifact producer, live scan/configuration, account quota and ownership guards. Standalone one-time IAM setup is now operator-verified in AWS; no migration or staff rollout executor is claimed ready. |
+| Verification | Expanded offline infrastructure and workflow tests run with AWS simulated and networking disabled; final totals705 infrastructure/154 workflow-quality. Pinned Ruff lint/format, JS lint/source health and dependency checks pass. Earlier670/146 receipts are historical. GitHub variable-name read returned403. Uploaded15 November AWS preflight confirms the dedicated probe role is absent (NoSuchEntity); GitHub environment read now confirms aws-test requires LimYouSheng review and allows only main; variable access remains denied. |
+| Budget checkpoint | Block1 checkpoint retained in Journey; block2 prepares exact IAM resources and read-only follow-up, then validates boundaries and reconciles delivery. Single agent; user executed and independently verified the reviewed IAM setup. Workflow publication is the current slice; probe execution remains pending. |
+| Uploaded AWS evidence | User-supplied15 November preflight/follow-up: correct account/region;998 unreserved Lambda concurrency; RDS available/private/encrypted,17.11, retention1 day. Egress instance running, source/destination check disabled, instance/system/EBS health checks pass. DB inbound5432 permits the selected application group. OIDC issuer/audience match. Staff Lambda inactive reason is explicitly Idle; last update Successful. These metadata receipts do not prove live secret/database connectivity. The subsequent operator receipt confirms CREATE_COMPLETE at18:49 Singapore time on15 November and matching trust, inline policy and both boundaries. |
+| Source gate | Published PR128 head6a7e9aa passes frontend/backend/real-API gates, but CodeQL check132720962160 reports two high js/xss-through-dom findings in ExerciseLibraryMedia.jsx:35. Language analysis jobs passed; the security result blocks acceptance. Review exact paths against the existing false-positive evidence; no bypass or automatic dismissal. |
+| Physical-test blockers | Current private schema receipt; exact scanned current image; reviewed migration grants/configuration and populated upgrade execution; runtime/frontend rollout and health; real Cognito/login and designated test identities. No current-source deployed acceptance yet. |
+| AWS boundaries | Developer backup retention stays1 day.14 days remains deferred until upgraded client AWS. Probe create/invoke/cleanup, migration and rollout require concrete reviewed target-bound execution plans. |
 
 ### Resume in this order
 
-1. Publish the locally verified lifecycle repair on PR128; retain original failures in Journey.
-2. Verify all exact-head gates and GitHub requirements before merge; inspect fresh main separately. Continue targeted audit where evidence identifies another candidate.
-3. Resume private-schema probe activation preparation before migration/rollout; no bootstrap or rejected retention-plan replay.
+1. Publish the verified local probe candidate as a separate draft dependent on PR128. PR128 remains blocked by two CodeQL findings; current code-scanning-alert and environment-variable API reads return403. Do not bypass the gate or replay IAM setup.
+2. After source acceptance, configure aws-test AWS_SCHEMA_PROBE_ROLE_ARN and AWS_SCHEMA_PROBE_ENABLED, verify current image/scan and prepare source-bound probe evidence. Run create/collect/cleanup/cleanup-check through protected main Actions and retain the actual schema receipt. Current connection cannot administer environment variables; operator configuration remains required unless access changes.
+3. Use the actual schema receipt to finalize the migration/runtime/frontend rollout; verify login and API health, then begin role-specific physical UAT. Do not replay bootstrap or rejected retention plans.
 
 ## Current acceptance boundaries
 
