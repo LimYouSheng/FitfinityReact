@@ -7,10 +7,13 @@ import subprocess
 import time
 import uuid
 
-ACCOUNT = "418638389566"
-REGION = "ap-southeast-1"
-STACK = "fitfinity-test-schema-probe-access"
-ROLE = "fitfinity-test-github-schema-probe"
+from deployment_profile import DEVELOPER, identities
+
+TARGET = identities(DEVELOPER)
+ACCOUNT = TARGET["account"]
+REGION = TARGET["region"]
+STACK = TARGET["setup_stack"]
+ROLE = TARGET["operator_role"]
 
 
 def require(value, message):
@@ -131,6 +134,7 @@ def install(template, directory, call, pause=time.sleep):
     receipt = {
         "account": ACCOUNT,
         "region": REGION,
+        "profile_sha256": TARGET["profile_sha256"],
         "stack_name": STACK,
         "operation_id": operation,
         "state": "prepared",

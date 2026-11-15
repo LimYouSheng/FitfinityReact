@@ -6,11 +6,13 @@ import json
 import re
 from pathlib import Path
 
+from deployment_profile import DEVELOPER, identities, load
 from operator_checks import require
-from release_image import ACCOUNT, REGION
-from schema_probe_iam import BOUNDARY, NAME, RUNTIME_ROLE, runtime_policy
+from schema_probe_iam import runtime_policy
 
-OPERATOR_ROLE = "fitfinity-test-github-schema-probe"
+ACCOUNT, REGION = DEVELOPER["account"], DEVELOPER["region"]
+
+OPERATOR_ROLE = identities(DEVELOPER)["operator_role"]
 
 
 def policy(statements):
@@ -23,26 +25,31 @@ def allow(actions, resources, **extra):
     return {"Effect": "Allow", "Action": actions, "Resource": resources, **extra}
 
 
-def prepare(secret_arn):
-    """Return a review-only setup template for the exact developer account and secret."""
+def prepare(secret_arn, *, profile=DEVELOPER):
+    """Return scoped IAM resources for one validated deployment profile."""
+    target = identities(profile)
+    account, region = target["account"], target["region"]
+    name, runtime_role = target["probe_name"], target["runtime_role"]
+    operator_role, boundary = target["operator_role"], target["runtime_boundary"]
+    secret_prefix = re.escape(target["secret_prefix"])
     require(
         isinstance(secret_arn, str)
         and re.fullmatch(
-            rf"arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:fitfinity/test/database/migration-[A-Za-z0-9]{{6}}",
+            rf"arn:aws:secretsmanager:{region}:{account}:secret:{secret_prefix}/database/migration-[A-Za-z0-9]{{6}}",
             secret_arn,
         ),
-        "Exact developer migration secret metadata required",
+        "Exact target migration secret metadata required",
     )
-    function = f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{NAME}"
-    runtime = f"arn:aws:iam::{ACCOUNT}:role/{RUNTIME_ROLE}"
-    logs = f"arn:aws:logs:{REGION}:{ACCOUNT}:log-group:/aws/lambda/{NAME}"
+    function = f"arn:aws:lambda:{region}:{account}:function:{name}"
+    runtime = f"arn:aws:iam::{account}:role/{runtime_role}"
+    logs = f"arn:aws:logs:{region}:{account}:log-group:/aws/lambda/{name}"
     operator_policy = policy(
         [
             allow("sts:GetCallerIdentity", "*"),
             allow(["lambda:GetAccountSettings", "lambda:ListEventSourceMappings"], "*"),
             allow(["ec2:DescribeSubnets", "ec2:DescribeSecurityGroups"], "*"),
             allow(
-                "rds:DescribeDBInstances", f"arn:aws:rds:{REGION}:{ACCOUNT}:db:fitfinity-test-db"
+                "rds:DescribeDBInstances", f"arn:aws:rds:{region}:{account}:db:{target['database']}"
             ),
             allow("secretsmanager:DescribeSecret", secret_arn),
             allow(
@@ -52,7 +59,7 @@ def prepare(secret_arn):
                     "ecr:GetDownloadUrlForLayer",
                     "ecr:GetRepositoryPolicy",
                 ],
-                f"arn:aws:ecr:{REGION}:{ACCOUNT}:repository/fitfinity-test-api",
+                f"arn:aws:ecr:{region}:{account}:repository/{target['image_repository']}",
             ),
             allow(
                 [
@@ -65,7 +72,7 @@ def prepare(secret_arn):
                     "cloudformation:GetTemplate",
                     "cloudformation:DeleteStack",
                 ],
-                f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/{NAME}/*",
+                f"arn:aws:cloudformation:{region}:{account}:stack/{name}/*",
             ),
             allow(
                 [
@@ -88,7 +95,7 @@ def prepare(secret_arn):
             allow(
                 "iam:CreateRole",
                 runtime,
-                Condition={"StringEquals": {"iam:PermissionsBoundary": BOUNDARY}},
+                Condition={"StringEquals": {"iam:PermissionsBoundary": boundary}},
             ),
             allow(
                 [
@@ -130,15 +137,13 @@ def prepare(secret_arn):
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Principal": {
                     "Federated": (
-                        f"arn:aws:iam::{ACCOUNT}:oidc-provider/token.actions.githubusercontent.com"
+                        f"arn:aws:iam::{account}:oidc-provider/token.actions.githubusercontent.com"
                     )
                 },
                 "Condition": {
                     "StringEquals": {
                         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-                        "token.actions.githubusercontent.com:sub": (
-                            "repo:LimYouSheng/FitfinityReact:environment:aws-test"
-                        ),
+                        "token.actions.githubusercontent.com:sub": (target["oidc_subject"]),
                     }
                 },
             }
@@ -151,21 +156,21 @@ def prepare(secret_arn):
             "RuntimeBoundary": {
                 "Type": "AWS::IAM::ManagedPolicy",
                 "Properties": {
-                    "ManagedPolicyName": NAME + "-runtime-boundary",
-                    "PolicyDocument": runtime_policy(secret_arn),
+                    "ManagedPolicyName": name + "-runtime-boundary",
+                    "PolicyDocument": runtime_policy(secret_arn, profile=profile),
                 },
             },
             "OperatorBoundary": {
                 "Type": "AWS::IAM::ManagedPolicy",
                 "Properties": {
-                    "ManagedPolicyName": OPERATOR_ROLE + "-boundary",
+                    "ManagedPolicyName": operator_role + "-boundary",
                     "PolicyDocument": operator_policy,
                 },
             },
             "OperatorRole": {
                 "Type": "AWS::IAM::Role",
                 "Properties": {
-                    "RoleName": OPERATOR_ROLE,
+                    "RoleName": operator_role,
                     "MaxSessionDuration": 3600,
                     "PermissionsBoundary": {"Ref": "OperatorBoundary"},
                     "AssumeRolePolicyDocument": trust,
@@ -178,11 +183,14 @@ def prepare(secret_arn):
     }
     return {
         "decision": "HOLD",
-        "account": ACCOUNT,
-        "region": REGION,
+        "profile": dict(profile),
+        "profile_sha256": target["profile_sha256"],
+        "account": account,
+        "region": region,
         "template": template,
         "required_before_execution": [
-            "Verify existing GitHub OIDC provider and aws-test main-only environment protection",
+            "Verify existing GitHub OIDC provider and "
+            "the selected main-only environment protection",
             "Inspect a CREATE-only named-IAM change set; "
             "reject existing resource adoption or unrelated changes",
             "Review exact account/secret and grants; no hosting/image/foundation role changes",
@@ -194,13 +202,31 @@ def prepare(secret_arn):
 
 def write_bundle(review, output):
     """Package the reviewed template and tested standalone CloudShell installer."""
+    target = identities(review["profile"])
+    require(review["profile_sha256"] == target["profile_sha256"], "Profile fingerprint differs")
     template = review["template"]
+    secret = template["Resources"]["RuntimeBoundary"]["Properties"]["PolicyDocument"]["Statement"][
+        0
+    ]["Resource"]
+    require(
+        template == prepare(secret, profile=review["profile"])["template"],
+        "Template differs from selected profile",
+    )
     data = json.dumps(template, sort_keys=True, separators=(",", ":")).encode()
     review = {**review, "template_sha256": hashlib.sha256(data).hexdigest()}
     output.mkdir(parents=True, exist_ok=False)
     (output / "template.json").write_bytes(data)
     (output / "review.json").write_text(json.dumps(review, indent=2))
     operator = Path(__file__).with_name("schema_probe_setup_operator.py").read_text()
+    target_import = "from deployment_profile import DEVELOPER, identities"
+    target_assignment = "TARGET = identities(DEVELOPER)"
+    require(
+        operator.count(target_import) == 1 and operator.count(target_assignment) == 1,
+        "Installer target binding changed",
+    )
+    operator = operator.replace(target_import, "").replace(
+        target_assignment, "TARGET = json.loads(" + repr(json.dumps(target, sort_keys=True)) + ")"
+    )
     entry = (
         "\n\nfrom pathlib import Path\n\nTEMPLATE = json.loads(" + repr(data.decode()) + ")\n"
         "TEMPLATE_SHA256 = " + repr(review["template_sha256"]) + "\n"
@@ -227,9 +253,10 @@ def write_bundle(review, output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--migration-secret-arn", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    review = prepare(args.migration_secret_arn)
+    review = prepare(args.migration_secret_arn, profile=load(args.profile))
     write_bundle(review, args.output)
     print("IAM setup prepared locally; HOLD. No AWS calls or workflow activation.")

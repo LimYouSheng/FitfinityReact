@@ -1,16 +1,21 @@
 """Own the temporary probe runtime's permission ceiling."""
 
-from release_image import ACCOUNT, REGION
+from deployment_profile import DEVELOPER, identities
+
+_TARGET = identities(DEVELOPER)
+ACCOUNT, REGION = _TARGET["account"], _TARGET["region"]
 
 NAME = "fitfinity-test-schema-observe"
 RUNTIME_ROLE = NAME + "-runtime"
 BOUNDARY = f"arn:aws:iam::{ACCOUNT}:policy/{NAME}-runtime-boundary"
 
 
-def runtime_policy(secret_arn):
+def runtime_policy(secret_arn, *, profile=DEVELOPER):
     """Limit runtime access to its exact migration secret, logs and managed ENIs."""
-    function = f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{NAME}"
-    logs = f"arn:aws:logs:{REGION}:{ACCOUNT}:log-group:/aws/lambda/{NAME}"
+    target = identities(profile)
+    account, region, name = target["account"], target["region"], target["probe_name"]
+    function = f"arn:aws:lambda:{region}:{account}:function:{name}"
+    logs = f"arn:aws:logs:{region}:{account}:log-group:/aws/lambda/{name}"
     eni = [
         "ec2:CreateNetworkInterface",
         "ec2:DescribeNetworkInterfaces",

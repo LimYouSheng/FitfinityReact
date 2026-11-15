@@ -314,3 +314,20 @@ Client-account migration is not currently a variables-only operation. The develo
 | Recovery and acceptance | Reconcile client retention/account plan (14-day backup remains deferred), schema/migration grants and restore evidence. Test profile rendering and wrong-account/repository/resource rejection offline, then separately authorize client preflight/deployment and verify real login/API/media/role UAT. |
 
 This portability work is a prerequisite for client cutover, not a claim that a generic multi-account executor already exists. The verified developer IAM bootstrap remains valid for its exact target. Routine release automation must use the installed target-specific roles; bootstrap is only required once per independently provisioned environment.
+
+
+The first portability implementation accepts the strict identity profile below. Use the same schema with separately reviewed client values; `schema_version` must be integer1. `resource_prefix` determines names of resources provisioned by these templates; existing resources with unrelated names require explicit discovery/adoption work, never rename/replacement. The initial supported scope is the commercial `aws` partition; China/GovCloud endpoints and trust require separate implementation and verification. Structural region validation does not prove service availability or account eligibility.
+
+```json
+{
+  "schema_version": 1,
+  "account": "123456789012",
+  "region": "eu-west-1",
+  "github_repository": "client-example/training-portal",
+  "github_environment": "production",
+  "resource_prefix": "customer-prod",
+  "secret_prefix": "customer/production"
+}
+```
+
+These values are synthetic, not a configured client. To prepare IAM review files offline, run `python3 backend/infrastructure/schema_probe_setup.py --profile /path/to/target.json --migration-secret-arn <reviewed-target-secret-arn> --output /path/to/new-review-directory`. Profile/template consistency is checked before writing; the packaged standalone installer embeds the selected identity and preserves caller-account checks and one-time CREATE-only behavior. The developer template remains byte-equivalent to its verified installation; do not run setup again for that environment. Probe planning also accepts `--profile`; current protected execution workflows remain developer-bound until their campaign slice is complete. Do not run a client review through the existing developer executor.

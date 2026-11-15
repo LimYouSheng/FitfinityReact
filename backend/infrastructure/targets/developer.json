@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "account": "418638389566",
+  "region": "ap-southeast-1",
+  "github_repository": "LimYouSheng/FitfinityReact",
+  "github_environment": "aws-test",
+  "resource_prefix": "fitfinity-test",
+  "secret_prefix": "fitfinity/test"
+}

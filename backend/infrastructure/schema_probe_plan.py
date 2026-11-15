@@ -7,13 +7,16 @@ import re
 import time
 from pathlib import Path
 
-import hosting_design as design
+from deployment_profile import DEVELOPER, identities, load
 from operator_checks import require
-from release_image import URI
-from schema_probe_iam import BOUNDARY, RUNTIME_ROLE, runtime_policy
+from schema_probe_iam import runtime_policy
 
 
-def prepare(binding, *, now=None):
+def prepare(binding, *, now=None, profile=DEVELOPER):
+    target = identities(profile)
+    account, region = target["account"], target["region"]
+    secret_prefix = re.escape(target["secret_prefix"])
+    uri = target["registry"] + "/" + target["image_repository"]
     require(
         set(binding)
         == {
@@ -32,19 +35,19 @@ def prepare(binding, *, now=None):
         "Exact reviewed probe bindings required",
     )
     require(
-        binding["account"] == design.ACCOUNT and binding["region"] == design.REGION,
-        "Wrong developer target",
+        binding["account"] == account and binding["region"] == region,
+        "Wrong deployment target",
     )
     for field, pattern in {
         "source_sha": r"[0-9a-f]{40}",
         "image_digest": r"sha256:[0-9a-f]{64}",
         "sql_sha256": r"[0-9a-f]{64}",
-        "db_host": rf"[a-z0-9][a-z0-9-]{{0,62}}\.[a-z0-9]+\.{design.REGION}\.rds\.amazonaws\.com",
+        "db_host": rf"[a-z0-9][a-z0-9-]{{0,62}}\.[a-z0-9]+\.{region}\.rds\.amazonaws\.com",
         "db_name": r"[A-Za-z][A-Za-z0-9_]{0,62}",
         "security_group_id": r"sg-[0-9a-f]{8,17}",
         "migration_secret_arn": (
-            rf"arn:aws:secretsmanager:{design.REGION}:{design.ACCOUNT}:"
-            r"secret:fitfinity/test/database/migration-[A-Za-z0-9]{6}"
+            rf"arn:aws:secretsmanager:{region}:{account}:"
+            rf"secret:{secret_prefix}/database/migration-[A-Za-z0-9]{{6}}"
         ),
     }.items():
         require(
@@ -67,7 +70,7 @@ def prepare(binding, *, now=None):
         and 0 < binding["expires_at"] - (time.time() if now is None else now) <= 3600,
         "Probe requires a future expiry within one hour",
     )
-    name = "fitfinity-test-schema-observe"
+    name = target["probe_name"]
     log_name = f"/aws/lambda/{name}"
     template = {
         "AWSTemplateFormatVersion": "2010-09-09",
@@ -80,8 +83,8 @@ def prepare(binding, *, now=None):
             "ProbeRole": {
                 "Type": "AWS::IAM::Role",
                 "Properties": {
-                    "RoleName": RUNTIME_ROLE,
-                    "PermissionsBoundary": BOUNDARY,
+                    "RoleName": target["runtime_role"],
+                    "PermissionsBoundary": target["runtime_boundary"],
                     "AssumeRolePolicyDocument": {
                         "Version": "2012-10-17",
                         "Statement": [
@@ -95,7 +98,9 @@ def prepare(binding, *, now=None):
                     "Policies": [
                         {
                             "PolicyName": "ReadCatalogProbe",
-                            "PolicyDocument": runtime_policy(binding["migration_secret_arn"]),
+                            "PolicyDocument": runtime_policy(
+                                binding["migration_secret_arn"], profile=profile
+                            ),
                         }
                     ],
                 },
@@ -107,7 +112,7 @@ def prepare(binding, *, now=None):
                     "FunctionName": name,
                     "PackageType": "Image",
                     "Architectures": ["x86_64"],
-                    "Code": {"ImageUri": URI + "@" + binding["image_digest"]},
+                    "Code": {"ImageUri": uri + "@" + binding["image_digest"]},
                     "Role": {"Fn::GetAtt": ["ProbeRole", "Arn"]},
                     "MemorySize": 512,
                     "Timeout": 60,
@@ -142,7 +147,7 @@ def prepare(binding, *, now=None):
                             "AWS_LWA_PASS_THROUGH_PATH": "/events",
                             "FITFINITY_CONFIG_SOURCE": "aws-secrets-manager",
                             "FITFINITY_ENVIRONMENT": "staging",
-                            "FITFINITY_AWS_ACCOUNT_ID": design.ACCOUNT,
+                            "FITFINITY_AWS_ACCOUNT_ID": account,
                             "FITFINITY_DATABASE_SECRET_ARN": binding["migration_secret_arn"],
                             "FITFINITY_DB_HOST": binding["db_host"],
                             "FITFINITY_DB_NAME": binding["db_name"],
@@ -170,17 +175,19 @@ def prepare(binding, *, now=None):
     }
 
 
-def prepare_review(binding, source_sha, sql, *, now=None):
+def prepare_review(binding, source_sha, sql, *, now=None, profile=DEVELOPER):
     """Bind the offline probe review to the checked-out source and packaged SQL."""
     require(binding.get("source_sha") == source_sha, "Probe source differs from checkout")
     require(
         binding.get("sql_sha256") == hashlib.sha256(sql).hexdigest(),
         "Probe SQL differs from packaged catalog query",
     )
-    plan = prepare(binding, now=now)
+    plan = prepare(binding, now=now, profile=profile)
     template_bytes = json.dumps(plan["template"], sort_keys=True, separators=(",", ":")).encode()
     return {
         **plan,
+        "profile": dict(profile),
+        "profile_sha256": identities(profile)["profile_sha256"],
         "bindings": dict(binding),
         "source_sha": source_sha,
         "sql_sha256": binding["sql_sha256"],
@@ -205,10 +212,14 @@ if __name__ == "__main__":
     parser.add_argument("bindings", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--source-sha", required=True)
+    parser.add_argument(
+        "--profile", type=Path, default=Path(__file__).with_name("targets") / "developer.json"
+    )
     args = parser.parse_args()
     review = prepare_review(
         json.loads(args.bindings.read_text()),
         args.source_sha,
         Path(__file__).with_name("read-schema.sql").read_bytes(),
+        profile=load(args.profile),
     )
     write_review(review, args.output)
