@@ -6,7 +6,7 @@ import json
 import re
 from pathlib import Path
 
-from deployment_profile import DEVELOPER, identities, load
+from deployment_profile import DEVELOPER, identities, load, template_rules
 from operator_checks import require
 from schema_probe_iam import runtime_policy
 
@@ -25,12 +25,17 @@ def allow(actions, resources, **extra):
     return {"Effect": "Allow", "Action": actions, "Resource": resources, **extra}
 
 
-def prepare(secret_arn, *, profile=DEVELOPER):
+def prepare(secret_arn, *, profile=DEVELOPER, purpose="probe"):
     """Return scoped IAM resources for one validated deployment profile."""
+    require(purpose in {"probe", "upgrade"}, "Unknown private job purpose")
     target = identities(profile)
     account, region = target["account"], target["region"]
-    name, runtime_role = target["probe_name"], target["runtime_role"]
-    operator_role, boundary = target["operator_role"], target["runtime_boundary"]
+    if purpose == "probe":
+        name, runtime_role = target["probe_name"], target["runtime_role"]
+        operator_role, boundary = target["operator_role"], target["runtime_boundary"]
+    else:
+        name, runtime_role = target["upgrade_name"], target["upgrade_runtime_role"]
+        operator_role, boundary = target["upgrade_operator_role"], target["upgrade_boundary"]
     secret_prefix = re.escape(target["secret_prefix"])
     require(
         isinstance(secret_arn, str)
@@ -157,7 +162,7 @@ def prepare(secret_arn, *, profile=DEVELOPER):
                 "Type": "AWS::IAM::ManagedPolicy",
                 "Properties": {
                     "ManagedPolicyName": name + "-runtime-boundary",
-                    "PolicyDocument": runtime_policy(secret_arn, profile=profile),
+                    "PolicyDocument": runtime_policy(secret_arn, profile=profile, purpose=purpose),
                 },
             },
             "OperatorBoundary": {
@@ -181,6 +186,12 @@ def prepare(secret_arn, *, profile=DEVELOPER):
             },
         },
     }
+    if purpose == "upgrade":
+        template["Description"] = "Private upgrade operator and separate runtime permission ceiling"
+        template["Rules"] = template_rules(profile)
+        template["Resources"]["OperatorRole"]["Properties"]["Policies"][0]["PolicyName"] = (
+            "UpgradeLifecycle"
+        )
     return {
         "decision": "HOLD",
         "profile": dict(profile),
@@ -194,8 +205,13 @@ def prepare(secret_arn, *, profile=DEVELOPER):
             "Inspect a CREATE-only named-IAM change set; "
             "reject existing resource adoption or unrelated changes",
             "Review exact account/secret and grants; no hosting/image/foundation role changes",
-            "Keep AWS_SCHEMA_PROBE_ENABLED disabled until "
-            "source, image, network and role acceptance",
+            (
+                "Keep AWS_SCHEMA_PROBE_ENABLED disabled until "
+                "source, image, network and role acceptance"
+                if purpose == "probe"
+                else "Upgrade IAM is preparation only; require maintenance, backup "
+                "and a reviewed executor"
+            ),
         ],
     }
 

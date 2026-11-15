@@ -110,6 +110,8 @@ def identities(profile):
         "database": prefix + "-db",
         "runtime_function": prefix + "-staff-api",
         "upgrade_name": prefix + "-schema-upgrade",
+        "upgrade_operator_role": prefix + "-github-schema-upgrade",
+        "upgrade_setup_stack": prefix + "-schema-upgrade-access",
         "upgrade_runtime_role": prefix + "-schema-upgrade-runtime",
         "upgrade_boundary": (
             f"arn:aws:iam::{account}:policy/{prefix}-schema-upgrade-runtime-boundary"

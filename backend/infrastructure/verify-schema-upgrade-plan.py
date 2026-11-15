@@ -7,6 +7,8 @@ import unittest
 from deployment_profile import DEVELOPER, identities
 from private_job_template import render
 from schema_probe_iam import runtime_policy
+from schema_probe_setup import prepare as prepare_access
+from schema_probe_setup import write_bundle
 from schema_upgrade_plan import prepare, validate_image
 
 CLIENT = {
@@ -209,3 +211,109 @@ class UpgradePlanTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             validate_image(changed, receipt, scan, profile=CLIENT, source_sha="a" * 40, now=1000)
         self.assertEqual(calls, [])
+
+    def test_upgrade_access_is_separate_and_has_no_secret_read_or_staff_write_authority(self):
+        for profile in (DEVELOPER, CLIENT):
+            target = identities(profile)
+            review = prepare_access(
+                binding(profile)["migration_secret_arn"], profile=profile, purpose="upgrade"
+            )
+            resources = review["template"]["Resources"]
+            self.assertEqual(
+                set(resources), {"RuntimeBoundary", "OperatorBoundary", "OperatorRole"}
+            )
+            operator = resources["OperatorRole"]["Properties"]
+            self.assertEqual(
+                operator["RoleName"], profile["resource_prefix"] + "-github-schema-upgrade"
+            )
+            self.assertEqual(operator["Policies"][0]["PolicyName"], "UpgradeLifecycle")
+            self.assertEqual(
+                operator["AssumeRolePolicyDocument"]["Statement"][0]["Condition"]["StringEquals"],
+                {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                    "token.actions.githubusercontent.com:sub": "repo:"
+                    + profile["github_repository"]
+                    + ":environment:"
+                    + profile["github_environment"],
+                },
+            )
+            rows = operator["Policies"][0]["PolicyDocument"]["Statement"]
+
+            def statement(action, rows=rows):
+                return next(
+                    row
+                    for row in rows
+                    if action
+                    in (row["Action"] if isinstance(row["Action"], list) else [row["Action"]])
+                )
+
+            function = (
+                f"arn:aws:lambda:{profile['region']}:{profile['account']}:function:"
+                + profile["resource_prefix"]
+                + "-schema-upgrade"
+            )
+            self.assertEqual(statement("lambda:InvokeFunction")["Resource"], function)
+            self.assertEqual(
+                statement("iam:CreateRole")["Condition"],
+                {"StringEquals": {"iam:PermissionsBoundary": target["upgrade_boundary"]}},
+            )
+            self.assertEqual(
+                statement("iam:PassRole")["Resource"],
+                f"arn:aws:iam::{profile['account']}:role/" + target["upgrade_runtime_role"],
+            )
+            actions = {
+                action
+                for row in rows
+                for action in (
+                    row["Action"] if isinstance(row["Action"], list) else [row["Action"]]
+                )
+            }
+            for action in (
+                "secretsmanager:GetSecretValue",
+                "iam:AttachRolePolicy",
+                "iam:PutRolePermissionsBoundary",
+                "lambda:UpdateFunctionCode",
+                "lambda:CreateFunctionUrlConfig",
+                "cloudformation:UpdateStack",
+                "rds:ModifyDBInstance",
+                "s3:PutObject",
+            ):
+                self.assertNotIn(action, actions)
+            runtime = resources["RuntimeBoundary"]["Properties"]
+            self.assertEqual(
+                runtime["ManagedPolicyName"],
+                profile["resource_prefix"] + "-schema-upgrade-runtime-boundary",
+            )
+            self.assertEqual(
+                runtime["PolicyDocument"]["Statement"][0]["Resource"],
+                binding(profile)["migration_secret_arn"],
+            )
+            self.assertEqual(
+                resources["OperatorBoundary"]["Properties"]["PolicyDocument"],
+                operator["Policies"][0]["PolicyDocument"],
+            )
+            text = json.dumps(review["template"])
+            for forbidden in (
+                target["runtime_function"],
+                target["probe_name"],
+                target["operator_role"],
+            ):
+                self.assertNotIn(forbidden, text)
+
+    def test_upgrade_access_cannot_be_packaged_as_the_verified_probe_installer(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "not-created"
+            review = prepare_access(
+                binding(CLIENT)["migration_secret_arn"], profile=CLIENT, purpose="upgrade"
+            )
+            with self.assertRaisesRegex(RuntimeError, "Template differs"):
+                write_bundle(review, destination)
+            self.assertFalse(destination.exists())
+        for purpose in (None, "staff", "arbitrary"):
+            with self.subTest(purpose=purpose), self.assertRaises(RuntimeError):
+                prepare_access(
+                    binding(CLIENT)["migration_secret_arn"], profile=CLIENT, purpose=purpose
+                )
