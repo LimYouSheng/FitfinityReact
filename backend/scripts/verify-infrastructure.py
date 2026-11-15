@@ -30,7 +30,7 @@ SUITES = {
     "verify-image.py": 35,
     "verify-deployment.py": 30,
     "verify-release-image.py": 32,
-    "verify-release-readiness.py": 22,
+    "verify-release-readiness.py": 27,
     "verify-release-observation.py": 9,
     "verify-release-plan.py": 18,
     "verify-schema-probe.py": 12,

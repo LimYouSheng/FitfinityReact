@@ -34,9 +34,14 @@ def run_binding(run, workflow, source=None, *, profile=DEVELOPER):
 def fetch(kind, run_id, destination, source=None, *, profile=DEVELOPER):
     """Download one named artifact without executing its contents."""
     repository = identities(profile)["github_repository"]
-    require(kind in {"review", "image"}, "Unknown artifact kind")
+    require(kind in {"review", "image", "catalog", "upgrade"}, "Unknown artifact kind")
     require(re.fullmatch(r"[1-9][0-9]*", run_id or ""), "Exact artifact run ID required")
-    workflow = "aws-release-prepare" if kind == "review" else "aws-image"
+    workflow = {
+        "review": "aws-release-prepare",
+        "image": "aws-image",
+        "catalog": "aws-schema-probe",
+        "upgrade": "aws-schema-upgrade",
+    }[kind]
     run = json.loads(
         subprocess.check_output(
             [
@@ -52,6 +57,8 @@ def fetch(kind, run_id, destination, source=None, *, profile=DEVELOPER):
         f"fitfinity-release-prepare-{revision}-{run_id}-{attempt}"
         if kind == "review"
         else f"fitfinity-image-candidate-{run_id}-{attempt}"
+        if kind == "image"
+        else f"fitfinity-schema-{'probe' if kind == 'catalog' else 'upgrade'}-{run_id}-{attempt}"
     )
     subprocess.run(
         [

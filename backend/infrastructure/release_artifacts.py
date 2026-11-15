@@ -1,0 +1,73 @@
+"""Collect authenticated workflow artifacts before acquiring rollout credentials."""
+
+import json
+import re
+import time
+
+from hosting_frontend import source_check
+from operator_checks import require
+from release_evidence import validate
+from schema_probe_artifacts import fetch
+
+
+def collect(repo, destination, runs, *, source, profile, database, schema_action, clock=time.time):
+    """Bind successful manual-main producers to the clean checkout and inspect their contents."""
+    expected = {"frontend", "image", "catalog"}
+    require(schema_action in {"unchanged", "upgrade"}, "Explicit schema action required")
+    if schema_action == "upgrade":
+        expected.add("upgrade")
+    require(
+        set(runs) == expected
+        and all(
+            isinstance(value, str) and re.fullmatch(r"[1-9][0-9]*", value)
+            for value in runs.values()
+        ),
+        "Exact producer run IDs required",
+    )
+    require(
+        not destination.exists()
+        and not destination.is_symlink()
+        and destination.absolute() == destination.resolve()
+        and not destination.resolve().is_relative_to(repo.resolve()),
+        "Use a new artifact directory outside the checkout",
+    )
+    verified_source = source_check(repo, source)
+    destination.mkdir(parents=True, mode=0o700)
+    for kind in sorted(expected):
+        fetch(
+            "review" if kind == "frontend" else kind,
+            runs[kind],
+            destination / kind,
+            source,
+            profile=profile,
+        )
+    require(source_check(repo, source) == verified_source, "Checkout changed during retrieval")
+
+    def read(name):
+        path = destination / name
+        require(path.is_file() and not path.is_symlink(), "Missing or redirected artifact receipt")
+        return json.loads(path.read_text())
+
+    require(
+        not any(path.is_symlink() for path in destination.rglob("*")),
+        "Redirected downloaded artifact refused",
+    )
+    frontend = read("frontend/release-readiness.json")
+    image = read("image/fitfinity-image-candidate.json")
+    probe = read("catalog/schema-probe-receipt.json")
+    upgrade = read("upgrade/schema-upgrade-receipt.json") if schema_action == "upgrade" else None
+    result = validate(
+        frontend,
+        destination / "frontend/release-frontend/dist-api-test",
+        image,
+        upgrade,
+        probe,
+        repo=repo,
+        source_inventory=verified_source,
+        profile=profile,
+        database=database,
+        schema_action=schema_action,
+        now=clock(),
+    )
+    result["producer_runs"] = dict(runs)
+    return result

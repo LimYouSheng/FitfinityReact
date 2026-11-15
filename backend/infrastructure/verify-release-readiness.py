@@ -566,5 +566,144 @@ class FrontendTransferTests(unittest.TestCase):
         self.assertFalse(self.writes)
 
 
+class ArtifactCollectionTests(unittest.TestCase):
+    def setUp(self):
+        RolloutEvidenceTests.setUp(self)
+        self.destination = self.root.parent / (self.root.name + "-artifacts")
+        import shutil
+
+        self.addCleanup(shutil.rmtree, self.destination, True)
+        self.runs = {"frontend": "101", "image": "102", "catalog": "103", "upgrade": "104"}
+        self.downloads = []
+        self.bad_kind = None
+        self.bad_fields = {}
+
+    def metadata(self, command, **kwargs):
+        run_id = command[-1].rsplit("/", 1)[-1]
+        kind = next(k for k, v in self.runs.items() if v == run_id)
+        workflow = {
+            "frontend": "aws-release-prepare",
+            "image": "aws-image",
+            "catalog": "aws-schema-probe",
+            "upgrade": "aws-schema-upgrade",
+        }[kind]
+        data = {
+            "path": f".github/workflows/{workflow}.yml",
+            "event": "workflow_dispatch",
+            "head_branch": "main",
+            "head_repository": {"full_name": "client-example/portal"},
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "a" * 40,
+            "run_attempt": 2,
+        }
+        if kind == self.bad_kind:
+            data.update(self.bad_fields)
+        return json.dumps(data)
+
+    def download(self, command, **kwargs):
+        import shutil
+
+        self.downloads.append(command)
+        folder = Path(command[command.index("--dir") + 1])
+        folder.mkdir()
+        kind = folder.name
+        names = {
+            "frontend": "release-readiness.json",
+            "image": "fitfinity-image-candidate.json",
+            "catalog": "schema-probe-receipt.json",
+            "upgrade": "schema-upgrade-receipt.json",
+        }
+        values = {
+            "frontend": self.frontend,
+            "image": self.image,
+            "catalog": self.probe,
+            "upgrade": self.upgrade,
+        }
+        (folder / names[kind]).write_text(json.dumps(values[kind]))
+        if kind == "frontend":
+            shutil.copytree(self.folder, folder / "release-frontend/dist-api-test")
+
+    def collect(self, schema_action="upgrade"):
+        from unittest.mock import patch
+
+        from release_artifacts import collect
+
+        runs = (
+            self.runs
+            if schema_action == "upgrade"
+            else {k: v for k, v in self.runs.items() if k != "upgrade"}
+        )
+        with (
+            patch("release_artifacts.source_check", return_value=self.source),
+            patch("schema_probe_artifacts.subprocess.check_output", side_effect=self.metadata),
+            patch("schema_probe_artifacts.subprocess.run", side_effect=self.download),
+        ):
+            return collect(
+                self.root,
+                self.destination,
+                runs,
+                source="a" * 40,
+                profile=self.profile,
+                database="fitfinity",
+                schema_action=schema_action,
+                clock=lambda: 1000,
+            )
+
+    def test_real_binding_and_content_checks_accept_only_matching_producers(self):
+        result = self.collect()
+        self.assertEqual(result["decision"], "HOLD")
+        self.assertEqual(result["producer_runs"], self.runs)
+        self.assertEqual(len(self.downloads), 4)
+        self.assertTrue(all("client-example/portal" in command for command in self.downloads))
+        self.assertTrue(
+            all(command[command.index("--name") + 1].endswith("-2") for command in self.downloads)
+        )
+
+    def test_each_failed_producer_is_rejected_even_if_it_retained_an_artifact(self):
+        import shutil
+
+        for kind in self.runs:
+            self.bad_kind = kind
+            self.bad_fields = {"conclusion": "failure"}
+            self.downloads.clear()
+            with self.subTest(kind=kind), self.assertRaises(RuntimeError):
+                self.collect()
+            self.assertFalse(any(command[3] == self.runs[kind] for command in self.downloads))
+            shutil.rmtree(self.destination)
+
+    def test_foreign_branch_event_repository_workflow_and_source_are_rejected(self):
+        import shutil
+
+        self.bad_kind = "catalog"
+        for fields in (
+            {"head_sha": "b" * 40},
+            {"head_branch": "feature"},
+            {"event": "pull_request"},
+            {"path": ".github/workflows/other.yml"},
+            {"head_repository": {"full_name": "foreign/project"}},
+            {"status": "in_progress"},
+        ):
+            self.bad_fields = fields
+            with self.subTest(fields=fields), self.assertRaises(RuntimeError):
+                self.collect()
+            self.assertFalse(self.downloads)
+            shutil.rmtree(self.destination)
+
+    def test_code_only_release_fetches_no_upgrade_and_still_checks_schema(self):
+        result = self.collect("unchanged")
+        self.assertEqual(result["schema_action"], "unchanged")
+        self.assertEqual(len(self.downloads), 3)
+        self.assertNotIn("upgrade", result["producer_runs"])
+
+    def test_existing_destination_preserves_earlier_evidence_without_download(self):
+        self.destination.mkdir()
+        (self.destination / "receipt").write_text("original")
+        with self.assertRaisesRegex(RuntimeError, "new artifact directory"):
+            self.collect()
+        self.assertEqual((self.destination / "receipt").read_text(), "original")
+        self.assertFalse(self.downloads)
+
+
 if __name__ == "__main__":
     unittest.main()
