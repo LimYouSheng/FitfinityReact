@@ -19,6 +19,7 @@ const browserCanProcessVideo = () => Boolean(
 
 export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercise, editable = true, uncertain = false, onRecover, onResume, onLoad, onCancel, onSaved, onRemoved }) {
   const processing = useRef(null)
+  const savedPreviewLoad = useRef(null)
   const committing = useRef(false)
   const [mode, setMode] = useState('choose')
   const [includeAudio, setIncludeAudio] = useState(false)
@@ -36,7 +37,8 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
       setPreviewUrl('')
       return undefined
     }
-    let cancelled = false
+    const request = new AbortController()
+    savedPreviewLoad.current = request
     setMode('choose')
     setIncludeAudio(false)
     setCandidate(null)
@@ -48,14 +50,14 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
 
     if (exercise.videoAttached) {
       loadVideo().then(blob => {
-        if (cancelled) return
+        if (request.signal.aborted) return
         if (blob) setPreviewUrl(URL.createObjectURL(blob))
         else { setPreviewUnavailable(true); setError('The saved video is no longer available.') }
-      }).catch(failure => { if (!cancelled) { setPreviewUnavailable(true); setError(failure.message || 'The stored video could not be loaded.') } })
+      }).catch(failure => { if (!request.signal.aborted) { setPreviewUnavailable(true); setError(failure.message || 'The stored video could not be loaded.') } })
     }
 
     return () => {
-      cancelled = true
+      request.abort()
       processing.current?.abort()
     }
   }, [exercise, open, sessionId])
@@ -86,17 +88,22 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
       return
     }
 
+    const acceptCandidate = prepared => {
+      savedPreviewLoad.current?.abort()
+      setError('')
+      setPreviewUnavailable(false)
+      setCandidate(prepared)
+      setPreviewUrl(URL.createObjectURL(prepared.blob))
+      setMode('preview')
+    }
     const keepOriginalForDeferredProcessing = duration => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-      setCandidate({
+      acceptCandidate({
         blob: file,
         duration: Number.isFinite(duration) ? duration : null,
         source,
         name: file.name || `${exercise.name}.video`,
         processed: false,
       })
-      setPreviewUrl(URL.createObjectURL(file))
-      setMode('preview')
     }
 
     // Preserve original bytes when browser transcoding is unavailable.
@@ -138,8 +145,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
       if (operation.signal.aborted) return
       const validation = exerciseVideoValidation(compressed.blob, compressed.duration)
       if (validation) throw new Error(validation)
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-      setCandidate({
+      acceptCandidate({
         blob: compressed.blob,
         duration: compressed.duration,
         source,
@@ -147,8 +153,6 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
         processed: true,
         audioIncluded: compressed.audioIncluded,
       })
-      setPreviewUrl(URL.createObjectURL(compressed.blob))
-      setMode('preview')
     } catch (videoError) {
       if (operation.signal.aborted) return
       keepOriginalForDeferredProcessing(duration)

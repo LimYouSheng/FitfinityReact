@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import ExerciseVideoDialog from './ExerciseVideoDialog.jsx'
 import { prepareExerciseVideo, readVideoDuration } from './exerciseVideo.js'
@@ -85,4 +85,60 @@ it.each(['missing', 'failed'])('keeps removal available after a %s saved preview
   fireEvent.click(screen.getByRole('button', { name: 'Remove Video', exact: true }))
   await waitFor(() => expect(onRemoved).toHaveBeenCalledTimes(1))
   expect(onSaved).not.toHaveBeenCalled()
+})
+
+it.each(['loaded', 'missing', 'failed'])('keeps replacement bytes and preview after a late %s saved-video load', async outcome => {
+  vi.stubGlobal('MediaRecorder', undefined)
+  const replacement = new File(['replacement'], 'replacement.webm', { type: 'video/webm' })
+  const create = vi.fn(blob => blob === replacement ? 'blob:replacement' : 'blob:stored')
+  vi.stubGlobal('URL', { createObjectURL: create, revokeObjectURL: vi.fn() })
+  let finish
+  const onLoad = vi.fn(() => new Promise((resolve, reject) => { finish = outcome === 'failed' ? reject : resolve }))
+  const onSaved = vi.fn().mockResolvedValue(undefined)
+  render(<ExerciseVideoDialog open sessionId="session" exercise={{ id: 'exercise', name: 'Squat', videoAttached: true }}
+    onLoad={onLoad} onSaved={onSaved} onRemoved={vi.fn()} onCancel={vi.fn()} />)
+  expect(screen.getByRole('status')).toHaveTextContent('Loading saved video')
+  await choose(replacement)
+  expect(document.querySelector('video')).toHaveAttribute('src', 'blob:replacement')
+  await act(async () => { finish(outcome === 'failed' ? new Error('Late saved download failed') : outcome === 'missing' ? null : new Blob(['stored'])) })
+  expect(document.querySelector('video')).toHaveAttribute('src', 'blob:replacement')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(create).toHaveBeenCalledTimes(1)
+  expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:replacement')
+  fireEvent.click(screen.getByRole('button', { name: 'Save Video' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith(replacement, expect.objectContaining({ processingStatus: 'deferred' })))
+})
+
+it('retains the pending saved preview when a replacement fails duration validation', async () => {
+  vi.stubGlobal('MediaRecorder', class {})
+  vi.stubGlobal('HTMLCanvasElement', { prototype: { captureStream: vi.fn() } })
+  vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:stored'), revokeObjectURL: vi.fn() })
+  readVideoDuration.mockResolvedValue(1000)
+  let finish
+  const onLoad = vi.fn(() => new Promise(resolve => { finish = resolve }))
+  render(<ExerciseVideoDialog open sessionId="session" exercise={{ id: 'exercise', name: 'Squat', videoAttached: true }}
+    onLoad={onLoad} onSaved={vi.fn()} onRemoved={vi.fn()} onCancel={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText('Attach video for Squat'), { target: { files: [new File(['long'], 'long.webm', { type: 'video/webm' })] } })
+  expect(await screen.findByRole('alert')).toHaveTextContent('1 minute')
+  await act(async () => { finish(new Blob(['stored'])) })
+  expect(document.querySelector('video')).toHaveAttribute('src', 'blob:stored')
+  expect(screen.queryByRole('button', { name: 'Save Video' })).not.toBeInTheDocument()
+})
+
+it('clears obsolete stored-preview errors when prepared replacement bytes become ready', async () => {
+  vi.stubGlobal('MediaRecorder', class {})
+  vi.stubGlobal('HTMLCanvasElement', { prototype: { captureStream: vi.fn() } })
+  vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:prepared'), revokeObjectURL: vi.fn() })
+  readVideoDuration.mockResolvedValue(1)
+  let finish, failStored
+  prepareExerciseVideo.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  render(<ExerciseVideoDialog open sessionId="session" exercise={{ id: 'exercise', name: 'Squat', videoAttached: true }}
+    onLoad={() => new Promise((_resolve, reject) => { failStored = reject })} onSaved={vi.fn()} onRemoved={vi.fn()} onCancel={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText('Attach video for Squat'), { target: { files: [new File(['new'], 'new.webm', { type: 'video/webm' })] } })
+  await waitFor(() => expect(finish).toBeTypeOf('function'))
+  await act(async () => { failStored(new Error('Old download failed')) })
+  await act(async () => { finish({ blob: new Blob(['prepared']), duration: 1, audioIncluded: false }) })
+  expect(document.querySelector('video')).toHaveAttribute('src', 'blob:prepared')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save Video' })).toBeEnabled()
 })
