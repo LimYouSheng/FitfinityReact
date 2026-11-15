@@ -147,6 +147,45 @@ class ObservationTests(unittest.TestCase):
                 observation.aws("sts", "get-caller-identity")
             self.assertNotIn("sensitive-marker", str(caught.exception))
 
+    def test_client_observation_uses_profile_resources_and_alias(self):
+        profile = {
+            **observation.DEVELOPER,
+            "account": "123456789012",
+            "region": "eu-west-1",
+            "github_repository": "client-example/portal",
+            "github_environment": "production",
+            "resource_prefix": "client-prod",
+            "secret_prefix": "client/production",
+            "runtime_alias": "live",
+        }
+        self.identity = {
+            "Account": "123456789012",
+            "Arn": "arn:aws:sts::123456789012:assumed-role/client-prod-github-hosting/run",
+        }
+        self.function_arn = "arn:aws:lambda:eu-west-1:123456789012:function:client-prod-staff-api"
+
+        def call(service, operation, *args):
+            result = self.call(service, operation, *args)
+            if operation == "describe-stacks":
+                result["Stacks"][0]["StackName"] = "client-prod-login"
+            if operation == "describe-db-instances":
+                result["DBInstances"][0]["DBInstanceIdentifier"] = "client-prod-db"
+            return result
+
+        result = observation.observe(call, profile=profile)
+        self.assertEqual(result["account"], "123456789012")
+        self.assertEqual(
+            result["profile_sha256"], observation.identities(profile)["profile_sha256"]
+        )
+        self.assertIn(
+            ("lambda", "get-alias", ("--function-name", "client-prod-staff-api", "--name", "live")),
+            self.calls,
+        )
+        sent = json.dumps(self.calls)
+        for forbidden in ("418638389566", "ap-southeast-1", "fitfinity-test"):
+            self.assertNotIn(forbidden, sent)
+        self.assertNotIn("sensitive-marker", json.dumps(result))
+
 
 if __name__ == "__main__":
     unittest.main()

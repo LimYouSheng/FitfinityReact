@@ -8,14 +8,21 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from deployment_profile import DEVELOPER, identities
 from schema_probe_artifacts import run_binding
-from schema_probe_execution import ACCOUNT, NAME, REGION, ROLE, URI, execute
+from schema_probe_execution import execute
 from schema_probe_operator import aws
 from schema_probe_plan import prepare_review
+
+TARGET = identities(DEVELOPER)
+ACCOUNT, REGION, NAME = TARGET["account"], TARGET["region"], TARGET["probe_name"]
+URI = TARGET["registry"] + "/" + TARGET["image_repository"]
+ROLE = f"arn:aws:sts::{ACCOUNT}:assumed-role/{TARGET['operator_role']}/"
 
 
 class ExecutionTests(unittest.TestCase):
     def setUp(self):
+        self.profile = DEVELOPER
         self.sql = b"synthetic catalog"
         self.binding = dict(
             account=ACCOUNT,
@@ -37,8 +44,10 @@ class ExecutionTests(unittest.TestCase):
             "FitfinityOperation": self.operation,
             "FitfinitySource": "a" * 40,
             "FitfinityTemplate": self.review["template_sha256"],
+            "FitfinityProfile": self.review["profile_sha256"],
         }
         self.image = dict(
+            profile_sha256=self.review["profile_sha256"],
             account=ACCOUNT,
             region=REGION,
             revision="a" * 40,
@@ -54,6 +63,10 @@ class ExecutionTests(unittest.TestCase):
         self.status = "CREATE_COMPLETE"
 
     def call(self, service, operation, parameters):
+        target = identities(self.profile)
+        account, region, name = target["account"], target["region"], target["probe_name"]
+        uri = target["registry"] + "/" + target["image_repository"]
+        role_prefix = f"arn:aws:sts::{account}:assumed-role/{target['operator_role']}/"
         self.calls.append((service, operation, copy.deepcopy(parameters)))
         if operation in self.overrides:
             value = self.overrides[operation]
@@ -64,12 +77,12 @@ class ExecutionTests(unittest.TestCase):
         if operation == "get-account-settings":
             return {"AccountLimit": {"UnreservedConcurrentExecutions": 1000}}
         if operation == "get-caller-identity":
-            return {"Account": ACCOUNT, "Arn": ROLE + "test"}
+            return {"Account": account, "Arn": role_prefix + "test"}
         if operation == "describe-db-instances":
             return {
                 "DBInstances": [
                     {
-                        "DBInstanceArn": f"arn:aws:rds:{REGION}:{ACCOUNT}:db:fitfinity-test-db",
+                        "DBInstanceArn": f"arn:aws:rds:{region}:{account}:db:{target['database']}",
                         "DBInstanceStatus": "available",
                         "Endpoint": {"Address": self.binding["db_host"]},
                         "DBName": "fitfinity",
@@ -85,7 +98,7 @@ class ExecutionTests(unittest.TestCase):
                     {
                         "SubnetId": subnet,
                         "VpcId": "vpc-test",
-                        "OwnerId": ACCOUNT,
+                        "OwnerId": account,
                         "State": "available",
                         "MapPublicIpOnLaunch": False,
                     }
@@ -93,13 +106,13 @@ class ExecutionTests(unittest.TestCase):
                 ]
             }
         if operation == "describe-security-groups":
-            return {"SecurityGroups": [{"VpcId": "vpc-test", "OwnerId": ACCOUNT}]}
+            return {"SecurityGroups": [{"VpcId": "vpc-test", "OwnerId": account}]}
         if operation == "describe-secret":
             return {"ARN": self.binding["migration_secret_arn"]}
         if operation == "describe-image-scan-findings":
             return {
-                "registryId": ACCOUNT,
-                "repositoryName": "fitfinity-test-api",
+                "registryId": account,
+                "repositoryName": target["image_repository"],
                 "imageId": {"imageDigest": self.binding["image_digest"]},
                 "imageScanStatus": {"status": "COMPLETE"},
                 "imageScanFindings": {
@@ -128,7 +141,7 @@ class ExecutionTests(unittest.TestCase):
             role = self.review["template"]["Resources"]["ProbeRole"]["Properties"]
             return {
                 "Role": {
-                    "Arn": f"arn:aws:iam::{ACCOUNT}:role/synthetic-probe-role",
+                    "Arn": f"arn:aws:iam::{account}:role/synthetic-probe-role",
                     "PermissionsBoundary": {"PermissionsBoundaryArn": role["PermissionsBoundary"]},
                     "AssumeRolePolicyDocument": role["AssumeRolePolicyDocument"],
                 }
@@ -144,12 +157,12 @@ class ExecutionTests(unittest.TestCase):
             }
         if operation == "get-function":
             return {
-                "Code": {"ResolvedImageUri": URI + "@" + self.binding["image_digest"]},
+                "Code": {"ResolvedImageUri": uri + "@" + self.binding["image_digest"]},
                 "Configuration": {
-                    "FunctionArn": f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{NAME}",
+                    "FunctionArn": f"arn:aws:lambda:{region}:{account}:function:{name}",
                     "State": "Active",
                     "LastUpdateStatus": "Successful",
-                    "Role": f"arn:aws:iam::{ACCOUNT}:role/synthetic-probe-role",
+                    "Role": f"arn:aws:iam::{account}:role/synthetic-probe-role",
                     "Environment": props["Environment"],
                     "VpcConfig": props["VpcConfig"],
                     "Timeout": 60,
@@ -188,6 +201,7 @@ class ExecutionTests(unittest.TestCase):
             self.image,
             self.call,
             now=kwargs.pop("now", 1000),
+            profile=self.profile,
             **kwargs,
         )
 
@@ -434,3 +448,87 @@ class ExecutionTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Account concurrency"):
             self.run_mode("create")
         self.assert_no_write()
+
+    def configure_client(self):
+        """Supply independent client metadata to the simulated provider."""
+        self.profile = {
+            "schema_version": 1,
+            "account": "123456789012",
+            "region": "eu-west-1",
+            "github_repository": "client-example/portal",
+            "github_environment": "production",
+            "resource_prefix": "client-prod",
+            "secret_prefix": "client/production",
+            "runtime_alias": "live",
+        }
+        self.binding.update(
+            account="123456789012",
+            region="eu-west-1",
+            db_host="client-prod-db.abcdef.eu-west-1.rds.amazonaws.com",
+            migration_secret_arn="arn:aws:secretsmanager:eu-west-1:123456789012:secret:client/production/database/migration-abcdef",
+        )
+        self.review = prepare_review(
+            self.binding, "a" * 40, self.sql, now=1000, profile=self.profile
+        )
+        self.stack = (
+            "arn:aws:cloudformation:eu-west-1:123456789012:stack/"
+            "client-prod-schema-observe/synthetic"
+        )
+        self.tags.update(
+            FitfinityTemplate=self.review["template_sha256"],
+            FitfinityProfile=self.review["profile_sha256"],
+        )
+        self.image.update(
+            profile_sha256=self.review["profile_sha256"],
+            account="123456789012",
+            region="eu-west-1",
+            image_uri="123456789012.dkr.ecr.eu-west-1.amazonaws.com/client-prod-api@"
+            + self.binding["image_digest"],
+        )
+
+    def test_client_full_lifecycle_never_targets_developer_resources(self):
+        self.configure_client()
+        self.assertEqual(self.run_mode("create")["state"], "create_submitted")
+        self.assertEqual(self.run_mode("collect")["state"], "observed")
+        self.assertEqual(self.run_mode("cleanup", now=3000)["state"], "cleanup_submitted")
+        self.status = "DELETE_COMPLETE"
+        self.assertEqual(
+            self.run_mode("cleanup-check", now=3000, stack_id=self.stack)["state"],
+            "cleanup_verified",
+        )
+        sent = json.dumps(self.calls)
+        for forbidden in ("418638389566", "ap-southeast-1", "fitfinity-test", "LimYouSheng"):
+            self.assertNotIn(forbidden, sent)
+        writes = [op for _, op, _ in self.calls if op in {"create-stack", "invoke", "delete-stack"}]
+        self.assertEqual(writes, ["create-stack", "invoke", "delete-stack"])
+
+    def test_review_cannot_select_its_own_account_or_repository(self):
+        self.configure_client()
+        self.profile = DEVELOPER
+        with self.assertRaises(RuntimeError):
+            self.run_mode("create")
+        self.assertEqual(self.calls, [])
+        self.configure_client()
+        self.tags["FitfinityProfile"] = "0" * 64
+        with self.assertRaisesRegex(RuntimeError, "another operation"):
+            self.run_mode("cleanup", now=3000)
+        self.assert_no_write()
+
+    def test_client_artifacts_reject_successful_developer_producer(self):
+        self.configure_client()
+        run = {
+            "path": ".github/workflows/aws-image.yml",
+            "event": "workflow_dispatch",
+            "head_branch": "main",
+            "head_repository": {"full_name": "client-example/portal"},
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "a" * 40,
+            "run_attempt": 1,
+        }
+        self.assertEqual(
+            run_binding(run, "aws-image", "a" * 40, profile=self.profile), ("a" * 40, 1)
+        )
+        run["head_repository"]["full_name"] = "LimYouSheng/FitfinityReact"
+        with self.assertRaises(RuntimeError):
+            run_binding(run, "aws-image", "a" * 40, profile=self.profile)

@@ -99,7 +99,10 @@ const mutations = [
   ['schema probe wrong account', setup => { setup.schemaProbe.jobs.probe.steps.find(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@')).with['allowed-account-ids'] = '000000000000' }],
   ['schema probe hosting role reuse', setup => { setup.schemaProbe.jobs.probe.steps.find(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@')).with['role-to-assume'] = '${{ vars.AWS_HOSTING_ROLE_ARN }}' }],
   ['schema probe suppressed operator', setup => { setup.schemaProbe.jobs.probe.steps.find(step => step.run?.includes('schema_probe_operator.py'))['continue-on-error'] = true }],
-  ['schema probe unsafe cancellation', setup => { setup.schemaProbe.concurrency['cancel-in-progress'] = true }],
+  ['schema probe unsafe cancellation', setup => { setup.schemaProbe.jobs.probe.concurrency['cancel-in-progress'] = true }],
+  ['schema probe target credential escalation', setup => { setup.schemaProbe.jobs.target.permissions['id-token'] = 'write' }],
+  ['schema probe target environment drift', setup => { setup.schemaProbe.jobs.target.outputs.environment = 'unprotected' }],
+  ['schema probe missing selected profile', setup => { delete setup.schemaProbe.jobs.probe.steps.find(step => step.run?.includes('schema_probe_operator.py')).env.DEPLOYMENT_PROFILE }],
   ['schema probe missing failure receipt', setup => { setup.schemaProbe.jobs.probe.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],
   ['probe review loses source binding', setup => { setup.preparation.jobs['frontend-and-schema'].steps.find(step => step.name === 'Prepare optional private schema probe review').run = 'python3 backend/infrastructure/schema_probe_plan.py' }],
   ['release preparation OIDC credentials', setup => { setup.preparation.permissions['id-token'] = 'write' }],
@@ -113,13 +116,13 @@ const mutations = [
   ['release observation on unreviewed branch', setup => { delete setup.observation.jobs.observe.if }],
   ['release observation mutating policy', setup => {
     const step = setup.observation.jobs.observe.steps.find(step => step.uses?.startsWith('aws-actions/'))
-    const policy = JSON.parse(step.with['inline-session-policy'])
+    const policy = { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: '', Resource: '*' }] }
     policy.Statement[0].Action = 'lambda:UpdateFunctionCode'
     step.with['inline-session-policy'] = JSON.stringify(policy)
   }],
   ['release observation secret retrieval', setup => {
     const step = setup.observation.jobs.observe.steps.find(step => step.uses?.startsWith('aws-actions/'))
-    const policy = JSON.parse(step.with['inline-session-policy'])
+    const policy = { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: '', Resource: '*' }] }
     policy.Statement[0].Action = 'secretsmanager:GetSecretValue'
     step.with['inline-session-policy'] = JSON.stringify(policy)
   }],
@@ -149,7 +152,9 @@ const mutations = [
   ['image role replaced with verification role', setup => { setup.image.jobs.image.steps.find(step => step.uses?.startsWith('aws-actions/')).with['role-to-assume'] = '${{ vars.AWS_VERIFY_ROLE_ARN }}' }],
   ['image account guard removed', setup => { delete setup.image.jobs.image.steps.find(step => step.uses?.startsWith('aws-actions/')).with['allowed-account-ids'] }],
   ['suppressed image scan failure', setup => { setup.image.jobs.image.steps.find(step => step.run?.includes('image-candidate'))['continue-on-error'] = true }],
-  ['image job cancels active AWS operations', setup => { setup.image.concurrency['cancel-in-progress'] = true }],
+  ['image target repository resolver removed', setup => { setup.image.jobs.source.steps = setup.image.jobs.source.steps.filter(step => step.id !== 'target') }],
+  ['image profile removed', setup => { delete setup.image.jobs.image.steps.find(step => step.run?.includes('deploy.py image-candidate')).env.DEPLOYMENT_PROFILE }],
+  ['image job cancels active AWS operations', setup => { setup.image.jobs.image.concurrency['cancel-in-progress'] = true }],
 ]
 for (const [name, mutate] of mutations) test(`quality setup rejects ${name}`, () => {
   const setup = readQualitySetup()
@@ -503,4 +508,10 @@ test('a newer patched minimatch override is accepted only with matching lock res
   assert.throws(() => validateDependencies(state), /minimatch override\/lock drift/)
   for (const [name, entry] of Object.entries(state.lock.packages)) if (name.endsWith('node_modules/minimatch')) entry.version = '11.0.2'
   validateDependencies(state)
+})
+
+for (const name of ['image', 'preparation', 'observation', 'schemaProbe']) test(`deployment ${name} rejects missing repository target configuration`, () => {
+  const setup = readQualitySetup()
+  delete setup[name].env.FITFINITY_DEPLOYMENT_TARGETS_JSON
+  assert.throws(() => verifyQualitySetup(setup), /deployment target configuration/)
 })

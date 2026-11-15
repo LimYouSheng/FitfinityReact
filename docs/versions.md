@@ -433,16 +433,16 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [backend/requirements.lock](../backend/requirements.lock) | `98d634b5342229a80ae1d17b330f95969076c5bd7eac0780eb59d5ce50d7e1a3` |
 | [backend/requirements-test.lock](../backend/requirements-test.lock) | `3f233cce42b451c422ecc94b58546da782c6f92f2cb04ba1e335b3fc322e0e4a` |
 | [backend/Dockerfile](../backend/Dockerfile) | `a8358675e71f935ecb676eddb644f6abcfff4379a8225c2234b213693ad531cd` |
-| [backend/compose.yaml](../backend/compose.yaml) | `37c4bda2719b16fd16632803ef5b786bb13068f71a551dc28ae565196a9d6754` |
+| [backend/compose.yaml](../backend/compose.yaml) | `c225aa7b026c0026f4a69929afdfacf742b61ae52a91fc1eae269f31d66365c0` |
 | [backend/compose.browser.yaml](../backend/compose.browser.yaml) | `b0a7da6ed501b990f3536e3043b8a175fd53206d1e3d3fefcd744b9201f77a8a` |
 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
 | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) | `971764bfb3dba3e89d4261424f33c5a4cbdfc50c988d34a233d0fefd0b5f6c07` |
 | [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `8cac2acb8dde0e980c70aac9dc286f97224e1695672511b759168a472c3f1fed` |
-| [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `53fd7514b330737ed79152df7afd64dd1d9902f527eed8b52ff68cb807177205` |
+| [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `122c619f662795e9ab3d4fedbd61a6f4c0582e12954cc239c50fe676cc8f9d44` |
 | [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `a2d2b24bd9988c02c69085a58eefd2670ec2d3526c25f8a2059bb3b5cd159336` |
-| [.github/workflows/aws-release-observe.yml](../.github/workflows/aws-release-observe.yml) | `e28fd5fde16640d3e41bff7ac0d436891c0d01fa360dd2905af996348c09e084` |
-| [.github/workflows/aws-release-prepare.yml](../.github/workflows/aws-release-prepare.yml) | `c4fee3d82568d766cdf6517e97a31cd5789628dd20ddbd2ebc95099adbc7509c` |
-| [.github/workflows/aws-schema-probe.yml](../.github/workflows/aws-schema-probe.yml) | `ffe69a93c3f4676a4ebd2e3a7f748415dce472e0733838e6180b0df74a5e4b68` |
+| [.github/workflows/aws-release-observe.yml](../.github/workflows/aws-release-observe.yml) | `8d2d57b9935745df06c5efbe07ade64314e9786b758ec05a7374f1952cd4dfd8` |
+| [.github/workflows/aws-release-prepare.yml](../.github/workflows/aws-release-prepare.yml) | `cdfc06a5023f83046eece2c5bd2372dbdb845243e726068f32ac983fd2d08524` |
+| [.github/workflows/aws-schema-probe.yml](../.github/workflows/aws-schema-probe.yml) | `79ae29d7f8f56832653aa0284953a45648044de72ccf4fd26279e2f4ba08fba6` |
 | [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `287435b16f73b6b84c09f37b820d521cb900adafb68d0bbb3a6c99d42ddb2bbd` |
 | [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `dd35a9ec51f96c20b2e884f137cccc989dbce0e3be0a265506b6d0b2c5fc28e4` |
 | [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `b9747b9151994f9137b8632d058c81c0ae8d4a8fc55eccc191505d66152b4039` |
@@ -451,3 +451,6 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `16341849f91180872a8c16f28f04f0b2ed3db40af6951fb4a41446e566cc61cf` |
 
 Browser-source helper fingerprint: `scripts/prepare-browser-apt.py` SHA-256 `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f`. PR117 replaces the unreachable US regional archive with the official main archive; package suites, signing keys, runner label and Playwright version are unchanged.
+
+
+The runtime RDS TLS trust file is [global-bundle.pem](../backend/app/certificates/global-bundle.pem), downloaded from the [AWS RDS global trust store](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem) on15 November2026. SHA256: `90a6f1a7978a1b1b096dca6c57511ca48d3b8cf052f8e704baf358f34ea2f21b`;114 CA certificates, earliest expiry18 May2061. `app/managed_secrets.py` pins the bytes and retains hostname verification (`verify-full`). The global bundle replaces the Singapore-only runtime trust selection to permit configured commercial regions; this does not change Python/OS/browser requirements. Focused tests verify the bundle and altered-byte refusal; actual AWS endpoint TLS acceptance still requires the target rehearsal. The earlier regional file remains historical evidence, not the runtime trust selector.

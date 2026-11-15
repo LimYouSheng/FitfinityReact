@@ -9,7 +9,14 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from deployment_profile import DEVELOPER, fingerprint, load, validate
+from deployment_profile import (
+    DEVELOPER,
+    fingerprint,
+    load,
+    observation_policy,
+    validate,
+    workflow_target,
+)
 from schema_probe_plan import prepare_review
 from schema_probe_setup import prepare, write_bundle
 
@@ -21,6 +28,7 @@ CLIENT = {
     "github_environment": "production:approved",
     "resource_prefix": "customer-prod",
     "secret_prefix": "customer/production",
+    "runtime_alias": "live",
 }
 
 
@@ -194,3 +202,104 @@ class ProfileTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 write_bundle(review, output)
             self.assertFalse(output.exists())
+
+    def test_workflow_resolves_only_owned_checked_in_profiles(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "client.json").write_text(json.dumps(CLIENT))
+            result = workflow_target("client", "client-example/training-portal", root)
+            self.assertEqual(result["account"], "123456789012")
+            self.assertEqual(result["environment"], "production:approved")
+            self.assertEqual(result["profile"], "backend/infrastructure/targets/client.json")
+            self.assertEqual(
+                result["role"], "arn:aws:iam::123456789012:role/customer-prod-github-schema-probe"
+            )
+            for name in ("../client", "client.json", "client\nINJECT=x"):
+                with self.assertRaises(RuntimeError):
+                    workflow_target(name, CLIENT["github_repository"], root)
+            with self.assertRaises(RuntimeError):
+                workflow_target("client", "LimYouSheng/FitfinityReact", root)
+            (root / "alias.json").symlink_to(root / "client.json")
+            with self.assertRaises(RuntimeError):
+                workflow_target("alias", CLIENT["github_repository"], root)
+
+    def test_repository_variables_supply_client_target_without_source_file(self):
+        configuration = json.dumps({"client": CLIENT})
+        with tempfile.TemporaryDirectory() as folder:
+            result = workflow_target(
+                "client", CLIENT["github_repository"], folder, configuration=configuration
+            )
+            self.assertEqual(result["profile"], "env:client")
+            self.assertEqual(result["profile_sha256"], fingerprint(CLIENT))
+            self.assertEqual(list(Path(folder).iterdir()), [])
+        with patch.dict(
+            "os.environ",
+            {
+                "FITFINITY_DEPLOYMENT_TARGETS_JSON": configuration,
+                "GITHUB_REPOSITORY": CLIENT["github_repository"],
+            },
+            clear=True,
+        ):
+            self.assertEqual(load("env:client"), CLIENT)
+            with self.assertRaises(RuntimeError):
+                load("env:developer")
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "FITFINITY_DEPLOYMENT_TARGETS_JSON": configuration,
+                    "GITHUB_REPOSITORY": DEVELOPER["github_repository"],
+                },
+                clear=True,
+            ),
+            self.assertRaises(RuntimeError),
+        ):
+            load("env:client")
+
+    def test_configured_targets_reject_duplicates_and_never_fall_back(self):
+        duplicate = '{"client":' + json.dumps(CLIENT) + ',"client":' + json.dumps(CLIENT) + "}"
+        for configuration in (
+            duplicate,
+            "{}",
+            "[]",
+            json.dumps({"client": {**CLIENT, "password": "x"}}),
+        ):
+            with self.subTest(configuration=configuration), self.assertRaises(RuntimeError):
+                workflow_target("client", CLIENT["github_repository"], configuration=configuration)
+        with self.assertRaises(RuntimeError):
+            workflow_target("developer", DEVELOPER["github_repository"], configuration="{}")
+
+    def test_observation_policy_has_exact_read_actions_and_client_resources(self):
+        policy = observation_policy(CLIENT)
+        statements = policy["Statement"]
+        actions = {
+            action
+            for row in statements
+            for action in (row["Action"] if isinstance(row["Action"], list) else [row["Action"]])
+        }
+        self.assertEqual(
+            actions,
+            {
+                "sts:GetCallerIdentity",
+                "cloudformation:DescribeStacks",
+                "cloudformation:GetTemplate",
+                "lambda:GetFunction",
+                "lambda:GetAlias",
+                "rds:DescribeDBInstances",
+            },
+        )
+        self.assertEqual(
+            statements[1]["Resource"],
+            "arn:aws:cloudformation:eu-west-1:123456789012:stack/customer-prod-login/*",
+        )
+        self.assertEqual(
+            statements[2]["Resource"],
+            [
+                "arn:aws:lambda:eu-west-1:123456789012:function:customer-prod-staff-api",
+                "arn:aws:lambda:eu-west-1:123456789012:function:customer-prod-staff-api:*",
+            ],
+        )
+        self.assertEqual(
+            statements[3]["Resource"], "arn:aws:rds:eu-west-1:123456789012:db:customer-prod-db"
+        )
+        self.assertTrue(all(row["Effect"] == "Allow" for row in statements))

@@ -92,10 +92,16 @@ def main():
     parser.add_argument("--revision", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--frontend", type=Path)
+    parser.add_argument("--profile", type=Path)
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[2]
     source_check(repo, args.revision)
     result = report(repo, args.revision)
+    if args.profile:
+        from deployment_profile import fingerprint, load
+
+        profile = load(args.profile)
+        result.update(profile=profile, profile_sha256=fingerprint(profile))
     if args.frontend:
         _, manifest = build(repo, args.frontend, result, args.revision)
         result["frontend_manifest"] = manifest

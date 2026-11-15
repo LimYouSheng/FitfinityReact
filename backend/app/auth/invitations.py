@@ -18,8 +18,8 @@ class CognitoInvitations:
         if self.client is None:
             self.client = boto3.client(
                 "cognito-idp",
-                region_name="ap-southeast-1",
-                endpoint_url="https://cognito-idp.ap-southeast-1.amazonaws.com",
+                region_name=self.settings.aws_region,
+                endpoint_url=f"https://cognito-idp.{self.settings.aws_region}.amazonaws.com",
                 verify=True,
                 config=Config(
                     connect_timeout=2,

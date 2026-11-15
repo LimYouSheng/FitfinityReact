@@ -8,7 +8,7 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
-import hosting_design as design
+from deployment_profile import DEVELOPER, identities, load
 
 ROOT = Path(__file__).resolve().parent
 READS = {
@@ -36,11 +36,12 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
 
 
-def aws(service, operation, *args):
+def aws(service, operation, *args, profile=DEVELOPER):
+    region = identities(profile)["region"]
     require((service, operation) in READS, "Read operation is not allowed")
     require(not any(str(arg).startswith("--endpoint") for arg in args), "Endpoint override refused")
     result = subprocess.run(
-        ["aws", service, operation, *args, "--region", design.REGION, "--output", "json"],
+        ["aws", service, operation, *args, "--region", region, "--output", "json"],
         capture_output=True,
         text=True,
         timeout=60,
@@ -63,17 +64,24 @@ def configuration_summary(config):
     }
 
 
-def observe(call=aws):
+def observe(call=None, *, profile=DEVELOPER):
+    target = identities(profile)
+    account, region, function_name = target["account"], target["region"], target["runtime_function"]
+    if call is None:
+
+        def call(service, operation, *args):
+            return aws(service, operation, *args, profile=profile)
+
     identity = call("sts", "get-caller-identity")
     require(
-        identity.get("Account") == design.ACCOUNT
+        identity.get("Account") == account
         and re.fullmatch(
-            rf"arn:aws:sts::{design.ACCOUNT}:assumed-role/fitfinity-test-github-hosting/[\w+=,.@-]+",
+            rf"arn:aws:sts::{account}:assumed-role/{re.escape(target['hosting_role'])}/[\w+=,.@-]+",
             identity.get("Arn", ""),
         ),
         "Wrong AWS account or observation role",
     )
-    name = design.STACKS["app"][0]
+    name = target["hosting_stack"]
     stacks = call("cloudformation", "describe-stacks", "--stack-name", name)["Stacks"]
     require(len(stacks) == 1 and stacks[0]["StackName"] == name, "Hosting stack differs")
     stack = stacks[0]
@@ -83,25 +91,25 @@ def observe(call=aws):
     ]
     if isinstance(template, str):
         template = json.loads(template)
-    function = call("lambda", "get-function", "--function-name", design.FUNCTION)
+    function = call("lambda", "get-function", "--function-name", function_name)
     config = function["Configuration"]
     require(
-        config["FunctionArn"]
-        == f"arn:aws:lambda:{design.REGION}:{design.ACCOUNT}:function:" + design.FUNCTION,
+        config["FunctionArn"] == f"arn:aws:lambda:{region}:{account}:function:" + function_name,
         "Runtime identity differs",
     )
-    alias = call("lambda", "get-alias", "--function-name", design.FUNCTION, "--name", "first-test")
+    alias = call(
+        "lambda", "get-alias", "--function-name", function_name, "--name", target["runtime_alias"]
+    )
     require(re.fullmatch(r"[1-9][0-9]*", alias["FunctionVersion"]), "Alias version differs")
     serving = call(
         "lambda",
         "get-function",
         "--function-name",
-        design.FUNCTION,
+        function_name,
         "--qualifier",
         alias["FunctionVersion"],
     )
-    foundation = json.loads((ROOT / "test-foundation.json").read_text())
-    database_id = foundation["Resources"]["Database"]["Properties"]["DBInstanceIdentifier"]
+    database_id = target["database"]
     databases = call("rds", "describe-db-instances", "--db-instance-identifier", database_id)[
         "DBInstances"
     ]
@@ -113,8 +121,9 @@ def observe(call=aws):
     # Never retain environment values, stack parameters/template or Code.Location URLs.
     return {
         "observed_at": datetime.now(UTC).isoformat(),
-        "account": design.ACCOUNT,
-        "region": design.REGION,
+        "profile_sha256": target["profile_sha256"],
+        "account": account,
+        "region": region,
         "deployment_decision": "HOLD",
         "stack": {
             "id": stack["StackId"],
@@ -167,14 +176,16 @@ def main():
     from hosting_frontend import source_check
 
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    require(os.getenv("GITHUB_REPOSITORY") == "LimYouSheng/FitfinityReact", "Repository differs")
+    profile = load(args.profile)
+    require(os.getenv("GITHUB_REPOSITORY") == profile["github_repository"], "Repository differs")
     require(os.getenv("GITHUB_REF") == "refs/heads/main", "Observation requires reviewed main")
     require(os.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch", "Manual dispatch required")
     require(not any(key.startswith("AWS_ENDPOINT_URL") for key in os.environ), "Endpoint override")
     source = source_check(ROOT.parents[1], os.getenv("GITHUB_SHA"))
-    result = observe()
+    result = observe(profile=profile)
     result["source_sha"] = source["revision"]
     args.output.write_text(json.dumps(result, indent=2, default=str) + "\n")
     print("Read-only release observation retained; deployment HOLD")

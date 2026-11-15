@@ -1,4 +1,4 @@
-name: Prepare developer AWS release evidence
+name: Prepare AWS release evidence
 on:
   pull_request:
     branches: [main]
@@ -6,10 +6,16 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      target:
+        description: Deployment target name in repository configuration
+        required: false
+        type: string
       probe_bindings:
         description: 'Optional reviewed probe bindings JSON (metadata only; never secret values)'
         required: false
         type: string
+env:
+  FITFINITY_DEPLOYMENT_TARGETS_JSON: ${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}
 permissions:
   contents: read
 concurrency:
@@ -23,17 +29,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - id: target
+        env:
+          DEPLOYMENT_TARGET: ${{ inputs.target || vars.DEPLOYMENT_TARGET || 'developer' }}
+        run: python3 backend/infrastructure/deployment_profile.py
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - name: Inventory exact source and build API-connected frontend
+        env:
+          DEPLOYMENT_PROFILE: ${{ steps.target.outputs.profile }}
         shell: bash
         run: |
           set -euo pipefail
           python3 backend/infrastructure/release_readiness.py \
-            --revision "$GITHUB_SHA" \
+            --revision "$GITHUB_SHA" --profile "$DEPLOYMENT_PROFILE" \
             --output "$RUNNER_TEMP/release-readiness.json" \
             --frontend "$RUNNER_TEMP/release-frontend" \
             2>&1 | tee "$RUNNER_TEMP/release-prepare.log"
@@ -41,13 +53,14 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.probe_bindings != ''
         env:
           PROBE_BINDINGS: ${{ inputs.probe_bindings }}
+          DEPLOYMENT_PROFILE: ${{ steps.target.outputs.profile }}
         shell: bash
         run: |
           set -euo pipefail
           printf '%s' "$PROBE_BINDINGS" > "$RUNNER_TEMP/probe-bindings.json"
           python3 backend/infrastructure/schema_probe_plan.py \
             "$RUNNER_TEMP/probe-bindings.json" "$RUNNER_TEMP/schema-probe-review" \
-            --source-sha "$GITHUB_SHA"
+            --source-sha "$GITHUB_SHA" --profile "$DEPLOYMENT_PROFILE"
       - name: Explain release boundary
         if: always()
         shell: bash

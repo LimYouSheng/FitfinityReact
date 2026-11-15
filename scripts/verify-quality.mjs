@@ -30,6 +30,9 @@ export function readQualitySetup(root = process.cwd()) {
 }
 
 export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, preparation, observation, schemaProbe, packageJson, lock }) {
+  for (const workflow of [image, preparation, observation, schemaProbe]) {
+    if (workflow.env?.FITFINITY_DEPLOYMENT_TARGETS_JSON !== '${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}') fail('deployment target configuration must come from repository variables')
+  }
   for (const event of ['pull_request', 'push']) {
     if (!equal(pages.on?.[event]?.branches, ['main']) || Object.keys(pages.on[event]).some(key => key !== 'branches')) fail(`${event} must run all gates for main without path filtering`)
   }
@@ -46,27 +49,52 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
     }
   }
   const probe = preparation.jobs['frontend-and-schema'].steps.find(step => step.name === 'Prepare optional private schema probe review')
-  if (probe?.if !== "github.event_name == 'workflow_dispatch' && inputs.probe_bindings != ''" || probe?.env?.PROBE_BINDINGS !== '${{ inputs.probe_bindings }}' || !probe.run.includes('--source-sha "$GITHUB_SHA"') || probe.run.includes('${{')) fail('probe review must bind exact source and pass metadata through environment')
+  if (probe?.if !== "github.event_name == 'workflow_dispatch' && inputs.probe_bindings != ''" || probe?.env?.PROBE_BINDINGS !== '${{ inputs.probe_bindings }}' || !probe.run.includes('--source-sha "$GITHUB_SHA" --profile "$DEPLOYMENT_PROFILE"') || probe?.env?.DEPLOYMENT_PROFILE !== '${{ steps.target.outputs.profile }}' || probe.run.includes('${{')) fail('probe review must bind exact source and pass metadata through environment')
+  requireGate(preparation.jobs['frontend-and-schema'], 'python3 backend/infrastructure/deployment_profile.py')
+  const prepareTarget = preparation.jobs['frontend-and-schema'].steps.find(step => step.id === 'target')
+  if (prepareTarget?.env?.DEPLOYMENT_TARGET !== "${{ inputs.target || vars.DEPLOYMENT_TARGET || 'developer' }}" || prepareTarget.run.includes('${{')) fail('release preparation target selection differs')
   requireGate(preparation.jobs['frontend-and-schema'], 'python3 backend/infrastructure/release_readiness.py')
   requireGate(preparation.jobs['runtime-build'], 'docker build --pull --platform linux/amd64 --target runtime')
   const probeJob = schemaProbe.jobs?.probe
-  if (!equal(Object.keys(schemaProbe.on), ['workflow_dispatch']) || !equal(schemaProbe.permissions, { contents: 'read' }) || probeJob?.needs !== 'offline' || probeJob?.environment !== 'aws-test' || probeJob?.if !== "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_PROBE_ENABLED == 'true'") fail('schema probe must be manual, main-only, disabled by default and protected')
-  if (!equal(schemaProbe.concurrency, { group: 'fitfinity-aws-test', 'cancel-in-progress': false }) || probeJob['timeout-minutes'] !== 10 || schemaProbe.jobs.offline.uses !== './.github/workflows/infrastructure.yml') fail('schema probe lifecycle concurrency or verification differs')
+  if (!equal(Object.keys(schemaProbe.on), ['workflow_dispatch']) || !equal(schemaProbe.permissions, { contents: 'read' }) || !equal(probeJob?.needs, ['offline', 'target']) || probeJob?.environment !== '${{ needs.target.outputs.environment }}' || probeJob?.if !== "github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_PROBE_ENABLED == 'true'") fail('schema probe must be manual, main-only, disabled by default and protected')
+  if (!equal(probeJob.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false }) || probeJob['timeout-minutes'] !== 10 || schemaProbe.jobs.offline.uses !== './.github/workflows/infrastructure.yml') fail('schema probe lifecycle concurrency or verification differs')
   const probeCredentials = probeJob.steps.find(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
-  if (probeCredentials?.with?.['role-to-assume'] !== '${{ vars.AWS_SCHEMA_PROBE_ROLE_ARN }}' || probeCredentials.with['allowed-account-ids'] !== '418638389566') fail('schema probe must use its dedicated exact account role')
+  if (probeCredentials?.with?.['role-to-assume'] !== '${{ vars.AWS_SCHEMA_PROBE_ROLE_ARN }}' || probeCredentials.with['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || probeCredentials.with['aws-region'] !== '${{ needs.target.outputs.region }}') fail('schema probe must use its dedicated exact account role')
+  const targetJob = schemaProbe.jobs.target
+  if (targetJob?.if !== "github.ref == 'refs/heads/main'" || !equal(targetJob?.permissions, { contents: 'read' })) fail('target resolution must be main-only and credential-free')
+  requireGate(targetJob, 'python3 backend/infrastructure/deployment_profile.py')
+  const targetStep = targetJob.steps.find(step => step.id === 'target')
+  if (targetStep?.env?.DEPLOYMENT_TARGET !== '${{ inputs.target }}' || targetStep.run.includes('${{')) fail('target input must use environment binding')
+  for (const key of ['profile', 'profile_sha256', 'environment', 'account', 'region', 'role']) {
+    if (targetJob.outputs?.[key] !== '${{ steps.target.outputs.' + key + ' }}') fail('target output binding differs')
+  }
+  const dedicated = probeJob.steps.find(step => step.name === 'Require dedicated probe role')
+  if (dedicated?.env?.EXPECTED_ROLE !== '${{ needs.target.outputs.role }}' || dedicated.run !== 'test "$PROBE_ROLE" = "$EXPECTED_ROLE"') fail('dedicated target role check differs')
+  for (const command of ['schema_probe_artifacts.py', 'schema_probe_operator.py']) {
+    const step = probeJob.steps.find(step => step.run?.includes(command))
+    if (step?.env?.DEPLOYMENT_PROFILE !== '${{ needs.target.outputs.profile }}') fail('probe must consume resolved profile')
+  }
   requireGate(probeJob, 'python3 backend/infrastructure/schema_probe_artifacts.py')
   requireGate(probeJob, 'python3 backend/infrastructure/schema_probe_operator.py')
   if (probeJob.steps.findIndex(step => step.run?.includes('schema_probe_artifacts.py')) > probeJob.steps.indexOf(probeCredentials)) fail('probe evidence must be fetched before authentication')
   const probeUpload = probeJob.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'))
   if (probeUpload?.if !== 'always()' || probeUpload.with['retention-days'] !== 7 || probeUpload.with.path !== '${{ runner.temp }}/schema-probe-receipt.json') fail('probe must retain only its operational receipt')
   const observe = observation.jobs?.observe
-  if (!equal(Object.keys(observation.on), ['workflow_dispatch']) || !equal(observation.permissions, { contents: 'read' }) || observe?.needs !== 'offline' || observe.environment !== 'aws-test' || observe.if !== "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'") fail('release observation must stay manual, main-only and protected')
+  if (!equal(Object.keys(observation.on), ['workflow_dispatch']) || !equal(observation.permissions, { contents: 'read' }) || !equal(observe?.needs, ['offline', 'target']) || observe.environment !== '${{ needs.target.outputs.environment }}' || observe.if !== "github.ref == 'refs/heads/main'") fail('release observation must stay manual, main-only and protected')
   const observationCredentials = observe.steps.find(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
-  if (observationCredentials?.with?.['allowed-account-ids'] !== '418638389566' || observationCredentials.with['role-to-assume'] !== '${{ vars.AWS_HOSTING_ROLE_ARN }}') fail('release observation identity differs')
-  const readPolicy = JSON.parse(observationCredentials.with['inline-session-policy'])
-  const allowedReads = ['sts:GetCallerIdentity', 'cloudformation:DescribeStacks', 'cloudformation:GetTemplate', 'lambda:GetFunction', 'lambda:GetAlias', 'rds:DescribeDBInstances']
-  if (readPolicy.Statement.some(statement => statement.Effect !== 'Allow' || statement.NotAction || statement.NotResource || [].concat(statement.Action).some(action => !allowedReads.includes(action)))) fail('release observation policy must be read-only without secret access')
-  requireGate(observe, 'python3 backend/infrastructure/release_observation.py --output')
+  if (observationCredentials?.with?.['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || observationCredentials.with['aws-region'] !== '${{ needs.target.outputs.region }}' || observationCredentials.with['role-to-assume'] !== '${{ vars.AWS_HOSTING_ROLE_ARN }}') fail('release observation identity differs')
+  if (observationCredentials.with['inline-session-policy'] !== '${{ needs.target.outputs.observation_policy }}') fail('release observation must use the scoped target read policy')
+  if (!equal(observe.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false })) fail('observation must serialize target operations')
+  const observeTarget = observation.jobs.target
+  if (observeTarget?.if !== "github.ref == 'refs/heads/main'" || !equal(observeTarget?.permissions, { contents: 'read' })) fail('observation target resolver requires main and no credentials')
+  requireGate(observeTarget, 'python3 backend/infrastructure/deployment_profile.py')
+  for (const key of ['profile', 'environment', 'account', 'region', 'hosting_role', 'observation_policy']) {
+    if (observeTarget.outputs?.[key] !== '${{ steps.target.outputs.' + key + ' }}') fail('observation target output differs')
+  }
+  requireGate(observe, 'test "$HOSTING_ROLE" = "$EXPECTED_ROLE"')
+  if (observe.steps.find(step => step.env?.HOSTING_ROLE)?.env?.EXPECTED_ROLE !== '${{ needs.target.outputs.hosting_role }}') fail('observation role differs')
+  requireGate(observe, 'python3 backend/infrastructure/release_observation.py --profile "$DEPLOYMENT_PROFILE" --output')
+  if (observe.steps.find(step => step.run?.includes('release_observation.py'))?.env?.DEPLOYMENT_PROFILE !== '${{ needs.target.outputs.profile }}') fail('observation profile differs')
   const caller = pages.jobs?.verify
   if (caller?.uses !== './.github/workflows/verify.yml' || caller.if != null || caller.secrets != null || caller['continue-on-error']) fail('PR and main must call the complete verification workflow unconditionally')
   if (!Object.hasOwn(verify.on ?? {}, 'workflow_call') || !equal(verify.permissions, { contents: 'read' })) fail('shared verification must be callable with read-only repository access')
@@ -115,21 +143,28 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   const mainOnly = "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
   if (pages.jobs?.build?.needs !== 'verify' || pages.jobs.build.if !== mainOnly || pages.jobs?.deploy?.needs !== 'build' || pages.jobs.deploy.if !== mainOnly) fail('Pages build and publish must depend on full verification and the main-branch guard')
   const imageJob = image?.jobs?.image
-  const releaseGuard = "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'"
+  const releaseGuard = "github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'"
   if (pages.jobs?.image || Object.values(pages.jobs ?? {}).some(job => job.uses === './.github/workflows/aws-image.yml')) fail('normal verification must not queue or wait for image publication')
-  if (!equal(Object.keys(image?.on ?? {}), ['workflow_dispatch']) || !equal(image.on.workflow_dispatch?.inputs?.source_sha, { description: 'Exact main commit to verify and publish (40-character SHA)', required: true, type: 'string' }) || !equal(image.permissions, { contents: 'read' }) || !equal(image.concurrency, { group: 'fitfinity-aws-test', 'cancel-in-progress': false })) fail('image workflow requires manual exact-source selection and serialized AWS operations')
+  if (!equal(Object.keys(image?.on ?? {}), ['workflow_dispatch']) || !equal(image.on.workflow_dispatch?.inputs?.source_sha, { description: 'Exact main commit to verify and publish (40-character SHA)', required: true, type: 'string' }) || !equal(image.permissions, { contents: 'read' }) || !equal(imageJob.concurrency, { group: 'fitfinity-${{ needs.source.outputs.environment }}', 'cancel-in-progress': false })) fail('image workflow requires manual exact-source selection and serialized AWS operations')
   const source = image.jobs?.source, releaseVerify = image.jobs?.verify
-  if (source?.if !== releaseGuard || source.environment || source['continue-on-error'] || source.permissions || source.steps?.length !== 1) fail('release source selection requires main, explicit activation and no deployment credentials')
+  if (source?.if !== releaseGuard || source.environment || source['continue-on-error'] || source.permissions || source.steps?.length !== 3) fail('release source selection requires main, explicit activation and no deployment credentials')
   const selection = source.steps[0]
   if (selection.env?.EXPECTED_SHA !== '${{ inputs.source_sha }}') fail('release must bind the explicitly entered source SHA')
   requireGate(source, '[[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]')
   requireGate(source, 'test "$EXPECTED_SHA" = "$GITHUB_SHA"')
   if (releaseVerify?.needs !== 'source' || releaseVerify.uses !== './.github/workflows/verify.yml' || releaseVerify.if != null || releaseVerify.secrets || releaseVerify['continue-on-error']) fail('manual release must run all verification after source selection')
-  if (imageJob?.needs !== 'verify' || imageJob.if !== `github.event_name == 'workflow_dispatch' && ${releaseGuard}` || imageJob.environment !== 'aws-test' || imageJob['continue-on-error'] || !equal(imageJob.permissions, { contents: 'read', 'id-token': 'write' })) fail('image publication requires complete verification, its protected environment and narrow credentials')
+  if (!equal(imageJob?.needs, ['verify', 'source']) || imageJob.if !== `github.event_name == 'workflow_dispatch' && ${releaseGuard}` || imageJob.environment !== '${{ needs.source.outputs.environment }}' || imageJob['continue-on-error'] || !equal(imageJob.permissions, { contents: 'read', 'id-token': 'write' })) fail('image publication requires complete verification, its protected environment and narrow credentials')
   const imageCredentials = imageJob.steps.filter(step => (step.uses ?? '').startsWith('aws-actions/configure-aws-credentials@'))
-  if (imageCredentials.length !== 1 || imageCredentials[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || imageCredentials[0].with?.['allowed-account-ids'] !== '418638389566' || imageCredentials[0].with?.['aws-region'] !== 'ap-southeast-1') fail('image publication must use its separate exact-account role')
-  requireGate(imageJob, 'test "$IMAGE_ROLE" = \'arn:aws:iam::418638389566:role/fitfinity-test-github-image\'')
-  requireGate(imageJob, 'python3 backend/infrastructure/deploy.py image-candidate --actions --receipt')
+  if (imageCredentials.length !== 1 || imageCredentials[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || imageCredentials[0].with?.['allowed-account-ids'] !== '${{ needs.source.outputs.account }}' || imageCredentials[0].with?.['aws-region'] !== '${{ needs.source.outputs.region }}') fail('image publication must use its separate exact-account role')
+  requireGate(imageJob, 'test "$IMAGE_ROLE" = "$EXPECTED_ROLE"')
+  requireGate(imageJob, 'python3 backend/infrastructure/deploy.py image-candidate --actions --profile "$DEPLOYMENT_PROFILE" --receipt')
+  requireGate(source, 'python3 backend/infrastructure/deployment_profile.py')
+  if (source.steps.find(step => step.id === 'target')?.env?.DEPLOYMENT_TARGET !== '${{ inputs.target }}') fail('image target input differs')
+  for (const key of ['profile', 'environment', 'account', 'region', 'image_role']) {
+    if (source.outputs?.[key] !== '${{ steps.target.outputs.' + key + ' }}') fail('image target output differs')
+  }
+  if (imageJob.steps.find(step => step.env?.IMAGE_ROLE)?.env?.EXPECTED_ROLE !== '${{ needs.source.outputs.image_role }}') fail('image target role check differs')
+  if (imageJob.steps.find(step => step.run?.includes('deploy.py image-candidate'))?.env?.DEPLOYMENT_PROFILE !== '${{ needs.source.outputs.profile }}') fail('image profile binding differs')
   const acceptanceGuard = "github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'"
   const acceptJob = acceptance?.jobs?.accept
   if (!equal(Object.keys(acceptance?.on ?? {}), ['workflow_dispatch']) || acceptance.jobs?.verify?.uses !== './.github/workflows/verify.yml' || acceptance.jobs.verify.if !== acceptanceGuard || acceptJob?.needs !== 'verify' || acceptJob.if !== acceptanceGuard || acceptJob.environment !== 'aws-test' || acceptJob['continue-on-error']) fail('existing-image acceptance requires manual main execution after full verification')

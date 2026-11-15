@@ -6,12 +6,10 @@ import re
 import time
 from datetime import UTC, datetime
 
+from deployment_profile import DEVELOPER, identities
 from operator_checks import require
-from release_image import ACCOUNT, REGION, URI, scan_policy
-from schema_probe_iam import NAME
+from release_image import scan_policy
 from schema_probe_plan import prepare_review
-
-ROLE = f"arn:aws:sts::{ACCOUNT}:assumed-role/fitfinity-test-github-schema-probe/"
 
 
 def compact(value):
@@ -19,7 +17,9 @@ def compact(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
-def validate_review(review, expected_hash, source_sha, sql, *, now, cleanup=False):
+def validate_review(
+    review, expected_hash, source_sha, sql, *, now, cleanup=False, profile=DEVELOPER
+):
     """Recompute the approved template before any AWS operation."""
     binding = review["bindings"]
     checked = prepare_review(
@@ -27,6 +27,7 @@ def validate_review(review, expected_hash, source_sha, sql, *, now, cleanup=Fals
         source_sha,
         sql,
         now=binding["expires_at"] - 1 if cleanup else now,
+        profile=profile,
     )
     require(review == checked, "Probe review changed; regenerate and review")
     require(
@@ -37,14 +38,18 @@ def validate_review(review, expected_hash, source_sha, sql, *, now, cleanup=Fals
     return binding
 
 
-def validate_image(receipt, binding, call, now):
+def validate_image(receipt, binding, call, now, *, profile=DEVELOPER):
     """Require a matching publication receipt and fresh live scan without starting one."""
+    target = identities(profile)
+    account, region = target["account"], target["region"]
+    uri = target["registry"] + "/" + target["image_repository"]
     require(
-        receipt.get("account") == ACCOUNT
-        and receipt.get("region") == REGION
+        receipt.get("profile_sha256") == target["profile_sha256"]
+        and receipt.get("account") == account
+        and receipt.get("region") == region
         and receipt.get("revision") == binding["source_sha"]
         and receipt.get("image_digest") == binding["image_digest"]
-        and receipt.get("image_uri") == URI + "@" + binding["image_digest"]
+        and receipt.get("image_uri") == uri + "@" + binding["image_digest"]
         and all(
             receipt.get(key) is True
             for key in ("candidate_ready", "image_published", "scan_policy_passed")
@@ -55,7 +60,7 @@ def validate_image(receipt, binding, call, now):
     )
     pages, tokens = [], set()
     arguments = {
-        "repositoryName": "fitfinity-test-api",
+        "repositoryName": target["image_repository"],
         "imageId": {"imageDigest": binding["image_digest"]},
     }
     while True:
@@ -70,23 +75,25 @@ def validate_image(receipt, binding, call, now):
         require(token not in tokens and len(pages) < 100, "Invalid image scan pagination")
         tokens.add(token)
         arguments = {**arguments, "nextToken": token}
-    scan_policy(pages, binding["image_digest"], datetime.fromtimestamp(now, UTC))
+    scan_policy(pages, binding["image_digest"], datetime.fromtimestamp(now, UTC), profile=profile)
 
 
-def preflight(binding, call):
+def preflight(binding, call, *, profile=DEVELOPER):
     """Verify current private resource metadata without retrieving credentials."""
+    target = identities(profile)
+    account, region = target["account"], target["region"]
     limits = call("lambda", "get-account-settings", {})
     require(
         limits.get("AccountLimit", {}).get("UnreservedConcurrentExecutions", 0) >= 101,
         "Account concurrency cannot reserve one probe execution while retaining AWS headroom",
     )
-    databases = call("rds", "describe-db-instances", {"DBInstanceIdentifier": "fitfinity-test-db"})[
+    databases = call("rds", "describe-db-instances", {"DBInstanceIdentifier": target["database"]})[
         "DBInstances"
     ]
     require(len(databases) == 1, "Database identity differs")
     db = databases[0]
     require(
-        db.get("DBInstanceArn") == f"arn:aws:rds:{REGION}:{ACCOUNT}:db:fitfinity-test-db"
+        db.get("DBInstanceArn") == f"arn:aws:rds:{region}:{account}:db:{target['database']}"
         and db.get("DBInstanceStatus") == "available"
         and db.get("Endpoint", {}).get("Address") == binding["db_host"]
         and db.get("DBName") == binding["db_name"]
@@ -101,7 +108,7 @@ def preflight(binding, call):
         and {row["SubnetId"] for row in subnets} == set(binding["subnet_ids"])
         and all(
             row.get("VpcId") == vpc
-            and row.get("OwnerId") == ACCOUNT
+            and row.get("OwnerId") == account
             and row.get("State") == "available"
             and row.get("MapPublicIpOnLaunch") is False
             for row in subnets
@@ -112,7 +119,7 @@ def preflight(binding, call):
         "SecurityGroups"
     ]
     require(
-        len(groups) == 1 and groups[0].get("VpcId") == vpc and groups[0].get("OwnerId") == ACCOUNT,
+        len(groups) == 1 and groups[0].get("VpcId") == vpc and groups[0].get("OwnerId") == account,
         "Probe security group differs",
     )
     secret = call(
@@ -126,14 +133,16 @@ def preflight(binding, call):
     )
 
 
-def owned_stack(call, tags, template_hash, stack_id=None):
+def owned_stack(call, tags, template_hash, stack_id=None, *, profile=DEVELOPER):
     """Refuse foreign stacks before invocation or deletion."""
-    rows = call("cloudformation", "describe-stacks", {"StackName": stack_id or NAME})["Stacks"]
+    target = identities(profile)
+    account, region, name = target["account"], target["region"], target["probe_name"]
+    rows = call("cloudformation", "describe-stacks", {"StackName": stack_id or name})["Stacks"]
     require(len(rows) == 1, "Probe stack identity differs")
     stack = rows[0]
     require(
         re.fullmatch(
-            rf"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/{NAME}/[\w-]+",
+            rf"arn:aws:cloudformation:{region}:{account}:stack/{name}/[\w-]+",
             stack.get("StackId", ""),
         ),
         "Probe stack ARN differs",
@@ -170,32 +179,44 @@ def execute(
     *,
     now=None,
     stack_id=None,
+    profile=DEVELOPER,
 ):
     """Perform one lifecycle step without automatic mutation retries or implicit cleanup."""
+    target = identities(profile)
+    account, region, name = target["account"], target["region"], target["probe_name"]
+    uri = target["registry"] + "/" + target["image_repository"]
+    role_prefix = f"arn:aws:sts::{account}:assumed-role/{target['operator_role']}/"
     now = time.time() if now is None else now
     require(mode in {"create", "collect", "cleanup", "cleanup-check"}, "Unknown probe mode")
     require(re.fullmatch(r"[0-9a-f]{32}", operation_id or ""), "Exact operation ID required")
     binding = validate_review(
-        review, expected_hash, source_sha, sql, now=now, cleanup=mode.startswith("cleanup")
+        review,
+        expected_hash,
+        source_sha,
+        sql,
+        now=now,
+        cleanup=mode.startswith("cleanup"),
+        profile=profile,
     )
     identity = call("sts", "get-caller-identity", {})
     require(
-        identity.get("Account") == ACCOUNT and identity.get("Arn", "").startswith(ROLE),
+        identity.get("Account") == account and identity.get("Arn", "").startswith(role_prefix),
         "Wrong probe account or role",
     )
     tags = {
         "FitfinityOperation": operation_id,
         "FitfinitySource": source_sha,
         "FitfinityTemplate": expected_hash,
+        "FitfinityProfile": target["profile_sha256"],
     }
     if mode == "create":
-        preflight(binding, call)
-        validate_image(image_receipt, binding, call, now)
+        preflight(binding, call, profile=profile)
+        validate_image(image_receipt, binding, call, now, profile=profile)
         result = call(
             "cloudformation",
             "create-stack",
             {
-                "StackName": NAME,
+                "StackName": name,
                 "TemplateBody": compact(review["template"]),
                 "Capabilities": ["CAPABILITY_NAMED_IAM"],
                 "OnFailure": "DO_NOTHING",
@@ -207,7 +228,7 @@ def execute(
     require(
         mode != "cleanup-check" or stack_id, "Cleanup verification requires the retained stack ARN"
     )
-    stack = owned_stack(call, tags, expected_hash, stack_id)
+    stack = owned_stack(call, tags, expected_hash, stack_id, profile=profile)
     status = stack["StackStatus"]
     if mode == "cleanup-check":
         return {
@@ -233,13 +254,13 @@ def execute(
         )
         return {"state": "cleanup_submitted", "stack_id": stack["StackId"], "next": "cleanup-check"}
     require(status == "CREATE_COMPLETE", "Probe not ready; inspect stack before collecting")
-    validate_image(image_receipt, binding, call, now)
-    function = call("lambda", "get-function", {"FunctionName": NAME})
+    validate_image(image_receipt, binding, call, now, profile=profile)
+    function = call("lambda", "get-function", {"FunctionName": name})
     config = function["Configuration"]
     expected = review["template"]["Resources"]["Probe"]["Properties"]
     require(
-        function["Code"].get("ResolvedImageUri") == URI + "@" + binding["image_digest"]
-        and config.get("FunctionArn") == f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{NAME}"
+        function["Code"].get("ResolvedImageUri") == uri + "@" + binding["image_digest"]
+        and config.get("FunctionArn") == f"arn:aws:lambda:{region}:{account}:function:{name}"
         and config.get("State") == "Active"
         and config.get("LastUpdateStatus") == "Successful"
         and config.get("MemorySize") == expected["MemorySize"]
@@ -253,7 +274,7 @@ def execute(
         == set(expected["VpcConfig"]["SecurityGroupIds"]),
         "Live probe configuration differs",
     )
-    concurrency = call("lambda", "get-function-concurrency", {"FunctionName": NAME})
+    concurrency = call("lambda", "get-function-concurrency", {"FunctionName": name})
     require(concurrency.get("ReservedConcurrentExecutions") == 1, "Probe concurrency differs")
     role = call(
         "cloudformation",
@@ -263,7 +284,7 @@ def execute(
     require(
         role.get("ResourceType") == "AWS::IAM::Role"
         and config.get("Role")
-        == f"arn:aws:iam::{ACCOUNT}:role/" + role.get("PhysicalResourceId", ""),
+        == f"arn:aws:iam::{account}:role/" + role.get("PhysicalResourceId", ""),
         "Probe execution role differs",
     )
     live_role = call("iam", "get-role", {"RoleName": role["PhysicalResourceId"]})["Role"]
@@ -276,16 +297,16 @@ def execute(
         == role_properties["AssumeRolePolicyDocument"],
         "Live runtime role boundary or trust differs",
     )
-    urls = call("lambda", "list-function-url-configs", {"FunctionName": NAME})
+    urls = call("lambda", "list-function-url-configs", {"FunctionName": name})
     require(
         urls.get("FunctionUrlConfigs") == [] and not urls.get("NextMarker"),
         "Public function URL refused",
     )
     require(
-        call("lambda", "get-policy", {"FunctionName": NAME}) == {"absent": True},
+        call("lambda", "get-policy", {"FunctionName": name}) == {"absent": True},
         "Probe resource policy must be absent",
     )
-    events = call("lambda", "list-event-source-mappings", {"FunctionName": NAME})
+    events = call("lambda", "list-event-source-mappings", {"FunctionName": name})
     require(
         events.get("EventSourceMappings") == [] and not events.get("NextMarker"),
         "Probe event source refused",
@@ -294,7 +315,7 @@ def execute(
         "lambda",
         "invoke",
         {
-            "FunctionName": NAME,
+            "FunctionName": name,
             "InvocationType": "RequestResponse",
             "LogType": "None",
             "Payload": compact(review["invoke_payload"]),

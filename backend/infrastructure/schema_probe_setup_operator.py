@@ -103,9 +103,12 @@ def install(template, directory, call, pause=time.sleep):
         "--open-id-connect-provider-arn",
         f"arn:aws:iam::{ACCOUNT}:oidc-provider/token.actions.githubusercontent.com",
     )
+    audiences = provider.get("ClientIDList")
     require(
         provider.get("Url") == "token.actions.githubusercontent.com"
-        and "sts.amazonaws.com" in provider.get("ClientIDList", []),
+        and isinstance(audiences, list)
+        and all(isinstance(audience, str) for audience in audiences)
+        and any(audience == "sts.amazonaws.com" for audience in audiences),
         "OIDC provider differs",
     )
     require(

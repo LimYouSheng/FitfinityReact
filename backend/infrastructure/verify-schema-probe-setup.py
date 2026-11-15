@@ -229,6 +229,33 @@ class SetupTests(unittest.TestCase):
                 )
         self.assertNotIn("create-change-set", calls)
 
+    def test_setup_rejects_malformed_or_substring_oidc_audiences_before_mutation(self):
+        for audiences in (
+            None,
+            "sts.amazonaws.com",
+            "evil.sts.amazonaws.com",
+            [],
+            ["sts.amazonaws.com.evil"],
+            ["prefix-sts.amazonaws.com"],
+            ["sts.amazonaws.com", None],
+            {"sts.amazonaws.com": True},
+        ):
+            calls = []
+
+            def call(service, operation, *args, calls=calls, audiences=audiences, **kwargs):
+                calls.append(operation)
+                if operation == "get-caller-identity":
+                    return {"Account": ACCOUNT}
+                if operation == "get-open-id-connect-provider":
+                    return {"Url": "token.actions.githubusercontent.com", "ClientIDList": audiences}
+                raise AssertionError("Unexpected call after malformed OIDC provider")
+
+            with self.subTest(audiences=audiences), tempfile.TemporaryDirectory() as folder:
+                with self.assertRaisesRegex(RuntimeError, "OIDC provider differs"):
+                    install(self.review["template"], Path(folder) / "review", call)
+                self.assertEqual(calls, ["get-caller-identity", "get-open-id-connect-provider"])
+                self.assertEqual(list(Path(folder).iterdir()), [])
+
     def installer_call(self, calls, fail_create=False):
         state = {"applied": False}
 

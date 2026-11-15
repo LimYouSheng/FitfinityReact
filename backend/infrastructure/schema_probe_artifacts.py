@@ -6,18 +6,20 @@ import re
 import subprocess
 from pathlib import Path
 
+from deployment_profile import DEVELOPER, identities, load
 from operator_checks import require
 
-REPOSITORY = "LimYouSheng/FitfinityReact"
+REPOSITORY = DEVELOPER["github_repository"]
 
 
-def run_binding(run, workflow, source=None):
+def run_binding(run, workflow, source=None, *, profile=DEVELOPER):
     """Reject foreign, failed, non-main or non-manual artifact producers."""
     require(
         run.get("path") == f".github/workflows/{workflow}.yml"
         and run.get("event") == "workflow_dispatch"
         and run.get("head_branch") == "main"
-        and run.get("head_repository", {}).get("full_name") == REPOSITORY
+        and run.get("head_repository", {}).get("full_name")
+        == identities(profile)["github_repository"]
         and run.get("status") == "completed"
         and run.get("conclusion") == "success"
         and re.fullmatch(r"[0-9a-f]{40}", run.get("head_sha", ""))
@@ -29,8 +31,10 @@ def run_binding(run, workflow, source=None):
     return run["head_sha"], run["run_attempt"]
 
 
-def fetch(kind, run_id, destination, source=None):
+def fetch(kind, run_id, destination, source=None, *, profile=DEVELOPER):
     """Download one named artifact without executing its contents."""
+    repository = identities(profile)["github_repository"]
+    require(kind in {"review", "image"}, "Unknown artifact kind")
     require(re.fullmatch(r"[1-9][0-9]*", run_id or ""), "Exact artifact run ID required")
     workflow = "aws-release-prepare" if kind == "review" else "aws-image"
     run = json.loads(
@@ -38,12 +42,12 @@ def fetch(kind, run_id, destination, source=None):
             [
                 "gh",
                 "api",
-                f"repos/{REPOSITORY}/actions/runs/{run_id}",
+                f"repos/{repository}/actions/runs/{run_id}",
             ],
             text=True,
         )
     )
-    revision, attempt = run_binding(run, workflow, source)
+    revision, attempt = run_binding(run, workflow, source, profile=profile)
     name = (
         f"fitfinity-release-prepare-{revision}-{run_id}-{attempt}"
         if kind == "review"
@@ -56,7 +60,7 @@ def fetch(kind, run_id, destination, source=None):
             "download",
             run_id,
             "--repo",
-            REPOSITORY,
+            repository,
             "--name",
             name,
             "--dir",
@@ -68,6 +72,8 @@ def fetch(kind, run_id, destination, source=None):
 
 
 if __name__ == "__main__":
+    profile = load(os.environ["DEPLOYMENT_PROFILE"])
+    require(os.environ["GITHUB_REPOSITORY"] == profile["github_repository"], "Wrong repository")
     root = Path(os.environ["RUNNER_TEMP"])
     mode = os.environ["PROBE_MODE"]
     source = fetch(
@@ -75,6 +81,7 @@ if __name__ == "__main__":
         os.environ["REVIEW_RUN"],
         root / "probe-review",
         None if mode.startswith("cleanup") else os.environ["GITHUB_SHA"],
+        profile=profile,
     )
     if not mode.startswith("cleanup"):
-        fetch("image", os.environ["IMAGE_RUN"], root / "probe-image", source)
+        fetch("image", os.environ["IMAGE_RUN"], root / "probe-image", source, profile=profile)

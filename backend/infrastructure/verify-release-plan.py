@@ -4,6 +4,7 @@ import unittest
 from copy import deepcopy
 
 import hosting_design as design
+from deployment_profile import DEVELOPER, fingerprint
 from release_image import URI
 from release_observation import digest
 from release_plan import prepare
@@ -82,6 +83,71 @@ class PlanTests(unittest.TestCase):
     def test_repeat_candidate_refused_without_deleting_retained_versions(self):
         template = prepare(self.template, **self.arguments)["candidate_template"]
         with self.assertRaisesRegex(RuntimeError, "already exists"):
+            prepare(template, **{**self.arguments, "observed_template_sha256": digest(template)})
+
+    def test_client_rollout_and_rollback_preserve_independent_target(self):
+        profile = {
+            **DEVELOPER,
+            "account": "123456789012",
+            "region": "eu-west-1",
+            "resource_prefix": "client-prod",
+            "runtime_alias": "live",
+        }
+        uri = "123456789012.dkr.ecr.eu-west-1.amazonaws.com/client-prod-api"
+        template = {
+            "Resources": {
+                "ApiFunction": {
+                    "Type": "AWS::Lambda::Function",
+                    "Properties": {
+                        "FunctionName": "client-prod-staff-api",
+                        "PackageType": "Image",
+                        "Code": {"ImageUri": uri + "@sha256:" + "f" * 64},
+                    },
+                },
+                "ApiAlias": {
+                    "Type": "AWS::Lambda::Alias",
+                    "Properties": {
+                        "Name": "live",
+                        "FunctionName": {"Ref": "ApiFunction"},
+                        "FunctionVersion": {"Fn::GetAtt": ["PreviousVersion", "Version"]},
+                    },
+                },
+                "PreviousVersion": {
+                    "Type": "AWS::Lambda::Version",
+                    "Properties": {"FunctionName": {"Ref": "ApiFunction"}},
+                },
+                "Distribution": {
+                    "Properties": {
+                        "DistributionConfig": {
+                            "Origins": [
+                                {
+                                    "Id": "frontend",
+                                    "OriginPath": "/releases/" + "a" * 40 + "/" + "b" * 64,
+                                }
+                            ]
+                        }
+                    }
+                },
+            }
+        }
+        result = prepare(
+            template,
+            **{**self.arguments, "observed_template_sha256": digest(template)},
+            profile=profile,
+        )
+        self.assertEqual(result["profile_sha256"], fingerprint(profile))
+        self.assertEqual(
+            result["candidate_template"]["Resources"]["ApiFunction"]["Properties"]["Code"],
+            {"ImageUri": uri + "@sha256:" + "d" * 64},
+        )
+        self.assertEqual(
+            result["rollback_template"]["Resources"]["ApiAlias"], template["Resources"]["ApiAlias"]
+        )
+        self.assertEqual(
+            result["rollback_template"]["Resources"]["PreviousVersion"],
+            template["Resources"]["PreviousVersion"],
+        )
+        with self.assertRaises(RuntimeError):
             prepare(template, **{**self.arguments, "observed_template_sha256": digest(template)})
 
 

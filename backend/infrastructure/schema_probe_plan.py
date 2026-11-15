@@ -148,6 +148,7 @@ def prepare(binding, *, now=None, profile=DEVELOPER):
                             "FITFINITY_CONFIG_SOURCE": "aws-secrets-manager",
                             "FITFINITY_ENVIRONMENT": "staging",
                             "FITFINITY_AWS_ACCOUNT_ID": account,
+                            "FITFINITY_AWS_REGION": region,
                             "FITFINITY_DATABASE_SECRET_ARN": binding["migration_secret_arn"],
                             "FITFINITY_DB_HOST": binding["db_host"],
                             "FITFINITY_DB_NAME": binding["db_name"],

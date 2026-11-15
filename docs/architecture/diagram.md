@@ -22,6 +22,8 @@ flowchart TB
   end
   subgraph Delivery["Source delivery"]
     Repo["GitHub: reviewed source and lockfiles"]
+    Target["GitHub variables: validated account, region, repository and environment"]
+    Templates["Portable templates: private foundation, identity, storage and hosting; offline tested"]
     CodeQL["CodeQL: JS/TS + Python parallel scans; baseline acceptance pending"]
     Repo --> CodeQL
     CI["Frontend, backend and API-browser CI"]
@@ -48,6 +50,9 @@ flowchart TB
   App -->|"Verify bytes and durable cleanup"| Media
   Repo --> CI --> Merge
   Merge -->|"Normal main verification and demo publishing"| Pages
+  Target -->|"Target-bound OIDC and receipt hashes"| Image
+  Target --> Templates
+  Templates -.->|"Provisioning and adoption acceptance pending"| Release
   Merge -->|"Separate manual initiation"| Image --> Release
   Release -.->|"Separately authorized deployment"| AWS
   Supply -.->|"Reviewed update PRs"| Repo

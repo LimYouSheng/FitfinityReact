@@ -18,6 +18,7 @@ class Settings(BaseSettings):
         env_prefix="FITFINITY_", extra="forbid", hide_input_in_errors=True
     )
 
+    aws_region: str = "ap-southeast-1"
     environment: Literal["local", "test", "staging", "production"] = "local"
     database_url: SecretStr
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver", "api"]
@@ -45,7 +46,7 @@ class Settings(BaseSettings):
 
     @property
     def cognito_issuer(self):
-        return f"https://cognito-idp.ap-southeast-1.amazonaws.com/{self.cognito_pool_id}"
+        return f"https://cognito-idp.{self.aws_region}.amazonaws.com/{self.cognito_pool_id}"
 
     @property
     def session_cookie(self):
@@ -57,6 +58,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_deployment(self):
+        if not re.fullmatch(r"(?:af|ap|ca|eu|il|me|mx|sa|us)-[a-z]+-[1-9]", self.aws_region):
+            raise ValueError("Configure a commercial AWS region")
         if self.media_enabled and not re.fullmatch(
             r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", self.media_bucket
         ):
@@ -85,8 +88,10 @@ class Settings(BaseSettings):
             ):
                 raise ValueError("Staging/production requires explicit allowed hosts")
         if self.auth_enabled:
-            if not re.fullmatch(r"ap-southeast-1_[A-Za-z0-9]{1,64}", self.cognito_pool_id):
-                raise ValueError("Configure the Singapore staff Cognito pool")
+            if not re.fullmatch(
+                rf"{re.escape(self.aws_region)}_[A-Za-z0-9]{{1,64}}", self.cognito_pool_id
+            ):
+                raise ValueError("Configure the staff Cognito pool in the selected AWS region")
             if not re.fullmatch(r"[A-Za-z0-9]{1,128}", self.cognito_client_id):
                 raise ValueError("Configure the staff Cognito app client")
             if not self.cognito_client_secret or not re.fullmatch(

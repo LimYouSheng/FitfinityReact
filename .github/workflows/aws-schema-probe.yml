@@ -1,7 +1,12 @@
-name: Manual private developer schema observation
+name: Manual private schema observation
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: Deployment target name in repository configuration
+        type: string
+        default: developer
+        required: true
       mode:
         type: choice
         options: [create, collect, cleanup, cleanup-check]
@@ -26,20 +31,43 @@ on:
         description: Retained stack ARN; required for cleanup-check
         type: string
         required: false
+env:
+  FITFINITY_DEPLOYMENT_TARGETS_JSON: ${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}
 permissions:
   contents: read
-concurrency:
-  group: fitfinity-aws-test
-  cancel-in-progress: false
 jobs:
   offline:
     uses: ./.github/workflows/infrastructure.yml
+  target:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      profile: ${{ steps.target.outputs.profile }}
+      profile_sha256: ${{ steps.target.outputs.profile_sha256 }}
+      environment: ${{ steps.target.outputs.environment }}
+      account: ${{ steps.target.outputs.account }}
+      region: ${{ steps.target.outputs.region }}
+      role: ${{ steps.target.outputs.role }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: target
+        env:
+          DEPLOYMENT_TARGET: ${{ inputs.target }}
+        run: python3 backend/infrastructure/deployment_profile.py
   probe:
-    needs: offline
-    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_PROBE_ENABLED == 'true'
+    needs: [offline, target]
+    if: github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_PROBE_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: aws-test
+    environment: ${{ needs.target.outputs.environment }}
+    concurrency:
+      group: fitfinity-${{ needs.target.outputs.environment }}
+      cancel-in-progress: false
     permissions:
       contents: read
       actions: read
@@ -52,6 +80,7 @@ jobs:
       - name: Fetch exact reviewed evidence before AWS authentication
         env:
           GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
           PROBE_MODE: ${{ inputs.mode }}
           REVIEW_RUN: ${{ inputs.review_run }}
           IMAGE_RUN: ${{ inputs.image_run }}
@@ -59,16 +88,18 @@ jobs:
       - name: Require dedicated probe role
         env:
           PROBE_ROLE: ${{ vars.AWS_SCHEMA_PROBE_ROLE_ARN }}
-        run: test "$PROBE_ROLE" = 'arn:aws:iam::418638389566:role/fitfinity-test-github-schema-probe'
+          EXPECTED_ROLE: ${{ needs.target.outputs.role }}
+        run: test "$PROBE_ROLE" = "$EXPECTED_ROLE"
       - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
         with:
           role-to-assume: ${{ vars.AWS_SCHEMA_PROBE_ROLE_ARN }}
           role-session-name: fitfinity-schema-${{ github.run_id }}-${{ github.run_attempt }}
-          aws-region: ap-southeast-1
-          allowed-account-ids: '418638389566'
+          aws-region: ${{ needs.target.outputs.region }}
+          allowed-account-ids: ${{ needs.target.outputs.account }}
           unset-current-credentials: true
       - name: Execute one reviewed probe step
         env:
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
           PROBE_MODE: ${{ inputs.mode }}
           TEMPLATE_SHA256: ${{ inputs.template_sha256 }}
           OPERATION_ID: ${{ inputs.operation_id }}
@@ -82,6 +113,7 @@ jobs:
             args+=(--image-receipt "$RUNNER_TEMP/probe-image/fitfinity-image-candidate.json")
           fi
           python3 backend/infrastructure/schema_probe_operator.py \
+            --profile "$DEPLOYMENT_PROFILE" \
             --mode "$PROBE_MODE" \
             --review "$RUNNER_TEMP/probe-review/schema-probe-review/review.json" \
             --template-sha256 "$TEMPLATE_SHA256" --operation-id "$OPERATION_ID" \

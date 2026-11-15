@@ -7,12 +7,21 @@ The caller must still review IAM/features, scan, populated migration and recover
 import re
 from copy import deepcopy
 
-import hosting_design as design
-from release_image import URI
+from deployment_profile import DEVELOPER, identities
 from release_observation import digest, require
 
 
-def prepare(template, *, observed_template_sha256, source_sha, image_digest, frontend_sha256):
+def prepare(
+    template,
+    *,
+    observed_template_sha256,
+    source_sha,
+    image_digest,
+    frontend_sha256,
+    profile=DEVELOPER,
+):
+    target_identity = identities(profile)
+    uri = target_identity["registry"] + "/" + target_identity["image_repository"]
     require(digest(template) == observed_template_sha256, "Observed template changed")
     require(re.fullmatch(r"[0-9a-f]{40}", source_sha), "Exact source SHA required")
     require(re.fullmatch(r"sha256:[0-9a-f]{64}", image_digest), "Exact image digest required")
@@ -21,17 +30,20 @@ def prepare(template, *, observed_template_sha256, source_sha, image_digest, fro
     function = resources["ApiFunction"]
     require(function["Type"] == "AWS::Lambda::Function", "Function resource differs")
     properties = function["Properties"]
-    require(properties["FunctionName"] == design.FUNCTION, "Function identity differs")
+    require(
+        properties["FunctionName"] == target_identity["runtime_function"],
+        "Function identity differs",
+    )
     require(properties["PackageType"] == "Image", "Image runtime required")
     previous_image = properties["Code"]["ImageUri"]
     require(
-        re.fullmatch(re.escape(URI) + r"@sha256:[0-9a-f]{64}", previous_image),
+        re.fullmatch(re.escape(uri) + r"@sha256:[0-9a-f]{64}", previous_image),
         "Previous image is not a retained exact repository digest",
     )
     alias = resources["ApiAlias"]
     require(
         alias["Type"] == "AWS::Lambda::Alias"
-        and alias["Properties"]["Name"] == "first-test"
+        and alias["Properties"]["Name"] == target_identity["runtime_alias"]
         and alias["Properties"]["FunctionName"] == {"Ref": "ApiFunction"}
         and not alias["Properties"].get("RoutingConfig"),
         "Alias identity/routing differs",
@@ -50,7 +62,7 @@ def prepare(template, *, observed_template_sha256, source_sha, image_digest, fro
     require(new_id not in resources, "Candidate version already exists; inspect before resuming")
     candidate = deepcopy(template)
     target = candidate["Resources"]
-    target["ApiFunction"]["Properties"]["Code"] = {"ImageUri": URI + "@" + image_digest}
+    target["ApiFunction"]["Properties"]["Code"] = {"ImageUri": uri + "@" + image_digest}
     target[new_id] = {
         "Type": "AWS::Lambda::Version",
         "DeletionPolicy": "Retain",
@@ -74,6 +86,7 @@ def prepare(template, *, observed_template_sha256, source_sha, image_digest, fro
     rollback["Resources"][new_id] = deepcopy(target[new_id])
     return {
         "deployment_decision": "HOLD",
+        "profile_sha256": target_identity["profile_sha256"],
         "source_sha": source_sha,
         "base_template_sha256": observed_template_sha256,
         "candidate_template": candidate,

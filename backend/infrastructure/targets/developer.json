@@ -5,5 +5,6 @@
   "github_repository": "LimYouSheng/FitfinityReact",
   "github_environment": "aws-test",
   "resource_prefix": "fitfinity-test",
-  "secret_prefix": "fitfinity/test"
+  "secret_prefix": "fitfinity/test",
+  "runtime_alias": "first-test"
 }

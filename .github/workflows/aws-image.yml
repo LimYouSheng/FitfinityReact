@@ -3,23 +3,32 @@ name: Build and scan the verified AWS image candidate
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: Deployment target name in repository configuration
+        required: true
+        type: string
+        default: developer
       source_sha:
         description: Exact main commit to verify and publish (40-character SHA)
         required: true
         type: string
 
+env:
+  FITFINITY_DEPLOYMENT_TARGETS_JSON: ${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}
 permissions:
   contents: read
 
-concurrency:
-  group: fitfinity-aws-test
-  cancel-in-progress: false
-
 jobs:
   source:
-    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      profile: ${{ steps.target.outputs.profile }}
+      environment: ${{ steps.target.outputs.environment }}
+      account: ${{ steps.target.outputs.account }}
+      region: ${{ steps.target.outputs.region }}
+      image_role: ${{ steps.target.outputs.image_role }}
     steps:
       - name: Require the explicitly selected main commit
         env:
@@ -29,17 +38,27 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$EXPECTED_SHA" = "$GITHUB_SHA"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: target
+        env:
+          DEPLOYMENT_TARGET: ${{ inputs.target }}
+        run: python3 backend/infrastructure/deployment_profile.py
 
   verify:
     needs: source
     uses: ./.github/workflows/verify.yml
 
   image:
-    needs: verify
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'
+    needs: [verify, source]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.AWS_IMAGE_RELEASE_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    environment: aws-test
+    environment: ${{ needs.source.outputs.environment }}
+    concurrency:
+      group: fitfinity-${{ needs.source.outputs.environment }}
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
@@ -50,23 +69,26 @@ jobs:
       - name: Require the exact image publication role
         env:
           IMAGE_ROLE: ${{ vars.AWS_IMAGE_ROLE_ARN }}
+          EXPECTED_ROLE: ${{ needs.source.outputs.image_role }}
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = 'refs/heads/main'
-          test "$IMAGE_ROLE" = 'arn:aws:iam::418638389566:role/fitfinity-test-github-image'
+          test "$IMAGE_ROLE" = "$EXPECTED_ROLE"
       - name: Obtain temporary image publication credentials
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
         with:
           role-to-assume: ${{ vars.AWS_IMAGE_ROLE_ARN }}
           role-session-name: fitfinity-image-${{ github.run_id }}-${{ github.run_attempt }}
-          aws-region: ap-southeast-1
-          allowed-account-ids: '418638389566'
+          aws-region: ${{ needs.source.outputs.region }}
+          allowed-account-ids: ${{ needs.source.outputs.account }}
           unset-current-credentials: true
       - name: Build, publish and scan the verified image
+        env:
+          DEPLOYMENT_PROFILE: ${{ needs.source.outputs.profile }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 backend/infrastructure/deploy.py image-candidate --actions --receipt "$RUNNER_TEMP/fitfinity-image-candidate.json" 2>&1 | tee "$RUNNER_TEMP/fitfinity-image-candidate.log"
+          python3 backend/infrastructure/deploy.py image-candidate --actions --profile "$DEPLOYMENT_PROFILE" --receipt "$RUNNER_TEMP/fitfinity-image-candidate.json" 2>&1 | tee "$RUNNER_TEMP/fitfinity-image-candidate.log"
       - name: Retain candidate evidence, including failures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

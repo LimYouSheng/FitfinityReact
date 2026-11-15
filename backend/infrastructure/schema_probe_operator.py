@@ -8,8 +8,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from deployment_profile import DEVELOPER, identities, load
 from operator_checks import require
-from release_image import REGION
 from schema_probe_execution import execute
 
 ALLOWED = {
@@ -35,7 +35,7 @@ ALLOWED = {
 }
 
 
-def aws(service, operation, parameters):
+def aws(service, operation, parameters, *, profile=DEVELOPER):
     """Suppress raw provider replies/errors and never retry writes automatically."""
     require((service, operation) in ALLOWED, "AWS operation refused")
     require(
@@ -51,7 +51,7 @@ def aws(service, operation, parameters):
             "--cli-input-json",
             json.dumps(parameters),
             "--region",
-            REGION,
+            identities(profile)["region"],
             "--output",
             "json",
             "--no-cli-pager",
@@ -96,6 +96,7 @@ def main():
     parser.add_argument(
         "--mode", choices=["create", "collect", "cleanup", "cleanup-check"], required=True
     )
+    parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--review", type=Path, required=True)
     parser.add_argument("--template-sha256", required=True)
     parser.add_argument("--operation-id", required=True)
@@ -103,12 +104,14 @@ def main():
     parser.add_argument("--stack-id")
     parser.add_argument("--receipt", type=Path, required=True)
     args = parser.parse_args()
+    profile = load(args.profile)
+    target = identities(profile)
     require(
-        os.getenv("GITHUB_REPOSITORY") == "LimYouSheng/FitfinityReact"
+        os.getenv("GITHUB_REPOSITORY") == profile["github_repository"]
         and os.getenv("GITHUB_REF") == "refs/heads/main"
         and os.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch"
         and os.getenv("GITHUB_WORKFLOW_REF")
-        == "LimYouSheng/FitfinityReact/.github/workflows/aws-schema-probe.yml@refs/heads/main",
+        == profile["github_repository"] + "/.github/workflows/aws-schema-probe.yml@refs/heads/main",
         "Protected manual main workflow required",
     )
     source = os.environ["GITHUB_SHA"]
@@ -129,6 +132,7 @@ def main():
         )
     receipt = {
         "mode": args.mode,
+        "profile_sha256": target["profile_sha256"],
         "operation_id": args.operation_id,
         "source_sha": source,
         "state": "not_started",
@@ -145,8 +149,11 @@ def main():
                     sql,
                     args.operation_id,
                     json.loads(args.image_receipt.read_text()) if args.image_receipt else {},
-                    aws,
+                    lambda service, operation, params: aws(
+                        service, operation, params, profile=profile
+                    ),
                     stack_id=args.stack_id,
+                    profile=profile,
                 )
             )
         except Exception as error:

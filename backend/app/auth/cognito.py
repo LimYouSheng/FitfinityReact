@@ -18,7 +18,7 @@ class Cognito:
         self._secret = settings.cognito_client_secret.get_secret_value()
         self.client = client or boto3.client(
             "cognito-idp",
-            region_name="ap-southeast-1",
+            region_name=settings.aws_region,
             config=Config(
                 signature_version=UNSIGNED,
                 connect_timeout=2,
