@@ -2,23 +2,22 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — Private schema-probe preparation and PR127 CI repair
+## Current task — PR128 continued audit and session-video request ownership
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Prepare a separate private, read-only catalog probe before developer deployment; retain one-day developer backups and defer14 days to upgraded client AWS. No AWS resources or invocations performed in this change. |
-| Checkout / PR | Existing branch `docs/defer-client-backup-retention`, PR127; published head e0f8627 failed application41998625129. Consolidated probe, browser repairs and documentation are prepared for the next PR127 head; its new CI results are not yet available. Eight existing stashes preserved. |
-| AWS checkpoint | User confirmed UPDATE_ROLLBACK_COMPLETE after the Free Tier retention rejection. Supplied RDS observation remains available, retention1, pending changes empty. Metadata observation41990257797 succeeded; actual schema/grants remain unobserved. |
-| Prepared changes | Separate fixed-intent schema-probe entry point and offline HOLD template, packaged catalog SQL, isolated PostgreSQL/security regressions and synchronized inventories. Browser repairs establish active service-worker/cache preconditions and explicitly load video metadata with positive-duration/dimension checks. |
-| Acceptance / budget | Focused probe/upgrade23 cases pass after strengthening the write-denial regression; removing read-only protection makes that regression fail. Infrastructure667 and source/inventory checks passed before final review. Authentication and media cases each pass desktop/phone/tablet;145 quality guards pass. Final Python source/OpenAPI/stable-inventory checks and frontend551-file lint passed; new-head CI remains pending. Full new-head CI required; no assertion reductions, retries or timeout changes. |
-| Blockers / handover | Current private subnet/security-group/secret references, scanned image/source binding, operator permissions, eligibility/cost and explicit temporary-resource execution review remain outstanding. The offline template does not deploy, invoke or clean up resources. |
+| Outcome / scope | Continue bounded unused-code, lifecycle and recovery review. Repair confirmed defects with regressions; retain language-specific documentation conventions and security rationale. |
+| Checkout / PR | Existing branch `fix/library-video-preview`, PR128; published cleanup head b8625e2. The additional saved-preview race repair is prepared locally. No stashes are present in this resumed environment; no saved work was deleted. |
+| Source review | A pending saved-video download could overwrite a replacement preview or surface obsolete errors. Candidate acceptance now retires that read; invalid replacements preserve it. Object-URL cleanup has one effect owner. Five regression cases added; no server contract or business-rule change. |
+| Acceptance / budget | Three race cases reproduced before repair;53 focused tests and145 quality guards pass. Full1524/1524 units pass in84.30s; lint, source-health, build and dependency consistency pass. Final-head CI remains required. Prior cleanup AST, lint and format receipts remain in Journey. This is a bounded lifecycle audit, not an exhaustive error-free certification. |
+| CI checkpoint | Prior head b8625e2: CodeQL43683373648 and preparation43683373666 passed; application43683373700 was running at inspection. These do not accept the additional local repair. |
+| Deployment handover | Private schema probe remains merged source only, not deployed/invoked. Network/secret/image bindings, eligibility/cost and create/invoke/cleanup review remain outstanding. Developer retention remains1 day;14 days is deferred to upgraded client AWS. |
 
 ### Resume in this order
 
-1. Complete focused media regression, final source/guard/documentation checks and consolidated PR127 publication. Preserve both original CI failures. Fresh-main PR126 application41997933423, CodeQL41997933199 and preparation41997933252 passed.
-2. Verify complete exact-head required CI before source merge; reconcile the handover with actual results.
-3. Bind the private probe to current AWS identities/artifact and review the concrete create/invoke/cleanup plan before authorized execution. Do not replay bootstrap, rejected retention plans or expose RDS publicly.
-4. Compare the resulting catalog with source before preparing migration/rollout. Client migration retains separate14-day eligibility/cost checks and populated restore acceptance.
+1. Publish the locally verified lifecycle repair on PR128; retain original failures in Journey.
+2. Verify all exact-head gates and GitHub requirements before merge; inspect fresh main separately. Continue targeted audit where evidence identifies another candidate.
+3. Resume private-schema probe activation preparation before migration/rollout; no bootstrap or rejected retention-plan replay.
 
 ## Current acceptance boundaries
 
@@ -35,7 +34,7 @@ Follow the [full roadmap in Journey](docs/journey.md#full-milestone-roadmap). Th
 3. Prepare M8/M9 release, real Cognito, Owner/Trainer UAT, physical-device and populated recovery evidence. Actual AWS changes, provider actions and deployment require their own authorization.
 4. Schedule the M10 packages below by dependency and launch criticality; mutation, latency and Grafana remain planned; dependency automation/audit is partially implemented, with remaining supply-chain work under H4.
 5. Map business privacy/retention clauses using [Data lifecycle](docs/data-lifecycle.md); approve category-specific periods and exclusions before any general disposal implementation. Verify existing auth/media worker scheduling and backup/object-copy settings through separately authorized environment work.
-6. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested docs/versions.md inventory, docs/code-owners/index.md navigation map and docs/uat/ role worksheets and all eight existing stashes.
+6. Deliver the separate public website and its content management after staff-portal acceptance. Preserve the canonical document ownership, the user-requested docs/versions.md inventory, docs/code-owners/index.md navigation map and docs/uat/ role worksheets and any saved work present in the active environment.
 
 7. **Approval vetting UI cleanup — documented, implementation deferred by the user (1 November 2026).** Review all approval screens for a consistent, uncluttered layout rather than polishing only Exercise Library. Depends on stable proposal/decision contracts, protected attachment preview and approved publication behavior. Exercise Library’s Messages → Review panel should show requesting Admin/time and new/edit intent; name/category/description/proposed active status; playable video or image preview with filename/size; current-versus-proposed changes for edits, including attachment replacement/removal; and **Approve & Save**, **Reject**, **Back**. No library-wide Publish button is agreed. Acceptance evidence: desktop/phone/tablet readability and keyboard navigation, complete exact-intent review, foreign-attachment denial, stale-review rejection without overwrite, rejection preserving the existing entry, original-key recovery after lost responses, and fresh-login verification that Trainers see only the approved version. Rollout boundary: no visual redesign now; resume with a reviewable design before implementation, preserve server guards, and obtain complete final-head verification before source acceptance. No AWS/provider actions are authorized by this backlog.
 

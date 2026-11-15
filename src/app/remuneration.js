@@ -4,7 +4,7 @@ import { businessNow } from './scheduleChanges.js'
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
 const iso = date => date.toISOString().slice(0, 10)
-export const remunerationBands = { peak: 'Peak', offPeak: 'Off-peak' }
+const remunerationBands = { peak: 'Peak', offPeak: 'Off-peak' }
 export const formatMoney = (cents, policy) => new Intl.NumberFormat(policy.locale, { style: 'currency', currency: policy.currency }).format(cents / 100)
 
 export function payCycle(key, policy) {

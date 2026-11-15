@@ -4,7 +4,7 @@ import { reconciledCommand } from './apiCommand.js'
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value)
 const version = value => Number.isSafeInteger(value) && value > 0
 const keys = (value, allowed) => value && Object.keys(value).every(key => allowed.includes(key))
-export function validDeactivationReview(value) {
+function validDeactivationReview(value) {
   return keys(value, ['id', 'version', 'name', 'trainerId', 'purchases']) && uuid(value.id) && version(value.version) && uuid(value.trainerId)
     && typeof value.name === 'string' && value.name.trim() && Array.isArray(value.purchases) && value.purchases.length <= 2000
     && value.purchases.every(p => keys(p, ['id', 'version', 'status', 'name']) && uuid(p.id) && version(p.version) && ['active', 'inactive'].includes(p.status) && typeof p.name === 'string' && p.name.trim())

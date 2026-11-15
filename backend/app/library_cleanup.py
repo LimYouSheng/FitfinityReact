@@ -74,7 +74,7 @@ def claim(database, bucket):
 
 
 def finish(database, identity, version, succeeded):
-    """An old worker cannot overwrite a newer lease; ambiguous deletion remains retryable."""
+    """Finalize the current lease without overwriting a newer worker."""
     with database.transaction() as session:
         session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": LIBRARY_LOCK})
         row = session.get(MediaDeletion, identity, with_for_update=True)
@@ -92,7 +92,7 @@ def finish(database, identity, version, succeeded):
 
 
 def run_once(database, store, bucket):
-    """One bounded explicit sweep; retained leases recover process death without lost work."""
+    """Run one bounded sweep with durable leases for interrupted work."""
     expire_uploads(database, bucket)
     claimed = claim(database, bucket)
     if claimed is None:
@@ -107,7 +107,7 @@ def run_once(database, store, bucket):
 
 
 def main():
-    """Explicit bounded worker command; this module never starts a scheduler or creates a bucket."""
+    """Run the bounded cleanup command without provisioning storage or scheduling."""
     from app.config import load_settings
     from app.database import Database
     from app.media_storage import configured_storage

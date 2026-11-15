@@ -1,4 +1,4 @@
-"""Internal assessment storage. Authorize before calling; M5.4 owns HTTP/access policy.
+"""Persist assessment records within an authorized transaction.
 
 Explicit saves append snapshots, not keystrokes. The caller owns the outer transaction.
 Database triggers derive names, dates of birth and recording timestamps from stored data.

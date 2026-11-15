@@ -2,7 +2,7 @@ import { ApiError } from './apiClient.js'
 import { reconciledCommand } from './apiCommand.js'
 
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value)
-export function emailChangeState(value) {
+function emailChangeState(value) {
   if (!value || !uuid(value.id) || typeof value.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email) || !['requested', 'sending', 'pending', 'verifying', 'completed', 'superseded'].includes(value.state) || typeof value.signedOut !== 'boolean' || (value.signedOut && value.state !== 'completed') || Object.keys(value).some(key => !['id', 'email', 'state', 'signedOut'].includes(key))) throw new ApiError('API_RESPONSE', 'The email verification state could not be verified. Check its status before continuing.')
   return value
 }

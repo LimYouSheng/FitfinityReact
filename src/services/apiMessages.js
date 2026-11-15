@@ -10,7 +10,7 @@ const timestamp = value => typeof value === 'string' && Number.isFinite(Date.par
 const fail = () => { throw new ApiError('API_RESPONSE', 'The personal message could not be verified. Reload before continuing.') }
 const clock = value => { if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d(:00)?$/.test(value)) fail(); return value.slice(0, 5) }
 
-export function messageReadState(value, strict = true) {
+function messageReadState(value, strict = true) {
   if (!value || !uuid(value.id) || !version(value.version) || typeof value.read !== 'boolean'
     || (value.read ? !timestamp(value.readAt) || value.version === 0 : value.readAt !== null)
     || (strict && Object.keys(value).some(key => !['id', 'version', 'read', 'readAt'].includes(key)))) fail()
@@ -85,7 +85,7 @@ export function personalMessage(value, user) {
 
 const validActor = value => value && uuid(value.id) && typeof value.name === 'string' && value.name.trim() && Object.keys(value).every(key => ['id', 'name'].includes(key))
 
-export function cancellationState(value) {
+function cancellationState(value) {
   if (!value || !uuid(value.id) || !version(value.version) || !value.version || value.status !== 'cancelled' || !timestamp(value.at) || !validActor(value.by) || Object.keys(value).some(key => !['id', 'version', 'status', 'at', 'by'].includes(key))) fail()
   return value
 }

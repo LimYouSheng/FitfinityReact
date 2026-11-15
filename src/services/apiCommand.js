@@ -1,8 +1,7 @@
 import { ApiError } from './apiClient.js'
 
 
-// One uncertain command per rendered login. Reconciliation is a read;
-// it never resubmits a command automatically after a transport failure.
+/** Retain one uncertain command per login; reconcile without automatic resubmission. */
 export function reconciledCommand(http, actionSession, { path, receiptPath, validate, bodyFor = input => input, label, roles = ['owner', 'admin'], keyFor = () => crypto.randomUUID(), complete = () => true, definitiveRejection = error => error.status >= 400 && error.status < 500 }) {
   let pending = null
   const sessionFor = async expectedGeneration => {
@@ -52,7 +51,6 @@ export function reconciledCommand(http, actionSession, { path, receiptPath, vali
       }
     } finally { attempt.inFlight = false }
   }
-  // A profile reload can resolve a committed save without initiating another write.
   command.reconcile = async expectedGeneration => {
     const generation = await sessionFor(expectedGeneration)
     const attempt = pending

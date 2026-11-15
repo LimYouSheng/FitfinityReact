@@ -12,7 +12,7 @@ const rate = value => {
   if (!Number.isSafeInteger(cents)) throw new ApiError('INVALID_REQUEST', 'Review the trainer rates.')
   return cents
 }
-export function trainerCreationBody({ draft }) {
+function trainerCreationBody({ draft }) {
   if (Object.hasOwn(draft, 'rates') && (!draft.rates || typeof draft.rates !== 'object')) throw new ApiError('INVALID_REQUEST', 'Review the trainer rates.')
   return { name: draft.name, email: draft.email, phone_country_code: draft.phone.countryCode, phone_number: draft.phone.number,
     birthday: draft.birthday, gender: draft.gender, trainerType: draft.trainerType, qualifications: draft.qualifications, publicProfile: draft.publicProfile,

@@ -36,7 +36,7 @@ export default function SessionSummaryExport({ client, session, displayedSummary
     setShareError('')
     setSaving(true)
     try {
-      // Already prepared: invoke the device share from the explicit click.
+      // Preserve browser user activation for native sharing.
       await reportService.share(file)
       setExportOpen(false)
     } catch (error) {

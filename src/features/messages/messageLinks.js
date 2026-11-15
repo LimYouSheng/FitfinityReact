@@ -37,7 +37,6 @@ export function relatedMessageLinks(
     }
   })
 
-  // Session review notices take the reader to the exact record, not profile detours.
   if (message.kind === 'session') return links
 
   clients

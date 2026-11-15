@@ -2,7 +2,6 @@ import { useId } from 'react'
 import { formatDate } from '../../utils/date.js'
 import { CHART, PROGRESS_FONT, chartPoints, progressNumber } from './progressChart.js'
 
-// The app and PDF render this same SVG, including its geometry and visual styles.
 export default function StrengthProgressChart({ exercise, ...placement }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const lineId = `strength-line-${id}`, areaId = `strength-area-${id}`
