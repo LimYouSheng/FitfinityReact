@@ -26,13 +26,14 @@ export function readQualitySetup(root = process.cwd()) {
     schemaProbe: parse(read('.github/workflows/aws-schema-probe.yml')),
     schemaUpgrade: parse(read('.github/workflows/aws-schema-upgrade.yml')),
     maintenance: parse(read('.github/workflows/aws-maintenance.yml')),
+    rollout: parse(read('.github/workflows/aws-rollout.yml')),
     packageJson: JSON.parse(read('package.json')),
     lock: JSON.parse(read('package-lock.json')),
   }
 }
 
-export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, preparation, observation, schemaProbe, schemaUpgrade, maintenance, packageJson, lock }) {
-  for (const workflow of [image, preparation, observation, schemaProbe, schemaUpgrade, maintenance]) {
+export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, image, acceptance, preparation, observation, schemaProbe, schemaUpgrade, maintenance, rollout, packageJson, lock }) {
+  for (const workflow of [image, preparation, observation, schemaProbe, schemaUpgrade, maintenance, rollout]) {
     if (workflow.env?.FITFINITY_DEPLOYMENT_TARGETS_JSON !== '${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}') fail('deployment target configuration must come from repository variables')
   }
   for (const event of ['pull_request', 'push']) {
@@ -72,6 +73,24 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (upgradeReceipt?.if !== 'always()' || upgradeReceipt?.with?.path !== '${{ runner.temp }}/schema-upgrade-receipt.json') fail('upgrade must retain failed and uncertain receipts')
   for (const step of upgrade.steps) {
     if (step['continue-on-error'] || (step.run ?? '').includes('${{ inputs.')) fail('upgrade must not interpolate input into shell or suppress errors')
+  }
+  const rolloutJob = rollout.jobs?.rollout
+  if (!equal(Object.keys(rollout.on), ['workflow_dispatch']) || !equal(rollout.permissions, { contents: 'read' }) || rolloutJob?.if !== "github.ref == 'refs/heads/main' && vars.AWS_ROLLOUT_ENABLED == 'true'" || rolloutJob?.environment !== '${{ needs.target.outputs.environment }}') fail('rollout must be manual, protected and disabled by default')
+  if (!equal(rolloutJob.needs, ['verify', 'target']) || rollout.jobs.verify.uses !== './.github/workflows/verify.yml' || rolloutJob['timeout-minutes'] !== 10 || !equal(rolloutJob.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false })) fail('rollout verification or concurrency differs')
+  if (!equal(rollout.on.workflow_dispatch.inputs.mode.options, ['upload', 'upload-inspect', 'create', 'inspect', 'execute', 'verify'])) fail('rollout must retain exact paused steps')
+  const rolloutFetch = rolloutJob.steps.findIndex(step => step.run?.includes('rollout_operator.py fetch'))
+  const rolloutAuth = rolloutJob.steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
+  if (rolloutFetch < 0 || rolloutAuth <= rolloutFetch || rolloutJob.steps[rolloutFetch].if != null || rolloutJob.steps[rolloutFetch].env?.ROLLOUT_REVIEW_SHA256 !== '${{ inputs.review_sha256 }}') fail('rollout evidence must precede credentials')
+  const rolloutCredentials = rolloutJob.steps[rolloutAuth].with
+  if (rollout.jobs.target.outputs.role !== '${{ steps.target.outputs.hosting_role }}' || rolloutCredentials['role-to-assume'] !== '${{ vars.AWS_HOSTING_ROLE_ARN }}' || rolloutCredentials['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || rolloutCredentials['aws-region'] !== '${{ needs.target.outputs.region }}' || rolloutCredentials['unset-current-credentials'] !== true) fail('rollout credentials must bind the exact hosting role')
+  if (!equal(rolloutJob.permissions, { contents: 'read', actions: 'read', 'id-token': 'write' })) fail('rollout permissions differ')
+  const rolloutRole = rolloutJob.steps.find(step => step.run === 'test "$ROLLOUT_ROLE" = "$EXPECTED_ROLE"')
+  if (rolloutRole?.env?.ROLLOUT_ROLE !== '${{ vars.AWS_HOSTING_ROLE_ARN }}' || rolloutRole?.env?.EXPECTED_ROLE !== '${{ needs.target.outputs.role }}') fail('rollout role comparison missing')
+  const rolloutReceipt = rolloutJob.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'))
+  if (rolloutReceipt?.if !== 'always()' || rolloutReceipt?.with?.path !== '${{ runner.temp }}/rollout-receipt.json') fail('rollout must retain uncertain receipts')
+  requireGate(rolloutJob, 'python3 backend/infrastructure/rollout_operator.py execute')
+  for (const step of rolloutJob.steps) {
+    if (step['continue-on-error'] || (step.run ?? '').includes('${{ inputs.')) fail('rollout must not interpolate inputs or suppress errors')
   }
   const maintenanceJob = maintenance.jobs?.maintenance
   if (!equal(maintenance.on?.workflow_dispatch?.inputs?.mode?.options, ['pause', 'inspect', 'record-pause-create', 'record-pause-inspect', 'record-pause-execute', 'record-pause-verify', 'snapshot', 'snapshot-check'])) fail('maintenance must expose the exact reviewed pause, recovery and snapshot steps')

@@ -565,3 +565,31 @@ test('maintenance requires recorded-pause recovery and cannot expose unreviewed 
   extra.maintenance.on.workflow_dispatch.inputs.mode.options.push('resume')
   assert.throws(() => verifyQualitySetup(extra), /exact reviewed pause/)
 })
+
+
+test('rollout rejects missing protection, verification and recovery receipts', () => {
+  for (const mutation of [
+    setup => { delete setup.rollout.jobs.rollout.if },
+    setup => { setup.rollout.jobs.verify.uses = './.github/workflows/infrastructure.yml' },
+    setup => { setup.rollout.on.workflow_dispatch.inputs.mode.options.push('resume') },
+    setup => { delete setup.rollout.jobs.rollout.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if },
+  ]) {
+    const setup = readQualitySetup()
+    mutation(setup)
+    assert.throws(() => verifyQualitySetup(setup), /rollout/)
+  }
+})
+
+test('rollout rejects optional evidence, foreign credentials and unsafe shell input', () => {
+  for (const mutation of [
+    setup => { setup.rollout.jobs.rollout.steps.find(step => step.run?.includes('rollout_operator.py fetch')).if = 'false' },
+    setup => { setup.rollout.jobs.target.outputs.role = '${{ steps.target.outputs.role }}' },
+    setup => { delete setup.rollout.jobs.rollout.permissions },
+    setup => { setup.rollout.jobs.rollout.steps = setup.rollout.jobs.rollout.steps.filter(step => !step.run?.includes('test "$ROLLOUT_ROLE"')) },
+    setup => { setup.rollout.jobs.rollout.steps.push({ run: 'echo ${{ inputs.review_json }}' }) },
+  ]) {
+    const setup = readQualitySetup()
+    mutation(setup)
+    assert.throws(() => verifyQualitySetup(setup), /rollout/)
+  }
+})

@@ -569,6 +569,8 @@ class ExecutionTests(unittest.TestCase):
                 now=now,
             )
 
+        self.rollout_call = call
+        self.rollout_folder = folder
         return step
 
     def test_rollout_checks_actual_scan_and_frontend_before_each_change_set_write(self):
@@ -645,3 +647,149 @@ class ExecutionTests(unittest.TestCase):
             self.assertNotIn(forbidden, encoded)
         self.assertIn("123456789012", encoded)
         self.assertIn("eu-west-1", encoded)
+
+    def test_actions_adapter_executes_and_recovers_without_raw_template_receipts(self):
+        from rollout_operator import execute_step
+
+        self.rollout_fixture()
+        root = self.rollout_folder
+        folder = root / "frontend/release-frontend/dist-api-test"
+        folder.mkdir(parents=True)
+        for name in ("index.html", "sw.js", "manifest.webmanifest"):
+            (root / name).rename(folder / name)
+        (root / "image").mkdir()
+        (root / "image/fitfinity-image-candidate.json").write_text(json.dumps(self.rollout_image))
+        review = {
+            key: value
+            for key, value in self.review.items()
+            if key not in {"original_template", "candidate_template", "mode", "boundary_resource"}
+        }
+        review.update(
+            original_template_sha256=digest(self.review["original_template"]),
+            candidate_template_sha256=digest(self.review["candidate_template"]),
+        )
+
+        def run(mode, prior=None):
+            execute_step(
+                mode,
+                review,
+                self.rollout_evidence,
+                root,
+                self.rollout_call,
+                self.receipts.append,
+                profile=self.profile,
+                prior=prior,
+            )
+            return self.receipts[-1]
+
+        with patch("time.time", return_value=1000):
+            created = run("create")
+            with self.assertRaisesRegex(RuntimeError, "never replay"):
+                run("create", created)
+            self.uncertain = "execute-change-set"
+            with self.assertRaises(TimeoutError):
+                run("execute", created)
+        submitted = self.receipts[-1]
+        with patch("time.time", return_value=100000):
+            inspected = run("inspect", submitted)
+            verified = run("verify", inspected)
+        self.assertEqual(verified["state"], "template_verified")
+        self.assertTrue(verified["execution_requested"])
+        encoded = json.dumps(self.receipts)
+        self.assertNotIn('"Environment"', encoded)
+        self.assertNotIn('"Resources"', encoded)
+        self.assertEqual(set(verified["original_release"]), {"image", "version", "frontend"})
+
+    def test_reconstructed_original_template_rejects_changed_pointer(self):
+        from rollout_operator import original_metadata, restore_original
+
+        original = self.review["original_template"]
+        pointers = original_metadata(original)
+        restored = restore_original(self.review["candidate_template"], pointers)
+        self.assertEqual(restored, original)
+        pointers["frontend"] = "/foreign"
+        self.assertNotEqual(
+            digest(restore_original(self.review["candidate_template"], pointers)), digest(original)
+        )
+
+    def test_rollout_metadata_rejects_wrong_target_expiry_or_raw_templates(self):
+        from rollout_operator import metadata
+
+        review = {
+            key: value
+            for key, value in self.review.items()
+            if key not in {"original_template", "candidate_template", "mode", "boundary_resource"}
+        }
+        review.update(
+            original_template_sha256=digest(self.review["original_template"]),
+            candidate_template_sha256=digest(self.review["candidate_template"]),
+        )
+        with patch("time.time", return_value=1000):
+            self.assertEqual(metadata(review, "c" * 40, self.profile), review)
+            for key, value in (
+                ("profile_sha256", "f" * 64),
+                ("expires_at", 500),
+                ("stack_arn", "foreign"),
+                ("maintenance_marker", "foreign"),
+                ("original_template", {}),
+            ):
+                with self.subTest(key=key), self.assertRaises(RuntimeError):
+                    metadata({**review, key: value}, "c" * 40, self.profile)
+        with patch("time.time", return_value=100000):
+            self.assertEqual(metadata(review, "c" * 40, self.profile, recovery=True), review)
+
+
+class RolloutProviderTests(unittest.TestCase):
+    def test_absent_object_is_distinct_from_denied_or_failed_calls(self):
+        from types import SimpleNamespace
+
+        from rollout_provider import aws
+
+        for code in ("404", "AccessDenied", "500"):
+            result = SimpleNamespace(
+                returncode=1,
+                stdout="",
+                stderr=f"An error occurred ({code}) when calling the HeadObject operation: private",
+            )
+            with patch("rollout_provider.subprocess.run", return_value=result):
+                if code == "404":
+                    self.assertIsNone(aws("s3api", "head-object", {}, profile=DEVELOPER))
+                else:
+                    with self.assertRaisesRegex(RuntimeError, "inspect original intent"):
+                        aws("s3api", "head-object", {}, profile=DEVELOPER)
+
+    def test_upload_preserves_binary_bytes_and_disables_retries(self):
+        from pathlib import Path
+        from types import SimpleNamespace
+
+        from rollout_provider import aws
+
+        def execute(command, **kwargs):
+            self.assertEqual(
+                Path(command[command.index("--body") + 1]).read_bytes(), b"\x00\xffbinary"
+            )
+            values = json.loads(command[command.index("--cli-input-json") + 1])
+            self.assertNotIn("Body", values)
+            self.assertEqual(values["IfNoneMatch"], "*")
+            self.assertEqual(kwargs["env"]["AWS_MAX_ATTEMPTS"], "1")
+            self.assertEqual(kwargs["env"]["AWS_IGNORE_CONFIGURED_ENDPOINT_URLS"], "true")
+            return SimpleNamespace(returncode=0, stdout="{}", stderr="")
+
+        with patch("rollout_provider.subprocess.run", side_effect=execute):
+            aws(
+                "s3api",
+                "put-object",
+                {"Body": b"\x00\xffbinary", "IfNoneMatch": "*"},
+                profile=DEVELOPER,
+            )
+
+    def test_endpoint_override_or_unlisted_operation_never_reaches_provider(self):
+        from rollout_provider import aws
+
+        with patch("rollout_provider.subprocess.run") as run:
+            with self.assertRaises(RuntimeError):
+                aws("cloudformation", "delete-stack", {}, profile=DEVELOPER)
+            with patch.dict("os.environ", {"AWS_ENDPOINT_URL": "https://foreign.invalid"}):
+                with self.assertRaises(RuntimeError):
+                    aws("sts", "get-caller-identity", {}, profile=DEVELOPER)
+            run.assert_not_called()
