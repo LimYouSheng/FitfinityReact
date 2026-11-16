@@ -131,10 +131,16 @@ def prepare(profile, stack, resource_inventory):
             allow(
                 [
                     "lambda:UpdateFunctionCode",
+                    "lambda:UpdateFunctionConfiguration",
                     "lambda:PublishVersion",
                     "lambda:PutFunctionConcurrency",
                 ],
                 function,
+            ),
+            allow(
+                ["iam:PassRole"],
+                f"arn:aws:iam::{account}:role/{target['resource_prefix']}-hosting-api",
+                Condition={"StringEquals": {"iam:PassedToService": "lambda.amazonaws.com"}},
             ),
             allow(["lambda:UpdateAlias"], function + ":" + target["runtime_alias"]),
             allow(["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"], repository),
@@ -183,6 +189,97 @@ def prepare(profile, stack, resource_inventory):
     }
 
 
+def reconcile_owner(profile, stack, resource_inventory, owner_template, owner_sha256):
+    """Prepare policy changes in the existing IAM owner without replacing its roles."""
+    from release_observation import digest
+
+    require(digest(owner_template) == owner_sha256, "IAM owner template hash differs")
+    review = prepare(profile, stack, resource_inventory)
+    target = identities(profile)
+    candidate = deepcopy(owner_template)
+    resources = candidate.get("Resources", {})
+    changed = []
+    for logical, kind, boundary in (
+        ("HostingRole", "operator", "ReleaseOperatorBoundary"),
+        ("CloudFormationRole", "service", "ReleaseServiceBoundary"),
+    ):
+        row = resources.get(logical, {})
+        props = row.get("Properties", {})
+        expected_trust = deepcopy(review[kind + "_trust"])
+        if kind == "operator":
+            statements = props.get("AssumeRolePolicyDocument", {}).get("Statement", [])
+            if len(statements) == 1:
+                conditions = statements[0].get("Condition", {}).get("StringEquals", {})
+                subject = conditions.get("token.actions.githubusercontent.com:sub", "")
+                owner, repository = target["github_repository"].split("/")
+                environment = target["oidc_subject"].split(":environment:", 1)[1]
+                if isinstance(subject, str) and re.fullmatch(
+                    "repo:"
+                    + re.escape(owner)
+                    + r"@[1-9][0-9]*/"
+                    + re.escape(repository)
+                    + r"@[1-9][0-9]*:environment:"
+                    + re.escape(environment),
+                    subject,
+                ):
+                    expected_trust["Statement"][0]["Condition"]["StringEquals"][
+                        "token.actions.githubusercontent.com:sub"
+                    ] = subject
+        require(
+            row.get("Type") == "AWS::IAM::Role"
+            and props.get("RoleName") == review[kind + "_role"].split("/")[-1]
+            and props.get("AssumeRolePolicyDocument") == expected_trust
+            and not props.get("ManagedPolicyArns")
+            and props.get("Path", "/") == "/",
+            "Existing release role identity, trust or attachments require reconciliation",
+        )
+        policies = props.get("Policies", [])
+        require(
+            len(policies) == 1
+            and isinstance(policies[0].get("PolicyName"), str)
+            and bool(policies[0]["PolicyName"])
+            and isinstance(policies[0].get("PolicyDocument"), dict),
+            "Single existing inline policy owner required",
+        )
+        expected_name = target["resource_prefix"] + "-release-" + kind + "-boundary"
+        if props.get("PermissionsBoundary") is not None:
+            require(
+                props["PermissionsBoundary"] == {"Ref": boundary}
+                and resources.get(boundary, {}).get("Type") == "AWS::IAM::ManagedPolicy"
+                and resources[boundary].get("Properties", {}).get("ManagedPolicyName")
+                == expected_name
+                and set(resources[boundary]["Properties"])
+                == {"ManagedPolicyName", "PolicyDocument"},
+                "Existing boundary has another owner or attachments",
+            )
+        else:
+            require(boundary not in resources, "New boundary logical ID already exists")
+        policies[0]["PolicyDocument"] = deepcopy(review[kind + "_policy"])
+        props["PermissionsBoundary"] = {"Ref": boundary}
+        if boundary not in resources:
+            resources[boundary] = {
+                "Type": "AWS::IAM::ManagedPolicy",
+                "Properties": {"ManagedPolicyName": expected_name},
+            }
+        resources[boundary]["Properties"]["PolicyDocument"] = deepcopy(review[kind + "_boundary"])
+        changed.extend([logical, boundary])
+    return {
+        "decision": "HOLD",
+        "profile_sha256": target["profile_sha256"],
+        "original_template_sha256": owner_sha256,
+        "candidate_template_sha256": digest(candidate),
+        "candidate_template": candidate,
+        "reviewed_resources": changed,
+        "limits": (
+            "Template preparation only. Verify actual owner stack, role drift and boundary-name "
+            "availability before a separately reviewed change set. Preserve existing role IDs. "
+            "Verify retained OIDC numeric identities and emitted subject "
+            "against GitHub configuration. "
+            "Provider-handler permissions and rollback authority require validation."
+        ),
+    }
+
+
 def main():
     """Write a review-only policy package from saved target and resource observations."""
     import argparse
@@ -197,7 +294,13 @@ def main():
     parser.add_argument("--stack", type=Path, required=True)
     parser.add_argument("--resources", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--owner-template", type=Path)
+    parser.add_argument("--owner-sha256")
     args = parser.parse_args()
+    require(
+        bool(args.owner_template) == bool(args.owner_sha256),
+        "Owner file and hash required together",
+    )
     stack = json.loads(args.stack.read_text())
     inventory = json.loads(args.resources.read_text())
     result = prepare(load(args.profile), stack, inventory)
@@ -206,6 +309,14 @@ def main():
         "observations_sha256": digest({"stack": stack, "resources": inventory}),
         "review": result,
     }
+    if args.owner_template:
+        package["owner_plan"] = reconcile_owner(
+            load(args.profile),
+            stack,
+            inventory,
+            json.loads(args.owner_template.read_text()),
+            args.owner_sha256,
+        )
     with args.output.open("x") as stream:
         stream.write(json.dumps(package, indent=2) + "\n")
     print("Release policy package prepared; deployment HOLD. No AWS changes made.")

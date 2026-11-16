@@ -126,7 +126,25 @@ class ReleaseAccessTests(unittest.TestCase):
         self.assertEqual(
             distribution["Resource"], "arn:aws:cloudfront::418638389566:distribution/E123456789"
         )
-        self.assertFalse(any(action.startswith("iam:") for row in rows for action in row["Action"]))
+        iam = [row for row in rows if any(action.startswith("iam:") for action in row["Action"])]
+        self.assertEqual(
+            iam,
+            [
+                {
+                    "Effect": "Allow",
+                    "Action": ["iam:PassRole"],
+                    "Resource": "arn:aws:iam::418638389566:role/fitfinity-test-hosting-api",
+                    "Condition": {"StringEquals": {"iam:PassedToService": "lambda.amazonaws.com"}},
+                }
+            ],
+        )
+        configuration = next(
+            row for row in rows if "lambda:UpdateFunctionConfiguration" in row["Action"]
+        )
+        self.assertEqual(
+            configuration["Resource"],
+            "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api",
+        )
 
     def test_wrong_stack_role_missing_duplicate_or_foreign_resources_fail_closed(self):
         original_stack, original_inventory = self.fixture(DEVELOPER)
@@ -224,3 +242,146 @@ class ReleaseAccessTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     main()
                 self.assertFalse((root / "output").exists())
+
+    def test_owner_plan_preserves_historical_roles_and_unrelated_runtime_boundary(self):
+        from pathlib import Path
+
+        from release_access import reconcile_owner
+        from release_observation import digest
+
+        owner = json.loads(Path(__file__).with_name("test-github-hosting-role.json").read_text())
+        original = deepcopy(owner)
+        stack, inventory = self.fixture(DEVELOPER)
+        result = reconcile_owner(DEVELOPER, stack, inventory, owner, digest(owner))
+        self.assertEqual(owner, original)
+        candidate = result["candidate_template"]
+        resources = candidate["Resources"]
+        self.assertEqual(resources["ApiBoundary"], owner["Resources"]["ApiBoundary"])
+        self.assertEqual(
+            set(resources) - set(owner["Resources"]),
+            {
+                "ReleaseOperatorBoundary",
+                "ReleaseServiceBoundary",
+            },
+        )
+        for logical in ("HostingRole", "CloudFormationRole"):
+            before = deepcopy(owner["Resources"][logical])
+            after = deepcopy(resources[logical])
+            before["Properties"].pop("Policies")
+            after["Properties"].pop("Policies")
+            after["Properties"].pop("PermissionsBoundary")
+            self.assertEqual(after, before)
+            self.assertEqual(
+                resources[logical]["Properties"]["Policies"][0]["PolicyName"],
+                owner["Resources"][logical]["Properties"]["Policies"][0]["PolicyName"],
+            )
+        self.assertEqual(result["candidate_template_sha256"], digest(candidate))
+        self.assertEqual(result["decision"], "HOLD")
+        candidate["Resources"]["ReleaseOperatorBoundary"].update(
+            DeletionPolicy="Retain",
+            Metadata={"Owner": "existing-operations"},
+        )
+        repeat = reconcile_owner(DEVELOPER, stack, inventory, candidate, digest(candidate))
+        self.assertEqual(repeat["candidate_template"], candidate)
+
+    def test_owner_plan_rejects_drift_or_foreign_boundary_instead_of_replacing_it(self):
+        from pathlib import Path
+
+        from release_access import reconcile_owner
+        from release_observation import digest
+
+        original = json.loads(Path(__file__).with_name("test-github-hosting-role.json").read_text())
+        stack, inventory = self.fixture(DEVELOPER)
+        for error in (
+            "hash",
+            "name",
+            "trust",
+            "attached",
+            "policies",
+            "boundary",
+            "collision",
+            "foreign-subject",
+        ):
+            owner = deepcopy(original)
+            props = owner["Resources"]["HostingRole"]["Properties"]
+            if error == "name":
+                props["RoleName"] = "foreign"
+            elif error == "trust":
+                props["AssumeRolePolicyDocument"] = {}
+            elif error == "foreign-subject":
+                props["AssumeRolePolicyDocument"]["Statement"][0]["Condition"]["StringEquals"][
+                    "token.actions.githubusercontent.com:sub"
+                ] = "repo:foreign@123/portal@456:environment:aws-test"
+            elif error == "attached":
+                props["ManagedPolicyArns"] = ["foreign"]
+            elif error == "policies":
+                props["Policies"].append(deepcopy(props["Policies"][0]))
+            elif error == "boundary":
+                props["PermissionsBoundary"] = "foreign"
+            elif error == "collision":
+                owner["Resources"]["ReleaseOperatorBoundary"] = {}
+            fingerprint = "0" * 64 if error == "hash" else digest(owner)
+            with self.subTest(error=error), self.assertRaises(RuntimeError):
+                reconcile_owner(DEVELOPER, stack, inventory, owner, fingerprint)
+
+    def test_client_owner_retains_standard_trust_without_developer_identity_leakage(self):
+        from release_access import reconcile_owner
+        from release_observation import digest
+
+        profile = {
+            **DEVELOPER,
+            "account": "123456789012",
+            "region": "eu-west-1",
+            "resource_prefix": "client-prod",
+            "github_repository": "client-example/portal",
+        }
+        owner = {"Resources": {"Unrelated": {"Type": "AWS::S3::Bucket"}}}
+        for logical, name, principal, action, condition in (
+            (
+                "HostingRole",
+                "client-prod-github-hosting",
+                {
+                    "Federated": (
+                        "arn:aws:iam::123456789012:oidc-provider/"
+                        "token.actions.githubusercontent.com"
+                    )
+                },
+                "sts:AssumeRoleWithWebIdentity",
+                {
+                    "StringEquals": {
+                        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                        "token.actions.githubusercontent.com:sub": (
+                            "repo:client-example/portal:environment:aws-test"
+                        ),
+                    }
+                },
+            ),
+            (
+                "CloudFormationRole",
+                "client-prod-hosting-cloudformation",
+                {"Service": "cloudformation.amazonaws.com"},
+                "sts:AssumeRole",
+                None,
+            ),
+        ):
+            statement = {"Effect": "Allow", "Principal": principal, "Action": action}
+            if condition is not None:
+                statement["Condition"] = condition
+            owner["Resources"][logical] = {
+                "Type": "AWS::IAM::Role",
+                "Properties": {
+                    "RoleName": name,
+                    "AssumeRolePolicyDocument": {"Version": "2012-10-17", "Statement": [statement]},
+                    "Policies": [{"PolicyName": "Existing", "PolicyDocument": {}}],
+                },
+            }
+        stack, inventory = self.fixture(profile)
+        result = reconcile_owner(profile, stack, inventory, owner, digest(owner))
+        candidate = result["candidate_template"]
+        self.assertEqual(candidate["Resources"]["Unrelated"], owner["Resources"]["Unrelated"])
+        self.assertEqual(
+            candidate["Resources"]["HostingRole"]["Properties"]["AssumeRolePolicyDocument"],
+            owner["Resources"]["HostingRole"]["Properties"]["AssumeRolePolicyDocument"],
+        )
+        for forbidden in ("418638389566", "fitfinity-test", "ap-southeast-1", "LimYouSheng"):
+            self.assertNotIn(forbidden, json.dumps(result))
