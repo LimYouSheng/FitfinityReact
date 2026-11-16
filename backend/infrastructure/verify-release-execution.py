@@ -380,7 +380,7 @@ class ExecutionTests(unittest.TestCase):
                     original_role,
                 )
 
-    def test_independent_account_region_and_prefix_execute_without_developer_calls(self):
+    def use_client_profile(self):
         client = {
             **DEVELOPER,
             "account": "123456789012",
@@ -401,6 +401,9 @@ class ExecutionTests(unittest.TestCase):
             setattr(self, name, json.loads(encoded))
         self.profile = client
         self.target = target
+
+    def test_independent_account_region_and_prefix_execute_without_developer_calls(self):
+        self.use_client_profile()
         created = self.run_step("create")
         executed = self.run_step("execute", created)
         self.assertEqual(self.run_step("verify", executed)["state"], "template_verified")
@@ -459,3 +462,186 @@ class ExecutionTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.run_step("execute", result)
         self.assertEqual(sum(op == "execute-change-set" for _, op, _ in self.calls), 1)
+
+    def rollout_fixture(self):
+        import tempfile
+        from pathlib import Path
+
+        from hosting_frontend import inventory, manifest_hash
+
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        folder = Path(temporary.name)
+        for name in ("index.html", "sw.js", "manifest.webmanifest"):
+            (folder / name).write_text("synthetic frontend")
+        files = inventory(folder)
+        manifest = manifest_hash(files)
+        self.review["candidate_template"] = prepare(
+            self.current_template,
+            observed_template_sha256=digest(self.current_template),
+            source_sha="c" * 40,
+            image_digest="sha256:" + "d" * 64,
+            frontend_sha256=manifest,
+            profile=self.profile,
+        )["candidate_template"]
+        self.rollout_evidence = {
+            "decision": "HOLD",
+            "source_sha": "c" * 40,
+            "profile_sha256": self.target["profile_sha256"],
+            "image_digest": "sha256:" + "d" * 64,
+            "frontend_sha256": manifest,
+            "frontend_prefix": "releases/" + "c" * 40 + "/" + manifest,
+            "schema_action": "unchanged",
+            "producer_runs": {"frontend": "1", "image": "2", "catalog": "3"},
+            "catalog_observed_at": "1970-01-01T00:16:39+00:00",
+            "required_image_files": {"backend/Dockerfile": "a" * 64},
+        }
+        self.rollout_image = {
+            "revision": "c" * 40,
+            "profile_sha256": self.target["profile_sha256"],
+            "account": self.target["account"],
+            "region": self.target["region"],
+            "image_digest": self.rollout_evidence["image_digest"],
+            "image_uri": self.target["registry"]
+            + "/"
+            + self.target["image_repository"]
+            + "@sha256:"
+            + "d" * 64,
+            "candidate_ready": True,
+            "image_published": True,
+            "scan_policy_passed": True,
+            "source_files": self.rollout_evidence["required_image_files"],
+        }
+        self.scan_status = "COMPLETE"
+        self.missing_frontend = False
+        self.rollout_reads = []
+
+        def call(service, operation, arguments):
+            self.rollout_reads.append(operation)
+            if operation == "describe-image-scan-findings":
+                return {
+                    "registryId": self.target["account"],
+                    "repositoryName": self.target["image_repository"],
+                    "imageId": {"imageDigest": self.rollout_evidence["image_digest"]},
+                    "imageScanStatus": {"status": self.scan_status},
+                    "imageScanFindings": {
+                        "findingSeverityCounts": {},
+                        "findings": [],
+                        "imageScanCompletedAt": "1970-01-01T00:16:39+00:00",
+                    },
+                }
+            if operation == "describe-stack-resource":
+                return {
+                    "StackResourceDetail": {
+                        "StackId": self.stack["StackId"],
+                        "LogicalResourceId": "FrontendBucket",
+                        "ResourceType": "AWS::S3::Bucket",
+                        "ResourceStatus": "CREATE_COMPLETE",
+                        "PhysicalResourceId": "owned-test-site",
+                    }
+                }
+            if operation == "head-object":
+                if self.missing_frontend:
+                    return None
+                row = files[arguments["Key"].rsplit("/", 1)[-1]]
+                return {
+                    "ContentLength": row["bytes"],
+                    "ChecksumSHA256": row["checksum"],
+                    "ContentType": row["content_type"],
+                    "CacheControl": row["cache_control"],
+                    "ServerSideEncryption": "AES256",
+                }
+            return self.call(service, operation, arguments)
+
+        def step(action, prior=None, now=1000):
+            from release_rollout import advance
+
+            return advance(
+                action,
+                self.review,
+                self.rollout_evidence,
+                self.rollout_image,
+                folder,
+                call,
+                self.receipts.append,
+                profile=self.profile,
+                prior=prior,
+                now=now,
+            )
+
+        return step
+
+    def test_rollout_checks_actual_scan_and_frontend_before_each_change_set_write(self):
+        step = self.rollout_fixture()
+        created = step("create")
+        result = step("execute", created)
+        self.assertEqual(step("verify", result)["state"], "template_verified")
+        self.assertEqual(self.rollout_reads.count("describe-image-scan-findings"), 2)
+        self.assertEqual(self.rollout_reads.count("head-object"), 6)
+        self.assertNotIn("put-object", self.rollout_reads)
+        self.assertEqual(self.concurrency, 0)
+        self.assertTrue(
+            all(row["evidence_sha256"] == digest(self.rollout_evidence) for row in self.receipts)
+        )
+
+    def test_rollout_missing_frontend_or_incomplete_scan_prevents_cloudformation_write(self):
+        step = self.rollout_fixture()
+        self.missing_frontend = True
+        with self.assertRaisesRegex(RuntimeError, "inspection never uploads"):
+            step("create")
+        self.missing_frontend = False
+        self.scan_status = "IN_PROGRESS"
+        with self.assertRaisesRegex(RuntimeError, "scan is incomplete"):
+            step("create")
+        self.assertFalse(self.receipts)
+        self.assertFalse(any(op == "create-change-set" for _, op, _ in self.calls))
+        self.assertNotIn("put-object", self.rollout_reads)
+
+    def test_rollout_template_cannot_substitute_different_image_or_frontend(self):
+        step = self.rollout_fixture()
+        original = deepcopy(self.rollout_evidence)
+        for field, value in (("image_digest", "sha256:" + "f" * 64), ("frontend_sha256", "f" * 64)):
+            self.rollout_evidence = {**original, field: value}
+            with self.subTest(field=field), self.assertRaises(RuntimeError):
+                step("create")
+        self.assertFalse(self.rollout_reads)
+        self.assertFalse(self.receipts)
+
+    def test_rollout_stale_catalog_or_changed_recovery_evidence_prevents_write(self):
+        step = self.rollout_fixture()
+        self.rollout_evidence["catalog_observed_at"] = "1969-12-31T00:00:00+00:00"
+        with self.assertRaisesRegex(RuntimeError, "Fresh catalog"):
+            step("create")
+        self.assertFalse(self.receipts)
+        self.rollout_evidence["catalog_observed_at"] = "1970-01-01T00:16:39+00:00"
+        created = step("create")
+        self.rollout_evidence["producer_runs"]["image"] = "4"
+        with self.assertRaisesRegex(RuntimeError, "Original rollout evidence"):
+            step("execute", created)
+        self.assertFalse(any(op == "execute-change-set" for _, op, _ in self.calls))
+
+    def test_rollout_uncertain_execution_can_be_inspected_without_fresh_scan_or_replay(self):
+        step = self.rollout_fixture()
+        created = step("create")
+        self.uncertain = "execute-change-set"
+        with self.assertRaises(TimeoutError):
+            step("execute", created)
+        self.scan_status = "FAILED"
+        self.missing_frontend = True
+        inspected = step("inspect", self.receipts[-1], now=100000)
+        self.assertTrue(inspected["execution_requested"])
+        self.assertEqual(step("verify", inspected, now=100000)["state"], "template_verified")
+        self.assertEqual(self.rollout_reads.count("describe-image-scan-findings"), 2)
+        self.assertEqual(sum(op == "execute-change-set" for _, op, _ in self.calls), 1)
+
+    def test_combined_rollout_gates_use_independent_client_profile(self):
+        self.use_client_profile()
+        step = self.rollout_fixture()
+        created = step("create")
+        completed = step("execute", created)
+        self.assertEqual(step("verify", completed)["state"], "template_verified")
+        encoded = json.dumps(self.calls)
+        for forbidden in ("418638389566", "ap-southeast-1", "fitfinity-test"):
+            self.assertNotIn(forbidden, encoded)
+        self.assertIn("123456789012", encoded)
+        self.assertIn("eu-west-1", encoded)
