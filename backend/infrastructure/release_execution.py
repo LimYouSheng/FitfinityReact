@@ -6,6 +6,7 @@ import time
 
 from deployment_profile import identities
 from operator_checks import require
+from release_access import service_role_arn
 from release_changes import expected_changes, validate
 from release_observation import digest
 from release_pause import require_recorded_pause
@@ -96,8 +97,8 @@ def live_target(review, call, profile, *, after=False, inspecting=False):
         and rows[0].get("StackName") == review["stack_arn"].split("/")[1]
         and not rows[0].get("ParentId")
         and not rows[0].get("RootId")
-        and not rows[0].get("RoleARN"),
-        "Exact root stack without an unreviewed service role required",
+        and rows[0].get("RoleARN") in (None, service_role_arn(profile)),
+        "Exact root stack with only its reviewed service role required",
     )
     function = call("lambda", "get-function", {"FunctionName": target["runtime_function"]})
     config = function.get("Configuration", {})
@@ -223,6 +224,12 @@ def execute(action, review, call, persist, *, profile, prior=None, now=None):
     stack = live_target(
         review, call, profile, after=action == "verify", inspecting=action == "inspect"
     )
+    receipt["service_role_arn"] = stack.get("RoleARN")
+    if prior is not None:
+        require(
+            prior.get("service_role_arn") == receipt["service_role_arn"],
+            "CloudFormation service role changed during the original operation",
+        )
     if action in {"create", "execute"} and review["mode"] in {"rollout", "boundary"}:
         require_recorded_pause(call, profile)
     if action == "create":
@@ -249,6 +256,11 @@ def execute(action, review, call, persist, *, profile, prior=None, now=None):
                 "StackName": review["stack_arn"],
                 "ChangeSetName": name,
                 "ChangeSetType": "UPDATE",
+                **(
+                    {"RoleARN": stack["RoleARN"]}
+                    if stack.get("RoleARN") and review["mode"] != "pause"
+                    else {}
+                ),
                 "TemplateBody": body,
                 "Capabilities": ["CAPABILITY_NAMED_IAM"],
                 "ClientToken": review["operation_id"] + "-create",
@@ -271,6 +283,7 @@ def execute(action, review, call, persist, *, profile, prior=None, now=None):
         )
         require(
             change_set.get("StackId") == review["stack_arn"]
+            and change_set.get("RoleARN") == receipt["service_role_arn"]
             and change_set.get("ChangeSetName") == name
             and change_set.get("Description")
             == "Fitfinity reviewed release " + identity["review_sha256"]

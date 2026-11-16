@@ -127,6 +127,7 @@ class ExecutionTests(unittest.TestCase):
                 "ChangeSetName": arguments["ChangeSetName"],
                 "Description": arguments["Description"],
                 "StackId": self.review["stack_arn"],
+                "RoleARN": self.stack.get("RoleARN"),
                 "Status": "CREATE_COMPLETE",
                 "ExecutionStatus": "AVAILABLE",
                 "Changes": self.changes(),
@@ -424,12 +425,18 @@ class ExecutionTests(unittest.TestCase):
             self.run_step("create")
         self.assertFalse(self.receipts)
         self.assertFalse(self.calls)
+        from release_access import service_role_arn
+
+        self.stack["RoleARN"] = service_role_arn(self.profile)
         self.review["mode"] = "pause"
         self.review["candidate_template"] = deepcopy(self.current_template)
         self.review["candidate_template"]["Resources"]["ApiFunction"]["Properties"][
             "ReservedConcurrentExecutions"
         ] = 0
         created = self.run_step("create")
+        call = next(args for _, op, args in self.calls if op == "create-change-set")
+        self.assertNotIn("RoleARN", call)
+        self.assertEqual(created["service_role_arn"], self.stack["RoleARN"])
         executed = self.run_step("execute", created)
         self.assertEqual(self.run_step("verify", executed)["state"], "template_verified")
         self.assertEqual(
@@ -737,6 +744,33 @@ class ExecutionTests(unittest.TestCase):
                     metadata({**review, key: value}, "c" * 40, self.profile)
         with patch("time.time", return_value=100000):
             self.assertEqual(metadata(review, "c" * 40, self.profile, recovery=True), review)
+
+    def test_retained_cloudformation_role_is_explicitly_bound_and_preserved(self):
+        from release_access import service_role_arn
+
+        self.stack["RoleARN"] = service_role_arn(self.profile)
+        created = self.run_step("create")
+        call = next(args for _, op, args in self.calls if op == "create-change-set")
+        self.assertEqual(
+            call["RoleARN"], "arn:aws:iam::418638389566:role/fitfinity-test-hosting-cloudformation"
+        )
+        completed = self.run_step("execute", created)
+        self.assertEqual(self.run_step("verify", completed)["state"], "template_verified")
+        self.assertEqual(completed["service_role_arn"], self.stack["RoleARN"])
+
+    def test_changed_service_role_in_stack_or_change_set_prevents_execution(self):
+        from release_access import service_role_arn
+
+        self.stack["RoleARN"] = service_role_arn(self.profile)
+        created = self.run_step("create")
+        self.change_set["RoleARN"] = "foreign"
+        with self.assertRaises(RuntimeError):
+            self.run_step("execute", created)
+        self.change_set["RoleARN"] = self.stack["RoleARN"]
+        self.stack.pop("RoleARN")
+        with self.assertRaisesRegex(RuntimeError, "service role changed"):
+            self.run_step("execute", created)
+        self.assertFalse(any(op == "execute-change-set" for _, op, _ in self.calls))
 
 
 class RolloutProviderTests(unittest.TestCase):
