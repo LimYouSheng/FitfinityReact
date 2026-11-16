@@ -793,3 +793,113 @@ class RolloutProviderTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     aws("sts", "get-caller-identity", {}, profile=DEVELOPER)
             run.assert_not_called()
+
+
+class RolloutAncestorRecoveryTests(unittest.TestCase):
+    def test_writes_require_current_source_and_recovery_checks_git_ancestry(self):
+        from rollout_operator import reviewed_source
+
+        old, current = "a" * 40, "b" * 40
+        with patch("rollout_operator.subprocess.run") as run:
+            for mode in ("upload", "create", "execute"):
+                with self.subTest(mode=mode), self.assertRaises(RuntimeError):
+                    reviewed_source({"source_sha": old}, current, mode)
+            run.assert_not_called()
+            for mode in ("inspect", "verify", "upload-inspect"):
+                self.assertEqual(reviewed_source({"source_sha": old}, current, mode), old)
+                run.assert_called_with(
+                    ["git", "merge-base", "--is-ancestor", old, current], check=True
+                )
+
+    def test_nonancestor_and_invalid_sources_cannot_enter_recovery(self):
+        import subprocess
+
+        from rollout_operator import reviewed_source
+
+        with patch(
+            "rollout_operator.subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")
+        ):
+            with self.assertRaises(subprocess.CalledProcessError):
+                reviewed_source({"source_sha": "a" * 40}, "b" * 40, "inspect")
+        with patch("rollout_operator.subprocess.run") as run:
+            with self.assertRaises(RuntimeError):
+                reviewed_source({"source_sha": "--help"}, "b" * 40, "inspect")
+            run.assert_not_called()
+
+    def test_later_recovery_receipt_producer_must_descend_from_release_and_precede_head(self):
+        import tempfile
+        from pathlib import Path
+
+        from rollout_operator import fetch_prior
+
+        value = {
+            "path": ".github/workflows/aws-rollout.yml",
+            "event": "workflow_dispatch",
+            "head_branch": "main",
+            "head_repository": {"full_name": DEVELOPER["github_repository"]},
+            "status": "completed",
+            "conclusion": "failure",
+            "head_sha": "b" * 40,
+            "run_attempt": 2,
+        }
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("rollout_operator.subprocess.check_output", return_value=json.dumps(value)),
+            patch("rollout_operator.subprocess.run") as run,
+        ):
+            fetch_prior("123", Path(directory), "a" * 40, DEVELOPER, recovery=True)
+            self.assertEqual(
+                run.call_args_list[0].args[0],
+                ["git", "merge-base", "--is-ancestor", "a" * 40, "b" * 40],
+            )
+            self.assertEqual(
+                run.call_args_list[1].args[0],
+                ["git", "merge-base", "--is-ancestor", "b" * 40, "HEAD"],
+            )
+            self.assertIn("fitfinity-rollout-123-2", run.call_args_list[2].args[0])
+            with self.assertRaises(RuntimeError):
+                fetch_prior("123", Path(directory), "a" * 40, DEVELOPER)
+
+    def test_foreign_receipt_ancestry_fails_before_artifact_download(self):
+        import subprocess
+        from pathlib import Path
+
+        from rollout_operator import fetch_prior
+
+        value = {
+            "path": ".github/workflows/aws-rollout.yml",
+            "event": "workflow_dispatch",
+            "head_branch": "main",
+            "head_repository": {"full_name": DEVELOPER["github_repository"]},
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "b" * 40,
+            "run_attempt": 1,
+        }
+        with (
+            patch("rollout_operator.subprocess.check_output", return_value=json.dumps(value)),
+            patch(
+                "rollout_operator.subprocess.run",
+                side_effect=subprocess.CalledProcessError(1, "git"),
+            ) as run,
+        ):
+            with self.assertRaises(subprocess.CalledProcessError):
+                fetch_prior("123", Path("/tmp/unused"), "a" * 40, DEVELOPER, recovery=True)
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0][0], "git")
+
+    def test_recovery_provider_refuses_every_mutating_operation(self):
+        from rollout_provider import aws
+
+        with patch("rollout_provider.subprocess.run") as run:
+            for service, operation in (
+                ("s3api", "put-object"),
+                ("cloudformation", "create-change-set"),
+                ("cloudformation", "execute-change-set"),
+            ):
+                with (
+                    self.subTest(operation=operation),
+                    self.assertRaisesRegex(RuntimeError, "cannot mutate"),
+                ):
+                    aws(service, operation, {}, profile=DEVELOPER, read_only=True)
+            run.assert_not_called()

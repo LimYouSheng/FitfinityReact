@@ -29,9 +29,13 @@ OPERATIONS = {
 }
 
 
-def aws(service, operation, values, *, profile):
+def aws(service, operation, values, *, profile, read_only=False):
     """Translate fixed calls and distinguish a missing object from access denial."""
     require((service, operation) in OPERATIONS, "Rollout operation is not allowed")
+    require(
+        not read_only or operation not in {"put-object", "create-change-set", "execute-change-set"},
+        "Recovery provider cannot mutate resources",
+    )
     require(
         not any(key.startswith("AWS_ENDPOINT_URL") for key in os.environ),
         "AWS endpoint override refused",

@@ -71,8 +71,8 @@ def metadata(value, source, profile, *, recovery=False):
     return value
 
 
-def fetch_prior(run_id, destination, source, profile):
-    """Retrieve failed or completed original intent only from the same manual source."""
+def fetch_prior(run_id, destination, source, profile, *, recovery=False):
+    """Retrieve original intent from a verified manual-main source lineage."""
     require(re.fullmatch(r"[1-9][0-9]*", run_id or ""), "Original rollout run required")
     repository = profile["github_repository"]
     run = json.loads(
@@ -84,9 +84,15 @@ def fetch_prior(run_id, destination, source, profile):
         run.get("conclusion") in {"success", "failure", "cancelled"},
         "Original run must have finished",
     )
-    _, attempt = run_binding(
-        {**run, "conclusion": "success"}, "aws-rollout", source, profile=profile
+    producer, attempt = run_binding(
+        {**run, "conclusion": "success"},
+        "aws-rollout",
+        None if recovery else source,
+        profile=profile,
     )
+    if recovery:
+        subprocess.run(["git", "merge-base", "--is-ancestor", source, producer], check=True)
+        subprocess.run(["git", "merge-base", "--is-ancestor", producer, "HEAD"], check=True)
     subprocess.run(
         [
             "gh",
@@ -227,6 +233,18 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=
     )
 
 
+def reviewed_source(review, current, mode):
+    """Permit ancestor-source recovery while refusing writes from superseded reviews."""
+    require(re.fullmatch(r"[a-f0-9]{40}", current or ""), "Exact checkout source required")
+    source = review.get("source_sha", "")
+    require(re.fullmatch(r"[a-f0-9]{40}", source), "Exact reviewed source required")
+    if mode in RECOVERY:
+        subprocess.run(["git", "merge-base", "--is-ancestor", source, current], check=True)
+    else:
+        require(source == current, "New writes require the current reviewed main source")
+    return source
+
+
 def main():
     """Fetch before credentials, then execute one explicit step with a durable journal."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -234,7 +252,7 @@ def main():
     parser.add_argument("--profile", required=True)
     args = parser.parse_args()
     profile = load(args.profile)
-    source = os.environ["GITHUB_SHA"]
+    current_source = os.environ["GITHUB_SHA"]
     require(
         os.environ.get("GITHUB_REPOSITORY") == profile["github_repository"]
         and os.environ.get("GITHUB_REF") == "refs/heads/main"
@@ -245,9 +263,10 @@ def main():
     )
     mode = os.environ["ROLLOUT_MODE"]
     require(mode in MODES, "Unknown rollout mode")
-    review = metadata(
-        json.loads(os.environ["ROLLOUT_REVIEW"]), source, profile, recovery=mode in RECOVERY
-    )
+    review_input = json.loads(os.environ["ROLLOUT_REVIEW"])
+    source = reviewed_source(review_input, current_source, mode)
+    source_check(Path.cwd(), current_source)
+    review = metadata(review_input, source, profile, recovery=mode in RECOVERY)
     require(
         digest(review) == os.environ["ROLLOUT_REVIEW_SHA256"], "Reviewed metadata digest differs"
     )
@@ -256,7 +275,9 @@ def main():
     prior = root / "rollout-prior/rollout-receipt.json"
     if args.phase == "fetch":
         if mode in RECOVERY:
-            fetch_prior(os.environ.get("ROLLOUT_PRIOR_RUN"), prior.parent, source, profile)
+            fetch_prior(
+                os.environ.get("ROLLOUT_PRIOR_RUN"), prior.parent, source, profile, recovery=True
+            )
             retained = json.loads(prior.read_text())
             require(retained.get("review_sha256") == digest(review), "Original review differs")
             evidence = retained["evidence"]
@@ -283,7 +304,7 @@ def main():
                 fetch_prior(os.environ["ROLLOUT_PRIOR_RUN"], prior.parent, source, profile)
         (root / "rollout-evidence.json").write_text(json.dumps(evidence) + "\n")
         return
-    source_check(Path.cwd(), source)
+    source_check(Path.cwd(), current_source)
     evidence = json.loads((root / "rollout-evidence.json").read_text())
     journal = Journal(root / "rollout-receipt.json")
     try:
@@ -292,7 +313,9 @@ def main():
             review,
             evidence,
             artifacts,
-            lambda service, operation, values: aws(service, operation, values, profile=profile),
+            lambda service, operation, values: aws(
+                service, operation, values, profile=profile, read_only=mode in RECOVERY
+            ),
             journal.save,
             profile=profile,
             prior=json.loads(prior.read_text()) if prior.exists() else None,
