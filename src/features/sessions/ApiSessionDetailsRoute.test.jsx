@@ -275,6 +275,7 @@ it('offers historical Trainer recording playback without replacement or removal 
   expect(within(dialog).queryByText('Remove saved video')).toBeNull()
   expect(within(dialog).queryByRole('button', { name: 'Save Video', exact: true })).toBeNull()
   expect(within(dialog).queryByLabelText(`Attach video for ${item.name}`)).toBeNull()
+  expect(await within(dialog).findByText('The saved video is no longer available.')).toBeVisible()
   expect(services.sessionService.loadVideo).toHaveBeenCalledWith({ sessionId: value.session.id, exerciseId: item.id })
   expect(services.sessionService.saveVideo).not.toHaveBeenCalled()
   expect(services.sessionService.removeVideo).not.toHaveBeenCalled()

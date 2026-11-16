@@ -22,6 +22,8 @@ flowchart TB
   end
   subgraph Delivery["Source delivery"]
     Repo["GitHub: reviewed source and lockfiles"]
+    Target["GitHub variables: validated account, region, repository and environment"]
+    Templates["Portable templates: private foundation, identity, storage and hosting; offline tested"]
     CodeQL["CodeQL: JS/TS + Python parallel scans; baseline acceptance pending"]
     Repo --> CodeQL
     CI["Frontend, backend and API-browser CI"]
@@ -48,6 +50,9 @@ flowchart TB
   App -->|"Verify bytes and durable cleanup"| Media
   Repo --> CI --> Merge
   Merge -->|"Normal main verification and demo publishing"| Pages
+  Target -->|"Target-bound OIDC and receipt hashes"| Image
+  Target --> Templates
+  Templates -.->|"Provisioning and adoption acceptance pending"| Release
   Merge -->|"Separate manual initiation"| Image --> Release
   Release -.->|"Separately authorized deployment"| AWS
   Supply -.->|"Reviewed update PRs"| Repo
@@ -62,6 +67,8 @@ flowchart TB
 API errors never switch to demo. Dependency updates pass the same final-head gates; Dependabot does not authorize automatic merging. Telemetry export must avoid sensitive data and isolate exporter failures from application behavior. New instrumentation, dashboards and operations automation remain planned; existing infrastructure alone does not establish operational acceptance.
 
 The prepared private schema observer is a separate temporary Lambda entry point using the selected private RDS boundary; it is not connected to API Gateway or the staff app. Its offline HOLD template and tests do not establish deployment. Current network/image/secret bindings and separately authorized creation, invocation and cleanup remain prerequisites; see [Runbook6.2](../runbook.md#62-deployment-preparation-and-acceptance).
+
+The separate private upgrade worker follows the same private RDS boundary, with its own operator/runtime roles and a manual protected Actions workflow. It requires current image/catalog/backup evidence and disabled staff invocation, and retains uncertain outcomes before cleanup. This source implementation is not deployed; runtime grants and a separate pause/drain/snapshot workflow are prepared; installation/activation, staff rollout and traffic resumption remain in the active campaign.
 
 ## Isolated real-API testing and planned measurement
 

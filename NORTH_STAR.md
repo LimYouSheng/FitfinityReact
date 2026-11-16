@@ -25,7 +25,9 @@ Record the following compact campaign contract inside Progress's current task, u
 | Delivery | Intended PR boundary, review/merge requirements, source/artifact bindings and separate deployment/provider/device acceptance. |
 | Stop/handover | Completion criteria, concrete blockers, unresolved decisions and the next action if interrupted. |
 
-Keep one active campaign and one coherent slice in progress. New findings enter the current scoped queue or the existing remaining-work backlog; discovery does not automatically authorize unrelated implementation. Preserve the original objective when the user provides corrections or asks for status.
+The active Fitfinity campaign and its ordered delivery gates live in [Progress](PROGRESS.md#current-task--portable-github-actions-deployment-campaign). Keep that as the single executable plan, rather than adding a competing campaign here.
+
+Keep one active campaign and one coherent slice in progress. New findings enter the current scoped queue or the existing remaining-work backlog; discovery does not automatically authorize unrelated implementation. Preserve the original objective when the user provides corrections or asks for status. Give delivery gates stable identifiers and explicit dependencies, evidence and completion boundaries. A new discovery must name the existing gate and acceptance condition it blocks; otherwise defer it. Do not treat optional hardening as a deployment prerequisite. Explain any material scope expansion before adding a new gate. Distinguish source completion, actual developer deployment and physical acceptance so none silently replaces the user’s original finish line.
 
 ## 3. Ralph loop specification
 

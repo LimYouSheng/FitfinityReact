@@ -1,4 +1,3 @@
-// Reference media has its own store; session filming keeps its existing contract.
 const DATABASE = 'fitfinity-exercise-library-media'
 function openDatabase() {
   if (!globalThis.indexedDB) return Promise.reject(new Error('This browser cannot store exercise media. Try another browser or save without an attachment.'))

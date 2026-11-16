@@ -1,5 +1,4 @@
-// Break at words where possible, including long names without spaces. Array.from
-// keeps surrogate pairs intact, and React escapes all names before SVG rendering.
+/** Wrap text without splitting Unicode surrogate pairs. */
 export function wrapText(value, limit) {
   const width = text => Array.from(text).reduce((sum, letter) => sum + (/[^\u0000-\u024f]/u.test(letter) ? 2 : /[MW@]/.test(letter) ? 1.5 : 1), 0)
   const lines = []

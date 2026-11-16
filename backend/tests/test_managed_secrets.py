@@ -225,14 +225,17 @@ def test_startup_errors_do_not_disclose_secret_values(managed, monkeypatch, fail
     client.close.assert_called_once_with()
 
 
-def test_ca_bundle_is_current_singapore_root_material(managed):
+def test_ca_bundle_is_current_global_rds_root_material(managed):
     settings = load_settings()
     path = make_url(settings.database_url.get_secret_value()).query["sslrootcert"]
     certificates = x509.load_pem_x509_certificates(Path(path).read_bytes())
-    assert len(certificates) == 3
+    assert len(certificates) == 114
+    subjects = [certificate.subject.rfc4514_string() for certificate in certificates]
+    assert sum("ap-southeast-1 " in subject for subject in subjects) == 3
+    assert sum("eu-west-1 " in subject for subject in subjects) == 3
     for certificate in certificates:
         assert certificate.subject == certificate.issuer
-        assert "ap-southeast-1" in certificate.subject.rfc4514_string()
+        assert "Amazon RDS" in certificate.subject.rfc4514_string()
         assert (
             certificate.not_valid_before_utc < datetime.now(UTC) < certificate.not_valid_after_utc
         )
@@ -266,3 +269,72 @@ def test_direct_local_configuration_never_initializes_aws(managed, monkeypatch):
     settings = load_settings()
     assert make_url(settings.database_url.get_secret_value()).host == "localhost"
     factory.assert_not_called()
+
+
+def test_client_region_secrets_and_all_provider_clients_follow_configuration(managed, monkeypatch):
+    from app.auth.cognito import Cognito
+    from app.auth.invitations import CognitoInvitations
+    from app.media_storage import configured_storage
+
+    bodies, client, factory = managed
+    db = DB_ARN.replace("ap-southeast-1", "eu-west-1")
+    auth = AUTH_ARN.replace("ap-southeast-1", "eu-west-1")
+    bodies[db] = bodies.pop(DB_ARN)
+    bodies[auth] = bodies.pop(AUTH_ARN)
+    bodies[auth]["cognito_pool_id"] = "eu-west-1_Example"
+    for key, value in {
+        "AWS_REGION": "eu-west-1",
+        "DATABASE_SECRET_ARN": db,
+        "AUTH_SECRET_ARN": auth,
+        "DB_HOST": "client-db.example.eu-west-1.rds.amazonaws.com",
+        "COGNITO_POOL_ID": "eu-west-1_Example",
+    }.items():
+        monkeypatch.setenv("FITFINITY_" + key, value)
+    settings = load_settings()
+    assert settings.aws_region == "eu-west-1"
+    assert (
+        settings.cognito_issuer == "https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_Example"
+    )
+    assert factory.call_args.kwargs["region_name"] == "eu-west-1"
+    assert (
+        factory.call_args.kwargs["endpoint_url"] == "https://secretsmanager.eu-west-1.amazonaws.com"
+    )
+    assert factory.call_args.kwargs["verify"] is True
+    url = make_url(settings.database_url.get_secret_value())
+    assert url.host == "client-db.example.eu-west-1.rds.amazonaws.com"
+    assert url.query["sslmode"] == "verify-full"
+    factory.reset_mock()
+    Cognito(settings)
+    CognitoInvitations(settings)._call("describe_user_pool")
+    configured_storage(
+        settings.model_copy(update={"media_enabled": True, "media_bucket": "client-media"})
+    )
+    assert [call.args[0] for call in factory.call_args_list] == ["cognito-idp", "cognito-idp", "s3"]
+    assert all(call.kwargs["region_name"] == "eu-west-1" for call in factory.call_args_list)
+    assert (
+        factory.call_args_list[1].kwargs["endpoint_url"]
+        == "https://cognito-idp.eu-west-1.amazonaws.com"
+    )
+    client.describe_user_pool.assert_called_once_with(UserPoolId="eu-west-1_Example")
+
+
+def test_wrong_region_references_and_endpoint_injection_fail_before_provider_access(
+    managed, monkeypatch
+):
+    _, _, factory = managed
+    for key, value in {
+        "AWS_REGION": "eu-west-1",
+        "DB_HOST": "client.example.eu-west-1.rds.amazonaws.com",
+        "COGNITO_POOL_ID": "eu-west-1_Example",
+        "DATABASE_SECRET_ARN": DB_ARN.replace("ap-southeast-1", "eu-west-1"),
+    }.items():
+        with monkeypatch.context() as scoped:
+            scoped.setenv("FITFINITY_" + key, value)
+            with pytest.raises(ConfigurationError):
+                load_settings()
+        factory.assert_not_called()
+    for region in ("eu-west-1.evil.example", "https://example.test", "us-gov-west-1"):
+        monkeypatch.setenv("FITFINITY_AWS_REGION", region)
+        with pytest.raises(ConfigurationError):
+            load_settings()
+        factory.assert_not_called()

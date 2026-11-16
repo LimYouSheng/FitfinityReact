@@ -25,7 +25,7 @@ def configured_storage(settings):
     return MediaStorage(
         boto3.client(
             "s3",
-            region_name="ap-southeast-1",
+            region_name=settings.aws_region,
             config=Config(signature_version="s3v4", retries={"total_max_attempts": 1}),
         )
     )

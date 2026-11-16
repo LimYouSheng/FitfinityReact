@@ -5,7 +5,6 @@ import { exerciseCatalog, exerciseDraftErrors, exerciseMediaError } from '../app
 import { appendSavedEditMessage } from './editMessage.js'
 import { exerciseLibraryMedia } from './exerciseLibraryMedia.js'
 
-// Local record IDs also need to work during HTTP device previews.
 function libraryId(prefix) {
   const bytes = crypto.getRandomValues(new Uint8Array(16))
   return `${prefix}-${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`

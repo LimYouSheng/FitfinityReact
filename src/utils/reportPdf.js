@@ -1,5 +1,4 @@
-// A PDF page contains one high-resolution JPEG of the shared SVG report visual.
-// Binary stream lengths and xref offsets are measured in bytes, not characters.
+// PDF stream lengths and cross-reference offsets use bytes, not characters.
 export function reportPdfDocument(pages, title) {
   if (!pages.length) throw new Error('No progress report pages are available.')
   const encoder = new TextEncoder()
@@ -38,10 +37,7 @@ export function reportPdfDocument(pages, title) {
   return new Blob(chunks, { type: 'application/pdf' })
 }
 
-// PDFs immediately read pixels back for JPEG encoding. Prefer software-backed
-// canvases in both threads: avoid GPU texture transfers/cache ownership hazards
-// in Linux WebKit (upstream bug 280745) without changing browser/runner settings.
-// Keep the worker body self-contained so the PDF owner also owns its encoder.
+// Software canvases avoid Linux WebKit GPU readback hazards (upstream bug 280745).
 function reportEncoderWorker() {
   self.onmessage = async ({ data: { bitmap, width, height } }) => {
     let canvas, consumed = false
@@ -128,8 +124,7 @@ async function rasterizePage(page, encoder, canvas) {
 export async function renderReportPdf(pages, title) {
   if (!pages.length) throw new Error('No progress report pages are available.')
   await document.fonts?.ready
-  // Bound expensive full-resolution work to two pages. Reuse each drawing canvas,
-  // keep the fallback sequential, and store by page index regardless of finish order.
+  // Limit concurrent full-resolution canvases to two; preserve page order.
   const encoders = [], images = new Array(pages.length)
   let nextPage = 0, failure
   try {
@@ -150,7 +145,6 @@ export async function renderReportPdf(pages, title) {
       } catch (error) { failure ??= error }
       finally { if (canvas) { canvas.width = 0; canvas.height = 0 } }
     }))
-    // Every in-flight page has settled and released its resources, including on failure.
     if (failure) throw failure
     return reportPdfDocument(images, title)
   } finally { encoders.forEach(encoder => encoder?.dispose()) }

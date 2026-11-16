@@ -11,16 +11,17 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from deployment_profile import DEVELOPER, identities
 from operator_checks import require
 
 ROOT = Path(__file__).resolve().parents[2]
-ACCOUNT = "418638389566"
-REGION = "ap-southeast-1"
-REPOSITORY = "fitfinity-test-api"
+_DEVELOPER = identities(DEVELOPER)
+ACCOUNT, REGION = _DEVELOPER["account"], _DEVELOPER["region"]
+REPOSITORY = _DEVELOPER["image_repository"]
 REGISTRY = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com"
 URI = f"{REGISTRY}/{REPOSITORY}"
 ARN = f"arn:aws:ecr:{REGION}:{ACCOUNT}:repository/{REPOSITORY}"
-ROLE = f"arn:aws:iam::{ACCOUNT}:role/fitfinity-test-github-image"
+ROLE = f"arn:aws:iam::{ACCOUNT}:role/{_DEVELOPER['image_role']}"
 SEVERITIES = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL", "UNDEFINED"}
 AWS_OPERATIONS = {
     ("sts", "get-caller-identity"),
@@ -53,8 +54,9 @@ def timestamp(value):
         raise RuntimeError("Invalid scan timestamp") from None
 
 
-def scan_evidence(pages, digest, now):
+def scan_evidence(pages, digest, now, *, profile=DEVELOPER):
     """Check complete current basic-scan evidence, including every findings page."""
+    target = identities(profile)
     require(bool(pages), "Missing scan evidence")
     first = pages[0].get("imageScanFindings", {})
     counts = first.get("findingSeverityCounts")
@@ -70,8 +72,8 @@ def scan_evidence(pages, digest, now):
     seen = set()
     for index, page in enumerate(pages):
         require(
-            page.get("registryId") == ACCOUNT
-            and page.get("repositoryName") == REPOSITORY
+            page.get("registryId") == target["account"]
+            and page.get("repositoryName") == target["image_repository"]
             and page.get("imageId", {}).get("imageDigest") == digest
             and page.get("imageScanStatus", {}).get("status") == "COMPLETE",
             "Scan identity or completion differs",
@@ -109,8 +111,8 @@ def strict_scan_passed(counts):
     return not any(counts.get(level, 0) for level in ("CRITICAL", "HIGH", "UNDEFINED"))
 
 
-def scan_policy(pages, digest, now):
-    counts, _ = scan_evidence(pages, digest, now)
+def scan_policy(pages, digest, now, *, profile=DEVELOPER):
+    counts, _ = scan_evidence(pages, digest, now, profile=profile)
     require(
         strict_scan_passed(counts),
         "Image blocked: critical, high or unclassified findings; no automatic exception",
@@ -119,8 +121,18 @@ def scan_policy(pages, digest, now):
 
 
 class ImageCandidate:
-    def __init__(self, report, root=ROOT):
+    def __init__(self, report, root=ROOT, *, profile=DEVELOPER):
+        self.profile = dict(profile)
+        self.target = identities(profile)
+        self.account, self.region = self.target["account"], self.target["region"]
+        self.repository = self.target["image_repository"]
+        self.registry = self.target["registry"]
+        self.uri = self.registry + "/" + self.repository
+        self.arn = f"arn:aws:ecr:{self.region}:{self.account}:repository/{self.repository}"
         self.report = report
+        self.report.update(
+            account=self.account, region=self.region, profile_sha256=self.target["profile_sha256"]
+        )
         self.root = root
 
     def command(self, args, *, private=False, input_data=None, env=None, timeout=120):
@@ -149,7 +161,7 @@ class ImageCandidate:
                 operation,
                 *args,
                 "--region",
-                REGION,
+                self.region,
                 "--no-cli-pager",
                 "--no-cli-auto-prompt",
                 "--cli-connect-timeout",
@@ -173,11 +185,12 @@ class ImageCandidate:
     def source(self):
         require(
             os.getenv("GITHUB_ACTIONS") == "true"
-            and os.getenv("GITHUB_REPOSITORY") == "LimYouSheng/FitfinityReact"
+            and os.getenv("GITHUB_REPOSITORY") == self.target["github_repository"]
             and os.getenv("GITHUB_REF") == "refs/heads/main"
             and os.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch"
             and os.getenv("GITHUB_WORKFLOW_REF")
-            == "LimYouSheng/FitfinityReact/.github/workflows/aws-image.yml@refs/heads/main",
+            == self.target["github_repository"]
+            + "/.github/workflows/aws-image.yml@refs/heads/main",
             "Image publication requires the verified main Actions workflow",
         )
         revision = os.getenv("GITHUB_SHA", "")
@@ -245,31 +258,31 @@ class ImageCandidate:
         )
         identity = self.aws("sts", "get-caller-identity")
         require(
-            identity.get("Account") == ACCOUNT
+            identity.get("Account") == self.account
             and re.fullmatch(
-                rf"arn:aws:sts::{ACCOUNT}:assumed-role/"
-                r"fitfinity-test-github-image/[A-Za-z0-9+=,.@_-]+",
+                rf"arn:aws:sts::{self.account}:assumed-role/"
+                rf"{re.escape(self.target['image_role'])}/[A-Za-z0-9+=,.@_-]+",
                 identity.get("Arn", ""),
             ),
             "Unexpected image publication principal",
         )
         self.report["identity"] = identity["Arn"]
-        response = self.aws("ecr", "describe-repositories", "--repository-names", REPOSITORY)
+        response = self.aws("ecr", "describe-repositories", "--repository-names", self.repository)
         rows = response.get("repositories", [])
         require(len(rows) == 1, "Expected one existing image repository")
         row = rows[0]
         require(
-            row.get("registryId") == ACCOUNT
-            and row.get("repositoryName") == REPOSITORY
-            and row.get("repositoryArn") == ARN
-            and row.get("repositoryUri") == URI
+            row.get("registryId") == self.account
+            and row.get("repositoryName") == self.repository
+            and row.get("repositoryArn") == self.arn
+            and row.get("repositoryUri") == self.uri
             and row.get("imageTagMutability") == "IMMUTABLE"
             and row.get("encryptionConfiguration", {}).get("encryptionType") == "AES256",
             "Image repository configuration differs",
         )
         tags = {
             item["Key"]: item["Value"]
-            for item in self.aws("ecr", "list-tags-for-resource", "--resource-arn", ARN).get(
+            for item in self.aws("ecr", "list-tags-for-resource", "--resource-arn", self.arn).get(
                 "tags", []
             )
         }
@@ -278,15 +291,15 @@ class ImageCandidate:
                 tags.get(key) == value
                 for key, value in {
                     "Application": "Fitfinity",
-                    "Environment": "test",
-                    "ManagedBy": "fitfinity-test-image-uploader",
+                    "Environment": self.target["environment_tag"],
+                    "ManagedBy": self.target["resource_prefix"] + "-image-uploader",
                 }.items()
             ),
             "Image repository ownership differs",
         )
         scan = self.aws("ecr", "get-registry-scanning-configuration")
         require(
-            scan.get("registryId") == ACCOUNT
+            scan.get("registryId") == self.account
             and scan.get("scanningConfiguration", {}).get("scanType") == "BASIC",
             "Expected basic scanning; registry configuration will not be changed",
         )
@@ -347,7 +360,7 @@ class ImageCandidate:
             "ecr",
             "batch-get-image",
             "--repository-name",
-            REPOSITORY,
+            self.repository,
             "--image-ids",
             f"imageTag={tag_name}",
         )
@@ -370,7 +383,7 @@ class ImageCandidate:
                 "--username",
                 "AWS",
                 "--password-stdin",
-                REGISTRY,
+                self.registry,
             ],
             private=True,
             input_data=password,
@@ -383,7 +396,7 @@ class ImageCandidate:
             "ecr",
             "batch-get-image",
             "--repository-name",
-            REPOSITORY,
+            self.repository,
             "--image-ids",
             f"imageTag={tag_name}",
         )
@@ -396,8 +409,8 @@ class ImageCandidate:
         manifest = json.loads(manifest_text)
         digest = "sha256:" + sha(manifest_text.encode())
         require(
-            image.get("registryId") == ACCOUNT
-            and image.get("repositoryName") == REPOSITORY
+            image.get("registryId") == self.account
+            and image.get("repositoryName") == self.repository
             and image.get("imageId", {}).get("imageTag") == tag_name
             and image.get("imageId", {}).get("imageDigest") == digest
             and manifest.get("schemaVersion") == 2
@@ -409,15 +422,17 @@ class ImageCandidate:
             and manifest.get("config", {}).get("digest") == self.report["config_digest"],
             "Published manifest does not match the built image",
         )
-        self.report.update(image_uri=URI + "@" + digest, image_digest=digest, image_published=True)
+        self.report.update(
+            image_uri=self.uri + "@" + digest, image_digest=digest, image_published=True
+        )
         return digest
 
     def scan(self, digest, *, read_only=False):
         args = [
             "--registry-id",
-            ACCOUNT,
+            self.account,
             "--repository-name",
-            REPOSITORY,
+            self.repository,
             "--image-id",
             "imageDigest=" + digest,
         ]
@@ -477,14 +492,16 @@ class ImageCandidate:
         self.report["scan_pages"] = pages
         if read_only:
             return pages
-        self.report["severity_counts"] = scan_policy(pages, digest, datetime.now(UTC))
+        self.report["severity_counts"] = scan_policy(
+            pages, digest, datetime.now(UTC), profile=self.profile
+        )
         self.report["scan_policy_passed"] = True
 
     def run(self):
         files = self.source()
         self.identity()
         name = f"commit-{self.report['revision']}-{os.environ['GITHUB_RUN_ID']}"
-        tag = f"{URI}:{name}-{os.environ['GITHUB_RUN_ATTEMPT']}"
+        tag = f"{self.uri}:{name}-{os.environ['GITHUB_RUN_ATTEMPT']}"
         self.report["image_tag"] = tag
         with tempfile.TemporaryDirectory(prefix="fitfinity-image-") as directory:
             folder = Path(directory)
@@ -496,11 +513,13 @@ class ImageCandidate:
         self.report["candidate_ready"] = True
 
 
-def create_candidate(receipt):
+def create_candidate(receipt, *, profile=DEVELOPER):
+    target = identities(profile)
     report = {
         "created_at": datetime.now(UTC).isoformat(),
-        "account": ACCOUNT,
-        "region": REGION,
+        "account": target["account"],
+        "region": target["region"],
+        "profile_sha256": target["profile_sha256"],
         "candidate_ready": False,
         "image_published": False,
         "scan_policy_passed": False,
@@ -511,7 +530,7 @@ def create_candidate(receipt):
     # Reserve the receipt before any operation; never overwrite another receipt or a symlink.
     with os.fdopen(os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as handle:
         try:
-            ImageCandidate(report).run()
+            ImageCandidate(report, profile=profile).run()
         except Exception as error:
             report["failure_type"] = type(error).__name__
             raise

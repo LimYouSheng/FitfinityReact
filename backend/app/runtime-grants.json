@@ -1,0 +1,459 @@
+{
+  "schema_revision": "20261101_0052",
+  "tables": {
+    "acknowledgements": [
+      "SELECT",
+      "INSERT"
+    ],
+    "admin_approval_requirements": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "admin_management_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "admin_operation_decisions": [
+      "SELECT",
+      "INSERT"
+    ],
+    "admin_operation_requests": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "admin_profiles": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "alembic_version": [
+      "SELECT"
+    ],
+    "api_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "assessment_access": [
+      "SELECT",
+      "INSERT"
+    ],
+    "assessment_form_versions": [
+      "SELECT"
+    ],
+    "assignment_changes": [
+      "SELECT",
+      "INSERT"
+    ],
+    "assignment_events": [
+      "SELECT",
+      "INSERT"
+    ],
+    "auth_accounts": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "auth_flows": [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE"
+    ],
+    "auth_sessions": [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE"
+    ],
+    "change_requests": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "client_assessment_revisions": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_assessments": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "client_assignment_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_create_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_deactivation_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_detail_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_note_access": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_note_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_people": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "client_reactivation_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_renewal_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "client_weekly_schedule_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "clients": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "content_entries": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "content_save_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "credit_debits": [
+      "SELECT",
+      "INSERT"
+    ],
+    "exercise_plan_details": [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE"
+    ],
+    "exercise_plan_items": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "exercise_result_revisions": [
+      "SELECT",
+      "INSERT"
+    ],
+    "exercise_results": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "exercises": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "library_save_intents": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "lifecycle_events": [
+      "SELECT",
+      "INSERT"
+    ],
+    "media_assets": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "media_deletions": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "message_read_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "message_receipts": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "messages": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_change_requests": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_clients": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_exercise_plan_details": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_exercise_plan_items": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_exercise_results": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_media_assets": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_package_purchases": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_purchase_schedule_slots": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_scopes": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_staff_users": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_trainers": [
+      "SELECT",
+      "INSERT"
+    ],
+    "mutation_training_sessions": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_action_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_action_requests": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_archived_media": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_deletion_undos": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_purchases": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "package_reactivation_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_save_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_template_revisions": [
+      "SELECT",
+      "INSERT"
+    ],
+    "package_templates": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "purchase_preferences": [
+      "SELECT",
+      "INSERT"
+    ],
+    "purchase_schedule_slots": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "remuneration_approvals": [
+      "SELECT",
+      "INSERT"
+    ],
+    "remuneration_lines": [
+      "SELECT",
+      "INSERT"
+    ],
+    "renewal_dismissal_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "renewal_dismissals": [
+      "SELECT",
+      "INSERT"
+    ],
+    "report_audit": [
+      "SELECT",
+      "INSERT"
+    ],
+    "request_cancellation_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "request_events": [
+      "SELECT",
+      "INSERT"
+    ],
+    "request_resolution_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "request_slots": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_acknowledgement_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_archives": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_booking_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_change_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_events": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_handoff_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_identities": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_media_intents": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "session_mutation_undos": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_mutations": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_outcome_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_plan_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_postponement_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_summary_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_trainer_assignment_history": [
+      "SELECT",
+      "INSERT"
+    ],
+    "session_trainer_attributions": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "staff_email_changes": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "staff_identities": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "staff_invitations": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "staff_users": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "trainer_approval_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "trainer_availability": [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE"
+    ],
+    "trainer_availability_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "trainer_deactivation_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "trainer_detail_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "trainer_rate_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "trainer_reactivation_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "trainers": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "training_sessions": [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE"
+    ]
+  }
+}

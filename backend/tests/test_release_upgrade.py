@@ -296,3 +296,234 @@ def test_probe_missing_schema_fails_without_bootstrap(database_url):
             assert connection.scalar(text("SELECT to_regclass('public.alembic_version')")) is None
     finally:
         engine.dispose()
+
+
+def test_private_http_upgrade_preserves_populated_rows_and_recovers_lost_receipt(outgoing):
+    from fastapi.testclient import TestClient
+
+    from app.release_upgrade_service import create_upgrade
+
+    engine, kwargs = outgoing
+    before = owner(engine)
+    app = create_upgrade(
+        lambda: upgrade_existing(engine, **kwargs),
+        operation_id="a" * 32,
+        source_sha="b" * 40,
+        from_revision=BASE,
+        to_revision=HEAD,
+    )
+    intent = b'{"operation":"upgrade-existing","operation_id":"' + b"a" * 32 + b'"}'
+    with TestClient(app) as client:
+        first = client.post("/events", content=intent)
+        assert first.status_code == 200
+        assert first.json()["outcome"] == "upgraded"
+        assert revision(engine) == HEAD
+        assert owner(engine) == before
+        recovered = client.post("/events", content=intent)
+        assert recovered.status_code == 200
+        assert recovered.json()["outcome"] == "already_at_target"
+        assert owner(engine) == before
+
+
+def test_private_http_failure_after_ddl_rolls_back_and_does_not_leak(outgoing, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.release_upgrade_service import create_upgrade
+
+    engine, kwargs = outgoing
+    before = owner(engine)
+    original = command.upgrade
+
+    def fail(config, target):
+        original(config, target)
+        raise RuntimeError("sensitive SQL and credentials")
+
+    monkeypatch.setattr(command, "upgrade", fail)
+    app = create_upgrade(
+        lambda: upgrade_existing(engine, **kwargs),
+        operation_id="a" * 32,
+        source_sha="b" * 40,
+        from_revision=BASE,
+        to_revision=HEAD,
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/events",
+            content=b'{"operation":"upgrade-existing","operation_id":"' + b"a" * 32 + b'"}',
+        )
+        assert response.status_code == 503
+        assert response.json() == {"error": "migration_failed_or_uncertain"}
+    assert revision(engine) == BASE
+    assert owner(engine) == before
+
+
+def test_upgrade_expired_during_database_preflight_cannot_start_ddl(outgoing, monkeypatch):
+    from app import release_upgrade
+
+    engine, kwargs = outgoing
+    before = owner(engine)
+    ticks = iter([100, 201])
+    monkeypatch.setattr(release_upgrade, "utc_timestamp", lambda: next(ticks))
+    with pytest.raises(UpgradeRefused, match="expired during database preflight"):
+        upgrade_existing(engine, **kwargs, deadline=200)
+    assert revision(engine) == BASE
+    assert owner(engine) == before
+
+
+def test_inflight_application_transaction_prevents_any_schema_write(outgoing):
+    from psycopg.errors import LockNotAvailable
+
+    engine, kwargs = outgoing
+    before = owner(engine)
+    with engine.begin() as application:
+        application.execute(text("SELECT id FROM staff_users"))
+        with pytest.raises(LockNotAvailable):
+            upgrade_existing(engine, **kwargs)
+        assert revision(engine) == BASE
+        assert owner(engine) == before
+    assert upgrade_existing(engine, **kwargs)["outcome"] == "upgraded"
+    assert owner(engine) == before
+
+
+def test_catalog_table_identifiers_cannot_escape_the_migration_lock(outgoing):
+    from psycopg import sql
+
+    engine, kwargs = outgoing
+    name = 'audit"; DROP TABLE staff_users; --'
+    with engine.begin() as connection:
+        with connection.connection.driver_connection.cursor() as cursor:
+            cursor.execute(sql.SQL("CREATE TABLE {} (id integer)").format(sql.Identifier(name)))
+    before = owner(engine)
+    assert upgrade_existing(engine, **kwargs)["outcome"] == "upgraded"
+    assert owner(engine) == before
+    with engine.connect() as connection:
+        assert (
+            connection.scalar(
+                text(
+                    "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename=:name"
+                ),
+                {"name": name},
+            )
+            == 1
+        )
+
+
+@pytest.fixture
+def runtime(outgoing):
+    """Create one restricted login owned by this isolated test database."""
+    from psycopg import sql
+
+    engine, kwargs = outgoing
+    role = "fitfinity_test_runtime_" + uuid4().hex
+    with engine.begin() as connection:
+        with connection.connection.driver_connection.cursor() as cursor:
+            cursor.execute(sql.SQL("CREATE ROLE {} LOGIN NOINHERIT").format(sql.Identifier(role)))
+            cursor.execute(
+                sql.SQL("REVOKE TEMP ON DATABASE {} FROM PUBLIC").format(
+                    sql.Identifier(kwargs["expected_database"])
+                )
+            )
+            cursor.execute(
+                sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(sql.Identifier(role))
+            )
+    try:
+        yield engine, {**kwargs, "runtime_role": role}
+    finally:
+        with engine.begin() as connection:
+            with connection.connection.driver_connection.cursor() as cursor:
+                cursor.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(role)))
+                cursor.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(role)))
+
+
+def test_upgrade_grants_new_tables_and_preserves_immutable_and_ddl_denials(runtime):
+    from psycopg import sql
+    from sqlalchemy.exc import ProgrammingError
+
+    engine, kwargs = runtime
+    before = owner(engine)
+    assert upgrade_existing(engine, **kwargs)["outcome"] == "upgraded"
+    assert owner(engine) == before
+    assert upgrade_existing(engine, **kwargs)["outcome"] == "already_at_target"
+    with engine.connect() as connection:
+        with connection.connection.driver_connection.cursor() as cursor:
+            cursor.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(kwargs["runtime_role"])))
+        assert connection.scalar(text("SELECT name FROM staff_users")) == "Synthetic Owner"
+        assert connection.scalar(text("SELECT count(*) FROM admin_operation_requests")) == 0
+        assert (
+            connection.execute(text("UPDATE admin_operation_requests SET status=status")).rowcount
+            == 0
+        )
+        connection.rollback()
+    for statement in (
+        "DELETE FROM session_events",
+        "UPDATE api_receipts SET id=id",
+        "TRUNCATE staff_users",
+        "CREATE TABLE unauthorized (id integer)",
+        "CREATE TEMP TABLE unauthorized (id integer)",
+    ):
+        with engine.connect() as connection:
+            with connection.connection.driver_connection.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL("SET LOCAL ROLE {}").format(sql.Identifier(kwargs["runtime_role"]))
+                )
+            with pytest.raises(ProgrammingError, match="permission denied"):
+                connection.execute(text(statement))
+    assert owner(engine) == before
+
+
+@pytest.mark.parametrize(
+    "drift", ["excess", "unknown_table", "public_grant", "membership", "future_grant"]
+)
+def test_grant_drift_rolls_back_schema_and_missing_permissions(runtime, drift):
+    from psycopg import sql
+
+    from app.runtime_grants import RuntimeGrantsRefused
+
+    engine, kwargs = runtime
+    role = kwargs["runtime_role"]
+    with engine.begin() as connection:
+        with connection.connection.driver_connection.cursor() as cursor:
+            if drift == "excess":
+                cursor.execute(
+                    sql.SQL("GRANT TRUNCATE ON staff_users TO {}").format(sql.Identifier(role))
+                )
+            elif drift == "unknown_table":
+                cursor.execute("CREATE TABLE unexpected (id integer)")
+            elif drift == "public_grant":
+                cursor.execute("GRANT SELECT ON staff_users TO PUBLIC")
+            elif drift == "future_grant":
+                cursor.execute(
+                    sql.SQL("ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO {}").format(
+                        sql.Identifier(role)
+                    )
+                )
+            else:
+                cursor.execute(sql.SQL("GRANT pg_read_all_data TO {}").format(sql.Identifier(role)))
+    before = owner(engine)
+    with pytest.raises(RuntimeGrantsRefused):
+        upgrade_existing(engine, **kwargs)
+    assert revision(engine) == BASE
+    assert owner(engine) == before
+    with engine.connect() as connection:
+        assert (
+            connection.scalar(text("SELECT to_regclass('public.admin_operation_requests')")) is None
+        )
+        assert not connection.scalar(
+            text("SELECT has_table_privilege(:role,'staff_users','INSERT')"), {"role": role}
+        )
+
+
+def test_target_revision_with_missing_grants_is_refused_without_repair(runtime):
+    from app.runtime_grants import RuntimeGrantsRefused
+
+    engine, kwargs = runtime
+    upgrade_existing(
+        engine, **{key: value for key, value in kwargs.items() if key != "runtime_role"}
+    )
+    with pytest.raises(RuntimeGrantsRefused, match="incomplete"):
+        upgrade_existing(engine, **kwargs)
+    with engine.connect() as connection:
+        assert not connection.scalar(
+            text("SELECT has_table_privilege(:role,'staff_users','SELECT')"),
+            {"role": kwargs["runtime_role"]},
+        )

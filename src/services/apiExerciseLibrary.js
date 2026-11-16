@@ -8,7 +8,7 @@ const fail = () => { throw new ApiError('API_RESPONSE', 'The exercise save could
 const base = '/api/exercise-library'
 const normalized = value => String(value ?? '').trim().replace(/\s+/g, ' ')
 
-export function libraryExercise(value) {
+function libraryExercise(value) {
   if (!value || Object.keys(value).length !== 9 || !uuid(value.id) || !Number.isSafeInteger(value.version) || value.version < 1 || typeof value.name !== 'string' || !value.name || typeof value.category !== 'string' || typeof value.description !== 'string' || !['active', 'inactive'].includes(value.status) || !stamp(value.createdAt) || !stamp(value.updatedAt)) fail()
   const media = value.media
   if (media !== null && (!media || Object.keys(media).length !== 4 || !uuid(media.id) || typeof media.name !== 'string' || typeof media.type !== 'string' || !Number.isSafeInteger(media.size) || media.size < 1 || media.size > 50 * 1024 * 1024)) fail()

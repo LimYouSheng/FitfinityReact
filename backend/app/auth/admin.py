@@ -196,7 +196,7 @@ def main():
         else:
             admin = boto3.client(
                 "cognito-idp",
-                region_name="ap-southeast-1",
+                region_name=settings.aws_region,
                 config=Config(connect_timeout=2, read_timeout=3, retries={"total_max_attempts": 1}),
             )
             count = check_configuration(settings, admin)

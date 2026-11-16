@@ -1,4 +1,4 @@
-"""Register the complete canonical M5.2 metadata for migrations and repositories."""
+"""Register model metadata for migrations and repositories."""
 
 from sqlalchemy import CheckConstraint
 

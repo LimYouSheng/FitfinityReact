@@ -12,7 +12,7 @@ const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 const interval = s => s && typeof s.from === 'string' && typeof s.to === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s.from) && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s.to) && s.from < s.to
 const slots = draft => draft.fixedWeeklySchedule?.map(({ day, from, to }) => ({ day, from, to }))
 
-export function validRenewalReview(v) {
+function validRenewalReview(v) {
   const p = v?.package
   return keys(v, ['id', 'version', 'name', 'trainerId', 'genderPreference', 'expected', 'minimumStartDate', 'package', 'fixedWeeklySchedule', 'clientPreferences'])
     && uuid(v.id) && version(v.version) && typeof v.name === 'string' && v.name.trim() && uuid(v.trainerId) && digest(v.expected) && date(v.minimumStartDate)

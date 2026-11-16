@@ -1,20 +1,49 @@
-name: Observe current developer AWS release
+name: Observe current AWS release
 on:
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target name in repository configuration
+        type: string
+        required: true
+        default: developer
+env:
+  FITFINITY_DEPLOYMENT_TARGETS_JSON: ${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}
 permissions:
   contents: read
-concurrency:
-  group: fitfinity-aws-test
-  cancel-in-progress: false
 jobs:
   offline:
     uses: ./.github/workflows/infrastructure.yml
+  target:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      profile: ${{ steps.target.outputs.profile }}
+      environment: ${{ steps.target.outputs.environment }}
+      account: ${{ steps.target.outputs.account }}
+      region: ${{ steps.target.outputs.region }}
+      hosting_role: ${{ steps.target.outputs.hosting_role }}
+      observation_policy: ${{ steps.target.outputs.observation_policy }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: target
+        env:
+          DEPLOYMENT_TARGET: ${{ inputs.target }}
+        run: python3 backend/infrastructure/deployment_profile.py
   observe:
-    needs: offline
-    if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'
+    needs: [offline, target]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: aws-test
+    environment: ${{ needs.target.outputs.environment }}
+    concurrency:
+      group: fitfinity-${{ needs.target.outputs.environment }}
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
@@ -25,25 +54,23 @@ jobs:
       - name: Require the existing exact hosting role
         env:
           HOSTING_ROLE: ${{ vars.AWS_HOSTING_ROLE_ARN }}
-        run: test "$HOSTING_ROLE" = 'arn:aws:iam::418638389566:role/fitfinity-test-github-hosting'
+          EXPECTED_ROLE: ${{ needs.target.outputs.hosting_role }}
+        run: test "$HOSTING_ROLE" = "$EXPECTED_ROLE"
       - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
         with:
           role-to-assume: ${{ vars.AWS_HOSTING_ROLE_ARN }}
           role-session-name: fitfinity-observe-${{ github.run_id }}-${{ github.run_attempt }}
-          aws-region: ap-southeast-1
-          allowed-account-ids: '418638389566'
+          aws-region: ${{ needs.target.outputs.region }}
+          allowed-account-ids: ${{ needs.target.outputs.account }}
           unset-current-credentials: true
-          inline-session-policy: >-
-            {"Version":"2012-10-17","Statement":[
-            {"Effect":"Allow","Action":"sts:GetCallerIdentity","Resource":"*"},
-            {"Effect":"Allow","Action":["cloudformation:DescribeStacks","cloudformation:GetTemplate"],"Resource":"arn:aws:cloudformation:ap-southeast-1:418638389566:stack/fitfinity-test-login/*"},
-            {"Effect":"Allow","Action":["lambda:GetFunction","lambda:GetAlias"],"Resource":["arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api","arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api:*"]},
-            {"Effect":"Allow","Action":"rds:DescribeDBInstances","Resource":"arn:aws:rds:ap-southeast-1:418638389566:db:fitfinity-test-db"}]}
+          inline-session-policy: ${{ needs.target.outputs.observation_policy }}
       - name: Collect selected metadata without writes or secret retrieval
+        env:
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 backend/infrastructure/release_observation.py --output "$RUNNER_TEMP/release-observation.json" 2>&1 | tee "$RUNNER_TEMP/release-observation.log"
+          python3 backend/infrastructure/release_observation.py --profile "$DEPLOYMENT_PROFILE" --output "$RUNNER_TEMP/release-observation.json" 2>&1 | tee "$RUNNER_TEMP/release-observation.log"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
