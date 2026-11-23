@@ -65,7 +65,7 @@ def client_scope(principal: Principal):
 
 
 def coaching_scope(principal: Principal):
-    """Permanent profile assignment or a started concurrent purchase, never session cover."""
+    """Check permanent profile assignment or a started concurrent purchase."""
     if principal.manages_operations:
         return true()
     today = text("(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Singapore')::date")
@@ -204,7 +204,7 @@ def session_record(
 
 
 def client_write(session: Session, principal: Principal, identity: UUID, *, coaching=False):
-    """Owner/Admin manage general data; the current trainer may write coaching data only."""
+    """Authorize general-data or assigned-Trainer coaching updates."""
     if not coaching:
         principal.operations()
     record = client_record(session, principal, identity, write=True)

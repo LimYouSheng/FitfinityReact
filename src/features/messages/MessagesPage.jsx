@@ -35,7 +35,6 @@ export default function MessagesPage({ category, onCategoryChange, ...props }) {
   </>
 }
 
-// One list, dialog, read/unread flow and history owner for both entry points.
 export function MessageInbox({
   embedded = false,
   category = 'all',

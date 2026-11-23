@@ -8,18 +8,14 @@ export function activeTrainers(trainers) {
   return trainers.filter(isActive)
 }
 
-export function activeClients(clients) {
-  return clients.filter(isActive)
-}
+const compareStatus = (a, b) => Number(!isActive(a)) - Number(!isActive(b))
+const compareNames = (a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''))
+const compareClientOrder = (a, b) => compareStatus(a, b)
+  || (a.startDate && b.startDate ? b.startDate.localeCompare(a.startDate) : 0)
+  || compareNames(a, b)
 
 export function sortActiveFirst(records) {
-  return [...records].sort((a, b) => {
-    const aInactive = isActive(a) ? 0 : 1
-    const bInactive = isActive(b) ? 0 : 1
-
-    if (aInactive !== bInactive) return aInactive - bInactive
-    return String(a.name ?? '').localeCompare(String(b.name ?? ''))
-  })
+  return [...records].sort((a, b) => compareStatus(a, b) || compareNames(a, b))
 }
 
 export function trainerSelectableForAvailability(trainer) {
@@ -27,21 +23,10 @@ export function trainerSelectableForAvailability(trainer) {
 }
 
 export function visibleClientsForUser(user, clients, sessions = []) {
-  const chronological = records => [...records].sort((a, b) => {
-    const aInactive = isActive(a) ? 0 : 1
-    const bInactive = isActive(b) ? 0 : 1
-    if (aInactive !== bInactive) return aInactive - bInactive
-    if (a.startDate && b.startDate && a.startDate !== b.startDate) return b.startDate.localeCompare(a.startDate)
-    return String(a.name ?? '').localeCompare(String(b.name ?? ''))
-  })
-
-  if (managesOperations(user)) return chronological(clients)
-
-  return chronological(
-    clients.filter(client =>
-      clientAssignedToTrainer(client, user.trainerId, sessions)
-    )
+  const scoped = managesOperations(user) ? clients : clients.filter(client =>
+    clientAssignedToTrainer(client, user.trainerId, sessions)
   )
+  return [...scoped].sort(compareClientOrder)
 }
 
 export function visibleTrainersForOwner(trainers) {

@@ -1,4 +1,4 @@
-"""Explicit AWS configuration; retrieve once per startup, never on each request.
+"""Load and validate AWS-managed configuration.
 
 Only complete same-account Singapore ARNs are accepted. IAM still owns authorization.
 Secret changes require a reviewed restart/redeployment; this is not a rotation worker.
@@ -23,7 +23,7 @@ DatabasePurpose = Literal["runtime", "migration"]
 
 
 class ConfigurationError(RuntimeError):
-    """Safe startup error: never include provider exceptions or secret input."""
+    """Configuration error without provider exceptions or secret values."""
 
 
 class _References(BaseSettings):

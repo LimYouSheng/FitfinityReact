@@ -1,4 +1,4 @@
-/** Cryptographic UUID v4 for request/record IDs, including HTTP device previews. */
+/** Return a cryptographically generated UUID v4. */
 export function createUuid() {
   if (typeof globalThis.crypto?.getRandomValues !== 'function') {
     throw new Error('This browser cannot create a secure request ID. Reload or try a supported browser.')

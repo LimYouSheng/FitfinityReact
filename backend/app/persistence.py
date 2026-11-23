@@ -1,7 +1,7 @@
-"""Internal persistence primitives. Call inside Database.transaction(), after authorization.
+"""Persist domain records within an authorized Database.transaction().
 
-These functions never commit, expose HTTP endpoints or trust a browser actor/clock. M5.3/M5.4
-will supply the authenticated principal; M6 services own scheduling and workflow orchestration.
+Application services supply authenticated principals and own transaction commits.
+These primitives do not expose HTTP endpoints or trust browser-supplied identity or time.
 """
 
 import hashlib
@@ -60,8 +60,7 @@ def add_client(session: Session, client: Client, people: Sequence[ClientPerson])
     require_transaction(session)
     if len(people) != (2 if client.kind == "couple" else 1):
         raise ValueError("Review every person's details")
-    # Existing profiles may clear optional contact fields, but onboarding still
-    # requires the complete identity/contact record required by the prototype.
+    # Profile edits may clear optional fields; onboarding still requires them.
     if any(
         not p.name
         or not p.name.strip()
@@ -91,7 +90,7 @@ def require_valid_session_schedule(
     starts_at: time,
     ends_at: time,
 ) -> None:
-    """Persistence accepts real calendar dates and minute-precision local intervals only."""
+    """Validate calendar dates and minute-precision local intervals."""
     if (
         type(training_date) is not date
         or type(starts_at) is not time
@@ -106,7 +105,7 @@ def require_valid_session_schedule(
 
 
 def occupied_booking_clause():
-    """Completion retains its interval; inactive open purchases release theirs.
+    """Retain completed intervals and release inactive open-purchase intervals.
 
     Callers join TrainingSession, PackagePurchase and Client. Preview and commit must
     use the same occupancy rule, including completed sessions of inactive clients.
@@ -329,7 +328,7 @@ def report_action(
     purchase_id: UUID,
     kind: str,
 ) -> ReportAudit:
-    """Audit retries share one identity; a different payload cannot reuse that identity."""
+    """Reuse an audit identity only for an identical retry payload."""
     require_transaction(session)
     if kind not in ("pdf_export", "pdf_share_opened", "whatsapp_opened"):
         raise ValueError("New CSV audit entries are not supported")
@@ -363,7 +362,7 @@ def report_action(
 
 
 def used_credits(session: Session, purchase_id: UUID) -> int:
-    """Usage is derived from the unique ledger, never maintained as a second mutable counter."""
+    """Derive usage from the unique credit ledger."""
     return session.scalar(
         select(func.count()).select_from(CreditDebit).where(CreditDebit.purchase_id == purchase_id)
     )

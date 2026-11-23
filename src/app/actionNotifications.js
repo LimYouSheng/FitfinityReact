@@ -1,4 +1,3 @@
-// Every persisted UI action uses the shared top banner; services remain UI-independent.
 export function scheduleNotification(subject, result) {
   return result.outcome === 'requested'
     ? { tone: 'info', message: `${subject} request sent for owner approval.` }

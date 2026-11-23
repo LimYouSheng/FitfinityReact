@@ -1,11 +1,10 @@
-// Device operations are injected separately from authenticated data operations.
-// Keep share/open synchronous up to the browser call to retain user activation.
+// Invoke share/open synchronously to retain browser user activation.
 export function reportFilename(name, suffix) {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
   return `${slug || 'client'}-${suffix}.pdf`
 }
 
-export function downloadReport(file) {
+function downloadReport(file) {
   const url = URL.createObjectURL(file)
   const link = document.createElement('a')
   try {
@@ -41,7 +40,7 @@ export function reportShareError(error) {
   return messages[error.name] ?? error.message ?? 'The PDF could not be shared. Use Download PDF.'
 }
 
-export function canShareReport(file) {
+function canShareReport(file) {
   try { return Boolean(file && navigator.share && navigator.canShare?.({ files: [file] })) }
   catch { return false }
 }

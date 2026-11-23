@@ -39,7 +39,7 @@ export function trainerReassignmentAvailabilityError(client, trainer, sessions, 
   return ''
 }
 
-export function validateTrainerReassignment(db, client, draft) {
+function validateTrainerReassignment(db, client, draft) {
   requireActiveClient(client)
   const expected = trainerReassignmentSnapshot(client, db.sessions, db.packageCreditTransactions ?? [], businessClock(new Date(), db.settings.timeZone), draft.purchaseId)
   if (JSON.stringify(expected) !== JSON.stringify(draft.expected)) throw new Error('The client assignment, packages or upcoming sessions changed. Reopen Reassign Trainer to review them.')

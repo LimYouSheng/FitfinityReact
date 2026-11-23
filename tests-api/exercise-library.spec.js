@@ -213,9 +213,9 @@ test('library image and video sinks keep active file contents inert before and a
     if (type.startsWith('video/')) {
       const unavailable = page.getByText('This browser cannot preview this video format.', { exact: true })
       await expect(preview.or(unavailable)).toBeVisible()
-      // WebKit honors preload=none. Start the decoder explicitly in this
-      // content probe before requiring its real error event and error UI.
-      await preview.evaluateAll(elements => elements.forEach(video => video.load()))
+      // WebKit honors preload=none. Request metadata explicitly; either a
+      // decode error or unusable metadata must produce the same error UI.
+      await preview.evaluateAll(elements => elements.forEach(video => { video.preload = 'metadata'; video.load() }))
       await expect(unavailable).toBeVisible()
     } else {
       await settleMedia(preview)

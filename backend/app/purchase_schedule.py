@@ -92,7 +92,7 @@ def overlaps(booking, occupied):
 
 
 def matching_schedule(start, total, validity_days, frequency, preferences, availability, occupied):
-    """Use prototype weekday/preference order and try alternative free intervals.
+    """Match preferred weekdays and available time intervals.
 
     Date allocation depends only on selected weekdays. Time alternatives can therefore
     be checked independently instead of searching their Cartesian product.

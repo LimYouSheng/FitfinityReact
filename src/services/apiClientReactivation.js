@@ -7,7 +7,7 @@ const keys = (value, allowed) => value && Object.keys(value).every(key => allowe
 const date = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value
 const time = value => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value)
 const optionalError = value => value === null || typeof value === 'string' && value.trim().length > 0
-export function validReactivationReview(value, packageMode = false) {
+function validReactivationReview(value, packageMode = false) {
   return keys(value, ['id', 'version', 'name', 'expected', 'purchaseIds', 'rows', 'packageError', ...(packageMode ? ['packageId'] : [])]) && uuid(value.id) && version(value.version)
     && typeof value.name === 'string' && value.name.trim() && typeof value.expected === 'string' && /^[0-9a-f]{64}$/.test(value.expected) && optionalError(value.packageError)
     && Array.isArray(value.purchaseIds) && value.purchaseIds.length <= 2000 && value.purchaseIds.every(uuid) && new Set(value.purchaseIds).size === value.purchaseIds.length

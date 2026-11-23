@@ -10,7 +10,7 @@ const time = v => typeof v === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v)
 const rows = v => Array.isArray(v) && v.length <= 2000 && new Set(v.map(s => s?.id)).size === v.length
 const fail = () => { throw new ApiError('API_RESPONSE', 'The weekly schedule could not be verified. Check the original request again.') }
 export const weeklySlots = reviewed => reviewed.slots.map(s => ({ id: s.id, day: DAYS[s.weekday], from: s.startsAt, to: s.endsAt }))
-export function validWeeklyReview(v) {
+function validWeeklyReview(v) {
   return keys(v, ['id', 'version', 'name', 'purchaseId', 'purchaseVersion', 'trainerId', 'trainerVersion', 'outcome', 'expected', 'slots', 'sessions'])
     && uuid(v.id) && version(v.version) && typeof v.name === 'string' && uuid(v.purchaseId) && version(v.purchaseVersion) && uuid(v.trainerId) && version(v.trainerVersion)
     && ['applied', 'requested'].includes(v.outcome) && /^[0-9a-f]{64}$/.test(v.expected)
