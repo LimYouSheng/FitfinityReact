@@ -8744,3 +8744,12 @@ Boundary review caught an overly early cancellation in the first candidate: reje
 Documentation review updates Progress, Development and technical ownership. BR-050, HTTP contracts, schema, dependencies, security boundaries, runbook and UAT requirements remain unchanged. No AWS/provider operation occurred. Complete final-head CI and physical acceptance remain separate.
 
 Consolidated verification passed1524/1524 units in155 files (84.30s),145 quality guards,551-file semantic lint/source-health, frontend build and dependency consistency. The strict unit receipt verifier accepted the actual full log; its negative fixture rejects the old1519 inventory. Final-head CI remains pending.
+
+
+### 23 November 2026 — PR130 failed-run reconciliation
+
+PR128 merged as `4f1b37b` after its exact-head application gates and CodeQL result passed. PR130 run42544457379 failed on9 November: quality rejected stale docs/versions.md; the historical Trainer playback test asserted before its asynchronous read; the tablet library payload probe did not display invalid-video feedback. The latter two are repaired by PR128 (cf2077e and8e92866). Retrieved original job logs through the GitHub connector after direct log redirects were forbidden; no unchanged rerun was used.
+
+PR130 now incorporates main and refreshes the generated inventory for CodeQL Action4.39.3. [Official release notes](https://github.com/github/codeql-action/releases/tag/v4.39.3) fix diff-informed filtering for paths containing spaces, special or non-ASCII characters. Both old and new init actions use Node24; the configured ubuntu-latest analysis runner, languages, permissions and customer browser policy are unchanged. Exact new-head hosted verification remains pending. Deployment work is preserved separately; no AWS action occurred.
+
+Local validation: dependency consistency and inventory passed;37 focused session-route/library tests passed;145 quality guards passed with subprocess/loopback permission. The initial sandboxed quality invocation exited before reporting cases (retained logs /tmp/pr130-quality.log and /tmp/pr130-quality-tap.log); permitted execution returned exit0 (/tmp/pr130-quality-permitted.log). No assertions, retries or timeouts changed.
