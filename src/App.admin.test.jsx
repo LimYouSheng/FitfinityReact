@@ -43,7 +43,7 @@ it('opens Admin creation from System and returns to its directory through Back',
     expect(location.hash).toBe('#/admins')
     expect(dialog).not.toBeInTheDocument()
   })
-  expect(screen.getByRole('heading', { name: 'Admin', exact: true })).toBeVisible()
+  expect(await screen.findByRole('heading', { name: 'Admin', exact: true })).toBeVisible()
 })
 it('guards a dirty Admin form through native Back and Cancel without losing its draft or history entry', async () => {
   show()

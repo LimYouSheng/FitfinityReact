@@ -301,6 +301,7 @@ def main(argv=None):
     parser.add_argument("stage", nargs="?")
     parser.add_argument("--actions", action="store_true")
     parser.add_argument("--receipt")
+    parser.add_argument("--profile")
     parser.add_argument("--digest")
     parser.add_argument("--build-run", type=int)
     parser.add_argument("--build-attempt", type=int)
@@ -337,9 +338,11 @@ def main(argv=None):
         )
     elif args.command == "image-candidate":
         require(args.actions and args.receipt, "Image candidates require Actions and a new receipt")
+        from deployment_profile import load
         from release_image import create_candidate
 
-        create_candidate(args.receipt)
+        require(args.profile, "Image publication requires an explicit deployment profile")
+        create_candidate(args.receipt, profile=load(args.profile))
     elif args.command == "verify":
         aws = ReadOnlyAWS(args.actions)
         report = {

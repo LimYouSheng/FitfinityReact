@@ -1,0 +1,125 @@
+name: Manual paused runtime and frontend rollout
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target name in repository configuration
+        type: string
+        default: developer
+        required: true
+      mode:
+        type: choice
+        options: [upload, upload-inspect, create, inspect, execute, verify, resume-create, resume-inspect, resume-execute, resume-verify, resume-health, resume-finalize, resume-finalize-inspect]
+        required: true
+      review_json:
+        description: Reviewed metadata; resumption adds operation_id/expires_at/concurrency/verified_run in a resumption object
+        type: string
+        required: true
+      review_sha256:
+        description: Exact digest of the reviewed metadata
+        type: string
+        required: true
+      producer_runs_json:
+        description: Successful frontend/image/catalog and optional upgrade run IDs; unused for read-only recovery
+        type: string
+        default: '{}'
+        required: true
+      verification_run:
+        description: Successful complete main verification run for the exact current commit
+        type: string
+        required: true
+      prior_run:
+        description: Original rollout run; required for execution and read-only recovery
+        type: string
+        required: false
+
+env:
+  FITFINITY_DEPLOYMENT_TARGETS_JSON: ${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}
+permissions:
+  contents: read
+jobs:
+  target:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      profile: ${{ steps.target.outputs.profile }}
+      profile_sha256: ${{ steps.target.outputs.profile_sha256 }}
+      environment: ${{ steps.target.outputs.environment }}
+      account: ${{ steps.target.outputs.account }}
+      region: ${{ steps.target.outputs.region }}
+      role: ${{ steps.target.outputs.hosting_role }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: target
+        env:
+          DEPLOYMENT_TARGET: ${{ inputs.target }}
+        run: python3 backend/infrastructure/deployment_profile.py
+  rollout:
+    needs: [target]
+    if: github.ref == 'refs/heads/main' && vars.AWS_ROLLOUT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ${{ needs.target.outputs.environment }}
+    concurrency:
+      group: fitfinity-${{ needs.target.outputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify exact-source complete CI before AWS authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
+          VERIFICATION_RUN: ${{ inputs.verification_run }}
+        run: python3 backend/infrastructure/release_verification.py --profile "$DEPLOYMENT_PROFILE"
+      - name: Fetch exact reviewed evidence before AWS authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
+          ROLLOUT_MODE: ${{ inputs.mode }}
+          ROLLOUT_REVIEW: ${{ inputs.review_json }}
+          ROLLOUT_REVIEW_SHA256: ${{ inputs.review_sha256 }}
+          ROLLOUT_RUNS: ${{ inputs.producer_runs_json }}
+          ROLLOUT_PRIOR_RUN: ${{ inputs.prior_run }}
+        run: python3 backend/infrastructure/rollout_operator.py fetch --profile "$DEPLOYMENT_PROFILE"
+      - name: Require dedicated rollout role
+        env:
+          ROLLOUT_ROLE: ${{ vars.AWS_HOSTING_ROLE_ARN }}
+          EXPECTED_ROLE: ${{ needs.target.outputs.role }}
+        run: test "$ROLLOUT_ROLE" = "$EXPECTED_ROLE"
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_HOSTING_ROLE_ARN }}
+          role-session-name: fitfinity-rollout-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ${{ needs.target.outputs.region }}
+          allowed-account-ids: ${{ needs.target.outputs.account }}
+          unset-current-credentials: true
+      - name: Execute one reviewed rollout step
+        env:
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
+          ROLLOUT_MODE: ${{ inputs.mode }}
+          ROLLOUT_REVIEW: ${{ inputs.review_json }}
+          ROLLOUT_REVIEW_SHA256: ${{ inputs.review_sha256 }}
+        run: python3 backend/infrastructure/rollout_operator.py execute --profile "$DEPLOYMENT_PROFILE"
+      - name: Retain operational receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-rollout-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/rollout-receipt.json
+            ${{ runner.temp }}/rollout-verification.json
+          if-no-files-found: warn
+          retention-days: 7

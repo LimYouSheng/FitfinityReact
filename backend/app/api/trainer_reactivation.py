@@ -128,7 +128,7 @@ def save(session, principal, trainer_id, key, body):
     trainer.status, trainer.version = "active", trainer.version + 1
     if user:
         user.status, user.version = "active", user.version + 1
-    # Existing authentication triggers advance the epoch and revoke sessions; never reopen them.
+    # Authentication triggers revoke sessions; reactivation must not reopen them.
     session.add(
         LifecycleEvent(
             trainer_id=trainer.id,

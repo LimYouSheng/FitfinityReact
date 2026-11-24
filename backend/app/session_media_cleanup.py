@@ -89,7 +89,7 @@ def claim(database, bucket):
 
 
 def finish(database, identity, version, succeeded):
-    """Only the current lease can finalize; failed IO retains durable retry evidence."""
+    """Finalize the current lease and retain retry evidence after failed I/O."""
     with database.transaction() as session:
         session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": DECISION_LOCK})
         work = session.get(MediaDeletion, identity, with_for_update=True)
@@ -120,7 +120,7 @@ def run_once(database, store, bucket):
 
 
 def main():
-    """Bounded manual worker only; this command neither provisions storage nor schedules itself."""
+    """Run the bounded cleanup command without provisioning storage or scheduling."""
     from app.config import load_settings
     from app.database import Database
     from app.media_storage import configured_storage

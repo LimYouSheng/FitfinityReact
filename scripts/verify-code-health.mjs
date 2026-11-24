@@ -23,7 +23,6 @@ export function assertPortableSourcePaths(files) {
   }
 }
 
-// Revision hashes and backups belong to the installer. This checker follows source ownership.
 export async function verifyCodeHealth(repo = process.cwd()) {
   repo = fs.realpathSync(repo)
   const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: repo, encoding: 'utf8' }).split('\0').filter(Boolean).sort()

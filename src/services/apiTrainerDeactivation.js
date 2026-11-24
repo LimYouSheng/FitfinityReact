@@ -8,7 +8,7 @@ const keys = (v, allowed) => v && Object.keys(v).every(k => allowed.includes(k))
 const rows = v => Array.isArray(v) && v.length <= 2000 && new Set(v.map(r => r?.id)).size === v.length
 const time = v => typeof v === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v)
 const fail = () => { throw new ApiError('API_RESPONSE', 'The Trainer deactivation could not be verified. Check the original request again.') }
-export function validTrainerDeactivation(v) {
+function validTrainerDeactivation(v) {
   return keys(v, ['id', 'version', 'name', 'accountId', 'accountVersion', 'expected', 'sessions']) && uuid(v.id) && version(v.version)
     && typeof v.name === 'string' && v.name.trim() && /^[0-9a-f]{64}$/.test(v.expected)
     && (v.accountId === null ? v.accountVersion === null : uuid(v.accountId) && version(v.accountVersion))

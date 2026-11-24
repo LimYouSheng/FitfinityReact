@@ -64,7 +64,7 @@ export function matchTrainers(trainers, blocks, genderPreference = 'No gender pr
     .sort((a, b) => b.matches - a.matches || a.trainer.name.localeCompare(b.trainer.name))
 }
 
-export function matchingScheduleOptions(trainer, blocks) {
+function matchingScheduleOptions(trainer, blocks) {
   const options = []
   const seen = new Set()
 

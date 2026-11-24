@@ -1,4 +1,4 @@
-FROM python:3.12.14-slim-trixie AS application
+FROM python:3.12.16-slim-trixie AS application
 
 # Refresh Debian security fixes before installing the locked Python dependencies.
 # Fail the build if the critical Perl/OpenSSL fixes reviewed on 2026-09-22
@@ -41,6 +41,7 @@ RUN python -m pip install --no-cache-dir --require-hashes -r requirements-test.l
 COPY pyproject.toml /app/pyproject.toml
 # Infrastructure verification reads the same Compose definition used by its caller.
 COPY compose.yaml /app/compose.yaml
+COPY Dockerfile /app/Dockerfile
 COPY tests /app/tests
 COPY scripts /app/scripts
 COPY contracts /app/contracts

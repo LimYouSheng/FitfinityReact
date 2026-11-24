@@ -1,4 +1,4 @@
-"""Strict answers against the immutable database registry, independent of paper coordinates."""
+"""Validate assessment answers against the immutable database registry."""
 
 import json
 import math

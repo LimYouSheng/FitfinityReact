@@ -37,6 +37,7 @@ services:
     environment:
       FITFINITY_ENVIRONMENT: local
       FITFINITY_DATABASE_URL: postgresql+psycopg://fitfinity:fitfinity-local-only@db:5432/fitfinity_local
+      FITFINITY_AWS_REGION: ${FITFINITY_AWS_REGION:-ap-southeast-1}
       FITFINITY_AUTH_ENABLED: ${FITFINITY_AUTH_ENABLED:-false}
       FITFINITY_COGNITO_POOL_ID: ${FITFINITY_COGNITO_POOL_ID:-}
       FITFINITY_COGNITO_CLIENT_ID: ${FITFINITY_COGNITO_CLIENT_ID:-}

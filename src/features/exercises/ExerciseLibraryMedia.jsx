@@ -4,7 +4,6 @@ export default function ExerciseLibraryMedia({ media, file, onLoad }) {
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')
   const mediaId = media?.id
-  // Reload on resource changes, with the latest transport callback.
   const loadMedia = useEffectEvent(id => onLoad(id))
   useEffect(() => {
     let cancelled = false, createdUrl = ''
@@ -26,7 +25,13 @@ export default function ExerciseLibraryMedia({ media, file, onLoad }) {
   if (error) return <p className="validation-copy" role="alert">{error}</p>
   if (!url) return <p className="muted">Loading attachment…</p>
   const type = file?.type || media.type
+  const unavailable = () => setError('This browser cannot preview this video format.')
+  const checkVideoMetadata = event => {
+    const video = event.currentTarget
+    // SVG may decode as a zero-duration track; valid WebM may initially report Infinity.
+    if (!(video.duration > 0) || video.videoWidth <= 0 || video.videoHeight <= 0) unavailable()
+  }
   return <div className="library-media-preview">
-    {type.startsWith('image/') ? <img src={url} alt="Exercise reference" /> : <video src={url} controls playsInline preload="none" onError={() => setError('This browser cannot preview this video format.')} />}
+    {type.startsWith('image/') ? <img src={url} alt="Exercise reference" /> : <video src={url} controls playsInline preload="none" onLoadedMetadata={checkVideoMetadata} onError={unavailable} />}
   </div>
 }

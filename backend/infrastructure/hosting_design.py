@@ -44,8 +44,8 @@ def visibility(name):
     return {"CloudWatchMetricsEnabled": True, "SampledRequestsEnabled": False, "MetricName": name}
 
 
-def waf(scope):
-    name = "fitfinity-test-login-" + scope.lower()
+def waf(scope, prefix="fitfinity-test-login"):
+    name = prefix + "-" + scope.lower()
     return resource(
         "WAFv2::WebACL",
         {
@@ -148,7 +148,30 @@ def runtime_policy():
     }
 
 
-def app_template(frontend_prefix, edge_arn):
+def app_template(frontend_prefix, edge_arn, *, deployment=None):
+    """Render shared hosting resources from validated deployment bindings."""
+    legacy = deployment is None
+    deployment = deployment or {
+        "account": ACCOUNT,
+        "region": REGION,
+        "prefix": "fitfinity-test",
+        "function": FUNCTION,
+        "image": IMAGE,
+        "alias": "first-test",
+        "stage": "test",
+        "environment": "staging",
+        "environment_tag": "test",
+        "policy": runtime_policy(),
+        "auth_secret": pf.deploy.CONFIG["auth_secret"],
+        "db_host": "fitfinity-test-db.c1ak66620gza.ap-southeast-1.rds.amazonaws.com",
+        "pool": "ap-southeast-1_La0Y3MXCj",
+        "client": "2jj6r722g5591u5kf2b812pkgm",
+        "security_groups": ["sg-09bcb69b70968f702"],
+        "subnets": [],
+    }
+    account, region, prefix = (deployment[k] for k in ("account", "region", "prefix"))
+    function = deployment["function"]
+    stage = deployment["stage"]
     pf.require(
         re.fullmatch(r"releases/[a-f0-9]{40}/[a-f0-9]{64}", frontend_prefix),
         "Invalid frontend release prefix",
@@ -156,14 +179,14 @@ def app_template(frontend_prefix, edge_arn):
     pf.require(
         re.fullmatch(
             (
-                "arn:aws:wafv2:us-east-1:418638389566:global/webacl/fitfinity"
-                "-test-login-cloudfront/[a-f0-9-]{36}"
+                rf"arn:aws:wafv2:us-east-1:{account}:global/webacl/"
+                rf"{re.escape(prefix)}-login-cloudfront/[a-f0-9-]{{36}}"
             ),
             edge_arn,
         ),
         "Invalid edge ACL identity",
     )
-    api_domain = sub("${Api}.execute-api.ap-southeast-1.amazonaws.com")
+    api_domain = sub(f"${{Api}}.execute-api.{region}.amazonaws.com")
     headers = {
         "ContentTypeOptions": {"Override": True},
         "FrameOptions": {"FrameOption": "DENY", "Override": True},
@@ -191,17 +214,17 @@ def app_template(frontend_prefix, edge_arn):
     }
     env = {
         "FITFINITY_CONFIG_SOURCE": "aws-secrets-manager",
-        "FITFINITY_ENVIRONMENT": "staging",
-        "FITFINITY_AWS_ACCOUNT_ID": ACCOUNT,
-        "FITFINITY_DATABASE_SECRET_ARN": runtime_policy()["Statement"][0]["Resource"][0],
-        "FITFINITY_AUTH_SECRET_ARN": pf.deploy.CONFIG["auth_secret"],
-        "FITFINITY_DB_HOST": "fitfinity-test-db.c1ak66620gza.ap-southeast-1.rds.amazonaws.com",
+        "FITFINITY_ENVIRONMENT": deployment["environment"],
+        "FITFINITY_AWS_ACCOUNT_ID": account,
+        "FITFINITY_DATABASE_SECRET_ARN": deployment["policy"]["Statement"][0]["Resource"][0],
+        "FITFINITY_AUTH_SECRET_ARN": deployment["auth_secret"],
+        "FITFINITY_DB_HOST": deployment["db_host"],
         "FITFINITY_DB_NAME": "fitfinity",
         "FITFINITY_AUTH_ENABLED": "true",
-        "FITFINITY_COGNITO_POOL_ID": "ap-southeast-1_La0Y3MXCj",
-        "FITFINITY_COGNITO_CLIENT_ID": "2jj6r722g5591u5kf2b812pkgm",
+        "FITFINITY_COGNITO_POOL_ID": deployment["pool"],
+        "FITFINITY_COGNITO_CLIENT_ID": deployment["client"],
         "FITFINITY_ALLOWED_HOSTS": sub(
-            '["127.0.0.1","${Api}.execute-api.ap-southeast-1.amazonaws.com"]'
+            f'["127.0.0.1","${{Api}}.execute-api.{region}.amazonaws.com"]'
         ),
         "FITFINITY_AUTH_ORIGINS": sub('["https://${Distribution.DomainName}"]'),
         "FITFINITY_AUTH_COOKIE_SECURE": "true",
@@ -237,7 +260,7 @@ def app_template(frontend_prefix, edge_arn):
             "CloudFront::OriginAccessControl",
             {
                 "OriginAccessControlConfig": {
-                    "Name": "fitfinity-test-login-s3",
+                    "Name": prefix + "-login-s3",
                     "OriginAccessControlOriginType": "s3",
                     "SigningBehavior": "always",
                     "SigningProtocol": "sigv4",
@@ -248,7 +271,7 @@ def app_template(frontend_prefix, edge_arn):
             "CloudFront::CachePolicy",
             {
                 "CachePolicyConfig": {
-                    "Name": "fitfinity-test-login-static",
+                    "Name": prefix + "-login-static",
                     "MinTTL": 0,
                     "DefaultTTL": 0,
                     "MaxTTL": 31536000,
@@ -266,7 +289,7 @@ def app_template(frontend_prefix, edge_arn):
             "CloudFront::ResponseHeadersPolicy",
             {
                 "ResponseHeadersPolicyConfig": {
-                    "Name": "fitfinity-test-login-security",
+                    "Name": prefix + "-login-security",
                     "SecurityHeadersConfig": headers,
                 }
             },
@@ -274,7 +297,7 @@ def app_template(frontend_prefix, edge_arn):
         "Api": resource(
             "ApiGateway::RestApi",
             {
-                "Name": "fitfinity-test-staff-api",
+                "Name": prefix + "-staff-api",
                 "EndpointConfiguration": {"Types": ["REGIONAL"]},
                 "DisableExecuteApiEndpoint": False,
             },
@@ -302,7 +325,7 @@ def app_template(frontend_prefix, edge_arn):
                         {
                             "Id": "api",
                             "DomainName": api_domain,
-                            "OriginPath": "/test",
+                            "OriginPath": "/" + stage,
                             "CustomOriginConfig": {
                                 "HTTPSPort": 443,
                                 "OriginProtocolPolicy": "https-only",
@@ -336,7 +359,7 @@ def app_template(frontend_prefix, edge_arn):
                             "Condition": {
                                 "StringEquals": {
                                     "AWS:SourceArn": sub(
-                                        "arn:aws:cloudfront::418638389566:"
+                                        f"arn:aws:cloudfront::{account}:"
                                         "distribution/${Distribution}"
                                     )
                                 }
@@ -357,14 +380,14 @@ def app_template(frontend_prefix, edge_arn):
             },
         ),
         "ApiLogs": resource(
-            "Logs::LogGroup", {"LogGroupName": "/aws/lambda/" + FUNCTION, "RetentionInDays": 7}
+            "Logs::LogGroup", {"LogGroupName": "/aws/lambda/" + function, "RetentionInDays": 7}
         ),
         "ApiRole": resource(
             "IAM::Role",
             {
-                "RoleName": "fitfinity-test-hosting-api",
+                "RoleName": prefix + "-hosting-api",
                 "PermissionsBoundary": (
-                    "arn:aws:iam::418638389566:policy/fitfinity-test-hosting-api-boundary"
+                    f"arn:aws:iam::{account}:policy/{prefix}-hosting-api-boundary"
                 ),
                 "AssumeRolePolicyDocument": {
                     "Version": "2012-10-17",
@@ -377,24 +400,24 @@ def app_template(frontend_prefix, edge_arn):
                     ],
                 },
                 "Policies": [
-                    {"PolicyName": "FitfinityTestLogin", "PolicyDocument": runtime_policy()}
+                    {"PolicyName": "FitfinityTestLogin", "PolicyDocument": deployment["policy"]}
                 ],
             },
         ),
         "ApiFunction": resource(
             "Lambda::Function",
             {
-                "FunctionName": FUNCTION,
+                "FunctionName": function,
                 "PackageType": "Image",
-                "Code": {"ImageUri": IMAGE},
+                "Code": {"ImageUri": deployment["image"]},
                 "Architectures": ["x86_64"],
                 "MemorySize": 512,
                 "Timeout": 25,
                 "ReservedConcurrentExecutions": 2,
                 "Role": attr("ApiRole", "Arn"),
                 "VpcConfig": {
-                    "SubnetIds": [],
-                    "SecurityGroupIds": ["sg-09bcb69b70968f702"],
+                    "SubnetIds": deployment["subnets"],
+                    "SecurityGroupIds": deployment["security_groups"],
                     "Ipv6AllowedForDualStack": False,
                 },
                 "Environment": {"Variables": env},
@@ -408,7 +431,7 @@ def app_template(frontend_prefix, edge_arn):
         "ApiAlias": resource(
             "Lambda::Alias",
             {
-                "Name": "first-test",
+                "Name": deployment["alias"],
                 "FunctionName": ref("ApiFunction"),
                 "FunctionVersion": attr("ApiVersion", "Version"),
             },
@@ -433,7 +456,7 @@ def app_template(frontend_prefix, edge_arn):
                     "IntegrationHttpMethod": "POST",
                     "TimeoutInMillis": 29000,
                     "Uri": sub(
-                        "arn:aws:apigateway:ap-southeast-1:lambda:path/2015-03-31/fun"
+                        f"arn:aws:apigateway:{region}:lambda:path/2015-03-31/fun"
                         "ctions/${ApiAlias}/invocations"
                     ),
                 },
@@ -445,8 +468,8 @@ def app_template(frontend_prefix, edge_arn):
                 "Action": "lambda:InvokeFunction",
                 "FunctionName": ref("ApiAlias"),
                 "Principal": "apigateway.amazonaws.com",
-                "SourceAccount": ACCOUNT,
-                "SourceArn": sub("arn:aws:execute-api:ap-southeast-1:418638389566:${Api}/test/*/*"),
+                "SourceAccount": account,
+                "SourceArn": sub(f"arn:aws:execute-api:{region}:{account}:${{Api}}/{stage}/*/*"),
             },
         ),
         "ApiDeployment": resource(
@@ -457,7 +480,7 @@ def app_template(frontend_prefix, edge_arn):
             {
                 "RestApiId": ref("Api"),
                 "DeploymentId": ref("ApiDeployment"),
-                "StageName": "test",
+                "StageName": stage,
                 "CacheClusterEnabled": False,
                 "TracingEnabled": False,
                 "MethodSettings": [
@@ -474,13 +497,13 @@ def app_template(frontend_prefix, edge_arn):
                 ],
             },
         ),
-        "RegionalAcl": waf("REGIONAL"),
+        "RegionalAcl": waf("REGIONAL", prefix + "-login"),
         "ApiWaf": resource(
             "WAFv2::WebACLAssociation",
             {
                 "WebACLArn": attr("RegionalAcl", "Arn"),
                 "ResourceArn": sub(
-                    "arn:aws:apigateway:ap-southeast-1::/restapis/${Api}/stages/test"
+                    f"arn:aws:apigateway:{region}::/restapis/${{Api}}/stages/{stage}"
                 ),
             },
             DependsOn=["ApiStage"],
@@ -488,7 +511,7 @@ def app_template(frontend_prefix, edge_arn):
         "ApiErrors": resource(
             "CloudWatch::Alarm",
             {
-                "AlarmName": "fitfinity-test-login-api-errors",
+                "AlarmName": prefix + "-login-api-errors",
                 "AlarmDescription": (
                     "Fitfinity test API errors; no notification recipient configured."
                 ),
@@ -508,18 +531,21 @@ def app_template(frontend_prefix, edge_arn):
         {"Key": key, "Value": value}
         for key, value in {
             "Application": "Fitfinity",
-            "Environment": "test",
+            "Environment": deployment["environment_tag"],
             "Purpose": "first-login-v1",
         }.items()
     ]
-    # Resolve the accepted second subnet from the canonical database owner, not a duplicate guess.
-    from authentication_secrets import AuthenticationSecretOperator
-    from operator_context import OperatorContext
+    if legacy:
+        # Resolve accepted subnets from the database owner.
+        from authentication_secrets import AuthenticationSecretOperator
+        from operator_context import OperatorContext
 
-    resources["ApiFunction"]["Properties"]["VpcConfig"]["SubnetIds"] = [
-        AuthenticationSecretOperator(context=OperatorContext()).db.SUBNET_A,
-        AuthenticationSecretOperator(context=OperatorContext()).db.SUBNET_B,
-    ]
+        resources["ApiFunction"]["Properties"]["VpcConfig"]["SubnetIds"] = [
+            AuthenticationSecretOperator(context=OperatorContext()).db.SUBNET_A,
+            AuthenticationSecretOperator(context=OperatorContext()).db.SUBNET_B,
+        ]
+    else:
+        env["FITFINITY_AWS_REGION"] = region
     outputs = {
         "FrontendDomain": attr("Distribution", "DomainName"),
         "DistributionId": ref("Distribution"),

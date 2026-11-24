@@ -193,7 +193,6 @@ export function normalizeDemoSessionMessages(db) {
 }
 
 export function createDemoSeed(referenceDate) {
-  // Every booking uses the production weekly scheduler.
   const allClients = [...baseClients, ...additionalClients].map(source => {
     const client = structuredClone(source)
     const past = buildClientSessions({ ...client, package: { ...client.package, id: `client-package-${client.id}`, startDate: addDays(referenceDate, -180), total: 366, validityDays: 181 } })
@@ -224,7 +223,6 @@ export function createDemoSeed(referenceDate) {
     ['Walking Lunge', '8 kg', '20', '3', '60 sec'],
   ]
 
-  // Every demo booking repeats the same set; only recorded loads progress with chronology.
   const plannedExercises = (sessionId, sessionsUntilLatest = 0) => exerciseTemplates.map(([name, weight, reps, rounds, rest], step) => {
     return {
       id: `${sessionId}-exercise-${step + 1}`,
@@ -238,7 +236,6 @@ export function createDemoSeed(referenceDate) {
     }
   })
 
-  // Named examples retain stable IDs; dates/times come only from the weekly schedule.
   const featuredBySlot = {
     c1: { 3: 's0', 4: 's1', 5: 's2' },
     c2: { 8: 's3' },

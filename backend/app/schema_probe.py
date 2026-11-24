@@ -1,4 +1,4 @@
-"""Private catalog observer; separate entry point, never registered in the staff API.
+"""Provide a private catalog observer separate from the staff API.
 
 Deploy only through a reviewed private Lambda without a Function URL/API integration.
 The immutable image and SQL digest, IAM invocation and database identity are boundaries.
@@ -25,11 +25,11 @@ SQL = Path(__file__).resolve().parents[1] / "infrastructure" / "read-schema.sql"
 
 
 class ObservationRefused(RuntimeError):
-    """Safe failure text; never propagate database/provider exceptions."""
+    """Observation error without database or provider details."""
 
 
 def observe(database_url, *, expected_database, expected_user, sql_sha256):
-    """Fixed catalog query, read-only session, identity checks and closed connection."""
+    """Run the fixed catalog query in a read-only, identity-checked session."""
     try:
         script = SQL.read_bytes()
         if hashlib.sha256(script).hexdigest() != sql_sha256:
@@ -76,7 +76,7 @@ def observe(database_url, *, expected_database, expected_user, sql_sha256):
 
 
 def create_probe(observer, *, source_sha, sql_sha256):
-    """Only fixed invocation intent is accepted; request data cannot supply SQL/code."""
+    """Create a probe that accepts only the fixed catalog-observation intent."""
     if not re.fullmatch(r"[0-9a-f]{40}", source_sha) or not re.fullmatch(
         r"[0-9a-f]{64}", sql_sha256
     ):
@@ -108,7 +108,7 @@ def create_probe(observer, *, source_sha, sql_sha256):
 
 
 def create_app():
-    """Lambda factory: fail closed unless explicitly configured for managed secrets."""
+    """Create the Lambda application with required managed-secret configuration."""
     if os.environ.get("FITFINITY_CONFIG_SOURCE") != "aws-secrets-manager":
         raise ObservationRefused("Probe requires managed database credentials")
     source = os.environ.get("FITFINITY_PROBE_SOURCE_SHA", "")
@@ -121,8 +121,6 @@ def create_app():
     def collect():
         if time.time() >= expires:
             raise ObservationRefused("Probe expired")
-        # Existing loader verifies target account/region, CA digest/TLS and restricted
-        # migration username. It retrieves no Cognito or authentication secret.
         values = managed_values("migration")
         return observe(
             values["database_url"].get_secret_value(),

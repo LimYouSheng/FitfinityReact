@@ -1,6 +1,4 @@
-// The application boundary accepts one named input object per operation.
-// Nested drafts remain the responsibility of the domain validators. Actor identity
-// is never part of an input; adapters obtain it from their authenticated session.
+/** Define named operation inputs; adapters supply authenticated actor identity. */
 const contract = (fields, access, result, api = false) => Object.freeze({ fields: Object.freeze(fields), access, result, api })
 
 export const PORTAL_CONTRACTS = Object.freeze({
@@ -111,7 +109,7 @@ function envelope(request, keys) {
   if (!record(request) || Object.keys(request).some(key => !keys.includes(key))) invalid('Use a named service request without actor or context fields.')
 }
 
-export function validateInput(input, fields) {
+function validateInput(input, fields) {
   if (!record(input)) invalid('Service input must be a named object.')
   const allowed = new Set(Object.keys(fields).map(key => key.replace(/\?$/, '')))
   if (Object.keys(input).some(key => !allowed.has(key))) invalid('Service input contains an unsupported field. Identity comes from the authenticated session.')
