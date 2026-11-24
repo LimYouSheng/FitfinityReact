@@ -150,7 +150,7 @@ const mutations = [
   ['release verification failure ignored', setup => { setup.image.jobs.verify['continue-on-error'] = true }],
   ['image job without environment protection', setup => { delete setup.image.jobs.image.environment }],
   ['image role replaced with verification role', setup => { setup.image.jobs.image.steps.find(step => step.uses?.startsWith('aws-actions/')).with['role-to-assume'] = '${{ vars.AWS_VERIFY_ROLE_ARN }}' }],
-  ['image account guard removed', setup => { delete setup.image.jobs.image.steps.find(step => step.uses?.startsWith('aws-actions/')).with['allowed-account-ids'] }],
+  ['image account guard removed', setup => { setup.image.jobs.image.steps.splice(setup.image.jobs.image.steps.findIndex(step => step.name === 'Verify authenticated AWS account'), 1) }],
   ['suppressed image scan failure', setup => { setup.image.jobs.image.steps.find(step => step.run?.includes('image-candidate'))['continue-on-error'] = true }],
   ['image target repository resolver removed', setup => { setup.image.jobs.source.steps = setup.image.jobs.source.steps.filter(step => step.id !== 'target') }],
   ['image profile removed', setup => { delete setup.image.jobs.image.steps.find(step => step.run?.includes('deploy.py image-candidate')).env.DEPLOYMENT_PROFILE }],
@@ -596,5 +596,35 @@ test('rollout rejects optional evidence, foreign credentials and unsafe shell in
     const setup = readQualitySetup()
     mutation(setup)
     assert.throws(() => verifyQualitySetup(setup), /rollout/)
+  }
+})
+
+
+test('AWS account output gates execute and reject missing, wrong and suppressed evidence', () => {
+  const guarded = []
+  for (const file of fs.readdirSync('.github/workflows').filter(file => file.endsWith('.yml'))) {
+    const workflow = parse(fs.readFileSync(`.github/workflows/${file}`, 'utf8'))
+    for (const job of Object.values(workflow.jobs)) {
+      const steps = job.steps ?? []
+      const index = steps.findIndex(step => step.id === 'aws_credentials')
+      if (index < 0) continue
+      guarded.push(file)
+      const guard = steps[index + 1]
+      assert.equal(guard.name, 'Verify authenticated AWS account', file)
+      assert.equal(guard.env.ACTUAL_ACCOUNT, '${{ steps.aws_credentials.outputs.aws-account-id }}')
+      assert.equal(guard.if, undefined)
+      assert.equal(guard['continue-on-error'], undefined)
+      for (const [actual, expected, passes] of [['123456789012', '123456789012', true], ['', '123456789012', false], ['999999999999', '123456789012', false], ['', '', false]]) {
+        const result = spawnSync('/bin/bash', ['-c', guard.run], { env: { PATH: '', ACTUAL_ACCOUNT: actual, EXPECTED_ACCOUNT: expected }, encoding: 'utf8' })
+        assert.ifError(result.error)
+        assert.equal(result.status === 0, passes, file)
+      }
+    }
+  }
+  assert.deepEqual(guarded.sort(), ['aws-image-accept.yml', 'aws-image.yml', 'aws-maintenance.yml', 'aws-release-observe.yml', 'aws-rollout.yml', 'aws-schema-probe.yml', 'aws-schema-upgrade.yml', 'aws-verify.yml'])
+  for (const mutate of [guard => { guard.if = 'false' }, guard => { guard['continue-on-error'] = true }, guard => { guard.run += '\ntrue' }, guard => { guard.env.EXPECTED_ACCOUNT = '000000000000' }]) {
+    const setup = readQualitySetup()
+    mutate(setup.observation.jobs.observe.steps.find(step => step.name === 'Verify authenticated AWS account'))
+    assert.throws(() => verifyQualitySetup(setup))
   }
 })

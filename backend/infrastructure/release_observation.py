@@ -59,7 +59,7 @@ def configuration_summary(config):
         "feature_flags": {
             key: variables.get(key, "").lower()
             if variables.get(key, "").lower() in {"true", "false"}
-            else "unset-or-invalid"
+            else "unset" if key not in variables else "invalid"
             for key in FLAGS
         },
     }
