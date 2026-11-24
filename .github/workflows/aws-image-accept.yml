@@ -1,4 +1,4 @@
-name: Evaluate an existing TEST image without publication
+name: Legacy AWS - Evaluate Existing Test Image
 
 on:
   workflow_dispatch:

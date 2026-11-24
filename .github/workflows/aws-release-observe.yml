@@ -1,4 +1,4 @@
-name: Observe current AWS release
+name: AWS - Observe Current Release
 on:
   workflow_dispatch:
     inputs:

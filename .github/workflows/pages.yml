@@ -1,4 +1,4 @@
-name: Verify and publish the staff demo
+name: CI - Verify And Publish Staff Demo
 
 on:
   push:

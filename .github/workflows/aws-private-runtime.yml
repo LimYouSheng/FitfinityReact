@@ -1,4 +1,4 @@
-name: Manual private TEST image runtime proof
+name: Legacy AWS - Prove Private Test Runtime
 
 on:
   workflow_dispatch:

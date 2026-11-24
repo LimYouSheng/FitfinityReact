@@ -1,4 +1,4 @@
-name: Infrastructure regression gate
+name: CI - Infrastructure Verification
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Manual private schema upgrade
+name: AWS - Upgrade Private Database Schema
 on:
   workflow_dispatch:
     inputs:

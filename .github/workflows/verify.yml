@@ -1,4 +1,4 @@
-name: Complete application verification
+name: CI - Application Verification
 on:
   workflow_call: null
 permissions:

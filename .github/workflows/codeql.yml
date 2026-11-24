@@ -1,4 +1,4 @@
-name: CodeQL security analysis
+name: CI - CodeQL Security Analysis
 on:
   push:
     branches: [main]

@@ -1,4 +1,4 @@
-name: Manual paused runtime and frontend rollout
+name: AWS - Roll Out And Resume Application
 on:
   workflow_dispatch:
     inputs:

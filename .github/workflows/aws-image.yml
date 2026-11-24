@@ -1,4 +1,4 @@
-name: Build and scan the verified AWS image candidate
+name: AWS - Build Scan And Publish Image
 
 on:
   workflow_dispatch:

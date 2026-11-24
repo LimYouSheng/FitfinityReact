@@ -1,4 +1,4 @@
-name: Verify existing AWS test infrastructure
+name: Legacy AWS - Verify Developer Infrastructure
 
 on:
   workflow_dispatch:
