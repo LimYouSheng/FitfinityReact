@@ -223,3 +223,45 @@ class VerificationTests(unittest.TestCase):
             run.return_value = SimpleNamespace(returncode=1, stdout="private", stderr="secret")
             with self.assertRaisesRegex(RuntimeError, "^Verification metadata unavailable$"):
                 api("repos/client-example/portal/actions/runs/123")
+
+    def test_image_and_rollout_entrypoints_bind_workflow_and_keep_separate_receipts(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        import release_verification as verification
+
+        with tempfile.TemporaryDirectory() as directory:
+            for purpose in ("image", "rollout"):
+                env = {
+                    "GITHUB_REPOSITORY": self.profile["github_repository"],
+                    "GITHUB_REF": "refs/heads/main",
+                    "GITHUB_SHA": self.source,
+                    "GITHUB_EVENT_NAME": "workflow_dispatch",
+                    "GITHUB_WORKFLOW_REF": self.profile["github_repository"]
+                    + f"/.github/workflows/aws-{purpose}.yml@refs/heads/main",
+                    "RUNNER_TEMP": directory,
+                    "VERIFICATION_RUN": "123",
+                }
+                with (
+                    patch.dict(os.environ, env, clear=True),
+                    patch("sys.argv", ["verify", "--profile", "fixture", "--purpose", purpose]),
+                    patch.object(verification, "load", return_value=self.profile),
+                    patch.object(
+                        verification, "verify", return_value={"state": "source_verified"}
+                    ) as check,
+                ):
+                    verification.main()
+                    check.assert_called_once_with("123", self.source, self.profile)
+                    self.assertTrue((Path(directory) / f"{purpose}-verification.json").is_file())
+                    for key, bad in (
+                        ("GITHUB_EVENT_NAME", "pull_request"),
+                        ("GITHUB_REF", "refs/heads/other"),
+                        ("GITHUB_WORKFLOW_REF", "foreign/workflow"),
+                    ):
+                        with patch.dict(os.environ, {key: bad}):
+                            check.reset_mock()
+                            with self.assertRaises(RuntimeError):
+                                verification.main()
+                            check.assert_not_called()

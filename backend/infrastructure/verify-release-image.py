@@ -116,7 +116,10 @@ class ImageReleaseChecks(unittest.TestCase):
         self.assertEqual(args[0], "aws")
         self.assertTrue(kwargs["private"])
         self.assertNotIn("--profile", args)
-        self.assertEqual(args[args.index("--region") + 1], self.op.region)
+        self.assertEqual(
+            args[args.index("--region") + 1],
+            "us-east-1" if args[1] == "ecr-public" else self.op.region,
+        )
         operation = args[2]
         if operation == "get-caller-identity":
             result = {
@@ -185,6 +188,21 @@ class ImageReleaseChecks(unittest.TestCase):
         self.assertNotIn("application_deployed", self.report)
         builds = [args for args, _ in self.calls if args[:3] == ["docker", "buildx", "build"]]
         self.assertEqual(len(builds), 1)
+        public_login = next(
+            (args, kwargs)
+            for args, kwargs in self.calls
+            if args[0] == "docker" and "login" in args and args[-1] == "public.ecr.aws"
+        )
+        build = next(
+            (args, kwargs)
+            for args, kwargs in self.calls
+            if args[:3] == ["docker", "buildx", "build"]
+        )
+        self.assertLess(self.calls.index(public_login), self.calls.index(build))
+        self.assertEqual(build[1]["env"]["DOCKER_CONFIG"], public_login[0][2])
+        self.assertNotIn("private-token", json.dumps(self.report))
+        self.assertFalse(Path(public_login[0][2]).exists())
+
         for flag in ("--pull", "--no-cache", "--provenance=false", "--sbom=false", "--load"):
             self.assertIn(flag, builds[0])
 
@@ -572,3 +590,37 @@ class ImageReleaseChecks(unittest.TestCase):
         with patch.object(candidate, "command") as command, self.assertRaises(RuntimeError):
             candidate.source()
         command.assert_not_called()
+
+
+class PublicAuthenticationTests(unittest.TestCase):
+    def test_public_auth_failure_stops_before_docker_build_or_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            op = image.ImageCandidate({"cloud_write_attempts": []}, Path(directory))
+            for token in ("", "   "):
+                with (
+                    patch.object(op, "aws", return_value=token),
+                    patch.object(op, "command") as command,
+                ):
+                    with tempfile.TemporaryDirectory() as work:
+                        with self.assertRaisesRegex(RuntimeError, "Missing public registry"):
+                            op.build({}, Path(work), "fixture")
+                    command.assert_not_called()
+            with (
+                patch.object(op, "aws", side_effect=RuntimeError("denied")),
+                patch.object(op, "command") as command,
+            ):
+                with tempfile.TemporaryDirectory() as work:
+                    with self.assertRaisesRegex(RuntimeError, "denied"):
+                        op.build({}, Path(work), "fixture")
+                command.assert_not_called()
+
+            with (
+                patch.object(op, "aws", return_value="private-token"),
+                patch.object(op, "command", side_effect=RuntimeError("login rejected")) as command,
+            ):
+                with tempfile.TemporaryDirectory() as work:
+                    with self.assertRaisesRegex(RuntimeError, "login rejected"):
+                        op.build({}, Path(work), "fixture")
+                self.assertEqual(command.call_count, 1)
+                self.assertEqual(command.call_args.args[0][-1], "public.ecr.aws")
+                self.assertTrue(command.call_args.kwargs["private"])

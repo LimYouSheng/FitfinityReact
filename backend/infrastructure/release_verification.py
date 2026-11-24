@@ -168,6 +168,7 @@ def main():
     """Validate protected workflow context and retain a metadata-only verification receipt."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", required=True)
+    parser.add_argument("--purpose", choices=("rollout", "image"), default="rollout")
     args = parser.parse_args()
     profile = load(args.profile)
     require(
@@ -175,11 +176,12 @@ def main():
         and os.environ.get("GITHUB_REF") == "refs/heads/main"
         and os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
         and os.environ.get("GITHUB_WORKFLOW_REF")
-        == profile["github_repository"] + "/.github/workflows/aws-rollout.yml@refs/heads/main",
-        "Protected manual main rollout required",
+        == profile["github_repository"]
+        + f"/.github/workflows/aws-{args.purpose}.yml@refs/heads/main",
+        "Protected manual main release workflow required",
     )
     receipt = verify(os.environ["VERIFICATION_RUN"], os.environ["GITHUB_SHA"], profile)
-    (Path(os.environ["RUNNER_TEMP"]) / "rollout-verification.json").write_text(
+    (Path(os.environ["RUNNER_TEMP"]) / f"{args.purpose}-verification.json").write_text(
         json.dumps(receipt) + "\n"
     )
     print("Exact-source full verification and CodeQL passed; operational reviews still apply.")

@@ -8,6 +8,10 @@ on:
         required: true
         type: string
         default: developer
+      verification_run:
+        description: Successful exact-source main verification run ID
+        required: true
+        type: string
       source_sha:
         description: Exact main commit to verify and publish (40-character SHA)
         required: true
@@ -48,7 +52,28 @@ jobs:
 
   verify:
     needs: source
-    uses: ./.github/workflows/verify.yml
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Authenticate existing exact-source CI evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_PROFILE: ${{ needs.source.outputs.profile }}
+          VERIFICATION_RUN: ${{ inputs.verification_run }}
+        run: python3 backend/infrastructure/release_verification.py --profile "$DEPLOYMENT_PROFILE" --purpose image
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fitfinity-image-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/image-verification.json
+          if-no-files-found: error
+          retention-days: 14
 
   image:
     needs: [verify, source]
@@ -61,6 +86,8 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
+      actions: read
+      checks: read
       id-token: write
     steps:
       - name: Explain Workflow Purpose And Expected Results
@@ -69,7 +96,7 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
           ## AWS - Build Scan And Publish Image
 
-          **What It Does:** Manual; verifies source, builds/scans and publishes image candidate.
+          **What It Does:** Manual; authenticates existing exact-source CI, builds/scans and publishes image candidate.
 
           **When To Use It:** A new approved image; publication alone does not switch Lambda.
 
@@ -84,6 +111,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Recheck source evidence after environment approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_PROFILE: ${{ needs.source.outputs.profile }}
+          VERIFICATION_RUN: ${{ inputs.verification_run }}
+        run: python3 backend/infrastructure/release_verification.py --profile "$DEPLOYMENT_PROFILE" --purpose image
       - name: Require the exact image publication role
         env:
           IMAGE_ROLE: ${{ vars.AWS_IMAGE_ROLE_ARN }}
@@ -122,6 +155,7 @@ jobs:
         with:
           name: fitfinity-image-candidate-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            ${{ runner.temp }}/image-verification.json
             ${{ runner.temp }}/fitfinity-image-candidate.json
             ${{ runner.temp }}/fitfinity-image-candidate.log
           if-no-files-found: error
