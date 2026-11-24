@@ -39,17 +39,17 @@ Resolved versions come from [package-lock.json](../package-lock.json), including
 | `@playwright/test` | `1.64.1` | `1.64.1` | development/build/test |
 | `@testing-library/jest-dom` | `7.0.1` | `7.0.1` | development/build/test |
 | `@testing-library/react` | `16.3.3` | `16.3.3` | development/build/test |
-| `@testing-library/user-event` | `14.6.8` | `14.6.8` | development/build/test |
-| `@vitejs/plugin-react` | `6.1.2` | `6.1.2` | development/build/test |
+| `@testing-library/user-event` | `14.6.10` | `14.6.10` | development/build/test |
+| `@vitejs/plugin-react` | `6.3.0` | `6.3.0` | development/build/test |
 | `css-tree` | `3.2.1` | `3.2.1` | development/build/test |
 | `eslint` | `10.11.0` | `10.11.0` | development/build/test |
 | `eslint-plugin-react-hooks` | `7.1.1` | `7.1.1` | development/build/test |
-| `globals` | `17.13.0` | `17.13.0` | development/build/test |
+| `globals` | `17.14.0` | `17.14.0` | development/build/test |
 | `jsdom` | `30.1.3` | `30.1.3` | development/build/test |
-| `rolldown` | `1.2.16` | `1.2.16` | development/build/test |
-| `semver` | `7.8.5` | `7.8.5` | development/build/test |
+| `rolldown` | `1.3.2` | `1.3.2` | development/build/test |
+| `semver` | `7.8.6` | `7.8.6` | development/build/test |
 | `smol-toml` | `1.9.1` | `1.9.1` | development/build/test |
-| `vite` | `^8.3.5` | `8.3.5` | development/build/test |
+| `vite` | `^8.3.8` | `8.3.8` | development/build/test |
 | `vitest` | `^4.1.12` | `4.1.12` | development/build/test |
 | `yaml` | `2.9.1` | `2.9.1` | development/build/test |
 
@@ -160,7 +160,7 @@ This inventory is not a complete artifact SBOM. In particular, no unverified OS/
 
 ## All locked npm dependencies
 
-Every non-root `packages` entry in [package-lock.json](../package-lock.json) is represented below, including optional OS/architecture packages and nested duplicates. These are **253 locked entries**, not 253 packages guaranteed to be installed on every host or shipped to browsers. “Development” and “optional” are lockfile classifications. Paths disambiguate duplicate versions and can be searched directly in the lockfile.
+Every non-root `packages` entry in [package-lock.json](../package-lock.json) is represented below, including optional OS/architecture packages and nested duplicates. These are **278 locked entries**, not 278 packages guaranteed to be installed on every host or shipped to browsers. “Development” and “optional” are lockfile classifications. Paths disambiguate duplicate versions and can be searched directly in the lockfile.
 
 | Package | Locked version | Lock scope | Lock path |
 | --- | --- | --- | --- |
@@ -196,6 +196,9 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `@csstools/css-parser-algorithms` | `4.0.2` | development | `node_modules/@csstools/css-parser-algorithms` |
 | `@csstools/css-syntax-patches-for-csstree` | `1.1.16` | development | `node_modules/@csstools/css-syntax-patches-for-csstree` |
 | `@csstools/css-tokenizer` | `4.0.2` | development | `node_modules/@csstools/css-tokenizer` |
+| `@emnapi/core` | `2.0.0-beta.2` | development, optional | `node_modules/@emnapi/core` |
+| `@emnapi/runtime` | `2.0.0-beta.2` | development, optional | `node_modules/@emnapi/runtime` |
+| `@emnapi/wasi-threads` | `2.2.0` | development, optional | `node_modules/@emnapi/wasi-threads` |
 | `@eslint-community/eslint-utils` | `4.10.1` | development | `node_modules/@eslint-community/eslint-utils` |
 | `eslint-visitor-keys` | `3.4.3` | development | `node_modules/@eslint-community/eslint-utils/node_modules/eslint-visitor-keys` |
 | `@eslint-community/regexpp` | `4.12.2` | development | `node_modules/@eslint-community/regexpp` |
@@ -219,37 +222,40 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `@jridgewell/trace-mapping` | `0.3.31` | development | `node_modules/@jridgewell/trace-mapping` |
 | `@keyv/bigmap` | `1.3.1` | development | `node_modules/@keyv/bigmap` |
 | `@keyv/serialize` | `1.1.1` | development | `node_modules/@keyv/serialize` |
-| `@oxc-project/types` | `0.156.0` | development | `node_modules/@oxc-project/types` |
+| `@napi-rs/wasm-runtime` | `1.2.6` | development, optional | `node_modules/@napi-rs/wasm-runtime` |
+| `@oxc-project/types` | `0.158.0` | development | `node_modules/@oxc-project/types` |
 | `@playwright/test` | `1.64.1` | development | `node_modules/@playwright/test` |
-| `@rolldown/binding-android-arm-eabi` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-android-arm-eabi` |
-| `@rolldown/binding-android-arm64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-android-arm64` |
-| `@rolldown/binding-darwin-arm64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-darwin-arm64` |
-| `@rolldown/binding-darwin-x64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-darwin-x64` |
-| `@rolldown/binding-freebsd-x64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-freebsd-x64` |
-| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-arm-gnueabihf` |
-| `@rolldown/binding-linux-arm64-gnu` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-arm64-gnu` |
-| `@rolldown/binding-linux-arm64-musl` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-arm64-musl` |
-| `@rolldown/binding-linux-ppc64-gnu` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-ppc64-gnu` |
-| `@rolldown/binding-linux-s390x-gnu` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-s390x-gnu` |
-| `@rolldown/binding-linux-x64-gnu` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-x64-gnu` |
-| `@rolldown/binding-linux-x64-musl` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-linux-x64-musl` |
-| `@rolldown/binding-openharmony-arm64` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-openharmony-arm64` |
-| `@rolldown/binding-win32-arm64-msvc` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-win32-arm64-msvc` |
-| `@rolldown/binding-win32-x64-msvc` | `1.2.16` | development, optional | `node_modules/@rolldown/binding-win32-x64-msvc` |
+| `@rolldown/binding-android-arm-eabi` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-android-arm-eabi` |
+| `@rolldown/binding-android-arm64` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-android-arm64` |
+| `@rolldown/binding-darwin-arm64` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-darwin-arm64` |
+| `@rolldown/binding-darwin-x64` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-darwin-x64` |
+| `@rolldown/binding-freebsd-x64` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-freebsd-x64` |
+| `@rolldown/binding-linux-arm-gnueabihf` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-linux-arm-gnueabihf` |
+| `@rolldown/binding-linux-arm64-gnu` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-linux-arm64-gnu` |
+| `@rolldown/binding-linux-arm64-musl` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-linux-arm64-musl` |
+| `@rolldown/binding-linux-ppc64-gnu` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-linux-ppc64-gnu` |
+| `@rolldown/binding-linux-s390x-gnu` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-linux-s390x-gnu` |
+| `@rolldown/binding-linux-x64-gnu` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-linux-x64-gnu` |
+| `@rolldown/binding-linux-x64-musl` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-linux-x64-musl` |
+| `@rolldown/binding-openharmony-arm64` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-openharmony-arm64` |
+| `@rolldown/binding-wasm32-wasi` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-wasm32-wasi` |
+| `@rolldown/binding-win32-arm64-msvc` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-win32-arm64-msvc` |
+| `@rolldown/binding-win32-x64-msvc` | `1.3.2` | development, optional | `node_modules/@rolldown/binding-win32-x64-msvc` |
 | `@rolldown/pluginutils` | `1.0.1` | development | `node_modules/@rolldown/pluginutils` |
 | `@standard-schema/spec` | `1.1.0` | development | `node_modules/@standard-schema/spec` |
 | `@testing-library/dom` | `10.4.1` | development | `node_modules/@testing-library/dom` |
 | `@testing-library/jest-dom` | `7.0.1` | development | `node_modules/@testing-library/jest-dom` |
 | `dom-accessibility-api` | `0.6.3` | development | `node_modules/@testing-library/jest-dom/node_modules/dom-accessibility-api` |
 | `@testing-library/react` | `16.3.3` | development | `node_modules/@testing-library/react` |
-| `@testing-library/user-event` | `14.6.8` | development | `node_modules/@testing-library/user-event` |
+| `@testing-library/user-event` | `14.6.10` | development | `node_modules/@testing-library/user-event` |
+| `@tybys/wasm-util` | `0.10.4` | development, optional | `node_modules/@tybys/wasm-util` |
 | `@types/aria-query` | `5.0.4` | development | `node_modules/@types/aria-query` |
 | `@types/chai` | `5.2.3` | development | `node_modules/@types/chai` |
 | `@types/deep-eql` | `4.0.2` | development | `node_modules/@types/deep-eql` |
 | `@types/esrecurse` | `4.3.1` | development | `node_modules/@types/esrecurse` |
 | `@types/estree` | `1.0.9` | development | `node_modules/@types/estree` |
 | `@types/json-schema` | `7.0.15` | development | `node_modules/@types/json-schema` |
-| `@vitejs/plugin-react` | `6.1.2` | development | `node_modules/@vitejs/plugin-react` |
+| `@vitejs/plugin-react` | `6.3.0` | development | `node_modules/@vitejs/plugin-react` |
 | `@vitest/expect` | `4.1.12` | development | `node_modules/@vitest/expect` |
 | `@vitest/mocker` | `4.1.12` | development | `node_modules/@vitest/mocker` |
 | `@vitest/pretty-format` | `4.1.12` | development | `node_modules/@vitest/pretty-format` |
@@ -309,7 +315,7 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `flatted` | `3.4.4` | development | `node_modules/flatted` |
 | `gensync` | `1.0.0-beta.2` | development | `node_modules/gensync` |
 | `glob-parent` | `6.0.2` | development | `node_modules/glob-parent` |
-| `globals` | `17.13.0` | development | `node_modules/globals` |
+| `globals` | `17.14.0` | development | `node_modules/globals` |
 | `hashery` | `1.5.1` | development | `node_modules/hashery` |
 | `hermes-estree` | `0.25.1` | development | `node_modules/hermes-estree` |
 | `hermes-parser` | `0.25.1` | development | `node_modules/hermes-parser` |
@@ -376,10 +382,10 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `react-is` | `17.0.2` | development | `node_modules/react-is` |
 | `redent` | `3.0.0` | development | `node_modules/redent` |
 | `require-from-string` | `2.0.2` | development | `node_modules/require-from-string` |
-| `rolldown` | `1.2.16` | development | `node_modules/rolldown` |
+| `rolldown` | `1.3.2` | development | `node_modules/rolldown` |
 | `saxes` | `6.0.0` | development | `node_modules/saxes` |
 | `scheduler` | `0.28.0` | application | `node_modules/scheduler` |
-| `semver` | `7.8.5` | development | `node_modules/semver` |
+| `semver` | `7.8.6` | development | `node_modules/semver` |
 | `shebang-command` | `2.0.0` | development | `node_modules/shebang-command` |
 | `shebang-regex` | `3.0.0` | development | `node_modules/shebang-regex` |
 | `siginfo` | `2.0.0` | development | `node_modules/siginfo` |
@@ -396,12 +402,31 @@ Every non-root `packages` entry in [package-lock.json](../package-lock.json) is 
 | `tldts-core` | `7.4.11` | development | `node_modules/tldts-core` |
 | `tough-cookie` | `6.0.2` | development | `node_modules/tough-cookie` |
 | `tr46` | `7.0.0` | development | `node_modules/tr46` |
+| `tslib` | `2.9.1` | development, optional | `node_modules/tslib` |
 | `type-check` | `0.4.0` | development | `node_modules/type-check` |
 | `undici` | `8.12.3` | development | `node_modules/undici` |
 | `update-browserslist-db` | `1.3.3` | development | `node_modules/update-browserslist-db` |
 | `uri-js` | `4.4.1` | development | `node_modules/uri-js` |
-| `vite` | `8.3.5` | development | `node_modules/vite` |
+| `vite` | `8.3.8` | development | `node_modules/vite` |
+| `@oxc-project/types` | `0.156.0` | development | `node_modules/vite/node_modules/@oxc-project/types` |
+| `@rolldown/binding-android-arm-eabi` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-android-arm-eabi` |
+| `@rolldown/binding-android-arm64` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-android-arm64` |
+| `@rolldown/binding-darwin-arm64` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-darwin-arm64` |
+| `@rolldown/binding-darwin-x64` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-darwin-x64` |
+| `@rolldown/binding-freebsd-x64` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-freebsd-x64` |
+| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm-gnueabihf` |
+| `@rolldown/binding-linux-arm64-gnu` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm64-gnu` |
+| `@rolldown/binding-linux-arm64-musl` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-linux-arm64-musl` |
+| `@rolldown/binding-linux-ppc64-gnu` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-linux-ppc64-gnu` |
+| `@rolldown/binding-linux-s390x-gnu` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-linux-s390x-gnu` |
+| `@rolldown/binding-linux-x64-gnu` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-linux-x64-gnu` |
+| `@rolldown/binding-linux-x64-musl` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-linux-x64-musl` |
+| `@rolldown/binding-openharmony-arm64` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-openharmony-arm64` |
+| `@rolldown/binding-wasm32-wasi` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-wasm32-wasi` |
+| `@rolldown/binding-win32-arm64-msvc` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-win32-arm64-msvc` |
+| `@rolldown/binding-win32-x64-msvc` | `1.2.19` | development, optional | `node_modules/vite/node_modules/@rolldown/binding-win32-x64-msvc` |
 | `fsevents` | `2.3.3` | development, optional | `node_modules/vite/node_modules/fsevents` |
+| `rolldown` | `1.2.19` | development | `node_modules/vite/node_modules/rolldown` |
 | `vitest` | `4.1.12` | development | `node_modules/vitest` |
 | `w3c-xmlserializer` | `6.0.0` | development | `node_modules/w3c-xmlserializer` |
 | `webidl-conversions` | `8.0.1` | development | `node_modules/webidl-conversions` |
@@ -424,8 +449,8 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 
 | Input | SHA256 |
 | --- | --- |
-| [package.json](../package.json) | `16ef5df3c193c97473228fe7ab4b8121d368a5acf47658561fd9057971bc0593` |
-| [package-lock.json](../package-lock.json) | `5ec6d175cc5a54b0ff8ecc7b841c8c6f428aa0a5bc387dd263c4ebaaa5ac2282` |
+| [package.json](../package.json) | `b873092a77267d5cb58b16a12999f23d29d49b8b74c469c28a547c709985e2cb` |
+| [package-lock.json](../package-lock.json) | `78417ea14d7c88dd02ea725cc77d884fbe38dace357c96390b97c393650421ca` |
 | [.nvmrc](../.nvmrc) | `68ca3fba3b7e864770cb61aeb306d4bd4354b68ab4dd38450860c5d823e42a53` |
 | [.github/dependabot.yml](../.github/dependabot.yml) | `9d19275b4b5adc5b7c27af967b5c90299d983cd82799a04a638f1bf0e4024377` |
 | [backend/app/main.py](../backend/app/main.py) | `559f749eaa6d3872ffa7bc37ce27f54085b6cdb8086a171e0a76ceeb65ae31e0` |
