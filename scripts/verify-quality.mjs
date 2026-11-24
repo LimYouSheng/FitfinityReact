@@ -12,6 +12,14 @@ const requireGate = (job, command) => {
   if (step.run.includes('|') && !step.run.includes('set -euo pipefail')) fail(`missing pipeline failure propagation: ${command}`)
 }
 
+const credentialAccount = workflow => {
+  const steps = Object.values(workflow.jobs).flatMap(job => job.steps ?? [])
+  const index = steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
+  const credentials = steps[index], guard = steps[index + 1]
+  if (!credentials || credentials.id !== 'aws_credentials' || Object.hasOwn(credentials.with, 'allowed-account-ids') || credentials.if || credentials['continue-on-error'] || guard?.if || guard?.['continue-on-error'] || guard?.shell !== 'bash' || guard?.env?.ACTUAL_ACCOUNT !== '${{ steps.aws_credentials.outputs.aws-account-id }}' || guard?.run?.trim() !== 'set -euo pipefail\ntest -n "$EXPECTED_ACCOUNT"\ntest "$ACTUAL_ACCOUNT" = "$EXPECTED_ACCOUNT"') fail('AWS account output gate missing, optional or reordered')
+  return guard.env.EXPECTED_ACCOUNT
+}
+
 export function readQualitySetup(root = process.cwd()) {
   const read = file => fs.readFileSync(path.join(root, file), 'utf8')
   return {
@@ -66,7 +74,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (upgradeEvidence < 0 || upgradeAuth <= upgradeEvidence) fail('upgrade evidence must precede AWS credentials')
   if (schemaUpgrade.on.workflow_dispatch.inputs?.maintenance_run?.type !== 'string' || upgrade.steps[upgradeEvidence].env?.MAINTENANCE_RUN !== '${{ inputs.maintenance_run }}') fail('upgrade requires the selected maintenance snapshot-check run')
   const credentials = upgrade.steps[upgradeAuth].with
-  if (credentials['role-to-assume'] !== '${{ vars.AWS_SCHEMA_UPGRADE_ROLE_ARN }}' || credentials['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || credentials['aws-region'] !== '${{ needs.target.outputs.region }}' || credentials['unset-current-credentials'] !== true) fail('upgrade credential target differs')
+  if (credentials['role-to-assume'] !== '${{ vars.AWS_SCHEMA_UPGRADE_ROLE_ARN }}' || credentialAccount(schemaUpgrade) !== '${{ needs.target.outputs.account }}' || credentials['aws-region'] !== '${{ needs.target.outputs.region }}' || credentials['unset-current-credentials'] !== true) fail('upgrade credential target differs')
   if (schemaUpgrade.jobs.target.outputs.role !== '${{ steps.target.outputs.upgrade_role }}') fail('upgrade must use its separate target role')
   const roleCheck = upgrade.steps.find(step => step.run === 'test "$UPGRADE_ROLE" = "$EXPECTED_ROLE"')
   if (roleCheck?.env?.UPGRADE_ROLE !== '${{ vars.AWS_SCHEMA_UPGRADE_ROLE_ARN }}' || roleCheck?.env?.EXPECTED_ROLE !== '${{ needs.target.outputs.role }}') fail('upgrade role comparison missing')
@@ -85,7 +93,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   const rolloutAuth = rolloutJob.steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
   if (rolloutFetch <= sourceVerification || rolloutAuth <= rolloutFetch || rolloutJob.steps[rolloutFetch].if != null || rolloutJob.steps[rolloutFetch].env?.ROLLOUT_REVIEW_SHA256 !== '${{ inputs.review_sha256 }}') fail('rollout evidence must precede credentials')
   const rolloutCredentials = rolloutJob.steps[rolloutAuth].with
-  if (rollout.jobs.target.outputs.role !== '${{ steps.target.outputs.hosting_role }}' || rolloutCredentials['role-to-assume'] !== '${{ vars.AWS_HOSTING_ROLE_ARN }}' || rolloutCredentials['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || rolloutCredentials['aws-region'] !== '${{ needs.target.outputs.region }}' || rolloutCredentials['unset-current-credentials'] !== true) fail('rollout credentials must bind the exact hosting role')
+  if (rollout.jobs.target.outputs.role !== '${{ steps.target.outputs.hosting_role }}' || rolloutCredentials['role-to-assume'] !== '${{ vars.AWS_HOSTING_ROLE_ARN }}' || credentialAccount(rollout) !== '${{ needs.target.outputs.account }}' || rolloutCredentials['aws-region'] !== '${{ needs.target.outputs.region }}' || rolloutCredentials['unset-current-credentials'] !== true) fail('rollout credentials must bind the exact hosting role')
   if (!equal(rolloutJob.permissions, { contents: 'read', actions: 'read', checks: 'read', 'id-token': 'write' })) fail('rollout permissions differ')
   const rolloutRole = rolloutJob.steps.find(step => step.run === 'test "$ROLLOUT_ROLE" = "$EXPECTED_ROLE"')
   if (rolloutRole?.env?.ROLLOUT_ROLE !== '${{ vars.AWS_HOSTING_ROLE_ARN }}' || rolloutRole?.env?.EXPECTED_ROLE !== '${{ needs.target.outputs.role }}') fail('rollout role comparison missing')
@@ -103,7 +111,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   const maintenanceEvidence = maintenanceJob.steps.findIndex(step => step.run?.includes('maintenance_operator.py fetch'))
   if (maintenanceEvidence < 0 || maintenanceAuth <= maintenanceEvidence || maintenanceJob.steps[maintenanceEvidence].env?.REVIEW_SHA256 !== '${{ inputs.review_sha256 }}') fail('reviewed maintenance evidence must precede AWS credentials')
   const maintenanceCredentials = maintenanceJob.steps[maintenanceAuth].with
-  if (maintenanceCredentials['role-to-assume'] !== '${{ vars.AWS_MAINTENANCE_ROLE_ARN }}' || maintenanceCredentials['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || maintenanceCredentials['aws-region'] !== '${{ needs.target.outputs.region }}' || maintenanceCredentials['unset-current-credentials'] !== true) fail('maintenance credential target differs')
+  if (maintenanceCredentials['role-to-assume'] !== '${{ vars.AWS_MAINTENANCE_ROLE_ARN }}' || credentialAccount(maintenance) !== '${{ needs.target.outputs.account }}' || maintenanceCredentials['aws-region'] !== '${{ needs.target.outputs.region }}' || maintenanceCredentials['unset-current-credentials'] !== true) fail('maintenance credential target differs')
   if (maintenance.jobs.target.outputs.role !== '${{ steps.target.outputs.maintenance_role }}') fail('maintenance must use its separate target role')
   const maintenanceRole = maintenanceJob.steps.find(step => step.run === 'test "$MAINTENANCE_ROLE" = "$EXPECTED_ROLE"')
   if (maintenanceRole?.env?.MAINTENANCE_ROLE !== '${{ vars.AWS_MAINTENANCE_ROLE_ARN }}' || maintenanceRole?.env?.EXPECTED_ROLE !== '${{ needs.target.outputs.role }}') fail('maintenance role comparison missing')
@@ -116,7 +124,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (!equal(Object.keys(schemaProbe.on), ['workflow_dispatch']) || !equal(schemaProbe.permissions, { contents: 'read' }) || !equal(probeJob?.needs, ['offline', 'target']) || probeJob?.environment !== '${{ needs.target.outputs.environment }}' || probeJob?.if !== "github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_PROBE_ENABLED == 'true'") fail('schema probe must be manual, main-only, disabled by default and protected')
   if (!equal(probeJob.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false }) || probeJob['timeout-minutes'] !== 10 || schemaProbe.jobs.offline.uses !== './.github/workflows/infrastructure.yml') fail('schema probe lifecycle concurrency or verification differs')
   const probeCredentials = probeJob.steps.find(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
-  if (probeCredentials?.with?.['role-to-assume'] !== '${{ vars.AWS_SCHEMA_PROBE_ROLE_ARN }}' || probeCredentials.with['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || probeCredentials.with['aws-region'] !== '${{ needs.target.outputs.region }}') fail('schema probe must use its dedicated exact account role')
+  if (probeCredentials?.with?.['role-to-assume'] !== '${{ vars.AWS_SCHEMA_PROBE_ROLE_ARN }}' || credentialAccount(schemaProbe) !== '${{ needs.target.outputs.account }}' || probeCredentials.with['aws-region'] !== '${{ needs.target.outputs.region }}') fail('schema probe must use its dedicated exact account role')
   const targetJob = schemaProbe.jobs.target
   if (targetJob?.if !== "github.ref == 'refs/heads/main'" || !equal(targetJob?.permissions, { contents: 'read' })) fail('target resolution must be main-only and credential-free')
   requireGate(targetJob, 'python3 backend/infrastructure/deployment_profile.py')
@@ -139,7 +147,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   const observe = observation.jobs?.observe
   if (!equal(Object.keys(observation.on), ['workflow_dispatch']) || !equal(observation.permissions, { contents: 'read' }) || !equal(observe?.needs, ['offline', 'target']) || observe.environment !== '${{ needs.target.outputs.environment }}' || observe.if !== "github.ref == 'refs/heads/main'") fail('release observation must stay manual, main-only and protected')
   const observationCredentials = observe.steps.find(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
-  if (observationCredentials?.with?.['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || observationCredentials.with['aws-region'] !== '${{ needs.target.outputs.region }}' || observationCredentials.with['role-to-assume'] !== '${{ vars.AWS_HOSTING_ROLE_ARN }}') fail('release observation identity differs')
+  if (credentialAccount(observation) !== '${{ needs.target.outputs.account }}' || observationCredentials.with['aws-region'] !== '${{ needs.target.outputs.region }}' || observationCredentials.with['role-to-assume'] !== '${{ vars.AWS_HOSTING_ROLE_ARN }}') fail('release observation identity differs')
   if (observationCredentials.with['inline-session-policy'] !== '${{ needs.target.outputs.observation_policy }}') fail('release observation must use the scoped target read policy')
   if (!equal(observe.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false })) fail('observation must serialize target operations')
   const observeTarget = observation.jobs.target
@@ -212,7 +220,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (releaseVerify?.needs !== 'source' || releaseVerify.uses !== './.github/workflows/verify.yml' || releaseVerify.if != null || releaseVerify.secrets || releaseVerify['continue-on-error']) fail('manual release must run all verification after source selection')
   if (!equal(imageJob?.needs, ['verify', 'source']) || imageJob.if !== `github.event_name == 'workflow_dispatch' && ${releaseGuard}` || imageJob.environment !== '${{ needs.source.outputs.environment }}' || imageJob['continue-on-error'] || !equal(imageJob.permissions, { contents: 'read', 'id-token': 'write' })) fail('image publication requires complete verification, its protected environment and narrow credentials')
   const imageCredentials = imageJob.steps.filter(step => (step.uses ?? '').startsWith('aws-actions/configure-aws-credentials@'))
-  if (imageCredentials.length !== 1 || imageCredentials[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || imageCredentials[0].with?.['allowed-account-ids'] !== '${{ needs.source.outputs.account }}' || imageCredentials[0].with?.['aws-region'] !== '${{ needs.source.outputs.region }}') fail('image publication must use its separate exact-account role')
+  if (imageCredentials.length !== 1 || imageCredentials[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || credentialAccount(image) !== '${{ needs.source.outputs.account }}' || imageCredentials[0].with?.['aws-region'] !== '${{ needs.source.outputs.region }}') fail('image publication must use its separate exact-account role')
   requireGate(imageJob, 'test "$IMAGE_ROLE" = "$EXPECTED_ROLE"')
   requireGate(imageJob, 'python3 backend/infrastructure/deploy.py image-candidate --actions --profile "$DEPLOYMENT_PROFILE" --receipt')
   requireGate(source, 'python3 backend/infrastructure/deployment_profile.py')
@@ -227,7 +235,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (!equal(Object.keys(acceptance?.on ?? {}), ['workflow_dispatch']) || acceptance.jobs?.verify?.uses !== './.github/workflows/verify.yml' || acceptance.jobs.verify.if !== acceptanceGuard || acceptJob?.needs !== 'verify' || acceptJob.if !== acceptanceGuard || acceptJob.environment !== 'aws-test' || acceptJob['continue-on-error']) fail('existing-image acceptance requires manual main execution after full verification')
   if (!equal(acceptance.permissions, { contents: 'read' }) || !equal(acceptance.concurrency, { group: 'fitfinity-aws-test', 'cancel-in-progress': false }) || !equal(acceptJob.permissions, { contents: 'read', actions: 'read', 'pull-requests': 'read', 'id-token': 'write' })) fail('image acceptance permissions or serialization differ')
   const credential = acceptJob.steps.filter(step => (step.uses ?? '').startsWith('aws-actions/configure-aws-credentials@'))
-  if (credential.length !== 1 || credential[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || credential[0].with?.['allowed-account-ids'] !== '418638389566' || credential[0].with?.['aws-region'] !== 'ap-southeast-1') fail('image acceptance requires the exact account and role')
+  if (credential.length !== 1 || credential[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || credentialAccount(acceptance) !== '418638389566' || credential[0].with?.['aws-region'] !== 'ap-southeast-1') fail('image acceptance requires the exact account and role')
   const sessionPolicy = JSON.parse(credential[0].with['inline-session-policy'] ?? '{}')
   const expectedReadPolicy = { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: ['sts:GetCallerIdentity', 'ecr:GetRegistryScanningConfiguration'], Resource: '*' }, { Effect: 'Allow', Action: ['ecr:DescribeRepositories', 'ecr:ListTagsForResource', 'ecr:BatchGetImage', 'ecr:DescribeImageScanFindings'], Resource: 'arn:aws:ecr:ap-southeast-1:418638389566:repository/fitfinity-test-api' }] }
   if (!equal(sessionPolicy, expectedReadPolicy)) fail('existing-image credentials must be restricted to exact read operations')

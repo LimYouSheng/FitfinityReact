@@ -93,13 +93,22 @@ jobs:
           test "$GITHUB_REF" = 'refs/heads/main'
           test "$IMAGE_ROLE" = "$EXPECTED_ROLE"
       - name: Obtain temporary image publication credentials
+        id: aws_credentials
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
         with:
           role-to-assume: ${{ vars.AWS_IMAGE_ROLE_ARN }}
           role-session-name: fitfinity-image-${{ github.run_id }}-${{ github.run_attempt }}
           aws-region: ${{ needs.source.outputs.region }}
-          allowed-account-ids: ${{ needs.source.outputs.account }}
           unset-current-credentials: true
+      - name: Verify authenticated AWS account
+        env:
+          ACTUAL_ACCOUNT: ${{ steps.aws_credentials.outputs.aws-account-id }}
+          EXPECTED_ACCOUNT: ${{ needs.source.outputs.account }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EXPECTED_ACCOUNT"
+          test "$ACTUAL_ACCOUNT" = "$EXPECTED_ACCOUNT"
       - name: Build, publish and scan the verified image
         env:
           DEPLOYMENT_PROFILE: ${{ needs.source.outputs.profile }}

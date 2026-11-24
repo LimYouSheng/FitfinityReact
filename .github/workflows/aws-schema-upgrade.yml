@@ -125,12 +125,21 @@ jobs:
           EXPECTED_ROLE: ${{ needs.target.outputs.role }}
         run: test "$UPGRADE_ROLE" = "$EXPECTED_ROLE"
       - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        id: aws_credentials
         with:
           role-to-assume: ${{ vars.AWS_SCHEMA_UPGRADE_ROLE_ARN }}
           role-session-name: fitfinity-upgrade-${{ github.run_id }}-${{ github.run_attempt }}
           aws-region: ${{ needs.target.outputs.region }}
-          allowed-account-ids: ${{ needs.target.outputs.account }}
           unset-current-credentials: true
+      - name: Verify authenticated AWS account
+        env:
+          ACTUAL_ACCOUNT: ${{ steps.aws_credentials.outputs.aws-account-id }}
+          EXPECTED_ACCOUNT: ${{ needs.target.outputs.account }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EXPECTED_ACCOUNT"
+          test "$ACTUAL_ACCOUNT" = "$EXPECTED_ACCOUNT"
       - name: Execute one reviewed upgrade step
         env:
           DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
