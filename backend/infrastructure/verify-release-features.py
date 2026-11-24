@@ -2,6 +2,8 @@
 
 import unittest
 from copy import deepcopy
+from importlib import import_module
+from unittest.mock import patch
 
 from deployment_profile import DEVELOPER
 from portable_hosting import prepare as hosting
@@ -489,3 +491,395 @@ class ChangeSetTests(unittest.TestCase):
             self.validate(
                 candidate, change_set, mode="boundary", boundary_resource="OriginalBoundary"
             )
+
+
+class ExternalBoundaryTests(unittest.TestCase):
+    def configure(self, client):
+        """Model separate live owner and hosting stacks with distinct authorization."""
+        from release_features import boundary_arn
+
+        host = import_module("verify-release-execution").ExecutionTests()
+        host.setUp()
+        if client:
+            host.use_client_profile()
+        self.addCleanup(host.doCleanups)
+        self.host = host
+        self.profile = host.profile
+        self.original, self.values = fixture(host.profile)
+        resources = self.original["Resources"]
+        resources["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 0
+        self.boundary = boundary_arn(host.profile)
+        resources["ApiRole"]["Properties"]["PermissionsBoundary"] = self.boundary
+        self.owner = {
+            "Resources": {
+                "ExistingBoundary": resources.pop("RuntimeBoundary"),
+                "ReleaseAuthority": {
+                    "Type": "AWS::IAM::Role",
+                    "Properties": {"RoleName": "unrelated"},
+                },
+            }
+        }
+        host.current_template = deepcopy(self.original)
+        host.rollout_fixture()
+        self.live_owner = deepcopy(self.owner)
+        self.owner_name = host.target["resource_prefix"] + "-access"
+        self.owner_arn = host.stack["StackId"].replace(host.stack["StackName"], self.owner_name)
+        plan = release(
+            self.original,
+            observed_template_sha256=digest(self.original),
+            source_sha=host.review["source_sha"],
+            image_digest=host.rollout_evidence["image_digest"],
+            frontend_sha256=host.rollout_evidence["frontend_sha256"],
+            profile=self.profile,
+            feature_values=self.values,
+            boundary_template=self.owner,
+            boundary_template_sha256=digest(self.owner),
+        )
+        self.destination = plan["feature_review"]["boundary_candidate_template"]
+        host.review.update(
+            original_template=self.original, candidate_template=plan["candidate_template"]
+        )
+        self.external = {
+            "stack_arn": self.owner_arn,
+            "logical_id": "ExistingBoundary",
+            "template_sha256": digest(self.destination),
+        }
+        common = {
+            key: host.review[key]
+            for key in ("profile_sha256", "source_sha", "expires_at", "maintenance_marker")
+        }
+        self.owner_review = {
+            **common,
+            "operation_id": "1" * 32,
+            "hosting_stack_arn": host.stack["StackId"],
+            "hosting_template_sha256": digest(self.original),
+            "feature_values": self.values,
+            "external_boundary": self.external,
+            "owner_original_sha256": digest(self.owner),
+            "operator_role_arn": f"arn:aws:iam::{self.profile['account']}:role/existing-owner",
+            "service_role_arn": f"arn:aws:iam::{host.target['account']}:role/existing-owner-service"
+            if client
+            else None,
+        }
+        self.review = {
+            **common,
+            "operation_id": host.review["operation_id"],
+            "stack_arn": host.stack["StackId"],
+            "original_template_sha256": digest(self.original),
+            "candidate_template_sha256": digest(plan["candidate_template"]),
+            "feature_values": self.values,
+            "external_boundary": self.external,
+        }
+        self.as_owner = True
+        self.writes = []
+        self.owner_receipts = []
+        self.owner_set = None
+        self.uncertain = None
+
+    def call(self, service, operation, args):
+        import json
+
+        host = self.host
+        if operation == "get-role" and args["RoleName"] == "existing-owner":
+            return {"Role": {"Arn": f"arn:aws:iam::{host.target['account']}:role/existing-owner"}}
+        if service == "iam":
+            iam_resources = {
+                **host.current_template["Resources"],
+                "RuntimeBoundary": self.live_owner["Resources"]["ExistingBoundary"],
+            }
+            with patch.object(host, "current_template", {"Resources": iam_resources}):
+                return host.feature_iam(service, operation, args)
+        if operation == "get-caller-identity" and self.as_owner:
+            return {
+                **host.caller,
+                "Arn": f"arn:aws:sts::{host.target['account']}:assumed-role/existing-owner/session",
+            }
+        if args.get("StackName") != self.owner_arn:
+            return host.rollout_call(service, operation, args)
+        if operation == "describe-stacks":
+            return {
+                "Stacks": [
+                    {
+                        "StackName": self.owner_name,
+                        "StackId": self.owner_arn,
+                        "StackStatus": "UPDATE_COMPLETE",
+                        "RoleARN": self.owner_review["service_role_arn"],
+                    }
+                ]
+            }
+        row = {
+            "LogicalResourceId": "ExistingBoundary",
+            "PhysicalResourceId": self.boundary,
+            "ResourceType": "AWS::IAM::ManagedPolicy",
+            "ResourceStatus": "UPDATE_COMPLETE",
+        }
+        if operation == "list-stack-resources":
+            return {"StackResourceSummaries": [row]}
+        if operation == "describe-stack-resource":
+            self.assertEqual(args["LogicalResourceId"], "ExistingBoundary")
+            return {"StackResourceDetail": {**row, "StackId": self.owner_arn}}
+        if operation == "get-template":
+            return {
+                "TemplateBody": self.destination if args.get("ChangeSetName") else self.live_owner
+            }
+        if operation == "describe-change-set":
+            return deepcopy(self.owner_set)
+        self.assertTrue(self.as_owner)
+        self.writes.append(operation)
+        if operation == "create-change-set":
+            self.assertEqual(json.loads(args["TemplateBody"]), self.destination)
+            self.assertEqual(self.owner_receipts[-1]["state"], "create_submitted")
+            self.assertNotIn("RoleARN", args)
+            name = args["ChangeSetName"]
+            self.owner_set = {
+                "ChangeSetId": self.owner_arn.split(":stack/")[0] + ":changeSet/" + name + "/abcd",
+                "ChangeSetName": name,
+                "Description": args["Description"],
+                "StackId": self.owner_arn,
+                "Status": "CREATE_COMPLETE",
+                "ExecutionStatus": "AVAILABLE",
+                "Changes": [
+                    ChangeSetTests.change(
+                        "ExistingBoundary", "AWS::IAM::ManagedPolicy", ["PolicyDocument"]
+                    )
+                ],
+            }
+            result = {"Id": self.owner_set["ChangeSetId"], "StackId": self.owner_arn}
+        elif operation == "execute-change-set":
+            self.assertEqual(self.owner_receipts[-1]["state"], "execute_submitted")
+            self.owner_set["ExecutionStatus"] = "EXECUTE_COMPLETE"
+            self.live_owner = deepcopy(self.destination)
+            result = {}
+        else:
+            raise AssertionError(operation)
+        if self.uncertain == operation:
+            raise TimeoutError("synthetic lost owner reply")
+        return result
+
+    def test_owner_and_routine_actions_recover_separate_updates_without_replay(self):
+        for client in (False, True):
+            with self.subTest(client=client):
+                self.configure(client)
+                self.run_both_stacks()
+
+    def run_both_stacks(self):
+        import json
+
+        from release_boundary_owner import advance
+        from rollout_operator import execute_step, metadata
+
+        host = self.host
+        with patch("time.time", return_value=1000):
+            self.assertEqual(
+                metadata(self.review, self.review["source_sha"], self.profile), self.review
+            )
+
+        def owner_step(action, prior=None):
+            return advance(
+                action,
+                self.owner_review,
+                self.original,
+                self.owner,
+                self.call,
+                self.owner_receipts.append,
+                profile=self.profile,
+                prior=prior,
+                now=3000 if action in {"inspect", "verify"} else 1000,
+            )
+
+        for field, wrong in (
+            (
+                "operator_role_arn",
+                self.owner_review["operator_role_arn"].replace("role/", "role/foreign/"),
+            ),
+            (
+                "maintenance_marker",
+                self.owner_review["maintenance_marker"].replace(
+                    self.review["source_sha"], "f" * 40
+                ),
+            ),
+        ):
+            with (
+                self.subTest(field=field),
+                patch.dict(self.owner_review, {field: wrong}),
+                self.assertRaises(RuntimeError),
+            ):
+                owner_step("create")
+        self.assertFalse(self.writes)
+        self.uncertain = "create-change-set"
+        with self.assertRaises(TimeoutError):
+            owner_step("create")
+        observed = owner_step("inspect", self.owner_receipts[-1])
+        self.uncertain = "execute-change-set"
+        with self.assertRaises(TimeoutError):
+            owner_step("execute", observed)
+        observed = owner_step("inspect", self.owner_receipts[-1])
+        self.assertTrue(observed["execution_requested"])
+        self.assertEqual(owner_step("verify", observed)["state"], "template_verified")
+        self.assertEqual(self.writes, ["create-change-set", "execute-change-set"])
+        self.assertEqual(host.current_template, self.original)
+        self.assertEqual(
+            self.live_owner["Resources"]["ReleaseAuthority"],
+            self.owner["Resources"]["ReleaseAuthority"],
+        )
+        self.as_owner = False
+        folder = host.rollout_folder / "frontend/release-frontend/dist-api-test"
+        folder.mkdir(parents=True)
+        for name in ("index.html", "sw.js", "manifest.webmanifest"):
+            (host.rollout_folder / name).rename(folder / name)
+        (host.rollout_folder / "image").mkdir()
+        (host.rollout_folder / "image/fitfinity-image-candidate.json").write_text(
+            json.dumps(host.rollout_image)
+        )
+        base_changes = host.changes
+
+        def changes():
+            rows = base_changes()
+            rows[0] = ChangeSetTests.change(
+                "ApiFunction", "AWS::Lambda::Function", ["Environment", "Code"]
+            )
+            return [*rows, ChangeSetTests.change("ApiRole", "AWS::IAM::Role", ["Policies"])]
+
+        def step(action, prior=None):
+            with (
+                patch.object(host, "changes", changes),
+                patch(
+                    "time.time",
+                    return_value=3000 if action in {"inspect", "verify"} else 1000,
+                ),
+            ):
+                execute_step(
+                    action,
+                    self.review,
+                    host.rollout_evidence,
+                    host.rollout_folder,
+                    self.call,
+                    host.receipts.append,
+                    profile=self.profile,
+                    prior=prior,
+                )
+
+            return host.receipts[-1]
+
+        created = step("create")
+        host.uncertain = "execute-change-set"
+        with self.assertRaises(TimeoutError):
+            step("execute", created)
+        inspected = step("inspect", host.receipts[-1])
+        verified = step("verify", host.receipts[-1])
+        self.assertEqual(verified["state"], "template_verified")
+        self.assertTrue(inspected["execution_requested"])
+        self.assertNotIn("RuntimeBoundary", host.current_template["Resources"])
+        self.assertEqual(
+            host.current_template["Resources"]["ApiRole"]["Properties"]["Policies"][0][
+                "PolicyDocument"
+            ],
+            self.live_owner["Resources"]["ExistingBoundary"]["Properties"]["PolicyDocument"],
+        )
+        self.assertEqual(self.writes, ["create-change-set", "execute-change-set"])
+        self.assertNotIn('"Resources"', json.dumps([*self.owner_receipts, *host.receipts]))
+
+    def test_actual_policy_consumer_role_and_owner_drift_prevent_activation(self):
+        from release_features import check_rollout_access
+
+        self.configure(True)
+        self.live_owner = deepcopy(self.destination)
+        self.as_owner = False
+        check_rollout_access(self.review, self.original, self.call, self.profile)
+        cases = [
+            ("get-role", ("Role", "AssumeRolePolicyDocument"), {}),
+            ("list-role-policies", ("PolicyNames",), ["Foreign"]),
+            ("list-role-policies", ("IsTruncated",), True),
+            ("list-attached-role-policies", ("AttachedPolicies",), [{"PolicyName": "Other"}]),
+            ("get-role-policy", ("PolicyDocument",), {}),
+            ("get-policy", ("Policy", "AttachmentCount"), 1),
+            ("get-policy", ("Policy", "PermissionsBoundaryUsageCount"), 2),
+            ("list-entities-for-policy", ("PolicyRoles",), [{"RoleName": "foreign"}]),
+            ("get-policy-version", ("PolicyVersion", "IsDefaultVersion"), False),
+            ("get-policy-version", ("PolicyVersion", "Document"), {}),
+            ("describe-stack-resource", ("StackResourceDetail", "PhysicalResourceId"), "foreign"),
+            ("get-template", ("TemplateBody",), self.owner),
+        ]
+        for operation, path, replacement in cases:
+            with self.subTest(operation=operation, path=path):
+
+                def drift(
+                    service, op, args, operation=operation, path=path, replacement=replacement
+                ):
+                    result = deepcopy(self.call(service, op, args))
+                    if op == operation:
+                        container = result
+                        for key in path[:-1]:
+                            container = container[key]
+                        container[path[-1]] = replacement
+                    return result
+
+                with self.assertRaises(RuntimeError):
+                    check_rollout_access(self.review, self.original, drift, self.profile)
+        self.assertFalse(self.writes)
+
+    def test_owner_command_recovers_lost_writes_from_exclusive_local_journals(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from release_boundary_owner import main
+
+        self.configure(False)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            journal = root / "journal"
+            operation = self.owner_review["operation_id"]
+            common = ["--review-sha256", digest(self.owner_review), "--journal", str(journal)]
+            for name, value in (
+                ("profile", self.profile),
+                ("review", self.owner_review),
+                ("hosting-template", self.original),
+                ("owner-template", self.owner),
+            ):
+                path = root / name
+                path.write_text(json.dumps(value))
+                common += ["--" + name, str(path)]
+
+            def provider(service, action, args, *, profile, read_only):
+                self.assertEqual(profile, self.profile)
+                if action in {"create-change-set", "execute-change-set"}:
+                    self.assertFalse(read_only)
+                    submitted = journal / (operation + "." + action.split("-")[0] + ".json")
+                    self.owner_receipts.append(json.loads(submitted.read_text()))
+                return self.call(service, action, args)
+
+            def step(action):
+                # Run the CLI against the same local receipt directory on each invocation.
+                with (
+                    patch("sys.argv", ["release_boundary_owner.py", action, *common]),
+                    patch(
+                        "release_boundary_owner.subprocess.check_output",
+                        return_value=self.owner_review["source_sha"],
+                    ),
+                    patch("release_boundary_owner.subprocess.run"),
+                    patch("release_boundary_owner.source_check"),
+                    patch("release_boundary_owner.aws", side_effect=provider),
+                    patch(
+                        "time.time", return_value=3000 if action in {"inspect", "verify"} else 1000
+                    ),
+                ):
+                    main()
+
+            self.as_owner = False
+            with self.assertRaisesRegex(RuntimeError, "Wrong release account or role"):
+                step("create")
+            self.assertFalse(list(journal.iterdir()))
+            self.as_owner = True
+            for action in ("create", "execute"):
+                self.uncertain = action + "-change-set"
+                with self.assertRaises(TimeoutError):
+                    step(action)
+                with self.assertRaisesRegex(RuntimeError, "Inspect the original owner"):
+                    step(action)
+                step("inspect")
+            step("verify")
+            self.assertEqual(self.writes, ["create-change-set", "execute-change-set"])
+            verified = list(journal.glob(operation + ".verify-*.json"))
+            self.assertEqual(len(verified), 1)
+            self.assertEqual(json.loads(verified[0].read_text())["state"], "template_verified")

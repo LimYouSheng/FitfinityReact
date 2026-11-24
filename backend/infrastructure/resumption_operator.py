@@ -3,9 +3,11 @@
 import json
 import re
 import time
+from copy import deepcopy
 
 from operator_checks import require
 from release_execution import template
+from release_features import check_rollout_access
 from release_observation import digest
 from release_rollout import resume, resumption_plan
 
@@ -42,7 +44,7 @@ def validate(value, *, recovery=False):
 
 def execute_step(mode, review, evidence, root, call, persist, *, profile, verified, prior=None):
     """Recover hashed templates without persisting runtime secrets in Actions artifacts."""
-    from rollout_operator import restore_original
+    from rollout_operator import expanded_rollout, restore_original
 
     require(mode in MODES, "Unknown resumption step")
     settings = validate(review["resumption"], recovery=mode in RECOVERY)
@@ -63,7 +65,20 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, verifi
             and prior.get("evidence") == evidence,
             "Original resumption evidence differs",
         )
-    candidate = template(call, review["stack_arn"], "release-" + review["operation_id"])
+        require(
+            not prior.get("finalization_requested") or mode == "resume-finalize-inspect",
+            "Inspect original finalization; never replay removal",
+        )
+    # A subsequent stack update invalidates earlier change sets. Recover the paused
+    # template from its sole reviewed delta and verify both original template hashes below.
+    candidate = deepcopy(template(call, review["stack_arn"]))
+    runtime = candidate["Resources"]["ApiFunction"]["Properties"]
+    capacity = runtime.get("ReservedConcurrentExecutions")
+    require(
+        type(capacity) is int and capacity in {0, settings["concurrency"]},
+        "Current stack capacity differs from the reviewed resumption",
+    )
+    runtime["ReservedConcurrentExecutions"] = 0
     original = restore_original(
         candidate,
         verified.get("original_release"),
@@ -75,21 +90,9 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, verifi
         and digest(candidate) == review["candidate_template_sha256"],
         "Verified paused templates differ",
     )
-    expanded = {
-        key: value
-        for key, value in original_review.items()
-        if not key.endswith("template_sha256") and key != "feature_values"
-    }
-    expanded.update(
-        original_template=original,
-        candidate_template=candidate,
-        mode="rollout",
-        boundary_resource=(
-            original["Resources"]["ApiRole"]["Properties"]["PermissionsBoundary"].get("Ref")
-            if review.get("feature_values")
-            else None
-        ),
-    )
+    if review.get("feature_values") and mode not in {"resume-inspect", "resume-finalize-inspect"}:
+        check_rollout_access(original_review, candidate, call, profile)
+    expanded = expanded_rollout(original_review, original, candidate)
     plan = resumption_plan(
         expanded,
         evidence,
@@ -123,16 +126,21 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, verifi
         from release_finalize import finish
         from release_health import read_url, verify
 
-        health = verify(
-            plan["review"],
-            evidence,
-            call,
-            read_url,
-            (root / "frontend/release-frontend/dist-api-test/index.html").read_bytes(),
-            profile=profile,
+        inspecting = mode == "resume-finalize-inspect"
+        health = (
+            prior.get("health")
+            if inspecting
+            else verify(
+                plan["review"],
+                evidence,
+                call,
+                read_url,
+                root / "frontend/release-frontend/dist-api-test",
+                profile=profile,
+            )
         )
         return finish(
-            "inspect" if mode.endswith("inspect") else "finalize",
+            "inspect" if inspecting else "finalize",
             plan["review"],
             evidence,
             prior,
@@ -162,7 +170,7 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, verifi
             evidence,
             call,
             read_url,
-            (root / "frontend/release-frontend/dist-api-test/index.html").read_bytes(),
+            root / "frontend/release-frontend/dist-api-test",
             profile=profile,
         )
         result = {**result, "health": health}

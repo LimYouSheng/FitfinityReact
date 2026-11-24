@@ -312,3 +312,9 @@ API review/response validators, portal input validation and report-device helper
 
 
 `resumption_operator.execute_step` reconstructs the original reviewed templates and binds each resumption receipt to its authenticated paused-rollout producer. `release_health.verify` compares deployed distribution/alias/image/capacity and exact frontend/API responses. `release_finalize.finish` persists removal intent before touching owned maintenance tags, then uses read-only inspection to establish completion after an uncertain response. These paths do not delete snapshots, migrate data or establish provider/device acceptance; Runbook owns their explicit workflow modes.
+
+
+`release_verification.verify` checks the canonical main workflow, exact source/repository, current attempt and every required shard/aggregate before credential acquisition. It separately requires both jobs of the latest exact-source main CodeQL run; an absent PR-only result check on main is recorded rather than invented. Reusing source CI does not extend operational expiry. `release_boundary_owner.advance` validates the original external stack, retained service-role identity and source-bound maintenance marker before its exact boundary change; routine rollout only verifies that owner's result. Finalization recovery uses the original removal intent and health evidence and cannot be routed through generic resumption recovery to replay removal.
+
+
+`release_evidence.observed_catalog` is the shared source/profile/SQL-digest boundary for catalog extraction. `read-schema.sql` collects each role's own LOGIN/CONNECT/USAGE facts; `catalog_matches` rejects missing, false or nonboolean runtime access before release resumption. `schema_probe_operator.aws` accepts empty successful CLI output but preserves command/JSON errors; probe and upgrade execution validate the raw JSON returned by the pinned Lambda Web Adapter. The backend catalog tests exercise the actual SQL against isolated PostgreSQL.

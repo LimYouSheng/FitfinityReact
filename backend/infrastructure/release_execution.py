@@ -87,9 +87,15 @@ def check_change_set_arn(value, name, profile):
     )
 
 
-def live_target(review, call, profile, *, after=False, inspecting=False):
+def live_target(review, call, profile, *, after=False, inspecting=False, boundary_authority=None):
     """Verify resource ownership and paused traffic before allowing stack writes."""
     target = identities(profile)
+    service_roles = (None, service_role_arn(profile))
+    if boundary_authority is not None:
+        require(
+            review["mode"] == "boundary", "Separate owner authority applies only to its boundary"
+        )
+        service_roles = (boundary_authority["service_role_arn"],)
     rows = call("cloudformation", "describe-stacks", {"StackName": review["stack_arn"]})["Stacks"]
     require(
         len(rows) == 1
@@ -97,7 +103,7 @@ def live_target(review, call, profile, *, after=False, inspecting=False):
         and rows[0].get("StackName") == review["stack_arn"].split("/")[1]
         and not rows[0].get("ParentId")
         and not rows[0].get("RootId")
-        and rows[0].get("RoleARN") in (None, service_role_arn(profile)),
+        and rows[0].get("RoleARN") in service_roles,
         "Exact root stack with only its reviewed service role required",
     )
     function = call("lambda", "get-function", {"FunctionName": target["runtime_function"]})
@@ -187,7 +193,37 @@ def live_target(review, call, profile, *, after=False, inspecting=False):
     return rows[0]
 
 
-def execute(action, review, call, persist, *, profile, prior=None, now=None):
+def validate_authority(authority, profile):
+    """Keep the existing owner session and its retained CloudFormation service role separate."""
+    target = identities(profile)
+    pattern = rf"arn:aws:iam::{target['account']}:role/(?:[\w+=,.@-]+/)*[\w+=,.@-]+"
+    require(
+        isinstance(authority, dict)
+        and set(authority) == {"operator_role_arn", "service_role_arn"}
+        and isinstance(authority["operator_role_arn"], str)
+        and re.fullmatch(pattern, authority["operator_role_arn"])
+        and authority["operator_role_arn"].split("/")[-1]
+        not in {
+            target["hosting_role"],
+            target["maintenance_role"],
+            service_role_arn(profile).split("/")[-1],
+            target["resource_prefix"] + "-hosting-api",
+        }
+        and (
+            authority["service_role_arn"] is None
+            or (
+                isinstance(authority["service_role_arn"], str)
+                and re.fullmatch(pattern, authority["service_role_arn"])
+                and authority["service_role_arn"] != authority["operator_role_arn"]
+            )
+        ),
+        "Exact separate owner operator and existing service role required",
+    )
+
+
+def execute(
+    action, review, call, persist, *, profile, prior=None, now=None, boundary_authority=None
+):
     """Persist each intent before one cloud write and recover by reading its original identity."""
     require(action in {"create", "inspect", "execute", "verify"}, "Unknown release action")
     require(callable(persist), "Durable release receipt writer required")
@@ -198,6 +234,11 @@ def execute(action, review, call, persist, *, profile, prior=None, now=None):
     )
     target = identities(profile)
     role = target["maintenance_role"] if review["mode"] == "pause" else target["hosting_role"]
+    if review["mode"] == "boundary":
+        validate_authority(boundary_authority, profile)
+        role = boundary_authority["operator_role_arn"].split("/")[-1]
+    else:
+        require(boundary_authority is None, "External owner authority is confined to its boundary")
     caller = call("sts", "get-caller-identity", {})
     require(
         caller.get("Account") == target["account"]
@@ -207,6 +248,12 @@ def execute(action, review, call, persist, *, profile, prior=None, now=None):
         ),
         "Wrong release account or role",
     )
+    if boundary_authority is not None:
+        owner = call("iam", "get-role", {"RoleName": role})["Role"]
+        require(
+            owner.get("Arn") == boundary_authority["operator_role_arn"],
+            "Existing owner role ARN or path differs",
+        )
     name = "release-" + review["operation_id"]
     receipt = {
         "identity": identity,
@@ -222,7 +269,12 @@ def execute(action, review, call, persist, *, profile, prior=None, now=None):
             "Prior release identity differs",
         )
     stack = live_target(
-        review, call, profile, after=action == "verify", inspecting=action == "inspect"
+        review,
+        call,
+        profile,
+        after=action == "verify",
+        inspecting=action == "inspect",
+        boundary_authority=boundary_authority,
     )
     receipt["service_role_arn"] = stack.get("RoleARN")
     if prior is not None:
@@ -258,7 +310,7 @@ def execute(action, review, call, persist, *, profile, prior=None, now=None):
                 "ChangeSetType": "UPDATE",
                 **(
                     {"RoleARN": stack["RoleARN"]}
-                    if stack.get("RoleARN") and review["mode"] != "pause"
+                    if stack.get("RoleARN") and review["mode"] not in {"pause", "boundary"}
                     else {}
                 ),
                 "TemplateBody": body,
@@ -283,7 +335,10 @@ def execute(action, review, call, persist, *, profile, prior=None, now=None):
         )
         require(
             change_set.get("StackId") == review["stack_arn"]
-            and change_set.get("RoleARN") == receipt["service_role_arn"]
+            # DescribeChangeSet has no RoleARN field. Creation pins the retained service
+            # role and DescribeStacks checks it against the original receipt at each step.
+            and change_set.get("RoleARN", receipt["service_role_arn"])
+            == receipt["service_role_arn"]
             and change_set.get("ChangeSetName") == name
             and change_set.get("Description")
             == "Fitfinity reviewed release " + identity["review_sha256"]

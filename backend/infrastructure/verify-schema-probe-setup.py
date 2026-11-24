@@ -12,7 +12,7 @@ from unittest.mock import patch
 from schema_probe_iam import BOUNDARY, RUNTIME_ROLE, runtime_policy
 from schema_probe_network_check import collect, read
 from schema_probe_setup import ACCOUNT, OPERATOR_ROLE, REGION, prepare, write_bundle
-from schema_probe_setup_operator import STACK, install, validate_change_set
+from schema_probe_setup_operator import STACK, install, template_hash, validate_change_set
 
 SECRET = (
     f"arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:fitfinity/test/database/migration-abcdef"
@@ -21,7 +21,7 @@ SECRET = (
 
 class SetupTests(unittest.TestCase):
     def setUp(self):
-        self.review = prepare(SECRET)
+        self.review = prepare(SECRET, vpc_id="vpc-aaaaaaaa")
         self.resources = self.review["template"]["Resources"]
         self.operator = self.resources["OperatorRole"]["Properties"]
         self.statements = self.operator["Policies"][0]["PolicyDocument"]["Statement"]
@@ -87,6 +87,64 @@ class SetupTests(unittest.TestCase):
             {"StringEquals": {"iam:PassedToService": "lambda.amazonaws.com"}},
         )
 
+    def test_both_private_worker_creators_have_only_region_and_vpc_scoped_network_reads(self):
+        from deployment_profile import DEVELOPER
+
+        client = {
+            **DEVELOPER,
+            "account": "123456789012",
+            "region": "eu-west-1",
+            "resource_prefix": "customer-prod",
+            "secret_prefix": "customer/prod",
+        }
+        for profile, vpc in ((DEVELOPER, "vpc-0123456789abcdef0"), (client, "vpc-12345678")):
+            account, region = profile["account"], profile["region"]
+            secret = (
+                f"arn:aws:secretsmanager:{region}:{account}:secret:"
+                + profile["secret_prefix"]
+                + "/database/migration-abc123"
+            )
+            resources_by_action = {
+                "ec2:DescribeVpcs": "*",
+                "ec2:DescribeSubnets": "*",
+                "ec2:DescribeSecurityGroups": "*",
+                "ec2:GetSecurityGroupsForVpc": f"arn:aws:ec2:{region}:{account}:vpc/{vpc}",
+            }
+            for purpose in ("probe", "upgrade"):
+                with self.subTest(purpose=purpose, vpc=vpc):
+                    review = prepare(secret, profile=profile, vpc_id=vpc, purpose=purpose)
+                    resources = review["template"]["Resources"]
+                    for policy in (
+                        resources["OperatorRole"]["Properties"]["Policies"][0]["PolicyDocument"],
+                        resources["OperatorBoundary"]["Properties"]["PolicyDocument"],
+                    ):
+                        grants = [
+                            (action, row["Resource"], row.get("Condition"))
+                            for row in policy["Statement"]
+                            for action in (
+                                row["Action"]
+                                if isinstance(row["Action"], list)
+                                else [row["Action"]]
+                            )
+                            if action.startswith("ec2:")
+                        ]
+                        self.assertCountEqual(
+                            grants,
+                            [
+                                (
+                                    action,
+                                    resource,
+                                    {"StringEquals": {"aws:RequestedRegion": region}},
+                                )
+                                for action, resource in resources_by_action.items()
+                            ],
+                        )
+                    runtime = resources["RuntimeBoundary"]["Properties"]["PolicyDocument"]
+                    self.assertNotIn("ec2:GetSecurityGroupsForVpc", json.dumps(runtime))
+        for invalid in (None, "*", "vpc-*", "vpc-123456789", "subnet-12345678"):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(RuntimeError, "VPC"):
+                prepare(SECRET, vpc_id=invalid)
+
     def test_no_secret_reads_policy_escalation_or_existing_application_changes(self):
         actions = {
             action
@@ -128,7 +186,7 @@ class SetupTests(unittest.TestCase):
             None,
         ):
             with self.subTest(secret=secret), self.assertRaises(RuntimeError):
-                prepare(secret)
+                prepare(secret, vpc_id="vpc-aaaaaaaa")
 
     def test_network_collection_stops_before_reads_in_foreign_account(self):
         calls = []
@@ -351,6 +409,229 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(receipt["state"], "failed_or_uncertain")
         self.assertEqual(calls.count("create-change-set"), 1)
         self.assertNotIn("execute-change-set", calls)
+
+    def test_installed_iam_update_rechecks_original_and_effective_permissions(self):
+        original = json.loads(
+            (Path(__file__).parent / "fixtures/installed-probe-iam-template.json").read_text()
+        )
+        original_resources = original["Resources"]
+        secret = original_resources["RuntimeBoundary"]["Properties"]["PolicyDocument"]["Statement"][
+            0
+        ]["Resource"]
+        review = prepare(secret, vpc_id="vpc-0b55320bb1a054441")
+        candidate = review["template"]
+        stack_id = f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/{STACK}/abcd"
+
+        def exercise(defect):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                bundle = root / "bundle"
+                write_bundle(review, bundle, installed_template=original, stack_id=stack_id)
+                operator = runpy.run_path(str(bundle / "fitfinity-update-probe-iam.py"))
+                calls = []
+                state = {"executed": False, "change": None, "polls": 0}
+                fallback = self.installer_call(calls)
+
+                def provider(service, operation, *args):
+                    # Existing account/OIDC/role-list observations match the setup fixture.
+                    if operation in {
+                        "get-caller-identity",
+                        "get-open-id-connect-provider",
+                        "get-role",
+                        "list-role-policies",
+                        "list-attached-role-policies",
+                        "get-policy",
+                    }:
+                        return fallback(service, operation, *args)
+                    calls.append(operation)
+                    active = candidate if state["executed"] else original
+                    if operation == "describe-stacks":
+                        self.assertEqual(args[-1], stack_id)
+                        return {
+                            "Stacks": [
+                                {
+                                    "StackId": stack_id,
+                                    "StackName": STACK,
+                                    "StackStatus": "UPDATE_COMPLETE",
+                                }
+                            ]
+                        }
+                    if operation == "list-stack-resources":
+                        physical = []
+                        for key, resource in original_resources.items():
+                            name = (
+                                OPERATOR_ROLE
+                                if key == "OperatorRole"
+                                else f"arn:aws:iam::{ACCOUNT}:policy/"
+                                + resource["Properties"]["ManagedPolicyName"]
+                            )
+                            physical.append(
+                                {
+                                    "LogicalResourceId": key,
+                                    "ResourceType": resource["Type"],
+                                    "PhysicalResourceId": name,
+                                }
+                            )
+                        if defect == "foreign_owner":
+                            physical[0]["PhysicalResourceId"] += "-other"
+                        return {"StackResourceSummaries": physical}
+                    if operation == "get-template":
+                        proposal = "--change-set-name" in args
+                        value = candidate if proposal else original
+                        if defect == ("proposed" if proposal else "original"):
+                            value = {**value, "Description": "unexpected"}
+                        return {"TemplateBody": json.dumps(value)}
+                    if operation == "get-role-policy":
+                        role = active["Resources"]["OperatorRole"]["Properties"]
+                        return {"PolicyDocument": role["Policies"][0]["PolicyDocument"]}
+                    if operation == "get-policy-version":
+                        arn = args[args.index("--policy-arn") + 1]
+                        name = (
+                            "RuntimeBoundary"
+                            if "schema-observe-runtime" in arn
+                            else "OperatorBoundary"
+                        )
+                        value = active["Resources"][name]["Properties"]["PolicyDocument"]
+                        if name == "OperatorBoundary" and (
+                            defect == "readback"
+                            and state["executed"]
+                            or defect == "live_boundary"
+                            and not state["executed"]
+                        ):
+                            value = {"Statement": []}
+                        return {"PolicyVersion": {"Document": value}}
+                    if operation == "create-change-set":
+                        self.assertEqual(args[args.index("--change-set-type") + 1], "UPDATE")
+                        self.assertEqual(args[args.index("--stack-name") + 1], stack_id)
+                        name = args[args.index("--change-set-name") + 1]
+                        state["change"] = (
+                            f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:changeSet/{name}/id"
+                        )
+                        return {"StackId": stack_id, "Id": state["change"]}
+                    if operation == "describe-change-set":
+                        execution = "AVAILABLE"
+                        if state["executed"]:
+                            state["polls"] += 1
+                            execution = (
+                                "EXECUTE_COMPLETE" if state["polls"] > 1 else "EXECUTE_IN_PROGRESS"
+                            )
+                        return {
+                            "Status": "CREATE_COMPLETE",
+                            "ExecutionStatus": execution,
+                            "ChangeSetId": state["change"],
+                            "StackId": stack_id
+                            + ("1" if defect == "wrong_change_set_stack" else ""),
+                            "Changes": [
+                                {
+                                    "ResourceChange": {
+                                        "Action": "Add" if defect == "add" else "Modify",
+                                        "ResourceType": original_resources[key]["Type"],
+                                        "LogicalResourceId": key,
+                                        "Replacement": "Conditional"
+                                        if defect == "replace"
+                                        else "False",
+                                    }
+                                }
+                                for key in ("OperatorRole", "OperatorBoundary")
+                            ],
+                        }
+                    if operation == "execute-change-set":
+                        self.assertEqual(args[args.index("--change-set-name") + 1], state["change"])
+                        state["executed"] = True
+                        if defect == "lost_execute":
+                            raise RuntimeError("lost reply")
+                        return {}
+                    self.fail(operation)
+
+                def run():
+                    return operator["install"](
+                        operator["TEMPLATE"],
+                        root / "journal",
+                        provider,
+                        pause=lambda _: None,
+                        update=operator["UPDATE"],
+                    )
+
+                if defect is None:
+                    result = run()
+                    self.assertEqual(result["state"], "iam_setup_verified")
+                    self.assertEqual(result["original_sha256"], template_hash(original))
+                    self.assertEqual(result["stack_id"], stack_id)
+                    self.assertEqual(state["polls"], 2)
+                else:
+                    with self.assertRaises(RuntimeError):
+                        run()
+                if defect in ("original", "foreign_owner", "live_boundary"):
+                    self.assertNotIn("create-change-set", calls)
+                self.assertEqual(
+                    calls.count("execute-change-set"),
+                    int(defect in (None, "lost_execute", "readback")),
+                )
+                if defect in ("lost_execute", "readback"):
+                    receipt = json.loads((root / "journal/receipt.json").read_text())
+                    self.assertEqual(receipt["state"], "failed_or_uncertain")
+                    self.assertEqual(receipt["change_set_id"], state["change"])
+
+        for defect in (
+            None,
+            "original",
+            "foreign_owner",
+            "live_boundary",
+            "add",
+            "replace",
+            "wrong_change_set_stack",
+            "proposed",
+            "lost_execute",
+            "readback",
+        ):
+            exercise(defect)
+
+    def test_installed_update_rejects_other_grants_or_iam_owners_before_packaging(self):
+        old = json.loads(
+            (Path(__file__).parent / "fixtures/installed-probe-iam-template.json").read_text()
+        )
+        secret = old["Resources"]["RuntimeBoundary"]["Properties"]["PolicyDocument"]["Statement"][
+            0
+        ]["Resource"]
+        review = prepare(secret, vpc_id="vpc-0b55320bb1a054441")
+        stack = f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/{STACK}/abcd"
+        for defect in (
+            "trust",
+            "extra_permission",
+            "runtime",
+            "different_role",
+            "current",
+            "wrong_stack",
+            "no_stack",
+            "no_template",
+        ):
+            installed = copy.deepcopy(old)
+            stack_id = stack
+            if defect == "trust":
+                installed["Resources"]["OperatorRole"]["Properties"][
+                    "AssumeRolePolicyDocument"
+                ] = {}
+            elif defect == "extra_permission":
+                installed["Resources"]["OperatorRole"]["Properties"]["Policies"][0][
+                    "PolicyDocument"
+                ]["Statement"].append({"Effect": "Allow", "Action": "*", "Resource": "*"})
+            elif defect == "runtime":
+                installed["Resources"]["RuntimeBoundary"]["Properties"]["PolicyDocument"] = {}
+            elif defect == "different_role":
+                installed["Resources"]["OperatorRole"]["Properties"]["RoleName"] += "-foreign"
+            elif defect == "current":
+                installed = review["template"]
+            elif defect == "wrong_stack":
+                stack_id = stack.replace(STACK, "different-owner")
+            elif defect == "no_stack":
+                stack_id = None
+            elif defect == "no_template":
+                installed = None
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "bundle"
+                with self.assertRaises(RuntimeError):
+                    write_bundle(review, output, installed_template=installed, stack_id=stack_id)
+                self.assertFalse(output.exists())
 
     def test_setup_refuses_template_drift_before_execution(self):
         calls = []

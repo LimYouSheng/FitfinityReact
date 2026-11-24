@@ -17,6 +17,22 @@ def file_hash(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def observed_catalog(probe, *, source, profile_sha256, sql_path):
+    """Bind the private observation to its release target, source and packaged SQL."""
+    payload = probe.get("receipt")
+    require(
+        probe.get("state") == "observed"
+        and probe.get("source_sha") == source
+        and probe.get("profile_sha256") == profile_sha256
+        and isinstance(payload, dict)
+        and payload.get("source_sha") == source
+        and payload.get("sql_sha256") == file_hash(sql_path)
+        and isinstance(payload.get("catalog"), dict),
+        "Current-source private catalog receipt required",
+    )
+    return payload["catalog"]
+
+
 def catalog_matches(catalog, grants, *, database, now):
     """Require fresh schema and exact current-table runtime access from the private observer."""
     observed = datetime.fromisoformat(catalog.get("observed_at", ""))
@@ -61,6 +77,11 @@ def catalog_matches(catalog, grants, *, database, now):
             for key in ("superuser", "create_role", "create_database", "bypass_row_security")
         ),
         "Observed database roles have unexpected authority",
+    )
+    runtime = next(row for row in roles if row["name"] == "fitfinity_app")
+    require(
+        all(runtime.get(key) is True for key in ("login", "database_connect", "schema_usage")),
+        "Observed runtime login, database CONNECT and public schema USAGE are required",
     )
     return observed.isoformat()
 
@@ -164,16 +185,13 @@ def validate(
             and re.fullmatch(r"[a-f0-9]{64}", identity.get("FitfinityTemplate", "")),
             "Completed same-source upgrade and grant receipt required",
         )
-    payload = probe.get("receipt", {})
-    require(
-        probe.get("state") == "observed"
-        and probe.get("source_sha") == source
-        and probe.get("profile_sha256") == target["profile_sha256"]
-        and payload.get("source_sha") == source
-        and payload.get("sql_sha256") == file_hash(repo / "backend/infrastructure/read-schema.sql"),
-        "Current-source private catalog receipt required",
+    catalog = observed_catalog(
+        probe,
+        source=source,
+        profile_sha256=target["profile_sha256"],
+        sql_path=repo / "backend/infrastructure/read-schema.sql",
     )
-    observed = catalog_matches(payload.get("catalog", {}), grants, database=database, now=now)
+    observed = catalog_matches(catalog, grants, database=database, now=now)
     return {
         "decision": "HOLD",
         "source_sha": source,

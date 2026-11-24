@@ -28,6 +28,11 @@ OPERATIONS = {
     ("cloudfront", "get-distribution"),
     ("lambda", "get-function-concurrency"),
     ("iam", "get-role"),
+    ("iam", "list-role-policies"),
+    ("iam", "list-attached-role-policies"),
+    ("iam", "get-role-policy"),
+    ("iam", "get-policy"),
+    ("iam", "get-policy-version"),
     ("iam", "list-entities-for-policy"),
 }
 

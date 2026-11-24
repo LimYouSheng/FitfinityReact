@@ -1,6 +1,9 @@
 """Prepare explicit feature changes while preserving the existing IAM boundary owner."""
 
+import json
+import re
 from copy import deepcopy
+from urllib.parse import unquote
 
 from deployment_profile import identities
 from hosting_design import sub
@@ -22,8 +25,13 @@ def prepare(template, values, *, profile, boundary_template=None, boundary_templ
         and function["Properties"]["FunctionName"] == target["runtime_function"]
         and function["Properties"]["Role"] == {"Fn::GetAtt": ["ApiRole", "Arn"]}
         and function["Properties"]["Code"]["ImageUri"] == values["image"]
+        and function["Properties"].get("VpcConfig", {}).get("SubnetIds") == values["subnets"]
+        and function["Properties"].get("VpcConfig", {}).get("SecurityGroupIds")
+        == values["security_groups"]
+        and resources["ApiStage"]["Properties"].get("StageName") == values["stage"]
         and role["Type"] == "AWS::IAM::Role"
-        and role["Properties"]["RoleName"] == target["resource_prefix"] + "-hosting-api",
+        and role["Properties"]["RoleName"] == target["resource_prefix"] + "-hosting-api"
+        and role["Properties"].get("Path", "/") == "/",
         "Existing runtime identity or role binding differs",
     )
     require(
@@ -47,6 +55,7 @@ def prepare(template, values, *, profile, boundary_template=None, boundary_templ
         "FITFINITY_COGNITO_POOL_ID": values["pool"],
         "FITFINITY_COGNITO_CLIENT_ID": values["client"],
         "FITFINITY_ENVIRONMENT": values["environment"],
+        "FITFINITY_AWS_ACCOUNT_ID": target["account"],
     }.items():
         require(env.get(key) == value, "Existing runtime configuration differs")
     previous_flags = {}
@@ -163,6 +172,184 @@ FEATURE_KEYS = set(FEATURE_FLAGS.values()) | {
     "FITFINITY_MEDIA_BUCKET",
     "FITFINITY_STAFF_PORTAL_URL",
 }
+
+
+def boundary_arn(profile):
+    """Identify the sole supported staff-runtime boundary in this account."""
+    target = identities(profile)
+    return (
+        f"arn:aws:iam::{target['account']}:policy/{target['resource_prefix']}-hosting-api-boundary"
+    )
+
+
+def external_identity(owner, profile):
+    """Bind an external owner to one separate stack, logical resource and exact template."""
+    target = identities(profile)
+    prefix = f"arn:aws:cloudformation:{target['region']}:{target['account']}:stack/"
+    require(
+        isinstance(owner, dict)
+        and set(owner) == {"stack_arn", "logical_id", "template_sha256"}
+        and isinstance(owner["stack_arn"], str)
+        and re.fullmatch(
+            re.escape(prefix) + r"[A-Za-z][A-Za-z0-9-]{0,127}/[a-f0-9-]+", owner["stack_arn"]
+        )
+        and owner["stack_arn"].split("/")[1] != target["hosting_stack"]
+        and isinstance(owner["logical_id"], str)
+        and re.fullmatch(r"[A-Za-z][A-Za-z0-9]{0,254}", owner["logical_id"])
+        and isinstance(owner["template_sha256"], str)
+        and re.fullmatch(r"[a-f0-9]{64}", owner["template_sha256"]),
+        "Exact separate boundary owner and template digest required",
+    )
+    return owner
+
+
+def check_boundary_resource(call, profile, stack_arn, logical_id):
+    """Confirm this stack physically owns the named staff-runtime boundary."""
+    row = call(
+        "cloudformation",
+        "describe-stack-resource",
+        {"StackName": stack_arn, "LogicalResourceId": logical_id},
+    )["StackResourceDetail"]
+    require(
+        row.get("StackId") == stack_arn
+        and row.get("LogicalResourceId") == logical_id
+        and row.get("ResourceType") == "AWS::IAM::ManagedPolicy"
+        and row.get("PhysicalResourceId") == boundary_arn(profile)
+        and row.get("ResourceStatus") in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "IMPORT_COMPLETE"},
+        "Actual managed policy owner differs",
+    )
+
+
+def installed_owner(call, owner, profile):
+    """Read the installed external template through the routine operator's read-only scope."""
+    from release_execution import template
+
+    external_identity(owner, profile)
+    stack_arn = owner["stack_arn"]
+    stacks = call("cloudformation", "describe-stacks", {"StackName": stack_arn})["Stacks"]
+    require(
+        len(stacks) == 1
+        and stacks[0].get("StackId") == stack_arn
+        and stacks[0].get("StackName") == stack_arn.split("/")[1]
+        and not stacks[0].get("ParentId")
+        and not stacks[0].get("RootId")
+        and stacks[0].get("StackStatus")
+        in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "IMPORT_COMPLETE"},
+        "Stable reviewed external root stack required",
+    )
+    check_boundary_resource(call, profile, stack_arn, owner["logical_id"])
+    value = template(call, stack_arn)
+    require(digest(value) == owner["template_sha256"], "Installed external owner template differs")
+    return value
+
+
+def iam_document(value):
+    """Read the JSON or RFC 3986 encoded document returned by IAM."""
+    if isinstance(value, str):
+        return json.loads(value if value.lstrip().startswith("{") else unquote(value))
+    return value
+
+
+def verify_effective(call, profile, role, boundary_document):
+    """Verify the actual runtime identity, inline policy and boundary's active default version."""
+    target = identities(profile)
+    name = target["resource_prefix"] + "-hosting-api"
+    arn = boundary_arn(profile)
+    role_args = {"RoleName": name}
+    observed = call("iam", "get-role", role_args)["Role"]
+    require(
+        observed.get("RoleName") == name
+        and observed.get("Arn") == f"arn:aws:iam::{target['account']}:role/{name}"
+        and observed.get("Path") == "/"
+        and iam_document(observed.get("AssumeRolePolicyDocument"))
+        == role["AssumeRolePolicyDocument"]
+        and observed.get("PermissionsBoundary", {}).get("PermissionsBoundaryArn") == arn,
+        "Actual runtime trust, identity or boundary differs",
+    )
+    expected = role["Policies"][0]
+    inline = call("iam", "list-role-policies", role_args)
+    attached = call("iam", "list-attached-role-policies", role_args)
+    require(
+        not any(page.get(key) for page in (inline, attached) for key in ("IsTruncated", "Marker"))
+        and inline.get("PolicyNames") == [expected["PolicyName"]]
+        and attached.get("AttachedPolicies") == [],
+        "Actual runtime policy inventory differs",
+    )
+    document = call("iam", "get-role-policy", {**role_args, "PolicyName": expected["PolicyName"]})
+    require(
+        document.get("RoleName") == name
+        and document.get("PolicyName") == expected["PolicyName"]
+        and iam_document(document.get("PolicyDocument")) == expected["PolicyDocument"],
+        "Actual runtime inline policy differs",
+    )
+    policy_args = {"PolicyArn": arn}
+    current = call("iam", "get-policy", policy_args)["Policy"]
+    version_id = current.get("DefaultVersionId")
+    require(
+        current.get("Arn") == arn
+        and isinstance(version_id, str)
+        and re.fullmatch(r"v[1-9][0-9]*(\.[A-Za-z0-9-]+)?", version_id)
+        and current.get("AttachmentCount") == 0
+        and current.get("PermissionsBoundaryUsageCount") == 1,
+        "Runtime boundary has another attachment, consumer or identity",
+    )
+    consumers = call(
+        "iam",
+        "list-entities-for-policy",
+        {**policy_args, "PolicyUsageFilter": "PermissionsBoundary"},
+    )
+    require(
+        not consumers.get("IsTruncated")
+        and not consumers.get("Marker")
+        and not consumers.get("PolicyUsers")
+        and not consumers.get("PolicyGroups")
+        and [row.get("RoleName") for row in consumers.get("PolicyRoles", [])] == [name],
+        "Runtime boundary does not have its sole reviewed consumer",
+    )
+    version = call("iam", "get-policy-version", {**policy_args, "VersionId": version_id})[
+        "PolicyVersion"
+    ]
+    require(
+        version.get("VersionId") == version_id
+        and version.get("IsDefaultVersion") is True
+        and iam_document(version.get("Document")) == boundary_document,
+        "Effective default boundary policy differs",
+    )
+
+
+def check_rollout_access(review, hosting, call, profile, external=None):
+    """Check the effective permissions required by a reviewed feature rollout or resumption."""
+    role = hosting["Resources"]["ApiRole"]["Properties"]
+    owner = review.get("external_boundary")
+    expected = role["Policies"][0]["PolicyDocument"]
+    if owner is not None:
+        if external is None:
+            external = installed_owner(call, owner, profile)
+        policy_resource = external["Resources"][owner["logical_id"]]
+        expected = runtime_access(
+            bindings(profile, review["feature_values"]), review["feature_values"]
+        )
+        require(
+            role["PermissionsBoundary"] == boundary_arn(profile),
+            "External boundary association differs",
+        )
+    else:
+        boundary = role["PermissionsBoundary"]
+        require(
+            isinstance(boundary, dict) and set(boundary) == {"Ref"},
+            "External boundary owner review required",
+        )
+        logical = boundary["Ref"]
+        check_boundary_resource(call, profile, review["stack_arn"], logical)
+        policy_resource = hosting["Resources"][logical]
+    require(
+        policy_resource.get("Type") == "AWS::IAM::ManagedPolicy"
+        and policy_resource["Properties"].get("ManagedPolicyName")
+        == boundary_arn(profile).split("/")[-1]
+        and policy_resource["Properties"].get("PolicyDocument") == expected,
+        "Installed owner does not contain the reviewed boundary policy",
+    )
+    verify_effective(call, profile, role, expected)
 
 
 def checked_state(state, profile):

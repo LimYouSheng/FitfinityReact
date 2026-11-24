@@ -391,6 +391,7 @@ class MaintenanceAccessTests(unittest.TestCase):
                     "cloudformation:ExecuteChangeSet",
                     "lambda:GetFunction",
                     "lambda:GetFunctionConcurrency",
+                    "lambda:ListTags",
                     "lambda:PutFunctionConcurrency",
                     "lambda:TagResource",
                     "rds:DescribeDBInstances",

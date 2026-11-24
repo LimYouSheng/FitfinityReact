@@ -169,6 +169,7 @@ def test_read_only_schema_receipt_reports_actual_revision_without_business_rows(
     from pathlib import Path
 
     import psycopg
+    from psycopg import sql
 
     engine, kwargs = outgoing
     if target == HEAD:
@@ -176,17 +177,34 @@ def test_read_only_schema_receipt_reports_actual_revision_without_business_rows(
     before = owner(engine)
     script = (Path(__file__).parents[1] / "infrastructure/read-schema.sql").read_text()
     dsn = engine.url.set(drivername="postgresql").render_as_string(hide_password=False)
-    results = []
+    revoke_connect = sql.SQL("REVOKE CONNECT ON DATABASE {} FROM PUBLIC").format(
+        sql.Identifier(kwargs["expected_database"])
+    )
     with psycopg.connect(dsn, autocommit=True) as connection, connection.cursor() as cursor:
-        cursor.execute(script)
-        while True:
-            if cursor.description:
-                results.append(cursor.fetchone()[0])
-            if not cursor.nextset():
-                break
-        assert connection.info.transaction_status == psycopg.pq.TransactionStatus.IDLE
-    assert len(results) == 1
-    receipt = results[0]
+        for change, expected in (
+            (None, (True, True, True)),
+            ("ALTER ROLE fitfinity_app NOLOGIN", (False, True, True)),
+            (revoke_connect, (True, False, True)),
+            ("REVOKE USAGE ON SCHEMA public FROM PUBLIC", (True, True, False)),
+        ):
+            # Stage the fixed probe role privately. The packaged query rolls back the role and ACLs.
+            cursor.execute("BEGIN ISOLATION LEVEL REPEATABLE READ")
+            cursor.execute("CREATE ROLE fitfinity_app LOGIN")
+            if change is not None:
+                cursor.execute(change)
+            results = []
+            cursor.execute(script)
+            while True:
+                if cursor.description:
+                    results.append(cursor.fetchone()[0])
+                if not cursor.nextset():
+                    break
+            assert connection.info.transaction_status == psycopg.pq.TransactionStatus.IDLE
+            assert len(results) == 1
+            receipt = results[0]
+            runtime = next(row for row in receipt["roles"] if row["name"] == "fitfinity_app")
+            access = (runtime["login"], runtime["database_connect"], runtime["schema_usage"])
+            assert access == expected
     assert receipt["alembic_revisions"] == [target]
     assert receipt["transaction_read_only"] == "on"
     assert receipt["database"] == kwargs["expected_database"]

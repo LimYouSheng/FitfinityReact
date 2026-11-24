@@ -24,6 +24,10 @@ on:
         type: string
         default: '{}'
         required: true
+      verification_run:
+        description: Successful complete main verification run for the exact current commit
+        type: string
+        required: true
       prior_run:
         description: Original rollout run; required for execution and read-only recovery
         type: string
@@ -34,8 +38,6 @@ env:
 permissions:
   contents: read
 jobs:
-  verify:
-    uses: ./.github/workflows/verify.yml
   target:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -58,7 +60,7 @@ jobs:
           DEPLOYMENT_TARGET: ${{ inputs.target }}
         run: python3 backend/infrastructure/deployment_profile.py
   rollout:
-    needs: [verify, target]
+    needs: [target]
     if: github.ref == 'refs/heads/main' && vars.AWS_ROLLOUT_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -69,12 +71,19 @@ jobs:
     permissions:
       contents: read
       actions: read
+      checks: read
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Verify exact-source complete CI before AWS authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
+          VERIFICATION_RUN: ${{ inputs.verification_run }}
+        run: python3 backend/infrastructure/release_verification.py --profile "$DEPLOYMENT_PROFILE"
       - name: Fetch exact reviewed evidence before AWS authentication
         env:
           GH_TOKEN: ${{ github.token }}
@@ -109,6 +118,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: fitfinity-rollout-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/rollout-receipt.json
+          path: |
+            ${{ runner.temp }}/rollout-receipt.json
+            ${{ runner.temp }}/rollout-verification.json
           if-no-files-found: warn
           retention-days: 7

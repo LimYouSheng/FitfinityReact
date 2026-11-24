@@ -48,7 +48,10 @@ SELECT jsonb_build_object(
     WHERE n.nspname='public'),
   'roles', (SELECT jsonb_agg(jsonb_build_object(
       'name', rolname, 'superuser', rolsuper, 'create_role', rolcreaterole,
-      'create_database', rolcreatedb, 'bypass_row_security', rolbypassrls
+      'create_database', rolcreatedb, 'bypass_row_security', rolbypassrls,
+      'login', rolcanlogin,
+      'database_connect', has_database_privilege(oid, current_database(), 'CONNECT'),
+      'schema_usage', has_schema_privilege(oid, 'public', 'USAGE')
     ) ORDER BY rolname)
     FROM pg_roles WHERE rolname IN ('fitfinity_app','fitfinity_migrator'))
 );

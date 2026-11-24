@@ -236,7 +236,10 @@ class UpgradePlanTests(unittest.TestCase):
         for profile in (DEVELOPER, CLIENT):
             target = identities(profile)
             review = prepare_access(
-                binding(profile)["migration_secret_arn"], profile=profile, purpose="upgrade"
+                binding(profile)["migration_secret_arn"],
+                vpc_id="vpc-aaaaaaaa",
+                profile=profile,
+                purpose="upgrade",
             )
             resources = review["template"]["Resources"]
             self.assertEqual(
@@ -321,7 +324,8 @@ class UpgradePlanTests(unittest.TestCase):
             ]
             self.assertEqual(len(staff_rows), 1)
             self.assertEqual(
-                staff_rows[0]["Action"], ["lambda:GetFunction", "lambda:GetFunctionConcurrency"]
+                staff_rows[0]["Action"],
+                ["lambda:GetFunction", "lambda:GetFunctionConcurrency", "lambda:ListTags"],
             )
             text = json.dumps(review["template"])
             for forbidden in (
@@ -337,7 +341,10 @@ class UpgradePlanTests(unittest.TestCase):
         with TemporaryDirectory() as temporary:
             destination = Path(temporary) / "not-created"
             review = prepare_access(
-                binding(CLIENT)["migration_secret_arn"], profile=CLIENT, purpose="upgrade"
+                binding(CLIENT)["migration_secret_arn"],
+                vpc_id="vpc-aaaaaaaa",
+                profile=CLIENT,
+                purpose="upgrade",
             )
             with self.assertRaisesRegex(RuntimeError, "Template differs"):
                 write_bundle(review, destination)
@@ -345,7 +352,10 @@ class UpgradePlanTests(unittest.TestCase):
         for purpose in (None, "staff", "arbitrary"):
             with self.subTest(purpose=purpose), self.assertRaises(RuntimeError):
                 prepare_access(
-                    binding(CLIENT)["migration_secret_arn"], profile=CLIENT, purpose=purpose
+                    binding(CLIENT)["migration_secret_arn"],
+                    vpc_id="vpc-aaaaaaaa",
+                    profile=CLIENT,
+                    purpose=purpose,
                 )
 
 
@@ -387,6 +397,16 @@ class UpgradeExecutionTests(unittest.TestCase):
                 },
             },
         }
+        self.maintenance_operation = "f" * 32
+        self.marker = (
+            self.maintenance_operation + ":" + "a" * 40 + ":" + self.target["profile_sha256"]
+        )
+        self.snapshot_tags = {
+            "Application": "Fitfinity",
+            "FitfinityOperation": self.maintenance_operation,
+            "FitfinityProfile": self.target["profile_sha256"],
+            "FitfinitySource": "a" * 40,
+        }
         self.evidence = {
             "catalog": {
                 "database": "fitfinity",
@@ -395,7 +415,19 @@ class UpgradeExecutionTests(unittest.TestCase):
                 "alembic_revisions": ["20260924_0006"],
                 "observed_at": "1970-01-01T00:15:00+00:00",
             },
-            "snapshot_arn": "arn:aws:rds:eu-west-1:123456789012:snapshot:client-prod-reviewed",
+            "snapshot_arn": "arn:aws:rds:eu-west-1:123456789012:snapshot:client-prod-release-"
+            + self.maintenance_operation,
+        }
+        self.evidence["maintenance"] = {
+            "identity": {
+                "profile_sha256": self.target["profile_sha256"],
+                "source_sha": self.binding["source_sha"],
+                "operation_id": self.maintenance_operation,
+            },
+            "state": "snapshot_ready",
+            "snapshot_requested": True,
+            "snapshot_arn": self.evidence["snapshot_arn"],
+            "drained_after": 940,
         }
         self.saved, self.calls, self.overrides = [], [], {}
         self.status = "CREATE_COMPLETE"
@@ -468,6 +500,7 @@ class UpgradeExecutionTests(unittest.TestCase):
                 "DBSnapshots": [
                     {
                         "DBSnapshotArn": self.evidence["snapshot_arn"],
+                        "DBSnapshotIdentifier": "client-prod-release-" + self.maintenance_operation,
                         "DBInstanceIdentifier": "client-prod-db",
                         "DbiResourceId": "db-SYNTHETIC-IDENTITY",
                         "Status": "available",
@@ -475,6 +508,7 @@ class UpgradeExecutionTests(unittest.TestCase):
                         "Encrypted": True,
                         "Engine": "postgres",
                         "SnapshotCreateTime": "1970-01-01T00:15:50+00:00",
+                        "TagList": [{"Key": k, "Value": v} for k, v in self.snapshot_tags.items()],
                     }
                 ]
             }
@@ -528,7 +562,8 @@ class UpgradeExecutionTests(unittest.TestCase):
                             "arn:aws:lambda:eu-west-1:123456789012:function:client-prod-staff-api"
                         ),
                         "LastUpdateStatus": "Successful",
-                    }
+                    },
+                    "Tags": {"FitfinityMaintenance": self.marker, "FitfinitySnapshot": self.marker},
                 }
             config = {
                 key: copy.deepcopy(function[key])
@@ -591,7 +626,7 @@ class UpgradeExecutionTests(unittest.TestCase):
                 "schema": "20261101_0052",
                 "outcome": "upgraded",
             }
-            return {"StatusCode": 200, "Payload": {"statusCode": 200, "body": json.dumps(payload)}}
+            return {"StatusCode": 200, "Payload": payload}
         if operation == "delete-stack":
             self.assertEqual(self.saved[-1]["state"], "cleanup_submitted")
             self.assertEqual(args["StackName"], self.stack)
@@ -623,6 +658,85 @@ class UpgradeExecutionTests(unittest.TestCase):
         self.assertEqual(self.run_mode("cleanup", result, now=5000)["state"], "cleanup_submitted")
         self.status = "DELETE_COMPLETE"
         self.assertEqual(self.run_mode("cleanup-check", now=5000)["state"], "cleanup_verified")
+
+    def test_cli_already_at_target_receipt_and_empty_tag_and_cleanup_responses(self):
+        from subprocess import CompletedProcess
+        from unittest.mock import patch
+
+        from schema_probe_operator import aws
+
+        worker_result = {
+            "operation_id": "c" * 32,
+            "source_sha": "a" * 40,
+            "from_revision": "20260924_0006",
+            "schema": "20261101_0052",
+            "outcome": "already_at_target",
+        }
+        provider = self.call
+
+        def cli(command, **_kwargs):
+            service, action = command[1:3]
+            parameters = json.loads(command[command.index("--cli-input-json") + 1])
+            provider(service, action, parameters)
+            stdout = ""
+            if action == "invoke":
+                Path(command[-1]).write_text(json.dumps(worker_result))
+                stdout = '{"StatusCode":200}'
+            return CompletedProcess(command, 0, stdout, "")
+
+        def call(service, action, parameters):
+            if action in {"tag-resource", "invoke", "delete-stack"}:
+                return aws(service, action, parameters, profile=CLIENT, purpose="upgrade")
+            return provider(service, action, parameters)
+
+        created = self.run_mode("create")
+        with (
+            patch.object(self, "call", call),
+            patch("schema_probe_operator.subprocess.run", side_effect=cli) as run,
+        ):
+            receipt = self.run_mode("invoke", created)
+            self.assertEqual(receipt["state"], "already_at_target")
+            self.assertEqual(receipt["result"], worker_result)
+            cleanup = self.run_mode("cleanup", receipt, now=5000)
+            self.assertEqual(cleanup["state"], "cleanup_submitted")
+        self.assertEqual(
+            [attempt.args[0][1:3] for attempt in run.call_args_list],
+            [["lambda", "tag-resource"], ["lambda", "invoke"], ["cloudformation", "delete-stack"]],
+        )
+
+    def test_malformed_error_or_foreign_direct_worker_result_preserves_uncertain_intent(self):
+        valid = {
+            "operation_id": "c" * 32,
+            "source_sha": "a" * 40,
+            "from_revision": "20260924_0006",
+            "schema": "20261101_0052",
+            "outcome": "upgraded",
+        }
+        for response in (
+            {"StatusCode": 202, "Payload": valid},
+            {"StatusCode": 200, "FunctionError": "Unhandled", "Payload": valid},
+            {"StatusCode": 200, "Payload": None},
+            {"StatusCode": 200, "Payload": {"error": "migration_failed_or_uncertain"}},
+            {"StatusCode": 200, "Payload": {**valid, "operation_id": "d" * 32}},
+            {"StatusCode": 200, "Payload": {**valid, "source_sha": "e" * 40}},
+            {"StatusCode": 200, "Payload": {**valid, "from_revision": "20260923_0005"}},
+            {"StatusCode": 200, "Payload": {**valid, "schema": "20260924_0006"}},
+            {"StatusCode": 200, "Payload": {**valid, "outcome": "unknown"}},
+            {"StatusCode": 200, "Payload": {**valid, "error": "migration_failed_or_uncertain"}},
+            {"StatusCode": 200, "Payload": {"statusCode": 200, "body": json.dumps(valid)}},
+        ):
+            with self.subTest(response=response):
+                self.setUp()
+                created = self.run_mode("create")
+                self.overrides["invoke"] = response
+                with self.assertRaises(RuntimeError):
+                    self.run_mode("invoke", created)
+                self.assertEqual(self.saved[-1]["state"], "invoke_submitted")
+                inspected = self.run_mode("inspect", self.saved[-1])
+                self.assertEqual(inspected["database_outcome"], "not_observed")
+                with self.assertRaisesRegex(RuntimeError, "do not replay"):
+                    self.run_mode("invoke", inspected)
+                self.assertEqual(sum(action == "invoke" for action, _ in self.calls), 1)
 
     def test_lost_response_preserves_intent_and_repeated_inspection_never_allows_replay(self):
         created = self.run_mode("create")
@@ -709,13 +823,23 @@ class UpgradeExecutionTests(unittest.TestCase):
             {"DbiResourceId": "db-REPLACED-IDENTITY"},
             {"Encrypted": False},
             {"DBInstanceIdentifier": "foreign"},
+            {"DBSnapshotIdentifier": "foreign"},
+            {"SourceDBSnapshotIdentifier": "old-copied-backup"},
             {"SnapshotCreateTime": "1970-01-01T00:14:00+00:00"},
+            # Matching ownership and physical DB, after the catalog but still before drain.
+            {"SnapshotCreateTime": "1970-01-01T00:15:39+00:00"},
             {"SnapshotCreateTime": "1970-01-01T01:00:00+00:00"},
             {"SnapshotType": "shared"},
         ):
             self.overrides["describe-db-snapshots"] = {"DBSnapshots": [{**original, **changes}]}
             with self.subTest(changes=changes), self.assertRaises(RuntimeError):
                 readiness(self.binding, self.evidence, self.call, profile=CLIENT, now=1000)
+        self.overrides.clear()
+        other_db = self.call("rds", "describe-db-instances", {})["DBInstances"][0]
+        other_db["DBInstanceArn"] += "-foreign"
+        self.overrides["describe-db-instances"] = {"DBInstances": [other_db]}
+        with self.assertRaisesRegex(RuntimeError, "Database resource identity"):
+            readiness(self.binding, self.evidence, self.call, profile=CLIENT, now=1000)
         self.overrides.clear()
         for value in (1, False, None):
             self.overrides["get-function-concurrency"] = {"ReservedConcurrentExecutions": value}
@@ -741,6 +865,68 @@ class UpgradeExecutionTests(unittest.TestCase):
         self.overrides.clear()
         readiness(self.binding, self.evidence, self.call, profile=CLIENT, now=1000)
         self.assertNotIn("invoke", [name for name, _ in self.calls])
+
+    def test_upgrade_refuses_snapshot_outside_original_drained_maintenance(self):
+        # Every candidate is encrypted, current, and belongs to the same physical database.
+        # Only the snapshot taken by the active maintenance operation can fence prior writes.
+        for defect in (
+            "manual",
+            "foreign_name",
+            "untagged",
+            "tag_source",
+            "tag_profile",
+            "tag_operation",
+            "duplicate",
+            "no_pause",
+            "no_snapshot",
+            "foreign_marker",
+            "tags_unreadable",
+        ):
+            with self.subTest(defect=defect):
+                self.setUp()
+                worker_call = self.call
+                if defect == "manual":
+                    self.evidence["snapshot_arn"] = (
+                        self.evidence["snapshot_arn"].split("-release-")[0] + "-reviewed"
+                    )
+                elif defect == "foreign_name":
+                    self.evidence["snapshot_arn"] = self.evidence["snapshot_arn"].replace(
+                        "f" * 32, "e" * 32
+                    )
+
+                def provider(service, operation, args, defect=defect, worker_call=worker_call):
+                    result = worker_call(service, operation, args)
+                    if operation == "describe-db-snapshots":
+                        row = result["DBSnapshots"][0]
+                        tags = row["TagList"]
+                        if defect == "untagged":
+                            row.pop("TagList")
+                        elif defect == "duplicate":
+                            tags.append(tags[0])
+                        elif defect.startswith("tag_"):
+                            key = "Fitfinity" + defect.removeprefix("tag_").title()
+                            next(tag for tag in tags if tag["Key"] == key)["Value"] = "foreign"
+                    if (
+                        operation == "get-function"
+                        and args["FunctionName"] == self.target["runtime_function"]
+                    ):
+                        if defect == "no_pause":
+                            result["Tags"].pop("FitfinityMaintenance")
+                        elif defect == "no_snapshot":
+                            result["Tags"].pop("FitfinitySnapshot")
+                        elif defect == "foreign_marker":
+                            result["Tags"]["FitfinitySnapshot"] = "e" * 32 + self.marker[32:]
+                        elif defect == "tags_unreadable":
+                            result["TagsError"] = {"ErrorCode": "AccessDenied"}
+                    return result
+
+                from unittest.mock import patch
+
+                with patch.object(self, "call", provider):
+                    created = self.run_mode("create")
+                    with self.assertRaises(RuntimeError):
+                        self.run_mode("invoke", created)
+                self.assertFalse(any(name in {"tag-resource", "invoke"} for name, _ in self.calls))
 
     def test_durable_journal_preserves_last_intent_and_refuses_existing_file(self):
         from pathlib import Path
@@ -768,7 +954,10 @@ class UpgradeExecutionTests(unittest.TestCase):
         from tempfile import TemporaryDirectory
 
         review = prepare_access(
-            self.binding["migration_secret_arn"], profile=CLIENT, purpose="upgrade"
+            self.binding["migration_secret_arn"],
+            vpc_id="vpc-aaaaaaaa",
+            profile=CLIENT,
+            purpose="upgrade",
         )
         with TemporaryDirectory() as directory:
             output = Path(directory) / "upgrade"
@@ -840,3 +1029,122 @@ class UpgradeExecutionTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     operational("catalog", "123", destination, profile=CLIENT, source="a" * 40)
                 download.assert_not_called()
+
+    def test_upgrade_fetch_binds_private_catalog_to_source_target_and_packaged_sql(self):
+        import os
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from schema_upgrade_artifacts import main
+
+        source = self.binding["source_sha"]
+        sql = Path(__file__).with_name("read-schema.sql").read_bytes()
+        target = self.target["profile_sha256"]
+        receipt = {
+            "state": "observed",
+            "profile_sha256": target,
+            "source_sha": source,
+            "receipt": {
+                "source_sha": source,
+                "sql_sha256": hashlib.sha256(sql).hexdigest(),
+                "catalog": self.evidence["catalog"],
+            },
+        }
+        run = {
+            "path": ".github/workflows/aws-schema-probe.yml",
+            "event": "workflow_dispatch",
+            "head_branch": "main",
+            "head_repository": {"full_name": CLIENT["github_repository"]},
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": source,
+            "run_attempt": 1,
+        }
+        other_account = {**CLIENT, "account": "234567890123"}
+        for defect in (
+            None,
+            "profile",
+            "source",
+            "embedded_source",
+            "sql",
+            "maintenance_workflow",
+            "maintenance_failed",
+            "maintenance_source",
+            "maintenance_profile",
+            "maintenance_state",
+            "maintenance_operation",
+            "maintenance_arn",
+            "maintenance_drain",
+            "maintenance_intent",
+        ):
+            with self.subTest(defect=defect), TemporaryDirectory() as directory:
+                root = Path(directory)
+                profile = root / "client.json"
+                profile.write_text(json.dumps(CLIENT))
+                catalog = copy.deepcopy(receipt)
+                if defect == "profile":
+                    catalog["profile_sha256"] = identities(other_account)["profile_sha256"]
+                elif defect == "source":
+                    catalog["source_sha"] = "e" * 40
+                elif defect == "embedded_source":
+                    catalog["receipt"]["source_sha"] = "e" * 40
+                elif defect == "sql":
+                    catalog["receipt"]["sql_sha256"] = "e" * 64
+                downloaded = root / "upgrade-catalog"
+                downloaded.mkdir()
+                (downloaded / "schema-probe-receipt.json").write_text(json.dumps(catalog))
+                backup = copy.deepcopy(self.evidence["maintenance"])
+                maintenance_run = {**run, "path": ".github/workflows/aws-maintenance.yml"}
+                if defect == "maintenance_workflow":
+                    maintenance_run["path"] = run["path"]
+                elif defect == "maintenance_failed":
+                    maintenance_run["conclusion"] = "failure"
+                elif defect == "maintenance_source":
+                    backup["identity"]["source_sha"] = "e" * 40
+                elif defect == "maintenance_profile":
+                    backup["identity"]["profile_sha256"] = "e" * 64
+                elif defect == "maintenance_state":
+                    backup["state"] = "snapshot_submitted"
+                elif defect == "maintenance_operation":
+                    backup["identity"]["operation_id"] = "e" * 32
+                elif defect == "maintenance_arn":
+                    backup["snapshot_arn"] += "-old"
+                elif defect == "maintenance_drain":
+                    del backup["drained_after"]
+                elif defect == "maintenance_intent":
+                    backup["snapshot_requested"] = False
+                backup_directory = root / "upgrade-maintenance"
+                backup_directory.mkdir()
+                (backup_directory / "maintenance-receipt.json").write_text(json.dumps(backup))
+                evidence_path = root / "upgrade-evidence.json"
+                with (
+                    patch.dict(
+                        os.environ,
+                        {
+                            "RUNNER_TEMP": directory,
+                            "UPGRADE_MODE": "invoke",
+                            "REVIEW_RUN": "101",
+                            "IMAGE_RUN": "102",
+                            "CATALOG_RUN": "103",
+                            "MAINTENANCE_RUN": "104",
+                            "GITHUB_SHA": source,
+                            "DEPLOYMENT_PROFILE": str(profile),
+                            "GITHUB_REPOSITORY": CLIENT["github_repository"],
+                            "SNAPSHOT_ARN": self.evidence["snapshot_arn"],
+                            "PRIOR_RUN": "",
+                        },
+                    ),
+                    patch("schema_upgrade_artifacts.fetch", return_value=source),
+                    patch(
+                        "schema_upgrade_artifacts.subprocess.check_output",
+                        side_effect=[json.dumps(run), json.dumps(maintenance_run)],
+                    ),
+                    patch("schema_upgrade_artifacts.subprocess.run"),
+                ):
+                    if defect is None:
+                        main()
+                        self.assertEqual(json.loads(evidence_path.read_text()), self.evidence)
+                    else:
+                        with self.assertRaises(RuntimeError):
+                            main()
+                        self.assertFalse(evidence_path.exists())

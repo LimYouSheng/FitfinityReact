@@ -5,6 +5,7 @@ import hashlib
 import json
 import unittest
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -187,7 +188,7 @@ class ExecutionTests(unittest.TestCase):
                     "transaction_read_only": "on",
                 },
             }
-            return {"StatusCode": 200, "Payload": {"statusCode": 200, "body": json.dumps(body)}}
+            return {"StatusCode": 200, "Payload": body}
         raise AssertionError(f"Unexpected operation {service}/{operation}")
 
     def run_mode(self, mode, **kwargs):
@@ -299,6 +300,39 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(self.calls[-1][2]["Payload"], '{"operation":"observe-schema"}')
         self.assertEqual([op for _, op, _ in self.calls].count("invoke"), 1)
 
+    def test_cli_collect_reads_generic_event_response_body_from_lambda_output_file(self):
+        payload = {
+            "source_sha": "a" * 40,
+            "sql_sha256": hashlib.sha256(b"synthetic catalog").hexdigest(),
+            "catalog": {
+                "database": "fitfinity",
+                "database_user": "fitfinity_migrator",
+                "transaction_read_only": "on",
+                "alembic_revisions": ["20260924_0006"],
+            },
+        }
+        provider = self.call
+
+        def cli(command, **_kwargs):
+            self.assertEqual(command[1:3], ["lambda", "invoke"])
+            self.assertEqual(command[-3:-1], ["--cli-binary-format", "raw-in-base64-out"])
+            Path(command[-1]).write_text(json.dumps(payload))
+            return SimpleNamespace(returncode=0, stdout='{"StatusCode":200}', stderr="")
+
+        def call(service, action, args):
+            if action == "invoke":
+                return aws(service, action, args, profile=self.profile)
+            return provider(service, action, args)
+
+        with (
+            patch.object(self, "call", call),
+            patch("schema_probe_operator.subprocess.run", side_effect=cli) as run,
+        ):
+            result = self.run_mode("collect")
+        run.assert_called_once()
+        self.assertEqual(result["state"], "observed")
+        self.assertEqual(result["receipt"], payload)
+
     def test_foreign_operation_never_invoked_or_deleted(self):
         self.tags["FitfinityOperation"] = "e" * 32
         for mode in ("collect", "cleanup"):
@@ -337,14 +371,48 @@ class ExecutionTests(unittest.TestCase):
             self.assert_no_write()
 
     def test_failed_or_misbound_result_is_not_observation(self):
+        valid = {
+            "source_sha": self.binding["source_sha"],
+            "sql_sha256": self.binding["sql_sha256"],
+            "catalog": {
+                "database": "fitfinity",
+                "database_user": "fitfinity_migrator",
+                "transaction_read_only": "on",
+            },
+        }
+
+        def refused(response, reason):
+            with self.subTest(response=response):
+                self.calls.clear()
+                self.overrides["invoke"] = response
+                with self.assertRaisesRegex(RuntimeError, reason):
+                    self.run_mode("collect")
+                self.assertEqual([op for _, op, _ in self.calls].count("invoke"), 1)
+
         for response in (
-            {"StatusCode": 200, "FunctionError": "Unhandled"},
-            {"StatusCode": 200, "Payload": {"statusCode": 503}},
-            {"StatusCode": 200, "Payload": {"statusCode": 200, "body": '{"source_sha":"wrong"}'}},
+            {"StatusCode": 202, "Payload": valid},
+            {"StatusCode": 200, "FunctionError": "Unhandled", "Payload": valid},
         ):
-            self.overrides["invoke"] = response
-            with self.assertRaises(RuntimeError):
-                self.run_mode("collect")
+            refused(response, "Probe invocation failed")
+        for payload in (
+            None,
+            {"error": "catalog_observation_failed"},
+            {**valid, "source_sha": "b" * 40},
+            {**valid, "sql_sha256": "b" * 64},
+            {**valid, "error": "unexpected"},
+            {"statusCode": 200, "body": json.dumps(valid)},
+        ):
+            refused({"StatusCode": 200, "Payload": payload}, "Probe result binding differs")
+        for catalog in (
+            [],
+            {**valid["catalog"], "database": "other"},
+            {**valid["catalog"], "database_user": "fitfinity_app"},
+            {**valid["catalog"], "transaction_read_only": "off"},
+        ):
+            refused(
+                {"StatusCode": 200, "Payload": {**valid, "catalog": catalog}},
+                "Probe catalog identity differs",
+            )
 
     def test_cleanup_works_after_expiry_and_targets_owned_arn(self):
         self.assertEqual(self.run_mode("cleanup", now=3000)["state"], "cleanup_submitted")
@@ -374,6 +442,34 @@ class ExecutionTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "inspect owned resource") as error:
                 aws("cloudformation", "create-stack", {})
             self.assertNotIn("sensitive-marker", str(error.exception))
+
+    def test_successful_empty_cli_writes_do_not_interrupt_upgrade_or_cleanup(self):
+        for service, operation, purpose in (
+            ("lambda", "tag-resource", "upgrade"),
+            ("cloudformation", "delete-stack", "probe"),
+            ("cloudformation", "delete-stack", "upgrade"),
+        ):
+            with self.subTest(operation=operation, purpose=purpose):
+                for body in ("", " \n"):
+                    with patch(
+                        "schema_probe_operator.subprocess.run",
+                        return_value=SimpleNamespace(returncode=0, stdout=body, stderr=""),
+                    ) as run:
+                        self.assertEqual(aws(service, operation, {}, purpose=purpose), {})
+                        self.assertEqual(run.call_count, 1)
+                        self.assertEqual(run.call_args.kwargs["env"]["AWS_MAX_ATTEMPTS"], "1")
+                with patch(
+                    "schema_probe_operator.subprocess.run",
+                    return_value=SimpleNamespace(returncode=1, stdout="", stderr="private-detail"),
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "inspect owned resource"):
+                        aws(service, operation, {}, purpose=purpose)
+                with patch(
+                    "schema_probe_operator.subprocess.run",
+                    return_value=SimpleNamespace(returncode=0, stdout="not-json", stderr=""),
+                ):
+                    with self.assertRaises(json.JSONDecodeError):
+                        aws(service, operation, {}, purpose=purpose)
 
     def test_only_exact_policy_not_found_is_absence(self):
         with patch(

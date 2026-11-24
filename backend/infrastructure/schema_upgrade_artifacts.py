@@ -6,14 +6,21 @@ import re
 import subprocess
 from pathlib import Path
 
-from deployment_profile import load
+from deployment_profile import identities, load
 from operator_checks import require
+from release_evidence import observed_catalog
+from release_maintenance import verified_snapshot
 from schema_probe_artifacts import fetch, run_binding
 
 
 def operational(kind, run_id, destination, *, profile, source=None):
     """Retain failed upgrade intents for inspection without accepting failed catalog producers."""
-    require(kind in {"prior", "catalog"}, "Unknown operational artifact")
+    producers = {
+        "prior": ("aws-schema-upgrade", "fitfinity-schema-upgrade", "schema-upgrade-receipt.json"),
+        "catalog": ("aws-schema-probe", "fitfinity-schema-probe", "schema-probe-receipt.json"),
+        "maintenance": ("aws-maintenance", "fitfinity-maintenance", "maintenance-receipt.json"),
+    }
+    require(kind in producers, "Unknown operational artifact")
     require(re.fullmatch(r"[1-9][0-9]*", run_id or ""), "Exact operational run ID required")
     repository = profile["github_repository"]
     run = json.loads(
@@ -21,7 +28,7 @@ def operational(kind, run_id, destination, *, profile, source=None):
             ["gh", "api", f"repos/{repository}/actions/runs/{run_id}"], text=True
         )
     )
-    workflow = "aws-schema-upgrade" if kind == "prior" else "aws-schema-probe"
+    workflow, prefix, filename = producers[kind]
     checked = dict(run)
     if kind == "prior":
         require(
@@ -29,8 +36,8 @@ def operational(kind, run_id, destination, *, profile, source=None):
             "Prior operation must have finished; inspect running work",
         )
         checked["conclusion"] = "success"
-    _, attempt = run_binding(checked, workflow, source, profile=profile)
-    name = f"fitfinity-schema-{'upgrade' if kind == 'prior' else 'probe'}-{run_id}-{attempt}"
+    producer, attempt = run_binding(checked, workflow, source, profile=profile)
+    name = f"{prefix}-{run_id}-{attempt}"
     subprocess.run(
         [
             "gh",
@@ -46,14 +53,13 @@ def operational(kind, run_id, destination, *, profile, source=None):
         ],
         check=True,
     )
-    path = destination / (
-        "schema-upgrade-receipt.json" if kind == "prior" else "schema-probe-receipt.json"
-    )
-    receipt = json.loads(path.read_text())
+    receipt = json.loads((destination / filename).read_text())
     if kind == "catalog":
-        require(
-            receipt.get("state") == "observed" and receipt.get("source_sha") == source,
-            "Successful matching catalog receipt required",
+        return observed_catalog(
+            receipt,
+            source=producer,
+            profile_sha256=identities(profile)["profile_sha256"],
+            sql_path=Path(__file__).with_name("read-schema.sql"),
         )
     return receipt
 
@@ -85,9 +91,19 @@ def main():
             profile=profile,
             source=source,
         )
+        maintenance = operational(
+            "maintenance",
+            os.environ["MAINTENANCE_RUN"],
+            root / "upgrade-maintenance",
+            profile=profile,
+            source=source,
+        )
+        arn = os.environ["SNAPSHOT_ARN"]
+        verified_snapshot(maintenance, arn, identities(profile), source)
         evidence = {
-            "catalog": catalog["receipt"]["catalog"],
-            "snapshot_arn": os.environ["SNAPSHOT_ARN"],
+            "catalog": catalog,
+            "snapshot_arn": arn,
+            "maintenance": maintenance,
         }
         (root / "upgrade-evidence.json").write_text(json.dumps(evidence) + "\n")
 

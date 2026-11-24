@@ -19,11 +19,15 @@ FIELDS = {
     "secret_prefix",
     "runtime_alias",
 }
+GITHUB_IDS = {"github_owner_id", "github_repository_id"}
 
 
 def validate(value):
     """Return an isolated profile after rejecting ambiguous or unsafe target identities."""
-    require(isinstance(value, dict) and set(value) == FIELDS, "Exact deployment profile required")
+    require(
+        isinstance(value, dict) and set(value) in (FIELDS, FIELDS | GITHUB_IDS),
+        "Exact deployment profile required, including both immutable GitHub IDs if configured",
+    )
     require(
         type(value["schema_version"]) is int and value["schema_version"] == 1,
         "Unsupported deployment profile version",
@@ -40,6 +44,8 @@ def validate(value):
         "resource_prefix": r"[a-z][a-z0-9-]{1,24}",
         "secret_prefix": r"[a-z][a-z0-9-]{0,24}/[a-z][a-z0-9-]{0,24}",
     }
+    if "github_owner_id" in value:
+        patterns.update(dict.fromkeys(GITHUB_IDS, r"[1-9][0-9]*"))
     for key, pattern in patterns.items():
         require(
             isinstance(value[key], str) and re.fullmatch(pattern, value[key]),
@@ -73,16 +79,24 @@ def configured_target(name, text):
     return validate(targets[name])
 
 
+def check_workflow_repository(profile, repository):
+    """Bind the selected target to the repository identity supplied by GitHub Actions."""
+    require(profile["github_repository"] == repository, "Wrong deployment repository")
+    if "github_owner_id" in profile:
+        require(
+            profile["github_owner_id"] == os.getenv("GITHUB_REPOSITORY_OWNER_ID")
+            and profile["github_repository_id"] == os.getenv("GITHUB_REPOSITORY_ID"),
+            "Wrong immutable GitHub owner or repository ID",
+        )
+
+
 def load(path):
     """Load a file or explicitly selected GitHub-variable target without credential values."""
     if str(path).startswith("env:"):
         profile = configured_target(
             str(path)[4:], os.environ.get("FITFINITY_DEPLOYMENT_TARGETS_JSON", "{}")
         )
-        require(
-            profile["github_repository"] == os.environ.get("GITHUB_REPOSITORY"),
-            "Wrong deployment repository",
-        )
+        check_workflow_repository(profile, os.environ.get("GITHUB_REPOSITORY"))
         return profile
     return validate(unique_json(Path(path).read_text()))
 
@@ -99,6 +113,10 @@ def identities(profile):
     prefix = target["resource_prefix"]
     account, region = target["account"], target["region"]
     name = prefix + "-schema-observe"
+    repository = target["github_repository"]
+    if "github_owner_id" in target:
+        owner, repo = repository.split("/")
+        repository = f"{owner}@{target['github_owner_id']}/{repo}@{target['github_repository_id']}"
     return {
         **target,
         "profile_sha256": fingerprint(target),
@@ -124,7 +142,7 @@ def identities(profile):
         "environment_tag": target["secret_prefix"].split("/")[1],
         "registry": f"{account}.dkr.ecr.{region}.amazonaws.com",
         "oidc_subject": "repo:"
-        + target["github_repository"]
+        + repository
         + ":environment:"
         + quote(target["github_environment"], safe="-_."),
     }
@@ -199,7 +217,7 @@ def workflow_target(name, repository, root=None, *, configuration=None):
         "Target must be a direct regular profile file",
     )
     profile = configured_target(name, configuration) if configuration else load(path)
-    require(profile["github_repository"] == repository, "Wrong deployment repository")
+    check_workflow_repository(profile, repository)
     target = identities(profile)
     return {
         "profile": "env:" + name

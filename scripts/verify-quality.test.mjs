@@ -526,6 +526,9 @@ test('upgrade workflow rejects bypassed activation and missing durable receipt r
   assert.throws(() => verifyQualitySetup(receipt), /retain failed and uncertain receipts/)
 })
 test('upgrade workflow rejects probe-role substitution and credentials before evidence', () => {
+  const snapshot = readQualitySetup()
+  delete snapshot.schemaUpgrade.jobs.upgrade.steps.find(step => step.run?.includes('schema_upgrade_artifacts.py')).env.MAINTENANCE_RUN
+  assert.throws(() => verifyQualitySetup(snapshot), /maintenance snapshot-check run/)
   const role = readQualitySetup()
   role.schemaUpgrade.jobs.target.outputs.role = '${{ steps.target.outputs.role }}'
   assert.throws(() => verifyQualitySetup(role), /separate target role/)
@@ -570,7 +573,9 @@ test('maintenance requires recorded-pause recovery and cannot expose unreviewed 
 test('rollout rejects missing protection, verification and recovery receipts', () => {
   for (const mutation of [
     setup => { delete setup.rollout.jobs.rollout.if },
-    setup => { setup.rollout.jobs.verify.uses = './.github/workflows/infrastructure.yml' },
+    setup => { setup.rollout.jobs.rollout.steps = setup.rollout.jobs.rollout.steps.filter(step => !step.run?.includes('release_verification.py')) },
+    setup => { setup.rollout.on.workflow_dispatch.inputs.verification_run.required = false },
+    setup => { setup.rollout.jobs.rollout.steps.find(step => step.run?.includes('release_verification.py')).if = 'false' },
     setup => { setup.rollout.on.workflow_dispatch.inputs.mode.options.push('resume') },
     setup => { delete setup.rollout.jobs.rollout.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if },
   ]) {

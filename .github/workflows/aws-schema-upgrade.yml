@@ -35,6 +35,10 @@ on:
         description: Reviewed completed encrypted RDS snapshot required for invoke
         type: string
         required: false
+      maintenance_run:
+        description: Successful same-source maintenance snapshot-check run required for invoke
+        type: string
+        required: false
       stack_id:
         description: Retained stack ARN; required for cleanup-check
         type: string
@@ -95,6 +99,7 @@ jobs:
           PRIOR_RUN: ${{ inputs.prior_run }}
           CATALOG_RUN: ${{ inputs.catalog_run }}
           SNAPSHOT_ARN: ${{ inputs.snapshot_arn }}
+          MAINTENANCE_RUN: ${{ inputs.maintenance_run }}
         run: python3 backend/infrastructure/schema_upgrade_artifacts.py
       - name: Require dedicated upgrade role
         env:

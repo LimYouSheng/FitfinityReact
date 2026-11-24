@@ -239,6 +239,9 @@ class RolloutEvidenceTests(unittest.TestCase):
                             "create_role": False,
                             "create_database": False,
                             "bypass_row_security": False,
+                            "login": True,
+                            "database_connect": True,
+                            "schema_usage": True,
                         }
                         for name in ("fitfinity_app", "fitfinity_migrator")
                     ],
@@ -695,6 +698,23 @@ class ArtifactCollectionTests(unittest.TestCase):
         self.assertEqual(result["schema_action"], "unchanged")
         self.assertEqual(len(self.downloads), 3)
         self.assertNotIn("upgrade", result["producer_runs"])
+
+    def test_code_only_release_requires_runtime_login_database_connect_and_schema_usage(self):
+        from unittest.mock import patch
+
+        roles = self.probe["receipt"]["catalog"]["roles"]
+        runtime = next(row for row in roles if row["name"] == "fitfinity_app")
+        destinations = self.destination
+        for field in ("login", "database_connect", "schema_usage"):
+            for value in (False, None, 1):
+                with self.subTest(field=field, value=value), patch.dict(runtime):
+                    self.destination = destinations / f"{field}-{value}"
+                    if value is None:
+                        del runtime[field]
+                    else:
+                        runtime[field] = value
+                    with self.assertRaisesRegex(RuntimeError, "runtime login, database CONNECT"):
+                        self.collect("unchanged")
 
     def test_existing_destination_preserves_earlier_evidence_without_download(self):
         self.destination.mkdir()

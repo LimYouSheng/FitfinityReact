@@ -88,6 +88,10 @@ class ExecutionTests(unittest.TestCase):
 
     def call(self, service, operation, arguments):
         self.calls.append((service, operation, deepcopy(arguments)))
+        if "RuntimeBoundary" in self.current_template["Resources"]:
+            result = self.feature_iam(service, operation, arguments)
+            if result is not None:
+                return result
         if operation == "get-caller-identity":
             result = deepcopy(self.caller)
             if self.review["mode"] == "pause":
@@ -139,7 +143,6 @@ class ExecutionTests(unittest.TestCase):
                 "ChangeSetName": arguments["ChangeSetName"],
                 "Description": arguments["Description"],
                 "StackId": self.review["stack_arn"],
-                "RoleARN": self.stack.get("RoleARN"),
                 "Status": "CREATE_COMPLETE",
                 "ExecutionStatus": "AVAILABLE",
                 "Changes": self.changes(),
@@ -160,6 +163,61 @@ class ExecutionTests(unittest.TestCase):
                 raise TimeoutError("synthetic lost execute reply")
             return {}
         raise AssertionError((service, operation))
+
+    def feature_iam(self, service, operation, args):
+        """Report effective permissions from the independently deployed synthetic resources."""
+        name = self.target["resource_prefix"] + "-hosting-api"
+        arn = f"arn:aws:iam::{self.target['account']}:policy/{name}-boundary"
+        resources = self.current_template["Resources"]
+        role = resources["ApiRole"]["Properties"]
+        policy = role["Policies"][0]
+        if (
+            operation == "describe-stack-resource"
+            and args["LogicalResourceId"] == "RuntimeBoundary"
+        ):
+            return {
+                "StackResourceDetail": {
+                    "StackId": self.stack["StackId"],
+                    "LogicalResourceId": "RuntimeBoundary",
+                    "ResourceType": "AWS::IAM::ManagedPolicy",
+                    "PhysicalResourceId": arn,
+                    "ResourceStatus": "CREATE_COMPLETE",
+                }
+            }
+        if service != "iam":
+            return None
+        return {
+            "get-role": {
+                "Role": {
+                    "Arn": f"arn:aws:iam::{self.target['account']}:role/{name}",
+                    "RoleName": name,
+                    "Path": "/",
+                    "AssumeRolePolicyDocument": deepcopy(role["AssumeRolePolicyDocument"]),
+                    "PermissionsBoundary": {"PermissionsBoundaryArn": arn},
+                }
+            },
+            "list-role-policies": {"PolicyNames": [policy["PolicyName"]]},
+            "list-attached-role-policies": {"AttachedPolicies": []},
+            "get-role-policy": {"RoleName": name, **deepcopy(policy)},
+            "get-policy": {
+                "Policy": {
+                    "Arn": arn,
+                    "DefaultVersionId": "v1",
+                    "AttachmentCount": 0,
+                    "PermissionsBoundaryUsageCount": 1,
+                }
+            },
+            "get-policy-version": {
+                "PolicyVersion": {
+                    "VersionId": "v1",
+                    "IsDefaultVersion": True,
+                    "Document": deepcopy(
+                        resources["RuntimeBoundary"]["Properties"]["PolicyDocument"]
+                    ),
+                }
+            },
+            "list-entities-for-policy": {"PolicyRoles": [{"RoleName": name}]},
+        }.get(operation)
 
     def changes(self):
         if self.review["mode"] in {"pause", "resume"}:
@@ -560,7 +618,10 @@ class ExecutionTests(unittest.TestCase):
                         "imageScanCompletedAt": "1970-01-01T00:16:39+00:00",
                     },
                 }
-            if operation == "describe-stack-resource":
+            if (
+                operation == "describe-stack-resource"
+                and arguments["LogicalResourceId"] == "FrontendBucket"
+            ):
                 return {
                     "StackResourceDetail": {
                         "StackId": self.stack["StackId"],
@@ -692,6 +753,9 @@ class ExecutionTests(unittest.TestCase):
         if feature:
             from importlib import import_module
 
+            from release_access import service_role_arn
+
+            self.stack["RoleARN"] = service_role_arn(self.profile)
             original, feature_values = import_module("verify-release-features").fixture(
                 self.profile
             )
@@ -840,7 +904,7 @@ class ExecutionTests(unittest.TestCase):
         self.change_set["RoleARN"] = "foreign"
         with self.assertRaises(RuntimeError):
             self.run_step("execute", created)
-        self.change_set["RoleARN"] = self.stack["RoleARN"]
+        self.change_set.pop("RoleARN")
         self.stack.pop("RoleARN")
         with self.assertRaisesRegex(RuntimeError, "service role changed"):
             self.run_step("execute", created)
@@ -1109,13 +1173,13 @@ class ExecutionTests(unittest.TestCase):
             if operation == "untag-resource":
                 self.assertTrue(self.receipts[-1]["finalization_requested"])
                 removals.append(arguments)
-                for key in arguments["TagKeys"]:
-                    del self.function["Tags"][key]
                 raise TimeoutError("lost finalization reply")
             if (
                 operation == "get-template"
                 and arguments.get("ChangeSetName") == "release-" + original["operation_id"]
             ):
+                if self.concurrency > 0:
+                    raise RuntimeError("previous change set no longer available after resume")
                 return {"TemplateBody": original["candidate_template"]}
             return self.rollout_call(service, operation, arguments)
 
@@ -1152,12 +1216,32 @@ class ExecutionTests(unittest.TestCase):
         observed = run("resume-inspect", submitted, now=9000)
         self.assertEqual(run("resume-verify", observed, now=9000)["state"], "template_verified")
         self.assertEqual(self.concurrency, 2)
+        # A producer rerun can return different bytes at the same artifact run ID.
+        # Even a cached public page serving those same bytes cannot establish this release's health.
+        index = folder / "index.html"
+        reviewed_index = index.read_bytes()
+        index.write_bytes(b"other attempt with matching cached public page")
+        with self.assertRaisesRegex(RuntimeError, "frontend artifact"):
+            run("resume-health", observed, now=1600)
+        index.write_bytes(reviewed_index)
         healthy = run("resume-health", observed, now=1600)
         self.assertEqual(healthy["health"]["state"], "health_verified")
         with self.assertRaisesRegex(TimeoutError, "lost finalization reply"):
             run("resume-finalize", healthy, now=1601)
-        finalized = run("resume-finalize-inspect", self.receipts[-1], now=9000)
+        intent = deepcopy(self.receipts[-1])
+        for mode in ("resume-inspect", "resume-verify", "resume-health", "resume-finalize"):
+            with self.subTest(mode=mode), self.assertRaisesRegex(RuntimeError, "finalization"):
+                run(mode, intent, now=1602)
+        # A later health outage or expired frontend artifact must not obscure the original write.
+        (folder / "index.html").unlink()
+        pending = run("resume-finalize-inspect", intent, now=9000)
+        self.assertEqual(pending["state"], "finalize_submitted")
+        self.assertEqual(pending["health"], intent["health"])
+        for key in removals[0]["TagKeys"]:
+            del self.function["Tags"][key]
+        finalized = run("resume-finalize-inspect", pending, now=9010)
         self.assertEqual(finalized["state"], "maintenance_finalized")
+        self.assertEqual(finalized["health"]["observed_at"], 1601)
         self.assertEqual(self.function["Tags"], {"Keep": "unrelated"})
         self.assertEqual(len(removals), 1)
         self.assertNotIn('"Environment"', json.dumps(self.receipts))
@@ -1303,6 +1387,35 @@ class ExecutionTests(unittest.TestCase):
         self.assertFalse(any(op == "untag-resource" for _, op, _ in self.calls))
         self.assertEqual(self.function["Tags"], original_tags)
         self.assertEqual(prior["state"], "template_verified")
+
+    def test_finalization_rechecks_review_and_health_deadlines_before_untagging(self):
+        from release_finalize import finish
+
+        for stale in ("review", "health"):
+            with self.subTest(stale=stale):
+                self.setUp()
+                if stale == "review":
+                    self.review["expires_at"] = 1050
+                prior, evidence, health = self.finalization_fixture()
+                clock = unittest.mock.Mock(return_value=1000)
+
+                def persist(receipt, clock=clock, expiry=1051 if stale == "review" else 1301):
+                    self.receipts.append(deepcopy(receipt))
+                    clock.return_value = expiry
+
+                with patch("time.time", clock), self.assertRaises(RuntimeError):
+                    finish(
+                        "finalize",
+                        self.review,
+                        evidence,
+                        prior,
+                        health,
+                        self.call,
+                        persist,
+                        profile=self.profile,
+                    )
+                self.assertEqual(self.receipts[-1]["state"], "finalize_submitted")
+                self.assertFalse(any(op == "untag-resource" for _, op, _ in self.calls))
 
     def test_finalization_refuses_foreign_marker_stale_health_and_missing_intent(self):
         from release_finalize import finish

@@ -1,4 +1,4 @@
-"""Create only the reviewed probe IAM stack after checking its exact change set."""
+"""Install or update scoped worker access after checking the exact IAM change set."""
 
 import hashlib
 import json
@@ -23,8 +23,53 @@ def require(value, message):
         raise RuntimeError(message)
 
 
-def validate_change_set(change_set):
-    """Permit only the three new reviewed IAM resources."""
+def template_hash(template):
+    """Hash the canonical CloudFormation template bytes."""
+    data = json.dumps(template, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(data).hexdigest()
+
+
+def validate_update(installed, candidate, stack_id, target):
+    """Allow only the reviewed VPC reads and staff tag observation on existing operators."""
+    prefix = f"arn:aws:cloudformation:{target['region']}:{target['account']}:stack/"
+    require(
+        isinstance(stack_id, str)
+        and re.fullmatch(re.escape(prefix + target["setup_stack"] + "/") + r"[a-f0-9-]+", stack_id),
+        "Exact installed IAM owner stack ARN required",
+    )
+    # Undo only the explicitly allowed policy changes, then compare the whole base template.
+    before = json.loads(json.dumps(candidate))
+    staff = (
+        f"arn:aws:lambda:{target['region']}:{target['account']}:function:"
+        + target["runtime_function"]
+    )
+
+    def documents(template):
+        resources = template["Resources"]
+        return (
+            resources["OperatorRole"]["Properties"]["Policies"][0]["PolicyDocument"],
+            resources["OperatorBoundary"]["Properties"]["PolicyDocument"],
+        )
+
+    for policy, original in zip(documents(before), documents(installed), strict=True):
+        for row in policy["Statement"][:]:
+            if row in original["Statement"]:
+                continue
+            actions = row["Action"]
+            if actions in ("ec2:DescribeVpcs", "ec2:GetSecurityGroupsForVpc"):
+                policy["Statement"].remove(row)
+            elif actions == ["ec2:DescribeSubnets", "ec2:DescribeSecurityGroups"]:
+                row.pop("Condition")
+            elif row["Resource"] == staff and "lambda:ListTags" in actions:
+                actions.remove("lambda:ListTags")
+    require(
+        before == installed and candidate != installed,
+        "Installed IAM template differs beyond the reviewed operator reads or is already current",
+    )
+
+
+def validate_change_set(change_set, *, update=False):
+    """Permit three new resources or two in-place operator policy modifications."""
     require(
         change_set.get("Status") == "CREATE_COMPLETE"
         and change_set.get("ExecutionStatus") == "AVAILABLE",
@@ -35,14 +80,16 @@ def validate_change_set(change_set):
         "OperatorBoundary": "AWS::IAM::ManagedPolicy",
         "OperatorRole": "AWS::IAM::Role",
     }
+    if update:
+        del expected["RuntimeBoundary"]
     rows = change_set.get("Changes", [])
-    require(len(rows) == 3, "Unexpected resource count")
+    require(len(rows) == len(expected), "Unexpected resource count")
     actual = {}
     for row in rows:
         resource = row.get("ResourceChange", {})
         require(
-            resource.get("Action") == "Add"
-            and resource.get("Replacement") in (None, "False")
+            resource.get("Action") == ("Modify" if update else "Add")
+            and resource.get("Replacement") in (("False",) if update else (None, "False"))
             and resource.get("LogicalResourceId") not in actual,
             "Existing resource change refused",
         )
@@ -94,8 +141,63 @@ def verify_role(template, call):
         )
 
 
-def install(template, directory, call, pause=time.sleep):
-    """Create a new IAM-only stack; preserve receipts and refuse replay or adoption."""
+def verify_installed(template, update, call):
+    """Bind an UPDATE to the observed stack, physical resources and effective original policies."""
+    stack_id = update["stack_id"]
+    rows = call("cloudformation", "describe-stacks", "--stack-name", stack_id)["Stacks"]
+    require(
+        len(rows) == 1
+        and rows[0].get("StackId") == stack_id
+        and rows[0].get("StackName") == STACK
+        and rows[0].get("StackStatus") in {"CREATE_COMPLETE", "UPDATE_COMPLETE"},
+        "Stable original IAM stack required",
+    )
+    result = call(
+        "cloudformation", "get-template", "--stack-name", stack_id, "--template-stage", "Original"
+    )["TemplateBody"]
+    original = json.loads(result) if isinstance(result, str) else result
+    require(template_hash(original) == update["original_sha256"], "Installed IAM template changed")
+    validate_update(original, template, stack_id, TARGET)
+    resources = template["Resources"]
+    owners = {
+        key: (
+            row["Type"],
+            ROLE
+            if key == "OperatorRole"
+            else f"arn:aws:iam::{ACCOUNT}:policy/" + row["Properties"]["ManagedPolicyName"],
+        )
+        for key, row in resources.items()
+    }
+    actual = call("cloudformation", "list-stack-resources", "--stack-name", stack_id)[
+        "StackResourceSummaries"
+    ]
+    require(
+        len(actual) == len(owners)
+        and {
+            row.get("LogicalResourceId"): (row.get("ResourceType"), row.get("PhysicalResourceId"))
+            for row in actual
+        }
+        == owners,
+        "Installed role or boundaries belong to another IAM owner",
+    )
+    verify_role(original, call)
+
+
+def install(template, directory, call, pause=time.sleep, *, update=None):
+    """Apply one reviewed IAM change set and preserve the intent on an uncertain response."""
+    if update is not None:
+        require(
+            isinstance(update, dict)
+            and set(update) == {"stack_id", "original_sha256"}
+            and isinstance(update["original_sha256"], str)
+            and re.fullmatch(r"[a-f0-9]{64}", update["original_sha256"])
+            and isinstance(update["stack_id"], str)
+            and re.fullmatch(
+                rf"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/{re.escape(STACK)}/[a-f0-9-]+",
+                update["stack_id"],
+            ),
+            "Exact original IAM stack ARN and template hash required for UPDATE",
+        )
     require(call("sts", "get-caller-identity").get("Account") == ACCOUNT, "Wrong AWS account")
     provider = call(
         "iam",
@@ -111,24 +213,28 @@ def install(template, directory, call, pause=time.sleep):
         and any(audience == "sts.amazonaws.com" for audience in audiences),
         "OIDC provider differs",
     )
-    require(
-        call("iam", "get-role", "--role-name", ROLE, missing="NoSuchEntity") is None,
-        "Operator role already exists; inspect instead of adopting or overwriting it",
-    )
-    for name in ("RuntimeBoundary", "OperatorBoundary"):
-        arn = (
-            f"arn:aws:iam::{ACCOUNT}:policy/"
-            + template["Resources"][name]["Properties"]["ManagedPolicyName"]
-        )
+    if update:
+        verify_installed(template, update, call)
+    else:
         require(
-            call("iam", "get-policy", "--policy-arn", arn, missing="NoSuchEntity") is None,
-            "Boundary already exists; inspect instead of overwriting it",
+            call("iam", "get-role", "--role-name", ROLE, missing="NoSuchEntity") is None,
+            "Operator role already exists; inspect instead of adopting or overwriting it",
         )
-    require(
-        call("cloudformation", "describe-stacks", "--stack-name", STACK, missing="MissingStack")
-        is None,
-        "Setup stack already exists; inspect its previous operation before proceeding",
-    )
+        for name in ("RuntimeBoundary", "OperatorBoundary"):
+            arn = (
+                f"arn:aws:iam::{ACCOUNT}:policy/"
+                + template["Resources"][name]["Properties"]["ManagedPolicyName"]
+            )
+            require(
+                call("iam", "get-policy", "--policy-arn", arn, missing="NoSuchEntity") is None,
+                "Boundary already exists; inspect instead of overwriting it",
+            )
+        require(
+            call("cloudformation", "describe-stacks", "--stack-name", STACK, missing="MissingStack")
+            is None,
+            "Setup stack already exists; inspect its previous operation before proceeding",
+        )
+    change_type = "UPDATE" if update else "CREATE"
     directory.mkdir(parents=True, exist_ok=False)
     template_path = directory / "template.json"
     template_path.write_text(json.dumps(template))
@@ -142,10 +248,11 @@ def install(template, directory, call, pause=time.sleep):
         "operation_id": operation,
         "state": "prepared",
         "application_deployed": False,
-        "template_sha256": hashlib.sha256(
-            json.dumps(template, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest(),
+        "template_sha256": template_hash(template),
+        "change_set_type": change_type,
     }
+    if update:
+        receipt.update(update)
 
     def save(state):
         receipt["state"] = state
@@ -157,11 +264,11 @@ def install(template, directory, call, pause=time.sleep):
             "cloudformation",
             "create-change-set",
             "--stack-name",
-            STACK,
+            update["stack_id"] if update else STACK,
             "--change-set-name",
             "probe-access-" + operation,
             "--change-set-type",
-            "CREATE",
+            change_type,
             "--template-body",
             "file://" + str(template_path.resolve()),
             "--capabilities",
@@ -173,7 +280,8 @@ def install(template, directory, call, pause=time.sleep):
         require(
             re.fullmatch(
                 rf"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/{STACK}/[\w-]+", stack_id
-            ),
+            )
+            and (not update or stack_id == update["stack_id"]),
             "Created stack identity differs",
         )
         require(
@@ -189,7 +297,12 @@ def install(template, directory, call, pause=time.sleep):
             if change.get("Status") not in {"CREATE_PENDING", "CREATE_IN_PROGRESS"}:
                 break
             pause(5)
-        validate_change_set(change)
+        validate_change_set(change, update=bool(update))
+        if update:
+            require(
+                change.get("StackId") == stack_id and change.get("ChangeSetId") == change_id,
+                "IAM UPDATE change set belongs to another stack or request",
+            )
         observed = call(
             "cloudformation",
             "get-template",
@@ -219,12 +332,26 @@ def install(template, directory, call, pause=time.sleep):
             status = stack["StackStatus"]
             receipt["stack_status"] = status
             save("execution_submitted")
-            if status == "CREATE_COMPLETE":
+            if update and status in {"CREATE_COMPLETE", "UPDATE_COMPLETE"}:
+                change = call(
+                    "cloudformation", "describe-change-set", "--change-set-name", change_id
+                )
+                execution = change.get("ExecutionStatus")
+                if execution in {"AVAILABLE", "EXECUTE_IN_PROGRESS"}:
+                    pause(5)
+                    continue
+                require(execution == "EXECUTE_COMPLETE", "IAM UPDATE execution did not complete")
+            if status == change_type + "_COMPLETE":
                 verify_role(template, call)
                 save("iam_setup_verified")
                 return receipt
             require(
-                status in {"REVIEW_IN_PROGRESS", "CREATE_IN_PROGRESS"},
+                status
+                in {
+                    "REVIEW_IN_PROGRESS",
+                    change_type + "_IN_PROGRESS",
+                    change_type + "_COMPLETE_CLEANUP_IN_PROGRESS",
+                },
                 "Setup did not complete; inspect stack events, do not replay",
             )
             pause(5)

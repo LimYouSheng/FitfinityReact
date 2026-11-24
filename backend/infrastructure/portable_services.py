@@ -284,6 +284,7 @@ def maintenance_access(profile):
                 "Action": [
                     "lambda:GetFunction",
                     "lambda:GetFunctionConcurrency",
+                    "lambda:ListTags",
                     "lambda:PutFunctionConcurrency",
                 ],
                 "Resource": function,

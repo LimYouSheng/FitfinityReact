@@ -6,6 +6,7 @@ from copy import deepcopy
 from deployment_profile import identities
 from operator_checks import require
 from portable_services import policy, trust
+from release_features import boundary_arn
 
 
 def service_role_arn(profile):
@@ -16,7 +17,7 @@ def service_role_arn(profile):
     )
 
 
-def prepare(profile, stack, resource_inventory):
+def prepare(profile, stack, resource_inventory, *, boundary_stack=None, boundary_resources=None):
     """Generate operator and service-role policy replacements from owned resource metadata."""
     target = identities(profile)
     account, region = target["account"], target["region"]
@@ -50,6 +51,53 @@ def prepare(profile, stack, resource_inventory):
         )
     bucket = resources["FrontendBucket"].get("PhysicalResourceId", "")
     distribution = resources["Distribution"].get("PhysicalResourceId", "")
+    boundary_policy = boundary_arn(profile)
+    role_arn = f"arn:aws:iam::{account}:role/{target['resource_prefix']}-hosting-api"
+    require(
+        (boundary_stack is None) == (boundary_resources is None),
+        "Supply both external owner stack and inventory",
+    )
+    boundary_owner = None
+    owner_rows = rows
+    if boundary_stack is not None:
+        owner_prefix = f"arn:aws:cloudformation:{region}:{account}:stack/"
+        owner_name = boundary_stack.get("StackName")
+        require(
+            isinstance(owner_name, str)
+            and re.fullmatch(r"[A-Za-z][A-Za-z0-9-]{0,127}", owner_name)
+            and owner_name != target["hosting_stack"]
+            and re.fullmatch(
+                re.escape(owner_prefix + owner_name + "/") + r"[a-f0-9-]+",
+                boundary_stack.get("StackId", ""),
+            )
+            and boundary_stack.get("StackStatus")
+            in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "IMPORT_COMPLETE"}
+            and not boundary_stack.get("ParentId")
+            and not boundary_stack.get("RootId")
+            and not any(row.get("PhysicalResourceId") == boundary_policy for row in rows),
+            "Distinct stable external boundary owner required",
+        )
+        owner_rows = boundary_resources.get("StackResourceSummaries", [])
+        require(
+            owner_rows
+            and not boundary_resources.get("NextToken")
+            and len({row.get("LogicalResourceId") for row in owner_rows}) == len(owner_rows),
+            "Complete external owner resource inventory required",
+        )
+    matches = [row for row in owner_rows if row.get("PhysicalResourceId") == boundary_policy]
+    if matches or boundary_stack:
+        require(
+            len(matches) == 1
+            and matches[0].get("ResourceType") == "AWS::IAM::ManagedPolicy"
+            and re.fullmatch(
+                r"[A-Za-z][A-Za-z0-9]{0,254}", matches[0].get("LogicalResourceId", "")
+            ),
+            "Exact managed policy in its owning stack required",
+        )
+        boundary_owner = {
+            "stack_arn": (boundary_stack or stack)["StackId"],
+            "logical_id": matches[0]["LogicalResourceId"],
+        }
     require(
         re.fullmatch(
             re.escape(target["hosting_stack"] + "-frontendbucket-") + r"[a-z0-9-]+", bucket
@@ -62,6 +110,14 @@ def prepare(profile, stack, resource_inventory):
     repository = f"arn:aws:ecr:{region}:{account}:repository/{target['image_repository']}"
     changes = f"arn:aws:cloudformation:{region}:{account}:changeSet/release-*/*"
     objects = f"arn:aws:s3:::{bucket}/releases/*"
+    role_reads = [
+        "iam:GetRole",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:GetRolePolicy",
+    ]
+    policy_reads = ["iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListEntitiesForPolicy"]
+    change_names = {"cloudformation:ChangeSetName": ["release-*", changes]}
 
     def allow(actions, resource, **extra):
         return {"Effect": "Allow", "Action": actions, "Resource": resource, **extra}
@@ -75,33 +131,35 @@ def prepare(profile, stack, resource_inventory):
                     "cloudformation:DescribeStackResource",
                     "cloudformation:ListStackResources",
                     "cloudformation:GetTemplate",
-                    "cloudformation:DescribeChangeSet",
-                    "cloudformation:ExecuteChangeSet",
                 ],
-                [stack["StackId"], changes],
+                stack["StackId"],
+            ),
+            allow(
+                ["cloudformation:DescribeChangeSet", "cloudformation:ExecuteChangeSet"],
+                stack["StackId"],
+                Condition={"StringLike": change_names},
             ),
             allow(
                 ["cloudformation:CreateChangeSet"],
-                [stack["StackId"], changes],
-                Condition={"StringEquals": {"cloudformation:RoleArn": service_role_arn(profile)}},
+                stack["StackId"],
+                Condition={
+                    "StringEquals": {"cloudformation:RoleArn": service_role_arn(profile)},
+                    "StringLike": change_names,
+                },
             ),
             allow(
                 ["iam:PassRole"],
                 service_role_arn(profile),
                 Condition={"StringEquals": {"iam:PassedToService": "cloudformation.amazonaws.com"}},
             ),
-            allow(
-                ["iam:GetRole"],
-                f"arn:aws:iam::{account}:role/{target['resource_prefix']}-hosting-api",
-            ),
-            allow(
-                ["iam:ListEntitiesForPolicy"],
-                f"arn:aws:iam::{account}:policy/{target['resource_prefix']}-hosting-api-boundary",
-            ),
+            allow(role_reads, role_arn),
+            allow(policy_reads, boundary_policy),
             allow(
                 ["lambda:GetFunction", "lambda:GetFunctionConcurrency", "lambda:GetAlias"],
                 [function, function + ":*"],
             ),
+            # GetFunction returns the maintenance/snapshot tags only with ListTags.
+            allow(["lambda:ListTags"], function),
             allow(
                 ["cloudfront:GetDistribution"],
                 f"arn:aws:cloudfront::{account}:distribution/{distribution}",
@@ -132,6 +190,17 @@ def prepare(profile, stack, resource_inventory):
             ),
         ]
     )
+    if boundary_stack:
+        operator["Statement"].append(
+            allow(
+                [
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:DescribeStackResource",
+                    "cloudformation:GetTemplate",
+                ],
+                boundary_owner["stack_arn"],
+            )
+        )
     service = policy(
         [
             allow(
@@ -139,6 +208,11 @@ def prepare(profile, stack, resource_inventory):
                     "lambda:GetFunction",
                     "lambda:GetFunctionConfiguration",
                     "lambda:GetFunctionConcurrency",
+                    "lambda:GetFunctionCodeSigningConfig",
+                    "lambda:GetFunctionRecursionConfig",
+                    "lambda:GetFunctionScalingConfig",
+                    "lambda:GetProvisionedConcurrencyConfig",
+                    "lambda:GetRuntimeManagementConfig",
                     "lambda:GetAlias",
                     "lambda:ListVersionsByFunction",
                     "lambda:ListTags",
@@ -172,12 +246,29 @@ def prepare(profile, stack, resource_inventory):
             ),
         ]
     )
+    # AWS::IAM::ManagedPolicy versions its document in place. The handler may remove a
+    # nondefault version; the existing boundary and its consumers must be retained.
+    managed_update = allow(
+        [
+            *policy_reads,
+            "iam:ListPolicyVersions",
+            "iam:CreatePolicyVersion",
+            "iam:DeletePolicyVersion",
+        ],
+        boundary_policy,
+    )
+    if boundary_owner:
+        service["Statement"].append(allow([*role_reads, "iam:PutRolePolicy"], role_arn))
+        if boundary_stack is None:
+            service["Statement"].append(managed_update)
     return {
         "decision": "HOLD",
         "profile_sha256": target["profile_sha256"],
         "stack_arn": stack["StackId"],
         "frontend_bucket": bucket,
         "distribution_id": distribution,
+        "runtime_boundary_owner": boundary_owner,
+        "external_owner_handler_policy": policy([managed_update]) if boundary_stack else None,
         "operator_role": f"arn:aws:iam::{account}:role/{target['hosting_role']}",
         "service_role": service_role_arn(profile),
         "operator_trust": trust(profile),
@@ -199,19 +290,19 @@ def prepare(profile, stack, resource_inventory):
         ),
         "limits": (
             "Code/assets and recorded concurrency. IAM cannot constrain numeric concurrency; "
-            "source review gates control pause/resumption. Feature policies and bootstrap "
-            "require separate authority. Validate current CloudFormation handler permissions "
-            "and actual IAM boundaries before activation."
+            "source review gates control pause/resumption. Feature-update grants require an "
+            "observed boundary owner. The external owner keeps managed-policy updates. "
+            "Confirm regional handlers and installed permissions before activation."
         ),
     }
 
 
-def reconcile_owner(profile, stack, resource_inventory, owner_template, owner_sha256):
+def reconcile_owner(profile, stack, resource_inventory, owner_template, owner_sha256, **boundary):
     """Prepare policy changes in the existing IAM owner without replacing its roles."""
     from release_observation import digest
 
     require(digest(owner_template) == owner_sha256, "IAM owner template hash differs")
-    review = prepare(profile, stack, resource_inventory)
+    review = prepare(profile, stack, resource_inventory, **boundary)
     target = identities(profile)
     candidate = deepcopy(owner_template)
     resources = candidate.get("Resources", {})
@@ -223,7 +314,7 @@ def reconcile_owner(profile, stack, resource_inventory, owner_template, owner_sh
         row = resources.get(logical, {})
         props = row.get("Properties", {})
         expected_trust = deepcopy(review[kind + "_trust"])
-        if kind == "operator":
+        if kind == "operator" and "github_owner_id" not in target:
             statements = props.get("AssumeRolePolicyDocument", {}).get("Statement", [])
             if len(statements) == 1:
                 conditions = statements[0].get("Condition", {}).get("StringEquals", {})
@@ -313,6 +404,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--owner-template", type=Path)
     parser.add_argument("--owner-sha256")
+    parser.add_argument("--boundary-stack", type=Path)
+    parser.add_argument("--boundary-resources", type=Path)
     args = parser.parse_args()
     require(
         bool(args.owner_template) == bool(args.owner_sha256),
@@ -320,10 +413,20 @@ def main():
     )
     stack = json.loads(args.stack.read_text())
     inventory = json.loads(args.resources.read_text())
-    result = prepare(load(args.profile), stack, inventory)
+    require(
+        bool(args.boundary_stack) == bool(args.boundary_resources),
+        "External owner files required together",
+    )
+    external = {}
+    if args.boundary_stack:
+        external = {
+            "boundary_stack": json.loads(args.boundary_stack.read_text()),
+            "boundary_resources": json.loads(args.boundary_resources.read_text()),
+        }
+    result = prepare(load(args.profile), stack, inventory, **external)
     package = {
         "review_sha256": digest(result),
-        "observations_sha256": digest({"stack": stack, "resources": inventory}),
+        "observations_sha256": digest({"stack": stack, "resources": inventory, **external}),
         "review": result,
     }
     if args.owner_template:
@@ -333,6 +436,7 @@ def main():
             inventory,
             json.loads(args.owner_template.read_text()),
             args.owner_sha256,
+            **external,
         )
     with args.output.open("x") as stream:
         stream.write(json.dumps(package, indent=2) + "\n")

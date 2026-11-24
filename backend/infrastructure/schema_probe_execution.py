@@ -316,20 +316,19 @@ def execute(
         result.get("StatusCode") == 200 and not result.get("FunctionError"),
         "Probe invocation failed",
     )
-    envelope = result["Payload"]
+    # Lambda Web Adapter returns the JSON response body directly for a generic event.
+    payload = result.get("Payload")
     require(
-        envelope.get("statusCode") == 200 and envelope.get("isBase64Encoded", False) is False,
-        "Probe HTTP response failed",
-    )
-    payload = json.loads(envelope["body"])
-    require(
-        payload.get("source_sha") == source_sha
+        isinstance(payload, dict)
+        and set(payload) == {"source_sha", "sql_sha256", "catalog"}
+        and payload.get("source_sha") == source_sha
         and payload.get("sql_sha256") == binding["sql_sha256"],
         "Probe result binding differs",
     )
-    catalog = payload.get("catalog", {})
+    catalog = payload["catalog"]
     require(
-        catalog.get("database") == binding["db_name"]
+        isinstance(catalog, dict)
+        and catalog.get("database") == binding["db_name"]
         and catalog.get("database_user") == "fitfinity_migrator"
         and catalog.get("transaction_read_only") == "on",
         "Probe catalog identity differs",

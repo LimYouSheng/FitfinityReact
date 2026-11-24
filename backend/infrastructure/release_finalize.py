@@ -12,11 +12,12 @@ from release_observation import digest
 def finish(mode, review, evidence, prior, health, call, persist, *, profile, now=None):
     """Record removal intent once and inspect uncertain tag removal without replay."""
     require(mode in {"finalize", "inspect"}, "Unknown maintenance finalization action")
-    clock = time.time() if now is None else now
+    clock = time.time if now is None else lambda: now
     target = identities(profile)
-    identity = review_identity(review, profile, clock, recovery=mode == "inspect")
+    identity = review_identity(review, profile, clock(), recovery=mode == "inspect")
     require(
-        prior is not None
+        review["mode"] == "resume"
+        and prior is not None
         and prior.get("identity") == identity
         and prior.get("execution_requested") is True
         and prior.get("state")
@@ -24,13 +25,23 @@ def finish(mode, review, evidence, prior, health, call, persist, *, profile, now
         "Verified original resumption receipt required",
     )
     require(
-        health.get("state") == "health_verified"
+        isinstance(health, dict)
+        and health.get("state") == "health_verified"
         and health.get("review_sha256") == digest(review)
         and health.get("evidence_sha256") == digest(evidence)
         and type(health.get("observed_at")) in {int, float}
-        and 0 <= clock - health["observed_at"] <= 300,
-        "Fresh exact-release health evidence required",
+        and health["observed_at"] <= clock(),
+        "Exact-release health evidence required",
     )
+    if mode == "inspect":
+        require(
+            prior.get("finalization_requested") is True
+            and prior.get("health") == health
+            and prior["state"] in {"finalize_submitted", "maintenance_finalized"},
+            "Original finalization intent and health receipt required",
+        )
+    else:
+        require(clock() - health["observed_at"] <= 300, "Fresh exact-release health required")
     caller = call("sts", "get-caller-identity", {})
     require(
         caller.get("Account") == target["account"]
@@ -59,9 +70,6 @@ def finish(mode, review, evidence, prior, health, call, persist, *, profile, now
     )
     receipt = {**prior, "health": health}
     if mode == "inspect":
-        require(
-            prior.get("finalization_requested") is True, "Original finalization intent required"
-        )
         receipt["state"] = "maintenance_finalized" if not keys else "finalize_submitted"
         persist(receipt)
         return receipt
@@ -73,6 +81,12 @@ def finish(mode, review, evidence, prior, health, call, persist, *, profile, now
     )
     receipt.update(state="finalize_submitted", finalization_requested=True)
     persist(dict(receipt))
+    observed = clock()
+    require(
+        0 < review["expires_at"] - observed <= 3600
+        and 0 <= observed - health["observed_at"] <= 300,
+        "Review or health expired before tag removal",
+    )
     call("lambda", "untag-resource", {"Resource": arn, "TagKeys": keys})
     # A successful response is not a receipt of the subsequent observed tag state.
     return receipt

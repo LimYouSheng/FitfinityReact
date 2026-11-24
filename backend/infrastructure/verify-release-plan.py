@@ -328,6 +328,7 @@ class MaintenanceTests(unittest.TestCase):
         elif operation == "create-db-snapshot":
             self.backup_tags = values["Tags"]
             self.snapshot = {
+                "DBSnapshotIdentifier": values["DBSnapshotIdentifier"],
                 "DBSnapshotArn": "arn:aws:rds:eu-west-1:123456789012:snapshot:"
                 + values["DBSnapshotIdentifier"],
                 "DbiResourceId": "db-unique",

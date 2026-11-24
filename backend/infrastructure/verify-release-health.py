@@ -1,10 +1,13 @@
 """Verify exact release health evidence and reject substituted provider/public state."""
 
+import tempfile
 import unittest
 from copy import deepcopy
+from pathlib import Path
 from unittest.mock import patch
 
 from deployment_profile import DEVELOPER, identities
+from hosting_frontend import inventory, manifest_hash
 from release_health import read_url, verify
 
 
@@ -18,8 +21,18 @@ class HealthTests(unittest.TestCase):
             }
         }
         self.review = {"stack_arn": "owned-stack", "candidate_template": self.template}
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.folder = Path(temporary.name)
+        for name, content in (
+            ("index.html", b"reviewed frontend"),
+            ("sw.js", b"reviewed worker"),
+            ("manifest.webmanifest", b"{}"),
+        ):
+            (self.folder / name).write_bytes(content)
         self.evidence = {
             "frontend_prefix": "releases/reviewed",
+            "frontend_sha256": manifest_hash(inventory(self.folder)),
             "image_digest": "sha256:" + "a" * 64,
         }
         self.responses = {
@@ -88,7 +101,7 @@ class HealthTests(unittest.TestCase):
             self.evidence,
             self.call,
             self.read,
-            b"reviewed frontend",
+            self.folder,
             profile=DEVELOPER,
             now=1500,
         )

@@ -17,7 +17,13 @@ from operator_checks import require
 from portable_hosting import bindings
 from release_artifacts import collect
 from release_execution import template
-from release_features import recovery_state, restore_state
+from release_features import (
+    check_rollout_access,
+    external_identity,
+    installed_owner,
+    recovery_state,
+    restore_state,
+)
 from release_frontend import transfer
 from release_observation import digest
 from release_plan import prepare
@@ -34,7 +40,7 @@ def metadata(value, source, profile, *, recovery=False):
     """Validate source-bound metadata without retaining raw runtime templates."""
     target = identities(profile)
     require(
-        set(value) - {"feature_values"}
+        set(value) - {"feature_values", "external_boundary"}
         == {
             "source_sha",
             "profile_sha256",
@@ -50,6 +56,9 @@ def metadata(value, source, profile, *, recovery=False):
     if "feature_values" in value:
         bindings(profile, value["feature_values"])
         require("features" in value["feature_values"], "Explicit feature flags required")
+    if "external_boundary" in value:
+        require("feature_values" in value, "External owner requires explicit feature review")
+        external_identity(value["external_boundary"], profile)
     require(
         value["source_sha"] == source
         and re.fullmatch(r"[a-f0-9]{40}", source)
@@ -167,6 +176,35 @@ def restore_original(candidate, pointers, *, feature_values=None, profile=None):
     return original
 
 
+def expanded_rollout(review, original, candidate):
+    """Pass only a hosting-owned boundary logical ID to the hosting change-set validator."""
+    boundary = None
+    if "feature_values" in review and "external_boundary" not in review:
+        binding = original["Resources"]["ApiRole"]["Properties"]["PermissionsBoundary"]
+        require(
+            isinstance(binding, dict) and set(binding) == {"Ref"},
+            "External boundary owner review required",
+        )
+        boundary = binding["Ref"]
+    return {
+        **{
+            key: value
+            for key, value in review.items()
+            if key
+            not in {
+                "original_template_sha256",
+                "candidate_template_sha256",
+                "feature_values",
+                "external_boundary",
+            }
+        },
+        "original_template": original,
+        "candidate_template": candidate,
+        "mode": "rollout",
+        "boundary_resource": boundary,
+    }
+
+
 def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=None):
     """Reconstruct only the reviewed template and preserve metadata-only recovery receipts."""
     require(mode in MODES, "Unknown rollout mode")
@@ -203,6 +241,8 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=
             inspect=mode == "upload-inspect",
         )
     require(mode == "create" or prior is not None, "Original change-set receipt required")
+    owner = review.get("external_boundary")
+    external = None
     if mode in {"inspect", "verify"}:
         candidate = template(call, review["stack_arn"], "release-" + review["operation_id"])
         original = restore_original(candidate, original_release, **feature_args)
@@ -213,14 +253,25 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=
             "Observed stack template changed",
         )
         original_release = original_metadata(original, **feature_args)
-        candidate = prepare(
+        if owner is not None:
+            external = installed_owner(call, owner, profile)
+        plan = prepare(
             original,
             observed_template_sha256=digest(original),
             source_sha=review["source_sha"],
             image_digest=evidence["image_digest"],
             frontend_sha256=evidence["frontend_sha256"],
+            boundary_template=external,
+            boundary_template_sha256=owner["template_sha256"] if owner else None,
             **feature_args,
-        )["candidate_template"]
+        )
+        if owner is not None:
+            require(
+                not plan["feature_review"]["boundary_update_required"]
+                and plan["feature_review"]["boundary_resource"] == owner["logical_id"],
+                "Verify the separately installed external boundary before releasing",
+            )
+        candidate = plan["candidate_template"]
     require(
         digest(original) == review["original_template_sha256"], "Original template recovery differs"
     )
@@ -228,21 +279,11 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=
         digest(candidate) == review["candidate_template_sha256"],
         "Candidate template review differs",
     )
-    expanded = {
-        key: value
-        for key, value in review.items()
-        if not key.endswith("template_sha256") and key != "feature_values"
-    }
-    expanded.update(
-        original_template=original,
-        candidate_template=candidate,
-        mode="rollout",
-        boundary_resource=(
-            original["Resources"]["ApiRole"]["Properties"]["PermissionsBoundary"].get("Ref")
-            if review.get("feature_values")
-            else None
-        ),
-    )
+    if review.get("feature_values") and mode != "inspect":
+        check_rollout_access(
+            review, candidate if mode == "verify" else original, call, profile, external
+        )
+    expanded = expanded_rollout(review, original, candidate)
     image = (
         json.loads((root / "image/fitfinity-image-candidate.json").read_text())
         if mode in {"create", "execute"}
@@ -330,7 +371,7 @@ def main():
             retained = json.loads(prior.read_text())
             require(retained.get("review_sha256") == digest(review), "Original review differs")
             evidence = retained["evidence"]
-            if mode in {"upload-inspect", "resume-health", "resume-finalize-inspect"}:
+            if mode in {"upload-inspect", "resume-health"}:
                 fetch(
                     "review",
                     evidence["producer_runs"]["frontend"],

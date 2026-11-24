@@ -3,6 +3,7 @@
 import re
 import time
 from copy import deepcopy
+from math import isfinite
 
 from deployment_profile import identities
 from operator_checks import require
@@ -19,6 +20,62 @@ RECORD_MODES = {
 }
 MODES = {"pause", "inspect", "snapshot", "snapshot-check"} | RECORD_MODES
 RECOVERY_MODES = {"inspect", "snapshot-check", "record-pause-inspect", "record-pause-verify"}
+
+
+def snapshot_identity(target, operation, source):
+    """Derive the runtime marker and snapshot ownership for one drained maintenance operation."""
+    name = target["resource_prefix"] + "-release-" + operation
+    return {
+        "marker": operation + ":" + source + ":" + target["profile_sha256"],
+        "name": name,
+        "arn": f"arn:aws:rds:{target['region']}:{target['account']}:snapshot:{name}",
+        "tags": {
+            "Application": "Fitfinity",
+            "FitfinityOperation": operation,
+            "FitfinityProfile": target["profile_sha256"],
+            "FitfinitySource": source,
+        },
+    }
+
+
+def check_snapshot_tags(rows, expected):
+    """Require the maintenance-owned snapshot tags while preserving unrelated resource tags."""
+    require(
+        isinstance(rows, list)
+        and all(isinstance(row, dict) and isinstance(row.get("Key"), str) for row in rows),
+        "Snapshot ownership tags unavailable",
+    )
+    actual = {row["Key"]: row.get("Value") for row in rows}
+    require(
+        len(actual) == len(rows) and all(actual.get(k) == v for k, v in expected.items()),
+        "Snapshot ownership differs",
+    )
+
+
+def verified_snapshot(receipt, arn, target, source):
+    """Bind an available backup to its protected maintenance receipt and drain deadline."""
+    require(isinstance(receipt, dict), "Verified maintenance snapshot receipt required")
+    identity = receipt.get("identity")
+    require(
+        isinstance(identity, dict)
+        and identity.get("profile_sha256") == target["profile_sha256"]
+        and identity.get("source_sha") == source
+        and isinstance(identity.get("operation_id"), str)
+        and re.fullmatch(r"[a-f0-9]{32}", identity["operation_id"]),
+        "Maintenance snapshot receipt belongs to another source, target or operation",
+    )
+    snapshot = snapshot_identity(target, identity["operation_id"], source)
+    drained_after = receipt.get("drained_after")
+    require(
+        receipt.get("state") == "snapshot_ready"
+        and receipt.get("snapshot_requested") is True
+        and receipt.get("snapshot_arn") == arn == snapshot["arn"]
+        and type(drained_after) in (int, float)
+        and isfinite(drained_after)
+        and drained_after > 0,
+        "Ready maintenance receipt for the selected snapshot and drain deadline required",
+    )
+    return snapshot
 
 
 def validate_review(review, profile, now):
@@ -120,9 +177,8 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
         review["expires_at"] - 1 if mode in RECOVERY_MODES else now,
     )
     operation = review["operation_id"]
-    ownership = operation + ":" + review["source_sha"] + ":" + target["profile_sha256"]
-    snapshot_name = target["resource_prefix"] + "-release-" + operation
-    snapshot_arn = f"arn:aws:rds:{target['region']}:{target['account']}:snapshot:{snapshot_name}"
+    snapshot = snapshot_identity(target, operation, review["source_sha"])
+    ownership, snapshot_arn = snapshot["marker"], snapshot["arn"]
     snapshot_marker = function["Tags"].get("FitfinitySnapshot")
     marker = function["Tags"].get("FitfinityMaintenance")
     identity = {key: review[key] for key in ("profile_sha256", "source_sha", "operation_id")}
@@ -189,7 +245,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
                 receipt["snapshot_arn"] = snapshot_arn
         else:
             require(concurrency == 0, "Staff invocation must remain disabled")
-            name, arn = snapshot_name, snapshot_arn
+            name, arn = snapshot["name"], snapshot_arn
             receipt["snapshot_arn"] = arn
             receipt["snapshot_requested"] = True
             if mode == "snapshot":
@@ -222,13 +278,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
                         "DBInstanceIdentifier": target["database"],
                         "DBSnapshotIdentifier": name,
                         "Tags": [
-                            {"Key": key, "Value": value}
-                            for key, value in {
-                                "Application": "Fitfinity",
-                                "FitfinityOperation": operation,
-                                "FitfinityProfile": target["profile_sha256"],
-                                "FitfinitySource": review["source_sha"],
-                            }.items()
+                            {"Key": key, "Value": value} for key, value in snapshot["tags"].items()
                         ],
                     },
                 )
@@ -250,13 +300,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
                     "Snapshot identity or encryption differs",
                 )
                 tags = call("rds", "list-tags-for-resource", {"ResourceName": arn})["TagList"]
-                observed = {row["Key"]: row["Value"] for row in tags}
-                require(
-                    observed.get("FitfinityOperation") == operation
-                    and observed.get("FitfinityProfile") == target["profile_sha256"]
-                    and observed.get("FitfinitySource") == review["source_sha"],
-                    "Snapshot ownership differs",
-                )
+                check_snapshot_tags(tags, snapshot["tags"])
                 receipt["state"] = (
                     "snapshot_ready" if rows[0].get("Status") == "available" else "snapshot_pending"
                 )

@@ -8,6 +8,7 @@ from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from deployment_profile import identities
+from hosting_frontend import inventory, manifest_hash
 from operator_checks import require
 from release_execution import template
 from release_observation import digest
@@ -41,8 +42,19 @@ def read_url(url):
         raise RuntimeError("Public release readiness request failed") from None
 
 
-def verify(review, evidence, call, read, expected_index, *, profile, now=None):
+def verify(review, evidence, call, read, frontend_folder, *, profile, now=None):
     """Bind live image, frontend distribution and API readiness to the reviewed release."""
+    files = inventory(frontend_folder)
+    require(
+        manifest_hash(files) == evidence.get("frontend_sha256"),
+        "Downloaded frontend artifact differs from the reviewed release",
+    )
+    expected_index = (frontend_folder / "index.html").read_bytes()
+    index_hash = hashlib.sha256(expected_index).hexdigest()
+    require(
+        expected_index and index_hash == files["index.html"]["sha256"],
+        "Reviewed frontend index changed during verification",
+    )
     target = identities(profile)
     rows = call("cloudformation", "describe-stacks", {"StackName": review["stack_arn"]})["Stacks"]
     require(
@@ -111,9 +123,6 @@ def verify(review, evidence, call, read, expected_index, *, profile, now=None):
         ],
         "Reviewed active capacity required",
     )
-    require(
-        isinstance(expected_index, bytes) and expected_index, "Reviewed frontend index required"
-    )
     base = "https://" + domain
     require(read(base + "/index.html") == expected_index, "Public frontend bytes differ")
     for path, status in (("live", "alive"), ("ready", "ready")):
@@ -126,7 +135,7 @@ def verify(review, evidence, call, read, expected_index, *, profile, now=None):
         "review_sha256": digest(review),
         "evidence_sha256": digest(evidence),
         "observed_at": time.time() if now is None else now,
-        "frontend_sha256": hashlib.sha256(expected_index).hexdigest(),
+        "frontend_sha256": index_hash,
         "function_version": version,
         "domain": domain,
     }

@@ -90,7 +90,7 @@ def aws(service, operation, parameters, *, profile=DEVELOPER, purpose="probe"):
             raise RuntimeError(
                 f"AWS {service}/{operation} failed; inspect owned resource state before retry"
             )
-        value = json.loads(result.stdout)
+        value = json.loads(result.stdout) if result.stdout.strip() else {}
         if operation == "invoke":
             require(response.stat().st_size <= 2 * 1024 * 1024, "Probe response too large")
             value["Payload"] = json.loads(response.read_text())

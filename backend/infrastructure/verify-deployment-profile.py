@@ -76,9 +76,79 @@ class ProfileTests(unittest.TestCase):
         result["account"] = "000000000000"
         self.assertEqual(CLIENT["account"], "123456789012")
 
+    def test_immutable_ids_are_an_exact_pair_of_positive_decimal_strings(self):
+        for values in (
+            {"github_owner_id": "91"},
+            {"github_repository_id": "314"},
+            {"github_owner_id": "0", "github_repository_id": "314"},
+            {"github_owner_id": "91", "github_repository_id": "0314"},
+            {"github_owner_id": "91", "github_repository_id": 314},
+            {"github_owner_id": "91*", "github_repository_id": "314"},
+        ):
+            with self.subTest(values=values), self.assertRaises(RuntimeError):
+                validate({**CLIENT, **values})
+
+    def test_immutable_subject_is_exact_in_every_generated_github_role(self):
+        from portable_services import image_access, maintenance_access
+
+        profile = {**CLIENT, "github_owner_id": "91", "github_repository_id": "314"}
+        templates = [
+            (
+                prepare(secret(profile), vpc_id="vpc-aaaaaaaa", profile=profile, purpose=purpose)[
+                    "template"
+                ],
+                "OperatorRole",
+            )
+            for purpose in ("probe", "upgrade")
+        ]
+        templates += [
+            (image_access(profile), "ImageRole"),
+            (maintenance_access(profile), "MaintenanceRole"),
+        ]
+        subject = "repo:client-example@91/training-portal@314:environment:production%3Aapproved"
+        for template, role in templates:
+            policy = template["Resources"][role]["Properties"]["AssumeRolePolicyDocument"]
+            self.assertEqual(
+                policy["Statement"][0]["Condition"]["StringEquals"],
+                {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                    "token.actions.githubusercontent.com:sub": subject,
+                },
+            )
+        for key in ("github_owner_id", "github_repository_id"):
+            self.assertNotEqual(fingerprint(profile), fingerprint({**profile, key: "29"}))
+        self.assertEqual(
+            fingerprint(DEVELOPER),
+            "0766a6583c0c58496a8c481d7d32b4f3b2db85a44ac6652c9c9efb9cec4e1308",
+        )
+
+    def test_workflow_selection_and_consumer_require_matching_server_supplied_ids(self):
+        profile = {**CLIENT, "github_owner_id": "91", "github_repository_id": "314"}
+        config = json.dumps({"client": profile})
+        base = {
+            "FITFINITY_DEPLOYMENT_TARGETS_JSON": config,
+            "GITHUB_REPOSITORY": CLIENT["github_repository"],
+        }
+        ids = {"GITHUB_REPOSITORY_OWNER_ID": "91", "GITHUB_REPOSITORY_ID": "314"}
+        with patch.dict("os.environ", {**base, **ids}, clear=True):
+            selected = workflow_target("client", CLIENT["github_repository"], configuration=config)
+            self.assertEqual(selected["profile_sha256"], fingerprint(profile))
+            self.assertEqual(load(selected["profile"]), profile)
+        for wrong in (
+            {},
+            {"GITHUB_REPOSITORY_ID": "314"},
+            {**ids, "GITHUB_REPOSITORY_OWNER_ID": "92"},
+            {**ids, "GITHUB_REPOSITORY_ID": "315"},
+        ):
+            with self.subTest(ids=wrong), patch.dict("os.environ", {**base, **wrong}, clear=True):
+                with self.assertRaisesRegex(RuntimeError, "immutable"):
+                    workflow_target("client", CLIENT["github_repository"], configuration=config)
+                with self.assertRaisesRegex(RuntimeError, "immutable"):
+                    load("env:client")
+
     def test_two_targets_render_distinct_trust_and_no_developer_leak(self):
         for profile in (DEVELOPER, CLIENT):
-            review = prepare(secret(profile), profile=profile)
+            review = prepare(secret(profile), vpc_id="vpc-aaaaaaaa", profile=profile)
             props = review["template"]["Resources"]["OperatorRole"]["Properties"]
             self.assertEqual(props["RoleName"], profile["resource_prefix"] + "-github-schema-probe")
             sub = props["AssumeRolePolicyDocument"]["Statement"][0]["Condition"]["StringEquals"]
@@ -90,7 +160,7 @@ class ProfileTests(unittest.TestCase):
                 + profile["github_environment"].replace(":", "%3A"),
             )
             self.assertEqual(review["profile_sha256"], fingerprint(profile))
-        text = json.dumps(prepare(secret(CLIENT), profile=CLIENT))
+        text = json.dumps(prepare(secret(CLIENT), vpc_id="vpc-aaaaaaaa", profile=CLIENT))
         for forbidden in (
             "418638389566",
             "ap-southeast-1",
@@ -104,12 +174,12 @@ class ProfileTests(unittest.TestCase):
         for key in ("account", "region", "secret_prefix"):
             foreign = {**CLIENT, key: DEVELOPER[key]}
             with self.subTest(key=key), self.assertRaises(RuntimeError):
-                prepare(secret(foreign), profile=CLIENT)
+                prepare(secret(foreign), vpc_id="vpc-aaaaaaaa", profile=CLIENT)
 
     def test_packaged_client_installer_uses_client_identity_only(self):
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder) / "bundle"
-            write_bundle(prepare(secret(CLIENT), profile=CLIENT), output)
+            write_bundle(prepare(secret(CLIENT), vpc_id="vpc-aaaaaaaa", profile=CLIENT), output)
             installer = output / "fitfinity-install-probe-iam.py"
             module = runpy.run_path(str(installer))
             self.assertEqual(module["ACCOUNT"], "123456789012")
@@ -126,25 +196,40 @@ class ProfileTests(unittest.TestCase):
                 self.assertNotIn(forbidden, installer.read_text())
 
     def test_bundle_rejects_changed_profile_fingerprint(self):
-        review = prepare(secret(CLIENT), profile=CLIENT)
+        review = prepare(secret(CLIENT), vpc_id="vpc-aaaaaaaa", profile=CLIENT)
         review["profile"]["account"] = "999999999999"
         with tempfile.TemporaryDirectory() as folder:
             with self.assertRaisesRegex(RuntimeError, "fingerprint"):
                 write_bundle(review, Path(folder) / "bundle")
 
-    def test_developer_template_matches_verified_installed_template(self):
-        # Historical installed template is independently fixed, not regenerated as the expectation.
-        data = json.dumps(
-            prepare(secret(DEVELOPER))["template"], sort_keys=True, separators=(",", ":")
+    def test_developer_update_uses_the_verified_installed_template(self):
+        installed = json.loads(
+            (Path(__file__).parent / "fixtures/installed-probe-iam-template.json").read_text()
         )
-        # Secret suffix is the only difference between synthetic metadata and the installed receipt.
-        data = data.replace("migration-Ab123x", "migration-HRPtjy")
-        import hashlib
-
+        data = json.dumps(installed, sort_keys=True, separators=(",", ":")).encode()
         self.assertEqual(
-            hashlib.sha256(data.encode()).hexdigest(),
+            hashlib.sha256(data).hexdigest(),
             "e8a2e59127edea9506ba27be52761106fe032ed3cf2de2257da6650b906a2ca8",
         )
+        secret_arn = installed["Resources"]["RuntimeBoundary"]["Properties"]["PolicyDocument"][
+            "Statement"
+        ][0]["Resource"]
+        stack_id = (
+            "arn:aws:cloudformation:ap-southeast-1:418638389566:stack/"
+            "fitfinity-test-schema-probe-access/abcd"
+        )
+        candidate = prepare(secret_arn, vpc_id="vpc-0b55320bb1a054441", profile=DEVELOPER)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "bundle"
+            write_bundle(candidate, output, installed_template=installed, stack_id=stack_id)
+            self.assertEqual(
+                {p.name for p in output.iterdir()},
+                {"template.json", "review.json", "fitfinity-update-probe-iam.py"},
+            )
+            change = runpy.run_path(str(output / "fitfinity-update-probe-iam.py"))
+            self.assertEqual(change["UPDATE"]["stack_id"], stack_id)
+            self.assertEqual(change["UPDATE"]["original_sha256"], hashlib.sha256(data).hexdigest())
+            self.assertNotEqual(change["TEMPLATE_SHA256"], change["UPDATE"]["original_sha256"])
 
     def test_client_probe_plan_binds_image_role_secret_and_review_profile(self):
         sql = b"select 1"
@@ -179,7 +264,7 @@ class ProfileTests(unittest.TestCase):
     def test_client_entry_rejects_developer_caller_before_any_write(self):
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder) / "bundle"
-            write_bundle(prepare(secret(CLIENT), profile=CLIENT), output)
+            write_bundle(prepare(secret(CLIENT), vpc_id="vpc-aaaaaaaa", profile=CLIENT), output)
             with patch("subprocess.run") as command:
                 command.return_value = subprocess.CompletedProcess(
                     [], 0, stdout='{"Account":"418638389566"}', stderr=""
@@ -195,8 +280,8 @@ class ProfileTests(unittest.TestCase):
                 self.assertIn("eu-west-1", command.call_args.args[0])
 
     def test_bundle_rejects_template_from_another_target(self):
-        review = prepare(secret(CLIENT), profile=CLIENT)
-        review["template"] = prepare(secret(DEVELOPER))["template"]
+        review = prepare(secret(CLIENT), vpc_id="vpc-aaaaaaaa", profile=CLIENT)
+        review["template"] = prepare(secret(DEVELOPER), vpc_id="vpc-bbbbbbbb")["template"]
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder) / "bundle"
             with self.assertRaises(RuntimeError):

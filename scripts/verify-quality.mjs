@@ -64,6 +64,7 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   const upgradeAuth = upgrade.steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
   const upgradeEvidence = upgrade.steps.findIndex(step => step.run === 'python3 backend/infrastructure/schema_upgrade_artifacts.py')
   if (upgradeEvidence < 0 || upgradeAuth <= upgradeEvidence) fail('upgrade evidence must precede AWS credentials')
+  if (schemaUpgrade.on.workflow_dispatch.inputs?.maintenance_run?.type !== 'string' || upgrade.steps[upgradeEvidence].env?.MAINTENANCE_RUN !== '${{ inputs.maintenance_run }}') fail('upgrade requires the selected maintenance snapshot-check run')
   const credentials = upgrade.steps[upgradeAuth].with
   if (credentials['role-to-assume'] !== '${{ vars.AWS_SCHEMA_UPGRADE_ROLE_ARN }}' || credentials['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || credentials['aws-region'] !== '${{ needs.target.outputs.region }}' || credentials['unset-current-credentials'] !== true) fail('upgrade credential target differs')
   if (schemaUpgrade.jobs.target.outputs.role !== '${{ steps.target.outputs.upgrade_role }}') fail('upgrade must use its separate target role')
@@ -76,18 +77,20 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   }
   const rolloutJob = rollout.jobs?.rollout
   if (!equal(Object.keys(rollout.on), ['workflow_dispatch']) || !equal(rollout.permissions, { contents: 'read' }) || rolloutJob?.if !== "github.ref == 'refs/heads/main' && vars.AWS_ROLLOUT_ENABLED == 'true'" || rolloutJob?.environment !== '${{ needs.target.outputs.environment }}') fail('rollout must be manual, protected and disabled by default')
-  if (!equal(rolloutJob.needs, ['verify', 'target']) || rollout.jobs.verify.uses !== './.github/workflows/verify.yml' || rolloutJob['timeout-minutes'] !== 10 || !equal(rolloutJob.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false })) fail('rollout verification or concurrency differs')
+  if (!equal(rolloutJob.needs, ['target']) || !equal(Object.keys(rollout.jobs).sort(), ['rollout', 'target']) || rolloutJob['timeout-minutes'] !== 10 || !equal(rolloutJob.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false })) fail('rollout verification or concurrency differs')
   if (!equal(rollout.on.workflow_dispatch.inputs.mode.options, ['upload', 'upload-inspect', 'create', 'inspect', 'execute', 'verify', 'resume-create', 'resume-inspect', 'resume-execute', 'resume-verify', 'resume-health', 'resume-finalize', 'resume-finalize-inspect'])) fail('rollout must retain exact paused steps')
+  const sourceVerification = rolloutJob.steps.findIndex(step => step.run === 'python3 backend/infrastructure/release_verification.py --profile "$DEPLOYMENT_PROFILE"')
+  if (sourceVerification < 0 || rolloutJob.steps[sourceVerification].if != null || rolloutJob.steps[sourceVerification]['continue-on-error'] || !equal(rolloutJob.steps[sourceVerification].env, { GH_TOKEN: '${{ github.token }}', DEPLOYMENT_PROFILE: '${{ needs.target.outputs.profile }}', VERIFICATION_RUN: '${{ inputs.verification_run }}' }) || rollout.on.workflow_dispatch.inputs.verification_run?.required !== true || rollout.on.workflow_dispatch.inputs.verification_run?.type !== 'string') fail('rollout requires exact-source complete verification evidence')
   const rolloutFetch = rolloutJob.steps.findIndex(step => step.run?.includes('rollout_operator.py fetch'))
   const rolloutAuth = rolloutJob.steps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@'))
-  if (rolloutFetch < 0 || rolloutAuth <= rolloutFetch || rolloutJob.steps[rolloutFetch].if != null || rolloutJob.steps[rolloutFetch].env?.ROLLOUT_REVIEW_SHA256 !== '${{ inputs.review_sha256 }}') fail('rollout evidence must precede credentials')
+  if (rolloutFetch <= sourceVerification || rolloutAuth <= rolloutFetch || rolloutJob.steps[rolloutFetch].if != null || rolloutJob.steps[rolloutFetch].env?.ROLLOUT_REVIEW_SHA256 !== '${{ inputs.review_sha256 }}') fail('rollout evidence must precede credentials')
   const rolloutCredentials = rolloutJob.steps[rolloutAuth].with
   if (rollout.jobs.target.outputs.role !== '${{ steps.target.outputs.hosting_role }}' || rolloutCredentials['role-to-assume'] !== '${{ vars.AWS_HOSTING_ROLE_ARN }}' || rolloutCredentials['allowed-account-ids'] !== '${{ needs.target.outputs.account }}' || rolloutCredentials['aws-region'] !== '${{ needs.target.outputs.region }}' || rolloutCredentials['unset-current-credentials'] !== true) fail('rollout credentials must bind the exact hosting role')
-  if (!equal(rolloutJob.permissions, { contents: 'read', actions: 'read', 'id-token': 'write' })) fail('rollout permissions differ')
+  if (!equal(rolloutJob.permissions, { contents: 'read', actions: 'read', checks: 'read', 'id-token': 'write' })) fail('rollout permissions differ')
   const rolloutRole = rolloutJob.steps.find(step => step.run === 'test "$ROLLOUT_ROLE" = "$EXPECTED_ROLE"')
   if (rolloutRole?.env?.ROLLOUT_ROLE !== '${{ vars.AWS_HOSTING_ROLE_ARN }}' || rolloutRole?.env?.EXPECTED_ROLE !== '${{ needs.target.outputs.role }}') fail('rollout role comparison missing')
   const rolloutReceipt = rolloutJob.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'))
-  if (rolloutReceipt?.if !== 'always()' || rolloutReceipt?.with?.path !== '${{ runner.temp }}/rollout-receipt.json') fail('rollout must retain uncertain receipts')
+  if (rolloutReceipt?.if !== 'always()' || rolloutReceipt?.with?.path !== '${{ runner.temp }}/rollout-receipt.json\n${{ runner.temp }}/rollout-verification.json\n') fail('rollout must retain uncertain receipts')
   requireGate(rolloutJob, 'python3 backend/infrastructure/rollout_operator.py execute')
   for (const step of rolloutJob.steps) {
     if (step['continue-on-error'] || (step.run ?? '').includes('${{ inputs.')) fail('rollout must not interpolate inputs or suppress errors')

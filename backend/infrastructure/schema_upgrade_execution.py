@@ -7,6 +7,7 @@ from datetime import datetime
 
 from deployment_profile import identities
 from operator_checks import require
+from release_maintenance import check_snapshot_tags, verified_snapshot
 from release_pause import require_recorded_pause
 from schema_probe_execution import compact, inspect_function, owned_stack, preflight
 from schema_upgrade_plan import prepare, validate_image
@@ -31,28 +32,27 @@ def readiness(binding, evidence, call, *, profile, now):
         "Catalog evidence expired or future dated",
     )
     snapshot = evidence.get("snapshot_arn", "")
-    require(
-        isinstance(snapshot, str)
-        and re.fullmatch(
-            rf"arn:aws:rds:{region}:{account}:snapshot:{re.escape(target['resource_prefix'])}-[a-z0-9-]+",
-            snapshot,
-        ),
-        "Exact target snapshot ARN required",
-    )
+    maintenance = evidence.get("maintenance")
+    ownership = verified_snapshot(maintenance, snapshot, target, binding["source_sha"])
     rows = call("rds", "describe-db-snapshots", {"DBSnapshotIdentifier": snapshot})["DBSnapshots"]
     require(len(rows) == 1, "Snapshot identity differs")
     backup = rows[0]
+    check_snapshot_tags(backup.get("TagList"), ownership["tags"])
     instances = call("rds", "describe-db-instances", {"DBInstanceIdentifier": target["database"]})[
         "DBInstances"
     ]
+    database_arn = f"arn:aws:rds:{region}:{account}:db:{target['database']}"
     require(
         len(instances) == 1
+        and instances[0].get("DBInstanceArn") == database_arn
         and isinstance(instances[0].get("DbiResourceId"), str)
         and bool(instances[0]["DbiResourceId"]),
         "Database resource identity required",
     )
     require(
         backup.get("DBSnapshotArn") == snapshot
+        and backup.get("DBSnapshotIdentifier") == ownership["name"]
+        and not backup.get("SourceDBSnapshotIdentifier")
         and backup.get("DBInstanceIdentifier") == target["database"]
         and backup.get("DbiResourceId") == instances[0]["DbiResourceId"]
         and backup.get("Status") == "available"
@@ -63,16 +63,25 @@ def readiness(binding, evidence, call, *, profile, now):
     )
     created = datetime.fromisoformat(backup.get("SnapshotCreateTime", ""))
     require(
-        created.tzinfo is not None and observed.timestamp() <= created.timestamp() <= now,
-        "Backup must follow the current catalog observation",
+        created.tzinfo is not None
+        and max(observed.timestamp(), maintenance["drained_after"]) <= created.timestamp() <= now,
+        "Backup must follow both the current catalog observation and the maintenance drain",
     )
     function = call("lambda", "get-function", {"FunctionName": target["runtime_function"]})
     config = function.get("Configuration", {})
+    tags = function.get("Tags")
     require(
         config.get("FunctionArn")
         == f"arn:aws:lambda:{region}:{account}:function:{target['runtime_function']}"
         and config.get("LastUpdateStatus") == "Successful",
         "Staff runtime identity/update state differs",
+    )
+    require(
+        isinstance(tags, dict)
+        and not function.get("TagsError")
+        and tags.get("FitfinityMaintenance") == ownership["marker"]
+        and tags.get("FitfinitySnapshot") == ownership["marker"],
+        "Snapshot must belong to the active drained maintenance operation",
     )
     concurrency = call(
         "lambda", "get-function-concurrency", {"FunctionName": target["runtime_function"]}
@@ -255,13 +264,8 @@ def execute(
                     result.get("StatusCode") == 200 and not result.get("FunctionError"),
                     "Upgrade outcome uncertain; inspect database",
                 )
-                envelope = result.get("Payload", {})
-                require(
-                    envelope.get("statusCode") == 200
-                    and envelope.get("isBase64Encoded", False) is False,
-                    "Upgrade response unsuccessful; inspect database",
-                )
-                payload = json.loads(envelope["body"])
+                # Generic events return the worker's JSON object directly through the adapter.
+                payload = result.get("Payload")
                 require(
                     payload
                     in [

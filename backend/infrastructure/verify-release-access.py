@@ -89,8 +89,18 @@ class ReleaseAccessTests(unittest.TestCase):
             ("iam:GetRole", "role/fitfinity-test-hosting-api"),
             ("iam:ListEntitiesForPolicy", "policy/fitfinity-test-hosting-api-boundary"),
         ):
-            grant = next(row for row in rows if row["Action"] == [action])
+            grant = next(row for row in rows if action in row["Action"])
             self.assertEqual(grant["Resource"], "arn:aws:iam::418638389566:" + resource)
+        for action in ("CreateChangeSet", "DescribeChangeSet", "ExecuteChangeSet"):
+            grant = next(row for row in rows if "cloudformation:" + action in row["Action"])
+            self.assertEqual(grant["Resource"], stack["StackId"])
+            self.assertEqual(
+                grant["Condition"]["StringLike"]["cloudformation:ChangeSetName"],
+                [
+                    "release-*",
+                    "arn:aws:cloudformation:ap-southeast-1:418638389566:changeSet/release-*/*",
+                ],
+            )
         listing = next(row for row in rows if row["Action"] == ["s3:ListBucket"])
         self.assertEqual(
             listing["Resource"], "arn:aws:s3:::fitfinity-test-login-frontendbucket-abc123"
@@ -117,6 +127,33 @@ class ReleaseAccessTests(unittest.TestCase):
         stack, inventory = self.fixture(DEVELOPER)
         result = prepare(DEVELOPER, stack, inventory)
         rows = result["service_policy"]["Statement"]
+        handler_reads = {
+            "lambda:GetFunctionCodeSigningConfig",
+            "lambda:GetFunctionRecursionConfig",
+            "lambda:GetFunctionScalingConfig",
+            "lambda:GetProvisionedConcurrencyConfig",
+            "lambda:GetRuntimeManagementConfig",
+        }
+        function = "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api"
+        for action in handler_reads:
+            self.assertEqual(
+                [row["Resource"] for row in rows if action in row["Action"]],
+                [[function, function + ":*"]],
+            )
+        actions = {action for row in rows for action in row["Action"]}
+        self.assertTrue(
+            actions.isdisjoint(
+                {
+                    "lambda:PutFunctionCodeSigningConfig",
+                    "lambda:PutFunctionRecursionConfig",
+                    "lambda:PutFunctionScalingConfig",
+                    "lambda:PutProvisionedConcurrencyConfig",
+                    "lambda:PutRuntimeManagementConfig",
+                    "kms:Decrypt",
+                    "ec2:DescribeVpcs",
+                }
+            )
+        )
         alias = next(row for row in rows if "lambda:UpdateAlias" in row["Action"])
         self.assertEqual(
             alias["Resource"],
@@ -200,6 +237,11 @@ class ReleaseAccessTests(unittest.TestCase):
             ("cloudfront", "get-distribution"): "cloudfront:GetDistribution",
             ("lambda", "get-function-concurrency"): "lambda:GetFunctionConcurrency",
             ("iam", "get-role"): "iam:GetRole",
+            ("iam", "list-role-policies"): "iam:ListRolePolicies",
+            ("iam", "list-attached-role-policies"): "iam:ListAttachedRolePolicies",
+            ("iam", "get-role-policy"): "iam:GetRolePolicy",
+            ("iam", "get-policy"): "iam:GetPolicy",
+            ("iam", "get-policy-version"): "iam:GetPolicyVersion",
             ("iam", "list-entities-for-policy"): "iam:ListEntitiesForPolicy",
         }
         self.assertEqual(OPERATIONS, set(permissions))
@@ -208,7 +250,19 @@ class ReleaseAccessTests(unittest.TestCase):
         actions = {
             action for row in result["operator_policy"]["Statement"] for action in row["Action"]
         }
-        self.assertEqual(actions, set(permissions.values()) | {"s3:ListBucket", "iam:PassRole"})
+        self.assertEqual(
+            actions,
+            set(permissions.values()) | {"s3:ListBucket", "iam:PassRole", "lambda:ListTags"},
+        )
+        tag_read = next(
+            row
+            for row in result["operator_policy"]["Statement"]
+            if "lambda:ListTags" in row["Action"]
+        )
+        self.assertEqual(
+            tag_read["Resource"],
+            "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api",
+        )
         removal = [
             row
             for row in result["operator_policy"]["Statement"]
@@ -228,6 +282,112 @@ class ReleaseAccessTests(unittest.TestCase):
                 "Null": {"aws:TagKeys": "false"},
             },
         )
+
+    def test_feature_handler_permissions_follow_only_the_observed_boundary_owner(self):
+        from importlib import import_module
+
+        for profile in (DEVELOPER, import_module("verify-release-features").CLIENT):
+            stack, inventory = self.fixture(profile)
+            role = (
+                f"arn:aws:iam::{profile['account']}:role/{profile['resource_prefix']}-hosting-api"
+            )
+            boundary = role.replace(":role/", ":policy/") + "-boundary"
+            row = {
+                "LogicalResourceId": "ExistingBoundary",
+                "ResourceType": "AWS::IAM::ManagedPolicy",
+                "PhysicalResourceId": boundary,
+            }
+            owned = deepcopy(inventory)
+            owned["StackResourceSummaries"].append(row)
+            name = profile["resource_prefix"] + "-iam-owner"
+            external = {
+                **stack,
+                "StackName": name,
+                "StackId": stack["StackId"].replace(stack["StackName"], name),
+            }
+            external_inventory = {"StackResourceSummaries": [row]}
+            for where in ("hosting", "external"):
+                with self.subTest(profile=profile["account"], owner=where):
+                    args = (
+                        {}
+                        if where == "hosting"
+                        else {"boundary_stack": external, "boundary_resources": external_inventory}
+                    )
+                    result = prepare(
+                        profile, stack, owned if where == "hosting" else inventory, **args
+                    )
+                    grants = result["service_policy"]["Statement"]
+                    inline = [grant for grant in grants if "iam:PutRolePolicy" in grant["Action"]]
+                    self.assertEqual(len(inline), 1)
+                    self.assertEqual(inline[0]["Resource"], role)
+                    self.assertEqual(
+                        set(inline[0]["Action"]),
+                        {
+                            "iam:GetRole",
+                            "iam:GetRolePolicy",
+                            "iam:ListRolePolicies",
+                            "iam:ListAttachedRolePolicies",
+                            "iam:PutRolePolicy",
+                        },
+                    )
+                    managed = [
+                        grant for grant in grants if "iam:CreatePolicyVersion" in grant["Action"]
+                    ]
+                    if where == "external":
+                        self.assertEqual(managed, [])
+                        managed = result["external_owner_handler_policy"]["Statement"]
+                        external_read = [
+                            grant
+                            for grant in result["operator_policy"]["Statement"]
+                            if grant["Resource"] == external["StackId"]
+                        ]
+                        self.assertEqual(len(external_read), 1)
+                        self.assertEqual(
+                            set(external_read[0]["Action"]),
+                            {
+                                "cloudformation:DescribeStacks",
+                                "cloudformation:GetTemplate",
+                                "cloudformation:DescribeStackResource",
+                            },
+                        )
+                        self.assertTrue(
+                            all(
+                                external["StackId"] not in grant["Resource"]
+                                for grant in result["operator_policy"]["Statement"]
+                                if set(grant["Action"])
+                                & {
+                                    "cloudformation:ExecuteChangeSet",
+                                    "cloudformation:CreateChangeSet",
+                                }
+                            )
+                        )
+                    self.assertEqual(len(managed), 1)
+                    self.assertEqual(managed[0]["Resource"], boundary)
+                    self.assertEqual(
+                        set(managed[0]["Action"]),
+                        {
+                            "iam:GetPolicy",
+                            "iam:GetPolicyVersion",
+                            "iam:ListEntitiesForPolicy",
+                            "iam:ListPolicyVersions",
+                            "iam:CreatePolicyVersion",
+                            "iam:DeletePolicyVersion",
+                        },
+                    )
+                    self.assertEqual(result["service_policy"], result["service_boundary"])
+                    self.assertEqual(result["operator_policy"], result["operator_boundary"])
+            for owner, rows, extra in (
+                (stack, external_inventory, inventory),
+                (external, external_inventory, owned),
+                (external, {**external_inventory, "NextToken": "more"}, inventory),
+                (
+                    external,
+                    {"StackResourceSummaries": [{**row, "PhysicalResourceId": "foreign"}]},
+                    inventory,
+                ),
+            ):
+                with self.assertRaises(RuntimeError):
+                    prepare(profile, stack, extra, boundary_stack=owner, boundary_resources=rows)
 
     def test_command_exports_review_digest_without_overwriting_prior_package(self):
         import tempfile
@@ -407,3 +567,24 @@ class ReleaseAccessTests(unittest.TestCase):
         )
         for forbidden in ("418638389566", "fitfinity-test", "ap-southeast-1", "LimYouSheng"):
             self.assertNotIn(forbidden, json.dumps(result))
+        pinned = {**profile, "github_owner_id": "123", "github_repository_id": "456"}
+        conditions = owner["Resources"]["HostingRole"]["Properties"]["AssumeRolePolicyDocument"][
+            "Statement"
+        ][0]["Condition"]["StringEquals"]
+        key = "token.actions.githubusercontent.com:sub"
+        for subject in (
+            "repo:client-example/portal:environment:aws-test",
+            "repo:client-example@999/portal@456:environment:aws-test",
+            "repo:client-example@123/portal@999:environment:aws-test",
+        ):
+            conditions[key] = subject
+            with self.subTest(subject=subject), self.assertRaisesRegex(RuntimeError, "trust"):
+                reconcile_owner(pinned, stack, inventory, owner, digest(owner))
+        conditions[key] = "repo:client-example@123/portal@456:environment:aws-test"
+        matched = reconcile_owner(pinned, stack, inventory, owner, digest(owner))
+        self.assertEqual(
+            matched["candidate_template"]["Resources"]["HostingRole"]["Properties"][
+                "AssumeRolePolicyDocument"
+            ],
+            owner["Resources"]["HostingRole"]["Properties"]["AssumeRolePolicyDocument"],
+        )
