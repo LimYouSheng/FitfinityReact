@@ -195,6 +195,9 @@ class ReleaseAccessTests(unittest.TestCase):
             ("cloudformation", "describe-change-set"): "cloudformation:DescribeChangeSet",
             ("cloudformation", "execute-change-set"): "cloudformation:ExecuteChangeSet",
             ("lambda", "get-function"): "lambda:GetFunction",
+            ("lambda", "get-alias"): "lambda:GetAlias",
+            ("lambda", "untag-resource"): "lambda:UntagResource",
+            ("cloudfront", "get-distribution"): "cloudfront:GetDistribution",
             ("lambda", "get-function-concurrency"): "lambda:GetFunctionConcurrency",
             ("iam", "get-role"): "iam:GetRole",
             ("iam", "list-entities-for-policy"): "iam:ListEntitiesForPolicy",
@@ -206,6 +209,25 @@ class ReleaseAccessTests(unittest.TestCase):
             action for row in result["operator_policy"]["Statement"] for action in row["Action"]
         }
         self.assertEqual(actions, set(permissions.values()) | {"s3:ListBucket", "iam:PassRole"})
+        removal = [
+            row
+            for row in result["operator_policy"]["Statement"]
+            if "lambda:UntagResource" in row["Action"]
+        ]
+        self.assertEqual(len(removal), 1)
+        self.assertEqual(
+            removal[0]["Resource"],
+            "arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api",
+        )
+        self.assertEqual(
+            removal[0]["Condition"],
+            {
+                "ForAllValues:StringEquals": {
+                    "aws:TagKeys": ["FitfinityMaintenance", "FitfinitySnapshot"]
+                },
+                "Null": {"aws:TagKeys": "false"},
+            },
+        )
 
     def test_command_exports_review_digest_without_overwriting_prior_package(self):
         import tempfile

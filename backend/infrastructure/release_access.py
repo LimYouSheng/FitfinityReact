@@ -98,7 +98,24 @@ def prepare(profile, stack, resource_inventory):
                 ["iam:ListEntitiesForPolicy"],
                 f"arn:aws:iam::{account}:policy/{target['resource_prefix']}-hosting-api-boundary",
             ),
-            allow(["lambda:GetFunction", "lambda:GetFunctionConcurrency"], function),
+            allow(
+                ["lambda:GetFunction", "lambda:GetFunctionConcurrency", "lambda:GetAlias"],
+                [function, function + ":*"],
+            ),
+            allow(
+                ["cloudfront:GetDistribution"],
+                f"arn:aws:cloudfront::{account}:distribution/{distribution}",
+            ),
+            allow(
+                ["lambda:UntagResource"],
+                function,
+                Condition={
+                    "ForAllValues:StringEquals": {
+                        "aws:TagKeys": ["FitfinityMaintenance", "FitfinitySnapshot"]
+                    },
+                    "Null": {"aws:TagKeys": "false"},
+                },
+            ),
             allow(["ecr:DescribeImageScanFindings"], repository),
             allow(["s3:GetObject"], objects),
             # HeadObject needs ListBucket to distinguish absence (404) from denial (403).

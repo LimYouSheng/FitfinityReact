@@ -9,10 +9,10 @@ on:
         required: true
       mode:
         type: choice
-        options: [upload, upload-inspect, create, inspect, execute, verify]
+        options: [upload, upload-inspect, create, inspect, execute, verify, resume-create, resume-inspect, resume-execute, resume-verify, resume-health, resume-finalize, resume-finalize-inspect]
         required: true
       review_json:
-        description: Reviewed metadata only (source/profile/operation/expiry/stack/template hashes/maintenance marker)
+        description: Reviewed metadata; resumption adds operation_id/expires_at/concurrency/verified_run in a resumption object
         type: string
         required: true
       review_sha256:

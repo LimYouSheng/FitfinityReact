@@ -23,6 +23,9 @@ OPERATIONS = {
     ("cloudformation", "describe-change-set"),
     ("cloudformation", "execute-change-set"),
     ("lambda", "get-function"),
+    ("lambda", "get-alias"),
+    ("lambda", "untag-resource"),
+    ("cloudfront", "get-distribution"),
     ("lambda", "get-function-concurrency"),
     ("iam", "get-role"),
     ("iam", "list-entities-for-policy"),
@@ -33,7 +36,9 @@ def aws(service, operation, values, *, profile, read_only=False):
     """Translate fixed calls and distinguish a missing object from access denial."""
     require((service, operation) in OPERATIONS, "Rollout operation is not allowed")
     require(
-        not read_only or operation not in {"put-object", "create-change-set", "execute-change-set"},
+        not read_only
+        or operation
+        not in {"put-object", "create-change-set", "execute-change-set", "untag-resource"},
         "Recovery provider cannot mutate resources",
     )
     require(

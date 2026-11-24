@@ -9,6 +9,7 @@ import time
 from copy import deepcopy
 from pathlib import Path
 
+import resumption_operator
 from deployment_profile import identities, load
 from hosting_frontend import source_check
 from operation_journal import Journal
@@ -23,7 +24,8 @@ from rollout_provider import aws
 from schema_probe_artifacts import fetch, run_binding
 
 MODES = {"upload", "upload-inspect", "create", "inspect", "execute", "verify"}
-RECOVERY = {"upload-inspect", "inspect", "verify"}
+MODES |= resumption_operator.MODES
+RECOVERY = {"upload-inspect", "inspect", "verify"} | resumption_operator.RECOVERY
 
 
 def metadata(value, source, profile, *, recovery=False):
@@ -266,14 +268,35 @@ def main():
     review_input = json.loads(os.environ["ROLLOUT_REVIEW"])
     source = reviewed_source(review_input, current_source, mode)
     source_check(Path.cwd(), current_source)
-    review = metadata(review_input, source, profile, recovery=mode in RECOVERY)
+    is_resume = mode in resumption_operator.MODES
+    resumption = review_input.get("resumption") if is_resume else None
+    original_input = (
+        {key: value for key, value in review_input.items() if key != "resumption"}
+        if is_resume
+        else review_input
+    )
+    review = metadata(original_input, source, profile, recovery=mode in RECOVERY or is_resume)
+    if is_resume:
+        review = {
+            **review,
+            "resumption": resumption_operator.validate(resumption, recovery=mode in RECOVERY),
+        }
     require(
         digest(review) == os.environ["ROLLOUT_REVIEW_SHA256"], "Reviewed metadata digest differs"
     )
     root = Path(os.environ["RUNNER_TEMP"])
     artifacts = root / "rollout-artifacts"
     prior = root / "rollout-prior/rollout-receipt.json"
+    verified_path = root / "rollout-verified/rollout-receipt.json"
     if args.phase == "fetch":
+        if is_resume:
+            fetch_prior(
+                resumption["verified_run"],
+                verified_path.parent,
+                source,
+                profile,
+                recovery=mode in RECOVERY,
+            )
         if mode in RECOVERY:
             fetch_prior(
                 os.environ.get("ROLLOUT_PRIOR_RUN"), prior.parent, source, profile, recovery=True
@@ -281,7 +304,7 @@ def main():
             retained = json.loads(prior.read_text())
             require(retained.get("review_sha256") == digest(review), "Original review differs")
             evidence = retained["evidence"]
-            if mode == "upload-inspect":
+            if mode in {"upload-inspect", "resume-health", "resume-finalize-inspect"}:
                 fetch(
                     "review",
                     evidence["producer_runs"]["frontend"],
@@ -302,13 +325,24 @@ def main():
             )
             if os.environ.get("ROLLOUT_PRIOR_RUN"):
                 fetch_prior(os.environ["ROLLOUT_PRIOR_RUN"], prior.parent, source, profile)
+        if is_resume:
+            verified = json.loads(verified_path.read_text())
+            require(
+                verified.get("state") == "template_verified"
+                and verified.get("review_sha256") == digest(original_input)
+                and verified.get("evidence") == evidence
+                and "resumption_plan_sha256" not in verified,
+                "Verified rollout evidence differs",
+            )
         (root / "rollout-evidence.json").write_text(json.dumps(evidence) + "\n")
         return
     source_check(Path.cwd(), current_source)
     evidence = json.loads((root / "rollout-evidence.json").read_text())
     journal = Journal(root / "rollout-receipt.json")
     try:
-        execute_step(
+        step = resumption_operator.execute_step if is_resume else execute_step
+        extra = {"verified": json.loads(verified_path.read_text())} if is_resume else {}
+        step(
             mode,
             review,
             evidence,
@@ -319,6 +353,7 @@ def main():
             journal.save,
             profile=profile,
             prior=json.loads(prior.read_text()) if prior.exists() else None,
+            **extra,
         )
     except Exception:
         journal.save(

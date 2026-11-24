@@ -937,6 +937,324 @@ class ExecutionTests(unittest.TestCase):
             self.assertFalse(any(op == "create-change-set" for _, op, _ in self.calls))
         self.assertEqual(self.concurrency, 0)
 
+    def test_actions_resumption_recovers_original_templates_and_lost_reply(self):
+        from release_rollout import resumption_plan
+        from resumption_operator import execute_step
+        from rollout_operator import original_metadata
+
+        step = self.rollout_fixture()
+        original = deepcopy(self.review)
+        verified = step("verify", step("execute", step("create")))
+        metadata = {
+            key: value
+            for key, value in original.items()
+            if key not in {"original_template", "candidate_template", "mode", "boundary_resource"}
+        }
+        metadata.update(
+            original_template_sha256=digest(original["original_template"]),
+            candidate_template_sha256=digest(original["candidate_template"]),
+        )
+        verified.update(
+            review_sha256=digest(metadata),
+            evidence=self.rollout_evidence,
+            original_release=original_metadata(original["original_template"]),
+        )
+        review = {
+            **metadata,
+            "resumption": {
+                "operation_id": "f" * 32,
+                "expires_at": 2200,
+                "concurrency": 2,
+                "verified_run": "123",
+            },
+        }
+        plan = resumption_plan(
+            original,
+            self.rollout_evidence,
+            verified,
+            profile=self.profile,
+            operation_id="f" * 32,
+            expires_at=2200,
+            concurrency=2,
+            now=1500,
+        )
+        self.review = plan["review"]
+        root = self.rollout_folder
+        folder = root / "frontend/release-frontend/dist-api-test"
+        folder.mkdir(parents=True)
+        for name in ("index.html", "sw.js", "manifest.webmanifest"):
+            (root / name).rename(folder / name)
+        (root / "image").mkdir()
+        (root / "image/fitfinity-image-candidate.json").write_text(json.dumps(self.rollout_image))
+
+        self.stack["Outputs"] = [
+            {"OutputKey": key, "OutputValue": value}
+            for key, value in (
+                ("FrontendDomain", "d123.cloudfront.net"),
+                ("DistributionId", "D123"),
+                ("FunctionVersion", "7"),
+            )
+        ]
+        self.function["Tags"]["Keep"] = "unrelated"
+        removals = []
+
+        def call(service, operation, arguments):
+            if operation == "get-distribution":
+                return {
+                    "Distribution": {
+                        "ARN": f"arn:aws:cloudfront::{self.target['account']}:distribution/D123",
+                        "DomainName": "d123.cloudfront.net",
+                        "Status": "Deployed",
+                        "DistributionConfig": {
+                            "Enabled": True,
+                            "Origins": {
+                                "Items": [
+                                    {
+                                        "Id": "frontend",
+                                        "OriginPath": "/"
+                                        + self.rollout_evidence["frontend_prefix"],
+                                    }
+                                ]
+                            },
+                        },
+                    }
+                }
+            if operation == "get-alias":
+                return {"FunctionVersion": "7"}
+            if operation == "get-function" and arguments.get("Qualifier") == "7":
+                return {
+                    "Configuration": {"Version": "7"},
+                    "Code": {
+                        "ResolvedImageUri": self.target["registry"]
+                        + "/"
+                        + self.target["image_repository"]
+                        + "@"
+                        + self.rollout_evidence["image_digest"]
+                    },
+                }
+            if operation == "untag-resource":
+                self.assertTrue(self.receipts[-1]["finalization_requested"])
+                removals.append(arguments)
+                for key in arguments["TagKeys"]:
+                    del self.function["Tags"][key]
+                raise TimeoutError("lost finalization reply")
+            if (
+                operation == "get-template"
+                and arguments.get("ChangeSetName") == "release-" + original["operation_id"]
+            ):
+                return {"TemplateBody": original["candidate_template"]}
+            return self.rollout_call(service, operation, arguments)
+
+        def read(url):
+            return {
+                "https://d123.cloudfront.net/index.html": (folder / "index.html").read_bytes(),
+                "https://d123.cloudfront.net/health/live": b'{"status":"alive"}',
+                "https://d123.cloudfront.net/health/ready": b'{"status":"ready"}',
+            }[url]
+
+        def run(mode, prior=None, now=1500):
+            with patch("time.time", return_value=now), patch("release_health.read_url", read):
+                execute_step(
+                    mode,
+                    review,
+                    self.rollout_evidence,
+                    root,
+                    call,
+                    self.receipts.append,
+                    profile=self.profile,
+                    verified=verified,
+                    prior=prior,
+                )
+            return self.receipts[-1]
+
+        created = run("resume-create")
+        with self.assertRaisesRegex(RuntimeError, "never replay"):
+            run("resume-create", created)
+        self.uncertain = "execute-change-set"
+        with self.assertRaises(TimeoutError):
+            run("resume-execute", created)
+        submitted = deepcopy(self.receipts[-1])
+        self.assertEqual(submitted["verified_rollout_sha256"], digest(verified))
+        observed = run("resume-inspect", submitted, now=9000)
+        self.assertEqual(run("resume-verify", observed, now=9000)["state"], "template_verified")
+        self.assertEqual(self.concurrency, 2)
+        healthy = run("resume-health", observed, now=1600)
+        self.assertEqual(healthy["health"]["state"], "health_verified")
+        with self.assertRaisesRegex(TimeoutError, "lost finalization reply"):
+            run("resume-finalize", healthy, now=1601)
+        finalized = run("resume-finalize-inspect", self.receipts[-1], now=9000)
+        self.assertEqual(finalized["state"], "maintenance_finalized")
+        self.assertEqual(self.function["Tags"], {"Keep": "unrelated"})
+        self.assertEqual(len(removals), 1)
+        self.assertNotIn('"Environment"', json.dumps(self.receipts))
+        changed = deepcopy(verified)
+        verified["review_sha256"] = "0" * 64
+        with self.assertRaisesRegex(RuntimeError, "Verified original"):
+            run("resume-inspect", submitted, now=9000)
+        verified.clear()
+        verified.update(changed)
+        submitted["verified_rollout_sha256"] = "0" * 64
+        with self.assertRaisesRegex(RuntimeError, "Original resumption evidence"):
+            run("resume-inspect", submitted, now=9000)
+
+    def test_actions_resumption_metadata_rejects_unreviewed_capacity_and_producer(self):
+        from resumption_operator import validate
+
+        values = {
+            "operation_id": "f" * 32,
+            "expires_at": 2000,
+            "concurrency": 2,
+            "verified_run": "123",
+        }
+        with patch("time.time", return_value=1000):
+            self.assertEqual(validate(values), values)
+            for key, value in (
+                ("concurrency", True),
+                ("concurrency", 0),
+                ("verified_run", "../foreign"),
+                ("expires_at", 999),
+                ("operation_id", "foreign"),
+                ("extra", 1),
+            ):
+                with self.subTest(key=key, value=value), self.assertRaises(RuntimeError):
+                    validate({**values, key: value})
+        with patch("time.time", return_value=9000):
+            self.assertEqual(validate(values, recovery=True), values)
+
+    def finalization_fixture(self):
+        from release_execution import review_identity
+
+        paused = deepcopy(self.review["candidate_template"])
+        self.review.update(
+            mode="resume", original_template=paused, candidate_template=deepcopy(paused)
+        )
+        self.review["candidate_template"]["Resources"]["ApiFunction"]["Properties"][
+            "ReservedConcurrentExecutions"
+        ] = 2
+        prior = {
+            "identity": review_identity(self.review, self.profile, 1000),
+            "state": "template_verified",
+            "execution_requested": True,
+        }
+        evidence = {"synthetic": "reviewed"}
+        health = {
+            "state": "health_verified",
+            "review_sha256": digest(self.review),
+            "evidence_sha256": digest(evidence),
+            "observed_at": 1000,
+        }
+        return prior, evidence, health
+
+    def test_finalization_recovers_lost_tag_removal_without_replay(self):
+        from release_finalize import finish
+
+        prior, evidence, health = self.finalization_fixture()
+        self.function["Tags"]["FitfinitySnapshot"] = self.review["maintenance_marker"]
+        self.function["Tags"]["Keep"] = "unrelated"
+        removals = []
+
+        def call(service, operation, values):
+            if operation == "untag-resource":
+                self.assertEqual(self.receipts[-1]["state"], "finalize_submitted")
+                removals.append(values)
+                for key in values["TagKeys"]:
+                    del self.function["Tags"][key]
+                raise TimeoutError("lost tag removal reply")
+            return self.call(service, operation, values)
+
+        with self.assertRaises(TimeoutError):
+            finish(
+                "finalize",
+                self.review,
+                evidence,
+                prior,
+                health,
+                call,
+                self.receipts.append,
+                profile=self.profile,
+                now=1000,
+            )
+        submitted = deepcopy(self.receipts[-1])
+        observed = finish(
+            "inspect",
+            self.review,
+            evidence,
+            submitted,
+            health,
+            call,
+            self.receipts.append,
+            profile=self.profile,
+            now=1001,
+        )
+        self.assertEqual(observed["state"], "maintenance_finalized")
+        self.assertEqual(self.function["Tags"], {"Keep": "unrelated"})
+        self.assertEqual(len(removals), 1)
+        with self.assertRaises(RuntimeError):
+            finish(
+                "finalize",
+                self.review,
+                evidence,
+                submitted,
+                health,
+                call,
+                self.receipts.append,
+                profile=self.profile,
+                now=1001,
+            )
+        self.assertEqual(len(removals), 1)
+
+    def test_finalization_receipt_failure_prevents_tag_removal(self):
+        from release_finalize import finish
+
+        prior, evidence, health = self.finalization_fixture()
+        original_tags = deepcopy(self.function["Tags"])
+
+        def persist(receipt):
+            self.assertEqual(receipt["state"], "finalize_submitted")
+            self.assertTrue(receipt["finalization_requested"])
+            raise OSError("receipt storage unavailable")
+
+        with self.assertRaisesRegex(OSError, "receipt storage unavailable"):
+            finish(
+                "finalize",
+                self.review,
+                evidence,
+                prior,
+                health,
+                self.call,
+                persist,
+                profile=self.profile,
+                now=1000,
+            )
+        self.assertFalse(any(op == "untag-resource" for _, op, _ in self.calls))
+        self.assertEqual(self.function["Tags"], original_tags)
+        self.assertEqual(prior["state"], "template_verified")
+
+    def test_finalization_refuses_foreign_marker_stale_health_and_missing_intent(self):
+        from release_finalize import finish
+
+        for defect in ("marker", "health", "intent"):
+            self.setUp()
+            prior, evidence, health = self.finalization_fixture()
+            if defect == "marker":
+                self.function["Tags"]["FitfinitySnapshot"] = "foreign"
+            elif defect == "health":
+                health["observed_at"] = 0
+            with self.subTest(defect=defect), self.assertRaises(RuntimeError):
+                finish(
+                    "inspect" if defect == "intent" else "finalize",
+                    self.review,
+                    evidence,
+                    prior,
+                    health,
+                    self.call,
+                    self.receipts.append,
+                    profile=self.profile,
+                    now=1000,
+                )
+            self.assertFalse(any(op == "untag-resource" for _, op, _ in self.calls))
+            self.assertEqual(self.receipts, [])
+
 
 class RolloutProviderTests(unittest.TestCase):
     def test_absent_object_is_distinct_from_denied_or_failed_calls(self):
@@ -1095,6 +1413,7 @@ class RolloutAncestorRecoveryTests(unittest.TestCase):
                 ("s3api", "put-object"),
                 ("cloudformation", "create-change-set"),
                 ("cloudformation", "execute-change-set"),
+                ("lambda", "untag-resource"),
             ):
                 with (
                     self.subTest(operation=operation),
