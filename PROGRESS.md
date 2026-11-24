@@ -2,22 +2,16 @@
 
 This file owns the **current task, exact stopping point, blockers, next actions and remaining work**. The [milestone overview](docs/journey.md#full-milestone-roadmap) and [complete dated history](docs/journey.md#complete-journey) live in Journey. [NORTH_STAR.md](NORTH_STAR.md) owns campaign procedure; the [documentation skill](.agents/skills/fitfinity-documentation/SKILL.md) owns reconciliation. Replace this checkpoint rather than appending execution history.
 
-## Current task — PR128 continued audit and session-video request ownership
+## Current task — PR130 dependency repair
 
 | Field | Current checkpoint |
 | --- | --- |
-| Outcome / scope | Continue bounded unused-code, lifecycle and recovery review. Repair confirmed defects with regressions; retain language-specific documentation conventions and security rationale. |
-| Checkout / PR | Existing branch `fix/library-video-preview`, PR128; published cleanup head b8625e2. The additional saved-preview race repair is prepared locally. No stashes are present in this resumed environment; no saved work was deleted. |
-| Source review | A pending saved-video download could overwrite a replacement preview or surface obsolete errors. Candidate acceptance now retires that read; invalid replacements preserve it. Object-URL cleanup has one effect owner. Five regression cases added; no server contract or business-rule change. |
-| Acceptance / budget | Three race cases reproduced before repair;53 focused tests and145 quality guards pass. Full1524/1524 units pass in84.30s; lint, source-health, build and dependency consistency pass. Final-head CI remains required. Prior cleanup AST, lint and format receipts remain in Journey. This is a bounded lifecycle audit, not an exhaustive error-free certification. |
-| CI checkpoint | Prior head b8625e2: CodeQL43683373648 and preparation43683373666 passed; application43683373700 was running at inspection. These do not accept the additional local repair. |
-| Deployment handover | Private schema probe remains merged source only, not deployed/invoked. Network/secret/image bindings, eligibility/cost and create/invoke/cleanup review remain outstanding. Developer retention remains1 day;14 days is deferred to upgraded client AWS. |
-
-### Resume in this order
-
-1. Publish the locally verified lifecycle repair on PR128; retain original failures in Journey.
-2. Verify all exact-head gates and GitHub requirements before merge; inspect fresh main separately. Continue targeted audit where evidence identifies another candidate.
-3. Resume private-schema probe activation preparation before migration/rollout; no bootstrap or rejected retention-plan replay.
+| Outcome / scope | Resolve open PRs sequentially, starting with the Actions dependency update after PR128. Preserve the portable deployment campaign on PR131. |
+| Checkout / PR | PR130, local `repair/pr130`; current main merged with the existing Dependabot head. Deployment changes remain preserved on `feat/private-schema-probe` and its named stash. |
+| Accepted source | PR128 merged as `4f1b37b` after frontend, backend, API-browser and CodeQL checks passed. Fresh-main validation is separate. |
+| Repair | CodeQL Action4.39.2 →4.39.3; refresh generated inventory. Main now includes the asynchronous recording assertion and invalid-video metadata repairs missing from the old PR130 run. |
+| Acceptance | Local dependency consistency,145 quality guards and37 focused unit tests pass. New-head full CI and security results remain required; no deployment or customer-browser support change. |
+| Next action | Push the reviewed repair, inspect every final-head gate and CodeQL result, then merge only if eligible. Continue the remaining PRs individually before resuming deployment work. |
 
 ## Current acceptance boundaries
 

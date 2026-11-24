@@ -118,8 +118,8 @@ Full commit SHA is the effective pin. Version labels below are comments from the
 | `actions/upload-artifact` | `ea165f8d65b6e75b540449e92b4886f43607fa02` | v4.6.2 | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-release-observe.yml](../.github/workflows/aws-release-observe.yml), [aws-release-prepare.yml](../.github/workflows/aws-release-prepare.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml), [codeql.yml](../.github/workflows/codeql.yml), [infrastructure.yml](../.github/workflows/infrastructure.yml), [verify.yml](../.github/workflows/verify.yml) |
 | `actions/upload-pages-artifact` | `fc324d3547104276b827a68afc52ff2a11cc49c9` | v5 | [pages.yml](../.github/workflows/pages.yml) |
 | `aws-actions/configure-aws-credentials` | `e3dd6a429d7300a6a4c196c26e071d42e0343502` | No tag label; use SHA | [aws-image-accept.yml](../.github/workflows/aws-image-accept.yml), [aws-image.yml](../.github/workflows/aws-image.yml), [aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml), [aws-release-observe.yml](../.github/workflows/aws-release-observe.yml), [aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml), [aws-verify.yml](../.github/workflows/aws-verify.yml) |
-| `github/codeql-action/analyze` | `1fc58d04a4d4374f921bdac573c3811c240f9c26` | v4 | [codeql.yml](../.github/workflows/codeql.yml) |
-| `github/codeql-action/init` | `1fc58d04a4d4374f921bdac573c3811c240f9c26` | v4 | [codeql.yml](../.github/workflows/codeql.yml) |
+| `github/codeql-action/analyze` | `33d7b85da1a04171e211befe2c739303b9a4c066` | v4 | [codeql.yml](../.github/workflows/codeql.yml) |
+| `github/codeql-action/init` | `33d7b85da1a04171e211befe2c739303b9a4c066` | v4 | [codeql.yml](../.github/workflows/codeql.yml) |
 
 ## Browser engines
 
@@ -444,7 +444,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [.github/workflows/aws-release-prepare.yml](../.github/workflows/aws-release-prepare.yml) | `e5ade12d260f60e88f36338f75a12150d0ebee9494cab5d98c7558cfe10a911c` |
 | [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `287435b16f73b6b84c09f37b820d521cb900adafb68d0bbb3a6c99d42ddb2bbd` |
 | [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `dd35a9ec51f96c20b2e884f137cccc989dbce0e3be0a265506b6d0b2c5fc28e4` |
-| [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `b9747b9151994f9137b8632d058c81c0ae8d4a8fc55eccc191505d66152b4039` |
+| [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `1c592c49c63a1c4c32df4458ae4d4f1a0f88b4b1e87260cb825a4089d0341434` |
 | [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `9b95b45934b3d72e34227547426b7aa88d3f0b41d4b4f315a3e05703a9180bdd` |
 | [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `b82ab304be4d2b27774c916ecc27b52b9f2f7b399f00df17d305957a57b46a36` |
 | [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `16341849f91180872a8c16f28f04f0b2ed3db40af6951fb4a41446e566cc61cf` |
