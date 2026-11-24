@@ -432,7 +432,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [backend/pyproject.toml](../backend/pyproject.toml) | `85aaa5e760bb7acf12fbd2a18e46bdb927d6d77368ef66780cf6b69cbdefaee9` |
 | [backend/requirements.lock](../backend/requirements.lock) | `98d634b5342229a80ae1d17b330f95969076c5bd7eac0780eb59d5ce50d7e1a3` |
 | [backend/requirements-test.lock](../backend/requirements-test.lock) | `3f233cce42b451c422ecc94b58546da782c6f92f2cb04ba1e335b3fc322e0e4a` |
-| [backend/Dockerfile](../backend/Dockerfile) | `a8358675e71f935ecb676eddb644f6abcfff4379a8225c2234b213693ad531cd` |
+| [backend/Dockerfile](../backend/Dockerfile) | `0fbb5f96bf16bc603c9f8b6948fa67f471aab26815b0a04b21cc0ebd61479111` |
 | [backend/compose.yaml](../backend/compose.yaml) | `c225aa7b026c0026f4a69929afdfacf742b61ae52a91fc1eae269f31d66365c0` |
 | [backend/compose.browser.yaml](../backend/compose.browser.yaml) | `b0a7da6ed501b990f3536e3043b8a175fd53206d1e3d3fefcd744b9201f77a8a` |
 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
