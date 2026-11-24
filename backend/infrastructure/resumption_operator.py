@@ -64,20 +64,31 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, verifi
             "Original resumption evidence differs",
         )
     candidate = template(call, review["stack_arn"], "release-" + review["operation_id"])
-    original = restore_original(candidate, verified.get("original_release"))
+    original = restore_original(
+        candidate,
+        verified.get("original_release"),
+        feature_values=review.get("feature_values"),
+        profile=profile,
+    )
     require(
         digest(original) == review["original_template_sha256"]
         and digest(candidate) == review["candidate_template_sha256"],
         "Verified paused templates differ",
     )
     expanded = {
-        key: value for key, value in original_review.items() if not key.endswith("template_sha256")
+        key: value
+        for key, value in original_review.items()
+        if not key.endswith("template_sha256") and key != "feature_values"
     }
     expanded.update(
         original_template=original,
         candidate_template=candidate,
         mode="rollout",
-        boundary_resource=None,
+        boundary_resource=(
+            original["Resources"]["ApiRole"]["Properties"]["PermissionsBoundary"].get("Ref")
+            if review.get("feature_values")
+            else None
+        ),
     )
     plan = resumption_plan(
         expanded,

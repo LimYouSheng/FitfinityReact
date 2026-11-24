@@ -1,4 +1,4 @@
-"""Run reviewed frontend upload and paused rollout steps from protected Actions."""
+"""Run reviewed frontend, runtime and resumption steps from protected Actions."""
 
 import argparse
 import json
@@ -14,8 +14,10 @@ from deployment_profile import identities, load
 from hosting_frontend import source_check
 from operation_journal import Journal
 from operator_checks import require
+from portable_hosting import bindings
 from release_artifacts import collect
 from release_execution import template
+from release_features import recovery_state, restore_state
 from release_frontend import transfer
 from release_observation import digest
 from release_plan import prepare
@@ -32,7 +34,7 @@ def metadata(value, source, profile, *, recovery=False):
     """Validate source-bound metadata without retaining raw runtime templates."""
     target = identities(profile)
     require(
-        set(value)
+        set(value) - {"feature_values"}
         == {
             "source_sha",
             "profile_sha256",
@@ -45,6 +47,9 @@ def metadata(value, source, profile, *, recovery=False):
         },
         "Exact rollout metadata required",
     )
+    if "feature_values" in value:
+        bindings(profile, value["feature_values"])
+        require("features" in value["feature_values"], "Explicit feature flags required")
     require(
         value["source_sha"] == source
         and re.fullmatch(r"[a-f0-9]{40}", source)
@@ -112,8 +117,8 @@ def fetch_prior(run_id, destination, source, profile, *, recovery=False):
     )
 
 
-def original_metadata(template_value):
-    """Retain only the three public artifact/version pointers needed for recovery."""
+def original_metadata(template_value, *, feature_values=None, profile=None):
+    """Retain artifact pointers and validated public feature settings for recovery."""
     resources = template_value["Resources"]
     version = resources["ApiAlias"]["Properties"]["FunctionVersion"]
     output = template_value.get("Outputs", {}).get("FunctionVersion")
@@ -125,13 +130,23 @@ def original_metadata(template_value):
         "image": resources["ApiFunction"]["Properties"]["Code"]["ImageUri"],
         "version": deepcopy(version),
         "frontend": frontend[0]["OriginPath"],
+        **(
+            {"features": recovery_state(template_value, profile)}
+            if feature_values is not None
+            else {}
+        ),
     }
 
 
-def restore_original(candidate, pointers):
+def restore_original(candidate, pointers, *, feature_values=None, profile=None):
     """Reconstruct the hashed base without storing environment variables in receipts."""
     require(
-        isinstance(pointers, dict) and set(pointers) == {"image", "version", "frontend"},
+        isinstance(pointers, dict)
+        and set(pointers)
+        == (
+            {"image", "version", "frontend"}
+            | ({"features"} if feature_values is not None else set())
+        ),
         "Original release pointers required",
     )
     original = deepcopy(candidate)
@@ -147,6 +162,8 @@ def restore_original(candidate, pointers):
             row["OriginPath"] = pointers["frontend"]
     if "FunctionVersion" in original.get("Outputs", {}):
         original["Outputs"]["FunctionVersion"]["Value"] = deepcopy(pointers["version"])
+    if feature_values is not None:
+        original = restore_state(original, pointers["features"], feature_values, profile)
     return original
 
 
@@ -158,6 +175,7 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=
         require(prior.get("review_sha256") == digest(review), "Original review receipt required")
         require(prior.get("evidence") == evidence, "Original evidence receipt required")
     original_release = prior.get("original_release") if prior else None
+    feature_args = {"feature_values": review.get("feature_values"), "profile": profile}
 
     def save(value):
         persist(
@@ -187,21 +205,21 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=
     require(mode == "create" or prior is not None, "Original change-set receipt required")
     if mode in {"inspect", "verify"}:
         candidate = template(call, review["stack_arn"], "release-" + review["operation_id"])
-        original = restore_original(candidate, original_release)
+        original = restore_original(candidate, original_release, **feature_args)
     else:
         original = template(call, review["stack_arn"])
         require(
             digest(original) == review["original_template_sha256"],
             "Observed stack template changed",
         )
-        original_release = original_metadata(original)
+        original_release = original_metadata(original, **feature_args)
         candidate = prepare(
             original,
             observed_template_sha256=digest(original),
             source_sha=review["source_sha"],
             image_digest=evidence["image_digest"],
             frontend_sha256=evidence["frontend_sha256"],
-            profile=profile,
+            **feature_args,
         )["candidate_template"]
     require(
         digest(original) == review["original_template_sha256"], "Original template recovery differs"
@@ -210,12 +228,20 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=
         digest(candidate) == review["candidate_template_sha256"],
         "Candidate template review differs",
     )
-    expanded = {key: value for key, value in review.items() if not key.endswith("template_sha256")}
+    expanded = {
+        key: value
+        for key, value in review.items()
+        if not key.endswith("template_sha256") and key != "feature_values"
+    }
     expanded.update(
         original_template=original,
         candidate_template=candidate,
         mode="rollout",
-        boundary_resource=None,
+        boundary_resource=(
+            original["Resources"]["ApiRole"]["Properties"]["PermissionsBoundary"].get("Ref")
+            if review.get("feature_values")
+            else None
+        ),
     )
     image = (
         json.loads((root / "image/fitfinity-image-candidate.json").read_text())

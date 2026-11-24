@@ -160,6 +160,49 @@ class FeaturePlanTests(unittest.TestCase):
                         boundary_template_sha256=digest(foreign),
                     )
 
+    def test_feature_recovery_reconstructs_exact_original_without_secret_receipts(self):
+        import json
+
+        from rollout_operator import original_metadata, restore_original
+
+        for profile in (DEVELOPER, CLIENT):
+            with self.subTest(profile=profile["resource_prefix"]):
+                original, values = fixture(profile)
+                props = original["Resources"]["ApiFunction"]["Properties"]
+                props["ReservedConcurrentExecutions"] = 0
+                props["Environment"]["Variables"]["PRIVATE_SETTING"] = "never-in-receipts"
+                plan = release(
+                    original,
+                    observed_template_sha256=digest(original),
+                    source_sha="c" * 40,
+                    image_digest="sha256:" + "d" * 64,
+                    frontend_sha256="e" * 64,
+                    profile=profile,
+                    feature_values=values,
+                )
+                receipt = original_metadata(original, profile=profile, feature_values=values)
+                self.assertNotIn("PRIVATE_SETTING", json.dumps(receipt))
+                self.assertNotIn("never-in-receipts", json.dumps(receipt))
+                restored = restore_original(
+                    plan["candidate_template"], receipt, profile=profile, feature_values=values
+                )
+                self.assertEqual(restored, original)
+                self.assertNotEqual(plan["candidate_template"], original)
+
+    def test_feature_recovery_rejects_private_or_foreign_settings(self):
+        from release_features import checked_state
+
+        for state in (
+            {"PASSWORD": "secret"},
+            {"FITFINITY_MEDIA_ENABLED": "maybe"},
+            {"FITFINITY_AWS_REGION": "foreign"},
+            {"FITFINITY_MEDIA_BUCKET": "foreign"},
+            {"FITFINITY_STAFF_PORTAL_URL": "https://user:secret@example.test/"},
+            {"FITFINITY_STAFF_PORTAL_URL": "https://example.test/?token=secret"},
+        ):
+            with self.subTest(state=state), self.assertRaises(RuntimeError):
+                checked_state(state, CLIENT)
+
     def test_unreviewed_secrets_extra_authority_or_foreign_boundary_are_refused(self):
         original, values = fixture(CLIENT)
         for mode in ("secret", "policy", "trust", "boundary"):

@@ -97,6 +97,18 @@ class ExecutionTests(unittest.TestCase):
             return {"Stacks": [deepcopy(self.stack)]}
         if operation == "get-function":
             return deepcopy(self.function)
+        if operation == "get-role":
+            return {
+                "Role": {
+                    "PermissionsBoundary": {
+                        "PermissionsBoundaryArn": f"arn:aws:iam::{self.profile['account']}:policy/"
+                        + self.profile["resource_prefix"]
+                        + "-hosting-api-boundary"
+                    }
+                }
+            }
+        if operation == "list-entities-for-policy":
+            return {"PolicyRoles": [{"RoleName": self.profile["resource_prefix"] + "-hosting-api"}]}
         if operation == "get-function-concurrency":
             return {"ReservedConcurrentExecutions": self.concurrency}
         if operation == "list-stack-resources":
@@ -158,6 +170,17 @@ class ExecutionTests(unittest.TestCase):
                 ("ApiAlias", "AWS::Lambda::Alias", ["FunctionVersion"]),
                 ("Distribution", "AWS::CloudFront::Distribution", ["DistributionConfig"]),
             ]
+        if (
+            self.review["mode"] == "rollout"
+            and self.review["boundary_resource"] == "RuntimeBoundary"
+        ):
+            rows[0][2].append("Environment")
+            rows.extend(
+                [
+                    ("ApiRole", "AWS::IAM::Role", ["Policies"]),
+                    ("RuntimeBoundary", "AWS::IAM::ManagedPolicy", ["PolicyDocument"]),
+                ]
+            )
         result = [
             {
                 "Type": "Resource",
@@ -656,9 +679,44 @@ class ExecutionTests(unittest.TestCase):
         self.assertIn("eu-west-1", encoded)
 
     def test_actions_adapter_executes_and_recovers_without_raw_template_receipts(self):
+        self.exercise_actions_adapter()
+
+    def test_actions_adapter_recovers_feature_configuration_after_lost_execution(self):
+        self.exercise_actions_adapter(feature=True)
+
+    def exercise_actions_adapter(self, *, feature=False):
         from rollout_operator import execute_step
 
         self.rollout_fixture()
+        feature_values = None
+        if feature:
+            from importlib import import_module
+
+            original, feature_values = import_module("verify-release-features").fixture(
+                self.profile
+            )
+            original["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 0
+            self.current_template = deepcopy(original)
+            self.review["original_template"] = original
+            self.review["boundary_resource"] = "RuntimeBoundary"
+            self.review["candidate_template"] = prepare(
+                original,
+                observed_template_sha256=digest(original),
+                source_sha="c" * 40,
+                image_digest=self.rollout_evidence["image_digest"],
+                frontend_sha256=self.rollout_evidence["frontend_sha256"],
+                profile=self.profile,
+                feature_values=feature_values,
+            )["candidate_template"]
+            self.resources["StackResourceSummaries"].append(
+                {
+                    "LogicalResourceId": "RuntimeBoundary",
+                    "ResourceType": "AWS::IAM::ManagedPolicy",
+                    "PhysicalResourceId": f"arn:aws:iam::{self.profile['account']}:policy/"
+                    + self.profile["resource_prefix"]
+                    + "-hosting-api-boundary",
+                }
+            )
         root = self.rollout_folder
         folder = root / "frontend/release-frontend/dist-api-test"
         folder.mkdir(parents=True)
@@ -675,6 +733,9 @@ class ExecutionTests(unittest.TestCase):
             original_template_sha256=digest(self.review["original_template"]),
             candidate_template_sha256=digest(self.review["candidate_template"]),
         )
+
+        if feature:
+            review["feature_values"] = feature_values
 
         def run(mode, prior=None):
             execute_step(
@@ -705,7 +766,20 @@ class ExecutionTests(unittest.TestCase):
         encoded = json.dumps(self.receipts)
         self.assertNotIn('"Environment"', encoded)
         self.assertNotIn('"Resources"', encoded)
-        self.assertEqual(set(verified["original_release"]), {"image", "version", "frontend"})
+        self.assertEqual(
+            set(verified["original_release"]),
+            {"image", "version", "frontend"} | ({"features"} if feature else set()),
+        )
+        if feature:
+            env = self.current_template["Resources"]["ApiFunction"]["Properties"]["Environment"][
+                "Variables"
+            ]
+            for key in (
+                "FITFINITY_MEDIA_ENABLED",
+                "FITFINITY_STAFF_INVITATIONS_ENABLED",
+                "FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED",
+            ):
+                self.assertEqual(env[key], "true")
 
     def test_reconstructed_original_template_rejects_changed_pointer(self):
         from rollout_operator import original_metadata, restore_original

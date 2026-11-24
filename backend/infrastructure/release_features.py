@@ -50,11 +50,7 @@ def prepare(template, values, *, profile, boundary_template=None, boundary_templ
     }.items():
         require(env.get(key) == value, "Existing runtime configuration differs")
     previous_flags = {}
-    for key, flag in {
-        "media": "FITFINITY_MEDIA_ENABLED",
-        "invitations": "FITFINITY_STAFF_INVITATIONS_ENABLED",
-        "email_changes": "FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED",
-    }.items():
+    for key, flag in FEATURE_FLAGS.items():
         value = env.get(flag, "false")
         require(value in {"true", "false"}, "Existing feature state is ambiguous")
         previous_flags[key] = value == "true"
@@ -155,3 +151,74 @@ def prepare(template, values, *, profile, boundary_template=None, boundary_templ
             "Apply the reviewed boundary policy before enabling runtime features",
         ],
     }
+
+
+FEATURE_FLAGS = {
+    "media": "FITFINITY_MEDIA_ENABLED",
+    "invitations": "FITFINITY_STAFF_INVITATIONS_ENABLED",
+    "email_changes": "FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED",
+}
+FEATURE_KEYS = set(FEATURE_FLAGS.values()) | {
+    "FITFINITY_AWS_REGION",
+    "FITFINITY_MEDIA_BUCKET",
+    "FITFINITY_STAFF_PORTAL_URL",
+}
+
+
+def checked_state(state, profile):
+    """Allow only public feature settings in original-operation recovery metadata."""
+    from urllib.parse import urlsplit
+
+    target = identities(profile)
+    require(
+        isinstance(state, dict) and set(state) <= FEATURE_KEYS,
+        "Exact public feature recovery settings required",
+    )
+    for key, value in state.items():
+        if key in FEATURE_FLAGS.values():
+            require(value in {"true", "false"}, "Boolean feature state required")
+        elif key == "FITFINITY_AWS_REGION":
+            require(value == target["region"], "Original feature region differs")
+        elif key == "FITFINITY_MEDIA_BUCKET":
+            require(value == media_bucket(target), "Original media bucket differs")
+        elif value != sub("https://${Distribution.DomainName}/"):
+            require(isinstance(value, str), "Public portal origin required")
+            parsed = urlsplit(value)
+            require(
+                parsed.scheme == "https"
+                and parsed.hostname
+                and not parsed.username
+                and not parsed.password
+                and not parsed.query
+                and not parsed.fragment
+                and parsed.path in {"", "/"}
+                and parsed.port in {None, 443},
+                "Credential-free public portal origin required",
+            )
+    return deepcopy(state)
+
+
+def recovery_state(template, profile):
+    """Retain feature switches and public destinations, never arbitrary runtime values."""
+    env = template["Resources"]["ApiFunction"]["Properties"]["Environment"]["Variables"]
+    return checked_state({key: env[key] for key in FEATURE_KEYS if key in env}, profile)
+
+
+def restore_state(template, state, values, profile):
+    """Reconstruct previous feature settings and derived permissions in their existing owners."""
+    target = bindings(profile, values)
+    previous = checked_state(state, profile)
+    restored = deepcopy(template)
+    resources = restored["Resources"]
+    env = resources["ApiFunction"]["Properties"]["Environment"]["Variables"]
+    for key in FEATURE_KEYS:
+        env.pop(key, None)
+    env.update(previous)
+    flags = {name: previous.get(key, "false") == "true" for name, key in FEATURE_FLAGS.items()}
+    access = runtime_access(target, {**values, "features": flags})
+    role = resources["ApiRole"]["Properties"]
+    role["Policies"][0]["PolicyDocument"] = access
+    boundary = role["PermissionsBoundary"]
+    if isinstance(boundary, dict) and set(boundary) == {"Ref"}:
+        resources[boundary["Ref"]]["Properties"]["PolicyDocument"] = deepcopy(access)
+    return restored

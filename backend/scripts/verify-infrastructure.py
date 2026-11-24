@@ -14,9 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "infrastructure")]
 SUITES = {
     "verify-release-access.py": 9,
-    "verify-release-execution.py": 41,
+    "verify-release-execution.py": 42,
     "verify-release-health.py": 3,
-    "verify-release-features.py": 12,
+    "verify-release-features.py": 14,
     "verify-schema-upgrade-plan.py": 16,
     "verify-portable-foundation.py": 16,
     "verify-deployment-profile.py": 15,
