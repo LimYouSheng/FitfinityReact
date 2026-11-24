@@ -39,3 +39,10 @@ Library preview follow-up: a decoder can expose active SVG as a zero-duration im
 PR131 follow-up at7d1c678: the library component, its component test, real-API library suite and active-payload helper are byte-identical to the reviewed338ae65 versions. Current review threads still identify alerts5/6 at the same image/video sinks. CodeQL analysis completed successfully; that does not dismiss the findings. No rule exclusion or replacement sink was introduced to hide the reports; owner disposition remains pending because alert administration is unavailable to the integration.
 
 24 November2026 status reconciliation: the user reported completing alert disposition, and the separate CodeQL result on PR131 head935e84d is now successful. Earlier403 and pending-disposition statements above describe historical inspections. Direct alert administration remains unavailable; no broader clean-security or deployed acceptance claim follows. New source requires fresh scanning.
+
+
+### PR131 onboarding rejection fixtures — 24 November 2026
+
+Alert11 (`py/clear-text-storage-sensitive-data`) identifies the test helper in `backend/infrastructure/verify-portable-onboarding.py` writing rejection inputs. Those inputs use the fixed literal `synthetic-confidential-marker` in password/client-secret fields; they are not obtained from environment variables, AWS or users. The finding is a synthetic-test-data case, not evidence of a real credential disclosure. It must be reassessed if the input source changes.
+
+The test now supplies invalid input bytes in memory through the file-read boundary and still invokes the real CLI validation and archive-export path. It asserts rejection, no archive, no marker in diagnostics or any temporary output file, and no invalid-input file on disk. Valid onboarding cases still use real input files and inspect actual archives and hashes. All three focused cases and Ruff passed; no scanner suppression or alert dismissal was applied. The next exact-head CodeQL scan must confirm the new result before claiming scanner closure.

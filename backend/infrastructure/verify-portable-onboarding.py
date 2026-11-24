@@ -196,13 +196,38 @@ class OnboardingTests(unittest.TestCase):
                 },
             ),
         ]
+        original_read = Path.read_bytes
+        inputs_path = self.root / "invalid-input.json"
         for phase, inputs in cases:
-            with self.subTest(phase=phase), redirect_stderr(io.StringIO()) as errors:
+            payload = (inputs if isinstance(inputs, str) else json.dumps(inputs)).encode()
+
+            def read_inputs(path, contents=payload):
+                return contents if path == inputs_path else original_read(path)
+
+            with (
+                self.subTest(phase=phase),
+                redirect_stderr(io.StringIO()) as errors,
+                patch.object(Path, "read_bytes", read_inputs),
+            ):
                 with self.assertRaises(SystemExit) as refused:
-                    self.export(phase, inputs)
+                    main(
+                        [
+                            phase,
+                            "--profile",
+                            str(self.profile),
+                            "--inputs",
+                            str(inputs_path),
+                            "--output",
+                            str(self.root / (phase + ".zip")),
+                        ]
+                    )
                 self.assertEqual(refused.exception.code, 1)
                 self.assertNotIn("synthetic-confidential-marker", errors.getvalue())
                 self.assertFalse((self.root / (phase + ".zip")).exists())
+            self.assertFalse(inputs_path.exists())
+            for path in self.root.rglob("*"):
+                if path.is_file():
+                    self.assertNotIn(b"synthetic-confidential-marker", path.read_bytes())
 
     def test_existing_package_and_symlink_targets_cannot_be_overwritten(self):
         target = self.export("foundation", FOUNDATION)
