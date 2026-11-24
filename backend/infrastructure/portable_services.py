@@ -207,7 +207,6 @@ def image_access(profile):
                 "Effect": "Allow",
                 "Action": "sts:GetServiceBearerToken",
                 "Resource": "*",
-                "Condition": {"StringEquals": {"sts:AWSServiceName": "ecr-public.amazonaws.com"}},
             },
             {
                 "Effect": "Allow",
