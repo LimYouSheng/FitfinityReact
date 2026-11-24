@@ -99,16 +99,19 @@ def prepare(template, values, *, profile, boundary_template=None, boundary_templ
         require(len(matches) == 1, "External boundary ownership is ambiguous")
         boundary_resource, observed = matches[0]
         external = deepcopy(boundary_template)
+    access = runtime_access(target, values)
+    accepted_boundary_policies = [previous_access]
+    if external is not None:
+        accepted_boundary_policies.append(access)
     require(
         observed.get("Type") == "AWS::IAM::ManagedPolicy"
         and observed.get("Properties", {}).get("ManagedPolicyName") == policy_name
-        and observed["Properties"].get("PolicyDocument") == previous_access
+        and observed["Properties"].get("PolicyDocument") in accepted_boundary_policies
         and observed["Properties"].get("Path", "/") == "/"
         and not any(observed["Properties"].get(key) for key in ("Roles", "Users", "Groups")),
         "Existing boundary permissions differ",
     )
     candidate = deepcopy(template)
-    access = runtime_access(target, values)
     candidate["Resources"]["ApiRole"]["Properties"]["Policies"][0]["PolicyDocument"] = access
     boundary_owner = external if external is not None else candidate
     boundary_owner["Resources"][boundary_resource]["Properties"]["PolicyDocument"] = deepcopy(
@@ -141,6 +144,7 @@ def prepare(template, values, *, profile, boundary_template=None, boundary_templ
         "candidate_template": candidate,
         "boundary_resource": boundary_resource,
         "boundary_base_template_sha256": boundary_template_sha256,
+        "boundary_update_required": external is not None and external != boundary_template,
         "boundary_candidate_template": external,
         "rollback_template": deepcopy(template),
         "boundary_rollback_template": deepcopy(boundary_template),

@@ -110,6 +110,56 @@ class FeaturePlanTests(unittest.TestCase):
                 boundary_template_sha256="0" * 64,
             )
 
+    def test_prepared_external_boundary_allows_exact_feature_activation_only(self):
+        for profile in (DEVELOPER, CLIENT):
+            with self.subTest(profile=profile["resource_prefix"]):
+                original, values = fixture(profile)
+                boundary = original["Resources"].pop("RuntimeBoundary")
+                original["Resources"]["ApiRole"]["Properties"]["PermissionsBoundary"] = (
+                    f"arn:aws:iam::{profile['account']}:policy/"
+                    + profile["resource_prefix"]
+                    + "-hosting-api-boundary"
+                )
+                owner = {"Resources": {"ExistingBoundary": boundary}}
+                first = prepare(
+                    original,
+                    values,
+                    profile=profile,
+                    boundary_template=owner,
+                    boundary_template_sha256=digest(owner),
+                )
+                self.assertTrue(first["boundary_update_required"])
+                installed = first["boundary_candidate_template"]
+                second = prepare(
+                    original,
+                    values,
+                    profile=profile,
+                    boundary_template=installed,
+                    boundary_template_sha256=digest(installed),
+                )
+                self.assertFalse(second["boundary_update_required"])
+                self.assertEqual(second["candidate_template"], first["candidate_template"])
+                self.assertEqual(second["boundary_candidate_template"], installed)
+                self.assertNotIn("RuntimeBoundary", second["candidate_template"]["Resources"])
+                self.assertEqual(
+                    original["Resources"]["ApiFunction"]["Properties"]["Environment"]["Variables"][
+                        "FITFINITY_MEDIA_ENABLED"
+                    ],
+                    "false",
+                )
+                foreign = deepcopy(installed)
+                foreign["Resources"]["ExistingBoundary"]["Properties"]["PolicyDocument"][
+                    "Statement"
+                ].append({"Effect": "Allow", "Action": "*", "Resource": "*"})
+                with self.assertRaisesRegex(RuntimeError, "boundary permissions differ"):
+                    prepare(
+                        original,
+                        values,
+                        profile=profile,
+                        boundary_template=foreign,
+                        boundary_template_sha256=digest(foreign),
+                    )
+
     def test_unreviewed_secrets_extra_authority_or_foreign_boundary_are_refused(self):
         original, values = fixture(CLIENT)
         for mode in ("secret", "policy", "trust", "boundary"):
