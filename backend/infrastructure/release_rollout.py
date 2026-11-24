@@ -2,6 +2,7 @@
 
 import re
 import time
+from copy import deepcopy
 from datetime import datetime
 
 from deployment_profile import identities
@@ -97,3 +98,61 @@ def advance(
 
     result = execute(action, review, call, save, profile=profile, prior=prior, now=now)
     return {**result, "evidence_sha256": evidence_hash}
+
+
+def resumption_plan(
+    rollout_review,
+    evidence,
+    verified_receipt,
+    *,
+    profile,
+    operation_id,
+    expires_at,
+    concurrency,
+    now=None,
+):
+    """Bind a separate concurrency-only review to a verified paused release."""
+    observed = time.time() if now is None else now
+    identity = review_identity(rollout_review, profile, observed, recovery=True)
+    evidence_hash = binding(rollout_review, evidence, profile)
+    require(
+        verified_receipt.get("identity") == identity
+        and verified_receipt.get("state") == "template_verified"
+        and verified_receipt.get("execution_requested") is True
+        and verified_receipt.get("evidence_sha256") == evidence_hash,
+        "Verified original paused rollout receipt required",
+    )
+    require(
+        operation_id != rollout_review["operation_id"], "Separate resumption operation required"
+    )
+    require(type(concurrency) is int and concurrency > 0, "Explicit positive concurrency required")
+    original = deepcopy(rollout_review["candidate_template"])
+    require(
+        original["Resources"]["ApiFunction"]["Properties"].get("ReservedConcurrentExecutions") == 0,
+        "Verified release must remain paused",
+    )
+    candidate = deepcopy(original)
+    candidate["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = (
+        concurrency
+    )
+    review = {
+        **deepcopy(rollout_review),
+        "operation_id": operation_id,
+        "expires_at": expires_at,
+        "original_template": original,
+        "candidate_template": candidate,
+        "mode": "resume",
+        "boundary_resource": None,
+    }
+    review_identity(review, profile, observed)
+    return {
+        "decision": "HOLD",
+        "review": review,
+        "rollout_receipt_sha256": digest(verified_receipt),
+        "evidence_sha256": evidence_hash,
+        "requirements": [
+            "Authenticate the original receipt producer before using this plan",
+            "Recheck live artifacts, schema, maintenance ownership and capacity before execution",
+            "Verify health after resumption; finalize maintenance separately",
+        ],
+    }

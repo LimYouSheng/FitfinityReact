@@ -772,6 +772,60 @@ class ExecutionTests(unittest.TestCase):
             self.run_step("execute", created)
         self.assertFalse(any(op == "execute-change-set" for _, op, _ in self.calls))
 
+    def test_resumption_plan_binds_verified_rollout_without_changing_artifacts(self):
+        from release_rollout import resumption_plan
+
+        step = self.rollout_fixture()
+        receipt = step("verify", step("execute", step("create")))
+        result = resumption_plan(
+            self.review,
+            self.rollout_evidence,
+            receipt,
+            profile=self.profile,
+            operation_id="f" * 32,
+            expires_at=2200,
+            concurrency=2,
+            now=1500,
+        )
+        self.assertEqual(result["decision"], "HOLD")
+        review = result["review"]
+        self.assertEqual(review["original_template"], self.review["candidate_template"])
+        expected = deepcopy(review["original_template"])
+        expected["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 2
+        self.assertEqual(review["candidate_template"], expected)
+        self.assertEqual(result["rollout_receipt_sha256"], digest(receipt))
+        self.assertEqual(self.concurrency, 0)
+
+    def test_resumption_plan_refuses_unverified_substituted_or_replayed_release(self):
+        from release_rollout import resumption_plan
+
+        step = self.rollout_fixture()
+        receipt = step("verify", step("execute", step("create")))
+        for error in ("state", "identity", "evidence", "operation", "concurrency", "expiry"):
+            prior = deepcopy(receipt)
+            kwargs = dict(
+                profile=self.profile,
+                operation_id="f" * 32,
+                expires_at=2200,
+                concurrency=2,
+                now=1500,
+            )
+            if error == "state":
+                prior["state"] = "execute_submitted"
+            elif error == "identity":
+                prior["identity"]["source_sha"] = "0" * 40
+            elif error == "evidence":
+                prior["evidence_sha256"] = "0" * 64
+            elif error == "operation":
+                kwargs["operation_id"] = self.review["operation_id"]
+            elif error == "concurrency":
+                kwargs["concurrency"] = True
+            else:
+                kwargs["expires_at"] = 1000
+            with self.subTest(error=error), self.assertRaises(RuntimeError):
+                resumption_plan(self.review, self.rollout_evidence, prior, **kwargs)
+        self.assertEqual(self.concurrency, 0)
+
 
 class RolloutProviderTests(unittest.TestCase):
     def test_absent_object_is_distinct_from_denied_or_failed_calls(self):
