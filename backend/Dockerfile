@@ -41,6 +41,7 @@ RUN python -m pip install --no-cache-dir --require-hashes -r requirements-test.l
 COPY pyproject.toml /app/pyproject.toml
 # Infrastructure verification reads the same Compose definition used by its caller.
 COPY compose.yaml /app/compose.yaml
+COPY Dockerfile /app/Dockerfile
 COPY tests /app/tests
 COPY scripts /app/scripts
 COPY contracts /app/contracts

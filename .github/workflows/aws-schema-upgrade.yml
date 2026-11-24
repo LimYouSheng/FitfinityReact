@@ -1,0 +1,149 @@
+name: Manual private schema upgrade
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target name in repository configuration
+        type: string
+        default: developer
+        required: true
+      mode:
+        type: choice
+        options: [create, inspect, invoke, cleanup, cleanup-check]
+        required: true
+      review_run:
+        description: Successful manual release-preparation run containing the reviewed upgrade package
+        type: string
+        required: true
+      image_run:
+        description: Successful matching image-publication run (not needed for cleanup)
+        type: string
+        required: false
+      template_sha256:
+        description: Exact SHA256 from the reviewed upgrade template
+        type: string
+        required: true
+      prior_run:
+        description: Prior upgrade run retaining the operation receipt
+        type: string
+        required: false
+      catalog_run:
+        description: Successful current-source private catalog run required for invoke
+        type: string
+        required: false
+      snapshot_arn:
+        description: Reviewed completed encrypted RDS snapshot required for invoke
+        type: string
+        required: false
+      maintenance_run:
+        description: Successful same-source maintenance snapshot-check run required for invoke
+        type: string
+        required: false
+      stack_id:
+        description: Retained stack ARN; required for cleanup-check
+        type: string
+        required: false
+env:
+  FITFINITY_DEPLOYMENT_TARGETS_JSON: ${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}
+permissions:
+  contents: read
+jobs:
+  offline:
+    uses: ./.github/workflows/infrastructure.yml
+  target:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      profile: ${{ steps.target.outputs.profile }}
+      profile_sha256: ${{ steps.target.outputs.profile_sha256 }}
+      environment: ${{ steps.target.outputs.environment }}
+      account: ${{ steps.target.outputs.account }}
+      region: ${{ steps.target.outputs.region }}
+      role: ${{ steps.target.outputs.upgrade_role }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: target
+        env:
+          DEPLOYMENT_TARGET: ${{ inputs.target }}
+        run: python3 backend/infrastructure/deployment_profile.py
+  upgrade:
+    needs: [offline, target]
+    if: github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_UPGRADE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ${{ needs.target.outputs.environment }}
+    concurrency:
+      group: fitfinity-${{ needs.target.outputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Fetch exact reviewed evidence before AWS authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
+          UPGRADE_MODE: ${{ inputs.mode }}
+          REVIEW_RUN: ${{ inputs.review_run }}
+          IMAGE_RUN: ${{ inputs.image_run }}
+          PRIOR_RUN: ${{ inputs.prior_run }}
+          CATALOG_RUN: ${{ inputs.catalog_run }}
+          SNAPSHOT_ARN: ${{ inputs.snapshot_arn }}
+          MAINTENANCE_RUN: ${{ inputs.maintenance_run }}
+        run: python3 backend/infrastructure/schema_upgrade_artifacts.py
+      - name: Require dedicated upgrade role
+        env:
+          UPGRADE_ROLE: ${{ vars.AWS_SCHEMA_UPGRADE_ROLE_ARN }}
+          EXPECTED_ROLE: ${{ needs.target.outputs.role }}
+        run: test "$UPGRADE_ROLE" = "$EXPECTED_ROLE"
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_SCHEMA_UPGRADE_ROLE_ARN }}
+          role-session-name: fitfinity-upgrade-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ${{ needs.target.outputs.region }}
+          allowed-account-ids: ${{ needs.target.outputs.account }}
+          unset-current-credentials: true
+      - name: Execute one reviewed upgrade step
+        env:
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
+          UPGRADE_MODE: ${{ inputs.mode }}
+          TEMPLATE_SHA256: ${{ inputs.template_sha256 }}
+          STACK_ID: ${{ inputs.stack_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$STACK_ID" ]; then args+=(--stack-id "$STACK_ID"); fi
+          if [[ "$UPGRADE_MODE" == create || "$UPGRADE_MODE" == invoke ]]; then
+            args+=(--image-receipt "$RUNNER_TEMP/upgrade-image/fitfinity-image-candidate.json")
+          fi
+          if [ -f "$RUNNER_TEMP/upgrade-prior/schema-upgrade-receipt.json" ]; then
+            args+=(--prior "$RUNNER_TEMP/upgrade-prior/schema-upgrade-receipt.json")
+          fi
+          if [ "$UPGRADE_MODE" = invoke ]; then
+            args+=(--evidence "$RUNNER_TEMP/upgrade-evidence.json")
+          fi
+          python3 backend/infrastructure/schema_upgrade_operator.py \
+            --profile "$DEPLOYMENT_PROFILE" \
+            --mode "$UPGRADE_MODE" \
+            --review "$RUNNER_TEMP/upgrade-review/schema-upgrade-review/review.json" \
+            --template-sha256 "$TEMPLATE_SHA256" \
+            --receipt "$RUNNER_TEMP/schema-upgrade-receipt.json" "${args[@]}"
+      - name: Retain operational receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fitfinity-schema-upgrade-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/schema-upgrade-receipt.json
+          if-no-files-found: warn
+          retention-days: 7

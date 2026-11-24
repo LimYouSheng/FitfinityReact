@@ -1,6 +1,6 @@
 """Load and validate AWS-managed configuration.
 
-Only complete same-account Singapore ARNs are accepted. IAM still owns authorization.
+Only complete same-account, configured-region ARNs are accepted. IAM still owns authorization.
 Secret changes require a reviewed restart/redeployment; this is not a rotation worker.
 """
 
@@ -17,8 +17,7 @@ from pydantic import BaseModel, ConfigDict, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
-REGION = "ap-southeast-1"
-CA_SHA256 = "3c696020a3b7c6721085d182211c28024ab01873ade35dcc7eeebb89c20ee979"
+CA_SHA256 = "90a6f1a7978a1b1b096dca6c57511ca48d3b8cf052f8e704baf358f34ea2f21b"
 DatabasePurpose = Literal["runtime", "migration"]
 
 
@@ -32,6 +31,7 @@ class _References(BaseSettings):
     config_source: Literal["direct", "aws-secrets-manager"] = "direct"
     environment: str = "local"
     aws_account_id: str = ""
+    aws_region: str = "ap-southeast-1"
     database_secret_arn: str = ""
     auth_secret_arn: str = ""
     db_host: str = ""
@@ -86,8 +86,10 @@ def _validate_references(refs, purpose):
         raise ConfigurationError("AWS secrets require staging or production settings")
     if not re.fullmatch(r"[0-9]{12}", refs.aws_account_id):
         raise ConfigurationError("Configure the target AWS account ID")
+    if not re.fullmatch(r"(?:af|ap|ca|eu|il|me|mx|sa|us)-[a-z]+-[1-9]", refs.aws_region):
+        raise ConfigurationError("Configure the commercial AWS region")
     arn_pattern = (
-        rf"arn:aws:secretsmanager:{REGION}:{refs.aws_account_id}:secret:"
+        rf"arn:aws:secretsmanager:{refs.aws_region}:{refs.aws_account_id}:secret:"
         r"[A-Za-z0-9/_+=.@-]{1,512}-[A-Za-z0-9]{6}"
     )
     arns = [refs.database_secret_arn]
@@ -98,12 +100,14 @@ def _validate_references(refs, purpose):
     if any(not re.fullmatch(arn_pattern, arn) for arn in arns) or len(set(arns)) != len(arns):
         raise ConfigurationError("Configure distinct full secret ARNs in the target account/region")
     if not re.fullmatch(
-        rf"[a-z0-9][a-z0-9-]{{0,62}}\.[a-z0-9]+\.{REGION}\.rds\.amazonaws\.com",
+        rf"[a-z0-9][a-z0-9-]{{0,62}}\.[a-z0-9]+\.{refs.aws_region}\.rds\.amazonaws\.com",
         refs.db_host,
     ) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,62}", refs.db_name):
-        raise ConfigurationError("Configure the private Singapore RDS endpoint and database name")
+        raise ConfigurationError(
+            "Configure the private target-region RDS endpoint and database name"
+        )
     if purpose == "runtime" and (
-        not re.fullmatch(r"ap-southeast-1_[A-Za-z0-9]{1,64}", refs.cognito_pool_id)
+        not re.fullmatch(rf"{re.escape(refs.aws_region)}_[A-Za-z0-9]{{1,64}}", refs.cognito_pool_id)
         or not re.fullmatch(r"[A-Za-z0-9]{1,128}", refs.cognito_client_id)
     ):
         raise ConfigurationError("Configure the staff Cognito pool and client")
@@ -131,7 +135,7 @@ def managed_values(purpose: DatabasePurpose) -> dict:
             raise ConfigurationError("Secret ARNs require explicit aws-secrets-manager mode")
         return {}
     _validate_references(refs, purpose)
-    ca_path = Path(__file__).with_name("certificates") / "ap-southeast-1-bundle.pem"
+    ca_path = Path(__file__).with_name("certificates") / "global-bundle.pem"
     try:
         if hashlib.sha256(ca_path.read_bytes()).hexdigest() != CA_SHA256:
             raise ValueError("Changed CA material")
@@ -140,8 +144,8 @@ def managed_values(purpose: DatabasePurpose) -> dict:
     try:
         client = boto3.client(
             "secretsmanager",
-            region_name=REGION,
-            endpoint_url=f"https://secretsmanager.{REGION}.amazonaws.com",
+            region_name=refs.aws_region,
+            endpoint_url=f"https://secretsmanager.{refs.aws_region}.amazonaws.com",
             verify=True,
             config=Config(
                 connect_timeout=2,
@@ -163,6 +167,7 @@ def managed_values(purpose: DatabasePurpose) -> dict:
         ):
             raise ConfigurationError("Database secret must match its restricted credential purpose")
         values = {
+            "aws_region": refs.aws_region,
             "database_url": SecretStr(
                 URL.create(
                     "postgresql+psycopg",

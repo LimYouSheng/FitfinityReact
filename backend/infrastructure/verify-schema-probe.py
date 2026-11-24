@@ -1,9 +1,13 @@
 """Private probe planning rejects drift and keeps operator authority separate."""
 
 import copy
+import hashlib
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from schema_probe_plan import prepare
+from schema_probe_plan import prepare, prepare_review, write_review
 
 
 class ProbePlanTests(unittest.TestCase):
@@ -16,7 +20,7 @@ class ProbePlanTests(unittest.TestCase):
             sql_sha256="c" * 64,
             db_host="fitfinity-test-db.example.ap-southeast-1.rds.amazonaws.com",
             db_name="fitfinity",
-            migration_secret_arn="arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/migration-abcdef",
+            migration_secret_arn="arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/database/migration-abcdef",
             subnet_ids=["subnet-00000001", "subnet-00000002"],
             security_group_id="sg-00000001",
             expires_at=2000,
@@ -66,6 +70,10 @@ class ProbePlanTests(unittest.TestCase):
         for key, value in [
             ("db_host", "example.com"),
             ("migration_secret_arn", "*"),
+            (
+                "migration_secret_arn",
+                self.binding["migration_secret_arn"].replace("/migration-", "/app-"),
+            ),
             ("security_group_id", "*"),
             ("subnet_ids", ["subnet-00000001"]),
             ("subnet_ids", ["subnet-00000001", "subnet-00000001"]),
@@ -87,3 +95,33 @@ class ProbePlanTests(unittest.TestCase):
         self.assertIn("Account-plan eligibility", evidence)
         self.assertIn("create/invoke/delete authority", evidence)
         self.assertIn("expiry is not cleanup", evidence)
+
+    def test_review_binds_source_sql_and_exact_template_bytes(self):
+        sql = b"SELECT current_database();"
+        binding = {**self.binding, "sql_sha256": hashlib.sha256(sql).hexdigest()}
+        result = prepare_review(binding, "a" * 40, sql, now=1000)
+        encoded = json.dumps(result["template"], sort_keys=True, separators=(",", ":")).encode()
+        self.assertEqual(result["template_sha256"], hashlib.sha256(encoded).hexdigest())
+        self.assertEqual(result["decision"], "HOLD")
+        self.assertIn("Not verified", result["image_attestation"])
+        self.assertEqual(result["expires_at"], 2000)
+
+    def test_review_rejects_wrong_checkout_source(self):
+        with self.assertRaisesRegex(RuntimeError, "source differs"):
+            prepare_review(self.binding, "b" * 40, b"sql", now=1000)
+
+    def test_review_rejects_changed_packaged_sql(self):
+        with self.assertRaisesRegex(RuntimeError, "SQL differs"):
+            prepare_review(self.binding, "a" * 40, b"changed sql", now=1000)
+
+    def test_package_writes_exact_protocol_bytes_and_refuses_overwrite(self):
+        review = prepare(self.binding, now=1000)
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "review"
+            write_review(review, output)
+            self.assertEqual(
+                (output / "invoke.json").read_bytes(), b'{"operation":"observe-schema"}'
+            )
+            self.assertEqual(json.loads((output / "template.json").read_text()), review["template"])
+            with self.assertRaises(FileExistsError):
+                write_review(review, output)

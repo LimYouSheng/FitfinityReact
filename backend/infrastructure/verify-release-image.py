@@ -63,8 +63,8 @@ class ImageReleaseChecks(unittest.TestCase):
 
     def page(self, counts=None, findings=None):
         return {
-            "registryId": image.ACCOUNT,
-            "repositoryName": image.REPOSITORY,
+            "registryId": self.op.account,
+            "repositoryName": self.op.repository,
             "imageId": {"imageDigest": self.digest},
             "imageScanStatus": {"status": "COMPLETE"},
             "imageScanFindings": {
@@ -116,21 +116,24 @@ class ImageReleaseChecks(unittest.TestCase):
         self.assertEqual(args[0], "aws")
         self.assertTrue(kwargs["private"])
         self.assertNotIn("--profile", args)
-        self.assertEqual(args[args.index("--region") + 1], image.REGION)
+        self.assertEqual(args[args.index("--region") + 1], self.op.region)
         operation = args[2]
         if operation == "get-caller-identity":
             result = {
-                "Account": image.ACCOUNT,
-                "Arn": f"arn:aws:sts::{image.ACCOUNT}:assumed-role/fitfinity-test-github-image/run",
+                "Account": self.op.account,
+                "Arn": (
+                    f"arn:aws:sts::{self.op.account}:assumed-role/"
+                    f"{self.op.target['image_role']}/run"
+                ),
             }
         elif operation == "describe-repositories":
             result = {
                 "repositories": [
                     {
-                        "registryId": image.ACCOUNT,
-                        "repositoryName": image.REPOSITORY,
-                        "repositoryArn": image.ARN,
-                        "repositoryUri": image.URI,
+                        "registryId": self.op.account,
+                        "repositoryName": self.op.repository,
+                        "repositoryArn": self.op.arn,
+                        "repositoryUri": self.op.uri,
                         "imageTagMutability": "IMMUTABLE",
                         "encryptionConfiguration": {"encryptionType": "AES256"},
                     }
@@ -142,13 +145,13 @@ class ImageReleaseChecks(unittest.TestCase):
                     {"Key": key, "Value": value}
                     for key, value in {
                         "Application": "Fitfinity",
-                        "Environment": "test",
-                        "ManagedBy": "fitfinity-test-image-uploader",
+                        "Environment": self.op.target["environment_tag"],
+                        "ManagedBy": self.op.target["resource_prefix"] + "-image-uploader",
                     }.items()
                 ]
             }
         elif operation == "get-registry-scanning-configuration":
-            result = {"registryId": image.ACCOUNT, "scanningConfiguration": {"scanType": "BASIC"}}
+            result = {"registryId": self.op.account, "scanningConfiguration": {"scanType": "BASIC"}}
         elif operation == "get-login-password":
             return "private-token"
         elif operation == "batch-get-image":
@@ -156,8 +159,8 @@ class ImageReleaseChecks(unittest.TestCase):
                 {
                     "images": [
                         {
-                            "registryId": image.ACCOUNT,
-                            "repositoryName": image.REPOSITORY,
+                            "registryId": self.op.account,
+                            "repositoryName": self.op.repository,
                             "imageId": {"imageDigest": self.digest, "imageTag": self.tag},
                             "imageManifest": self.manifest,
                         }
@@ -477,8 +480,19 @@ class ImageReleaseChecks(unittest.TestCase):
                 with self.subTest(args=args), self.assertRaises(RuntimeError):
                     op.main(args)
             candidate.assert_not_called()
-            op.main(["image-candidate", "--actions", "--receipt", "new.json"])
-            candidate.assert_called_once_with("new.json")
+            with self.assertRaises(RuntimeError):
+                op.main(["image-candidate", "--actions", "--receipt", "new.json"])
+            op.main(
+                [
+                    "image-candidate",
+                    "--actions",
+                    "--receipt",
+                    "new.json",
+                    "--profile",
+                    str(ROOT / "targets/developer.json"),
+                ]
+            )
+            candidate.assert_called_once_with("new.json", profile=image.DEVELOPER)
 
     def test_image_role_is_separate_and_cannot_deploy_or_read_application_secrets(self):
         template = json.loads((ROOT / "test-github-image-role.json").read_text())
@@ -511,3 +525,50 @@ class ImageReleaseChecks(unittest.TestCase):
             )
         historical = json.loads((ROOT / "test-github-verification-role.json").read_text())
         self.assertNotEqual(template, historical)
+
+    def test_client_image_build_publish_scan_has_no_developer_bindings(self):
+        profile = {
+            **image.DEVELOPER,
+            "account": "123456789012",
+            "region": "eu-west-1",
+            "github_repository": "client-example/portal",
+            "github_environment": "production",
+            "resource_prefix": "client-prod",
+            "secret_prefix": "client/production",
+        }
+        self.patch.stop()
+        self.op = image.ImageCandidate(self.report, self.root, profile=profile)
+        with (
+            patch.object(self.op, "command", side_effect=self.command),
+            patch.dict(
+                os.environ,
+                {
+                    "GITHUB_REPOSITORY": "client-example/portal",
+                    "GITHUB_WORKFLOW_REF": (
+                        "client-example/portal/.github/workflows/aws-image.yml@refs/heads/main"
+                    ),
+                },
+            ),
+        ):
+            self.op.run()
+        self.assertTrue(self.report["candidate_ready"])
+        self.assertEqual(self.report["account"], "123456789012")
+        self.assertEqual(
+            self.report["image_uri"],
+            "123456789012.dkr.ecr.eu-west-1.amazonaws.com/client-prod-api@" + self.digest,
+        )
+        self.assertEqual(self.report["profile_sha256"], image.identities(profile)["profile_sha256"])
+        sent = json.dumps([args for args, _ in self.calls])
+        for forbidden in ("418638389566", "ap-southeast-1", "fitfinity-test", "LimYouSheng"):
+            self.assertNotIn(forbidden, sent)
+
+    def test_client_image_rejects_developer_workflow_before_provider_access(self):
+        profile = {
+            **image.DEVELOPER,
+            "account": "123456789012",
+            "github_repository": "client-example/portal",
+        }
+        candidate = image.ImageCandidate(self.report, self.root, profile=profile)
+        with patch.object(candidate, "command") as command, self.assertRaises(RuntimeError):
+            candidate.source()
+        command.assert_not_called()

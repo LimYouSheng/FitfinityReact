@@ -157,13 +157,13 @@ The full backend gate includes [the synthetic recovery drill](../backend/tests/t
 
 ### 6.1 Verified image publication
 
-Normal main verification and Pages demo publishing do not queue an AWS image. For an independently authorized image candidate, open **Build and scan the verified AWS image candidate** in GitHub Actions, select `main`, and enter its exact 40-character commit SHA as `source_sha`. A mismatch stops before verification; main advancing later does not change the run’s selected commit. `AWS_IMAGE_RELEASE_ENABLED=true` must remain explicitly configured. The workflow reruns the complete frontend, backend and API-browser gates for that SHA before requesting the existing `aws-test` environment approval. Inspect the run SHA and successful gates before approving; cancel an obsolete candidate instead of approving it to clear a queue.
+Normal main verification and Pages demo publication do not queue an AWS image. For an authorized release, open **Build and scan the verified AWS image candidate** in Actions. Select `main`, the intended `target` and its exact 40-character commit as `source_sha`. Set the repository enablement flag for this operation. The workflow verifies the selected source and reruns the complete frontend, backend and API-browser gates before requesting the target's protected environment approval. Check the SHA and run results before approving. [Image workflow](../.github/workflows/aws-image.yml)
 
 The image retains its commit/run/attempt binding, exact AWS account/role checks, scan and receipt evidence. Historical candidates retain their original provenance rules; new manual candidates require all three verification gates. Image publication does not deploy Lambda, run migrations or authorize customer/provider actions. AWS release workflows remain serialized separately from ordinary verification/demo publishing.
 
 ### 6.2 Deployment preparation and acceptance
 
-The next live evidence step is **Observe current developer AWS release** (`aws-release-observe.yml`), manual on reviewed main after merge. It runs offline infrastructure checks, then uses the existing protected `aws-test` environment and exact hosting role with a narrower read-only session policy. It can describe the existing hosting stack/template, Lambda latest and alias-qualified images/configuration, alias, and RDS backup settings. It cannot retrieve secret values, invoke Lambda, run SQL, create snapshots or mutate resources. Approve only this named read-only run after reviewing its source. The retained14-day report omits raw environment values, stack parameters/templates, CLI error output and presigned download URLs. Missing IAM permission is a blocker to review, not grounds to broaden the role automatically. Confirm the configured GitHub identity before dispatch. The connected GitHub API tool has no dispatch operation, but the configured GitHub CLI can dispatch with authorized network access. The protected environment approval remains separate. A role-ARN variable or GitHub identity is not a direct AWS/private PostgreSQL connection.
+Use **Observe current AWS release** on reviewed main for the selected target. After offline infrastructure checks, its protected job associates the hosting role with a read-only session policy. It reports the hosting stack ID/template digest, Lambda latest and serving alias versions/images/configuration, concurrency and RDS metadata. The 14-day report excludes runtime values, stack parameters and download URLs. The private catalog probe provides the database evidence. [Observation workflow](../.github/workflows/aws-release-observe.yml)
 
 For database-state evidence, [read-schema.sql](../backend/infrastructure/read-schema.sql) uses a repeatable-read, read-only transaction with bounded lock/statement waits and ends with ROLLBACK. It reports the actual `public.alembic_version`, public table/column catalog, constraints/triggers/indexes, effective `fitfinity_app` table privileges and restricted-role attributes. It does not select customer records or passwords. Missing `alembic_version`, denied access or unavailable grants is evidence to investigate, not permission to bootstrap. This is a catalog receipt, not a complete schema-drift or runtime-permission acceptance proof.
 
@@ -171,7 +171,7 @@ Run only from an already authorized private connection to the verified target, u
 
 The first read-only AWS observation ([run41981485762](https://github.com/LimYouSheng/FitfinityReact/actions/runs/41981485762),5 November2026,06:39:52UTC) found private/encrypted RDS PostgreSQL17.11 available with **one-day retention**, and a latest restorable point at06:36:16UTC. Lambda retained historical image86183723… on alias`first-test` version2 and reported`Inactive`; no invocation tested health. These are time-bound observations, not current-source deployment or restore acceptance. One-day retention matches the historical foundation template;14 days remains the proposed requirement.
 
-For the next private SQL step, prefer an existing authorized VPC-connected operator terminal if one is identified. Otherwise prepare a dedicated temporary catalog probe in the verified database VPC/private subnets using an existing permitted database-access security group, with no public URL or ingress change. Bind the reviewed SQL and executable artifact to a digest; reject arbitrary SQL/event-supplied code; connect with verified RDS TLS; retrieve only the exact approved database secret inside the probe; execute only the read-only catalog transaction; return projected metadata and sanitized failure codes, never credentials/customer rows. Use a dedicated least-privilege role, one bounded invocation, explicit cleanup of function/role/log resources and a retained cleanup receipt. Verify current subnet/group/secret identities before generating the final resource/IAM change set. Historical names are discovery hints, not approved current bindings. This probe is **not implemented or deployed**; the checked-in hosting policy permits observation but does not grant this new probe or database modification. Do not silently broaden that role.
+For the next private SQL step, prefer an existing authorized VPC-connected operator terminal if one is identified. Otherwise prepare a dedicated temporary catalog probe in the verified database VPC/private subnets using an existing permitted database-access security group, with no public URL or ingress change. Bind the reviewed SQL and executable artifact to a digest; reject arbitrary SQL/event-supplied code; connect with verified RDS TLS; retrieve only the exact approved database secret inside the probe; execute only the read-only catalog transaction; return projected metadata and sanitized failure codes, never credentials/customer rows. Use a dedicated least-privilege role, one bounded invocation, explicit cleanup of function/role/log resources and a retained cleanup receipt. Verify current subnet/group/secret identities before generating the final resource/IAM change set. Historical names are discovery hints, not approved current bindings. The probe source and offline planner are implemented, but the probe is **not deployed**; the checked-in hosting policy permits observation but does not grant this new probe or database modification. Do not silently broaden that role.
 
 For retention, the user has deferred14 days until **account-plan upgrade and migration to client AWS**. Keep the observed developer setting at1 day; do not retry the old change sets or upgrade the developer account just to obtain14 days. The5 November operator-executed change was rejected by RDS because the requested retention exceeds the Free Tier account-plan maximum. Subsequent supplied RDS output showed available, retention1 and no pending modifications; the user subsequently confirmed UPDATE_ROLLBACK_COMPLETE. Recheck the current stack before any future foundation update; do not replay the rejected change sets. See Journey for the original execution evidence.
 
@@ -179,15 +179,17 @@ After the upgrade and client-account migration, first verify the destination acc
 
 The Lambda metadata receipt now has separate `latest_configuration` and `serving_configuration` entries, each with environment key names and allowlisted boolean feature flags. The serving summary comes from the alias-qualified version, not `$LATEST`; differing versions are covered by an explicit redaction regression. The first live observation41981485762 ran the older main observer, so its `feature_flags` describe latest only; run the corrected observer after merge before claiming serving flags.
 
-`app/release_upgrade.py::upgrade_existing` prepares the populated-upgrade primitive: an exact forward source/target, database/user identity check, transaction-scoped advisory lock, bounded SQL/lock waits, one transactional Alembic chain, and explicit already-at-target recovery. It refuses bootstrap, guessed resume, stale starting versions and downgrade. It is not an HTTP endpoint or an AWS migration executor; callers still need maintenance/write exclusion, verified source/artifact binding, migration-role grants and backup authority. Seven actual isolated PostgreSQL probes cover the original schema with a synthetic Owner and a later client/package/session graph, competing connections, late failure rollback and lost-receipt recovery. They do not prove runtime-role permissions, every possible populated dataset, RDS restore or outgoing-code compatibility.
+`app/release_upgrade.py::upgrade_existing` prepares the populated-upgrade primitive: an exact forward source/target, database/user identity check, transaction-scoped advisory lock, bounded SQL/lock waits, one transactional Alembic chain, and explicit already-at-target recovery. It refuses bootstrap, guessed resume, stale starting versions and downgrade. It is not exposed by the staff API. The separate `app/release_upgrade_service.py` factory accepts only one exact operation identity through a private temporary worker; it rechecks a one-hour expiry before credentials and immediately before migration, sanitizes errors and reports uncertain failure without retry. Its planner renders a private worker with a distinct migration boundary. `schema_probe_setup.prepare(..., purpose="upgrade")` prepares a separate upgrade operator and runtime ceiling; the probe installer refuses that template. The manual `aws-schema-upgrade.yml` workflow and executor are prepared, disabled by default and not live-accepted. No installed upgrade role is established yet; callers still need maintenance/write exclusion, verified source/artifact binding, migration-role grants and backup authority. Actual isolated PostgreSQL probes cover the original schema with a synthetic Owner and a later client/package/session graph, competing connections, late failure rollback and lost-receipt recovery. They do not prove runtime-role permissions, every possible populated dataset, RDS restore or outgoing-code compatibility.
 
-`infrastructure/release_plan.py::prepare` accepts an observed template/hash plus exact source/image/frontend manifest digests and produces candidate/rollback templates without AWS calls. It preserves existing resources, role/network/environment configuration and old versions; adds a retained version; changes the function image, alias and frontend origin path; and keeps the added version during code rollback. A stale template, foreign function/repository, weighted alias or repeated version is refused. The planner always returns HOLD and is not wired to an execute workflow. Review current feature IAM/configuration and runtime table grants before accepting the candidate; unchanged old configuration is not proof it supports all M6 functions. Code rollback requires proof that the old application can use the upgraded schema; it never runs a database downgrade. A new current-source private migration executor, immutable artifact/scan validation, reviewed change-set execution and post-deploy checks remain to be built after live observation. Historical bootstrap/recovery operators are not substitutes.
+`schema_upgrade_plan.py` binds the known populated starting revision and current head to the complete migration-file hashes, image digest, profile and expiring intent. Its image validator recomputes the review, requires every migration hash in the publication receipt and reads a fresh complete ECR scan through `release_image_validation.py`; foreign targets, changed/missing SQL, stale source and edited reviews are refused. This is preparation/read-only evidence validation, not permission to invoke a worker. The read-only probe retains its SQL-specific image guard and cannot select the upgrade handler.28 focused migration/service cases passed locally, including real rollback and lost-response recovery; these do not establish RDS grants, maintenance, backup restoration or deployment.
+
+The release planner binds the observed saved template and its hash to the source, image and frontend manifest. It preserves retained versions and forces zero concurrency in the forward and rollback proposals. Save the pause in CloudFormation before migration or rollout so provider rollback also keeps traffic paused. The protected release checks the actual pause, immutable artifact upload, effective provider access, template delta and separate resumption review. [Release planner](../backend/infrastructure/release_plan.py) · [Protected operations](#protected-release-operations)
 
 [Prepare developer AWS release evidence](../.github/workflows/aws-release-prepare.yml) runs on PRs targeting main, main pushes and manual dispatch. Two independent jobs prepare the exact checkout: an API-mode same-origin frontend/PWA bundle with per-file hashes and a source migration inventory, and the production Docker `runtime` target for `linux/amd64` (including the Lambda adapter). Artifacts retain source SHA, run/attempt, logs and image inspection for14 days. No AWS credentials, ECR push, database connection or hosting change occurs. These jobs have20/35-minute limits and a separate cancellable concurrency group; they do not wait for `aws-test` approval or replace the three application gates/CodeQL. A PR receipt identifies GitHub's tested merge SHA; obtain new main evidence after merge.
 
-Read `release-readiness.json` before planning rollout. It deliberately records **HOLD**, even when preparation succeeds: migration-chain integrity and a build are not deployed compatibility. The retained bootstrap contract ends at20260924_0006 and the original private runtime binds its historical source; current migrations and their hashes are listed independently. Do not modify those historical fingerprints to authorize a new application release. The frontend artifact is a preparation candidate, not yet accepted by a current hosting rollout consumer. The runtime job retains build identity, not a deployable saved image or vulnerability scan; the separately authorized image-publication workflow still builds/scans the exact published candidate.
+Read `release-readiness.json` before planning rollout. It carries a preparation-only HOLD, the current source migration chain and its hashes. Historical bootstrap and private-runtime fingerprints identify older artifacts. The protected rollout consumes the exact frontend bytes and manifest from a successful selected main run, together with the published image and fresh catalog. The preparation runtime job retains build identity. The separate image workflow builds and scans the published ECR artifact.
 
-Next release work must bind observed account/resources, current deployed schema/digest/configuration and a recoverable backup; prove a populated upgrade from that schema; implement/review a non-bootstrap migration and runtime/frontend rollout with rollback boundaries; then authorize the exact action. Existing manual hosting/private-runtime recovery modes must not be replayed as a current release recipe. Real Cognito/provider effects and physical-device UAT follow the verified rollout. Preparation does not satisfy these remaining steps.
+After source acceptance, run the selected target's observation, private catalog and access checks. Verify a recoverable backup before a populated migration. Continue through the reviewed runtime/frontend release, resumption and health receipts. Real login, role workflows and physical-device results belong to the target's acceptance session. [Protected operations](#protected-release-operations)
 
 | Step | Required evidence |
 | --- | --- |
@@ -204,13 +206,45 @@ Frontend and Lambda releases are separate. Preserve reviewed API origin/CORS/coo
 
 The separate private catalog probe is now prepared in [schema_probe.py](../backend/app/schema_probe.py), with an offline [template planner](../backend/infrastructure/schema_probe_plan.py). It is not deployed or connected to the staff API. The planner takes reviewed account/region, source SHA, immutable image digest, SQL SHA256, database host/name, migration-secret ARN, two private subnet IDs, security group and an expiry within one hour; it emits a **HOLD** plan. It does not discover resources or execute AWS actions. The probe accepts only the exact compact invocation body `{"operation":"observe-schema"}` and runs the fixed catalog script through a read-only PostgreSQL session, checking database/user identity and returning sanitized failures. Its health route retrieves no credentials. The existing managed-secret loader retains pinned CA/TLS verification and the restricted migration identity. No customer rows, arbitrary SQL, bootstrap or migrations are accepted.
 
-Before activation, verify current resource/network/secret identities, account-plan eligibility/cost, scanned image-to-source/SQL bindings and separately authorized create/invoke/delete permissions. Review any customer-managed KMS key requirement explicitly; do not broaden the hosting role. Inspect the created function's configuration, absence of Function URLs, public triggers and resource policies before invoking. The source SHA in the response is a configured label, not independent artifact attestation. Keep the sanitized catalog receipt in restricted operational evidence. Delete only the owned temporary probe stack and verify cleanup; logical expiry stops new observations but does not delete Lambda, IAM or logs. No live creation/invocation/cleanup executor or current private-schema receipt exists yet. Existing one-day log retention is not immediate deletion. Actual migration/rollout and populated restore acceptance remain separate.
+The release-preparation workflow accepts optional manual `probe_bindings` JSON containing only the exact metadata keys above. It produces `schema-probe-review/review.json`, `template.json` and `invoke.json` inside the existing preparation artifact. Source SHA must equal the dispatched checkout SHA and SQL SHA256 must match `backend/infrastructure/read-schema.sql`; the review records the exact compact template SHA256. No secret value belongs in this input. Image/source attestation and live network/secret discovery are still unverified by this offline package. An expired package must be regenerated and reviewed; never alter its expiry after approval.
+
+For local preparation after obtaining reviewed metadata: `python3 backend/infrastructure/schema_probe_plan.py /path/to/bindings.json /path/to/new-review-directory --source-sha "$(git rev-parse HEAD)"`. This creates a new review directory and refuses to overwrite an existing one. It makes no AWS calls and grants no execution authority. Review the template, actual image/scan receipt and current resource identities before separately authorizing probe creation, one invocation and cleanup. The optional packaging step does not supply the missing live executor.
+
+Before activation, verify current resource/network/secret identities, account-plan eligibility/cost, scanned image-to-source/SQL bindings and separately authorized create/invoke/delete permissions. Review any customer-managed KMS key requirement explicitly; do not broaden the hosting role. Inspect the created function's configuration, absence of Function URLs, public triggers and resource policies before invoking. The source SHA in the response is a configured label, not independent artifact attestation. Keep the sanitized catalog receipt in restricted operational evidence. Delete only the owned temporary probe stack and verify cleanup; logical expiry stops new observations but does not delete Lambda, IAM or logs. The local manual probe workflow/operator now prepares creation, collection and cleanup, but has not been activated or exercised against AWS; no current private-schema receipt exists yet. Existing one-day log retention is not immediate deletion.
+
+The draft [manual probe workflow](../.github/workflows/aws-schema-probe.yml) defaults off unless `AWS_SCHEMA_PROBE_ENABLED=true`. It requires the `aws-test` environment and exact `AWS_SCHEMA_PROBE_ROLE_ARN=arn:aws:iam::418638389566:role/fitfinity-test-github-schema-probe`; existing hosting/image roles are not reused or broadened. GitHub variable-name inspection returned403 on15 November. A later environment read confirmed required reviewer LimYouSheng and the sole deployment-branch rule main. Variable presence remains unverified. On 15 November the operator supplied CREATE_COMPLETE and verified the original role trust, inline policy and both boundaries. The installed policy predates the VPC creator reads. Complete the reviewed in-place access update before using this role to create a private worker. Review account-plan eligibility/cost and the following grants before authorizing configuration. The create preflight refuses insufficient Lambda unreserved concurrency for the template's single reservation; it never raises the quota or silently removes that limit.
+
+| Dedicated operator permission scope to review | Required operations / boundary |
+| --- | --- |
+| OIDC trust | GitHub issuer in account418638389566, audience `sts.amazonaws.com`, subject `repo:LimYouSheng/FitfinityReact:environment:aws-test`; protect that environment for approved main deployments. No new trust is installed by the source workflow. |
+| Probe stack | CloudFormation CreateStack, DescribeStacks, DescribeStackResource, GetTemplate and DeleteStack for `fitfinity-test-schema-observe` only; no update of existing staff/foundation stacks. |
+| Probe resources through CloudFormation | Lambda creation/configuration/tag/concurrency/read/delete for `fitfinity-test-schema-observe`; IAM create/read/inline-policy/delete/pass-role scoped to `fitfinity-test-schema-observe-runtime`, with CreateRole requiring the exact preinstalled runtime permissions boundary, with PassRole restricted to Lambda; log-group create/read/retention/delete for `/aws/lambda/fitfinity-test-schema-observe`. Review these transitive grants against the exact template; do not grant account-wide IAM administration. |
+| Direct observations | STS identity; Lambda GetAccountSettings, GetFunction, GetFunctionConcurrency, GetPolicy, ListFunctionUrlConfigs, ListEventSourceMappings and InvokeFunction for the probe; ECR DescribeImageScanFindings for `fitfinity-test-api`; RDS DescribeDBInstances for `fitfinity-test-db`; regional EC2 DescribeVpcs, DescribeSubnets and DescribeSecurityGroups, plus GetSecurityGroupsForVpc on the reviewed database VPC ARN; DescribeSecret for the exact reviewed migration secret. The operator does not retrieve secret values. |
+| Runtime role | Exact template policy only: current migration-secret read, probe log writes and Lambda-managed ENI permissions with the function-code denial. Customer-managed KMS needs a separate exact-key review; the current operator rejects it. Existing ECR Lambda access and actual private Secrets Manager/RDS routing remain prerequisites, not inferred from a same-VPC check. |
+
+The offline planner renders the dedicated probe role, its operator boundary and the worker runtime boundary for the selected profile. The developer role is `fitfinity-test-github-schema-probe` and its worker boundary is `fitfinity-test-schema-observe-runtime-boundary`. The operator cannot alter either boundary, read secret values, change existing staff code or update existing CloudFormation stacks. Its runtime-role creation and PassRole are limited to `fitfinity-test-schema-observe-runtime`, with the exact runtime boundary and Lambda service condition. Both the runtime inline policy and boundary use the shared [IAM owner](../backend/infrastructure/schema_probe_iam.py); collection checks the actual runtime trust and boundary before invoking. The probe stack uses CAPABILITY_NAMED_IAM. Review setup separately; no IAM resource or GitHub activation is installed by running the planner. Setup depends on an existing GitHub OIDC provider and protected main-only `aws-test` environment. Regenerate any earlier local probe package because the named role/boundary changes its template digest. [IAM setup planner](../backend/infrastructure/schema_probe_setup.py)
+
+Retain the developer installation and its original receipt. Use the existing-stack UPDATE procedure for its creator permissions. A fresh target can use the standalone CREATE installer after the role and policies are confirmed absent. The routine probe assumes its installed role through Actions. [Installed access update](#updating-installed-private-worker-access) · [Fresh-account setup](#first-setup-in-a-fresh-aws-account)
+
+The standalone [network follow-up](../backend/infrastructure/schema_probe_network_check.py) reads only the previously observed egress instance health/forwarding metadata, database inbound rules, Lambda inactive reason and GitHub OIDC metadata after verifying account418638389566. It does not invoke Lambda, start the egress instance, fetch secret values or install roles. Its instance/group IDs are discovery bindings from the15 November supplied receipt, not permanent topology assumptions; re-observe if the environment changes.
+
+After source acceptance and separately authorized configuration, use one durable32-hex operation ID throughout:
+
+1. Publish/scan the exact accepted main image through the existing image workflow. Run release preparation manually with matching reviewed bindings and a fresh expiry; inspect its template/hash. Both producer runs must succeed on main at the same source. The workflow retrieves named artifacts from those exact run/attempts before authenticating to AWS.
+2. Dispatch `aws-schema-probe.yml` with `create`, review run, image run, approved template SHA256 and operation ID. Creation only submits the owned stack. Preserve its returned stack ARN; no staff API, migration or frontend deployment occurs.
+3. Once CloudFormation has completed creation, dispatch `collect` with the same inputs. It rechecks ownership/template, live digest/configuration/role/concurrency, fresh image scan and absence of public URLs/resource policies/event sources before one synchronous compact request. A failed/uncertain create is inspected, not automatically retried. No invocation retry is automatic.
+4. Dispatch `cleanup` with the same reviewed operation, then `cleanup-check` with its retained stack ARN. A cleanup submission is not cleanup success; require DELETE_COMPLETE. Expiry does not block cleanup, and the workflow can validate an archived main ancestor's SQL for cleanup after main advances. An unexpected or foreign stack is never deleted. Retain the review package and operation/stack identity outside expiring Actions artifacts for operator recovery.
+
+The receipt is metadata-only operational evidence with7-day Actions retention. Access follows repository Actions permissions; it is not a secret store or private customer-data archive. Never upload credential values or customer rows. The account's RDS schema, actual grants, populated upgrade, complete staff API/hosting rollout and physical UAT remain separate work. The probe workflow being green is not deployment acceptance.
+ Actual migration/rollout and populated restore acceptance remain separate.
 
 ### 6.3 Rollback
 
 Identify the failing artifact/configuration and the last verified compatible candidate. Compare current schema, new records, outstanding commands and external identity/media effects before selecting rollback. Stop incompatible new writes only through a reviewed change. Restore the approved application/configuration target, verify actual deployment/readiness and reconcile outstanding receipts.
 
 Code rollback does not reverse credits, approvals, sent emails or committed database changes. After email corrections exist, rollback must use correction-aware code; disabling new corrections does not remove pending history. Do not downgrade a populated schema that would discard attribution, receipts or action evidence. If no safe backward path exists, prepare a reviewed forward fix or restore plan instead.
+
+For an executable code rollback, review a new main revision that reverts the affected application or frontend code and preserves the deployed migration head, current grants and required data behavior. Build and scan its fresh image and frontend, authenticate its normal source verification and collect a current catalog. Use the ordinary paused release with the unchanged-schema producer set, then resume and verify health. A retained old template alone provides comparison evidence. If compatibility or schema validation fails, keep the existing release paused for a forward repair. [Release lifecycle regressions](../backend/infrastructure/verify-release-lifecycle.py)
 
 ## 7. Data protection and restore
 
@@ -262,7 +296,7 @@ Real-API tests create temporary Docker PostgreSQL databases, private buckets in 
 
 Pending Trainer email correction is disabled by default (`FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED=false`). Enable it only after all serving application instances understand superseded requests and the forward migration is verified. Once corrections exist, rollback requires a correction-aware application; old pending-request readers are incompatible, and populated schema downgrade refuses evidence loss. Disabling creation does not prevent account holders from finishing existing verification.
 
-Protected media is disabled by default. An authorized deployment must explicitly set `FITFINITY_MEDIA_ENABLED=true` and `FITFINITY_MEDIA_BUCKET` for an existing private bucket; source code does not create AWS resources. The runtime uses its workload identity and Singapore S3 endpoint. Reviewed bucket CORS must permit only the staff origin, GET/PUT/HEAD and the required content-type/checksum/conditional-write headers. Test endpoints and synthetic credentials exist only in test fixtures. `python -m app.library_cleanup` performs a bounded cleanup sweep after configuration; scheduling, grants and production activation remain release tasks in Progress. It retains durable work after failure and never deletes a library object while it is attached or its upload lease remains valid. `python -m app.session_media_cleanup` similarly performs a bounded session-media sweep, respecting package-deletion Undo holds, original fixed expiry and worker leases. Both commands require separate release activation; source integration does not schedule them. The selected routine session-recording cleanup cadence is monthly on the first day in Asia/Singapore; exact execution time is to be bound in the release plan. Seven-day playback expiry remains unchanged. The session CLI processes at most 100 items per invocation: deployment must provide bounded continuation until eligible monthly work is drained, failure retries and an observable overdue/failed-work signal. A one-minute retry eligibility timestamp does not execute a retry itself. Verify private bucket versioning/noncurrent-version retention and backup/replica coverage before claiming permanent erasure; deleting a key alone can create a delete marker. Library retention is separate and must not inherit the recording expiry. No cloud scheduler is activated by this policy update.
+Protected media is disabled by default. An authorized deployment must explicitly set `FITFINITY_MEDIA_ENABLED=true` and `FITFINITY_MEDIA_BUCKET` for an existing private bucket; source code does not create AWS resources. The runtime uses its workload identity and configured-region S3 endpoint. Reviewed bucket CORS must permit only the staff origin, GET/PUT/HEAD and the required content-type/checksum/conditional-write headers. Test endpoints and synthetic credentials exist only in test fixtures. `python -m app.library_cleanup` performs a bounded cleanup sweep after configuration; scheduling, grants and production activation remain release tasks in Progress. It retains durable work after failure and never deletes a library object while it is attached or its upload lease remains valid. `python -m app.session_media_cleanup` similarly performs a bounded session-media sweep, respecting package-deletion Undo holds, original fixed expiry and worker leases. Both commands require separate release activation; source integration does not schedule them. The selected routine session-recording cleanup cadence is monthly on the first day in Asia/Singapore; exact execution time is to be bound in the release plan. Seven-day playback expiry remains unchanged. The session CLI processes at most 100 items per invocation: deployment must provide bounded continuation until eligible monthly work is drained, failure retries and an observable overdue/failed-work signal. A one-minute retry eligibility timestamp does not execute a retry itself. Verify private bucket versioning/noncurrent-version retention and backup/replica coverage before claiming permanent erasure; deleting a key alone can create a delete marker. Library retention is separate and must not inherit the recording expiry. No cloud scheduler is activated by this policy update.
 
 Prepared environments may reuse `FITFINITY_BROWSER_BACKEND_IMAGE`, `FITFINITY_BROWSER_RUNNER_IMAGE` and `PLAYWRIGHT_BROWSERS_PATH` with matching source/engine inputs. Keep public CA/proxy settings and TLS verification intact; cloud-specific trust setup stays outside tracked source. If Docker or trust is unavailable, record the blocker rather than substitute SQLite or a simulator.
 
@@ -271,3 +305,336 @@ For release/configuration readiness reviews, apply the [deployment readiness ski
 Deployment default interpretation: the image workflow requires `AWS_IMAGE_RELEASE_ENABLED == 'true'`, manual dispatch and its source/account gates. An absent/false activation flag can be an intentional closed state, not a failure to fix automatically. Inspect actual settings separately from defaults; test activation and its reversion require a concrete scoped plan and applicable authorization. This statement does not claim the current live variable value or activate any workflow.
 
 For source-security triage, inspect the independent CodeQL workflow and Security → Code scanning results for the exact revision. Assign each finding an owning module, exposure assessment and fix or justified disposition; preserve evidence. CodeQL scan completion alone does not block vulnerable code by severity. Baseline review and separately configured code-scanning merge rules are required before claiming that enforcement; the [security control map](security/security-infrastructure.md) records the current boundary.
+
+
+### GitHub configuration for a deployment target
+
+A target is one commercial AWS account and region, one repository and one protected GitHub environment. Use the same release source for each target. The source developer profile binds only the existing installation. For a new client, save a private `target-profile.json` with the eight required identity fields and the paired immutable GitHub IDs shown below. All example values in this section are synthetic. [Profile resolver](../backend/infrastructure/deployment_profile.py)
+
+```json
+{
+  "schema_version": 1,
+  "account": "123456789012",
+  "region": "eu-west-1",
+  "github_repository": "client-example/training-portal",
+  "github_owner_id": "900123",
+  "github_repository_id": "8104567",
+  "github_environment": "production",
+  "resource_prefix": "customer-prod",
+  "secret_prefix": "customer/production",
+  "runtime_alias": "live"
+}
+```
+
+In **Settings → Secrets and variables → Actions → Variables**, set `FITFINITY_DEPLOYMENT_TARGETS_JSON` to an object mapping each target key to its complete profile, e.g. `{"client": <the profile object>}`. Preserve other targets when updating this map. Set `DEPLOYMENT_TARGET=client` for credential-free preparation on pull requests and main pushes in the client repository. Manual workflows accept the same key in their `target` input. Most manual forms default to `developer`, so select the intended key explicitly. The resolver checks repository identity, all profile fields and duplicate keys before selecting the environment. An absent map permits the checked-in developer profile only in the matching repository. An empty map selects no targets.
+
+Create the exact named environment in **Settings → Environments**. Configure its deployment branches for `main` and its intended reviewers. Register the GitHub OIDC identity provider `token.actions.githubusercontent.com` with audience `sts.amazonaws.com` in the destination account. On GitHub.com, repositories created, renamed or transferred after July 15, 2026 use immutable IDs by default. In a signed-in client-owned session, obtain the IDs with `gh api "repos/$TARGET_REPOSITORY" --jq '{github_owner_id:(.owner.id|tostring),github_repository_id:(.id|tostring)}'`. Compare the subject format in repository OIDC settings. Supplying both decimal strings makes every generated role trust exactly `repo:OWNER@OWNER_ID/REPOSITORY@REPO_ID:environment:ENVIRONMENT`. Actions also checks those IDs against its server-supplied repository identity. Colons in the environment name become `%3A`. Older targets that still emit the name-only subject omit both fields. Retain the verified developer profile and check actual emitted trust before any activation. [GitHub OIDC subject formats](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims)
+
+| Action on the selected target | Repository variable used in the job condition | Variable in the protected environment | IAM role name under the target account |
+| --- | --- | --- | --- |
+| Build and scan the image | `AWS_IMAGE_RELEASE_ENABLED` | `AWS_IMAGE_ROLE_ARN` | `<resource_prefix>-github-image` |
+| Collect the private catalog | `AWS_SCHEMA_PROBE_ENABLED` | `AWS_SCHEMA_PROBE_ROLE_ARN` | `<resource_prefix>-github-schema-probe` |
+| Upgrade a populated schema | `AWS_SCHEMA_UPGRADE_ENABLED` | `AWS_SCHEMA_UPGRADE_ROLE_ARN` | `<resource_prefix>-github-schema-upgrade` |
+| Pause and snapshot | `AWS_MAINTENANCE_ENABLED` | `AWS_MAINTENANCE_ROLE_ARN` | `<resource_prefix>-github-maintenance` |
+| Roll out and resume | `AWS_ROLLOUT_ENABLED` | `AWS_HOSTING_ROLE_ARN` | `<resource_prefix>-github-hosting` |
+| Observe the existing release | Manual main dispatch | `AWS_HOSTING_ROLE_ARN` | Same hosting role with a read-only session policy |
+
+Each role variable contains its full ARN, `arn:aws:iam::<account>:role/<role-name>`. Put the enablement flags at repository scope because GitHub evaluates each job condition before loading its protected environment. The flags apply across that repository's targets. Leave them unset or `false` until the corresponding operation is authorized, then set the relevant value to the literal `true`. Per-target role checks and environment protection still apply. GitHub supplies the short-lived OIDC credentials and workflow token. [GitHub variables context](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#vars-context)
+
+### First setup in a fresh AWS account
+
+Set `REVIEW_DIR` to an existing private directory outside the checkout and save the inputs there. Start from the intended source revision. The exporter has two phases because AWS and the publisher assign identifiers that initial configuration cannot supply. Each new ZIP contains CloudFormation JSON files and a `receipt.json` with the target fingerprint, the two input file hashes and each template's byte hash. Exporting has no cloud side effects. [Onboarding command](../backend/infrastructure/portable_onboarding.py)
+
+1. **Prepare the foundation.** Review a nonoverlapping private /16, two regional availability zones, available PostgreSQL 17 minor and instance class, storage limits, Multi-AZ, backup entitlement and egress. `nat-per-az` creates two chargeable NAT gateways. `none` provisions no external route. A private path to Secrets Manager, Cognito and other enabled services must exist for the workload. The image workflow also requires ECR basic scanning. Keep `session_hours` at 8 to match the staff runtime and Cognito refresh lifetime. Save the selected values as `foundation-inputs.json`. The example below is for offline rendering. The eventual deployed staff origin must match the media CORS rule and Cognito invitation link before enabling those features.
+
+```json
+{
+  "foundation": {
+    "vpc_cidr": "10.95.0.0/16",
+    "engine_version": "17.11",
+    "database_class": "db.t4g.micro",
+    "storage_gib": 20,
+    "max_storage_gib": 30,
+    "multi_az": false,
+    "backup_days": 7,
+    "egress": "none"
+  },
+  "session_hours": 8,
+  "staff_portal_url": "",
+  "browser_origin": "https://staff.example.invalid"
+}
+```
+
+```bash
+python3 backend/infrastructure/portable_onboarding.py foundation \
+  --profile "$REVIEW_DIR/target-profile.json" --inputs "$REVIEW_DIR/foundation-inputs.json" \
+  --output "$REVIEW_DIR/foundation-review.zip"
+python3 -m zipfile -e "$REVIEW_DIR/foundation-review.zip" "$REVIEW_DIR/foundation-review"
+```
+
+2. **Create the reviewed first-install stacks under client ownership.** In the destination account, use CloudFormation CREATE change sets for the unused names and inspect the resource additions, permissions and account/region guards. The application-region templates are `foundation.json`, `identity.json`, `storage.json`, `image-access.json` and `maintenance-access.json`. Use `<resource_prefix>-foundation` for the foundation. `edge.json` belongs in `us-east-1` for CloudFront WAF. Record the creating stacks and output identifiers. An existing database, pool, bucket or IAM identity enters the adoption procedure below.
+3. **Initialize private credentials and the empty database once.** An authorized account administrator initializes the following fields through the client's private AWS access. Keep values inside Secrets Manager or the authorized in-account process. Record only full secret ARNs including AWS-assigned suffixes, names and version-stage metadata outside it. [Managed secret schemas](../backend/app/managed_secrets.py)
+
+| Secret name | Initial value and owner | Consumer |
+| --- | --- | --- |
+| Generated by RDS | `ManageMasterUserPassword` is enabled. Read the RDS-generated `AdminSecretArn` output for the private DBA bootstrap. | Initial database administrator |
+| `<secret_prefix>/database/app` | Exactly `username` set to `fitfinity_app` and a fresh independent `password` of 32–128 printable characters that matches the new PostgreSQL login | Staff runtime |
+| `<secret_prefix>/database/migration` | Exactly `username` set to `fitfinity_migrator` and its own fresh matching password with the same length constraint. The private workers currently check for the default Secrets Manager key. | Catalog and migration workers |
+| `<secret_prefix>/auth` | Exactly `cognito_pool_id`, `cognito_client_id`, `cognito_client_secret` from this confidential client, and `auth_encryption_keys` containing a fresh URL-safe base64 encoding of 32 random bytes as its first array element | Staff runtime |
+
+Use `AWSCURRENT` for the initialized values. For each database secret, use the Secrets Manager console's **Other type of secret** and its two key/value fields. Generate independent random passwords in the client's approved credential manager. For the auth object, use JSON mode so `auth_encryption_keys` is an array. Obtain the confidential client secret directly from the target Cognito app client. Generate the first encryption key inside the authorized client session with 32 bytes of cryptographic randomness and URL-safe base64 encoding. Keep the session private and retain the resulting key across releases. Only the names and ARNs go into review inputs.
+
+Open `psql -X -v ON_ERROR_STOP=1` on a private operator host with an existing `PGSERVICE` entry bound to the target RDS endpoint, database `fitfinity`, administrator `fitfinity_admin`, port 5432 and `sslmode=verify-full` with the reviewed RDS CA. Inspect `\conninfo`, current database and role. Establish that there are no existing application tables or logins to adopt. For a new database only, use the following transaction. The two `\password` prompts take the respective newly generated values without placing them in SQL, shell arguments or history.
+
+```sql
+BEGIN;
+SET LOCAL password_encryption = 'scram-sha-256';
+CREATE ROLE fitfinity_app LOGIN NOINHERIT NOSUPERUSER NOCREATEDB
+  NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 10;
+CREATE ROLE fitfinity_migrator LOGIN NOINHERIT NOSUPERUSER NOCREATEDB
+  NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 3;
+REVOKE ALL ON DATABASE fitfinity FROM PUBLIC;
+GRANT CONNECT ON DATABASE fitfinity TO fitfinity_app, fitfinity_migrator;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO fitfinity_app, fitfinity_migrator;
+GRANT CREATE ON SCHEMA public TO fitfinity_migrator;
+CREATE EXTENSION btree_gist WITH SCHEMA public;
+\password fitfinity_app
+\password fitfinity_migrator
+COMMIT;
+```
+
+In the reviewed backend's `backend/` directory on that private host, set the migration process's metadata-only environment as shown below. The private process identity reads only its target migration secret. Supply the reviewed RDS endpoint, full migration ARN, actual account, region and source migration head. Use the appropriate explicit `staging` or `production` runtime environment. First connect as `fitfinity_migrator` through its verified private `psql` session and run `ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`. Complete the following operations before runtime access. The first command runs Alembic as the migrator. The second verifies the migrated head and database identity, applies any missing current-table privileges and checks the result within one transaction. A process interruption after migration can be resolved by observing that head and reconciling the grants independently. [Migration entry point](../backend/migrations/env.py) · [Runtime grant contract](../backend/app/runtime-grants.json) · [Grant reconciliation](../backend/app/runtime_grants.py)
+
+```bash
+export FITFINITY_CONFIG_SOURCE=aws-secrets-manager FITFINITY_ENVIRONMENT=production
+export FITFINITY_AWS_ACCOUNT_ID="$TARGET_ACCOUNT" FITFINITY_AWS_REGION="$TARGET_REGION"
+export FITFINITY_DATABASE_SECRET_ARN="$MIGRATION_SECRET_ARN" FITFINITY_DB_HOST="$DB_ENDPOINT"
+export FITFINITY_DB_NAME=fitfinity FITFINITY_ALLOWED_HOSTS='["127.0.0.1"]'
+export REVIEWED_SCHEMA_HEAD
+alembic -c alembic.ini upgrade "$REVIEWED_SCHEMA_HEAD"
+python3 - <<'PY'
+import os
+
+from sqlalchemy import text
+from app.config import load_settings
+from app.database import Database
+from app.runtime_grants import reconcile
+
+database = Database(load_settings(purpose="migration"))
+try:
+    with database.engine.begin() as connection:
+        head = os.environ["REVIEWED_SCHEMA_HEAD"]
+        identity = connection.execute(text("SELECT current_database(), current_user")).one()
+        revisions = connection.scalars(text("SELECT version_num FROM public.alembic_version")).all()
+        if tuple(identity) != ("fitfinity", "fitfinity_migrator") or revisions != [head]:
+            raise SystemExit("Check the database, migration role and reviewed schema head")
+        reconcile(connection, expected_migrator="fitfinity_migrator", target_revision=head, apply=True)
+finally:
+    database.close()
+PY
+```
+
+The protected upgrade workflow starts at a known populated revision. Initial database and secret initialization are once-per-account administrator operations.
+
+4. **Collect the hosting bindings.** Read stack outputs and resource metadata in the selected account. Foundation supplies `DatabaseEndpoint`, `DatabaseIdentifier`, `Vpc`, `AppSubnetA`, `AppSubnetB`, `ApplicationSecurityGroup`, `MigrationSecurityGroup` and `AdminSecretArn`. Cognito supplies `PoolId` and `ClientId`. Storage supplies `MediaBucket`, `ImageRepository` and `ImageRepositoryUri`. The edge stack supplies `WebAclArn`. Copy server-assigned identifiers from those owners. Code derives the runtime function, alias, database, repository and role names from the profile. Verify subnet VPC/account membership, routes, private database access and group permissions. Observe full secret ARNs via Secrets Manager metadata. The following metadata reads return the target's real outputs and full migration ARN. Use the reviewed CLI profile and application region.
+
+```bash
+aws cloudformation describe-stacks --profile "$AWS_PROFILE" --region "$TARGET_REGION" \
+  --stack-name "$FOUNDATION_STACK" --query 'Stacks[0].Outputs' --output table
+aws secretsmanager describe-secret --profile "$AWS_PROFILE" --region "$TARGET_REGION" \
+  --secret-id "$SECRET_PREFIX/database/migration" --query ARN --output text
+```
+5. **Bind the first artifacts and render hosting.** Use `aws-release-prepare.yml` and `aws-image.yml` for the selected target and exact accepted main SHA. Record the frontend's `frontend_build.manifest_sha256` and the published scanned image digest. Compose `hosting-inputs.json` with the following keys. Replace the illustrated values with the discovered target metadata. `environment` accepts `staging` or `production`, and `stage` names the API stage. Keep optional features disabled until the target's grants and public origin are verified.
+
+```json
+{
+  "hosting": {
+    "database_secret": "arn:aws:secretsmanager:eu-west-1:123456789012:secret:customer/production/database/app-aB1cD2",
+    "auth_secret": "arn:aws:secretsmanager:eu-west-1:123456789012:secret:customer/production/auth-aB3cD4",
+    "db_host": "customer-prod-db.abc123.eu-west-1.rds.amazonaws.com",
+    "pool": "eu-west-1_Example123",
+    "client": "exampleclient123",
+    "subnets": ["subnet-11111111111111111", "subnet-22222222222222222"],
+    "security_groups": ["sg-33333333333333333"],
+    "image": "123456789012.dkr.ecr.eu-west-1.amazonaws.com/customer-prod-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "environment": "production",
+    "stage": "staff",
+    "features": {"media": false, "invitations": false, "email_changes": false}
+  },
+  "frontend_prefix": "releases/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "edge_arn": "arn:aws:wafv2:us-east-1:123456789012:global/webacl/customer-prod-login-cloudfront/11111111-2222-3333-4444-555555555555"
+}
+```
+
+```bash
+python3 backend/infrastructure/portable_onboarding.py hosting \
+  --profile "$REVIEW_DIR/target-profile.json" --inputs "$REVIEW_DIR/hosting-inputs.json" \
+  --output "$REVIEW_DIR/hosting-review.zip"
+python3 -m zipfile -e "$REVIEW_DIR/hosting-review.zip" "$REVIEW_DIR/hosting-review"
+```
+
+6. **Establish the hosting and access owners.** The authorized client administrator reviews and creates the initial `<resource_prefix>-login` stack from `hosting.json` with the dedicated `<resource_prefix>-hosting-cloudformation` service role and the profile's hosting OIDC role. First-install authority and an appropriately scoped initial service role must already be available in the account. The routine release policy is prepared from the resulting stack's physical resources. Its update path requires that existing stack and attached role. Retain the stack ID, complete resource inventory, original template and access-owner template privately. Verify the distribution's `FrontendDomain` and set the Cognito `StaffPortalUrl` and storage CORS origin through their owning stacks before switching on invitations or media. The source hosting template serves the CloudFront domain. Use the saved release prefix for the exact frontend artifact, then complete the protected release, health and verification steps below before handover.
+7. **Install missing scoped access once.** For a new target with no probe or upgrade roles, prepare their two independent bundles using the verified full migration secret ARN and the VPC ID from the database subnet group. Review each generated `template.json`. On authorized execution the corresponding `fitfinity-install-probe-iam.py` or `fitfinity-install-upgrade-iam.py` checks the AWS caller, OIDC provider and a three-addition CREATE change set, then verifies the resulting role and both boundaries. Set the protected environment role ARNs from actual installed identities. Review hosting/release access from the observed stack as described below. The existing developer probe installation already has its successful verification receipt.
+
+```bash
+python3 backend/infrastructure/schema_probe_setup.py --purpose probe \
+  --profile "$REVIEW_DIR/target-profile.json" --migration-secret-arn "$MIGRATION_SECRET_ARN" \
+  --vpc-id "$DATABASE_VPC_ID" --output "$REVIEW_DIR/new-probe-access"
+python3 backend/infrastructure/schema_probe_setup.py --purpose upgrade \
+  --profile "$REVIEW_DIR/target-profile.json" --migration-secret-arn "$MIGRATION_SECRET_ARN" \
+  --vpc-id "$DATABASE_VPC_ID" --output "$REVIEW_DIR/new-upgrade-access"
+```
+
+For an authorized first Owner in a fresh target, use the designated verified identity in that client pool. Inside its private operator runtime with the target's authentication and database configuration, `python -m app.auth.admin check-config` validates the client settings and `python -m app.auth.admin bootstrap-owner --subject "$OWNER_SUBJECT" --owner-name "$OWNER_NAME"` links the first Owner. An existing Owner uses the existing identity. Keep the subject, name and any provider effects in the client's operational process. [Authentication administration](../backend/app/auth/admin.py)
+
+### Adopting an existing installation
+
+Start the existing developer release at the observed resources using a reviewed copy of the checked-in developer profile, reconciled with current GitHub OIDC metadata. Retain its database, Cognito pool and Owner, media/frontend buckets, edge ACL, deployed alias, secrets and their existing versions. Match the actual caller, account, region, stack ID and current template against the selected profile. If an existing client's names or ownership diverge, resolve that adoption with its owner before consuming the resources. The first-install templates describe new resources.
+
+Run the protected `aws-release-observe.yml` on main. Use its stack/template digest, current Lambda revision, serving alias/version/image, prior concurrency, RDS identifier and physical resource ID. Obtain the catalog from the private probe. Resolve any remaining subnets, groups, exact secret ARNs, Cognito IDs and IAM owner stack/resource IDs from their actual owners. Do not repeat the completed developer probe IAM installer or run the empty-database/Owner bootstrap on this installation. Reconcile missing permissions against the original IAM owners. Reuse the observed resource identities for maintenance, schema change, rollout and recovery.
+
+The developer-only `aws-verify.yml` audit, `aws-image-accept.yml`, `aws-private-runtime.yml`, `aws-test-hosting.yml`, and the historical `test-*` database/auth/foundation/egress bootstrap and recovery contracts bind original developer resources or artifacts. Their retained receipts remain historical evidence. The portable image entry point is `aws-image.yml`, followed by the target-aware observation, maintenance, schema and rollout workflows. Routine deployment proceeds through reviewed Actions dispatches. A normal main push produces verification and preparation evidence.
+
+#### Updating installed private-worker access
+
+Before generating an update, read `gh api "repos/$TARGET_REPOSITORY/actions/oidc/customization/sub"` and compare its subject prefix with the exact installed role trust. On24 November2026, developer repository metadata reported `use_immutable_subject: true` and prefix `repo:LimYouSheng@141623519/FitfinityReact@1353173586`; its original verified probe template retained name-only trust. For the next reviewed developer configuration, add `github_owner_id: "141623519"` and `github_repository_id: "1353173586"` to the private target-profile copy and the matching `developer` entry in `FITFINITY_DEPLOYMENT_TARGETS_JSON`. Recheck those IDs before use. Keep the original checked-in profile and installation receipt as historical evidence; the revised profile has a new fingerprint, so obtain fresh receipts. Do not disable immutable subjects or add wildcard trust.
+
+For an installed probe or upgrade role, use its original IAM stack and the existing authorized IAM-owner session. Retain the exact stack ARN, its Original template body as JSON, and the observed RDS subnet group's VPC ID. Cross-check the account, region, database and VPC against the selected target. The developer probe's verified original template has SHA256 `e8a2e59127edea9506ba27be52761106fe032ed3cf2de2257da6650b906a2ca8`. The original installation receipt remains evidence for that version.
+
+For the developer probe, prepare the reviewed update locally using the existing IAM stack's ARN. For an existing upgrade stack, select `--purpose upgrade` with that stack's own ARN, template and output directory.
+
+```bash
+python3 backend/infrastructure/schema_probe_setup.py --purpose probe \
+  --profile "$REVIEW_DIR/target-profile.json" --migration-secret-arn "$MIGRATION_SECRET_ARN" \
+  --vpc-id "$DATABASE_VPC_ID" --installed-stack-arn "$PROBE_ACCESS_STACK_ARN" \
+  --installed-template "$REVIEW_DIR/probe-access-original.json" \
+  --output "$REVIEW_DIR/probe-access-update"
+```
+
+Review `review.json` and the proposed `template.json`. Both the operator inline policy and its boundary must grant regional `ec2:DescribeVpcs` and `ec2:GetSecurityGroupsForVpc` on that single VPC ARN. The existing subnet and security-group reads are scoped to the same region. Where the selected profile supplies immutable IDs, the reviewed update may also replace the exact name-only subject with the exact ID-bearing subject for the same repository and environment; audience, provider and all other trust conditions must remain identical. The upgrade operator additionally needs `lambda:ListTags` on the exact staff function to observe its pause and snapshot markers. The worker runtime boundary owns Lambda's runtime networking permissions. [Lambda VPC permissions](https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc.html) · [EC2 permission scopes](https://docs.aws.amazon.com/service-authorization/latest/reference/list_ec2.html) · [Lambda tag visibility](https://docs.aws.amazon.com/lambda/latest/dg/configuration-tags.html)
+
+After separate IAM-owner authorization, execute the generated `fitfinity-update-probe-iam.py` or `fitfinity-update-upgrade-iam.py` once. It matches the original stack ARN and template hash, the physical role and policies, and their effective IAM documents. Its CloudFormation UPDATE permits only in-place modifications to `OperatorRole` and `OperatorBoundary`. It compares the AWS change-set template to the reviewed candidate, checks the change set completed on the original stack, and reads the trust, inline policy and both policy versions back from IAM. Retain the journal with its operation and change-set IDs. If interrupted, inspect that change set, stack events and IAM readback before any further write. The developer's updated grants still need live verification. [IAM setup operator](../backend/infrastructure/schema_probe_setup_operator.py)
+
+### Protected release operations
+
+
+For a routine release, use the selected target's verified main build, image, live observation and private catalog. Keep the original evidence and operation identity throughout each stage. The protected phases consume their corresponding enablement flags and installed role ARNs from the configuration table above.
+
+For upgrade preparation, the credential-free release workflow accepts optional `upgrade_bindings`, using the exact account/region/source/image/database/secret/network/expiry fields plus `operation_id`, `from_revision` and `to_revision`. It retains `schema-upgrade-review/review.json`. The protected upgrade workflow selects that successful manual preparation run and matching image run. Modes are explicit: `create`, `inspect`, `invoke`, `cleanup`, `cleanup-check`. Supply the retained stack ARN and previous upgrade run for inspection/invocation; invocation also takes `catalog_run`, `maintenance_run` and the reviewed `snapshot_arn`. Supply a fresh private probe receipt from this source and target using the currently packaged `read-schema.sql`. Earlier SQL digests fail the artifact check. Select the successful same-source maintenance `snapshot-check` run in state `snapshot_ready`. The executor verifies its operation, source, profile, deterministic snapshot ARN, live ownership tags, current physical database and the two staff-function markers. The available encrypted manual PostgreSQL snapshot must have been created after the catalog observation and at or after the recorded drain deadline. The hosting template and staff function must both still record zero concurrency. After an upgrade, collect a fresh private catalog at the destination head for rollout.
+
+Before a cloud mutation, the operator flushes an exclusive local receipt and atomically replaces it on each transition. Before invocation it additionally marks the owned worker with the operation ID. Lost responses, failures or a stale earlier receipt cannot trigger an automatic repeat; inspect the actual schema through the read-only probe. Metadata inspection explicitly reports that it has not observed the database outcome. Cleanup is a separate owned-resource action and remains possible after expiry; archived migration bytes are read from an approved ancestor without executing old Python. Receipt upload runs even after failure. These guards are locally tested with simulated AWS, not live acceptance. New staff table grants and runtime/provider permissions must still be reconciled before switching the application onto an upgraded schema.
+
+Portable hosting bindings may include `features` with exactly three boolean keys: `media`, `invitations` and `email_changes`. Omitting the object leaves all three disabled. Media enablement binds the target storage bucket and grants object get/put/delete only under `library/` and `recordings/`; invitation enablement grants only DescribeUserPool, AdminGetUser and AdminCreateUser on the selected pool. The role and permissions boundary match. Before activation, verify the actual bucket, CORS origin and Cognito invitation link against the deployed staff origin. Rendering this configuration does not activate features or send invitations. Current runtime table permissions are owned by `backend/app/runtime-grants.json` and verified/applied by the private upgrade service, not by replaying the historical bootstrap.
+
+The prepared `release_maintenance.py` state machine retains original intent before provider writes, verifies the function revision and physical database ID, and uses cloud markers to prevent replay. Prepare `maintenance_bindings` with the existing profile/source/operation/expiry, function revision, database resource ID and previous concurrency, plus `hosting_stack_arn` and `hosting_template_sha256` from the exact hosting observation. Review its generated digest and separate IAM template. After protected `pause` → `inspect`, run `record-pause-create` → `record-pause-inspect` to review the concurrency-only change set, then `record-pause-execute` → `record-pause-verify`. Each subsequent step uses the original review and the preceding receipt run. On an uncertain response, use inspection of the original operation; never rerun creation/execution blindly. The receipt retains metadata and nested operation identity, not raw templates. Only after the saved hosting template has concurrency0 and the observed Lambda timeout has drained can `snapshot` → `snapshot-check` proceed. A failed pause that rolls back to the old concurrency is inspectable, but is not verified or eligible for migration. Read-only recovery remains available after review expiry; new writes require an unexpired review. Snapshot creation does not change automated backup retention. The disabled manual `aws-maintenance.yml` workflow uses `AWS_MAINTENANCE_ROLE_ARN`, `AWS_MAINTENANCE_ENABLED`, the selected protected environment and shared environment concurrency group. Its role now includes exact hosting-stack/change-set access for this pause, without image-update, database-credential or migration authority. Review/install that role separately before activation. Upgrade IAM additionally needs read-only access to the hosting template to confirm the saved pause. Post-rollout resumption and finalization use the separate reviewed steps below; no activation or live execution is claimed.
+
+The manual main-only `aws-rollout.yml` inputs are `target`, `mode`, `verification_run`, `review_json`, `review_sha256`, `producer_runs_json` and optional `prior_run`. Use the successful exact-current-main `pages.yml` push/manual run ID for `verification_run`. Each dispatch authenticates that run's full 16-job verification inventory, its exact attempt and the current-source CodeQL run before obtaining AWS credentials. The resulting `rollout-verification.json` accompanies the operation receipt. Reuse completed verification for each step on the same main SHA. This preserves existing source gates and the one-hour write-review expiry. [Verification consumer](../backend/infrastructure/release_verification.py)
+
+For `producer_runs_json`, use string run IDs under `frontend`, `image` and `catalog`. For a populated upgrade add the confirmed `upgrade` producer and the post-upgrade catalog. Omit `upgrade` for an observed unchanged schema. In the private review directory save the exact producer files `release-readiness.json` and `fitfinity-image-candidate.json`, and the current, already paused hosting `TemplateBody` as `paused-hosting.json`. Create `rollout-fields.json` with `operation_id` (32 lowercase hex characters), `expires_at` (Unix seconds within one hour), observed `stack_arn`, and the original `maintenance_marker`. For feature changes, add `feature_values` containing the reviewed hosting bindings including the three explicit booleans. With an external boundary also include `external_boundary` with the owning `stack_arn` and `logical_id`, and save its original TemplateBody as `boundary-owner.json`. Keep these files outside Git and the workflow inputs.
+
+Compute the template and review hashes locally using the same planner as Actions. Inspect the candidate template and the public configuration in the resulting `rollout-review.json`. Supply only that review JSON and its printed digest to the workflow. The protected executor independently authenticates producer runs, source and target. [Template planner](../backend/infrastructure/release_plan.py)
+
+```bash
+PYTHONPATH=backend/infrastructure python3 - "$REVIEW_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+from deployment_profile import fingerprint, load
+from release_observation import digest
+from release_plan import prepare
+
+directory = Path(sys.argv[1])
+def read(name):
+    return json.loads((directory / name).read_text())
+
+profile = load(directory / "target-profile.json")
+frontend, image = read("release-readiness.json"), read("fitfinity-image-candidate.json")
+fields, hosting = read("rollout-fields.json"), read("paused-hosting.json")
+source = frontend["source_sha"]
+if image["revision"] != source or not image["candidate_ready"]:
+    raise SystemExit("Select matching successful release producers")
+if frontend["profile_sha256"] != fingerprint(profile) or image["profile_sha256"] != fingerprint(profile):
+    raise SystemExit("Select producers for the reviewed target")
+owner = read("boundary-owner.json") if "external_boundary" in fields else None
+plan = prepare(hosting, observed_template_sha256=digest(hosting), source_sha=source,
+               image_digest=image["image_digest"], frontend_sha256=frontend["frontend_build"]["manifest_sha256"],
+               profile=profile, feature_values=fields.get("feature_values"),
+               boundary_template=owner, boundary_template_sha256=digest(owner) if owner else None)
+if owner:
+    fields["external_boundary"]["template_sha256"] = digest(plan["feature_review"]["boundary_candidate_template"])
+review = dict(fields, source_sha=source, profile_sha256=fingerprint(profile),
+              original_template_sha256=digest(hosting), candidate_template_sha256=digest(plan["candidate_template"]))
+for name, value in (("candidate-template.json", plan["candidate_template"]), ("rollout-review.json", review)):
+    with (directory / name).open("x") as output:
+        json.dump(value, output, indent=2)
+print(digest(review))
+PY
+```
+
+The paused steps are `upload`, `upload-inspect`, `create`, `inspect`, `execute` and `verify`. Upload the immutable frontend once and inspect its original receipt. Create the change set without a prior receipt, then inspect, execute and verify using the preceding original rollout receipt. The fetch phase authenticates exact producer runs before AWS credentials. Each write requires a current-source review. Read-only recovery can inspect an ancestor release with original operation and evidence hashes. Keep the verified template paused until the separately reviewed resumption succeeds.
+
+Review both the operator policy and the CloudFormation service-role policy. The latter covers the underlying Lambda, IAM and distribution handlers for the reviewed change. The public feature configuration and effective boundary/role must agree before reopening traffic. A boundary held in another stack remains under that stack's existing authority. The routine operator reads its exact owner stack and verifies the currently installed policy version and sole runtime-role consumer. [CloudFormation permissions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/control-access-with-iam.html) · [Release access planner](../backend/infrastructure/release_access.py)
+
+`release_access.py` prepares replacement operator/service policies and matching permission ceilings from the reviewed profile and complete owned stack/resource metadata. It does not install them. The executor preserves the exact profile-derived CloudFormation service role and rejects drift in both stack and change set. Maintenance pause reuses the attached role implicitly; ordinary release explicitly passes it. AWS documents that [stack operators can use an attached service role without PassRole](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-iam-servicerole.html), so source change-set checks remain essential: IAM does not constrain the numeric Lambda concurrency value. Review both existing IAM owners and actual handler requirements before activation.
+
+The prepared operator policy permits listing only the frontend bucket because [HeadObject returns403 instead of404 for a missing object without ListBucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html). Object reads/writes remain restricted to its releases prefix; writes require AES256 encryption and an [If-None-Match condition](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes-enforce.html). These are source-prepared permissions, not evidence of installed policies or successful provider execution.
+
+Prepare the review package locally from the target profile, a single saved stack object (not the DescribeStacks envelope), and the complete ListStackResources response:
+
+```bash
+python3 backend/infrastructure/release_access.py \
+  --profile target-profile.json \
+  --stack hosting-stack.json \
+  --resources hosting-resources.json \
+  --output release-access-review.json
+```
+
+This command makes no provider calls, refuses an existing output file and records hashes of the review and supplied observations. Saved JSON is not proof of freshness or authenticity: obtain and verify current observations before installation. The historical hosting IAM template owns `CloudFormationRole` and `HostingRole`; preserve those existing identities and reconcile their owner template rather than recreating them. The package is a proposal, not an installation change set or proof of effective permissions. Keep private source observations outside the repository.
+
+To include an existing IAM owner-template proposal, add `--owner-template hosting-iam-owner.json --owner-sha256 <reviewed-canonical-template-digest>` to the command above. The digest uses `release_observation.digest` (canonical JSON), not a raw file-byte hash. The plan preserves HostingRole, CloudFormationRole, inline policy names and unrelated resources, adding two dedicated release permission ceilings. It rejects unknown attachments, boundary ownership and trust. Existing numeric-ID GitHub OIDC subjects are retained without conversion to name-only trust; verify the retained IDs and actual emitted subject against current GitHub configuration before installation. Both standard and retained numeric formats are tested. This does not configure GitHub OIDC claims, authenticate saved observations, create a change set or update IAM. Keep the candidate template private and review its exact delta and current provider-handler requirements before any execution.
+
+The prepared hosting service policy scopes function configuration/code changes and PassRole to the selected runtime. Feature changes grant `iam:PutRolePolicy` only on that runtime role. A hosting-owned boundary additionally permits managed policy version operations on the exact boundary. For an external owner, add `--boundary-stack` and `--boundary-resources` to the access command above with that owner's saved single stack object and complete resource inventory. This keeps boundary updates with its owner and emits a separate `external_owner_handler_policy` for the exact managed policy. Retain current effective policy evidence and verify actual handler behavior in the destination before deployment. [Release access planner](../backend/infrastructure/release_access.py)
+
+For a changed external boundary, run the separate owner operation during the recorded maintenance pause, before the hosting rollout change set. Use the already authorized owner session in a clean checkout of the reviewed source. It needs `iam:GetRole` on its own exact role to verify the IAM path as well as the original stack's authority and target policy reads. Prepare `owner-review.json` with the same `profile_sha256`, `source_sha`, `maintenance_marker` and `feature_values`, a distinct `operation_id` and expiry, `hosting_stack_arn` and `hosting_template_sha256` for the saved paused hosting template, and the rollout's `external_boundary` including its destination template digest. Set `owner_original_sha256` to the canonical digest of the saved original owner template. Set `operator_role_arn` to the existing independent owner's role and `service_role_arn` to the owner's actual attached CloudFormation role or JSON `null` if it has none. Use the same private files and journal directory through `create`, `inspect`, `execute` and `verify`. After a lost response, inspect the original operation. When the desired policy is already installed, supply the verified owner identity and digest directly to rollout. [Boundary owner command](../backend/infrastructure/release_boundary_owner.py)
+
+```bash
+python3 backend/infrastructure/release_boundary_owner.py "$OWNER_STEP" \
+  --profile "$REVIEW_DIR/target-profile.json" --review "$REVIEW_DIR/owner-review.json" \
+  --review-sha256 "$OWNER_REVIEW_SHA256" --hosting-template "$REVIEW_DIR/paused-hosting.json" \
+  --owner-template "$REVIEW_DIR/boundary-owner.json" --journal "$REVIEW_DIR/owner-journal"
+```
+
+`release_rollout.resumption_plan` prepares a separate, expiring concurrency-only review from the exact template-verified paused rollout receipt and its collected artifact evidence. It rejects incomplete receipts, substituted source/evidence, reused operation IDs and invalid concurrency. A prepared plan is not permission or evidence that traffic reopened.
+
+The same disabled `aws-rollout.yml` entry point now accepts `resume-create` → `resume-inspect` → `resume-execute` → `resume-verify` → `resume-health` → `resume-finalize` → `resume-finalize-inspect`. Keep the original paused-rollout metadata and add `resumption` with a distinct32-character lowercase hexadecimal `operation_id`, integer `expires_at` within the next hour for writes, positive integer `concurrency`, and string `verified_run` identifying the completed paused `verify` receipt. Recalculate the canonical review digest. Creation takes no prior resumption receipt; subsequent steps take the preceding resumption receipt's run. Use the same artifact producers. The fetch phase authenticates the completed paused receipt before AWS credentials; every step binds its review/evidence hashes. New creation/execution rechecks image scans, uploaded frontend bytes and catalog freshness. Expired reviews permit inspection/verification, never renewed writes.
+
+`resume-health` checks the completed saved template, deployed CloudFront distribution and release prefix, Lambda alias/version/image and reviewed positive concurrency. It compares public frontend index bytes with the authenticated artifact and requires exact `/health/live` and `/health/ready` responses. Readiness includes database connectivity and migration heads; this does not establish login, provider delivery or physical acceptance. HTTPS requests reject redirects, arbitrary hosts and oversized responses. Failed health leaves maintenance ownership intact; retain the receipt and investigate the original operation.
+
+`resume-finalize` repeats the release health checks, records durable intent and removes only the operation's maintenance/snapshot tags. Use `resume-finalize-inspect` with that original receipt after submission or a lost response. It checks current tag state and retains the original health observation and timestamp. Confirm the `maintenance_finalized` state before closing the operation. An uncertain outcome keeps the original journal for inspection. [Finalization](../backend/infrastructure/release_finalize.py)
+
+
+### AWS resource and retention policy
+
+Approved on24 November2026 for **developer AWS**. The user prioritises the first automated developer deployment, then implementation and verification of the remaining controls below. These are agreed policies, not claims of deployed enforcement or permission to delete resources now. Client-production capacity and release-retention policy require separate review; the earlier client14-day backup decision remains conditional on account eligibility/migration.
+
+Routine releases reuse verified existing resources. Fresh-account provisioning is a separate operation. Preserve target/account/profile binding, resource ownership, encryption/private access, exact change-set review and uncertain-operation recovery. Do not recreate the database, network, bucket or identity pool on each release. No automatic paid capacity expansion, replacement or destructive cleanup is implied by deployment authority.
+
+| Area | Approved rule | Implemented / deployed / verified status and owner |
+| --- | --- | --- |
+| Release artifacts: frontend, ECR images, Lambda versions/configuration | Protect current release plus the two newest successful, schema-compatible rollback releases regardless of age. Other successful releases:30 days. Failed/abandoned candidates:7 days only if never deployed and not linked to unresolved operations. First generate a deletion plan; active references and unresolved operations block deletion. Treat matching frontend/image/configuration as a release set. | Retention-aware cleanup pending. Current templates retain versions, immutable images and frontend prefixes; frontend bucket versioning is enabled. Protect noncurrent versions/referenced images too. No arbitrary delete-oldest lifecycle rule. |
+| Session media | Access expires7 days from publication; monthly physical cleanup on the first day in Asia/Singapore. Respect upload leases and Undo holds; bounded batches, failed-deletion retries and missed-run/backlog alerts. Never delete valid media just because a storage threshold is crossed. Original10 MiB, converted5 MiB, known duration60 seconds maximum remain business rules. | Expiry and bounded cleanup workers exist; scheduler/alerts not deployed or verified. Schedule time of day remains to be selected. Per-file limits do not cap aggregate storage. |
+| Exercise library | Retain valid published attachments until explicitly removed/replaced; eligible abandoned or detached objects follow protected cleanup. No session7-day bucket-wide expiry. | Existing cleanup logic; deployed schedule/versioning coverage unverified. |
+| Developer RDS capacity |20 GiB initially, autoscaling maximum30 GiB; retain existing instance class and Single-AZ. No automatic class upgrade, extra DB or increased ceiling. Further increases require approval. Warn below20% free storage; escalate below10%; investigate growth without automatic business purge. | Historical developer template/receipt matches allocation limits; actual current settings and alerts require verification. Existing runbook proposes15-minute warning/5-minute critical evaluation; these timings/receivers are not newly accepted by approval of percentages. Portable validator still allows broader explicit client values. |
+| Automated backups | Developer1 day; do not replay the rejected14-day change. Client14 days remains deferred until eligible account upgrade/migration. | Historical developer observation1 day; current verification and populated restore drill outstanding. |
+| Manual/pre-change snapshots | One pre-change snapshot for a release involving DB migrations; reuse the verified original during recovery of the same operation. Protect the newest two verified pre-change snapshots regardless of age. Other managed snapshots become eligible after14 days only after the related release successfully completes. Protect unresolved/failed operations and explicit holds; flag them for review. Never delete outside managed ownership. | Snapshot primitives exist; protected-set retention/cleanup pending. Backup presence is not restore acceptance. |
+| Temporary deployment workers | Explicit reviewed operations only; recover the original operation rather than create duplicates. Remove workers after completion and safe evidence retention. Daily orphan check; flag resources still present24 hours after creation. Automatic removal only when proven inactive and linked to a completed operation. Preserve shared IAM/network/database/secrets. | Operation ownership and explicit cleanup primitives exist; daily orphan detection/automated cleanup pending. Expired authorization is not a resource-deletion timer. Never delete a potentially running migration based solely on age. |
+| Logs | Application7 days; helper1 day. Every new log group declares finite retention. No credentials, request bodies or health-record contents. Preserve necessary incident evidence deliberately before expiry. | Hosting/private-helper templates specify7/1 days; actual and historical groups require inspection. Retention limits stored age, not ingestion charges. |
+| S3 unfinished uploads | Abort incomplete multipart uploads after7 days. Completed abandoned objects use the application cleanup worker, respecting leases/Undo. No blanket expiry of completed library or protected release files. | Multipart lifecycle pending; actual bucket versioning must be checked because ordinary DeleteObject can leave noncurrent copies. |
+| Auth / business DB rows | Keep business history after deactivation; no general purge until a category-specific deletion/anonymisation policy is agreed. Preserve financial, signature, audit and uncertain-command evidence. Existing auth maintenance removes flows expired more than1 day and closed sessions older than7 days only after refresh ciphertext is cleared. | Narrow auth/media cleanup exists; scheduled execution unverified. No deletion of staff accounts or Cognito users is implied. General retention remains in [Data lifecycle](data-lifecycle.md). |
+
+CloudFormation owns scheduler, log/RDS retention and S3 lifecycle configuration. EventBridge Scheduler triggers bounded Python workers for application-aware cleanup and orphan checks; workers do not wait in a polling process. Python owns eligibility, protected references, leases, receipts and failure recovery. These schedules are planned rather than deployed.
+
+After first deployment: inventory actual resources/settings; implement the agreed controls with independent negative and interrupted-cleanup tests; review deletion plans; activate only the reviewed target operations; verify receipts and monitor backlog. Rollback incompatibility, missing evidence or unknown ownership must hold deletion. Existing7/14-day GitHub deployment artifacts are not sufficient for every indefinite recovery hold: preserve required evidence before their expiry. CI-artifact retention, network topology changes, aggregate-media thresholds, restore targets and client-production limits remain separate decisions.
+
+The user reports an existingUS$100 budget; do not create a duplicate. Billing alerts are supplementary, not spending caps. Baseline RDS/network/WAF costs, requests, egress and log ingestion remain chargeable even with finite storage retention. No AWS query or mutation was performed for the24 November source audit.
