@@ -30,7 +30,7 @@ def template_hash(template):
 
 
 def validate_update(installed, candidate, stack_id, target):
-    """Allow only the reviewed VPC reads and staff tag observation on existing operators."""
+    """Allow reviewed worker reads and the same repository's immutable subject upgrade."""
     prefix = f"arn:aws:cloudformation:{target['region']}:{target['account']}:stack/"
     require(
         isinstance(stack_id, str)
@@ -39,6 +39,21 @@ def validate_update(installed, candidate, stack_id, target):
     )
     # Undo only the explicitly allowed policy changes, then compare the whole base template.
     before = json.loads(json.dumps(candidate))
+    role = before["Resources"]["OperatorRole"]["Properties"]
+    original_role = installed["Resources"]["OperatorRole"]["Properties"]
+    trust = role["AssumeRolePolicyDocument"]
+    if {"github_owner_id", "github_repository_id"} <= target.keys() and trust != original_role[
+        "AssumeRolePolicyDocument"
+    ]:
+        # The planner validated the candidate against this profile. Only undo the subject
+        # substitution. The full-template comparison still covers every other trust field.
+        sub_key = "token.actions.githubusercontent.com:sub"
+        equals = trust["Statement"][0]["Condition"]["StringEquals"]
+        require(
+            equals.get(sub_key) == target["oidc_subject"], "Reviewed immutable subject required"
+        )
+        environment = target["oidc_subject"].split(":environment:", 1)[1]
+        equals[sub_key] = f"repo:{target['github_repository']}:environment:{environment}"
     staff = (
         f"arn:aws:lambda:{target['region']}:{target['account']}:function:"
         + target["runtime_function"]
@@ -64,12 +79,17 @@ def validate_update(installed, candidate, stack_id, target):
                 actions.remove("lambda:ListTags")
     require(
         before == installed and candidate != installed,
-        "Installed IAM template differs beyond the reviewed operator reads or is already current",
+        "Installed IAM template differs beyond the reviewed operator access or is already current",
     )
+    return {
+        key
+        for key in ("OperatorRole", "OperatorBoundary")
+        if installed["Resources"][key] != candidate["Resources"][key]
+    }
 
 
-def validate_change_set(change_set, *, update=False):
-    """Permit three new resources or two in-place operator policy modifications."""
+def validate_change_set(change_set, *, modified=None):
+    """Permit the fresh resources or exactly the in-place changes present in the reviewed update."""
     require(
         change_set.get("Status") == "CREATE_COMPLETE"
         and change_set.get("ExecutionStatus") == "AVAILABLE",
@@ -80,16 +100,21 @@ def validate_change_set(change_set, *, update=False):
         "OperatorBoundary": "AWS::IAM::ManagedPolicy",
         "OperatorRole": "AWS::IAM::Role",
     }
-    if update:
-        del expected["RuntimeBoundary"]
+    if modified is not None:
+        require(
+            modified and modified <= {"OperatorRole", "OperatorBoundary"},
+            "Only reviewed operator and boundary changes are allowed",
+        )
+        expected = {key: expected[key] for key in modified}
     rows = change_set.get("Changes", [])
     require(len(rows) == len(expected), "Unexpected resource count")
     actual = {}
     for row in rows:
         resource = row.get("ResourceChange", {})
         require(
-            resource.get("Action") == ("Modify" if update else "Add")
-            and resource.get("Replacement") in (("False",) if update else (None, "False"))
+            resource.get("Action") == ("Modify" if modified is not None else "Add")
+            and resource.get("Replacement")
+            in (("False",) if modified is not None else (None, "False"))
             and resource.get("LogicalResourceId") not in actual,
             "Existing resource change refused",
         )
@@ -157,7 +182,7 @@ def verify_installed(template, update, call):
     )["TemplateBody"]
     original = json.loads(result) if isinstance(result, str) else result
     require(template_hash(original) == update["original_sha256"], "Installed IAM template changed")
-    validate_update(original, template, stack_id, TARGET)
+    modified = validate_update(original, template, stack_id, TARGET)
     resources = template["Resources"]
     owners = {
         key: (
@@ -181,6 +206,7 @@ def verify_installed(template, update, call):
         "Installed role or boundaries belong to another IAM owner",
     )
     verify_role(original, call)
+    return modified
 
 
 def install(template, directory, call, pause=time.sleep, *, update=None):
@@ -213,8 +239,9 @@ def install(template, directory, call, pause=time.sleep, *, update=None):
         and any(audience == "sts.amazonaws.com" for audience in audiences),
         "OIDC provider differs",
     )
+    modified = None
     if update:
-        verify_installed(template, update, call)
+        modified = verify_installed(template, update, call)
     else:
         require(
             call("iam", "get-role", "--role-name", ROLE, missing="NoSuchEntity") is None,
@@ -297,7 +324,7 @@ def install(template, directory, call, pause=time.sleep, *, update=None):
             if change.get("Status") not in {"CREATE_PENDING", "CREATE_IN_PROGRESS"}:
                 break
             pause(5)
-        validate_change_set(change, update=bool(update))
+        validate_change_set(change, modified=modified)
         if update:
             require(
                 change.get("StackId") == stack_id and change.get("ChangeSetId") == change_id,

@@ -39,7 +39,7 @@ SUITES = {
     "verify-release-observation.py": 9,
     "verify-release-plan.py": 18,
     "verify-schema-probe.py": 12,
-    "verify-schema-probe-setup.py": 19,
+    "verify-schema-probe-setup.py": 20,
     "verify-schema-probe-execution.py": 24,
     "verify-image-acceptance.py": 29,
     "verify-private-runtime.py": 63,

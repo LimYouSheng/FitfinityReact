@@ -288,10 +288,24 @@ def write_bundle(review, output, *, purpose="probe", installed_template=None, st
             update=update,
             required_before_execution=[
                 "Compare the original stack ARN, template, operator trust and effective policies",
-                "Review only in-place operator policy and operator boundary modifications",
+                "Review the exact in-place changes to the operator role and its boundary",
                 "Verify trust, the inline policy and both boundaries before worker creation",
             ],
         )
+        installed_trust = installed_template["Resources"]["OperatorRole"]["Properties"][
+            "AssumeRolePolicyDocument"
+        ]
+        if (
+            installed_trust
+            != template["Resources"]["OperatorRole"]["Properties"]["AssumeRolePolicyDocument"]
+        ):
+            old_subject = installed_trust["Statement"][0]["Condition"]["StringEquals"][
+                "token.actions.githubusercontent.com:sub"
+            ]
+            review["required_before_execution"].insert(
+                1,
+                f"Verify the OIDC subject change from {old_subject} to {target['oidc_subject']}",
+            )
     output.mkdir(parents=True, exist_ok=False)
     (output / "template.json").write_bytes(data)
     (output / "review.json").write_text(json.dumps(review, indent=2))

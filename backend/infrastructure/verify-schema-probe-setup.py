@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from deployment_profile import DEVELOPER
 from schema_probe_iam import BOUNDARY, RUNTIME_ROLE, runtime_policy
 from schema_probe_network_check import collect, read
 from schema_probe_setup import ACCOUNT, OPERATOR_ROLE, REGION, prepare, write_bundle
@@ -88,8 +89,6 @@ class SetupTests(unittest.TestCase):
         )
 
     def test_both_private_worker_creators_have_only_region_and_vpc_scoped_network_reads(self):
-        from deployment_profile import DEVELOPER
-
         client = {
             **DEVELOPER,
             "account": "123456789012",
@@ -418,11 +417,23 @@ class SetupTests(unittest.TestCase):
         secret = original_resources["RuntimeBoundary"]["Properties"]["PolicyDocument"]["Statement"][
             0
         ]["Resource"]
-        review = prepare(secret, vpc_id="vpc-0b55320bb1a054441")
+        profile = {
+            **DEVELOPER,
+            "github_owner_id": "141623519",
+            "github_repository_id": "1353173586",
+        }
+        review = prepare(secret, vpc_id="vpc-0b55320bb1a054441", profile=profile)
         candidate = review["template"]
+        trust = candidate["Resources"]["OperatorRole"]["Properties"]["AssumeRolePolicyDocument"]
+        self.assertEqual(
+            trust["Statement"][0]["Condition"]["StringEquals"][
+                "token.actions.githubusercontent.com:sub"
+            ],
+            "repo:LimYouSheng@141623519/FitfinityReact@1353173586:environment:aws-test",
+        )
         stack_id = f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/{STACK}/abcd"
 
-        def exercise(defect):
+        def exercise(defect, original=original, changes=("OperatorRole", "OperatorBoundary")):
             with self.subTest(defect=defect), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 bundle = root / "bundle"
@@ -433,18 +444,24 @@ class SetupTests(unittest.TestCase):
                 fallback = self.installer_call(calls)
 
                 def provider(service, operation, *args):
+                    active = candidate if state["executed"] else original
+                    if operation == "get-role":
+                        response = fallback(service, operation, *args)
+                        trust = original if defect == "trust_readback" else active
+                        response["Role"]["AssumeRolePolicyDocument"] = trust["Resources"][
+                            "OperatorRole"
+                        ]["Properties"]["AssumeRolePolicyDocument"]
+                        return response
                     # Existing account/OIDC/role-list observations match the setup fixture.
                     if operation in {
                         "get-caller-identity",
                         "get-open-id-connect-provider",
-                        "get-role",
                         "list-role-policies",
                         "list-attached-role-policies",
                         "get-policy",
                     }:
                         return fallback(service, operation, *args)
                     calls.append(operation)
-                    active = candidate if state["executed"] else original
                     if operation == "describe-stacks":
                         self.assertEqual(args[-1], stack_id)
                         return {
@@ -532,7 +549,7 @@ class SetupTests(unittest.TestCase):
                                         else "False",
                                     }
                                 }
-                                for key in ("OperatorRole", "OperatorBoundary")
+                                for key in changes
                             ],
                         }
                     if operation == "execute-change-set":
@@ -565,9 +582,9 @@ class SetupTests(unittest.TestCase):
                     self.assertNotIn("create-change-set", calls)
                 self.assertEqual(
                     calls.count("execute-change-set"),
-                    int(defect in (None, "lost_execute", "readback")),
+                    int(defect in (None, "lost_execute", "readback", "trust_readback")),
                 )
-                if defect in ("lost_execute", "readback"):
+                if defect in ("lost_execute", "readback", "trust_readback"):
                     receipt = json.loads((root / "journal/receipt.json").read_text())
                     self.assertEqual(receipt["state"], "failed_or_uncertain")
                     self.assertEqual(receipt["change_set_id"], state["change"])
@@ -583,8 +600,92 @@ class SetupTests(unittest.TestCase):
             "proposed",
             "lost_execute",
             "readback",
+            "trust_readback",
         ):
             exercise(defect)
+        # An installation with the current VPC grants changes only its role trust.
+        current_access = prepare(secret, vpc_id="vpc-0b55320bb1a054441")["template"]
+        exercise(None, current_access, ("OperatorRole",))
+        exercise("extra_change", current_access, ("OperatorRole", "OperatorBoundary"))
+
+    def test_immutable_update_accepts_only_the_existing_repository_and_environment_subject(self):
+        profile = {
+            **DEVELOPER,
+            "github_repository": "client-team/portal",
+            "github_environment": "production:staff",
+            "github_owner_id": "91",
+            "github_repository_id": "314",
+        }
+        legacy = {
+            k: v for k, v in profile.items() if k not in ("github_owner_id", "github_repository_id")
+        }
+        stack_id = f"arn:aws:cloudformation:{REGION}:{ACCOUNT}:stack/{STACK}/abcd"
+        old = prepare(SECRET, vpc_id="vpc-aaaaaaaa", profile=legacy)["template"]
+        proposed = prepare(SECRET, vpc_id="vpc-aaaaaaaa", profile=profile)
+        sub_key = "token.actions.githubusercontent.com:sub"
+        aud_key = "token.actions.githubusercontent.com:aud"
+        legacy_sub = "repo:client-team/portal:environment:production%3Astaff"
+        immutable_sub = "repo:client-team@91/portal@314:environment:production%3Astaff"
+
+        def statement(template):
+            return template["Resources"]["OperatorRole"]["Properties"]["AssumeRolePolicyDocument"][
+                "Statement"
+            ][0]
+
+        self.assertEqual(statement(old)["Condition"]["StringEquals"][sub_key], legacy_sub)
+        self.assertEqual(
+            statement(proposed["template"])["Condition"]["StringEquals"][sub_key], immutable_sub
+        )
+        for defect in (
+            None,
+            "repository",
+            "environment",
+            "wrong_ids",
+            "provider",
+            "audience",
+            "action",
+            "extra_condition",
+            "new_subject",
+            "downgrade",
+        ):
+            baseline, review = copy.deepcopy(old), copy.deepcopy(proposed)
+            trust = statement(baseline)
+            equals = trust["Condition"]["StringEquals"]
+            if defect == "repository":
+                equals[sub_key] = legacy_sub.replace("client-team", "other-team")
+            elif defect == "environment":
+                equals[sub_key] = legacy_sub.replace("production%3Astaff", "preview")
+            elif defect == "wrong_ids":
+                equals[sub_key] = immutable_sub.replace("@314", "@271")
+            elif defect == "provider":
+                trust["Principal"]["Federated"] += "-other"
+            elif defect == "audience":
+                equals[aud_key] = "alternate.example"
+            elif defect == "action":
+                trust["Action"] = "sts:AssumeRole"
+            elif defect == "extra_condition":
+                equals["other"] = "value"
+            elif defect == "new_subject":
+                statement(review["template"])["Condition"]["StringEquals"][sub_key] += "*"
+            elif defect == "downgrade":
+                baseline = proposed["template"]
+                review = prepare(SECRET, vpc_id="vpc-aaaaaaaa", profile=legacy)
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "bundle"
+                if defect is None:
+                    write_bundle(review, output, installed_template=baseline, stack_id=stack_id)
+                    self.assertTrue((output / "fitfinity-update-probe-iam.py").is_file())
+                    checks = json.loads((output / "review.json").read_text())[
+                        "required_before_execution"
+                    ]
+                    self.assertIn(
+                        f"Verify the OIDC subject change from {legacy_sub} to {immutable_sub}",
+                        checks,
+                    )
+                else:
+                    with self.assertRaises(RuntimeError):
+                        write_bundle(review, output, installed_template=baseline, stack_id=stack_id)
+                    self.assertFalse(output.exists())
 
     def test_installed_update_rejects_other_grants_or_iam_owners_before_packaging(self):
         old = json.loads(
