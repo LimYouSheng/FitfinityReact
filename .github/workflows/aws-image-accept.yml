@@ -1,4 +1,4 @@
-name: Evaluate an existing TEST image without publication
+name: Legacy AWS - Evaluate Existing Test Image
 
 on:
   workflow_dispatch:
@@ -47,6 +47,24 @@ jobs:
       pull-requests: read
       id-token: write
     steps:
+      - name: Explain Workflow Purpose And Expected Results
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
+          ## Legacy AWS - Evaluate Existing Test Image
+
+          **What It Does:** Manual; evaluates an already published developer test image.
+
+          **When To Use It:** Earlier image acceptance/provenance investigation; no image publication.
+
+          **What To Expect:** Expect an acceptance decision for the existing test-image digest and retained evidence. It does not publish a new image or deploy the application.
+
+          This is a workflow guide, not a success receipt. Check job results and retained artifacts.
+
+          AWS execution remains subject to the existing main/source checks, enablement flags where configured and environment approval. A skipped or approval-waiting job has not completed the operation.
+
+          Full procedure: `docs/runbook.md`, section 6.
+          FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false

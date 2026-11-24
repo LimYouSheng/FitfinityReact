@@ -1,4 +1,4 @@
-name: Manual release maintenance
+name: AWS - Release Maintenance
 on:
   workflow_dispatch:
     inputs:
@@ -44,6 +44,24 @@ jobs:
       region: ${{ steps.target.outputs.region }}
       role: ${{ steps.target.outputs.maintenance_role }}
     steps:
+      - name: Explain Workflow Purpose And Expected Results
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
+          ## AWS - Release Maintenance
+
+          **What It Does:** Manual; pause/drain evidence, maintenance state and RDS snapshot/check.
+
+          **When To Use It:** Controlled release maintenance and recovery; mutation depends on mode.
+
+          **What To Expect:** Expect a mode-specific maintenance or snapshot receipt. Pause and snapshot modes change AWS; inspection checks an existing operation. Preserve the original receipt if the outcome is uncertain.
+
+          This is a workflow guide, not a success receipt. Check job results and retained artifacts.
+
+          AWS execution remains subject to the existing main/source checks, enablement flags where configured and environment approval. A skipped or approval-waiting job has not completed the operation.
+
+          Full procedure: `docs/runbook.md`, section 6.
+          FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false

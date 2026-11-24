@@ -1,4 +1,4 @@
-name: Manual paused runtime and frontend rollout
+name: AWS - Roll Out And Resume Application
 on:
   workflow_dispatch:
     inputs:
@@ -52,6 +52,24 @@ jobs:
       region: ${{ steps.target.outputs.region }}
       role: ${{ steps.target.outputs.hosting_role }}
     steps:
+      - name: Explain Workflow Purpose And Expected Results
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
+          ## AWS - Roll Out And Resume Application
+
+          **What It Does:** Manual; upload, reviewed changeset, execute/verify, resume, health and finalize.
+
+          **When To Use It:** Release application artifacts and restore service; phases retain separate review/evidence.
+
+          **What To Expect:** Expect mode-specific upload, change-set, rollout or resumption receipts. A successful intermediate mode is not a completed release: verify health and finalization. Some modes change serving AWS resources.
+
+          This is a workflow guide, not a success receipt. Check job results and retained artifacts.
+
+          AWS execution remains subject to the existing main/source checks, enablement flags where configured and environment approval. A skipped or approval-waiting job has not completed the operation.
+
+          Full procedure: `docs/runbook.md`, section 6.
+          FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false

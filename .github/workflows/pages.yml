@@ -1,4 +1,4 @@
-name: Verify and publish the staff demo
+name: CI - Verify And Publish Staff Demo
 
 on:
   push:
@@ -30,6 +30,22 @@ jobs:
       VITE_PORTAL_MODE: 'demo'
       VITE_API_BASE_URL: ''
     steps:
+      - name: Explain Workflow Purpose And Expected Results
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
+          ## CI - Verify And Publish Staff Demo
+
+          **What It Does:** PR/main/manual; runs application verification, then publishes the demo on main.
+
+          **When To Use It:** Routine source validation and demo publishing; not the AWS site.
+
+          **What To Expect:** Expect verification checks, followed on main by the Pages build and demo URL. PR runs intentionally skip publishing. This does not deploy the AWS application.
+
+          This is a workflow guide, not a success receipt. Check job results and retained artifacts.
+
+          Full procedure: `docs/runbook.md`, section 6.
+          FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:

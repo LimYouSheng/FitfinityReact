@@ -1,4 +1,4 @@
-name: Prepare AWS release evidence
+name: AWS - Prepare Release Evidence
 on:
   pull_request:
     branches: [main]
@@ -34,6 +34,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Explain Workflow Purpose And Expected Results
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
+          ## AWS - Prepare Release Evidence
+
+          **What It Does:** PR/main/manual; builds frontend/runtime evidence and reviewed packages.
+
+          **When To Use It:** Release preparation; builds do not publish or deploy to AWS.
+
+          **What To Expect:** Expect source-bound frontend/runtime evidence and, when requested, review packages in Artifacts. No image publication, migration or AWS rollout occurs.
+
+          This is a workflow guide, not a success receipt. Check job results and retained artifacts.
+
+          AWS execution remains subject to the existing main/source checks, enablement flags where configured and environment approval. A skipped or approval-waiting job has not completed the operation.
+
+          Full procedure: `docs/runbook.md`, section 6.
+          FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false

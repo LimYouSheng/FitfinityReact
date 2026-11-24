@@ -1,4 +1,4 @@
-name: Manual persistent TEST hosting
+name: Legacy AWS - Manage Test Hosting
 
 on:
   workflow_dispatch:
@@ -50,6 +50,24 @@ jobs:
       contents: read
       actions: read
     steps:
+      - name: Explain Workflow Purpose And Expected Results
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
+          ## Legacy AWS - Manage Test Hosting
+
+          **What It Does:** Manual; original persistent developer hosting setup/rollback/recovery.
+
+          **When To Use It:** Original hosting operations or their recovery; current releases use the target-bound rollout workflow.
+
+          **What To Expect:** Expect a mode-specific original hosting plan, change-set or recovery receipt. Execute/rollback/recovery modes can change AWS. Use current rollout for normal releases, not this legacy utility.
+
+          This is a workflow guide, not a success receipt. Check job results and retained artifacts.
+
+          AWS execution remains subject to the existing main/source checks, enablement flags where configured and environment approval. A skipped or approval-waiting job has not completed the operation.
+
+          Full procedure: `docs/runbook.md`, section 6.
+          FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
