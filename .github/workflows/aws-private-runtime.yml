@@ -40,6 +40,24 @@ jobs:
       pull-requests: read
       id-token: write
     steps:
+      - name: Explain Workflow Purpose And Expected Results
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
+          ## Legacy AWS - Prove Private Test Runtime
+
+          **What It Does:** Manual; plan/collect/run/cleanup a private developer runtime proof.
+
+          **When To Use It:** Earlier isolated runtime acceptance or retained-operation cleanup; not routine rollout.
+
+          **What To Expect:** Expect a plan, collected runtime proof or cleanup receipt for the retained operation. Run/cleanup modes can create or delete test resources; preserve operation identity for recovery.
+
+          This is a workflow guide, not a success receipt. Check job results and retained artifacts.
+
+          AWS execution remains subject to the existing main/source checks, enablement flags where configured and environment approval. A skipped or approval-waiting job has not completed the operation.
+
+          Full procedure: `docs/runbook.md`, section 6.
+          FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false

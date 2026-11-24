@@ -155,7 +155,7 @@ The full backend gate includes [the synthetic recovery drill](../backend/tests/t
 
 ## 6. Deployments and rollback
 
-The Actions sidebar uses Title Case with CI, AWS and Legacy AWS prefixes. Workflow filenames and job/check names remain stable: merge protection and release receipts depend on those identities. There is no automatic AWS deployment after CI. Legacy means a developer-specific earlier procedure retained for explicit diagnosis/recovery, not a step to run during every release.
+The Actions sidebar uses Title Case with CI, AWS and Legacy AWS prefixes. Open Actions → select a workflow → select a run → Summary to read What It Does, When To Use It and What To Expect. The guide appears after its publishing step runs; queued, rejected-before-guide or approval-waiting jobs may not show it yet. Shared application verification also explains the parent staff-demo behavior for PR runs that skip publishing. The sidebar itself has no custom description field. Workflow filenames and job/check names remain stable: merge protection and release receipts depend on those identities. There is no automatic AWS deployment after CI. Legacy means a developer-specific earlier procedure retained for explicit diagnosis/recovery, not a step to run during every release.
 
 | Workflow | Trigger and purpose | Needed when |
 | --- | --- | --- |

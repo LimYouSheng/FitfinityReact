@@ -38,6 +38,24 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$EXPECTED_SHA" = "$GITHUB_SHA"
+      - name: Explain Workflow Purpose And Expected Results
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
+          ## AWS - Build Scan And Publish Image
+
+          **What It Does:** Manual; verifies source, builds/scans and publishes image candidate.
+
+          **When To Use It:** A new approved image; publication alone does not switch Lambda.
+
+          **What To Expect:** Expect a scanned image digest and source-bound publication receipt. This writes to ECR but does not switch the serving Lambda version.
+
+          This is a workflow guide, not a success receipt. Check job results and retained artifacts.
+
+          AWS execution remains subject to the existing main/source checks, enablement flags where configured and environment approval. A skipped or approval-waiting job has not completed the operation.
+
+          Full procedure: `docs/runbook.md`, section 6.
+          FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false

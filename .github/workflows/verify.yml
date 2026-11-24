@@ -12,6 +12,22 @@ jobs:
       FORCE_COLOR: "1"
       PLAYWRIGHT_FORCE_TTY: "0"
     steps:
+      - name: Explain Workflow Purpose And Expected Results
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
+          ## CI - Application Verification
+
+          **What It Does:** Called by other workflows; unit, lint, backend, browser and real-API groups.
+
+          **When To Use It:** Shared required verification; not a separate manual deployment.
+
+          **What To Expect:** Expect frontend, backend and real-API aggregate checks with retained reports. A pass verifies this source, not a deployed environment. When called by the staff-demo workflow, successful main verification is followed by Pages publication; PR publication is skipped.
+
+          This is a workflow guide, not a success receipt. Check job results and retained artifacts.
+
+          Full procedure: `docs/runbook.md`, section 6.
+          FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
