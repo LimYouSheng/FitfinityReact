@@ -63,6 +63,28 @@ def binding(review, evidence, profile):
     return digest(evidence)
 
 
+def check_artifacts(review, evidence, image, folder, call, profile, clock):
+    """Recheck scan, stored frontend and catalog freshness before release writes."""
+    validate_image(
+        image,
+        evidence,
+        call,
+        clock(),
+        profile=profile,
+        required_files=evidence["required_image_files"],
+    )
+    frontend_review = {
+        key: review[key] for key in ("source_sha", "profile_sha256", "stack_arn", "expires_at")
+    }
+    frontend_review["manifest_sha256"] = evidence["frontend_sha256"]
+    transfer(frontend_review, folder, profile, call, lambda _: None, inspect=True, clock=clock)
+    observed = datetime.fromisoformat(evidence.get("catalog_observed_at", ""))
+    require(
+        observed.tzinfo is not None and 0 <= clock() - observed.timestamp() <= 3600,
+        "Fresh catalog evidence required before rollout write",
+    )
+
+
 def advance(
     action, review, evidence, image, folder, call, persist, *, profile, prior=None, now=None
 ):
@@ -74,24 +96,7 @@ def advance(
     if prior is not None:
         require(prior.get("evidence_sha256") == evidence_hash, "Original rollout evidence required")
     if action in {"create", "execute"}:
-        validate_image(
-            image,
-            evidence,
-            call,
-            clock(),
-            profile=profile,
-            required_files=evidence["required_image_files"],
-        )
-        frontend_review = {
-            key: review[key] for key in ("source_sha", "profile_sha256", "stack_arn", "expires_at")
-        }
-        frontend_review["manifest_sha256"] = evidence["frontend_sha256"]
-        transfer(frontend_review, folder, profile, call, lambda _: None, inspect=True, clock=clock)
-        observed = datetime.fromisoformat(evidence.get("catalog_observed_at", ""))
-        require(
-            observed.tzinfo is not None and 0 <= clock() - observed.timestamp() <= 3600,
-            "Fresh catalog evidence required before rollout write",
-        )
+        check_artifacts(review, evidence, image, folder, call, profile, clock)
 
     def save(receipt):
         persist({**receipt, "evidence_sha256": evidence_hash})
@@ -110,6 +115,7 @@ def resumption_plan(
     expires_at,
     concurrency,
     now=None,
+    recovery=False,
 ):
     """Bind a separate concurrency-only review to a verified paused release."""
     observed = time.time() if now is None else now
@@ -144,7 +150,7 @@ def resumption_plan(
         "mode": "resume",
         "boundary_resource": None,
     }
-    review_identity(review, profile, observed)
+    review_identity(review, profile, observed, recovery=recovery)
     return {
         "decision": "HOLD",
         "review": review,
@@ -156,3 +162,52 @@ def resumption_plan(
             "Verify health after resumption; finalize maintenance separately",
         ],
     }
+
+
+def resume(
+    action,
+    plan,
+    rollout_review,
+    evidence,
+    verified_receipt,
+    image,
+    folder,
+    call,
+    persist,
+    *,
+    profile,
+    prior=None,
+    now=None,
+):
+    """Execute only the bound concurrency review and retain original resumption identity."""
+    require(action in {"create", "inspect", "execute", "verify"}, "Unknown resumption action")
+    clock = time.time if now is None else lambda: now
+    review = plan["review"]
+    review_identity(review, profile, clock(), recovery=action in {"inspect", "verify"})
+    expected = resumption_plan(
+        rollout_review,
+        evidence,
+        verified_receipt,
+        profile=profile,
+        operation_id=review["operation_id"],
+        expires_at=review["expires_at"],
+        concurrency=review["candidate_template"]["Resources"]["ApiFunction"]["Properties"][
+            "ReservedConcurrentExecutions"
+        ],
+        now=clock(),
+        recovery=action in {"inspect", "verify"},
+    )
+    require(plan == expected, "Original reviewed resumption plan required")
+    plan_hash = digest(plan)
+    if prior is not None:
+        require(
+            prior.get("resumption_plan_sha256") == plan_hash, "Original resumption receipt required"
+        )
+    if action in {"create", "execute"}:
+        check_artifacts(review, evidence, image, folder, call, profile, clock)
+
+    def save(receipt):
+        persist({**receipt, "resumption_plan_sha256": plan_hash})
+
+    receipt = execute(action, review, call, save, profile=profile, prior=prior, now=now)
+    return {**receipt, "resumption_plan_sha256": plan_hash}

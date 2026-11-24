@@ -826,6 +826,117 @@ class ExecutionTests(unittest.TestCase):
                 resumption_plan(self.review, self.rollout_evidence, prior, **kwargs)
         self.assertEqual(self.concurrency, 0)
 
+    def test_bound_resumption_rechecks_artifacts_and_recovers_lost_execution(self):
+        from release_rollout import resume, resumption_plan
+
+        step = self.rollout_fixture()
+        verified = step("verify", step("execute", step("create")))
+        rollout = deepcopy(self.review)
+        plan = resumption_plan(
+            rollout,
+            self.rollout_evidence,
+            verified,
+            profile=self.profile,
+            operation_id="f" * 32,
+            expires_at=2200,
+            concurrency=2,
+            now=1500,
+        )
+        self.review = plan["review"]
+        self.change_set = None
+        self.rollout_reads.clear()
+
+        def run(action, prior=None, now=1500):
+            return resume(
+                action,
+                plan,
+                rollout,
+                self.rollout_evidence,
+                verified,
+                self.rollout_image,
+                self.rollout_folder,
+                self.rollout_call,
+                self.receipts.append,
+                profile=self.profile,
+                prior=prior,
+                now=now,
+            )
+
+        created = run("create")
+        self.missing_frontend = True
+        with self.assertRaises(RuntimeError):
+            run("execute", created)
+        self.assertEqual(self.concurrency, 0)
+        self.missing_frontend = False
+        self.uncertain = "execute-change-set"
+        with self.assertRaises(TimeoutError):
+            run("execute", created)
+        submitted = deepcopy(self.receipts[-1])
+        self.assertEqual(submitted["resumption_plan_sha256"], digest(plan))
+        self.assertEqual(self.concurrency, 2)
+        before = len(self.calls)
+        observed = run("inspect", submitted, now=9000)
+        self.assertEqual(run("verify", observed, now=9000)["state"], "template_verified")
+        self.assertFalse(
+            any(
+                op in {"create-change-set", "execute-change-set"}
+                for _, op, _ in self.calls[before:]
+            )
+        )
+
+    def test_resumption_rejects_substituted_plan_receipt_and_stale_catalog(self):
+        from release_rollout import resume, resumption_plan
+
+        step = self.rollout_fixture()
+        verified = step("verify", step("execute", step("create")))
+        rollout = deepcopy(self.review)
+        plan = resumption_plan(
+            rollout,
+            self.rollout_evidence,
+            verified,
+            profile=self.profile,
+            operation_id="f" * 32,
+            expires_at=6000,
+            concurrency=2,
+            now=5000,
+        )
+        self.review = plan["review"]
+
+        def fresh_scan(service, operation, arguments):
+            value = self.rollout_call(service, operation, arguments)
+            if operation == "describe-image-scan-findings":
+                value["imageScanFindings"]["imageScanCompletedAt"] = "1970-01-01T01:23:19+00:00"
+            return value
+
+        for defect in ("receipt", "template", "catalog"):
+            changed = deepcopy(plan)
+            if defect == "receipt":
+                changed["rollout_receipt_sha256"] = "0" * 64
+            elif defect == "template":
+                changed["review"]["candidate_template"]["Description"] = "unreviewed"
+            self.calls.clear()
+            with (
+                self.subTest(defect=defect),
+                self.assertRaisesRegex(
+                    RuntimeError, "Fresh catalog" if defect == "catalog" else ".*"
+                ),
+            ):
+                resume(
+                    "create",
+                    changed,
+                    rollout,
+                    self.rollout_evidence,
+                    verified,
+                    self.rollout_image,
+                    self.rollout_folder,
+                    fresh_scan,
+                    self.receipts.append,
+                    profile=self.profile,
+                    now=5000,
+                )
+            self.assertFalse(any(op == "create-change-set" for _, op, _ in self.calls))
+        self.assertEqual(self.concurrency, 0)
+
 
 class RolloutProviderTests(unittest.TestCase):
     def test_absent_object_is_distinct_from_denied_or_failed_calls(self):
