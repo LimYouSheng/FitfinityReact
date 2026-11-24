@@ -217,8 +217,16 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (selection.env?.EXPECTED_SHA !== '${{ inputs.source_sha }}') fail('release must bind the explicitly entered source SHA')
   requireGate(source, '[[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]')
   requireGate(source, 'test "$EXPECTED_SHA" = "$GITHUB_SHA"')
-  if (releaseVerify?.needs !== 'source' || releaseVerify.uses !== './.github/workflows/verify.yml' || releaseVerify.if != null || releaseVerify.secrets || releaseVerify['continue-on-error']) fail('manual release must run all verification after source selection')
-  if (!equal(imageJob?.needs, ['verify', 'source']) || imageJob.if !== `github.event_name == 'workflow_dispatch' && ${releaseGuard}` || imageJob.environment !== '${{ needs.source.outputs.environment }}' || imageJob['continue-on-error'] || !equal(imageJob.permissions, { contents: 'read', 'id-token': 'write' })) fail('image publication requires complete verification, its protected environment and narrow credentials')
+  if (releaseVerify?.needs !== 'source' || releaseVerify.uses != null || releaseVerify.if != null || releaseVerify.secrets || releaseVerify['continue-on-error']) fail('manual release must authenticate existing verification after source selection')
+  if (!equal(imageJob?.needs, ['verify', 'source']) || imageJob.if !== `github.event_name == 'workflow_dispatch' && ${releaseGuard}` || imageJob.environment !== '${{ needs.source.outputs.environment }}' || imageJob['continue-on-error'] || !equal(imageJob.permissions, { contents: 'read', actions: 'read', checks: 'read', 'id-token': 'write' })) fail('image publication requires complete verification, its protected environment and narrow credentials')
+  if (!equal(image.on.workflow_dispatch.inputs.verification_run, { description: 'Successful exact-source main verification run ID', required: true, type: 'string' }) || !equal(releaseVerify.permissions, { contents: 'read', actions: 'read', checks: 'read' }) || releaseVerify.environment || releaseVerify['timeout-minutes'] !== 5) fail('image evidence selection or read-only permissions differ')
+  for (const job of [releaseVerify, imageJob]) {
+    const command = 'python3 backend/infrastructure/release_verification.py --profile "$DEPLOYMENT_PROFILE" --purpose image'
+    requireGate(job, command)
+    const index = job.steps.findIndex(step => step.run === command)
+    const step = job.steps[index]
+    if (step.env?.VERIFICATION_RUN !== '${{ inputs.verification_run }}' || step.env?.DEPLOYMENT_PROFILE !== '${{ needs.source.outputs.profile }}' || step.env?.GH_TOKEN !== '${{ github.token }}' || job.steps.some((item, offset) => item.uses?.startsWith('aws-actions/') && offset <= index)) fail('image verification must bind selected evidence before credentials')
+  }
   const imageCredentials = imageJob.steps.filter(step => (step.uses ?? '').startsWith('aws-actions/configure-aws-credentials@'))
   if (imageCredentials.length !== 1 || imageCredentials[0].with?.['role-to-assume'] !== '${{ vars.AWS_IMAGE_ROLE_ARN }}' || credentialAccount(image) !== '${{ needs.source.outputs.account }}' || imageCredentials[0].with?.['aws-region'] !== '${{ needs.source.outputs.region }}') fail('image publication must use its separate exact-account role')
   requireGate(imageJob, 'test "$IMAGE_ROLE" = "$EXPECTED_ROLE"')

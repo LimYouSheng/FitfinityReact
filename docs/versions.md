@@ -463,7 +463,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
 | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) | `971764bfb3dba3e89d4261424f33c5a4cbdfc50c988d34a233d0fefd0b5f6c07` |
 | [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `a1787e0fdc7c47da195c409aab3492695e837c0e054000183f814f3d2f90b9cf` |
-| [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `f4b24367dda1ee59827827b7774c251d2a69bd0fa40ddc947fc65974c374d2c2` |
+| [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `364508dcbd8ef5f02a49d1d20e289b89de6a0f4a35b800e5ebdc20fcf0b251d7` |
 | [.github/workflows/aws-maintenance.yml](../.github/workflows/aws-maintenance.yml) | `3e08524bacfcb767f574e3d9d405bdc9084fb58eea1dfc2162f365437d0a29d9` |
 | [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `5e5577ab48444c9305ab984fd803f56eace8468172a56506908b6be00c7d218d` |
 | [.github/workflows/aws-release-observe.yml](../.github/workflows/aws-release-observe.yml) | `17a7920cfde269cf3477d070dbae349010607562d8212b28428b208bf0fa4af0` |

@@ -30,6 +30,7 @@ AWS_OPERATIONS = {
     ("ecr", "get-registry-scanning-configuration"),
     ("ecr", "batch-get-image"),
     ("ecr", "get-login-password"),
+    ("ecr-public", "get-login-password"),
     ("ecr", "start-image-scan"),
     ("ecr", "describe-image-scan-findings"),
 }
@@ -161,7 +162,7 @@ class ImageCandidate:
                 operation,
                 *args,
                 "--region",
-                self.region,
+                "us-east-1" if service == "ecr-public" else self.region,
                 "--no-cli-pager",
                 "--no-cli-auto-prompt",
                 "--cli-connect-timeout",
@@ -313,6 +314,24 @@ class ImageCandidate:
             target = context / Path(name).relative_to("backend")
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
+        docker_config = folder / "public-docker-auth"
+        docker_config.mkdir(mode=0o700)
+        password = self.aws("ecr-public", "get-login-password", raw=True)
+        require(bool(password.strip()), "Missing public registry login token")
+        self.command(
+            [
+                "docker",
+                "--config",
+                str(docker_config),
+                "login",
+                "--username",
+                "AWS",
+                "--password-stdin",
+                "public.ecr.aws",
+            ],
+            private=True,
+            input_data=password,
+        )
         print("Building the verified runtime source for linux/amd64…", flush=True)
         self.command(
             [
@@ -337,6 +356,7 @@ class ImageCandidate:
                 str(context),
             ],
             timeout=1200,
+            env={**os.environ, "DOCKER_CONFIG": str(docker_config)},
         )
         rows = json.loads(self.command(["docker", "image", "inspect", tag], private=True))
         require(len(rows) == 1, "Expected one built runtime image")

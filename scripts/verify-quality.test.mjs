@@ -628,3 +628,17 @@ test('AWS account output gates execute and reject missing, wrong and suppressed 
     assert.throws(() => verifyQualitySetup(setup))
   }
 })
+
+test('image publication reuses complete CI before approval and rechecks before AWS credentials', () => {
+  for (const mutate of [
+    setup => { delete setup.image.on.workflow_dispatch.inputs.verification_run },
+    setup => { setup.image.jobs.verify.uses = './.github/workflows/verify.yml' },
+    setup => { setup.image.jobs.verify.steps.find(step => step.run?.includes('release_verification.py')).if = 'false' },
+    setup => { setup.image.jobs.image.steps.find(step => step.run?.includes('release_verification.py')).env.VERIFICATION_RUN = '123' },
+    setup => { const steps = setup.image.jobs.image.steps; const index = steps.findIndex(step => step.run?.includes('release_verification.py')); steps.push(steps.splice(index, 1)[0]) },
+  ]) {
+    const setup = readQualitySetup()
+    mutate(setup)
+    assert.throws(() => verifyQualitySetup(setup))
+  }
+})

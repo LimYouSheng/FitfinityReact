@@ -15,7 +15,7 @@ sys.path[:0] = [str(ROOT), str(ROOT / "infrastructure")]
 SUITES = {
     "verify-release-lifecycle.py": 2,
     "verify-portable-onboarding.py": 3,
-    "verify-release-verification.py": 6,
+    "verify-release-verification.py": 7,
     "verify-release-access.py": 10,
     "verify-release-execution.py": 43,
     "verify-release-health.py": 3,
@@ -34,7 +34,7 @@ SUITES = {
     "verify-private-egress.py": 15,
     "verify-image.py": 35,
     "verify-deployment.py": 30,
-    "verify-release-image.py": 32,
+    "verify-release-image.py": 33,
     "verify-release-readiness.py": 28,
     "verify-release-observation.py": 9,
     "verify-release-plan.py": 18,
