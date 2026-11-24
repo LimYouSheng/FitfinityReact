@@ -87,6 +87,14 @@ class ImageReleaseChecks(unittest.TestCase):
         if args[:3] == ["docker", "buildx", "build"]:
             self.assertEqual((Path(args[-1]) / "Dockerfile").read_text(), "FROM fixture\n")
             self.assertFalse((Path(args[-1]) / "secret.env").exists())
+            Path(args[args.index("--metadata-file") + 1]).write_text(
+                json.dumps(
+                    {
+                        "containerimage.config.digest": self.config,
+                        "containerimage.digest": self.digest,
+                    }
+                )
+            )
             return ""
         if args[:3] == ["docker", "image", "inspect"]:
             return json.dumps(
@@ -205,6 +213,55 @@ class ImageReleaseChecks(unittest.TestCase):
 
         for flag in ("--pull", "--no-cache", "--provenance=false", "--sbom=false", "--load"):
             self.assertIn(flag, builds[0])
+
+    def test_manifest_based_docker_id_preserves_actual_configuration_binding(self):
+        original = self.command
+
+        def containerd(args, **kwargs):
+            result = original(args, **kwargs)
+            if args[:3] == ["docker", "image", "inspect"]:
+                rows = json.loads(result)
+                rows[0]["Id"] = self.digest
+                return json.dumps(rows)
+            return result
+
+        with patch.object(self.op, "command", side_effect=containerd):
+            self.op.run()
+        self.assertTrue(self.report["candidate_ready"])
+        self.assertEqual(self.report["config_digest"], self.config)
+        self.assertEqual(self.report["build_output_digest"], self.digest)
+        self.assertNotEqual(self.report["config_digest"], self.digest)
+
+    def test_invalid_build_metadata_or_unbound_local_id_stops_before_publication(self):
+        original = self.command
+        for fault in ("missing-config", "malformed-config", "missing-manifest", "foreign-id"):
+            with self.subTest(fault=fault):
+                self.calls.clear()
+                self.report["cloud_write_attempts"] = []
+
+                def corrupt(args, fault=fault, **kwargs):
+                    result = original(args, **kwargs)
+                    if args[:3] == ["docker", "buildx", "build"]:
+                        path = Path(args[args.index("--metadata-file") + 1])
+                        data = json.loads(path.read_text())
+                        if fault == "missing-config":
+                            del data["containerimage.config.digest"]
+                        elif fault == "malformed-config":
+                            data["containerimage.config.digest"] = "bad"
+                        elif fault == "missing-manifest":
+                            del data["containerimage.digest"]
+                        path.write_text(json.dumps(data))
+                    elif args[:3] == ["docker", "image", "inspect"] and fault == "foreign-id":
+                        rows = json.loads(result)
+                        rows[0]["Id"] = "sha256:" + "f" * 64
+                        result = json.dumps(rows)
+                    return result
+
+                with patch.object(self.op, "command", side_effect=corrupt):
+                    with self.assertRaises(RuntimeError):
+                        self.op.run()
+                self.assertEqual(self.report["cloud_write_attempts"], [])
+                self.assertFalse(any("push" in args for args, _ in self.calls))
 
     def test_source_refuses_pull_requests_forks_other_branches_and_invalid_sha(self):
         for key, value in [

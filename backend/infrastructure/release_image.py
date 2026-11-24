@@ -332,6 +332,7 @@ class ImageCandidate:
             private=True,
             input_data=password,
         )
+        metadata_path = folder / "build-metadata.json"
         print("Building the verified runtime source for linux/amd64…", flush=True)
         self.command(
             [
@@ -347,6 +348,8 @@ class ImageCandidate:
                 "--provenance=false",
                 "--sbom=false",
                 "--load",
+                "--metadata-file",
+                str(metadata_path),
                 "--label",
                 f"org.opencontainers.image.revision={self.report['revision']}",
                 "--label",
@@ -358,6 +361,16 @@ class ImageCandidate:
             timeout=1200,
             env={**os.environ, "DOCKER_CONFIG": str(docker_config)},
         )
+        metadata = json.loads(metadata_path.read_text())
+        config_digest = metadata.get("containerimage.config.digest", "")
+        output_digest = metadata.get("containerimage.digest", "")
+        require(
+            all(
+                isinstance(value, str) and re.fullmatch(r"sha256:[0-9a-f]{64}", value)
+                for value in (config_digest, output_digest)
+            ),
+            "Build metadata must identify configuration and output digests",
+        )
         rows = json.loads(self.command(["docker", "image", "inspect", tag], private=True))
         require(len(rows) == 1, "Expected one built runtime image")
         row = rows[0]
@@ -368,10 +381,11 @@ class ImageCandidate:
             and row.get("Config", {}).get("User") == "10001:10001"
             and labels.get("org.opencontainers.image.revision") == self.report["revision"]
             and labels.get("ai.app404.fitfinity.source-sha256") == self.report["source_sha256"]
-            and re.fullmatch(r"sha256:[0-9a-f]{64}", row.get("Id", "")),
+            and row.get("Id") in {config_digest, output_digest},
             "Built image architecture, user or source identity differs",
         )
-        self.report["config_digest"] = row["Id"]
+        self.report["config_digest"] = config_digest
+        self.report["build_output_digest"] = output_digest
         self.report["runtime_build_complete"] = True
 
     def publish(self, folder, tag):
