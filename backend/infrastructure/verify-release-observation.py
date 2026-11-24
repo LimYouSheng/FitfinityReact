@@ -87,7 +87,9 @@ class ObservationTests(unittest.TestCase):
             "invalid",
         )
         self.assertEqual(
-            result["runtime"]["latest_configuration"]["feature_flags"]["FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED"],
+            result["runtime"]["latest_configuration"]["feature_flags"][
+                "FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED"
+            ],
             "unset",
         )
         self.assertTrue(all((s, o) in observation.READS for s, o, _ in self.calls))
