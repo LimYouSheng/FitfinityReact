@@ -83,7 +83,7 @@ def failure_code(stderr):
     )
     if match:
         return next((code for code in PROVIDER_ERRORS if code == match[1]), "UnknownProviderError")
-    if "Parameter validation failed:" in stderr:
+    if "Parameter validation failed:" in stderr or "An error occurred (ParamValidation):" in stderr:
         return "CliParameterValidation"
     if "Error parsing parameter" in stderr or "Unknown options:" in stderr:
         return "CliArgumentError"
@@ -110,8 +110,6 @@ def aws(service, operation, parameters, *, profile=DEVELOPER, purpose="probe"):
             "aws",
             service,
             operation,
-            "--cli-input-json",
-            json.dumps(parameters),
             "--region",
             identities(profile)["region"],
             "--output",
@@ -123,7 +121,18 @@ def aws(service, operation, parameters, *, profile=DEVELOPER, purpose="probe"):
             str(read_timeout),
         ]
         if operation == "invoke":
+            arguments = {
+                "FunctionName": "--function-name",
+                "InvocationType": "--invocation-type",
+                "LogType": "--log-type",
+                "Payload": "--payload",
+            }
+            require(set(parameters) <= arguments.keys(), "Unsupported invocation parameter")
+            for key, value in parameters.items():
+                command.extend([arguments[key], value])
             command.extend(["--cli-binary-format", "raw-in-base64-out", str(response)])
+        else:
+            command.extend(["--cli-input-json", json.dumps(parameters)])
         try:
             result = subprocess.run(
                 command,

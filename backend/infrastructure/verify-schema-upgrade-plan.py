@@ -676,7 +676,19 @@ class UpgradeExecutionTests(unittest.TestCase):
 
         def cli(command, **_kwargs):
             service, action = command[1:3]
-            parameters = json.loads(command[command.index("--cli-input-json") + 1])
+            if action == "invoke":
+                self.assertNotIn("--cli-input-json", command)
+                parameters = {
+                    key: command[command.index(option) + 1]
+                    for key, option in (
+                        ("FunctionName", "--function-name"),
+                        ("InvocationType", "--invocation-type"),
+                        ("LogType", "--log-type"),
+                        ("Payload", "--payload"),
+                    )
+                }
+            else:
+                parameters = json.loads(command[command.index("--cli-input-json") + 1])
             provider(service, action, parameters)
             stdout = ""
             if action == "invoke":
