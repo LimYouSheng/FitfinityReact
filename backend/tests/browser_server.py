@@ -667,7 +667,7 @@ def seed(db, settings):
                             ends_at=clock_time(20),
                         )
                     )
-                if purpose.startswith("change"):
+                if purpose.startswith("change") or purpose == "planrevoked":
                     alias = f"{project}-{purpose}-replacement"
                     allowed_users.add(alias)
                     replacement_user = StaffUser(
