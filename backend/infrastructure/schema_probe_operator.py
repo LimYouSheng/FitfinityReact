@@ -35,6 +35,61 @@ ALLOWED = {
 }
 
 
+PROVIDER_ERRORS = frozenset(
+    {
+        "AccessDenied",
+        "AccessDeniedException",
+        "ExpiredTokenException",
+        "InvalidClientTokenId",
+        "UnrecognizedClientException",
+        "ResourceNotFoundException",
+        "ResourceConflictException",
+        "ResourceNotReadyException",
+        "TooManyRequestsException",
+        "InvalidRequestContentException",
+        "InvalidParameterValueException",
+        "InvalidRuntimeException",
+        "InvalidZipFileException",
+        "InvalidSecurityGroupIDException",
+        "InvalidSubnetIDException",
+        "EC2AccessDeniedException",
+        "EC2ThrottledException",
+        "EC2UnexpectedException",
+        "ENILimitReachedException",
+        "SubnetIPAddressLimitReachedException",
+        "EFSIOException",
+        "EFSMountConnectivityException",
+        "EFSMountFailureException",
+        "EFSMountTimeoutException",
+        "KMSAccessDeniedException",
+        "KMSDisabledException",
+        "KMSInvalidStateException",
+        "KMSNotFoundException",
+        "SnapStartException",
+        "SnapStartNotReadyException",
+        "SnapStartTimeoutException",
+        "ServiceException",
+        "RequestTooLargeException",
+        "UnsupportedMediaTypeException",
+    }
+)
+
+
+def failure_code(stderr):
+    """Return only static diagnostic labels; never copy provider messages or unknown tokens."""
+    match = re.search(
+        r"An error occurred \(([A-Za-z0-9]+)\) when calling the [A-Za-z0-9]+ operation",
+        stderr,
+    )
+    if match:
+        return next((code for code in PROVIDER_ERRORS if code == match[1]), "UnknownProviderError")
+    if "Parameter validation failed:" in stderr:
+        return "CliParameterValidation"
+    if "Error parsing parameter" in stderr or "Unknown options:" in stderr:
+        return "CliArgumentError"
+    return "UnclassifiedCliFailure"
+
+
 def aws(service, operation, parameters, *, profile=DEVELOPER, purpose="probe"):
     """Suppress raw provider replies/errors and never retry writes automatically."""
     require(purpose in {"probe", "upgrade"}, "Unknown private operator purpose")
@@ -69,26 +124,34 @@ def aws(service, operation, parameters, *, profile=DEVELOPER, purpose="probe"):
         ]
         if operation == "invoke":
             command.extend(["--cli-binary-format", "raw-in-base64-out", str(response)])
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=read_timeout + 15,
-            env={
-                **os.environ,
-                "AWS_PAGER": "",
-                "AWS_MAX_ATTEMPTS": "1",
-                "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS": "true",
-                "AWS_CLI_AUTO_PROMPT": "off",
-            },
-        )
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=read_timeout + 15,
+                env={
+                    **os.environ,
+                    "AWS_PAGER": "",
+                    "AWS_MAX_ATTEMPTS": "1",
+                    "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS": "true",
+                    "AWS_CLI_AUTO_PROMPT": "off",
+                },
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(
+                f"AWS {service}/{operation} failed; code=LocalProcessTimeout; "
+                "exit_status=unavailable; outcome uncertain; "
+                "inspect owned resource state before retry"
+            ) from None
         if result.returncode:
             if (service, operation) == ("lambda", "get-policy") and re.search(
                 r"\(ResourceNotFoundException\) when calling the GetPolicy operation", result.stderr
             ):
                 return {"absent": True}
             raise RuntimeError(
-                f"AWS {service}/{operation} failed; inspect owned resource state before retry"
+                f"AWS {service}/{operation} failed; code={failure_code(result.stderr)}; "
+                f"exit_status={result.returncode}; inspect owned resource state before retry"
             )
         value = json.loads(result.stdout) if result.stdout.strip() else {}
         if operation == "invoke":
