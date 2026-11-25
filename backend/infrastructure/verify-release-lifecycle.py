@@ -79,6 +79,7 @@ class LifecycleTests(unittest.TestCase):
             operation_id=operation,
             source_sha=source,
             expires_at=self.now + 600,
+            function_revision=state.revision,
             hosting_stack_arn=state.host_stack,
             hosting_template_sha256=digest(state.host_template),
         )
