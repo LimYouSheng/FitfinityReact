@@ -1,14 +1,19 @@
 FROM rust:1.91.1-slim-trixie AS adapter-build
 WORKDIR /adapter
 ADD --checksum=sha256:d73f583f25b350af24072d0debcda9b9b44d651387685a9278c4e9f9f5c7104b https://codeload.github.com/aws/aws-lambda-web-adapter/tar.gz/dae48cbe1c2c90607df64e61e223f71710e8b894 /adapter/source.tar.gz
-RUN test "$(uname -m)" = x86_64 \
+RUN arch="$(uname -m)" \
+    && case "$arch" in x86_64|aarch64) ;; *) exit 1 ;; esac \
+    && target="$arch-unknown-linux-musl" \
     && apt-get update \
     && apt-get install -y --no-install-recommends musl-tools \
     && rm -rf /var/lib/apt/lists/* \
-    && rustup target add x86_64-unknown-linux-musl \
+    && rustup target add "$target" \
     && tar -xzf source.tar.gz --strip-components=1 \
-    && CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc LAMBDA_RUNTIME_USER_AGENT=aws-lambda-rust/aws-lambda-adapter/1.0.1 \
-       cargo build --locked --release --bin lambda-adapter --target x86_64-unknown-linux-musl
+    && CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc \
+       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc \
+       LAMBDA_RUNTIME_USER_AGENT=aws-lambda-rust/aws-lambda-adapter/1.0.1 \
+       cargo build --locked --release --bin lambda-adapter --target "$target" \
+    && cp "target/$target/release/lambda-adapter" /adapter/lambda-adapter
 
 FROM python:3.12.16-slim-trixie AS application
 
@@ -43,7 +48,7 @@ EXPOSE 8080
 CMD ["python", "-m", "uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080", "--no-access-log", "--no-proxy-headers"]
 
 FROM application AS runtime
-COPY --from=adapter-build /adapter/target/x86_64-unknown-linux-musl/release/lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=adapter-build /adapter/lambda-adapter /opt/extensions/lambda-adapter
 COPY --from=adapter-build /adapter/LICENSE /adapter/NOTICE /usr/share/doc/lambda-web-adapter/
 
 FROM application AS test

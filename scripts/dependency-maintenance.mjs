@@ -50,7 +50,7 @@ function pythonPins(declarations) {
 // Validate independent sources before rendering; refresh must never bless mismatches.
 export function validateDependencies(state, nodeVersion = process.versions.node) {
   const { manifest, lock, python, runtime, test, workflows } = state
-  if (!/ADD --checksum=sha256:[a-f0-9]{64} https:\/\/codeload\.github\.com\/aws\/aws-lambda-web-adapter\/tar\.gz\/[a-f0-9]{40} \/adapter\/source.tar.gz/.test(state.docker) || !state.docker.includes('cargo build --locked --release --bin lambda-adapter --target x86_64-unknown-linux-musl') || /public.ecr.aws/.test(state.docker)) fail('adapter source must be immutable, checksum verified and lockfile built without Public ECR')
+  if (!/ADD --checksum=sha256:[a-f0-9]{64} https:\/\/codeload\.github\.com\/aws\/aws-lambda-web-adapter\/tar\.gz\/[a-f0-9]{40} \/adapter\/source.tar.gz/.test(state.docker) || !state.docker.includes('cargo build --locked --release --bin lambda-adapter --target "$target"') || /public.ecr.aws/.test(state.docker)) fail('adapter source must be immutable, checksum verified and lockfile built without Public ECR')
   if (!semver.validRange(manifest.engines?.node) || !semver.satisfies(nodeVersion, manifest.engines.node)) fail(`Node ${nodeVersion} does not satisfy ${manifest.engines?.node}`)
   if (!/^\d+$/.test(state.node) || !semver.subset(manifest.engines.node, `${state.node}.x`)) fail('Node engine range must stay within the selected .nvmrc major')
   for (const scope of ['dependencies', 'devDependencies']) {
