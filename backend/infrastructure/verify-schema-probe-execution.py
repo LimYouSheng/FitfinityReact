@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import json
+import subprocess
 import unittest
 from datetime import UTC, datetime
 from pathlib import Path
@@ -442,6 +443,83 @@ class ExecutionTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "inspect owned resource") as error:
                 aws("cloudformation", "create-stack", {})
             self.assertNotIn("sensitive-marker", str(error.exception))
+
+    def test_provider_failure_retains_safe_code_and_exit_status_without_retry(self):
+        for code in (
+            "AccessDeniedException",
+            "InvalidRequestContentException",
+            "ResourceNotReadyException",
+        ):
+            with (
+                self.subTest(code=code),
+                patch(
+                    "schema_probe_operator.subprocess.run",
+                    return_value=SimpleNamespace(
+                        returncode=254,
+                        stdout="secret-output",
+                        stderr=(
+                            f"An error occurred ({code}) when calling the Invoke operation: "
+                            "secret-message"
+                        ),
+                    ),
+                ) as run,
+            ):
+                with self.assertRaises(RuntimeError) as error:
+                    aws("lambda", "invoke", {"Payload": "secret-payload"})
+                self.assertIn(f"code={code}; exit_status=254", str(error.exception))
+                self.assertNotIn("secret", str(error.exception))
+                self.assertEqual(run.call_count, 1)
+                self.assertEqual(run.call_args.kwargs["env"]["AWS_MAX_ATTEMPTS"], "1")
+
+    def test_unknown_or_injected_provider_tokens_are_not_disclosed(self):
+        for stderr in (
+            "An error occurred (SecretCredential123) when calling the Invoke operation",
+            "An error occurred (AccessDeniedException\nsecret) when calling the Invoke operation",
+            "secret-endpoint or password",
+        ):
+            with (
+                self.subTest(stderr=stderr),
+                patch(
+                    "schema_probe_operator.subprocess.run",
+                    return_value=SimpleNamespace(returncode=255, stdout="secret", stderr=stderr),
+                ),
+            ):
+                with self.assertRaises(RuntimeError) as error:
+                    aws("lambda", "invoke", {})
+                self.assertNotIn("secret", str(error.exception).lower())
+                self.assertIn("exit_status=255", str(error.exception))
+
+    def test_cli_validation_classifies_without_payload(self):
+        for stderr, label in (
+            ("Parameter validation failed: secret", "CliParameterValidation"),
+            ("Error parsing parameter secret", "CliArgumentError"),
+            ("Unknown options: secret", "CliArgumentError"),
+        ):
+            with (
+                self.subTest(label=label),
+                patch(
+                    "schema_probe_operator.subprocess.run",
+                    return_value=SimpleNamespace(returncode=252, stdout="", stderr=stderr),
+                ),
+            ):
+                with self.assertRaises(RuntimeError) as error:
+                    aws("lambda", "invoke", {})
+                self.assertIn(f"code={label}; exit_status=252", str(error.exception))
+                self.assertNotIn("secret", str(error.exception))
+
+    def test_process_timeout_retains_uncertainty_without_command_or_retry(self):
+        with patch(
+            "schema_probe_operator.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(
+                cmd=["secret-command"], timeout=90, output="secret-output", stderr="secret-error"
+            ),
+        ) as run:
+            with self.assertRaises(RuntimeError) as error:
+                aws("lambda", "invoke", {})
+            self.assertIn("code=LocalProcessTimeout; exit_status=unavailable", str(error.exception))
+            self.assertIn("outcome uncertain", str(error.exception))
+            self.assertNotIn("secret", str(error.exception))
+            self.assertEqual(run.call_count, 1)
 
     def test_successful_empty_cli_writes_do_not_interrupt_upgrade_or_cleanup(self):
         for service, operation, purpose in (
