@@ -263,6 +263,74 @@ class ImageReleaseChecks(unittest.TestCase):
                 self.assertEqual(self.report["cloud_write_attempts"], [])
                 self.assertFalse(any("push" in args for args, _ in self.calls))
 
+    def test_runner_manifest_only_metadata_binds_config_through_exact_published_manifest(self):
+        original = self.command
+
+        def runner(args, **kwargs):
+            result = original(args, **kwargs)
+            if args[:3] == ["docker", "buildx", "build"]:
+                path = Path(args[args.index("--metadata-file") + 1])
+                path.write_text(
+                    json.dumps(
+                        {
+                            "containerimage.digest": self.digest,
+                            "containerimage.descriptor": {
+                                "digest": self.digest,
+                                "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+                            },
+                        }
+                    )
+                )
+            elif args[:3] == ["docker", "image", "inspect"]:
+                rows = json.loads(result)
+                rows[0]["Id"] = self.digest
+                result = json.dumps(rows)
+            return result
+
+        with patch.object(self.op, "command", side_effect=runner):
+            self.op.run()
+        self.assertTrue(self.report["candidate_ready"])
+        self.assertEqual(self.report["config_digest"], self.config)
+        self.assertEqual(self.report["build_manifest_digest"], self.digest)
+        self.published = False
+        self.report.pop("config_digest")
+        self.report["candidate_ready"] = False
+
+        def foreign_manifest(service, operation, *args, **kwargs):
+            result = self.op_aws(service, operation, *args, **kwargs)
+            if operation == "batch-get-image" and result.get("images"):
+                row = result["images"][0]
+                manifest = json.loads(row["imageManifest"])
+                manifest["annotations"] = {"foreign": "different output, same config"}
+                row["imageManifest"] = json.dumps(manifest)
+                row["imageId"]["imageDigest"] = "sha256:" + image.sha(row["imageManifest"].encode())
+            return result
+
+        self.op_aws = self.op.aws
+        with (
+            patch.object(self.op, "command", side_effect=runner),
+            patch.object(self.op, "aws", side_effect=foreign_manifest),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "Published manifest"):
+                self.op.run()
+        self.assertFalse(self.report["candidate_ready"])
+
+    def test_manifest_only_identity_rejects_missing_foreign_or_index_descriptors(self):
+        for descriptor in (
+            None,
+            {},
+            {
+                "digest": "sha256:" + "f" * 64,
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            },
+            {"digest": self.digest, "mediaType": "application/vnd.oci.image.index.v1+json"},
+        ):
+            with self.subTest(descriptor=descriptor), self.assertRaises(RuntimeError):
+                image.build_identity(
+                    {"containerimage.digest": self.digest, "containerimage.descriptor": descriptor},
+                    {"Id": self.digest},
+                )
+
     def test_source_refuses_pull_requests_forks_other_branches_and_invalid_sha(self):
         for key, value in [
             ("GITHUB_EVENT_NAME", "pull_request"),

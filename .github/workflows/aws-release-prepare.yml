@@ -164,6 +164,9 @@ jobs:
           (root / "runtime-build-metadata.json").write_text(json.dumps(safe, indent=2))
           print(json.dumps(safe, indent=2))
           PYMETA
+          python3 backend/infrastructure/image_build_identity.py \
+            --metadata "$RUNNER_TEMP/runtime-build-metadata.json" \
+            --inspect "$RUNNER_TEMP/runtime-image.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
