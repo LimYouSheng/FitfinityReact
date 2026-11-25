@@ -38,7 +38,7 @@ SUITES = {
     "verify-scan-waiver.py": 10,
     "verify-release-readiness.py": 28,
     "verify-release-observation.py": 9,
-    "verify-release-plan.py": 18,
+    "verify-release-plan.py": 20,
     "verify-schema-probe.py": 12,
     "verify-schema-probe-setup.py": 20,
     "verify-schema-probe-execution.py": 30,

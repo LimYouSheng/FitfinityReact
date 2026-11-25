@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import ExerciseVideoDialog from './ExerciseVideoDialog.jsx'
@@ -141,4 +142,23 @@ it('clears obsolete stored-preview errors when prepared replacement bytes become
   expect(document.querySelector('video')).toHaveAttribute('src', 'blob:prepared')
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Save Video' })).toBeEnabled()
+})
+
+
+it('retains a file selected as the dialog opens before passive effects flush', async () => {
+  setup()
+  cleanup()
+  vi.stubGlobal('MediaRecorder', undefined)
+  const saved = vi.fn().mockResolvedValue(undefined)
+  const file = new File(['original'], 'immediate.webm', { type: 'video/webm' })
+  function SelectOnOpen() {
+    useLayoutEffect(() => {
+      fireEvent.change(screen.getByLabelText('Attach video for Squat'), { target: { files: [file] } })
+    }, [])
+    return <ExerciseVideoDialog open sessionId="session" exercise={{ id: 'exercise', name: 'Squat' }} onLoad={vi.fn()} onSaved={saved} onCancel={vi.fn()} />
+  }
+  render(<SelectOnOpen />)
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save Video' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('button', { name: 'Save Video' }))
+  await waitFor(() => expect(saved).toHaveBeenCalledWith(file, expect.objectContaining({ name: 'immediate.webm', processingStatus: 'deferred', audioIncluded: null })))
 })

@@ -187,6 +187,8 @@ class MaintenanceTests(unittest.TestCase):
         self.tags, self.events, self.saved = {}, [], []
         self.concurrency = 2
         self.failure = None
+        self.revision = "exact-revision"
+        self.config_changes = {}
         self.backup_tags = []
         self.snapshot = None
         self.host_stack = (
@@ -221,11 +223,12 @@ class MaintenanceTests(unittest.TestCase):
                 "Configuration": {
                     "FunctionArn": "arn:aws:lambda:eu-west-1:123456789012:function:"
                     + self.target["runtime_function"],
-                    "RevisionId": "exact-revision",
+                    "RevisionId": self.revision,
                     "State": "Active",
                     "Role": "arn:aws:iam::123456789012:role/client-prod-hosting-api",
                     "LastUpdateStatus": "Successful",
                     "Timeout": 30,
+                    **self.config_changes,
                 },
                 "Tags": dict(self.tags),
             }
@@ -323,8 +326,10 @@ class MaintenanceTests(unittest.TestCase):
             return {}
         if operation == "tag-resource":
             self.tags.update(values["Tags"])
+            self.revision = "post-tag-revision"
         elif operation == "put-function-concurrency":
             self.concurrency = values["ReservedConcurrentExecutions"]
+            self.revision = "post-pause-revision"
         elif operation == "create-db-snapshot":
             self.backup_tags = values["Tags"]
             self.snapshot = {
@@ -387,6 +392,33 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(writes, ["put-function-concurrency", "create-db-snapshot"])
         self.assertEqual(self.saved[0]["state"], "pause_submitted")
 
+    def test_runtime_drift_is_rejected_after_pause_without_provider_writes(self):
+        paused = self.paused()
+        for key, value in {
+            "CodeSha256": "changed-image",
+            "Role": "foreign-role",
+            "Timeout": 60,
+            "Environment": {"Variables": {"SECRET": "do-not-retain"}},
+            "VpcConfig": {"SubnetIds": ["foreign"]},
+            "Layers": ["foreign"],
+            "MemorySize": 1024,
+        }.items():
+            with self.subTest(key=key):
+                self.config_changes = {key: value}
+                count = len(self.saved)
+                with self.assertRaisesRegex(RuntimeError, "configuration changed"):
+                    self.step("snapshot", paused, now=1030)
+                self.assertEqual(len(self.saved), count)
+        self.assertFalse(any(row[1] == "create-db-snapshot" for row in self.events))
+        self.assertNotIn("do-not-retain", json.dumps(self.saved))
+
+    def test_legacy_receipt_cannot_adopt_changed_runtime_revision(self):
+        prior = self.step("pause")
+        del prior["runtime_sha256"]
+        with self.assertRaisesRegex(RuntimeError, "without a retained"):
+            self.step("inspect", prior)
+        self.assertEqual(self.concurrency, 0)
+
     def test_lost_pause_response_is_observed_and_never_replayed(self):
         self.failure = "put-function-concurrency"
         with self.assertRaisesRegex(RuntimeError, "lost response"):
@@ -394,7 +426,7 @@ class MaintenanceTests(unittest.TestCase):
         prior = self.saved[-1]
         self.assertEqual(prior["state"], "pause_submitted")
         self.assertEqual(self.step("inspect", prior)["state"], "paused")
-        with self.assertRaisesRegex(RuntimeError, "do not replay"):
+        with self.assertRaisesRegex(RuntimeError, "without a retained"):
             self.step("pause")
         self.assertEqual(sum(row[1] == "put-function-concurrency" for row in self.events), 1)
 

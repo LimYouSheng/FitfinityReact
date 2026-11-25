@@ -117,7 +117,24 @@ def validate_review(review, profile, now):
     return target
 
 
-def inspect(review, call, profile, now):
+def runtime_fingerprint(function):
+    """Bind execution configuration without provider revision or lifecycle metadata."""
+    config = deepcopy(function["Configuration"])
+    for key in (
+        "RevisionId",
+        "LastModified",
+        "State",
+        "StateReason",
+        "StateReasonCode",
+        "LastUpdateStatus",
+        "LastUpdateStatusReason",
+        "LastUpdateStatusReasonCode",
+    ):
+        config.pop(key, None)
+    return digest(config)
+
+
+def inspect(review, call, profile, now, prior=None):
     """Recheck exact cloud identities and reject stale maintenance authority."""
     target = validate_review(review, profile, now)
     account, region = target["account"], target["region"]
@@ -135,7 +152,6 @@ def inspect(review, call, profile, now):
     require(
         config.get("FunctionArn")
         == f"arn:aws:lambda:{region}:{account}:function:" + target["runtime_function"]
-        and config.get("RevisionId") == review["function_revision"]
         and config.get("LastUpdateStatus") == "Successful"
         and type(config.get("Timeout")) is int
         and 1 <= config["Timeout"] <= 900
@@ -143,6 +159,16 @@ def inspect(review, call, profile, now):
         and not function.get("TagsError"),
         "Staff runtime configuration or tag observation differs",
     )
+    if prior is None or "runtime_sha256" not in prior:
+        require(
+            config.get("RevisionId") == review["function_revision"],
+            "Runtime revision changed without a retained configuration baseline",
+        )
+    else:
+        require(
+            prior["runtime_sha256"] == runtime_fingerprint(function),
+            "Runtime configuration changed during maintenance",
+        )
     rows = call("rds", "describe-db-instances", {"DBInstanceIdentifier": target["database"]})[
         "DBInstances"
     ]
@@ -175,6 +201,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
         call,
         profile,
         review["expires_at"] - 1 if mode in RECOVERY_MODES else now,
+        prior=prior,
     )
     operation = review["operation_id"]
     snapshot = snapshot_identity(target, operation, review["source_sha"])
@@ -187,6 +214,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
         "identity": identity,
         "state": "checked",
         "previous_concurrency": review["previous_concurrency"],
+        "runtime_sha256": runtime_fingerprint(function),
     }
     if prior is not None:
         require(

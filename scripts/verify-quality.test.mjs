@@ -205,7 +205,7 @@ function receipt(kind, contents, valid) {
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 }
 test('complete unit and browser receipts pass exact inventory validation', () => {
-  receipt('unit', 'Test Files 155 passed (155)\nTests 1524 passed (1524)', true)
+  receipt('unit', 'Test Files 155 passed (155)\nTests 1525 passed (1525)', true)
   receipt('browser', '1155 passed (1m)', true)
   receipt('api-browser', '402 passed (1m)', true)
 })
