@@ -199,17 +199,6 @@ def image_access(profile):
         [
             {
                 "Effect": "Allow",
-                "Action": "ecr-public:GetAuthorizationToken",
-                "Resource": "*",
-                "Condition": {"StringEquals": {"aws:RequestedRegion": "us-east-1"}},
-            },
-            {
-                "Effect": "Allow",
-                "Action": "sts:GetServiceBearerToken",
-                "Resource": "*",
-            },
-            {
-                "Effect": "Allow",
                 "Action": ["ecr:GetAuthorizationToken", "ecr:GetRegistryScanningConfiguration"],
                 "Resource": "*",
                 "Condition": condition,
