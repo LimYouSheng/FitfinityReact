@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useEffectEvent, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { formatTimestamp } from '../../utils/date.js'
 import {
@@ -32,7 +32,8 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
   const [compressionProgress, setCompressionProgress] = useState(0)
   const loadVideo = useEffectEvent(() => onLoad())
 
-  useEffect(() => {
+  // Initialize before file selection can synchronously accept a deferred preview.
+  useLayoutEffect(() => {
     if (!open || !exercise) {
       setPreviewUrl('')
       return undefined
