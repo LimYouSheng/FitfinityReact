@@ -7,7 +7,7 @@ RUN test "$(uname -m)" = x86_64 \
     && rm -rf /var/lib/apt/lists/* \
     && rustup target add x86_64-unknown-linux-musl \
     && tar -xzf source.tar.gz --strip-components=1 \
-    && LAMBDA_RUNTIME_USER_AGENT=aws-lambda-rust/aws-lambda-adapter/1.0.1 \
+    && CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc LAMBDA_RUNTIME_USER_AGENT=aws-lambda-rust/aws-lambda-adapter/1.0.1 \
        cargo build --locked --release --bin lambda-adapter --target x86_64-unknown-linux-musl
 
 FROM python:3.12.16-slim-trixie AS application
