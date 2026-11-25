@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from deployment_profile import DEVELOPER, identities
+from image_build_identity import build_identity, valid_digest
 from operator_checks import require
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -362,30 +363,20 @@ class ImageCandidate:
             env={**os.environ, "DOCKER_CONFIG": str(docker_config)},
         )
         metadata = json.loads(metadata_path.read_text())
-        config_digest = metadata.get("containerimage.config.digest", "")
-        output_digest = metadata.get("containerimage.digest", "")
-        require(
-            all(
-                isinstance(value, str) and re.fullmatch(r"sha256:[0-9a-f]{64}", value)
-                for value in (config_digest, output_digest)
-            ),
-            "Build metadata must identify configuration and output digests",
-        )
         rows = json.loads(self.command(["docker", "image", "inspect", tag], private=True))
         require(len(rows) == 1, "Expected one built runtime image")
         row = rows[0]
+        identity = build_identity(metadata, row)
         labels = row.get("Config", {}).get("Labels", {})
         require(
             row.get("Os") == "linux"
             and row.get("Architecture") == "amd64"
             and row.get("Config", {}).get("User") == "10001:10001"
             and labels.get("org.opencontainers.image.revision") == self.report["revision"]
-            and labels.get("ai.app404.fitfinity.source-sha256") == self.report["source_sha256"]
-            and row.get("Id") in {config_digest, output_digest},
+            and labels.get("ai.app404.fitfinity.source-sha256") == self.report["source_sha256"],
             "Built image architecture, user or source identity differs",
         )
-        self.report["config_digest"] = config_digest
-        self.report["build_output_digest"] = output_digest
+        self.report.update(identity)
         self.report["runtime_build_complete"] = True
 
     def publish(self, folder, tag):
@@ -453,11 +444,23 @@ class ImageCandidate:
                 "application/vnd.oci.image.manifest.v1+json",
                 "application/vnd.docker.distribution.manifest.v2+json",
             }
-            and manifest.get("config", {}).get("digest") == self.report["config_digest"],
+            and valid_digest(manifest.get("config", {}).get("digest"))
+            and (
+                "build_manifest_digest" not in self.report
+                or digest == self.report["build_manifest_digest"]
+            )
+            and (
+                "config_digest" not in self.report
+                or manifest.get("config", {}).get("digest") == self.report["config_digest"]
+            )
+            and ("config_digest" in self.report or "build_manifest_digest" in self.report),
             "Published manifest does not match the built image",
         )
         self.report.update(
-            image_uri=self.uri + "@" + digest, image_digest=digest, image_published=True
+            image_uri=self.uri + "@" + digest,
+            image_digest=digest,
+            image_published=True,
+            config_digest=manifest["config"]["digest"],
         )
         return digest
 

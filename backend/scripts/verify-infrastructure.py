@@ -34,7 +34,7 @@ SUITES = {
     "verify-private-egress.py": 15,
     "verify-image.py": 35,
     "verify-deployment.py": 30,
-    "verify-release-image.py": 35,
+    "verify-release-image.py": 37,
     "verify-release-readiness.py": 28,
     "verify-release-observation.py": 9,
     "verify-release-plan.py": 18,

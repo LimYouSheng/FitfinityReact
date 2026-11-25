@@ -642,3 +642,11 @@ test('image publication reuses complete CI before approval and rechecks before A
     assert.throws(() => verifyQualitySetup(setup))
   }
 })
+
+
+test('release preparation must exercise the publication image identity guard', () => {
+  const setup = readQualitySetup()
+  const step = setup.preparation.jobs['runtime-build'].steps.find(item => item.run?.includes('image_build_identity.py'))
+  step.run = step.run.replace('python3 backend/infrastructure/image_build_identity.py', 'echo omitted-identity-guard')
+  assert.throws(() => verifyQualitySetup(setup))
+})

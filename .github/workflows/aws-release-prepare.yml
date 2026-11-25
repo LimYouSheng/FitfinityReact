@@ -146,12 +146,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker build --pull --platform linux/amd64 --target runtime \
+          docker buildx build --pull --no-cache --load --provenance=false --sbom=false --platform linux/amd64 --target runtime \
+            --metadata-file "$RUNNER_TEMP/runtime-build-metadata.json" \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --iidfile "$RUNNER_TEMP/runtime-image-id.txt" \
             -t fitfinity-runtime-preparation backend \
             2>&1 | tee "$RUNNER_TEMP/runtime-build.log"
           docker image inspect fitfinity-runtime-preparation > "$RUNNER_TEMP/runtime-image.json"
+          docker version > "$RUNNER_TEMP/runtime-docker-version.txt"
+          docker buildx version >> "$RUNNER_TEMP/runtime-docker-version.txt"
+          python3 - <<'PYMETA'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          metadata = json.loads((root / "runtime-build-metadata.json").read_text())
+          safe = {key: value for key, value in metadata.items() if key.startswith("containerimage.")}
+          (root / "runtime-build-metadata.json").write_text(json.dumps(safe, indent=2))
+          print(json.dumps(safe, indent=2))
+          PYMETA
+          python3 backend/infrastructure/image_build_identity.py \
+            --metadata "$RUNNER_TEMP/runtime-build-metadata.json" \
+            --inspect "$RUNNER_TEMP/runtime-image.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
@@ -160,5 +175,7 @@ jobs:
             ${{ runner.temp }}/runtime-build.log
             ${{ runner.temp }}/runtime-image-id.txt
             ${{ runner.temp }}/runtime-image.json
+            ${{ runner.temp }}/runtime-build-metadata.json
+            ${{ runner.temp }}/runtime-docker-version.txt
           if-no-files-found: error
           retention-days: 14

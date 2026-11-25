@@ -65,7 +65,8 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   const prepareTarget = preparation.jobs['frontend-and-schema'].steps.find(step => step.id === 'target')
   if (prepareTarget?.env?.DEPLOYMENT_TARGET !== "${{ inputs.target || vars.DEPLOYMENT_TARGET || 'developer' }}" || prepareTarget.run.includes('${{')) fail('release preparation target selection differs')
   requireGate(preparation.jobs['frontend-and-schema'], 'python3 backend/infrastructure/release_readiness.py')
-  requireGate(preparation.jobs['runtime-build'], 'docker build --pull --platform linux/amd64 --target runtime')
+  requireGate(preparation.jobs['runtime-build'], 'docker buildx build --pull --no-cache --load --provenance=false --sbom=false --platform linux/amd64 --target runtime')
+  requireGate(preparation.jobs['runtime-build'], 'python3 backend/infrastructure/image_build_identity.py')
   const upgrade = schemaUpgrade.jobs?.upgrade
   if (!equal(Object.keys(schemaUpgrade.on), ['workflow_dispatch']) || !equal(schemaUpgrade.permissions, { contents: 'read' }) || !equal(upgrade?.needs, ['offline', 'target']) || upgrade?.environment !== '${{ needs.target.outputs.environment }}' || upgrade?.if !== "github.ref == 'refs/heads/main' && vars.AWS_SCHEMA_UPGRADE_ENABLED == 'true'") fail('schema upgrade must be manual, main-only, disabled by default and protected')
   if (!equal(upgrade.concurrency, { group: 'fitfinity-${{ needs.target.outputs.environment }}', 'cancel-in-progress': false }) || !equal(upgrade.permissions, { contents: 'read', actions: 'read', 'id-token': 'write' }) || schemaUpgrade.jobs.offline.uses !== './.github/workflows/infrastructure.yml') fail('schema upgrade concurrency, verification or permissions differ')
