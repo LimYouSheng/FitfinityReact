@@ -50,6 +50,7 @@ function pythonPins(declarations) {
 // Validate independent sources before rendering; refresh must never bless mismatches.
 export function validateDependencies(state, nodeVersion = process.versions.node) {
   const { manifest, lock, python, runtime, test, workflows } = state
+  if (!/ADD --checksum=sha256:[a-f0-9]{64} https:\/\/codeload\.github\.com\/aws\/aws-lambda-web-adapter\/tar\.gz\/[a-f0-9]{40} \/adapter\/source.tar.gz/.test(state.docker) || !state.docker.includes('cargo build --locked --release --bin lambda-adapter --target "$target"') || /public.ecr.aws/.test(state.docker)) fail('adapter source must be immutable, checksum verified and lockfile built without Public ECR')
   if (!semver.validRange(manifest.engines?.node) || !semver.satisfies(nodeVersion, manifest.engines.node)) fail(`Node ${nodeVersion} does not satisfy ${manifest.engines?.node}`)
   if (!/^\d+$/.test(state.node) || !semver.subset(manifest.engines.node, `${state.node}.x`)) fail('Node engine range must stay within the selected .nvmrc major')
   for (const scope of ['dependencies', 'devDependencies']) {
@@ -110,8 +111,10 @@ export function renderInventory(state) {
     document = document.replace(line, row([name, value, line.split('|').slice(3, -1).join('|').trim()]))
   }
   const base = /^FROM (python:([^\s]+)) AS application$/m.exec(state.docker)
-  const adapter = /COPY --from=([^\s]+) \/lambda-adapter/.exec(state.docker)
-  if (!base || !adapter) fail('review changed Docker image structure before refreshing')
+  const adapter = /LAMBDA_RUNTIME_USER_AGENT=aws-lambda-rust\/aws-lambda-adapter\/([^\s]+)/.exec(state.docker)
+  const compiler = /^FROM (rust:[^\s]+) AS adapter-build$/m.exec(state.docker)
+  const source = /tar\.gz\/([a-f0-9]{40})/.exec(state.docker)
+  if (!base || !adapter || !compiler || !source) fail('review changed Docker image structure before refreshing')
   runtimeRow('Frontend application', state.manifest.version)
   runtimeRow('Backend application', state.python.version)
   const apiVersion = /version="([^"]+)"/.exec(state.inputs['backend/app/main.py'])
@@ -123,7 +126,7 @@ export function renderInventory(state) {
   runtimeRow('Node.js', `${state.node} selected by .nvmrc; supported ${state.manifest.engines.node}`)
   runtimeRow('Python', `${base[2].split('-')[0]}; supported range ${state.python['requires-python']}`)
   runtimeRow('Backend base image', quoted(base[1]))
-  runtimeRow('Lambda Web Adapter', quoted(adapter[1]))
+  runtimeRow('Lambda Web Adapter', `${quoted(adapter[1])}; upstream commit ${quoted(source[1])}; builder ${quoted(compiler[1])}`)
   const images = Object.values(state.compose.services).map(service => service.image).filter(Boolean)
   runtimeRow('Local/test PostgreSQL', quoted(images.find(image => image.startsWith('postgres:'))))
   runtimeRow('Isolated S3-compatible test storage', quoted(images.find(image => image.startsWith('ghcr.io/rustfs/rustfs:')) ?? fail('missing test storage image')))

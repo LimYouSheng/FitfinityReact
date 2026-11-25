@@ -446,6 +446,9 @@ test('dependency inputs and generated inventory agree on the actual checkout', (
 })
 
 for (const [name, change, message] of [
+  ['adapter mutable source', state => { state.docker = state.docker.replace(/tar\.gz\/[a-f0-9]{40}/, 'tar.gz/main') }, /adapter source/],
+  ['adapter missing integrity', state => { state.docker = state.docker.replace(/--checksum=sha256:[a-f0-9]{64} /, '') }, /adapter source/],
+  ['adapter unlocked dependencies', state => { state.docker = state.docker.replace('cargo build --locked', 'cargo build') }, /adapter source/],
   ['Python manifest-only update', state => { state.python.dependencies[0] = 'fastapi==99.0.0' }, /manifest\/runtime/],
   ['test lock replaces runtime package', state => { state.test.fastapi = '99.0.0' }, /runtime\/test/],
   ['test-only dependency drift', state => { state.test.pytest = '99.0.0' }, /manifest\/test/],

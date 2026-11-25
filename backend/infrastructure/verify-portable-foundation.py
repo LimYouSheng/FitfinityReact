@@ -142,32 +142,16 @@ class PortableFoundationTests(unittest.TestCase):
         self.assertTrue(
             all(
                 action.startswith("ecr:") and "*" not in action
-                for row in statements[2:]
+                for row in statements
                 for action in row["Action"]
             )
         )
         self.assertEqual(
-            statements[3]["Resource"],
+            statements[1]["Resource"],
             "arn:aws:ecr:eu-west-1:123456789012:repository/client-prod-api",
         )
-        self.assertEqual(len(statements), 4)
-        self.assertEqual(
-            statements[:2],
-            [
-                {
-                    "Effect": "Allow",
-                    "Action": "ecr-public:GetAuthorizationToken",
-                    "Resource": "*",
-                    "Condition": {"StringEquals": {"aws:RequestedRegion": "us-east-1"}},
-                },
-                {
-                    "Effect": "Allow",
-                    "Action": "sts:GetServiceBearerToken",
-                    "Resource": "*",
-                },
-            ],
-        )
-        for statement in statements[2:]:
+        self.assertEqual(len(statements), 2)
+        for statement in statements:
             self.assertEqual(
                 statement["Condition"], {"StringEquals": {"aws:RequestedRegion": "eu-west-1"}}
             )
