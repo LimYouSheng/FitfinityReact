@@ -155,6 +155,17 @@ The full backend gate includes [the synthetic recovery drill](../backend/tests/t
 
 ## 6. Deployments and rollback
 
+### Temporary developer image exception
+
+The reviewed [developer policy](../backend/infrastructure/developer-scan-waiver.json) accepts only the complete15-finding set from image run45534011143:9 HIGH,5 MEDIUM and1 UNDEFINED, with exact CVE, package and version identities. It is residual-risk acceptance for synthetic developer testing, not remediation or a false-positive dismissal. LimYouSheng authorized this on25 November2026. It expires3 December2026 at23:59:59 Singapore time; no automatic renewal.
+
+[Scan waiver validation](../backend/infrastructure/scan_waiver.py) binds the actual immutable-ID developer target fingerprint and reviewed application/Docker/lock/migration inputs. A policy-only source change requires a new candidate build and receipt; never edit the failed receipt to mark it accepted. New, missing, duplicated or changed findings, other targets, changed runtime inputs, revoked approval and expiry are rejected. Strict clean-scan acceptance remains available independently. The exception does not authorize client production, customer records or bypass source, freshness, migration, backup, health or environment-approval gates.
+
+After successful image publication, inspect `scan_acceptance`: `kind: developer_exception`, policy hash, runtime hash, image digest and expiry must be present. `scan_policy_passed` means the reviewed policy accepted the image, not that it has no vulnerabilities. Private database and rollout validation re-evaluate the live scan and exception; release evidence also rechecks an exception receipt. Retain the original failed scan artifact. If any binding changes, stop and review; do not expand the exception automatically.
+
+Before expiry, LimYouSheng must either stop developer testing or deploy a newly scanned remediated image. Expiry blocks further acceptance/deployment steps; it does **not** automatically shut down an already running application. Review the upstream scheduled1 December OpenSSL release and Debian packages, rebuild, rescan and retire the exception after remediation. Exact published-image native-library reachability remains unverified; preliminary PEM source analysis and local probes are recorded in Journey.
+
+
 The Actions sidebar uses Title Case with CI, AWS and Legacy AWS prefixes. Open Actions → select a workflow → select a run → Summary to read What It Does, When To Use It and What To Expect. The guide appears after its publishing step runs; queued, rejected-before-guide or approval-waiting jobs may not show it yet. Shared application verification also explains the parent staff-demo behavior for PR runs that skip publishing. The sidebar itself has no custom description field. Workflow filenames and job/check names remain stable: merge protection and release receipts depend on those identities. There is no automatic AWS deployment after CI. Legacy means a developer-specific earlier procedure retained for explicit diagnosis/recovery, not a step to run during every release.
 
 | Workflow | Trigger and purpose | Needed when |
