@@ -31,6 +31,8 @@ This file owns the **current task, exact stopping point, blockers, next actions 
 
 **Current executable step:** repair maintenance runtime binding on `fix/maintenance-runtime-binding`, based on main `febc361`. Main CI and accepted image45592082189 remain historical green. Pause45608808756 succeeded; inspect45610518915 failed before writes with a generic not_started receipt. Independent observation45611490188 at2026-11-25T12:29:44Z confirms reserved concurrency0, changed Lambda revision and private available RDS. Collection45610541822 confirms schema20260924_0006; migration to20261101_0052 has not run. Application remains paused at the user's request.
 
+**Video-race validation:** Video-race repair validation: full unit suite155 files/1525 tests passed;178 quality-guard cases, focused12 dialog cases, ESLint, API frontend build and diff whitespace checks passed. The new regression failed before the layout-effect correction. Local real-API browser execution was blocked at Docker dependency TLS validation; no browser result is claimed. New-head GitHub CI remains pending.
+
 **PR143 CI follow-up:** bd955ae passed infrastructure/backend/frontend/CodeQL but API-browser shard2 failed the tablet video preview at session-media.spec.js:178. Dialog passive initialization could erase a synchronously accepted file while opening. Layout initialization and a failing-before/passing-after regression repair that race;12 focused dialog and178 quality-guard cases pass. Unit inventory becomes1525. Local real-API image build hit certificate-chain validation; new-head CI remains required.
 
 **Local validation:** 912/912 offline infrastructure cases passed with pinned dependencies, including20 maintenance/plan cases and2 integrated lifecycle cases. Mutation reinstating the pre-pause revision requirement was detected. Ruff and whitespace checks passed. Exact-head GitHub CI, merge and live recovery are pending.
@@ -118,5 +120,3 @@ M10 depends on stable domain contracts and isolated test evidence; environment-s
 | H7 / ongoing | Documentation/test impact and obsolete artifact audit | Source reference/loader scan and owners | Updated affected tests/fixtures/inventories, preserved first failures, no stale status, meaningful purpose comments; retain historical evidence by immutable link | No blanket deletion, architecture transplant or comment-only churn; retain the PR59/63 cleanup evidence |
 
 Full dated receipts, first failures and superseded checkpoints live only in [Service Journey](docs/journey.md#complete-journey).
-
-Video-race repair validation: full unit suite155 files/1525 tests passed;178 quality-guard cases, focused12 dialog cases, ESLint, API frontend build and diff whitespace checks passed. The new regression failed before the layout-effect correction. Local real-API browser execution was blocked at Docker dependency TLS validation; no browser result is claimed. New-head GitHub CI remains pending.
