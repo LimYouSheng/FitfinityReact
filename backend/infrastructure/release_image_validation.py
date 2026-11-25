@@ -58,4 +58,19 @@ def validate_image(receipt, binding, call, now, *, profile, required_files):
         require(token not in tokens and len(pages) < 100, "Invalid image scan pagination")
         tokens.add(token)
         arguments = {**arguments, "nextToken": token}
-    scan_policy(pages, binding["image_digest"], datetime.fromtimestamp(now, UTC), profile=profile)
+    validate_scan_acceptance(receipt, pages, datetime.fromtimestamp(now, UTC), profile=profile)
+
+
+def validate_scan_acceptance(receipt, pages, now, *, profile):
+    """Re-evaluate exception scope and expiry rather than trusting prior acceptance flags."""
+    decision = {}
+    scan_policy(
+        pages,
+        receipt["image_digest"],
+        now,
+        profile=profile,
+        source_files=receipt.get("source_files"),
+        decision=decision,
+    )
+    if decision["kind"] == "developer_exception":
+        require(receipt.get("scan_acceptance") == decision, "Developer acceptance receipt differs")

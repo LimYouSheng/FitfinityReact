@@ -1,0 +1,105 @@
+{
+  "id": "developer-openssl-2026-11-25",
+  "status": "approved",
+  "approver": "LimYouSheng",
+  "approval_reference": "User instruction on 25 November 2026: waive all findings for developer testing and continue deployment.",
+  "approved_at": "2026-11-25T02:54:48+00:00",
+  "expires_at": "2026-12-03T23:59:59+08:00",
+  "profile_sha256": "245756c67e91b18701966520374db8884b44a5de5ca7b643780122cea2fc5491",
+  "runtime_sha256": "6a3fb3fbe45f7c022febb214be94c1569fb7ab40fafa72b9ccdf304a4fae54f3",
+  "evidence_run": 45534011143,
+  "evidence_digest": "sha256:57e00bfd54261245e33f90e7a723adf79c55fd3680498393cd292e852b9c7c91",
+  "purpose": "Developer testing with synthetic records only; no client production. Residual native/transitive exposure accepted, not remediation or proven unreachability. New source-policy candidate must retain the reviewed runtime inputs and complete exact finding set.",
+  "findings": [
+    {
+      "cve": "CVE-2026-121481",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "MEDIUM"
+    },
+    {
+      "cve": "CVE-2026-121482",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "HIGH"
+    },
+    {
+      "cve": "CVE-2026-107494",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "HIGH"
+    },
+    {
+      "cve": "CVE-2026-91094",
+      "package": "dpkg",
+      "version": "1.22.22",
+      "severity": "MEDIUM"
+    },
+    {
+      "cve": "CVE-2026-35190",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "MEDIUM"
+    },
+    {
+      "cve": "CVE-2026-84786",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "HIGH"
+    },
+    {
+      "cve": "CVE-2026-84785",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "UNDEFINED"
+    },
+    {
+      "cve": "CVE-2026-95691",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "HIGH"
+    },
+    {
+      "cve": "CVE-2026-124709",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "HIGH"
+    },
+    {
+      "cve": "CVE-2026-107496",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "HIGH"
+    },
+    {
+      "cve": "CVE-2026-88823",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "HIGH"
+    },
+    {
+      "cve": "CVE-2026-88822",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "MEDIUM"
+    },
+    {
+      "cve": "CVE-2026-95690",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "MEDIUM"
+    },
+    {
+      "cve": "CVE-2026-107493",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "HIGH"
+    },
+    {
+      "cve": "CVE-2026-95692",
+      "package": "openssl",
+      "version": "3.5.9-1~deb13u1",
+      "severity": "HIGH"
+    }
+  ]
+}

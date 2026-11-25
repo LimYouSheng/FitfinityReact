@@ -14,6 +14,7 @@ from pathlib import Path
 from deployment_profile import DEVELOPER, identities
 from image_build_identity import build_identity, valid_digest
 from operator_checks import require
+from scan_waiver import developer_exception
 
 ROOT = Path(__file__).resolve().parents[2]
 _DEVELOPER = identities(DEVELOPER)
@@ -112,12 +113,15 @@ def strict_scan_passed(counts):
     return not any(counts.get(level, 0) for level in ("CRITICAL", "HIGH", "UNDEFINED"))
 
 
-def scan_policy(pages, digest, now, *, profile=DEVELOPER):
-    counts, _ = scan_evidence(pages, digest, now, profile=profile)
-    require(
-        strict_scan_passed(counts),
-        "Image blocked: critical, high or unclassified findings; no automatic exception",
-    )
+def scan_policy(pages, digest, now, *, profile=DEVELOPER, source_files=None, decision=None):
+    """Apply strict policy or the exact time-limited developer exception."""
+    counts, findings = scan_evidence(pages, digest, now, profile=profile)
+    result = {"kind": "strict"}
+    if not strict_scan_passed(counts):
+        require(source_files is not None, "Image scan blocked by severity policy")
+        result = developer_exception(findings, digest, now, profile, source_files)
+    if decision is not None:
+        decision.update(result)
     return counts
 
 
@@ -509,9 +513,16 @@ class ImageCandidate:
         self.report["scan_pages"] = pages
         if read_only:
             return pages
+        decision = {}
         self.report["severity_counts"] = scan_policy(
-            pages, digest, datetime.now(UTC), profile=self.profile
+            pages,
+            digest,
+            datetime.now(UTC),
+            profile=self.profile,
+            source_files=self.report.get("source_files"),
+            decision=decision,
         )
+        self.report["scan_acceptance"] = decision
         self.report["scan_policy_passed"] = True
 
     def run(self):

@@ -3,11 +3,12 @@
 import hashlib
 import json
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 
 from deployment_profile import identities
 from hosting_frontend import inventory, manifest_hash
 from operator_checks import require
+from release_image_validation import validate_scan_acceptance
 from release_readiness import migration_chain
 
 
@@ -163,6 +164,10 @@ def validate(
         ),
         "Exact target image publication receipt required",
     )
+    if image.get("scan_acceptance", {}).get("kind") == "developer_exception":
+        validate_scan_acceptance(
+            image, image.get("scan_pages", []), datetime.fromtimestamp(now, UTC), profile=profile
+        )
     chain = migration_chain(repo / "backend/migrations/versions")
     grants = json.loads((repo / "backend/app/runtime-grants.json").read_text())
     require(grants["schema_revision"] == chain[-1]["revision"], "Runtime grant schema differs")

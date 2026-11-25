@@ -318,3 +318,5 @@ API review/response validators, portal input validation and report-device helper
 
 
 `release_evidence.observed_catalog` is the shared source/profile/SQL-digest boundary for catalog extraction. `read-schema.sql` collects each role's own LOGIN/CONNECT/USAGE facts; `catalog_matches` rejects missing, false or nonboolean runtime access before release resumption. `schema_probe_operator.aws` accepts empty successful CLI output but preserves command/JSON errors; probe and upgrade execution validate the raw JSON returned by the pinned Lambda Web Adapter. The backend catalog tests exercise the actual SQL against isolated PostgreSQL.
+
+Image acceptance: [developer_exception](../../backend/infrastructure/scan_waiver.py) requires exact target, runtime inputs, finding set and approval lifetime; [validate_scan_acceptance](../../backend/infrastructure/release_image_validation.py) rechecks live evidence and matches the receipt decision. Strict acceptance remains the default. A rejected exception does not trigger renewal or deployment; the operator retains the failed scan and reviews remediation.
