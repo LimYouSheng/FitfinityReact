@@ -32,7 +32,7 @@ from rollout_provider import aws
 from schema_probe_artifacts import fetch, run_binding
 
 MODES = {"upload", "upload-inspect", "create", "inspect", "execute", "verify"}
-MODES |= resumption_operator.MODES
+MODES |= resumption_operator.MODES | {"deploy", "resume"}
 RECOVERY = {"upload-inspect", "inspect", "verify"} | resumption_operator.RECOVERY
 
 
@@ -87,7 +87,7 @@ def metadata(value, source, profile, *, recovery=False):
     return value
 
 
-def fetch_prior(run_id, destination, source, profile, *, recovery=False):
+def fetch_prior(run_id, destination, source, profile, *, recovery=False, require_success=False):
     """Retrieve original intent from a verified manual-main source lineage."""
     require(re.fullmatch(r"[1-9][0-9]*", run_id or ""), "Original rollout run required")
     repository = profile["github_repository"]
@@ -96,6 +96,8 @@ def fetch_prior(run_id, destination, source, profile, *, recovery=False):
             ["gh", "api", f"repos/{repository}/actions/runs/{run_id}"], text=True
         )
     )
+    if require_success:
+        require(run.get("conclusion") == "success", "Successful verified rollout producer required")
     require(
         run.get("conclusion") in {"success", "failure", "cancelled"},
         "Original run must have finished",
@@ -205,7 +207,9 @@ def expanded_rollout(review, original, candidate):
     }
 
 
-def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=None):
+def execute_step(
+    mode, review, evidence, root, call, persist, *, profile, prior=None, confirmation=None
+):
     """Reconstruct only the reviewed template and preserve metadata-only recovery receipts."""
     require(mode in MODES, "Unknown rollout mode")
     require(mode != "create" or prior is None, "Inspect original creation; never replay")
@@ -299,6 +303,7 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, prior=
         save,
         profile=profile,
         prior=None if mode == "create" else prior,
+        confirmation=confirmation,
     )
 
 
@@ -335,7 +340,7 @@ def main():
     review_input = json.loads(os.environ["ROLLOUT_REVIEW"])
     source = reviewed_source(review_input, current_source, mode)
     source_check(Path.cwd(), current_source)
-    is_resume = mode in resumption_operator.MODES
+    is_resume = mode in resumption_operator.MODES or mode == "resume"
     resumption = review_input.get("resumption") if is_resume else None
     original_input = (
         {key: value for key, value in review_input.items() if key != "resumption"}
@@ -356,6 +361,10 @@ def main():
     prior = root / "rollout-prior/rollout-receipt.json"
     verified_path = root / "rollout-verified/rollout-receipt.json"
     if args.phase == "fetch":
+        require(
+            mode not in {"deploy", "resume"} or not os.environ.get("ROLLOUT_PRIOR_RUN"),
+            "Milestones start once; use the retained phase for recovery",
+        )
         if is_resume:
             fetch_prior(
                 resumption["verified_run"],
@@ -363,6 +372,7 @@ def main():
                 source,
                 profile,
                 recovery=mode in RECOVERY,
+                require_success=True,
             )
         if mode in RECOVERY:
             fetch_prior(
@@ -405,23 +415,38 @@ def main():
         return
     source_check(Path.cwd(), current_source)
     evidence = json.loads((root / "rollout-evidence.json").read_text())
+    confirmation_path = artifacts / "catalog-confirmation.json"
+    confirmation = json.loads(confirmation_path.read_text()) if confirmation_path.exists() else None
     journal = Journal(root / "rollout-receipt.json")
     try:
         step = resumption_operator.execute_step if is_resume else execute_step
         extra = {"verified": json.loads(verified_path.read_text())} if is_resume else {}
-        step(
-            mode,
-            review,
-            evidence,
-            artifacts,
-            lambda service, operation, values: aws(
-                service, operation, values, profile=profile, read_only=mode in RECOVERY
-            ),
-            journal.save,
-            profile=profile,
-            prior=json.loads(prior.read_text()) if prior.exists() else None,
-            **extra,
-        )
+
+        def run(selected, previous, persist):
+            return step(
+                selected,
+                review,
+                evidence,
+                artifacts,
+                lambda service, operation, values: aws(
+                    service, operation, values, profile=profile, read_only=selected in RECOVERY
+                ),
+                lambda receipt: persist(
+                    {**receipt, "catalog_confirmation": confirmation} if confirmation else receipt
+                ),
+                profile=profile,
+                confirmation=confirmation,
+                prior=previous,
+                **extra,
+            )
+
+        if mode in {"deploy", "resume"}:
+            from release_milestones import rollout_milestone
+
+            require(not prior.exists(), "Inspect original milestone; do not replay")
+            rollout_milestone(mode, run, journal.save)
+        else:
+            run(mode, json.loads(prior.read_text()) if prior.exists() else None, journal.save)
     except Exception:
         journal.save(
             {**journal.value, "error": "Rollout failed; inspect retained intent before recovery"}

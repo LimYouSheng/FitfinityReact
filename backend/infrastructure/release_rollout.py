@@ -63,7 +63,7 @@ def binding(review, evidence, profile):
     return digest(evidence)
 
 
-def check_artifacts(review, evidence, image, folder, call, profile, clock):
+def check_artifacts(review, evidence, image, folder, call, profile, clock, confirmation=None):
     """Recheck scan, stored frontend and catalog freshness before release writes."""
     validate_image(
         image,
@@ -78,7 +78,17 @@ def check_artifacts(review, evidence, image, folder, call, profile, clock):
     }
     frontend_review["manifest_sha256"] = evidence["frontend_sha256"]
     transfer(frontend_review, folder, profile, call, lambda _: None, inspect=True, clock=clock)
-    observed = datetime.fromisoformat(evidence.get("catalog_observed_at", ""))
+    if confirmation is not None:
+        require(
+            isinstance(confirmation, dict)
+            and set(confirmation) == {"run", "observed_at", "evidence_sha256"}
+            and re.fullmatch(r"[1-9][0-9]*", confirmation["run"])
+            and confirmation["evidence_sha256"] == digest(evidence),
+            "Catalog confirmation belongs to different release evidence",
+        )
+    observed = datetime.fromisoformat(
+        confirmation["observed_at"] if confirmation else evidence.get("catalog_observed_at", "")
+    )
     require(
         observed.tzinfo is not None and 0 <= clock() - observed.timestamp() <= 3600,
         "Fresh catalog evidence required before rollout write",
@@ -86,7 +96,18 @@ def check_artifacts(review, evidence, image, folder, call, profile, clock):
 
 
 def advance(
-    action, review, evidence, image, folder, call, persist, *, profile, prior=None, now=None
+    action,
+    review,
+    evidence,
+    image,
+    folder,
+    call,
+    persist,
+    *,
+    profile,
+    prior=None,
+    now=None,
+    confirmation=None,
 ):
     """Require current scan and uploaded objects before either change-set write."""
     clock = time.time if now is None else lambda: now
@@ -96,7 +117,7 @@ def advance(
     if prior is not None:
         require(prior.get("evidence_sha256") == evidence_hash, "Original rollout evidence required")
     if action in {"create", "execute"}:
-        check_artifacts(review, evidence, image, folder, call, profile, clock)
+        check_artifacts(review, evidence, image, folder, call, profile, clock, confirmation)
 
     def save(receipt):
         persist({**receipt, "evidence_sha256": evidence_hash})
@@ -178,6 +199,7 @@ def resume(
     profile,
     prior=None,
     now=None,
+    confirmation=None,
 ):
     """Execute only the bound concurrency review and retain original resumption identity."""
     require(action in {"create", "inspect", "execute", "verify"}, "Unknown resumption action")
@@ -204,7 +226,7 @@ def resume(
             prior.get("resumption_plan_sha256") == plan_hash, "Original resumption receipt required"
         )
     if action in {"create", "execute"}:
-        check_artifacts(review, evidence, image, folder, call, profile, clock)
+        check_artifacts(review, evidence, image, folder, call, profile, clock, confirmation)
 
     def save(receipt):
         persist({**receipt, "resumption_plan_sha256": plan_hash})

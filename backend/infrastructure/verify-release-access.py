@@ -71,6 +71,24 @@ class ReleaseAccessTests(unittest.TestCase):
                                 )
                             )
                         )
+            database = [
+                row
+                for row in result["operator_policy"]["Statement"]
+                if "rds:DescribeDBInstances" in row["Action"]
+            ]
+            self.assertEqual(
+                database,
+                [
+                    {
+                        "Effect": "Allow",
+                        "Action": ["rds:DescribeDBInstances"],
+                        "Resource": (
+                            f"arn:aws:rds:{profile['region']}:{profile['account']}:"
+                            f"db:{profile['resource_prefix']}-db"
+                        ),
+                    }
+                ],
+            )
             if profile is not DEVELOPER:
                 encoded = json.dumps(result)
                 for forbidden in (
@@ -252,7 +270,8 @@ class ReleaseAccessTests(unittest.TestCase):
         }
         self.assertEqual(
             actions,
-            set(permissions.values()) | {"s3:ListBucket", "iam:PassRole", "lambda:ListTags"},
+            set(permissions.values())
+            | {"s3:ListBucket", "iam:PassRole", "lambda:ListTags", "rds:DescribeDBInstances"},
         )
         tag_read = next(
             row

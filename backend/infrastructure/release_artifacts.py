@@ -7,11 +7,20 @@ import time
 from hosting_frontend import source_check
 from operator_checks import require
 from release_evidence import validate
+from release_observation import digest
 from schema_probe_artifacts import fetch
 
 
 def collect(repo, destination, runs, *, source, profile, database, schema_action, clock=time.time):
     """Bind successful manual-main producers to the clean checkout and inspect their contents."""
+    runs = dict(runs)
+    fresh_run = None
+    if "fresh_catalog" in runs:
+        fresh_run = runs.pop("fresh_catalog")
+        require(
+            isinstance(fresh_run, str) and re.fullmatch(r"[1-9][0-9]*", fresh_run),
+            "Exact catalog confirmation run required",
+        )
     expected = {"frontend", "image", "catalog"}
     require(schema_action in {"unchanged", "upgrade"}, "Explicit schema action required")
     if schema_action == "upgrade":
@@ -41,6 +50,8 @@ def collect(repo, destination, runs, *, source, profile, database, schema_action
             source,
             profile=profile,
         )
+    if fresh_run:
+        fetch("catalog", fresh_run, destination / "fresh_catalog", source, profile=profile)
     require(source_check(repo, source) == verified_source, "Checkout changed during retrieval")
 
     def read(name):
@@ -56,6 +67,7 @@ def collect(repo, destination, runs, *, source, profile, database, schema_action
     image = read("image/fitfinity-image-candidate.json")
     probe = read("catalog/schema-probe-receipt.json")
     upgrade = read("upgrade/schema-upgrade-receipt.json") if schema_action == "upgrade" else None
+    fresh_probe = read("fresh_catalog/schema-probe-receipt.json") if fresh_run else None
     result = validate(
         frontend,
         destination / "frontend/release-frontend/dist-api-test",
@@ -68,6 +80,14 @@ def collect(repo, destination, runs, *, source, profile, database, schema_action
         database=database,
         schema_action=schema_action,
         now=clock(),
+        fresh_probe=fresh_probe,
     )
     result["producer_runs"] = dict(runs)
+    if fresh_run:
+        confirmation = {
+            "run": fresh_run,
+            "observed_at": fresh_probe["receipt"]["catalog"]["observed_at"],
+            "evidence_sha256": digest(result),
+        }
+        (destination / "catalog-confirmation.json").write_text(json.dumps(confirmation) + "\n")
     return result

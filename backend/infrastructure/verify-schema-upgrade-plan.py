@@ -826,6 +826,30 @@ class UpgradeExecutionTests(unittest.TestCase):
             )
         self.assertNotIn("create-stack", [name for name, _ in self.calls])
 
+    def test_renewed_catalog_keeps_the_original_backup_order_and_database_contents(self):
+        from schema_upgrade_artifacts import catalog_runs
+        from schema_upgrade_execution import readiness
+
+        self.assertEqual(catalog_runs("42"), ("42", None))
+        self.assertEqual(catalog_runs('{"current":"45","baseline":"42"}'), ("45", "42"))
+        for malformed in ('{"current":"45"}', '{"current":45,"baseline":"42"}', "[]"):
+            with self.subTest(malformed=malformed), self.assertRaises(RuntimeError):
+                catalog_runs(malformed)
+
+        baseline = copy.deepcopy(self.evidence["catalog"])
+        self.evidence["baseline_catalog"] = baseline
+        fresh = self.evidence["catalog"]
+        fresh["observed_at"] = "1970-01-01T02:00:00+00:00"
+        readiness(self.binding, self.evidence, self.call, profile=CLIENT, now=7201)
+        baseline["observed_at"] = "1970-01-01T00:15:51+00:00"
+        with self.assertRaisesRegex(RuntimeError, "Backup must follow"):
+            readiness(self.binding, self.evidence, self.call, profile=CLIENT, now=7201)
+        baseline["observed_at"] = "1970-01-01T00:15:00+00:00"
+        baseline["roles"] = []
+        with self.assertRaisesRegex(RuntimeError, "Catalog contents"):
+            readiness(self.binding, self.evidence, self.call, profile=CLIENT, now=7201)
+        self.assertNotIn("invoke", [name for name, _ in self.calls])
+
     def test_maintenance_and_backup_metadata_must_be_live_and_exact(self):
         from schema_upgrade_execution import readiness
 
@@ -1075,6 +1099,10 @@ class UpgradeExecutionTests(unittest.TestCase):
         other_account = {**CLIENT, "account": "234567890123"}
         for defect in (
             None,
+            "renewed",
+            "baseline_source",
+            "baseline_failed",
+            "baseline_sql",
             "profile",
             "source",
             "embedded_source",
@@ -1128,6 +1156,21 @@ class UpgradeExecutionTests(unittest.TestCase):
                 backup_directory = root / "upgrade-maintenance"
                 backup_directory.mkdir()
                 (backup_directory / "maintenance-receipt.json").write_text(json.dumps(backup))
+                paired = defect in {"renewed", "baseline_source", "baseline_failed", "baseline_sql"}
+                baseline = copy.deepcopy(receipt)
+                baseline_run = dict(run)
+                if paired:
+                    if defect == "baseline_source":
+                        baseline_run["head_sha"] = "b" * 40
+                    elif defect == "baseline_failed":
+                        baseline_run["conclusion"] = "failure"
+                    elif defect == "baseline_sql":
+                        baseline["receipt"]["sql_sha256"] = "b" * 64
+                    directory_baseline = root / "upgrade-baseline-catalog"
+                    directory_baseline.mkdir()
+                    (directory_baseline / "schema-probe-receipt.json").write_text(
+                        json.dumps(baseline)
+                    )
                 evidence_path = root / "upgrade-evidence.json"
                 with (
                     patch.dict(
@@ -1137,7 +1180,9 @@ class UpgradeExecutionTests(unittest.TestCase):
                             "UPGRADE_MODE": "invoke",
                             "REVIEW_RUN": "101",
                             "IMAGE_RUN": "102",
-                            "CATALOG_RUN": "103",
+                            "CATALOG_RUN": '{"current":"103","baseline":"105"}'
+                            if paired
+                            else "103",
                             "MAINTENANCE_RUN": "104",
                             "GITHUB_SHA": source,
                             "DEPLOYMENT_PROFILE": str(profile),
@@ -1149,13 +1194,27 @@ class UpgradeExecutionTests(unittest.TestCase):
                     patch("schema_upgrade_artifacts.fetch", return_value=source),
                     patch(
                         "schema_upgrade_artifacts.subprocess.check_output",
-                        side_effect=[json.dumps(run), json.dumps(maintenance_run)],
+                        side_effect=[
+                            json.dumps(run),
+                            json.dumps(maintenance_run),
+                            json.dumps(baseline_run),
+                        ],
                     ),
                     patch("schema_upgrade_artifacts.subprocess.run"),
                 ):
-                    if defect is None:
+                    if defect in {None, "renewed"}:
                         main()
-                        self.assertEqual(json.loads(evidence_path.read_text()), self.evidence)
+                        expected = {
+                            **self.evidence,
+                            "producer_runs": {
+                                "maintenance": "104",
+                                "catalog": "103",
+                                "baseline_catalog": "105" if paired else "103",
+                            },
+                        }
+                        if paired:
+                            expected["baseline_catalog"] = baseline["receipt"]["catalog"]
+                        self.assertEqual(json.loads(evidence_path.read_text()), expected)
                     else:
                         with self.assertRaises(RuntimeError):
                             main()

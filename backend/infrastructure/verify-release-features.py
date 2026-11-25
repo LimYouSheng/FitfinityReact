@@ -662,6 +662,45 @@ class ExternalBoundaryTests(unittest.TestCase):
                 self.configure(client)
                 self.run_both_stacks()
 
+    def test_external_owner_user_binds_full_sts_identity_before_any_write(self):
+        from release_boundary_owner import advance
+
+        self.configure(False)
+        account = self.profile["account"]
+        arn = f"arn:aws:iam::{account}:user/operators/deployer"
+        identity = {"Account": account, "Arn": arn, "UserId": "AIDA" + "X" * 17}
+        self.owner_review.pop("operator_role_arn")
+        self.owner_review.update(operator_user_arn=arn, operator_user_id=identity["UserId"])
+
+        def step(caller):
+            def call(service, operation, params):
+                if operation == "get-caller-identity":
+                    return caller
+                return self.call(service, operation, params)
+
+            return advance(
+                "create",
+                self.owner_review,
+                self.original,
+                self.owner,
+                call,
+                self.owner_receipts.append,
+                profile=self.profile,
+                now=1000,
+            )
+
+        for drift in (
+            {"Account": "999999999999"},
+            {"UserId": "AIDA" + "Z" * 17},
+            {"Arn": arn.replace("operators/", "")},
+            {"Arn": f"arn:aws:sts::{account}:assumed-role/deployer/session"},
+        ):
+            with self.subTest(drift=drift), self.assertRaises(RuntimeError):
+                step({**identity, **drift})
+        self.assertFalse(self.writes)
+        self.assertEqual(step(identity)["state"], "create_submitted")
+        self.assertEqual(self.writes, ["create-change-set"])
+
     def run_both_stacks(self):
         import json
 

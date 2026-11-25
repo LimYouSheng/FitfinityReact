@@ -527,6 +527,27 @@ class ExecutionTests(unittest.TestCase):
             0,
         )
 
+    def test_inactive_runtime_is_valid_only_while_paused_and_successfully_updated(self):
+        self.function["Configuration"]["State"] = "Inactive"
+        created = self.run_step("create")
+        submitted = self.run_step("execute", created)
+        self.assertEqual(self.run_step("verify", submitted)["state"], "template_verified")
+        self.assertEqual(self.concurrency, 0)
+        self.function["Configuration"]["LastUpdateStatus"] = "Failed"
+        with self.assertRaisesRegex(RuntimeError, "not stable"):
+            self.run_step("verify", submitted)
+        from release_execution import live_target
+
+        resumed = deepcopy(self.review)
+        resumed["mode"] = "resume"
+        resumed["candidate_template"]["Resources"]["ApiFunction"]["Properties"][
+            "ReservedConcurrentExecutions"
+        ] = 2
+        self.function["Configuration"]["LastUpdateStatus"] = "Successful"
+        self.concurrency = 2
+        with self.assertRaisesRegex(RuntimeError, "not stable"):
+            live_target(resumed, self.call, self.profile, after=True)
+
     def test_failed_pause_rollback_is_inspectable_but_never_verified(self):
         self.review["mode"] = "pause"
         self.review["original_template"]["Resources"]["ApiFunction"]["Properties"][
@@ -1073,6 +1094,40 @@ class ExecutionTests(unittest.TestCase):
                     now=5000,
                 )
             self.assertFalse(any(op == "create-change-set" for _, op, _ in self.calls))
+        confirmation = {
+            "run": "105",
+            "observed_at": "1970-01-01T01:23:19+00:00",
+            "evidence_sha256": digest(self.rollout_evidence),
+        }
+
+        def confirmed(value):
+            return resume(
+                "create",
+                plan,
+                rollout,
+                self.rollout_evidence,
+                verified,
+                self.rollout_image,
+                self.rollout_folder,
+                fresh_scan,
+                self.receipts.append,
+                profile=self.profile,
+                now=5000,
+                confirmation=value,
+            )
+
+        for drift in (
+            {"evidence_sha256": "f" * 64},
+            {"run": "unbound"},
+            {"observed_at": "1970-01-01T00:00:00+00:00"},
+            {"observed_at": "1970-01-02T00:00:00+00:00"},
+        ):
+            with self.subTest(drift=drift), self.assertRaises(RuntimeError):
+                confirmed({**confirmation, **drift})
+        self.assertFalse(any(op == "create-change-set" for _, op, _ in self.calls))
+        submitted = confirmed(confirmation)
+        self.assertEqual(submitted["state"], "create_submitted")
+        self.assertEqual(submitted["resumption_plan_sha256"], digest(plan))
         self.assertEqual(self.concurrency, 0)
 
     def test_actions_resumption_recovers_original_templates_and_lost_reply(self):
@@ -1278,6 +1333,68 @@ class ExecutionTests(unittest.TestCase):
                     validate({**values, key: value})
         with patch("time.time", return_value=9000):
             self.assertEqual(validate(values, recovery=True), values)
+
+        import os
+        import tempfile
+        from pathlib import Path
+
+        from rollout_operator import main
+
+        source = self.review["source_sha"]
+        review = {
+            key: self.review[key]
+            for key in (
+                "profile_sha256",
+                "source_sha",
+                "operation_id",
+                "expires_at",
+                "stack_arn",
+                "maintenance_marker",
+            )
+        }
+        review.update(
+            original_template_sha256=digest(self.review["original_template"]),
+            candidate_template_sha256=digest(self.review["candidate_template"]),
+            resumption=values,
+        )
+        repository = self.profile["github_repository"]
+        failed = {
+            "conclusion": "failure",
+            "path": ".github/workflows/aws-rollout.yml",
+            "event": "workflow_dispatch",
+            "head_branch": "main",
+            "status": "completed",
+            "head_repository": {"full_name": repository},
+            "head_sha": source,
+            "run_attempt": 1,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            profile = Path(directory) / "profile.json"
+            profile.write_text(json.dumps(self.profile))
+            context = {
+                "GITHUB_SHA": source,
+                "GITHUB_REPOSITORY": repository,
+                "GITHUB_REF": "refs/heads/main",
+                "GITHUB_EVENT_NAME": "workflow_dispatch",
+                "RUNNER_TEMP": directory,
+                "GITHUB_WORKFLOW_REF": repository
+                + "/.github/workflows/aws-rollout.yml@refs/heads/main",
+                "ROLLOUT_MODE": "resume",
+                "ROLLOUT_REVIEW": json.dumps(review),
+                "ROLLOUT_REVIEW_SHA256": digest(review),
+                "ROLLOUT_RUNS": "{}",
+            }
+            with (
+                patch.dict(os.environ, context, clear=True),
+                patch("sys.argv", ["rollout_operator.py", "fetch", "--profile", str(profile)]),
+                patch("time.time", return_value=1000),
+                patch("rollout_operator.source_check"),
+                patch("rollout_operator.subprocess.check_output", return_value=json.dumps(failed)),
+                patch("rollout_operator.subprocess.run") as download,
+                self.assertRaisesRegex(RuntimeError, "Successful verified rollout"),
+            ):
+                main()
+            download.assert_not_called()
 
     def finalization_fixture(self):
         from release_execution import review_identity
@@ -1563,6 +1680,25 @@ class RolloutAncestorRecoveryTests(unittest.TestCase):
             self.assertIn("fitfinity-rollout-123-2", run.call_args_list[2].args[0])
             with self.assertRaises(RuntimeError):
                 fetch_prior("123", Path(directory), "a" * 40, DEVELOPER)
+
+        for result in ("failure", "cancelled", "success"):
+            producer = {**value, "head_sha": "a" * 40, "conclusion": result}
+            with (
+                self.subTest(result=result),
+                patch(
+                    "rollout_operator.subprocess.check_output", return_value=json.dumps(producer)
+                ),
+                patch("rollout_operator.subprocess.run") as download,
+            ):
+                args = ("123", Path("/tmp/unused"), "a" * 40, DEVELOPER)
+                if result != "success":
+                    with self.assertRaisesRegex(RuntimeError, "Successful verified rollout"):
+                        fetch_prior(*args, require_success=True)
+                    download.assert_not_called()
+                    fetch_prior(*args)
+                else:
+                    fetch_prior(*args, require_success=True)
+                self.assertEqual(download.call_count, 1)
 
     def test_foreign_receipt_ancestry_fails_before_artifact_download(self):
         import subprocess

@@ -15,6 +15,7 @@ from operator_checks import require
 from portable_services import maintenance_access
 from release_maintenance import MODES, RECOVERY_MODES, execute, validate_review
 from schema_probe_artifacts import fetch, run_binding
+from schema_probe_operator import failure_code
 
 OPERATIONS = {
     ("cloudformation", "describe-stacks"),
@@ -72,6 +73,21 @@ def aws(service, operation, values, *, profile):
             "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS": "true",
         },
     )
+    if result.returncode:
+        missing = {
+            ("cloudformation", "describe-change-set"): ("ChangeSetNotFound", "DescribeChangeSet"),
+            ("rds", "describe-db-snapshots"): ("DBSnapshotNotFound", "DescribeDBSnapshots"),
+        }.get((service, operation))
+        if missing and re.search(
+            rf"An error occurred \({missing[0]}\) when calling the {missing[1]} operation",
+            result.stderr,
+        ):
+            return {"absent": True}
+        print(
+            f"Maintenance provider failure: {service}/{operation}; "
+            f"code={failure_code(result.stderr)}",
+            flush=True,
+        )
     require(result.returncode == 0, "Maintenance call failed; inspect retained intent")
     return json.loads(result.stdout) if result.stdout.strip() else {}
 
@@ -118,6 +134,11 @@ def reviewed_input(root, profile, source, recovery):
         )
     else:
         require(review["source_sha"] == source, "Maintenance source differs")
+    if "prior_identity" in review:
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", review["prior_identity"]["source_sha"], "HEAD"],
+            check=True,
+        )
     return review
 
 
@@ -156,7 +177,7 @@ def main():
     )
     root = Path(os.environ["RUNNER_TEMP"])
     mode = os.environ["MAINTENANCE_MODE"]
-    require(mode in MODES, "Unknown maintenance mode")
+    require(mode in MODES | {"backup"}, "Unknown maintenance mode")
     recovery = mode in RECOVERY_MODES
     if args.phase == "fetch":
         fetch(
@@ -166,8 +187,12 @@ def main():
             None if recovery else source,
             profile=profile,
         )
-        reviewed_input(root, profile, source, recovery)
-        if mode != "pause":
+        review = reviewed_input(root, profile, source, recovery)
+        require(
+            mode != "backup" or "prior_identity" in review or not os.environ.get("PRIOR_RUN"),
+            "Fresh backup cannot discard prior intent; select original recovery phase",
+        )
+        if mode != "pause" and (mode != "backup" or "prior_identity" in review):
             fetch_prior(os.environ.get("PRIOR_RUN"), root / "maintenance-prior", profile)
         return
     require(
@@ -177,11 +202,23 @@ def main():
     review = reviewed_input(root, profile, source, recovery)
     prior = (
         None
-        if mode == "pause"
+        if mode == "pause" or (mode == "backup" and "prior_identity" not in review)
         else json.loads((root / "maintenance-prior/maintenance-receipt.json").read_text())
     )
     journal = Journal(root / "maintenance-receipt.json")
     try:
+        if mode == "backup":
+            from release_milestones import maintenance_backup
+
+            maintenance_backup(
+                review,
+                lambda service, operation, values: aws(service, operation, values, profile=profile),
+                journal.save,
+                profile=profile,
+                prior=prior,
+            )
+            print("Backup milestone complete; application remains paused")
+            return
         execute(
             mode,
             review,

@@ -125,6 +125,11 @@ def prepare(profile, stack, resource_inventory, *, boundary_stack=None, boundary
     operator = policy(
         [
             allow(["sts:GetCallerIdentity"], "*"),
+            # The release-observation workflow also uses this role with a read-only session.
+            allow(
+                ["rds:DescribeDBInstances"],
+                f"arn:aws:rds:{region}:{account}:db:{target['database']}",
+            ),
             allow(
                 [
                     "cloudformation:DescribeStacks",

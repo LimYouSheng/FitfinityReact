@@ -7,6 +7,7 @@ from datetime import datetime
 
 from deployment_profile import identities
 from operator_checks import require
+from release_evidence import confirm_catalog
 from release_maintenance import check_snapshot_tags, verified_snapshot
 from release_pause import require_recorded_pause
 from schema_probe_execution import compact, inspect_function, owned_stack, preflight
@@ -31,6 +32,8 @@ def readiness(binding, evidence, call, *, profile, now):
         observed.tzinfo is not None and 0 <= now - observed.timestamp() <= 3600,
         "Catalog evidence expired or future dated",
     )
+    baseline = evidence.get("baseline_catalog", catalog)
+    baseline_timestamp = confirm_catalog(baseline, catalog, now)
     snapshot = evidence.get("snapshot_arn", "")
     maintenance = evidence.get("maintenance")
     ownership = verified_snapshot(maintenance, snapshot, target, binding["source_sha"])
@@ -64,8 +67,8 @@ def readiness(binding, evidence, call, *, profile, now):
     created = datetime.fromisoformat(backup.get("SnapshotCreateTime", ""))
     require(
         created.tzinfo is not None
-        and max(observed.timestamp(), maintenance["drained_after"]) <= created.timestamp() <= now,
-        "Backup must follow both the current catalog observation and the maintenance drain",
+        and max(baseline_timestamp, maintenance["drained_after"]) <= created.timestamp() <= now,
+        "Backup must follow both the baseline catalog observation and the maintenance drain",
     )
     function = call("lambda", "get-function", {"FunctionName": target["runtime_function"]})
     config = function.get("Configuration", {})
@@ -241,6 +244,12 @@ def execute(
                     "Worker invocation already marked; inspect database before recovery",
                 )
                 receipt["state"] = "invoke_submitted"
+                if "producer_runs" in evidence:
+                    receipt["readiness"] = {
+                        "producer_runs": dict(evidence["producer_runs"]),
+                        "snapshot_arn": evidence["snapshot_arn"],
+                        "maintenance_identity": evidence["maintenance"]["identity"],
+                    }
                 persist(dict(receipt))
                 call(
                     "lambda",

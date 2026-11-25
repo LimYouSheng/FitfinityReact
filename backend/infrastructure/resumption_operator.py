@@ -42,7 +42,9 @@ def validate(value, *, recovery=False):
     return value
 
 
-def execute_step(mode, review, evidence, root, call, persist, *, profile, verified, prior=None):
+def execute_step(
+    mode, review, evidence, root, call, persist, *, profile, verified, prior=None, confirmation=None
+):
     """Recover hashed templates without persisting runtime secrets in Actions artifacts."""
     from rollout_operator import expanded_rollout, restore_original
 
@@ -161,6 +163,7 @@ def execute_step(mode, review, evidence, root, call, persist, *, profile, verifi
         save,
         profile=profile,
         prior=prior,
+        confirmation=confirmation,
     )
     if mode == "resume-health":
         from release_health import read_url, verify

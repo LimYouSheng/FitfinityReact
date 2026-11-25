@@ -7,6 +7,7 @@ from math import isfinite
 
 from deployment_profile import identities
 from operator_checks import require
+from release_access import service_role_arn
 from release_execution import execute as release_step
 from release_execution import template as read_template
 from release_observation import digest
@@ -18,7 +19,7 @@ RECORD_MODES = {
     "record-pause-execute",
     "record-pause-verify",
 }
-MODES = {"pause", "inspect", "snapshot", "snapshot-check"} | RECORD_MODES
+MODES = {"pause", "adopt-pause", "inspect", "snapshot", "snapshot-check"} | RECORD_MODES
 RECOVERY_MODES = {"inspect", "snapshot-check", "record-pause-inspect", "record-pause-verify"}
 
 
@@ -92,7 +93,7 @@ def validate_review(review, profile, now):
     }
     extra = {"hosting_stack_arn", "hosting_template_sha256"}
     require(
-        set(review) in (required, required | extra)
+        set(review) in (required, required | extra, required | extra | {"prior_identity"})
         and review["profile_sha256"] == target["profile_sha256"]
         and re.fullmatch(r"[a-f0-9]{40}", review["source_sha"])
         and re.fullmatch(r"[a-f0-9]{32}", review["operation_id"])
@@ -113,6 +114,18 @@ def validate_review(review, profile, now):
             )
             and re.fullmatch(r"[a-f0-9]{64}", review["hosting_template_sha256"]),
             "Exact hosting stack observation required",
+        )
+    if "prior_identity" in review:
+        previous = review["prior_identity"]
+        require(
+            isinstance(previous, dict)
+            and set(previous) == {"profile_sha256", "source_sha", "operation_id", "review_sha256"}
+            and previous["profile_sha256"] == target["profile_sha256"]
+            and re.fullmatch(r"[a-f0-9]{40}", previous.get("source_sha", ""))
+            and re.fullmatch(r"[a-f0-9]{32}", previous.get("operation_id", ""))
+            and re.fullmatch(r"[a-f0-9]{64}", previous.get("review_sha256", ""))
+            and previous["operation_id"] != review["operation_id"],
+            "Exact distinct prior maintenance identity required",
         )
     return target
 
@@ -152,6 +165,7 @@ def inspect(review, call, profile, now, prior=None):
     require(
         config.get("FunctionArn")
         == f"arn:aws:lambda:{region}:{account}:function:" + target["runtime_function"]
+        and config.get("State") in {"Active", "Inactive"}
         and config.get("LastUpdateStatus") == "Successful"
         and type(config.get("Timeout")) is int
         and 1 <= config["Timeout"] <= 900
@@ -201,8 +215,12 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
         call,
         profile,
         review["expires_at"] - 1 if mode in RECOVERY_MODES else now,
-        prior=prior,
+        prior=None if mode == "adopt-pause" else prior,
     )
+
+    def recheck():
+        validate_review(review, profile, time.time() if live_clock else now)
+
     operation = review["operation_id"]
     snapshot = snapshot_identity(target, operation, review["source_sha"])
     ownership, snapshot_arn = snapshot["marker"], snapshot["arn"]
@@ -216,6 +234,20 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
         "previous_concurrency": review["previous_concurrency"],
         "runtime_sha256": runtime_fingerprint(function),
     }
+    if mode == "adopt-pause":
+        return adopt_pause(
+            review,
+            prior,
+            receipt,
+            target,
+            function,
+            concurrency,
+            call,
+            persist,
+            recheck=recheck,
+            profile=profile,
+        )
+    require(mode != "pause" or "prior_identity" not in review, "Use reviewed pause adoption")
     if prior is not None:
         require(
             prior.get("identity") == identity
@@ -223,7 +255,13 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
             "Prior maintenance identity differs",
         )
     if prior is not None:
-        for key in ("pause_record", "drained_after", "snapshot_requested", "snapshot_arn"):
+        for key in (
+            "pause_record",
+            "drained_after",
+            "snapshot_requested",
+            "snapshot_arn",
+            "adopted_from",
+        ):
             if key in prior:
                 receipt[key] = deepcopy(prior[key])
     if mode in RECORD_MODES:
@@ -243,8 +281,10 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
             prior is None and marker is None and concurrency == review["previous_concurrency"],
             "Inspect existing maintenance; do not replay pause",
         )
+        recheck()
         receipt["state"] = "pause_submitted"
         persist(dict(receipt))
+        recheck()
         call(
             "lambda",
             "tag-resource",
@@ -253,6 +293,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
                 "Tags": {"FitfinityMaintenance": ownership},
             },
         )
+        recheck()
         call(
             "lambda",
             "put-function-concurrency",
@@ -289,8 +330,10 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
                     and now >= prior["drained_after"],
                     "Wait for the runtime's maximum in-flight invocation lifetime",
                 )
+                recheck()
                 receipt["state"] = "snapshot_submitted"
                 persist(dict(receipt))
+                recheck()
                 call(
                     "lambda",
                     "tag-resource",
@@ -299,6 +342,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
                         "Tags": {"FitfinitySnapshot": ownership},
                     },
                 )
+                recheck()
                 call(
                     "rds",
                     "create-db-snapshot",
@@ -315,9 +359,13 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
                     prior.get("snapshot_requested") is True and prior.get("snapshot_arn") == arn,
                     "Original snapshot intent required",
                 )
-                rows = call("rds", "describe-db-snapshots", {"DBSnapshotIdentifier": arn})[
-                    "DBSnapshots"
-                ]
+                observed = call("rds", "describe-db-snapshots", {"DBSnapshotIdentifier": arn})
+                if observed == {"absent": True}:
+                    require(snapshot_marker == ownership, "Owned snapshot request marker required")
+                    receipt["state"] = "snapshot_pending"
+                    persist(dict(receipt))
+                    return receipt
+                rows = observed["DBSnapshots"]
                 require(
                     len(rows) == 1
                     and rows[0].get("DBSnapshotArn") == arn
@@ -329,10 +377,99 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
                 )
                 tags = call("rds", "list-tags-for-resource", {"ResourceName": arn})["TagList"]
                 check_snapshot_tags(tags, snapshot["tags"])
+                require(
+                    rows[0].get("Status") in {"creating", "available"},
+                    "Snapshot failed or entered an unexpected state; inspect original intent",
+                )
                 receipt["state"] = (
                     "snapshot_ready" if rows[0].get("Status") == "available" else "snapshot_pending"
                 )
     persist(dict(receipt))
+    return receipt
+
+
+def adopt_pause(
+    review, prior, receipt, target, function, concurrency, call, persist, *, recheck, profile
+):
+    """Transfer a reviewed idle pause without replaying concurrency or snapshot writes."""
+    previous = review.get("prior_identity")
+    require(
+        previous is not None
+        and isinstance(prior, dict)
+        and prior.get("identity") == previous
+        and prior.get("previous_concurrency") == review["previous_concurrency"]
+        and prior.get("state") in {"pause_submitted", "paused"}
+        and not any(key in prior for key in ("pause_record", "snapshot_requested", "snapshot_arn")),
+        "Original unadvanced pause receipt required for adoption",
+    )
+    old_marker = snapshot_identity(target, previous["operation_id"], previous["source_sha"])[
+        "marker"
+    ]
+    require(
+        concurrency == 0
+        and function["Tags"].get("FitfinityMaintenance") == old_marker
+        and "FitfinitySnapshot" not in function["Tags"],
+        "Original owned pause without snapshot required; do not replay adoption",
+    )
+    stacks = call("cloudformation", "describe-stacks", {"StackName": review["hosting_stack_arn"]})[
+        "Stacks"
+    ]
+    require(
+        len(stacks) == 1
+        and stacks[0].get("StackId") == review["hosting_stack_arn"]
+        and stacks[0].get("StackStatus") in {"CREATE_COMPLETE", "UPDATE_COMPLETE"}
+        and not stacks[0].get("ParentId")
+        and stacks[0].get("RoleARN") in (None, service_role_arn(profile)),
+        "Stable owned hosting stack required for adoption",
+    )
+    original = read_template(call, review["hosting_stack_arn"])
+    require(
+        digest(original) == review["hosting_template_sha256"]
+        and original["Resources"]["ApiFunction"]["Properties"].get("FunctionName")
+        == target["runtime_function"]
+        and original["Resources"]["ApiFunction"]["Properties"].get("ReservedConcurrentExecutions")
+        == review["previous_concurrency"],
+        "Reviewed unrecorded pause template required",
+    )
+    require(
+        call(
+            "cloudformation",
+            "describe-change-set",
+            {
+                "StackName": review["hosting_stack_arn"],
+                "ChangeSetName": "release-" + previous["operation_id"],
+            },
+        )
+        == {"absent": True}
+        and call(
+            "rds",
+            "describe-db-snapshots",
+            {
+                "DBSnapshotIdentifier": snapshot_identity(
+                    target, previous["operation_id"], previous["source_sha"]
+                )["arn"],
+            },
+        )
+        == {"absent": True},
+        "Original pause already has change-set or snapshot intent; recover it first",
+    )
+    recheck()
+    receipt.update(state="adoption_submitted", adopted_from=deepcopy(previous))
+    persist(deepcopy(receipt))
+    recheck()
+    call(
+        "lambda",
+        "tag-resource",
+        {
+            "Resource": function["Configuration"]["FunctionArn"],
+            "Tags": {
+                "FitfinityMaintenance": snapshot_identity(
+                    target, review["operation_id"], review["source_sha"]
+                )["marker"]
+            },
+        },
+    )
+    persist(deepcopy(receipt))
     return receipt
 
 
