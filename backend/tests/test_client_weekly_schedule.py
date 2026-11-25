@@ -1,13 +1,16 @@
 """Weekly time edits preserve purchased history and enforce current assignment/approval."""
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
+from types import SimpleNamespace
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
-from sqlalchemy import func, select, text
+from sqlalchemy import func, literal, select, text
 from sqlalchemy.exc import DBAPIError
 
+from app.api import client_weekly_schedule as weekly
 from app.api import client_weekly_schedule_save as command
 from app.models.api import ClientWeeklyScheduleReceipt
 from app.models.communications import ChangeRequest, RequestSlot, SessionEvent
@@ -237,20 +240,37 @@ def test_competing_occupied_booking_blocks_preview_and_save(api, domain_db, grap
     assert snapshot(domain_db) == before
 
 
-def test_new_time_cannot_move_today_session_into_elapsed_time(api, domain_db, graph):
+def test_new_time_cannot_move_today_session_into_elapsed_time(api, domain_db, graph, monkeypatch):
     with domain_db.transaction() as session:
         today = session.scalar(
             text("SELECT (clock_timestamp() AT TIME ZONE 'Asia/Singapore')::date")
         )
-        booking = session.get(TrainingSession, graph["second_session_id"])
-        booking.training_date, booking.starts_at, booking.ends_at = (
-            today,
-            time(23, 58),
-            time(23, 59),
+    for clock in (time(0, 1), time(12), time(23, 59, 35)):
+        instant = datetime.combine(today, clock, ZoneInfo("Asia/Singapore"))
+        with domain_db.transaction() as session:
+            booking = session.get(TrainingSession, graph["second_session_id"])
+            booking.training_date = today
+            booking.starts_at = (instant + timedelta(seconds=1)).time()
+            booking.ends_at = (instant + timedelta(seconds=2)).time()
+        before = snapshot(domain_db)
+        monkeypatch.setattr(
+            weekly,
+            "func",
+            SimpleNamespace(clock_timestamp=lambda instant=instant: literal(instant)),
         )
-    body = payload(api, graph)
-    body["slots"] = [{**s, "startsAt": "00:00", "endsAt": "00:01"} for s in body["slots"]]
-    assert save(api, graph, body).status_code == 409
+        viewed = read(api, graph)
+        assert [row["id"] for row in viewed["sessions"]] == [str(graph["second_session_id"])]
+        body = {
+            "expected": viewed["expected"],
+            "slots": [{**s, "startsAt": "00:00", "endsAt": "00:01"} for s in viewed["slots"]],
+        }
+        response = save(api, graph, body)
+        assert response.status_code == 409, response.text
+        assert response.json()["error"]["code"] == "state_conflict"
+        assert snapshot(domain_db) == before
+        with domain_db.transaction() as session:
+            assert session.scalar(select(SessionEvent)) is None
+            assert session.scalar(select(ClientWeeklyScheduleReceipt)) is None
 
 
 @pytest.mark.parametrize("invalid", ["unchanged", "day", "foreign", "duplicate"])
