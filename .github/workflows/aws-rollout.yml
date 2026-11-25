@@ -9,7 +9,7 @@ on:
         required: true
       mode:
         type: choice
-        options: [upload, upload-inspect, create, inspect, execute, verify, resume-create, resume-inspect, resume-execute, resume-verify, resume-health, resume-finalize, resume-finalize-inspect]
+        options: [upload, deploy, resume, upload-inspect, create, inspect, execute, verify, resume-create, resume-inspect, resume-execute, resume-verify, resume-health, resume-finalize, resume-finalize-inspect]
         required: true
       review_json:
         description: Reviewed metadata; resumption adds operation_id/expires_at/concurrency/verified_run in a resumption object
@@ -58,11 +58,11 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
           ## AWS - Roll Out And Resume Application
 
-          **What It Does:** Manual; upload, reviewed changeset, execute/verify, resume, health and finalize.
+          **What It Does:** The deploy milestone uploads and verifies a paused release; the separately approved resume milestone restores reviewed capacity, verifies health and finalizes. Individual recovery modes remain available.
 
           **When To Use It:** Release application artifacts and restore service; phases retain separate review/evidence.
 
-          **What To Expect:** Expect mode-specific upload, change-set, rollout or resumption receipts. A successful intermediate mode is not a completed release: verify health and finalization. Some modes change serving AWS resources.
+          **What To Expect:** Deploy ends at template_verified with traffic paused; resume ends at maintenance_finalized. On failure inspect the retained milestone_phase and original receipt; do not rerun a partially completed batch.
 
           This is a workflow guide, not a success receipt. Check job results and retained artifacts.
 
@@ -81,7 +81,7 @@ jobs:
     needs: [target]
     if: github.ref == 'refs/heads/main' && vars.AWS_ROLLOUT_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     environment: ${{ needs.target.outputs.environment }}
     concurrency:
       group: fitfinity-${{ needs.target.outputs.environment }}

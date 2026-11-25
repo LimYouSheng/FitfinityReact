@@ -64,6 +64,22 @@ def operational(kind, run_id, destination, *, profile, source=None):
     return receipt
 
 
+def catalog_runs(value):
+    """Read an exact catalog producer or the baseline/current pair for a delayed upgrade."""
+    if re.fullmatch(r"[1-9][0-9]*", value):
+        return value, None
+    ids = json.loads(value)
+    require(
+        isinstance(ids, dict)
+        and set(ids) == {"current", "baseline"}
+        and all(
+            isinstance(item, str) and re.fullmatch(r"[1-9][0-9]*", item) for item in ids.values()
+        ),
+        "Exact current and baseline catalog run IDs required",
+    )
+    return ids["current"], ids["baseline"]
+
+
 def main():
     """Prepare only metadata inputs from named protected workflow artifacts."""
     profile = load(os.environ["DEPLOYMENT_PROFILE"])
@@ -84,9 +100,10 @@ def main():
     if mode != "create" and os.getenv("PRIOR_RUN"):
         operational("prior", os.environ["PRIOR_RUN"], root / "upgrade-prior", profile=profile)
     if mode == "invoke":
+        current_run, baseline_run = catalog_runs(os.environ["CATALOG_RUN"])
         catalog = operational(
             "catalog",
-            os.environ["CATALOG_RUN"],
+            current_run,
             root / "upgrade-catalog",
             profile=profile,
             source=source,
@@ -104,7 +121,20 @@ def main():
             "catalog": catalog,
             "snapshot_arn": arn,
             "maintenance": maintenance,
+            "producer_runs": {
+                "maintenance": os.environ["MAINTENANCE_RUN"],
+                "catalog": current_run,
+                "baseline_catalog": baseline_run or current_run,
+            },
         }
+        if baseline_run:
+            evidence["baseline_catalog"] = operational(
+                "catalog",
+                baseline_run,
+                root / "upgrade-baseline-catalog",
+                profile=profile,
+                source=source,
+            )
         (root / "upgrade-evidence.json").write_text(json.dumps(evidence) + "\n")
 
 

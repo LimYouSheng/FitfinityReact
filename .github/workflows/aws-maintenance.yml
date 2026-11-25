@@ -9,7 +9,7 @@ on:
         required: true
       mode:
         type: choice
-        options: [pause, inspect, record-pause-create, record-pause-inspect, record-pause-execute, record-pause-verify, snapshot, snapshot-check]
+        options: [pause, adopt-pause, backup, inspect, record-pause-create, record-pause-inspect, record-pause-execute, record-pause-verify, snapshot, snapshot-check]
         required: true
       review_run:
         description: Successful manual release-preparation run containing the reviewed maintenance package
@@ -50,11 +50,11 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
           ## AWS - Release Maintenance
 
-          **What It Does:** Manual; pause/drain evidence, maintenance state and RDS snapshot/check.
+          **What It Does:** The backup milestone pauses or adopts a reviewed pause, records it in CloudFormation and verifies a snapshot under one approval. Individual recovery modes remain available.
 
-          **When To Use It:** Controlled release maintenance and recovery; mutation depends on mode.
+          **When To Use It:** Before a reviewed schema upgrade. Obtain the baseline catalog first; backup leaves the application paused.
 
-          **What To Expect:** Expect a mode-specific maintenance or snapshot receipt. Pause and snapshot modes change AWS; inspection checks an existing operation. Preserve the original receipt if the outcome is uncertain.
+          **What To Expect:** Backup completes with snapshot_ready. On failure, retain milestone_phase and the original receipt; inspect that phase rather than rerunning the batch. This workflow never resumes traffic.
 
           This is a workflow guide, not a success receipt. Check job results and retained artifacts.
 
@@ -73,7 +73,7 @@ jobs:
     needs: [offline, target]
     if: github.ref == 'refs/heads/main' && vars.AWS_MAINTENANCE_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     environment: ${{ needs.target.outputs.environment }}
     concurrency:
       group: fitfinity-${{ needs.target.outputs.environment }}

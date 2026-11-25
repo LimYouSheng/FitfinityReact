@@ -252,7 +252,7 @@ class LifecycleTests(unittest.TestCase):
                 clock=lambda: self.now,
             )
 
-    def deploy(self, bundle, evidence, operation, resumption, *, activate):
+    def deploy(self, bundle, evidence, operation, resumption, *, activate, batched=False):
         host = self.host
         original = deepcopy(host.current_template)
         source = bundle.source["revision"]
@@ -359,7 +359,12 @@ class LifecycleTests(unittest.TestCase):
             self.assertEqual(self.schema, HEAD)
             return b'{"status":"alive"}' if path == "health/live" else b'{"status":"ready"}'
 
-        def step(mode, prior=None):
+        def step(mode, prior=None, persist=None):
+            def save(value):
+                host.receipts.append(value)
+                if persist is not None:
+                    persist(value)
+
             resume = mode in resumption_operator.MODES
             with patch("time.time", return_value=self.now), patch("release_health.read_url", read):
                 (resumption_operator if resume else rollout_operator).execute_step(
@@ -368,30 +373,35 @@ class LifecycleTests(unittest.TestCase):
                     evidence,
                     bundle.destination,
                     call,
-                    host.receipts.append,
+                    save,
                     profile=self.profile,
                     prior=prior,
                     **({"verified": verified} if resume else {}),
                 )
             return deepcopy(host.receipts[-1])
 
-        uploaded = step("upload")
-        self.assertEqual(uploaded["state"], "verified")
-        self.assertTrue(all(value == "verified" for value in uploaded["objects"].values()))
-        self.assertEqual(step("upload-inspect", uploaded)["objects"], uploaded["objects"])
-        created = step("create")
-        host.uncertain = "execute-change-set"
-        with self.assertRaisesRegex(TimeoutError, "lost execute"):
-            step("execute", created)
-        submitted = deepcopy(host.receipts[-1])
-        observed = step("inspect", submitted)
-        host.uncertain = None
-        verified = step("verify", observed)
+        if batched:
+            from release_milestones import rollout_milestone
+
+            verified = rollout_milestone("deploy", step, lambda value: None, clock=lambda: self.now)
+        else:
+            uploaded = step("upload")
+            self.assertEqual(uploaded["state"], "verified")
+            self.assertTrue(all(value == "verified" for value in uploaded["objects"].values()))
+            self.assertEqual(step("upload-inspect", uploaded)["objects"], uploaded["objects"])
+            created = step("create")
+            host.uncertain = "execute-change-set"
+            with self.assertRaisesRegex(TimeoutError, "lost execute"):
+                step("execute", created)
+            submitted = deepcopy(host.receipts[-1])
+            observed = step("inspect", submitted)
+            host.uncertain = None
+            verified = step("verify", observed)
         self.assertEqual(verified["state"], "template_verified")
         self.assertEqual(host.concurrency, 0)
         self.assertEqual(verified["evidence"], evidence)
         with self.assertRaisesRegex(RuntimeError, "Original review"):
-            step("verify", {**observed, "review_sha256": "0" * 64})
+            step("verify", {**verified, "review_sha256": "0" * 64})
         resume_meta = {
             **meta,
             "resumption": {
@@ -410,12 +420,17 @@ class LifecycleTests(unittest.TestCase):
             candidate_template=resumed,
             boundary_resource=None,
         )
-        created = step("resume-create")
-        submitted = step("resume-execute", created)
-        active = step("resume-verify", submitted)
-        healthy = step("resume-health", active)
-        self.assertEqual(healthy["health"]["state"], "health_verified")
-        finalized = step("resume-finalize-inspect", step("resume-finalize", healthy))
+        if batched:
+            finalized = rollout_milestone(
+                "resume", step, lambda value: None, clock=lambda: self.now
+            )
+        else:
+            created = step("resume-create")
+            submitted = step("resume-execute", created)
+            active = step("resume-verify", submitted)
+            healthy = step("resume-health", active)
+            self.assertEqual(healthy["health"]["state"], "health_verified")
+            finalized = step("resume-finalize-inspect", step("resume-finalize", healthy))
         self.assertEqual(finalized["state"], "maintenance_finalized")
         self.assertEqual(host.function["Tags"], {"Keep": "owned-by-another-service"})
         self.assertEqual(host.current_template, resumed)
@@ -481,6 +496,19 @@ class LifecycleTests(unittest.TestCase):
         self.assertFalse(any(service == "rds" for service, _ in self.operations))
         self.assertEqual(self.operations.count(("cloudformation", "execute-change-set")), 4)
         self.assertEqual(self.public_reads, ["index.html", "health/live", "health/ready"] * 4)
+
+    def test_batched_release_and_resume_use_real_owners_and_preserve_schema(self):
+        self.schema = HEAD
+        bundle = self.prepare_artifacts("a" * 40, "sha256:" + "b" * 64, "milestone view")
+        bundle.upgrade = None
+        self.pause("a" * 40, "b" * 32, snapshot=False)
+        evidence = self.collect(bundle)
+        self.deploy(bundle, evidence, "d" * 32, "e" * 32, activate=True, batched=True)
+        self.assertEqual(self.host.concurrency, 2)
+        self.assertEqual(self.schema, HEAD)
+        self.assertEqual(self.operations.count(("cloudformation", "execute-change-set")), 2)
+        self.assertEqual(self.public_reads, ["index.html", "health/live", "health/ready"] * 2)
+        self.assertFalse(self.worker.calls)
 
     def test_incompatible_rollback_holds_before_upload_or_traffic(self):
         self.schema = HEAD

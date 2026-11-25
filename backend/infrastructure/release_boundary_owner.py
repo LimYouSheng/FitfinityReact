@@ -20,8 +20,15 @@ from rollout_provider import aws
 def advance(action, review, hosting, owner, call, persist, *, profile, prior=None, now=None):
     """Rebuild the single-resource change from the original private files at each step."""
     require(action in {"create", "inspect", "execute", "verify"}, "Unknown owner action")
+    authority_fields = {
+        "operator_role_arn",
+        "operator_user_arn",
+        "operator_user_id",
+        "service_role_arn",
+    }
+    authority = {key: review[key] for key in authority_fields if key in review}
     require(
-        set(review)
+        set(review) - authority.keys()
         == {
             "profile_sha256",
             "source_sha",
@@ -33,13 +40,10 @@ def advance(action, review, hosting, owner, call, persist, *, profile, prior=Non
             "feature_values",
             "external_boundary",
             "owner_original_sha256",
-            "operator_role_arn",
-            "service_role_arn",
         },
         "Exact external owner review required",
     )
     target = identities(profile)
-    authority = {key: review[key] for key in ("operator_role_arn", "service_role_arn")}
     validate_authority(authority, profile)
     external = external_identity(review["external_boundary"], profile)
     prefix = (

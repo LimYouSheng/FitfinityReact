@@ -28,7 +28,7 @@ on:
         type: string
         required: false
       catalog_run:
-        description: Successful current-source private catalog run required for invoke
+        description: Current catalog run ID, or JSON with current and baseline run IDs for an older backup
         type: string
         required: false
       snapshot_arn:

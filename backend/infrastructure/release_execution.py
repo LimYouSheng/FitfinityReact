@@ -118,11 +118,6 @@ def live_target(review, call, profile, *, after=False, inspecting=False, boundar
         and not function.get("TagsError"),
         "Runtime identity or maintenance ownership differs",
     )
-    if not inspecting:
-        require(
-            config.get("State") == "Active" and config.get("LastUpdateStatus") == "Successful",
-            "Runtime configuration is not stable",
-        )
     concurrency = call(
         "lambda", "get-function-concurrency", {"FunctionName": target["runtime_function"]}
     ).get("ReservedConcurrentExecutions")
@@ -140,6 +135,17 @@ def live_target(review, call, profile, *, after=False, inspecting=False, boundar
             for key in ("original_template", "candidate_template")
         )
     require(type(concurrency) is int and concurrency in allowed, "Runtime concurrency differs")
+    if not inspecting:
+        # An idle Lambda can remain Inactive while its reserved capacity is zero.
+        # Traffic verification still requires an Active runtime after capacity is restored.
+        require(
+            config.get("LastUpdateStatus") == "Successful"
+            and (
+                config.get("State") == "Active"
+                or (concurrency == 0 and config.get("State") == "Inactive")
+            ),
+            "Runtime configuration is not stable",
+        )
     resources = call("cloudformation", "list-stack-resources", {"StackName": review["stack_arn"]})
     require(not resources.get("NextToken"), "Complete stack resource inventory required")
     rows_by_name = {}
@@ -196,29 +202,77 @@ def live_target(review, call, profile, *, after=False, inspecting=False, boundar
 def validate_authority(authority, profile):
     """Keep the existing owner session and its retained CloudFormation service role separate."""
     target = identities(profile)
-    pattern = rf"arn:aws:iam::{target['account']}:role/(?:[\w+=,.@-]+/)*[\w+=,.@-]+"
+    prefix = rf"arn:aws:iam::{target['account']}:"
+    path = r"(?:[\w+=,.@-]+/)*[\w+=,.@-]+"
+    require(isinstance(authority, dict), "Exact external owner authority required")
+    service = authority.get("service_role_arn")
     require(
-        isinstance(authority, dict)
-        and set(authority) == {"operator_role_arn", "service_role_arn"}
-        and isinstance(authority["operator_role_arn"], str)
-        and re.fullmatch(pattern, authority["operator_role_arn"])
-        and authority["operator_role_arn"].split("/")[-1]
+        "service_role_arn" in authority
+        and (
+            service is None
+            or isinstance(service, str)
+            and re.fullmatch(prefix + "role/" + path, service)
+        ),
+        "Exact existing owner service role or no attached role required",
+    )
+    if set(authority) == {"operator_user_arn", "operator_user_id", "service_role_arn"}:
+        require(
+            isinstance(authority["operator_user_arn"], str)
+            and re.fullmatch(prefix + "user/" + path, authority["operator_user_arn"])
+            and isinstance(authority["operator_user_id"], str)
+            and re.fullmatch(r"AIDA[A-Z0-9]{12,124}", authority["operator_user_id"]),
+            "Exact direct IAM user ARN and immutable user ID required",
+        )
+        return
+    role = authority.get("operator_role_arn")
+    require(
+        set(authority) == {"operator_role_arn", "service_role_arn"}
+        and isinstance(role, str)
+        and re.fullmatch(prefix + "role/" + path, role)
+        and role != service
+        and role.split("/")[-1]
         not in {
             target["hosting_role"],
             target["maintenance_role"],
             service_role_arn(profile).split("/")[-1],
             target["resource_prefix"] + "-hosting-api",
-        }
-        and (
-            authority["service_role_arn"] is None
-            or (
-                isinstance(authority["service_role_arn"], str)
-                and re.fullmatch(pattern, authority["service_role_arn"])
-                and authority["service_role_arn"] != authority["operator_role_arn"]
-            )
-        ),
+        },
         "Exact separate owner operator and existing service role required",
     )
+
+
+def check_caller(mode, authority, call, profile):
+    """Bind an operation to its routine role or its separately reviewed boundary owner."""
+    target = identities(profile)
+    if mode == "boundary":
+        validate_authority(authority, profile)
+    else:
+        require(authority is None, "External owner authority is confined to its boundary")
+    caller = call("sts", "get-caller-identity", {})
+    require(caller.get("Account") == target["account"], "Wrong release account or role")
+    if authority and "operator_user_arn" in authority:
+        require(
+            caller.get("Arn") == authority["operator_user_arn"]
+            and caller.get("UserId") == authority["operator_user_id"],
+            "Current direct IAM user differs from the reviewed owner",
+        )
+        return
+    role = target["maintenance_role"] if mode == "pause" else target["hosting_role"]
+    if authority:
+        role = authority["operator_role_arn"].split("/")[-1]
+    require(
+        re.fullmatch(
+            rf"arn:aws:sts::{target['account']}:assumed-role/{re.escape(role)}/[\w+=,.@-]+",
+            caller.get("Arn", ""),
+        ),
+        "Wrong release account or role",
+    )
+    if authority:
+        owner = call("iam", "get-role", {"RoleName": role})["Role"]
+        require(
+            owner.get("Arn") == authority["operator_role_arn"],
+            "Existing owner role ARN or path differs",
+        )
 
 
 def execute(
@@ -232,28 +286,7 @@ def execute(
     identity = review_identity(
         review, profile, observed_at, recovery=action in {"inspect", "verify"}
     )
-    target = identities(profile)
-    role = target["maintenance_role"] if review["mode"] == "pause" else target["hosting_role"]
-    if review["mode"] == "boundary":
-        validate_authority(boundary_authority, profile)
-        role = boundary_authority["operator_role_arn"].split("/")[-1]
-    else:
-        require(boundary_authority is None, "External owner authority is confined to its boundary")
-    caller = call("sts", "get-caller-identity", {})
-    require(
-        caller.get("Account") == target["account"]
-        and re.fullmatch(
-            rf"arn:aws:sts::{target['account']}:assumed-role/{re.escape(role)}/[\w+=,.@-]+",
-            caller.get("Arn", ""),
-        ),
-        "Wrong release account or role",
-    )
-    if boundary_authority is not None:
-        owner = call("iam", "get-role", {"RoleName": role})["Role"]
-        require(
-            owner.get("Arn") == boundary_authority["operator_role_arn"],
-            "Existing owner role ARN or path differs",
-        )
+    check_caller(review["mode"], boundary_authority, call, profile)
     name = "release-" + review["operation_id"]
     receipt = {
         "identity": identity,

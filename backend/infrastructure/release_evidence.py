@@ -34,6 +34,27 @@ def observed_catalog(probe, *, source, profile_sha256, sql_path):
     return payload["catalog"]
 
 
+def confirm_catalog(baseline, current, now):
+    """Reconfirm identical private catalog contents while retaining the original observation."""
+
+    def contents(catalog):
+        return json.dumps(
+            {key: value for key, value in catalog.items() if key != "observed_at"}, sort_keys=True
+        )
+
+    require(contents(baseline) == contents(current), "Catalog contents changed since baseline")
+    original = datetime.fromisoformat(baseline.get("observed_at", ""))
+    latest = datetime.fromisoformat(current.get("observed_at", ""))
+    require(
+        original.tzinfo is not None
+        and latest.tzinfo is not None
+        and original <= latest
+        and 0 <= now - latest.timestamp() <= 3600,
+        "Fresh catalog confirmation after its baseline required",
+    )
+    return original.timestamp()
+
+
 def catalog_matches(catalog, grants, *, database, now):
     """Require fresh schema and exact current-table runtime access from the private observer."""
     observed = datetime.fromisoformat(catalog.get("observed_at", ""))
@@ -100,6 +121,7 @@ def validate(
     database,
     schema_action,
     now,
+    fresh_probe=None,
 ):
     """Validate trusted-workflow artifact contents without cloud calls or deployment authority."""
     target = identities(profile)
@@ -196,7 +218,16 @@ def validate(
         profile_sha256=target["profile_sha256"],
         sql_path=repo / "backend/infrastructure/read-schema.sql",
     )
-    observed = catalog_matches(catalog, grants, database=database, now=now)
+    catalog_time = now
+    if fresh_probe is not None:
+        current = observed_catalog(
+            fresh_probe,
+            source=source,
+            profile_sha256=target["profile_sha256"],
+            sql_path=repo / "backend/infrastructure/read-schema.sql",
+        )
+        catalog_time = confirm_catalog(catalog, current, now)
+    observed = catalog_matches(catalog, grants, database=database, now=catalog_time)
     return {
         "decision": "HOLD",
         "source_sha": source,

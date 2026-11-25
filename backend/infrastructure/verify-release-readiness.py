@@ -588,6 +588,7 @@ class ArtifactCollectionTests(unittest.TestCase):
             "frontend": "aws-release-prepare",
             "image": "aws-image",
             "catalog": "aws-schema-probe",
+            "fresh_catalog": "aws-schema-probe",
             "upgrade": "aws-schema-upgrade",
         }[kind]
         data = {
@@ -615,19 +616,21 @@ class ArtifactCollectionTests(unittest.TestCase):
             "frontend": "release-readiness.json",
             "image": "fitfinity-image-candidate.json",
             "catalog": "schema-probe-receipt.json",
+            "fresh_catalog": "schema-probe-receipt.json",
             "upgrade": "schema-upgrade-receipt.json",
         }
         values = {
             "frontend": self.frontend,
             "image": self.image,
             "catalog": self.probe,
+            "fresh_catalog": getattr(self, "fresh_probe", None),
             "upgrade": self.upgrade,
         }
         (folder / names[kind]).write_text(json.dumps(values[kind]))
         if kind == "frontend":
             shutil.copytree(self.folder, folder / "release-frontend/dist-api-test")
 
-    def collect(self, schema_action="upgrade"):
+    def collect(self, schema_action="upgrade", now=1000):
         from unittest.mock import patch
 
         from release_artifacts import collect
@@ -650,8 +653,33 @@ class ArtifactCollectionTests(unittest.TestCase):
                 profile=self.profile,
                 database="fitfinity",
                 schema_action=schema_action,
-                clock=lambda: 1000,
+                clock=lambda: now,
             )
+
+    def test_delayed_rollout_reconfirms_without_replacing_the_original_producer_or_receipt(self):
+        import shutil
+        from copy import deepcopy
+
+        expected = self.collect()
+        shutil.rmtree(self.destination)
+        self.runs["fresh_catalog"] = "105"
+        self.fresh_probe = deepcopy(self.probe)
+        self.fresh_probe["receipt"]["catalog"]["observed_at"] = "1970-01-01T02:00:00+00:00"
+        actual = self.collect(now=7201)
+        self.assertEqual(actual, expected)
+        confirmation = json.loads((self.destination / "catalog-confirmation.json").read_text())
+        self.assertEqual(confirmation["run"], "105")
+        self.assertEqual(confirmation["observed_at"], "1970-01-01T02:00:00+00:00")
+        shutil.rmtree(self.destination)
+        self.fresh_probe["receipt"]["catalog"]["roles"][0]["login"] = False
+        with self.assertRaisesRegex(RuntimeError, "Catalog contents"):
+            self.collect(now=7201)
+        self.assertFalse((self.destination / "catalog-confirmation.json").exists())
+        shutil.rmtree(self.destination)
+        self.bad_kind = "fresh_catalog"
+        self.bad_fields = {"head_sha": "b" * 40}
+        with self.assertRaisesRegex(RuntimeError, "source differs"):
+            self.collect(now=7201)
 
     def test_real_binding_and_content_checks_accept_only_matching_producers(self):
         result = self.collect()

@@ -317,6 +317,8 @@ class MaintenanceTests(unittest.TestCase):
             if self.failure == operation:
                 raise RuntimeError("synthetic lost response")
             return {"Id": self.change_set["ChangeSetId"], "StackId": self.host_stack}
+        if operation == "describe-change-set" and self.change_set is None:
+            return {"absent": True}
         if operation == "describe-change-set":
             return {key: value for key, value in self.change_set.items() if key != "template"}
         if operation == "execute-change-set":
@@ -343,7 +345,7 @@ class MaintenanceTests(unittest.TestCase):
                 "Status": "available",
             }
         elif operation == "describe-db-snapshots":
-            return {"DBSnapshots": [self.snapshot]}
+            return {"DBSnapshots": [self.snapshot]} if self.snapshot else {"absent": True}
         elif operation == "list-tags-for-resource":
             return {"TagList": self.backup_tags}
         else:
@@ -419,6 +421,211 @@ class MaintenanceTests(unittest.TestCase):
             self.step("inspect", prior)
         self.assertEqual(self.concurrency, 0)
 
+    def adoption(self):
+        prior = self.step("pause")
+        del prior["runtime_sha256"]
+        self.host_template["Resources"]["ApiFunction"]["Properties"][
+            "ReservedConcurrentExecutions"
+        ] = 2
+        self.review = {
+            **self.review,
+            "source_sha": "c" * 40,
+            "operation_id": "d" * 32,
+            "function_revision": self.revision,
+            "hosting_stack_arn": self.host_stack,
+            "hosting_template_sha256": digest(self.host_template),
+            "prior_identity": deepcopy(prior["identity"]),
+        }
+        self.events.clear()
+        self.saved.clear()
+        return prior
+
+    def test_reviewed_adoption_preserves_pause_and_establishes_new_baseline(self):
+        prior = self.adoption()
+        original = deepcopy(prior)
+        adopted = self.step("adopt-pause", prior)
+        self.assertEqual(adopted["state"], "adoption_submitted")
+        self.assertEqual(adopted["adopted_from"], original["identity"])
+        self.assertEqual(prior, original)
+        self.assertEqual(adopted["identity"]["source_sha"], "c" * 40)
+        self.assertEqual(adopted["previous_concurrency"], 2)
+        self.assertRegex(adopted["runtime_sha256"], r"^[a-f0-9]{64}$")
+        paused = self.step("inspect", adopted)
+        self.assertEqual(paused["state"], "paused")
+        self.assertEqual(paused["drained_after"], 1030)
+        self.assertEqual(paused["adopted_from"], original["identity"])
+        self.assertEqual(self.concurrency, 0)
+        writes = [
+            row[1]
+            for row in self.events
+            if row[1]
+            in {
+                "tag-resource",
+                "put-function-concurrency",
+                "create-db-snapshot",
+                "create-change-set",
+            }
+        ]
+        self.assertEqual(writes, ["tag-resource"])
+
+    def test_adoption_rejects_foreign_stale_or_advanced_operations_before_writes(self):
+        for defect in (
+            "receipt",
+            "marker",
+            "concurrency",
+            "snapshot",
+            "pause_record",
+            "snapshot_intent",
+            "template",
+            "revision",
+            "expiry",
+            "same_operation",
+            "old_change_set",
+            "old_snapshot",
+        ):
+            with self.subTest(defect=defect):
+                self.setUp()
+                prior = self.adoption()
+                if defect == "receipt":
+                    prior["identity"]["review_sha256"] = "0" * 64
+                elif defect == "marker":
+                    self.tags["FitfinityMaintenance"] = "foreign"
+                elif defect == "concurrency":
+                    self.concurrency = 2
+                elif defect == "snapshot":
+                    self.tags["FitfinitySnapshot"] = "foreign"
+                elif defect == "pause_record":
+                    prior["pause_record"] = {}
+                elif defect == "snapshot_intent":
+                    prior["snapshot_requested"] = False
+                elif defect == "template":
+                    self.host_template["Resources"]["ApiFunction"]["Properties"][
+                        "ReservedConcurrentExecutions"
+                    ] = 0
+                elif defect == "revision":
+                    self.revision = "changed-again"
+                elif defect == "expiry":
+                    self.review["expires_at"] = 999
+                elif defect == "old_change_set":
+                    self.change_set = {"template": {}, "Status": "CREATE_COMPLETE"}
+                elif defect == "old_snapshot":
+                    self.snapshot = {"Status": "available"}
+                elif defect == "same_operation":
+                    self.review["operation_id"] = prior["identity"]["operation_id"]
+                with self.assertRaises(RuntimeError):
+                    self.step("adopt-pause", prior)
+                self.assertFalse(self.saved)
+                self.assertFalse(
+                    any(
+                        row[1]
+                        in {
+                            "tag-resource",
+                            "put-function-concurrency",
+                            "create-db-snapshot",
+                            "create-change-set",
+                        }
+                        for row in self.events
+                    )
+                )
+
+    def test_adoption_lost_response_uses_new_receipt_without_replaying_transfer(self):
+        prior = self.adoption()
+        self.failure = "tag-resource"
+        with self.assertRaisesRegex(RuntimeError, "lost response"):
+            self.step("adopt-pause", prior)
+        intent = deepcopy(self.saved[-1])
+        self.assertEqual(intent["state"], "adoption_submitted")
+        self.assertEqual(self.step("inspect", intent, now=5000)["state"], "paused")
+        with self.assertRaises(RuntimeError):
+            self.step("adopt-pause", prior)
+        self.assertEqual(sum(row[1] == "tag-resource" for row in self.events), 1)
+        self.assertEqual(self.concurrency, 0)
+
+    def test_adoption_persists_intent_before_provider_write(self):
+        prior = self.adoption()
+        original = deepcopy(self.tags)
+
+        def fail(_):
+            raise OSError("synthetic disk failure")
+
+        with self.assertRaises(OSError):
+            self.step("adopt-pause", prior, persist=fail)
+        self.assertEqual(self.tags, original)
+        self.assertFalse(any(row[1] == "tag-resource" for row in self.events))
+
+    def test_adoption_rechecks_expiry_after_durable_intent_before_tagging(self):
+        from unittest.mock import patch
+
+        from release_maintenance import execute
+
+        prior = self.adoption()
+        with patch("release_maintenance.time.time", side_effect=[1000, 1000, 1201]):
+            with self.assertRaisesRegex(RuntimeError, "unexpired"):
+                execute(
+                    "adopt-pause",
+                    self.review,
+                    self.call,
+                    lambda row: self.saved.append(deepcopy(row)),
+                    profile=self.profile,
+                    prior=prior,
+                )
+        self.assertEqual(self.saved[-1]["state"], "adoption_submitted")
+        self.assertFalse(any(row[1] == "tag-resource" for row in self.events))
+        self.assertEqual(self.concurrency, 0)
+
+    def test_backup_milestone_completes_with_one_pause_and_snapshot(self):
+        from release_milestones import maintenance_backup
+
+        prior = self.adoption()
+        self.config_changes = {"State": "Inactive"}
+        clock = [1000]
+        receipt = maintenance_backup(
+            self.review,
+            self.call,
+            lambda row: self.saved.append(deepcopy(row)),
+            profile=self.profile,
+            prior=prior,
+            clock=lambda: clock[0],
+            pause=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
+        )
+        self.assertEqual(receipt["state"], "snapshot_ready")
+        self.assertEqual(receipt["milestone_phase"], "snapshot-check")
+        self.assertEqual(receipt["pause_record"]["state"], "template_verified")
+        self.assertEqual(
+            self.host_template["Resources"]["ApiFunction"]["Properties"][
+                "ReservedConcurrentExecutions"
+            ],
+            0,
+        )
+        self.assertEqual(self.concurrency, 0)
+        self.assertEqual(clock[0], 1030)
+        self.assertEqual(sum(row[1] == "create-db-snapshot" for row in self.events), 1)
+        self.assertEqual(sum(row[1] == "execute-change-set" for row in self.events), 1)
+        self.assertFalse(any(row[1] == "put-function-concurrency" for row in self.events))
+
+    def test_backup_milestone_preserves_uncertain_intent_without_replaying(self):
+        from release_milestones import maintenance_backup
+
+        prior = self.adoption()
+        self.failure = "create-change-set"
+        clock = [1000]
+        with self.assertRaisesRegex(RuntimeError, "lost response"):
+            maintenance_backup(
+                self.review,
+                self.call,
+                lambda row: self.saved.append(deepcopy(row)),
+                profile=self.profile,
+                prior=prior,
+                clock=lambda: clock[0],
+                pause=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
+            )
+        intent = self.saved[-1]
+        self.assertEqual(intent["milestone_phase"], "record-pause-create")
+        self.assertEqual(intent["pause_record"]["state"], "create_submitted")
+        self.assertEqual(sum(row[1] == "create-change-set" for row in self.events), 1)
+        self.assertFalse(any(row[1] == "create-db-snapshot" for row in self.events))
+        self.assertEqual(self.concurrency, 0)
+
     def test_lost_pause_response_is_observed_and_never_replayed(self):
         self.failure = "put-function-concurrency"
         with self.assertRaisesRegex(RuntimeError, "lost response"):
@@ -441,6 +648,30 @@ class MaintenanceTests(unittest.TestCase):
         self.assertTrue(recovered["snapshot_requested"])
         self.assertEqual(self.step("snapshot-check", recovered)["state"], "snapshot_ready")
         self.assertEqual(sum(row[1] == "create-db-snapshot" for row in self.events), 1)
+
+    def test_snapshot_inspection_waits_for_visibility_without_recreating(self):
+        from unittest.mock import patch
+
+        paused = self.paused()
+        requested = self.step("snapshot", paused, now=1030)
+        actual = deepcopy(self.snapshot)
+        self.snapshot = None
+        pending = self.step("snapshot-check", requested)
+        self.assertEqual(pending["state"], "snapshot_pending")
+        self.snapshot = actual
+        self.snapshot["Status"] = "creating"
+        self.assertEqual(self.step("snapshot-check", pending)["state"], "snapshot_pending")
+        self.snapshot["Status"] = "available"
+        self.assertEqual(self.step("snapshot-check", pending)["state"], "snapshot_ready")
+        for status in ("failed", "deleting", "unknown"):
+            self.snapshot["Status"] = status
+            with self.assertRaisesRegex(RuntimeError, "unexpected state"):
+                self.step("snapshot-check", pending)
+        self.assertEqual(sum(row[1] == "create-db-snapshot" for row in self.events), 1)
+        self.snapshot = None
+        with patch.dict(self.tags, {"FitfinitySnapshot": "foreign"}):
+            with self.assertRaisesRegex(RuntimeError, "snapshot request marker"):
+                self.step("snapshot-check", requested)
 
     def test_receipt_failure_prevents_any_provider_write(self):
         def fail(_):
@@ -549,14 +780,35 @@ class MaintenanceOperatorTests(unittest.TestCase):
                     operator.aws("rds", "describe-db-instances", {}, profile=self.profile)
             run.assert_not_called()
             run.return_value = SimpleNamespace(returncode=1, stdout="sensitive", stderr="sensitive")
-            with self.assertRaisesRegex(RuntimeError, "inspect retained") as caught:
-                operator.aws("rds", "describe-db-instances", {}, profile=self.profile)
+            with patch("builtins.print") as output:
+                with self.assertRaisesRegex(RuntimeError, "inspect retained") as caught:
+                    operator.aws("rds", "describe-db-instances", {}, profile=self.profile)
+                self.assertIn("code=UnclassifiedCliFailure", output.call_args.args[0])
+                self.assertNotIn("sensitive", output.call_args.args[0])
             self.assertNotIn("sensitive", str(caught.exception))
             self.assertEqual(run.call_args.kwargs["env"]["AWS_MAX_ATTEMPTS"], "1")
             self.assertEqual(
                 run.call_args.kwargs["env"]["AWS_IGNORE_CONFIGURED_ENDPOINT_URLS"], "true"
             )
             self.assertIn("eu-west-1", run.call_args.args[0])
+            for service, operation, code, provider_operation in (
+                ("cloudformation", "describe-change-set", "ChangeSetNotFound", "DescribeChangeSet"),
+                ("rds", "describe-db-snapshots", "DBSnapshotNotFound", "DescribeDBSnapshots"),
+            ):
+                run.return_value.stderr = (
+                    f"An error occurred ({code}) when calling the "
+                    f"{provider_operation} operation: not found"
+                )
+                self.assertEqual(
+                    operator.aws(service, operation, {}, profile=self.profile), {"absent": True}
+                )
+                for denied in ("AccessDenied", "ValidationError"):
+                    run.return_value.stderr = (
+                        f"An error occurred ({denied}) when calling the "
+                        f"{provider_operation} operation: sensitive"
+                    )
+                    with patch("builtins.print"), self.assertRaises(RuntimeError):
+                        operator.aws(service, operation, {}, profile=self.profile)
 
     def test_operator_checks_review_digest_and_target_before_execution(self):
         import tempfile
