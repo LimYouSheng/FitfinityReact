@@ -41,7 +41,7 @@ SUITES = {
     "verify-release-plan.py": 18,
     "verify-schema-probe.py": 12,
     "verify-schema-probe-setup.py": 20,
-    "verify-schema-probe-execution.py": 28,
+    "verify-schema-probe-execution.py": 30,
     "verify-image-acceptance.py": 29,
     "verify-private-runtime.py": 63,
     "verify-hosting.py": 135,

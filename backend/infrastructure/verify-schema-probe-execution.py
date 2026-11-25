@@ -492,6 +492,7 @@ class ExecutionTests(unittest.TestCase):
     def test_cli_validation_classifies_without_payload(self):
         for stderr, label in (
             ("Parameter validation failed: secret", "CliParameterValidation"),
+            ("An error occurred (ParamValidation): secret", "CliParameterValidation"),
             ("Error parsing parameter secret", "CliArgumentError"),
             ("Unknown options: secret", "CliArgumentError"),
         ):
@@ -506,6 +507,48 @@ class ExecutionTests(unittest.TestCase):
                     aws("lambda", "invoke", {})
                 self.assertIn(f"code={label}; exit_status=252", str(error.exception))
                 self.assertNotIn("secret", str(error.exception))
+
+    def test_invoke_uses_explicit_cli_arguments_and_decodes_response(self):
+        for purpose in ("probe", "upgrade"):
+            parameters = {
+                "FunctionName": "synthetic-private-worker",
+                "InvocationType": "RequestResponse",
+                "LogType": "None",
+                "Payload": '{"operation":"synthetic-observation"}',
+            }
+
+            def invoke(command, purpose=purpose, **kwargs):
+                self.assertEqual(command[:3], ["aws", "lambda", "invoke"])
+                self.assertNotIn("--cli-input-json", command)
+                for option, expected in (
+                    ("--function-name", "synthetic-private-worker"),
+                    ("--invocation-type", "RequestResponse"),
+                    ("--log-type", "None"),
+                    ("--payload", '{"operation":"synthetic-observation"}'),
+                    ("--cli-binary-format", "raw-in-base64-out"),
+                    ("--cli-read-timeout", "135" if purpose == "upgrade" else "75"),
+                ):
+                    self.assertEqual(command.count(option), 1)
+                    self.assertEqual(command[command.index(option) + 1], expected)
+                self.assertEqual(kwargs["env"]["AWS_MAX_ATTEMPTS"], "1")
+                Path(command[-1]).write_text('{"synthetic_result":true}')
+                return SimpleNamespace(returncode=0, stdout='{"StatusCode":200}', stderr="")
+
+            with (
+                self.subTest(purpose=purpose),
+                patch("schema_probe_operator.subprocess.run", side_effect=invoke) as run,
+            ):
+                self.assertEqual(
+                    aws("lambda", "invoke", parameters, purpose=purpose),
+                    {"StatusCode": 200, "Payload": {"synthetic_result": True}},
+                )
+                self.assertEqual(run.call_count, 1)
+
+    def test_invoke_refuses_unmapped_parameters_before_execution(self):
+        with patch("schema_probe_operator.subprocess.run") as run:
+            with self.assertRaisesRegex(RuntimeError, "Unsupported invocation parameter"):
+                aws("lambda", "invoke", {"UnreviewedOption": "synthetic"})
+            run.assert_not_called()
 
     def test_process_timeout_retains_uncertainty_without_command_or_retry(self):
         with patch(

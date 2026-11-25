@@ -33,6 +33,13 @@ The original roadmap groups M8/M9 as staging/UAT followed by launch/operations; 
 
 ## Complete journey
 
+### 25 November 2026 — private invocation CLI parameter diagnosis
+
+PR141 merged as80af317 and main45575376710 passed. Image45579058930 published digest `sha256:a54c42843b3c057236df70eb630a5b5c039f78afe71f1c3305be004b98a1343f` under the unchanged developer exception. Preparation45582127736 matched the local review; create45582550746 submitted the new owned stack. Collect45583758690 failed at lambda/invoke with UnclassifiedCliFailure/exit252, retained in artifact15007363378. Source/image/account/stack checks passed first; no catalog receipt or application deployment was accepted.
+
+A credential-free reproduction with official AWS CLI2.42.3 rejects the original --cli-input-json invocation with ParamValidation, required --function-name, exit252. Explicit --function-name/--invocation-type/--log-type/--payload options pass parsing and reach NoCredentials/exit253. This is local parser evidence, not live Lambda acceptance or proof of the historical runner's CLI version. The shared probe/upgrade adapter now uses explicit invoke options, preserves raw JSON payload encoding, output-file decoding, timeout budgets and one-attempt behavior, and classifies the ParamValidation diagnostic without raw content. Other AWS operations retain cli-input-json. Regression coverage checks both purposes, decoded output, unsupported parameter rejection and the upgrade lifecycle fixture. No IAM broadening or retry was added. Cleanup45584484345 passed with cleanup_submitted; cleanup-check45585099637 is pending protected approval. All910 offline infrastructure tests passed; the30 focused operator cases passed after formatting. Reinstating the original adapter fails both probe and upgrade argument regressions. Ruff lint/410-file format and172 OpenAPI operations passed. CI/live invocation remain pending.
+
+
 ### 31 October 2026 — PDF canvas comparison and software-backed readback mitigation
 
 Transport candidateca17e20 passed all369 local real-API cases in21.1minutes with2 workers and no retries; the strict receipt checker passed and owned Docker resources were removed. Its CI run41199629750 passed both API shards and aggregate while frontend/backend remained pending. PR114 fresh-main run41198362253 completed successfully. The obsolete PR115 docs-only run41198468301 was cancelled to release the updated candidate, not represented as passed.
