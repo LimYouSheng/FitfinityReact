@@ -150,13 +150,23 @@ def storage(profile, *, browser_origin):
                             {"ServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}
                         ]
                     },
+                    "LifecycleConfiguration": {
+                        "Rules": [
+                            {
+                                "Id": "AbortIncompleteMultipartUploads",
+                                "Status": "Enabled",
+                                "Prefix": "",
+                                "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 7},
+                            }
+                        ]
+                    },
                     "CorsConfiguration": {
                         "CorsRules": [
                             {
                                 "AllowedOrigins": [browser_origin],
                                 "AllowedMethods": ["GET", "PUT", "HEAD"],
                                 "AllowedHeaders": ["*"],
-                                "ExposeHeaders": ["ETag", "x-amz-checksum-sha256"],
+                                "ExposedHeaders": ["ETag", "x-amz-checksum-sha256"],
                                 "MaxAge": 300,
                             }
                         ]
