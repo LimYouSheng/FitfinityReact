@@ -245,7 +245,7 @@ def prepare(profile, stack, resource_inventory, *, boundary_stack=None, boundary
                 f"arn:aws:iam::{account}:role/{target['resource_prefix']}-hosting-api",
                 Condition={"StringEquals": {"iam:PassedToService": "lambda.amazonaws.com"}},
             ),
-            allow(["lambda:UpdateAlias"], function + ":" + target["runtime_alias"]),
+            allow(["lambda:UpdateAlias"], [function, function + ":" + target["runtime_alias"]]),
             allow(["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"], repository),
             allow(
                 [
