@@ -136,11 +136,12 @@ def prepare(profile, stack, resource_inventory, *, boundary_stack=None, boundary
                     "cloudformation:DescribeStackResource",
                     "cloudformation:ListStackResources",
                     "cloudformation:GetTemplate",
+                    "cloudformation:DescribeChangeSet",
                 ],
                 stack["StackId"],
             ),
             allow(
-                ["cloudformation:DescribeChangeSet", "cloudformation:ExecuteChangeSet"],
+                ["cloudformation:ExecuteChangeSet"],
                 stack["StackId"],
                 Condition={"StringLike": change_names},
             ),
