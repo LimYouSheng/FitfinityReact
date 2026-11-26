@@ -3,6 +3,7 @@
 import json
 import unittest
 from copy import deepcopy
+from unittest.mock import patch
 
 import hosting_design as design
 from deployment_profile import DEVELOPER, fingerprint
@@ -727,7 +728,15 @@ class MaintenanceTests(unittest.TestCase):
         self.assertFalse(any(row[1] == "execute-change-set" for row in self.events))
         observed = self.step("record-pause-inspect", created, now=1003)
         submitted = self.step("record-pause-execute", observed, now=1004)
-        verified = self.step("record-pause-verify", submitted, now=1005)
+        provider = self.call
+
+        def deleted_change_set(service, operation, arguments):
+            if operation == "describe-change-set" or arguments.get("ChangeSetName"):
+                raise RuntimeError("ChangeSetNotFound")
+            return provider(service, operation, arguments)
+
+        with patch.object(self, "call", side_effect=deleted_change_set):
+            verified = self.step("record-pause-verify", submitted, now=1005)
         self.assertEqual(verified["state"], "paused")
         self.assertEqual(verified["pause_record"]["state"], "template_verified")
         self.assertEqual(verified["drained_after"], 1031)
