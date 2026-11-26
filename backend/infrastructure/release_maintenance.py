@@ -493,7 +493,7 @@ def record_pause(mode, review, prior, receipt, call, persist, *, profile, now):
     )
     require(action == "create" or previous is not None, "Original pause-record intent required")
     original = read_template(
-        call, review["hosting_stack_arn"], None if action == "create" else name
+        call, review["hosting_stack_arn"], None if action in {"create", "verify"} else name
     )
     original = deepcopy(original)
     if action != "create":

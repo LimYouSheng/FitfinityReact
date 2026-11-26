@@ -295,7 +295,37 @@ class ExecutionTests(unittest.TestCase):
         observed = self.run_step("inspect", created)
         self.assertFalse(observed.get("execution_requested", False))
         submitted = self.run_step("execute", observed)
-        verified = self.run_step("verify", submitted)
+        provider = self.call
+
+        def deleted_change_set(service, operation, arguments):
+            if operation == "describe-change-set" or arguments.get("ChangeSetName"):
+                raise RuntimeError("ChangeSetNotFound")
+            return provider(service, operation, arguments)
+
+        with patch.object(self, "call", side_effect=deleted_change_set):
+            verified = self.run_step("verify", submitted)
+            for defect in ("intent", "status", "template", "change-set", "owner"):
+                with self.subTest(defect=defect):
+                    receipt = deepcopy(submitted)
+                    if defect == "intent":
+                        receipt.pop("execution_requested")
+                    elif defect == "status":
+                        self.stack["StackStatus"] = "UPDATE_ROLLBACK_COMPLETE"
+                    elif defect == "template":
+                        self.current_template["Description"] = "unreviewed"
+                    elif defect == "change-set":
+                        receipt["change_set_arn"] = receipt["change_set_arn"].replace(
+                            "418638389566", "111111111111"
+                        )
+                    else:
+                        self.function["Tags"]["FitfinityMaintenance"] = "foreign"
+                    with self.assertRaises(RuntimeError):
+                        self.run_step("verify", receipt)
+                    self.function["Tags"]["FitfinityMaintenance"] = self.review[
+                        "maintenance_marker"
+                    ]
+                    self.stack["StackStatus"] = "UPDATE_COMPLETE"
+                    self.current_template = deepcopy(self.review["candidate_template"])
         self.assertEqual(verified["state"], "template_verified")
         self.assertEqual(self.concurrency, 0)
         self.assertEqual(sum(op == "execute-change-set" for _, op, _ in self.calls), 1)

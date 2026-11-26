@@ -359,6 +359,22 @@ def execute(
         require(result.get("StackId") == review["stack_arn"], "Created change-set stack differs")
         check_change_set_arn(result.get("Id"), name, profile)
         receipt["change_set_arn"] = result["Id"]
+    elif action == "verify":
+        require(
+            prior is not None and prior.get("execution_requested") is True,
+            "Original execution intent required",
+        )
+        check_change_set_arn(prior.get("change_set_arn"), name, profile)
+        require(stack.get("StackStatus") == "UPDATE_COMPLETE", "Original release is not complete")
+        require(
+            template(call, review["stack_arn"]) == review["candidate_template"],
+            "Deployed template differs",
+        )
+        receipt.update(
+            state="template_verified",
+            execution_requested=True,
+            change_set_arn=prior["change_set_arn"],
+        )
     else:
         require(prior is not None, "Original release intent required")
         change_set = call(
@@ -436,16 +452,5 @@ def execute(
                     "ClientRequestToken": review["operation_id"] + "-execute",
                 },
             )
-        else:
-            require(
-                change_set.get("ExecutionStatus") == "EXECUTE_COMPLETE"
-                and stack.get("StackStatus") == "UPDATE_COMPLETE",
-                "Original release is not complete",
-            )
-            require(
-                template(call, review["stack_arn"]) == review["candidate_template"],
-                "Deployed template differs",
-            )
-            receipt.update(state="template_verified", execution_requested=True)
     persist(dict(receipt))
     return receipt
