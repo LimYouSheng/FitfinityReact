@@ -103,15 +103,16 @@ def maintenance_backup(review, call, persist, *, profile, prior=None, clock=None
     require(receipt.get("state") == "paused", "Pause was not observed")
     while clock() < receipt["drained_after"]:
         runner.delay(receipt["drained_after"] - clock())
-    receipt = runner.run("record-pause-create", receipt)
-    receipt = runner.wait(
-        "record-pause-inspect", receipt, lambda row: change_set_ready(row["pause_record"])
-    )
-    receipt = runner.run("record-pause-execute", receipt)
-    receipt = runner.wait(
-        "record-pause-inspect", receipt, lambda row: stack_complete(row["pause_record"])
-    )
-    receipt = runner.run("record-pause-verify", receipt)
+    if "prior_pause_record_sha256" not in review:
+        receipt = runner.run("record-pause-create", receipt)
+        receipt = runner.wait(
+            "record-pause-inspect", receipt, lambda row: change_set_ready(row["pause_record"])
+        )
+        receipt = runner.run("record-pause-execute", receipt)
+        receipt = runner.wait(
+            "record-pause-inspect", receipt, lambda row: stack_complete(row["pause_record"])
+        )
+        receipt = runner.run("record-pause-verify", receipt)
     receipt = runner.run("snapshot", receipt)
     return runner.wait("snapshot-check", receipt, lambda row: row.get("state") == "snapshot_ready")
 

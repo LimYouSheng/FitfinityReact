@@ -303,7 +303,10 @@ class ExecutionTests(unittest.TestCase):
             return provider(service, operation, arguments)
 
         with patch.object(self, "call", side_effect=deleted_change_set):
-            verified = self.run_step("verify", submitted)
+            observed = self.run_step("inspect", submitted)
+            self.assertTrue(observed["execution_requested"])
+            self.assertEqual(observed["execution_status"], "EXECUTE_COMPLETE")
+            verified = self.run_step("verify", observed)
             for defect in ("intent", "status", "template", "change-set", "owner"):
                 with self.subTest(defect=defect):
                     receipt = deepcopy(submitted)
@@ -873,7 +876,17 @@ class ExecutionTests(unittest.TestCase):
             with self.assertRaises(TimeoutError):
                 run("execute", created)
         submitted = self.receipts[-1]
-        with patch("time.time", return_value=100000):
+        provider = self.rollout_call
+
+        def deleted_change_set(service, operation, arguments):
+            if operation == "describe-change-set" or arguments.get("ChangeSetName"):
+                raise RuntimeError("ChangeSetNotFound")
+            return provider(service, operation, arguments)
+
+        with (
+            patch("time.time", return_value=100000),
+            patch.object(self, "rollout_call", side_effect=deleted_change_set),
+        ):
             inspected = run("inspect", submitted)
             verified = run("verify", inspected)
         self.assertEqual(verified["state"], "template_verified")

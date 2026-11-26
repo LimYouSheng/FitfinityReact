@@ -604,6 +604,78 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(sum(row[1] == "execute-change-set" for row in self.events), 1)
         self.assertFalse(any(row[1] == "put-function-concurrency" for row in self.events))
 
+        for defect in (None, "digest", "runtime", "template", "snapshot", "unverified", "expiry"):
+            with self.subTest(recorded_pause=defect):
+                self.setUp()
+                self.host_template["Resources"]["ApiFunction"]["Properties"][
+                    "ReservedConcurrentExecutions"
+                ] = 2
+                self.review.update(
+                    hosting_stack_arn=self.host_stack,
+                    hosting_template_sha256=digest(self.host_template),
+                )
+                prior = self.step("inspect", self.step("pause"), now=1001)
+                prior = self.step("record-pause-create", prior, now=1002)
+                prior = self.step("record-pause-execute", prior, now=1003)
+                prior = self.step("record-pause-verify", prior, now=1004)
+                original = deepcopy(prior)
+                self.review.update(
+                    source_sha="c" * 40,
+                    operation_id="d" * 32,
+                    function_revision=self.revision,
+                    hosting_template_sha256=digest(self.host_template),
+                    prior_identity=deepcopy(prior["identity"]),
+                    prior_pause_record_sha256=digest(prior["pause_record"]),
+                )
+                self.change_set = None
+                self.events.clear()
+                self.saved.clear()
+                if defect == "digest":
+                    self.review["prior_pause_record_sha256"] = "0" * 64
+                elif defect == "runtime":
+                    self.config_changes = {"MemorySize": 999}
+                elif defect == "template":
+                    self.host_template["Description"] = "changed"
+                elif defect == "snapshot":
+                    self.snapshot = {"Status": "available"}
+                elif defect == "unverified":
+                    prior["pause_record"]["state"] = "execute_submitted"
+                    self.review["prior_pause_record_sha256"] = digest(prior["pause_record"])
+                elif defect == "expiry":
+                    self.review["expires_at"] = 1004
+                clock = [1005]
+
+                def run(prior=prior, clock=clock):
+                    return maintenance_backup(
+                        self.review,
+                        self.call,
+                        lambda receipt: self.saved.append(deepcopy(receipt)),
+                        profile=self.profile,
+                        prior=prior,
+                        clock=lambda: clock[0],
+                        pause=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
+                    )
+
+                if defect:
+                    with self.assertRaises(RuntimeError):
+                        run()
+                    self.assertFalse(self.saved)
+                    self.assertFalse(any(row[1] == "tag-resource" for row in self.events))
+                else:
+                    renewed = run()
+                    self.assertEqual(renewed["state"], "snapshot_ready")
+                    self.assertEqual(renewed["adopted_from"], original["identity"])
+                    self.assertEqual(renewed["adopted_recorded_pause"], original["pause_record"])
+                    self.assertEqual(prior, original)
+                    self.assertEqual(sum(row[1] == "create-db-snapshot" for row in self.events), 1)
+                self.assertFalse(
+                    any(
+                        row[1]
+                        in {"create-change-set", "execute-change-set", "put-function-concurrency"}
+                        for row in self.events
+                    )
+                )
+
     def test_backup_milestone_preserves_uncertain_intent_without_replaying(self):
         from release_milestones import maintenance_backup
 

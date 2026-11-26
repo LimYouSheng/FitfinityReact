@@ -248,7 +248,19 @@ def execute_step(
     owner = review.get("external_boundary")
     external = None
     if mode in {"inspect", "verify"}:
-        candidate = template(call, review["stack_arn"], "release-" + review["operation_id"])
+        installed = mode == "verify"
+        if mode == "inspect" and prior.get("execution_requested"):
+            stacks = call("cloudformation", "describe-stacks", {"StackName": review["stack_arn"]})[
+                "Stacks"
+            ]
+            require(
+                len(stacks) == 1 and stacks[0].get("StackId") == review["stack_arn"],
+                "Original rollout stack required",
+            )
+            installed = stacks[0].get("StackStatus") == "UPDATE_COMPLETE"
+        candidate = template(
+            call, review["stack_arn"], None if installed else "release-" + review["operation_id"]
+        )
         original = restore_original(candidate, original_release, **feature_args)
     else:
         original = template(call, review["stack_arn"])
