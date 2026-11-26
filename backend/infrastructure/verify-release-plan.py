@@ -647,9 +647,11 @@ class MaintenanceTests(unittest.TestCase):
 
                 def run(prior=prior, clock=clock):
                     return maintenance_backup(
-                        self.review, self.call,
+                        self.review,
+                        self.call,
                         lambda receipt: self.saved.append(deepcopy(receipt)),
-                        profile=self.profile, prior=prior,
+                        profile=self.profile,
+                        prior=prior,
                         clock=lambda: clock[0],
                         pause=lambda seconds: clock.__setitem__(0, clock[0] + seconds),
                     )
@@ -666,9 +668,13 @@ class MaintenanceTests(unittest.TestCase):
                     self.assertEqual(renewed["adopted_recorded_pause"], original["pause_record"])
                     self.assertEqual(prior, original)
                     self.assertEqual(sum(row[1] == "create-db-snapshot" for row in self.events), 1)
-                self.assertFalse(any(row[1] in {
-                    "create-change-set", "execute-change-set", "put-function-concurrency"
-                } for row in self.events))
+                self.assertFalse(
+                    any(
+                        row[1]
+                        in {"create-change-set", "execute-change-set", "put-function-concurrency"}
+                        for row in self.events
+                    )
+                )
 
     def test_backup_milestone_preserves_uncertain_intent_without_replaying(self):
         from release_milestones import maintenance_backup

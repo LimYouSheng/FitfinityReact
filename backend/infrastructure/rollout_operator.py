@@ -250,9 +250,9 @@ def execute_step(
     if mode in {"inspect", "verify"}:
         installed = mode == "verify"
         if mode == "inspect" and prior.get("execution_requested"):
-            stacks = call(
-                "cloudformation", "describe-stacks", {"StackName": review["stack_arn"]}
-            )["Stacks"]
+            stacks = call("cloudformation", "describe-stacks", {"StackName": review["stack_arn"]})[
+                "Stacks"
+            ]
             require(
                 len(stacks) == 1 and stacks[0].get("StackId") == review["stack_arn"],
                 "Original rollout stack required",
