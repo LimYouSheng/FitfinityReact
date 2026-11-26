@@ -433,7 +433,8 @@ def adopt_pause(
     require(
         len(stacks) == 1
         and stacks[0].get("StackId") == review["hosting_stack_arn"]
-        and stacks[0].get("StackStatus") in {"CREATE_COMPLETE", "UPDATE_COMPLETE"}
+        and stacks[0].get("StackStatus")
+        in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"}
         and not stacks[0].get("ParentId")
         and stacks[0].get("RoleARN") in (None, service_role_arn(profile)),
         "Stable owned hosting stack required for adoption",

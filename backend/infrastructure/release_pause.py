@@ -22,7 +22,8 @@ def require_recorded_pause(call, profile):
         len(rows) == 1
         and rows[0].get("StackName") == target["hosting_stack"]
         and re.fullmatch(re.escape(prefix) + r"[a-f0-9-]+", rows[0].get("StackId", ""))
-        and rows[0].get("StackStatus") in {"CREATE_COMPLETE", "UPDATE_COMPLETE"},
+        and rows[0].get("StackStatus")
+        in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"},
         "Stable target hosting stack required before migration or rollout",
     )
     value = call(

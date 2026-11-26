@@ -88,7 +88,10 @@ def observe(call=None, *, profile=DEVELOPER):
     stacks = call("cloudformation", "describe-stacks", "--stack-name", name)["Stacks"]
     require(len(stacks) == 1 and stacks[0]["StackName"] == name, "Hosting stack differs")
     stack = stacks[0]
-    require(stack["StackStatus"] in {"CREATE_COMPLETE", "UPDATE_COMPLETE"}, "Stack is not stable")
+    require(
+        stack["StackStatus"] in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"},
+        "Stack is not stable",
+    )
     template = call("cloudformation", "get-template", "--stack-name", stack["StackId"])[
         "TemplateBody"
     ]
