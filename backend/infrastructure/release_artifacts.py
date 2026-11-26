@@ -14,6 +14,14 @@ from schema_probe_artifacts import fetch
 def collect(repo, destination, runs, *, source, profile, database, schema_action, clock=time.time):
     """Bind successful manual-main producers to the clean checkout and inspect their contents."""
     runs = dict(runs)
+    upgrade_source = runs.pop("upgrade_source", source)
+    require(
+        isinstance(upgrade_source, str) and re.fullmatch(r"[a-f0-9]{40}", upgrade_source),
+        "Exact upgrade producer source required",
+    )
+    require(
+        upgrade_source == source or schema_action == "upgrade", "Upgrade source without upgrade"
+    )
     fresh_run = None
     if "fresh_catalog" in runs:
         fresh_run = runs.pop("fresh_catalog")
@@ -47,7 +55,7 @@ def collect(repo, destination, runs, *, source, profile, database, schema_action
             "review" if kind == "frontend" else kind,
             runs[kind],
             destination / kind,
-            source,
+            upgrade_source if kind == "upgrade" else source,
             profile=profile,
         )
     if fresh_run:
@@ -81,6 +89,7 @@ def collect(repo, destination, runs, *, source, profile, database, schema_action
         schema_action=schema_action,
         now=clock(),
         fresh_probe=fresh_probe,
+        upgrade_source=upgrade_source,
     )
     result["producer_runs"] = dict(runs)
     if fresh_run:

@@ -788,3 +788,9 @@ For the developer rehearsal, repository activation variables are `AWS_IMAGE_RELE
 ### Developer setup reconstruction checkpoint
 
 The [26 November reconstruction record](journey.md#26-november-2026--local-reconstruction-checkpoint-for-client-bootstrap) binds successful IAM, S3 and multipart-lifecycle operations to receipts and source generators. These resources and the API feature boundary are installed and operator-verified in the developer account; the runtime inline permissions and feature flags still await reviewed rollout. Use existing-owner updates, not historical CREATE snippets. Keep the API role/feature activation in the reviewed rollout. Completed-media cleanup scheduling remains unverified. The master client bootstrap is still planned; local CloudShell wrappers and records do not establish a tested client installation path.
+
+### Continue rollout after a completed upgrade
+
+When a successful upgrade retained an earlier pause/backup marker, preserve that exact marker. In rollout `producer_runs_json`, use the numeric `upgrade` run plus explicit `upgrade_source` (its full commit SHA). Frontend, image and catalog remain bound to the current release source. The authenticated upgrade must be successful and prove the original maintenance identity and any backup transition. The upgrade source must be an ancestor with identical protected application, migration and schema inputs. Missing or changed proof stops upload, rollout and resume before provider effects.
+
+This does not repeat migration, create a replacement snapshot, retag maintenance or extend approvals. Fresh current-source catalog, scan acceptance and reviewed template hashes remain mandatory. After the source fix is merged and main checks pass, prepare fresh release evidence, use the existing rollout `deploy` milestone while paused, then separately approve `resume`. Live/provider acceptance remains pending.

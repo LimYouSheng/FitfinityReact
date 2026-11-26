@@ -122,6 +122,7 @@ def validate(
     schema_action,
     now,
     fresh_probe=None,
+    upgrade_source=None,
 ):
     """Validate trusted-workflow artifact contents without cloud calls or deployment authority."""
     target = identities(profile)
@@ -194,24 +195,29 @@ def validate(
     grants = json.loads((repo / "backend/app/runtime-grants.json").read_text())
     require(grants["schema_revision"] == chain[-1]["revision"], "Runtime grant schema differs")
     require(schema_action in {"unchanged", "upgrade"}, "Explicit schema action required")
+    continuity = None
     if schema_action == "unchanged":
         require(upgrade is None, "Do not discard or reinterpret an upgrade receipt")
     else:
         require(isinstance(upgrade, dict), "Completed upgrade receipt required")
         identity, result = upgrade.get("identity", {}), upgrade.get("result", {})
+        producer_source = upgrade_source or source
         require(
             upgrade.get("state") in {"upgraded", "already_at_target"}
             and result.get("outcome") == upgrade["state"]
-            and result.get("source_sha") == source
+            and result.get("source_sha") == producer_source
             and result.get("schema") == chain[-1]["revision"]
             and result.get("from_revision") in {row["revision"] for row in chain[:-1]}
             and re.fullmatch(r"[a-f0-9]{32}", result.get("operation_id", ""))
             and identity.get("FitfinityOperation") == result["operation_id"]
-            and identity.get("FitfinitySource") == source
+            and identity.get("FitfinitySource") == producer_source
             and identity.get("FitfinityProfile") == target["profile_sha256"]
             and re.fullmatch(r"[a-f0-9]{64}", identity.get("FitfinityTemplate", "")),
-            "Completed same-source upgrade and grant receipt required",
+            "Completed bound-source upgrade and grant receipt required",
         )
+        from upgrade_continuity import evidence as continuity_evidence
+
+        continuity = continuity_evidence(upgrade, source, profile)
     catalog = observed_catalog(
         probe,
         source=source,
@@ -238,6 +244,7 @@ def validate(
         "schema": grants["schema_revision"],
         "catalog_observed_at": observed,
         "schema_action": schema_action,
+        **({"upgrade_continuity": continuity} if continuity else {}),
         "required_image_files": required,
         "remaining": (
             "Fresh live image scan, owned resources, uploaded frontend, "
