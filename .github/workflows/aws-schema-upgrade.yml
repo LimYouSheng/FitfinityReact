@@ -36,7 +36,7 @@ on:
         type: string
         required: false
       maintenance_run:
-        description: Successful same-source maintenance snapshot-check run required for invoke
+        description: Snapshot-ready run ID, or JSON with run and source_sha for explicit backup continuation
         type: string
         required: false
       stack_id:

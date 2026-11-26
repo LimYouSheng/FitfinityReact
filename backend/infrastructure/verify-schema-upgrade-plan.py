@@ -649,6 +649,161 @@ class UpgradeExecutionTests(unittest.TestCase):
             now=now,
         )
 
+    def test_backup_transition_keeps_original_ownership_and_rejects_changed_runtime(self):
+        from unittest.mock import patch
+
+        from backup_transition import prepare_transition
+        from release_maintenance import runtime_fingerprint
+        from schema_upgrade_execution import readiness
+
+        self.evidence["maintenance"]["runtime_sha256"] = runtime_fingerprint(
+            self.call("lambda", "get-function", {"FunctionName": "client-prod-staff-api"})
+        )
+        self.evidence["baseline_catalog"] = copy.deepcopy(self.evidence["catalog"])
+        binding = {**self.binding, "source_sha": "b" * 40}
+        with (
+            patch("backup_transition.source_fingerprint", return_value="c" * 64),
+            patch("backup_transition.subprocess.run") as ancestor,
+        ):
+            ancestor.return_value.returncode = 0
+            self.evidence["backup_transition"] = prepare_transition(
+                self.evidence["maintenance"],
+                self.evidence["baseline_catalog"],
+                binding["source_sha"],
+            )
+            original = copy.deepcopy(self.evidence["maintenance"])
+            readiness(binding, self.evidence, self.call, profile=CLIENT, now=1000)
+            self.assertEqual(self.evidence["maintenance"], original)
+            self.assertFalse(
+                {"invoke", "tag-resource", "create-db-snapshot"} & {n for n, _ in self.calls}
+            )
+            for defect in ("transition", "catalog", "runtime", "snapshot", "concurrency"):
+                evidence = copy.deepcopy(self.evidence)
+                with self.subTest(defect=defect):
+                    if defect == "transition":
+                        evidence["backup_transition"]["maintenance_sha256"] = "0" * 64
+                    elif defect == "catalog":
+                        evidence["catalog"]["alembic_revisions"] = ["20261101_0052"]
+                    elif defect == "runtime":
+                        live = self.call(
+                            "lambda", "get-function", {"FunctionName": "client-prod-staff-api"}
+                        )
+                        live["Configuration"]["MemorySize"] = 1024
+                        self.overrides["get-function"] = live
+                    elif defect == "snapshot":
+                        self.overrides["describe-db-snapshots"] = {"DBSnapshots": []}
+                    else:
+                        self.overrides["get-function-concurrency"] = {
+                            "ReservedConcurrentExecutions": 2
+                        }
+                    with self.assertRaises(RuntimeError):
+                        readiness(binding, evidence, self.call, profile=CLIENT, now=1000)
+                    self.overrides.clear()
+
+    def test_backup_transition_source_inventory_and_explicit_selection_fail_closed(self):
+        from unittest.mock import patch
+
+        from backup_transition import prepare_transition, source_fingerprint
+        from schema_upgrade_artifacts import maintenance_run
+
+        base = b"100644 blob " + b"1" * 40 + b"\tbackend/app/main.py\0"
+        with patch("backup_transition.subprocess.check_output", return_value=base):
+            original = source_fingerprint("a" * 40)
+        for path in (
+            "backend/migrations/versions/new.py",
+            "backend/infrastructure/read-schema.sql",
+            "backend/Dockerfile",
+            "unknown.txt",
+        ):
+            changed = base + b"100644 blob " + b"2" * 40 + b"\t" + path.encode() + b"\0"
+            with patch("backup_transition.subprocess.check_output", return_value=changed):
+                self.assertNotEqual(source_fingerprint("b" * 40), original)
+        with patch(
+            "backup_transition.subprocess.check_output",
+            return_value=base.replace(b"100644", b"100755"),
+        ):
+            self.assertNotEqual(source_fingerprint("b" * 40), original)
+        maintenance = {**self.evidence["maintenance"], "runtime_sha256": "c" * 64}
+        for fingerprints, ancestry in ((["c" * 64, "d" * 64], 0), (["c" * 64] * 2, 1)):
+            with (
+                patch("backup_transition.source_fingerprint", side_effect=fingerprints),
+                patch("backup_transition.subprocess.run") as process,
+            ):
+                process.return_value.returncode = ancestry
+                with self.assertRaises(RuntimeError):
+                    prepare_transition(maintenance, self.evidence["catalog"], "b" * 40)
+        self.assertEqual(maintenance_run("123", "b" * 40), ("123", "b" * 40))
+        self.assertEqual(
+            maintenance_run(json.dumps({"run": "123", "source_sha": "a" * 40}), "b" * 40),
+            ("123", "a" * 40),
+        )
+        for selection in (
+            {},
+            {"run": "123"},
+            {"run": 123, "source_sha": "a" * 40},
+            {"run": "123", "source_sha": "b" * 40},
+        ):
+            with self.assertRaises(RuntimeError):
+                maintenance_run(json.dumps(selection), "b" * 40)
+
+    def test_explicit_backup_source_fetches_original_baseline_and_records_transition(self):
+        import os
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from schema_upgrade_artifacts import main
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile = root / "profile.json"
+            profile.write_text(json.dumps(CLIENT))
+            env = {
+                "RUNNER_TEMP": directory,
+                "UPGRADE_MODE": "invoke",
+                "REVIEW_RUN": "101",
+                "IMAGE_RUN": "102",
+                "CATALOG_RUN": '{"current":"103","baseline":"105"}',
+                "MAINTENANCE_RUN": json.dumps({"run": "104", "source_sha": "a" * 40}),
+                "GITHUB_SHA": "b" * 40,
+                "DEPLOYMENT_PROFILE": str(profile),
+                "GITHUB_REPOSITORY": CLIENT["github_repository"],
+                "PRIOR_RUN": "",
+                "SNAPSHOT_ARN": self.evidence["snapshot_arn"],
+            }
+            transition = {"from_source": "a" * 40, "to_source": "b" * 40}
+            for baseline in (True, False):
+                with (
+                    self.subTest(baseline=baseline),
+                    patch.dict(os.environ, env),
+                    patch("schema_upgrade_artifacts.fetch", return_value="b" * 40),
+                    patch("schema_upgrade_artifacts.operational") as operation,
+                    patch(
+                        "schema_upgrade_artifacts.prepare_transition", return_value=transition
+                    ) as prepare,
+                ):
+                    operation.side_effect = [
+                        self.evidence["catalog"],
+                        self.evidence["maintenance"],
+                        self.evidence["catalog"],
+                    ]
+                    if not baseline:
+                        os.environ["CATALOG_RUN"] = "103"
+                        with self.assertRaisesRegex(RuntimeError, "Original pre-backup catalog"):
+                            main()
+                        prepare.assert_not_called()
+                        continue
+                    main()
+                    result = json.loads((root / "upgrade-evidence.json").read_text())
+                    self.assertEqual(result["backup_transition"], transition)
+                    self.assertEqual(result["maintenance"], self.evidence["maintenance"])
+                    self.assertEqual(
+                        [c.kwargs["source"] for c in operation.call_args_list],
+                        ["b" * 40, "a" * 40, "a" * 40],
+                    )
+                    prepare.assert_called_once_with(
+                        self.evidence["maintenance"], self.evidence["catalog"], "b" * 40
+                    )
+
     def test_missing_stack_input_uses_owned_prior_and_conflicts_still_fail(self):
         created = self.run_mode("create")
 

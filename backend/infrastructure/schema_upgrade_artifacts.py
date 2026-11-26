@@ -6,6 +6,7 @@ import re
 import subprocess
 from pathlib import Path
 
+from backup_transition import prepare_transition
 from deployment_profile import identities, load
 from operator_checks import require
 from release_evidence import observed_catalog
@@ -61,7 +62,30 @@ def operational(kind, run_id, destination, *, profile, source=None):
             profile_sha256=identities(profile)["profile_sha256"],
             sql_path=Path(__file__).with_name("read-schema.sql"),
         )
+    if kind == "maintenance":
+        require(
+            receipt.get("identity", {}).get("source_sha") == producer,
+            "Maintenance receipt differs from its authenticated producer",
+        )
     return receipt
+
+
+def maintenance_run(value, source):
+    """Read a run ID or explicit original source for a backed-up release transition."""
+    if re.fullmatch(r"[1-9][0-9]*", value):
+        return value, source
+    selection = json.loads(value)
+    require(
+        isinstance(selection, dict)
+        and set(selection) == {"run", "source_sha"}
+        and isinstance(selection["run"], str)
+        and re.fullmatch(r"[1-9][0-9]*", selection["run"])
+        and isinstance(selection["source_sha"], str)
+        and re.fullmatch(r"[a-f0-9]{40}", selection["source_sha"])
+        and selection["source_sha"] != source,
+        "Exact original maintenance run and distinct source required",
+    )
+    return selection["run"], selection["source_sha"]
 
 
 def catalog_runs(value):
@@ -108,21 +132,22 @@ def main():
             profile=profile,
             source=source,
         )
+        maintenance_id, backup_source = maintenance_run(os.environ["MAINTENANCE_RUN"], source)
         maintenance = operational(
             "maintenance",
-            os.environ["MAINTENANCE_RUN"],
+            maintenance_id,
             root / "upgrade-maintenance",
             profile=profile,
-            source=source,
+            source=backup_source,
         )
         arn = os.environ["SNAPSHOT_ARN"]
-        verified_snapshot(maintenance, arn, identities(profile), source)
+        verified_snapshot(maintenance, arn, identities(profile), backup_source)
         evidence = {
             "catalog": catalog,
             "snapshot_arn": arn,
             "maintenance": maintenance,
             "producer_runs": {
-                "maintenance": os.environ["MAINTENANCE_RUN"],
+                "maintenance": maintenance_id,
                 "catalog": current_run,
                 "baseline_catalog": baseline_run or current_run,
             },
@@ -133,7 +158,12 @@ def main():
                 baseline_run,
                 root / "upgrade-baseline-catalog",
                 profile=profile,
-                source=source,
+                source=backup_source,
+            )
+        if backup_source != source:
+            require(baseline_run is not None, "Original pre-backup catalog producer required")
+            evidence["backup_transition"] = prepare_transition(
+                maintenance, evidence["baseline_catalog"], source
             )
         (root / "upgrade-evidence.json").write_text(json.dumps(evidence) + "\n")
 

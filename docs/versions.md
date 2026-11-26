@@ -470,7 +470,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [.github/workflows/aws-release-prepare.yml](../.github/workflows/aws-release-prepare.yml) | `0e0dd642dfbdd8a8d17a9c44fa5871968438abfde02edd5b43d1bb0adaa46b89` |
 | [.github/workflows/aws-rollout.yml](../.github/workflows/aws-rollout.yml) | `2027365106df64f469d4e80d5365d47358cd4dd133443c659c75fde02bfa066d` |
 | [.github/workflows/aws-schema-probe.yml](../.github/workflows/aws-schema-probe.yml) | `e046f8e640fb7764f6a1238d4d2304df500b752e757fbac95bb04801572ccebb` |
-| [.github/workflows/aws-schema-upgrade.yml](../.github/workflows/aws-schema-upgrade.yml) | `5bf0ea9926f29c664800e6a0d1b2476e3f8d2e7e0fff8aa2b3f2cb20474e4b1e` |
+| [.github/workflows/aws-schema-upgrade.yml](../.github/workflows/aws-schema-upgrade.yml) | `70f9c71bf1c010218ea6aa3fb6aea4790dd829b461ab85211469558e7cf493a4` |
 | [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `9e6106b70ddcacaa0e59720fe9d0a163c9b4f911e66c93a4897a6fbac00b21af` |
 | [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `08363aca3f30a04a7eddd512d942f90fe1ada2ca6a8c714e01832d3f708b8860` |
 | [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `e68107b42e02a406181347df884aee6dd218badf3507ed8d87dc9786b402e5a0` |

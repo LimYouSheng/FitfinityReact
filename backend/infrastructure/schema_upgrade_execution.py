@@ -5,10 +5,11 @@ import re
 import time
 from datetime import datetime
 
+from backup_transition import prepare_transition
 from deployment_profile import identities
 from operator_checks import require
 from release_evidence import confirm_catalog
-from release_maintenance import check_snapshot_tags, verified_snapshot
+from release_maintenance import check_snapshot_tags, runtime_fingerprint, verified_snapshot
 from release_pause import require_recorded_pause
 from schema_probe_execution import compact, inspect_function, owned_stack, preflight
 from schema_upgrade_plan import prepare, validate_image
@@ -36,7 +37,16 @@ def readiness(binding, evidence, call, *, profile, now):
     baseline_timestamp = confirm_catalog(baseline, catalog, now)
     snapshot = evidence.get("snapshot_arn", "")
     maintenance = evidence.get("maintenance")
-    ownership = verified_snapshot(maintenance, snapshot, target, binding["source_sha"])
+    backup_source = binding["source_sha"]
+    if "backup_transition" in evidence:
+        require("baseline_catalog" in evidence, "Original pre-backup catalog required")
+        require(
+            evidence["backup_transition"]
+            == prepare_transition(maintenance, baseline, backup_source),
+            "Backup transition evidence differs",
+        )
+        backup_source = evidence["backup_transition"]["from_source"]
+    ownership = verified_snapshot(maintenance, snapshot, target, backup_source)
     rows = call("rds", "describe-db-snapshots", {"DBSnapshotIdentifier": snapshot})["DBSnapshots"]
     require(len(rows) == 1, "Snapshot identity differs")
     backup = rows[0]
@@ -86,6 +96,11 @@ def readiness(binding, evidence, call, *, profile, now):
         and tags.get("FitfinitySnapshot") == ownership["marker"],
         "Snapshot must belong to the active drained maintenance operation",
     )
+    if "backup_transition" in evidence:
+        require(
+            runtime_fingerprint(function) == maintenance["runtime_sha256"],
+            "Runtime changed since original backup maintenance",
+        )
     concurrency = call(
         "lambda", "get-function-concurrency", {"FunctionName": target["runtime_function"]}
     )
@@ -253,6 +268,8 @@ def execute(
                         "snapshot_arn": evidence["snapshot_arn"],
                         "maintenance_identity": evidence["maintenance"]["identity"],
                     }
+                if "backup_transition" in evidence:
+                    receipt["backup_transition"] = dict(evidence["backup_transition"])
                 persist(dict(receipt))
                 call(
                     "lambda",

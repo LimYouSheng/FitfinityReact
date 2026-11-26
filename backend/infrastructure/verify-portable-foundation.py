@@ -121,11 +121,24 @@ class PortableFoundationTests(unittest.TestCase):
         self.assertEqual(media["DeletionPolicy"], "Retain")
         self.assertTrue(all(media["Properties"]["PublicAccessBlockConfiguration"].values()))
         self.assertNotIn("VersioningConfiguration", media["Properties"])
-        self.assertNotIn("LifecycleConfiguration", media["Properties"])
+        self.assertEqual(
+            media["Properties"]["LifecycleConfiguration"]["Rules"],
+            [
+                {
+                    "Id": "AbortIncompleteMultipartUploads",
+                    "Status": "Enabled",
+                    "Prefix": "",
+                    "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 7},
+                }
+            ],
+        )
         self.assertEqual(
             media["Properties"]["CorsConfiguration"]["CorsRules"][0]["AllowedOrigins"],
             ["https://staff.client.example"],
         )
+        cors = media["Properties"]["CorsConfiguration"]["CorsRules"][0]
+        self.assertEqual(cors["ExposedHeaders"], ["ETag", "x-amz-checksum-sha256"])
+        self.assertNotIn("ExposeHeaders", cors)
         deny = resources["MediaPolicy"]["Properties"]["PolicyDocument"]["Statement"][0]
         self.assertEqual(deny["Effect"], "Deny")
         self.assertEqual(deny["Condition"], {"Bool": {"aws:SecureTransport": "false"}})
