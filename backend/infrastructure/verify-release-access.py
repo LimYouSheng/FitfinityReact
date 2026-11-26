@@ -53,6 +53,27 @@ class ReleaseAccessTests(unittest.TestCase):
             result = prepare(profile, stack, inventory)
             self.assertEqual(result["decision"], "HOLD")
             self.assertEqual(result["service_role"], stack["RoleARN"])
+            function = (
+                f"arn:aws:lambda:{profile['region']}:{profile['account']}:function:"
+                + profile["resource_prefix"]
+                + "-staff-api"
+            )
+            alias_grants = [
+                row
+                for row in result["service_policy"]["Statement"]
+                if "lambda:UpdateAlias" in row["Action"]
+            ]
+            self.assertEqual(
+                alias_grants,
+                [
+                    {
+                        "Effect": "Allow",
+                        "Action": ["lambda:UpdateAlias"],
+                        "Resource": [function, function + ":" + profile["runtime_alias"]],
+                    }
+                ],
+            )
+
             vpc_reads = [
                 row
                 for row in result["service_policy"]["Statement"]
@@ -199,7 +220,7 @@ class ReleaseAccessTests(unittest.TestCase):
         alias = next(row for row in rows if "lambda:UpdateAlias" in row["Action"])
         self.assertEqual(
             alias["Resource"],
-            f"arn:aws:lambda:ap-southeast-1:418638389566:function:fitfinity-test-staff-api:{DEVELOPER['runtime_alias']}",
+            [function, function + ":" + DEVELOPER["runtime_alias"]],
         )
         distribution = next(row for row in rows if "cloudfront:UpdateDistribution" in row["Action"])
         self.assertEqual(

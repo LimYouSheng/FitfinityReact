@@ -271,3 +271,6 @@ Completed-upgrade continuation preserves the original pause/backup marker only t
 
 
 The release service policy and its matching boundary include only three EC2 VPC validation reads: DescribeSecurityGroups, DescribeSubnets and DescribeVpcs, restricted by aws:RequestedRegion from the target profile. Resource "*" does not grant EC2 mutations; existing function/alias, PassRole and CloudFront write scoping is retained. Completed rollback is a valid baseline for a new reviewed operation, not evidence that the failed deployment succeeded.
+
+
+UpdateAlias is granted on the exact unqualified application function ARN and configured alias ARN in both service policy and boundary. AWS checked the function ARN during the observed CloudFormation update. This is function-scoped authority, not an IAM guarantee limiting updates to one alias; reviewed template validation and protected workflow select the permitted alias. No wildcard function grant is added.
