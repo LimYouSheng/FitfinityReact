@@ -19,7 +19,7 @@ SUITES = {
     "verify-portable-onboarding.py": 3,
     "verify-release-verification.py": 12,
     "verify-release-access.py": 10,
-    "verify-release-execution.py": 44,
+    "verify-release-execution.py": 45,
     "verify-release-health.py": 3,
     "verify-release-features.py": 19,
     "verify-schema-upgrade-plan.py": 25,

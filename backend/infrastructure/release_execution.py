@@ -320,7 +320,8 @@ def execute(
     if action == "create":
         require(prior is None, "Inspect the original create; do not replay")
         require(
-            stack.get("StackStatus") in {"CREATE_COMPLETE", "UPDATE_COMPLETE"},
+            stack.get("StackStatus")
+            in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"},
             "Stable stack required",
         )
         require(
@@ -435,7 +436,8 @@ def execute(
                 "Inspect the original execution; do not replay",
             )
             require(
-                stack.get("StackStatus") in {"CREATE_COMPLETE", "UPDATE_COMPLETE"},
+                stack.get("StackStatus")
+                in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"},
                 "Stable stack required",
             )
             require(

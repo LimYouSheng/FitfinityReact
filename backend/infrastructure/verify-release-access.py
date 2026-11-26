@@ -53,6 +53,27 @@ class ReleaseAccessTests(unittest.TestCase):
             result = prepare(profile, stack, inventory)
             self.assertEqual(result["decision"], "HOLD")
             self.assertEqual(result["service_role"], stack["RoleARN"])
+            vpc_reads = [
+                row
+                for row in result["service_policy"]["Statement"]
+                if any(action.startswith("ec2:") for action in row["Action"])
+            ]
+            self.assertEqual(
+                vpc_reads,
+                [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "ec2:DescribeSecurityGroups",
+                            "ec2:DescribeSubnets",
+                            "ec2:DescribeVpcs",
+                        ],
+                        "Resource": "*",
+                        "Condition": {"StringEquals": {"aws:RequestedRegion": profile["region"]}},
+                    }
+                ],
+            )
+
             for kind in ("operator", "service"):
                 self.assertEqual(result[kind + "_policy"], result[kind + "_boundary"])
                 for row in result[kind + "_policy"]["Statement"]:
@@ -172,7 +193,6 @@ class ReleaseAccessTests(unittest.TestCase):
                     "lambda:PutProvisionedConcurrencyConfig",
                     "lambda:PutRuntimeManagementConfig",
                     "kms:Decrypt",
-                    "ec2:DescribeVpcs",
                 }
             )
         )

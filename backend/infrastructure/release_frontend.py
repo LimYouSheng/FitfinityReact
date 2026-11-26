@@ -50,7 +50,8 @@ def transfer(review, folder, profile, call, persist, *, prior=None, inspect=Fals
     require(
         len(stacks) == 1
         and stacks[0].get("StackId") == review["stack_arn"]
-        and stacks[0].get("StackStatus") in {"CREATE_COMPLETE", "UPDATE_COMPLETE"}
+        and stacks[0].get("StackStatus")
+        in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"}
         and not stacks[0].get("ParentId"),
         "Stable owned frontend stack required",
     )

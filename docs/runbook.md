@@ -799,3 +799,6 @@ One-click discovery requirement (26 November 2026): automatically collect both A
 
 
 CloudFormation change-set review distinguishes direct template changes from unchanged attribute dependencies. An unchanged Fn::GetAtt may appear as Dynamic/ResourceAttribute when its referenced resource changes. Accept only the exact retained reference to another reviewed Modify, with RequiresRecreation Never and Replacement False; require all direct changed properties as before. A successful DescribeChangeSet alone does not mean execution passed validation. Preserve the receipt and inspect before retrying.
+
+
+After UPDATE_ROLLBACK_FAILED, inspect the latest resource error before continuing. For Lambda VPC validation the CloudFormation service role and its boundary need region-bound ec2:DescribeSecurityGroups, ec2:DescribeSubnets and ec2:DescribeVpcs; these Describe APIs use Resource "*". Correct the separate IAM owner stack, then continue the original rollback without skipping resources. Poll describe-stacks: there is no stack-update-rollback-complete CLI waiter. UPDATE_ROLLBACK_COMPLETE permits fresh observation and a newly reviewed release, but never counts as successful deployment. Recheck the restored template, image/alias, feature state, maintenance marker and concurrency; rebind changed IAM fingerprints before further writes.

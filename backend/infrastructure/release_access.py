@@ -25,7 +25,8 @@ def prepare(profile, stack, resource_inventory, *, boundary_stack=None, boundary
     require(
         stack.get("StackName") == target["hosting_stack"]
         and re.fullmatch(re.escape(stack_prefix) + r"[a-f0-9-]+", stack.get("StackId", ""))
-        and stack.get("StackStatus") in {"CREATE_COMPLETE", "UPDATE_COMPLETE"}
+        and stack.get("StackStatus")
+        in {"CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"}
         and stack.get("RoleARN") == service_role_arn(profile)
         and not stack.get("ParentId")
         and not stack.get("RootId"),
@@ -209,6 +210,11 @@ def prepare(profile, stack, resource_inventory, *, boundary_stack=None, boundary
         )
     service = policy(
         [
+            allow(
+                ["ec2:DescribeSecurityGroups", "ec2:DescribeSubnets", "ec2:DescribeVpcs"],
+                "*",
+                Condition={"StringEquals": {"aws:RequestedRegion": target["region"]}},
+            ),
             allow(
                 [
                     "lambda:GetFunction",

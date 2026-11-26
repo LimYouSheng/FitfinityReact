@@ -289,6 +289,19 @@ class ExecutionTests(unittest.TestCase):
             now=kwargs.get("now", 1000),
         )
 
+    def test_completed_rollback_allows_new_review_but_incomplete_rollback_refuses_writes(self):
+        for status in ("UPDATE_ROLLBACK_IN_PROGRESS", "UPDATE_ROLLBACK_FAILED"):
+            self.stack["StackStatus"] = status
+            with self.subTest(status=status), self.assertRaises(RuntimeError):
+                self.run_step("create")
+        self.assertFalse(any(op == "create-change-set" for _, op, _ in self.calls))
+        self.stack["StackStatus"] = "UPDATE_ROLLBACK_COMPLETE"
+        created = self.run_step("create")
+        self.assertEqual(created["state"], "create_submitted")
+        observed = self.run_step("inspect", created)
+        submitted = self.run_step("execute", observed)
+        self.assertTrue(submitted["execution_requested"])
+
     def test_reviewed_update_keeps_resources_paused_and_requires_separate_steps(self):
         created = self.run_step("create")
         self.assertEqual([op for _, op, _ in self.calls if op.startswith("execute")], [])
