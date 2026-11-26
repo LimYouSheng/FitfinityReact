@@ -8,6 +8,7 @@ from math import isfinite
 from deployment_profile import identities
 from operator_checks import require
 from release_access import service_role_arn
+from release_execution import check_change_set_arn
 from release_execution import execute as release_step
 from release_execution import template as read_template
 from release_observation import digest
@@ -93,7 +94,13 @@ def validate_review(review, profile, now):
     }
     extra = {"hosting_stack_arn", "hosting_template_sha256"}
     require(
-        set(review) in (required, required | extra, required | extra | {"prior_identity"})
+        set(review)
+        in (
+            required,
+            required | extra,
+            required | extra | {"prior_identity"},
+            required | extra | {"prior_identity", "prior_pause_record_sha256"},
+        )
         and review["profile_sha256"] == target["profile_sha256"]
         and re.fullmatch(r"[a-f0-9]{40}", review["source_sha"])
         and re.fullmatch(r"[a-f0-9]{32}", review["operation_id"])
@@ -126,6 +133,12 @@ def validate_review(review, profile, now):
             and re.fullmatch(r"[a-f0-9]{64}", previous.get("review_sha256", ""))
             and previous["operation_id"] != review["operation_id"],
             "Exact distinct prior maintenance identity required",
+        )
+    if "prior_pause_record_sha256" in review:
+        require(
+            isinstance(review["prior_pause_record_sha256"], str)
+            and re.fullmatch(r"[a-f0-9]{64}", review["prior_pause_record_sha256"]),
+            "Exact recorded-pause approval digest required",
         )
     return target
 
@@ -261,6 +274,7 @@ def execute(mode, review, call, persist, *, profile, prior=None, now=None):
             "snapshot_requested",
             "snapshot_arn",
             "adopted_from",
+            "adopted_recorded_pause",
         ):
             if key in prior:
                 receipt[key] = deepcopy(prior[key])
@@ -393,13 +407,15 @@ def adopt_pause(
 ):
     """Transfer a reviewed idle pause without replaying concurrency or snapshot writes."""
     previous = review.get("prior_identity")
+    recorded = "prior_pause_record_sha256" in review
     require(
         previous is not None
         and isinstance(prior, dict)
         and prior.get("identity") == previous
         and prior.get("previous_concurrency") == review["previous_concurrency"]
         and prior.get("state") in {"pause_submitted", "paused"}
-        and not any(key in prior for key in ("pause_record", "snapshot_requested", "snapshot_arn")),
+        and not any(key in prior for key in ("snapshot_requested", "snapshot_arn"))
+        and (recorded or "pause_record" not in prior),
         "Original unadvanced pause receipt required for adoption",
     )
     old_marker = snapshot_identity(target, previous["operation_id"], previous["source_sha"])[
@@ -428,19 +444,42 @@ def adopt_pause(
         and original["Resources"]["ApiFunction"]["Properties"].get("FunctionName")
         == target["runtime_function"]
         and original["Resources"]["ApiFunction"]["Properties"].get("ReservedConcurrentExecutions")
-        == review["previous_concurrency"],
-        "Reviewed unrecorded pause template required",
+        == (0 if recorded else review["previous_concurrency"]),
+        "Reviewed pause template required",
     )
-    require(
-        call(
-            "cloudformation",
-            "describe-change-set",
-            {
-                "StackName": review["hosting_stack_arn"],
-                "ChangeSetName": "release-" + previous["operation_id"],
-            },
+    if recorded:
+        record = prior.get("pause_record")
+        require(
+            prior.get("state") == "paused"
+            and prior.get("runtime_sha256") == runtime_fingerprint(function)
+            and isinstance(record, dict)
+            and digest(record) == review["prior_pause_record_sha256"]
+            and record.get("state") == "template_verified"
+            and record.get("execution_requested") is True
+            and record.get("stack_arn") == review["hosting_stack_arn"]
+            and record.get("service_role_arn") == stacks[0].get("RoleARN")
+            and all(
+                record.get("identity", {}).get(key) == previous[key]
+                for key in ("profile_sha256", "source_sha", "operation_id")
+            ),
+            "Verified original recorded pause and unchanged runtime required",
         )
-        == {"absent": True}
+        check_change_set_arn(
+            record.get("change_set_arn"), "release-" + previous["operation_id"], profile
+        )
+    require(
+        (
+            recorded
+            or call(
+                "cloudformation",
+                "describe-change-set",
+                {
+                    "StackName": review["hosting_stack_arn"],
+                    "ChangeSetName": "release-" + previous["operation_id"],
+                },
+            )
+            == {"absent": True}
+        )
         and call(
             "rds",
             "describe-db-snapshots",
@@ -455,6 +494,8 @@ def adopt_pause(
     )
     recheck()
     receipt.update(state="adoption_submitted", adopted_from=deepcopy(previous))
+    if recorded:
+        receipt["adopted_recorded_pause"] = deepcopy(prior["pause_record"])
     persist(deepcopy(receipt))
     recheck()
     call(
@@ -493,7 +534,9 @@ def record_pause(mode, review, prior, receipt, call, persist, *, profile, now):
     )
     require(action == "create" or previous is not None, "Original pause-record intent required")
     original = read_template(
-        call, review["hosting_stack_arn"], None if action in {"create", "verify"} else name
+        call,
+        review["hosting_stack_arn"],
+        None if action in {"create", "verify"} or previous.get("execution_requested") else name,
     )
     original = deepcopy(original)
     if action != "create":

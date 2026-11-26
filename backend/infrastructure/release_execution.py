@@ -359,6 +359,22 @@ def execute(
         require(result.get("StackId") == review["stack_arn"], "Created change-set stack differs")
         check_change_set_arn(result.get("Id"), name, profile)
         receipt["change_set_arn"] = result["Id"]
+    elif action == "inspect" and prior is not None and prior.get("execution_requested") is True:
+        check_change_set_arn(prior.get("change_set_arn"), name, profile)
+        complete = stack.get("StackStatus") == "UPDATE_COMPLETE"
+        if complete:
+            require(
+                template(call, review["stack_arn"]) == review["candidate_template"],
+                "Deployed template differs",
+            )
+        receipt.update(
+            state="observed",
+            execution_requested=True,
+            change_set_arn=prior["change_set_arn"],
+            stack_status=stack.get("StackStatus"),
+            change_set_status=None,
+            execution_status="EXECUTE_COMPLETE" if complete else "EXECUTE_IN_PROGRESS",
+        )
     elif action == "verify":
         require(
             prior is not None and prior.get("execution_requested") is True,
