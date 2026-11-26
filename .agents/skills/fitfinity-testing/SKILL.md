@@ -141,3 +141,7 @@ Use Progress for the current task and Journey for durable receipts under the doc
 ## Exit criteria
 
 Every changed behavior has a justified test disposition; affected assertions, fixtures and verifier inventories agree with the intended contract; relevant negative/concurrency/recovery cases are covered or explicitly blocked; actual checks have recorded outcomes; no coverage was weakened. Publication may precede CI completion; merge readiness cannot. This discipline improves evidence quality but does not certify exhaustive coverage or an error-free application.
+
+## Bounded application CI reuse
+
+The user-authorized policy in [Runbook](../../../docs/runbook.md#application-ci-reuse) permits seven-day reuse of a full successful canonical main application run only for identical tracked application/test/dependency/build inputs and ancestor source. `ci_scope.py` owns eligibility; unknown files and policy changes require full execution. Current-head quality, backend checks, infrastructure, aggregate gates and CodeQL still run. Deliberately skipped application jobs require authenticated baseline evidence; arbitrary skips/failures remain rejected. Reuse never renews operational approvals, image scan exceptions, catalog or snapshot evidence. This supersedes older references to unconditional full-suite execution for every infrastructure-only head.

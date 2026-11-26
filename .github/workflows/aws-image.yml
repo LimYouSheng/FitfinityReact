@@ -45,6 +45,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - id: target
         env:
           DEPLOYMENT_TARGET: ${{ inputs.target }}
@@ -62,6 +63,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Authenticate existing exact-source CI evidence
         env:
           GH_TOKEN: ${{ github.token }}
@@ -111,6 +113,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Recheck source evidence after environment approval
         env:
           GH_TOKEN: ${{ github.token }}

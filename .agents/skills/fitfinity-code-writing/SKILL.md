@@ -66,3 +66,7 @@ Keep related work on the current appropriate branch/PR, consolidate before expen
 ## Fitfinity boundaries
 
 Use FastAPI/PostgreSQL transactions and the existing service adapters as authoritative owners. Keep original command keys, reviewed versions, per-package Trainer assignment, credit accounting and private media scope intact. Do not add implicit demo fallbacks or use cached client state as write authority. Apply the existing three exact-head CI gates; source merge, AWS deployment, Cognito/provider effects and physical-device acceptance remain distinct. Isolated browser execution is permitted under AGENTS. No additional worktree or agent is authorized by this skill.
+
+## Bounded application CI reuse
+
+The user-authorized policy in [Runbook](../../../docs/runbook.md#application-ci-reuse) permits seven-day reuse of a full successful canonical main application run only for identical tracked application/test/dependency/build inputs and ancestor source. `ci_scope.py` owns eligibility; unknown files and policy changes require full execution. Current-head quality, backend checks, infrastructure, aggregate gates and CodeQL still run. Deliberately skipped application jobs require authenticated baseline evidence; arbitrary skips/failures remain rejected. Reuse never renews operational approvals, image scan exceptions, catalog or snapshot evidence. This supersedes older references to unconditional full-suite execution for every infrastructure-only head.

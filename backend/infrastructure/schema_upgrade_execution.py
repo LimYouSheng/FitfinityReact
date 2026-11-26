@@ -150,6 +150,9 @@ def execute(
     receipt = {"identity": tags, "stack_id": stack_id, "state": "checked"}
     if prior is not None:
         require(prior.get("identity") == tags, "Prior operation identity differs")
+        if stack_id is None:
+            stack_id = prior.get("stack_id")
+            receipt["stack_id"] = stack_id
         require(
             stack_id == prior.get("stack_id")
             or (

@@ -4,11 +4,11 @@ import { parse } from 'yaml'
 
 const fail = message => { throw new Error(`Quality setup: ${message}`) }
 const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right)
-const requireGate = (job, command) => {
+const requireGate = (job, command, condition = null) => {
   const steps = (job?.steps ?? []).filter(step => (step.run ?? '').split('\n').some(line => line.trim() === command || line.trim().startsWith(`${command} `)))
   if (steps.length !== 1) fail(`expected exactly one required command: ${command}`)
   const step = steps[0]
-  if (step.if != null || step['continue-on-error'] || /\|\|\s*(true|:)|set\s+\+e/.test(step.run)) fail(`optional or suppressed gate: ${command}`)
+  if ((step.if ?? null) !== condition || step['continue-on-error'] || /\|\|\s*(true|:)|set\s+\+e/.test(step.run)) fail(`optional or suppressed gate: ${command}`)
   if (step.run.includes('|') && !step.run.includes('set -euo pipefail')) fail(`missing pipeline failure propagation: ${command}`)
 }
 
@@ -163,33 +163,33 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   if (observe.steps.find(step => step.run?.includes('release_observation.py'))?.env?.DEPLOYMENT_PROFILE !== '${{ needs.target.outputs.profile }}') fail('observation profile differs')
   const caller = pages.jobs?.verify
   if (caller?.uses !== './.github/workflows/verify.yml' || caller.if != null || caller.secrets != null || caller['continue-on-error']) fail('PR and main must call the complete verification workflow unconditionally')
-  if (!Object.hasOwn(verify.on ?? {}, 'workflow_call') || !equal(verify.permissions, { contents: 'read' })) fail('shared verification must be callable with read-only repository access')
+  if (!Object.hasOwn(verify.on ?? {}, 'workflow_call') || !equal(verify.permissions, { contents: 'read', actions: 'read' })) fail('shared verification must be callable with read-only repository access')
   for (const [name, job] of Object.entries(verify.jobs ?? {})) {
     if (Object.values(job.env ?? {}).some(value => /\$\{\{[^}]*\brunner\./.test(String(value)))) fail('runner context is only available after job scheduling; use step env')
-    if ((job.if != null && !(['api-browser', 'frontend', 'backend'].includes(name) && job.if === 'always()')) || job['continue-on-error'] || job.environment || job.secrets || Object.entries(job.permissions ?? {}).some(([key, value]) => key !== 'contents' || value !== 'read')) fail('verification jobs must be unconditional without deployment credentials')
+    if ((job.if != null && !(['api-browser', 'frontend', 'backend'].includes(name) && job.if === 'always()') && !(['unit', 'browser-build', 'browser-profile', 'backend-group', 'api-browser-shard'].includes(name) && job.if === "needs.scope.outputs.run_application == 'true'")) || job['continue-on-error'] || job.environment || job.secrets || Object.entries(job.permissions ?? {}).some(([key, value]) => key !== 'contents' || value !== 'read')) fail('verification jobs must be unconditional without deployment credentials')
     if ((job.steps ?? []).some(step => /configure-aws-credentials|deploy-pages/.test(step.uses ?? ''))) fail('deployment action in verification')
   }
   const shard = verify.jobs?.['api-browser-shard'], aggregate = verify.jobs?.['api-browser']
   if (!equal(shard?.strategy, { 'fail-fast': false, matrix: { shard: [1, 2] } }) || shard['runs-on'] !== 'ubuntu-24.04' || shard['timeout-minutes'] !== 20) fail('both isolated shards must retain the reviewed runner and budget')
-  if (aggregate?.needs !== 'api-browser-shard' || aggregate.if !== 'always()') fail('aggregate must run after both shards, including failures')
+  if (!equal(aggregate?.needs, ['scope', 'api-browser-shard']) || aggregate.if !== 'always()') fail('aggregate must run after both shards, including failures')
   requireGate(shard, 'sudo python3 scripts/prepare-browser-apt.py /etc/apt/sources.list.d/ubuntu.sources')
   requireGate(shard, 'npx playwright install --with-deps chromium webkit')
   requireGate(shard, 'npm run test:api-browser -- --shard=${{ matrix.shard }}/2 --reporter=list,json')
-  requireGate(aggregate, 'npx playwright test --config=playwright.api.config.js --list --reporter=json')
-  requireGate(aggregate, 'node scripts/verify-api-shards.mjs')
+  requireGate(aggregate, 'npx playwright test --config=playwright.api.config.js --list --reporter=json', "needs.scope.outputs.run_application == 'true'")
+  requireGate(aggregate, 'node scripts/verify-api-shards.mjs', "needs.scope.outputs.run_application == 'true'")
   const aggregateStep = aggregate.steps.find(step => step.run?.includes('node scripts/verify-api-shards.mjs'))
   if (aggregateStep.env?.API_BROWSER_SHARD_RESULT !== '${{ needs.api-browser-shard.result }}') fail('aggregate must verify successful shard job outcomes')
   const jobs = verify.jobs, quality = jobs.quality, browser = jobs['browser-profile']
-  for (const [name, needs] of Object.entries({ frontend: ['quality', 'unit', 'browser-build', 'browser-profile'], backend: ['backend-checks', 'infrastructure', 'backend-group'] })) {
+  for (const [name, needs] of Object.entries({ frontend: ['scope', 'quality', 'unit', 'browser-build', 'browser-profile'], backend: ['scope', 'backend-checks', 'infrastructure', 'backend-group'] })) {
     const job = jobs[name]
     if (!equal(job?.needs, needs) || job.if !== 'always()') fail('complete aggregate dependencies required')
-    requireGate(job, `node scripts/verify-ci-groups.mjs ${name}`)
+    requireGate(job, `node scripts/verify-ci-groups.mjs ${name}`, "needs.scope.outputs.run_application == 'true'")
     if (job.steps.find(step => step.run?.includes('verify-ci-groups')).env?.CI_NEEDS !== '${{ toJSON(needs) }}') fail('aggregate needs must be authentic')
   }
   for (const name of ['quality', 'unit', 'browser-build', 'backend-checks', 'infrastructure', 'backend-group', 'api-browser-shard']) {
-    if (!jobs[name] || jobs[name].needs != null) fail('independent verification must start concurrently')
+    if (!jobs[name] || (['unit', 'browser-build', 'backend-group', 'api-browser-shard'].includes(name) ? jobs[name].needs !== 'scope' : jobs[name].needs != null)) fail('only scoped application jobs may wait for scope')
   }
-  if (browser?.['runs-on'] !== 'macos-15' || browser.needs !== 'browser-build' || !equal(browser.strategy, { 'fail-fast': false, matrix: { profile: ['desktop-chromium', 'phone', 'tablet'] } })) fail('complete macOS browser profile matrix required')
+  if (browser?.['runs-on'] !== 'macos-15' || !equal(browser.needs, ['scope', 'browser-build']) || !equal(browser.strategy, { 'fail-fast': false, matrix: { profile: ['desktop-chromium', 'phone', 'tablet'] } })) fail('complete macOS browser profile matrix required')
   if (!equal(jobs['backend-group'].strategy, { 'fail-fast': false, matrix: { group: ['identity-clients', 'scheduling-packages', 'records-platform'] } })) fail('complete backend domain partition required')
   if (jobs['backend-group'].env?.FITFINITY_TEST_GROUP !== '${{ matrix.group }}' || jobs['backend-group'].steps.find(step => step.name === 'Isolated backend group')?.env?.FITFINITY_BACKEND_RECEIPT !== '${{ runner.temp }}/backend-group.json') fail('backend group binding required')
   for (const command of ['npm ci', 'npm audit --include=dev --audit-level=high --json', 'npm run verify:lint', 'npm run verify:dependencies', 'npm run verify:quality-checker', 'npm run verify:health-checker', 'npm run verify:health']) requireGate(quality, command)
@@ -206,6 +206,24 @@ export function verifyQualitySetup({ dependabot, pages, verify, infrastructure, 
   for (const command of ['node scripts/verify-assessment-forms.mjs', 'node scripts/verify-backend.mjs backend-checks']) requireGate(jobs['backend-checks'], command)
   requireGate(jobs.infrastructure, 'node scripts/verify-infrastructure.mjs')
   requireGate(jobs['backend-group'], 'node scripts/verify-backend.mjs')
+  const scope = jobs.scope
+  if (!scope || scope.if || scope.needs || scope['timeout-minutes'] !== 5) fail('scope must execute independently')
+  requireGate(scope, 'python3 backend/infrastructure/ci_scope.py')
+  if (scope.steps.find(step => step.uses?.startsWith('actions/checkout@'))?.with?.['fetch-depth'] !== 0) fail('scope requires complete ancestry')
+  const selector = scope.steps.find(step => step.id === 'scope')
+  if (selector?.env?.GH_TOKEN !== '${{ github.token }}' || scope.outputs?.run_application !== '${{ steps.scope.outputs.run_application }}' || scope.outputs?.baseline_run !== '${{ steps.scope.outputs.baseline_run }}') fail('authenticated scope outputs required')
+  for (const name of ['unit', 'browser-build', 'browser-profile', 'backend-group', 'api-browser-shard']) {
+    if (jobs[name].if !== "needs.scope.outputs.run_application == 'true'") fail('application jobs require the exact scope condition')
+  }
+  for (const name of ['frontend', 'backend', 'api-browser']) {
+    const job = jobs[name]
+    requireGate(job, 'test "$SCOPE_RESULT" = success')
+    const scopeCheck = job.steps.find(step => step.env?.SCOPE_RESULT)
+    if (scopeCheck.env.SCOPE_RESULT !== '${{ needs.scope.result }}') fail('scope outcome must be authentic')
+    requireGate(job, 'python3 backend/infrastructure/ci_scope.py', "needs.scope.outputs.run_application == 'false'")
+    const reuse = job.steps.find(step => step.env?.CI_REUSE_AGGREGATE)
+    if (reuse?.env?.CI_NEEDS !== '${{ toJSON(needs) }}' || reuse.env.CI_REUSE_AGGREGATE !== 'true') fail('reuse must validate actual dependency states')
+  }
   const mainOnly = "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
   if (pages.jobs?.build?.needs !== 'verify' || pages.jobs.build.if !== mainOnly || pages.jobs?.deploy?.needs !== 'build' || pages.jobs.deploy.if !== mainOnly) fail('Pages build and publish must depend on full verification and the main-branch guard')
   const imageJob = image?.jobs?.image

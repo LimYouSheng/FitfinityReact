@@ -33,7 +33,10 @@ CODEQL_JOBS = {"CodeQL (javascript-typescript)", "CodeQL (python)"}
 def api(path):
     """Read GitHub metadata without downloading or executing artifact contents."""
     result = subprocess.run(
-        ["gh", "api", "--hostname", "github.com", path], capture_output=True, text=True, timeout=60
+        ["gh", "api", "--hostname", "github.com", path],
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     require(result.returncode == 0, "Verification metadata unavailable")
     return json.loads(result.stdout)
@@ -63,8 +66,9 @@ def check_run(run, workflow, source, repository):
     )
 
 
-def check_jobs(payload, expected, run, source):
+def check_jobs(payload, expected, run, source, *, skipped=frozenset()):
     """Reject incomplete, duplicate, skipped or foreign-attempt verification jobs."""
+    is_verification = "verify / frontend" in expected
     rows = payload.get("jobs", [])
     names = [row.get("name") for row in rows]
     require(
@@ -73,7 +77,11 @@ def check_jobs(payload, expected, run, source):
         and len(set(names)) == len(names),
         "Complete unique verification job inventory required",
     )
-    required = [row for row in rows if row.get("name") in expected]
+    required = [
+        row
+        for row in rows
+        if row.get("name") in expected or (is_verification and row.get("name") == "verify / scope")
+    ]
     require(
         set(names) >= expected
         and all(
@@ -81,14 +89,16 @@ def check_jobs(payload, expected, run, source):
             and row.get("run_attempt") == run["run_attempt"]
             and row.get("head_sha") == source
             and row.get("status") == "completed"
-            and row.get("conclusion") == "success"
+            and row.get("conclusion") == ("skipped" if row["name"] in skipped else "success")
             for row in required
         ),
         "Every required verification job must pass on the exact attempt",
     )
     require(
-        not ({name for name in names if name.startswith("verify /")} - expected)
-        if expected == VERIFY_JOBS
+        not (
+            {name for name in names if name.startswith("verify /")} - expected - {"verify / scope"}
+        )
+        if is_verification
         else set(names) == expected,
         "Unexpected verification job requires gate review",
     )
@@ -101,23 +111,51 @@ def verify(run_id, source, profile, read=api):
         "Exact verification run ID required",
     )
     require(re.fullmatch(r"[a-f0-9]{40}", source or ""), "Exact source required")
+    import time
+
+    from ci_scope import fresh
+
     repository = profile["github_repository"]
     root = f"repos/{repository}"
     run = read(f"{root}/actions/runs/{run_id}")
     check_run(run, "pages", source, repository)
+    require(fresh(run, time.time()), "Application verification exceeds seven-day lifetime")
     require(str(run["id"]) == run_id, "Verification run identity differs")
-    check_jobs(
-        read(f"{root}/actions/runs/{run_id}/attempts/{run['run_attempt']}/jobs?per_page=100"),
-        VERIFY_JOBS,
-        run,
-        source,
-    )
+    jobs = read(f"{root}/actions/runs/{run_id}/attempts/{run['run_attempt']}/jobs?per_page=100")
+    skipped = {
+        row.get("name")
+        for row in jobs.get("jobs", [])
+        if row.get("conclusion") == "skipped" and row.get("name", "").startswith("verify /")
+    }
+    application_baseline = None
+    expected_jobs = VERIFY_JOBS
+    if skipped:
+        from ci_scope import APP_JOBS, baseline
+
+        expected_skips = {"verify / " + name for name in APP_JOBS}
+        # GitHub can collapse a matrix when its job condition is false before expansion.
+        for group in ("browser-profile", "backend-group", "api-browser-shard"):
+            collapsed = "verify / " + group
+            if collapsed in skipped:
+                expected_skips = {
+                    name for name in expected_skips if not name.startswith(collapsed + " (")
+                } | {collapsed}
+        require(skipped == expected_skips, "Unexpected skipped verification")
+        expected_jobs = (VERIFY_JOBS - {"verify / " + name for name in APP_JOBS}) | expected_skips
+        require(
+            any(row.get("name") == "verify / scope" for row in jobs["jobs"]),
+            "Scope evidence missing",
+        )
+        application_baseline = baseline(repository, source, read)
+        require(application_baseline is not None, "Fresh full application baseline required")
+    check_jobs(jobs, expected_jobs, run, source, skipped=skipped)
     scans = read(
         f"{root}/actions/workflows/codeql.yml/runs?head_sha={source}&branch=main&per_page=100"
     )
     rows = scans.get("workflow_runs", [])
     require(
-        scans.get("total_count") == len(rows) and rows, "Complete CodeQL run inventory required"
+        scans.get("total_count") == len(rows) and rows,
+        "Complete CodeQL run inventory required",
     )
     candidates = [
         row
@@ -161,6 +199,7 @@ def verify(run_id, source, profile, read=api):
         "codeql_attempt": scan["run_attempt"],
         "codeql_result": "success" if checks else "not_emitted_for_main",
         "state": "source_verified",
+        **({"application_baseline": application_baseline} if application_baseline else {}),
     }
 
 

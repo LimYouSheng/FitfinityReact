@@ -67,3 +67,7 @@ Use the [Owner](../../../docs/uat/owner.md), [Admin](../../../docs/uat/admin.md)
 ## 6. Readiness receipt
 
 Report target/operation and authorization; exact repository/source/run/artifact/digest; verified account/resource identities; configuration gaps without secrets; observed health/provider/device evidence; rollback constraints; and a **go** or **hold** recommendation with the concrete next step. Separate prepared, verified, published, deployed, activated and accepted states. Update Progress/Journey and affected operational owners under the documentation skill. Do not claim unconditional readiness with missing required evidence or create recursive status commits merely to restate green CI.
+
+## Bounded application CI reuse
+
+The user-authorized policy in [Runbook](../../../docs/runbook.md#application-ci-reuse) permits seven-day reuse of a full successful canonical main application run only for identical tracked application/test/dependency/build inputs and ancestor source. `ci_scope.py` owns eligibility; unknown files and policy changes require full execution. Current-head quality, backend checks, infrastructure, aggregate gates and CodeQL still run. Deliberately skipped application jobs require authenticated baseline evidence; arbitrary skips/failures remain rejected. Reuse never renews operational approvals, image scan exceptions, catalog or snapshot evidence. This supersedes older references to unconditional full-suite execution for every infrastructure-only head.
