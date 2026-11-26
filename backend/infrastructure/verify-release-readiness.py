@@ -249,7 +249,7 @@ class RolloutEvidenceTests(unittest.TestCase):
             },
         }
 
-    def check(self):
+    def check(self, **options):
         from release_evidence import validate
 
         return validate(
@@ -264,7 +264,33 @@ class RolloutEvidenceTests(unittest.TestCase):
             database="fitfinity",
             schema_action="upgrade",
             now=1000,
+            **options,
         )
+
+    def test_explicit_previous_upgrade_source_retains_original_maintenance_proof(self):
+        from unittest.mock import patch
+
+        self.upgrade["result"]["source_sha"] = "b" * 40
+        self.upgrade["identity"]["FitfinitySource"] = "b" * 40
+        self.upgrade["readiness"] = {
+            "maintenance_identity": {
+                "source_sha": "b" * 40,
+                "operation_id": "e" * 32,
+                "profile_sha256": self.profile_hash,
+                "review_sha256": "f" * 64,
+            }
+        }
+        with self.assertRaises(RuntimeError):
+            self.check()
+        with patch("upgrade_continuity.compatible", return_value="1" * 64) as compatible:
+            result = self.check(upgrade_source="b" * 40)
+        compatible.assert_called_once_with("b" * 40, "a" * 40)
+        self.assertEqual(
+            result["upgrade_continuity"]["maintenance_marker"],
+            "e" * 32 + ":" + "b" * 40 + ":" + self.profile_hash,
+        )
+        self.assertEqual(result["source_sha"], "a" * 40)
+        self.assertEqual(result["schema"], "20261101_0052")
 
     def test_matching_artifacts_remain_hold_until_live_scan_upload_and_rollout(self):
         result = self.check()

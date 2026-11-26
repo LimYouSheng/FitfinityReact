@@ -80,7 +80,7 @@ def metadata(value, source, profile, *, recovery=False):
     )
     require(
         re.fullmatch(
-            r"[a-f0-9]{32}:" + source + ":" + target["profile_sha256"], value["maintenance_marker"]
+            r"[a-f0-9]{32}:[a-f0-9]{40}:" + target["profile_sha256"], value["maintenance_marker"]
         ),
         "Matching maintenance ownership required",
     )
@@ -211,6 +211,9 @@ def execute_step(
     mode, review, evidence, root, call, persist, *, profile, prior=None, confirmation=None
 ):
     """Reconstruct only the reviewed template and preserve metadata-only recovery receipts."""
+    from upgrade_continuity import bind_marker
+
+    bind_marker(review, evidence)
     require(mode in MODES, "Unknown rollout mode")
     require(mode != "create" or prior is None, "Inspect original creation; never replay")
     if prior is not None:
@@ -423,6 +426,9 @@ def main():
                 and "resumption_plan_sha256" not in verified,
                 "Verified rollout evidence differs",
             )
+        from upgrade_continuity import bind_marker
+
+        bind_marker(review, evidence)
         (root / "rollout-evidence.json").write_text(json.dumps(evidence) + "\n")
         return
     source_check(Path.cwd(), current_source)

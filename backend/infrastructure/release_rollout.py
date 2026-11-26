@@ -15,6 +15,9 @@ from release_observation import digest
 
 def binding(review, evidence, profile):
     """Match the reviewed runtime and frontend template to collected artifact identities."""
+    from upgrade_continuity import bind_marker
+
+    bind_marker(review, evidence)
     target = identities(profile)
     require(
         review.get("mode") == "rollout"

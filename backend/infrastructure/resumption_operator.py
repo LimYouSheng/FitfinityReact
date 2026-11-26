@@ -47,7 +47,9 @@ def execute_step(
 ):
     """Recover hashed templates without persisting runtime secrets in Actions artifacts."""
     from rollout_operator import expanded_rollout, restore_original
+    from upgrade_continuity import bind_marker
 
+    bind_marker(review, evidence)
     require(mode in MODES, "Unknown resumption step")
     settings = validate(review["resumption"], recovery=mode in RECOVERY)
     original_review = {key: value for key, value in review.items() if key != "resumption"}

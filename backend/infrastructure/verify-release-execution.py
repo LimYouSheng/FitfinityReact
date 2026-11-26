@@ -935,6 +935,26 @@ class ExecutionTests(unittest.TestCase):
         )
         with patch("time.time", return_value=1000):
             self.assertEqual(metadata(review, "c" * 40, self.profile), review)
+            from upgrade_continuity import bind_marker
+
+            previous = {
+                **review,
+                "maintenance_marker": review["maintenance_marker"].replace("c" * 40, "b" * 40),
+            }
+            self.assertEqual(metadata(previous, "c" * 40, self.profile), previous)
+            with self.assertRaisesRegex(RuntimeError, "authenticated upgrade continuity"):
+                bind_marker(previous, {})
+            bind_marker(
+                previous,
+                {
+                    "schema_action": "upgrade",
+                    "upgrade_continuity": {
+                        "maintenance_marker": previous["maintenance_marker"],
+                        "source_sha": previous["source_sha"],
+                        "profile_sha256": previous["profile_sha256"],
+                    },
+                },
+            )
             for key, value in (
                 ("profile_sha256", "f" * 64),
                 ("expires_at", 500),
