@@ -93,3 +93,7 @@ For automated dependency PRs, perform this review before an eligible merge; the 
 ## 6. Exit criteria
 
 The PR is documentation-ready when all affected owners agree with the final source, permanent rules and acceptance evidence; unaffected owners have a reasoned no-change classification; validations passed; prior decisions/failures remain retained; and the current handover is usable. Overall merge readiness still requires AGENTS' complete final-head gates and GitHub requirements. Report incomplete or externally blocked work explicitly; do not invent acceptance to close a checklist.
+
+## Bounded application CI reuse
+
+The user-authorized policy in [Runbook](../../../docs/runbook.md#application-ci-reuse) permits seven-day reuse of a full successful canonical main application run only for identical tracked application/test/dependency/build inputs and ancestor source. `ci_scope.py` owns eligibility; unknown files and policy changes require full execution. Current-head quality, backend checks, infrastructure, aggregate gates and CodeQL still run. Deliberately skipped application jobs require authenticated baseline evidence; arbitrary skips/failures remain rejected. Reuse never renews operational approvals, image scan exceptions, catalog or snapshot evidence. This supersedes older references to unconditional full-suite execution for every infrastructure-only head.

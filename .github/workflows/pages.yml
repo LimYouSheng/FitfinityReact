@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: fitfinity-pages-${{ github.event_name }}-${{ github.ref }}

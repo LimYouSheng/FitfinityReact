@@ -84,7 +84,13 @@ export function verifyBackendGroups(reports, identity) {
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const [mode, directory] = process.argv.slice(2)
   const expected = mode === 'frontend' ? ['quality', 'unit', 'browser-build', 'browser-profile'] : ['backend-checks', 'infrastructure', 'backend-group']
-  verifyNeeds(JSON.parse(process.env.CI_NEEDS), expected)
+  const needs = JSON.parse(process.env.CI_NEEDS)
+  if (needs.scope) {
+    assert.equal(needs.scope.result, 'success')
+    assert.equal(needs.scope.outputs.run_application, 'true')
+    delete needs.scope
+  }
+  verifyNeeds(needs, expected)
   const reports = readdirSync(directory, { recursive: true }).filter(file => file.endsWith(mode === 'frontend' ? 'browser-results.json' : 'backend-group.json')).map(file => read(resolve(directory, file)))
   if (mode === 'frontend') verifyBrowsers(read(process.argv[4]), reports)
   else {

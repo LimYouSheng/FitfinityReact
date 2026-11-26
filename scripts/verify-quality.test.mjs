@@ -57,6 +57,13 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   assert.ok(codeql.jobs.analyze.steps.some(step => step.uses?.startsWith('github/codeql-action/analyze@')))
 })
 const mutations = [
+  ['missing scope metadata gate', setup => { delete setup.verify.jobs.scope }],
+  ['shallow scope ancestry', setup => { setup.verify.jobs.scope.steps[0].with['fetch-depth'] = 1 }],
+  ['forged scope output', setup => { setup.verify.jobs.scope.outputs.run_application = 'false' }],
+  ['unconditional application skip', setup => { setup.verify.jobs.unit.if = 'false' }],
+  ['optional infrastructure checks', setup => { setup.verify.jobs.infrastructure.if = "needs.scope.outputs.run_application == 'true'" }],
+  ['missing reuse aggregate', setup => { setup.verify.jobs.frontend.steps = setup.verify.jobs.frontend.steps.filter(step => !step.env?.CI_REUSE_AGGREGATE) }],
+  ['forged reuse dependency states', setup => { setup.verify.jobs.backend.steps.find(step => step.env?.CI_REUSE_AGGREGATE).env.CI_NEEDS = '{}' }],
   ['runner expression before job scheduling', setup => { setup.verify.jobs['backend-group'].env.INVALID = '${{ runner.temp }}' }],
   ['unbound browser build', setup => { setup.verify.jobs['browser-profile'].steps = setup.verify.jobs['browser-profile'].steps.filter(step => step.name !== 'Verify build identity') }],
   ['lost failed group evidence', setup => { setup.verify.jobs['backend-group'].steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).if = 'success()' }],

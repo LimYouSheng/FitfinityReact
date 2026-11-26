@@ -726,3 +726,39 @@ These are three milestone entry points, not a fully automated end-to-end release
 **Long approval waits and catalog freshness.** Preserve original reviews and producer runs. Upgrade `catalog_run` accepts an existing run ID, or a JSON object with string run IDs `{"current":"123","baseline":"122"}`. Both must be authenticated current-source catalog producers; their entire catalog contents except observation time must match. The owned snapshot must still follow both the original baseline and the maintenance drain; the corroborating catalog must be fresh at invocation. For rollout/resumption, keep the original `producer_runs_json` entries and optionally add `"fresh_catalog":"123"`. That producer must reconfirm the same catalog and full grant contract; it does not replace the original evidence or extend review expiry. A different schema/privilege/role observation is a hold, not an automatic renewal.
 
 **One-time live prerequisites before the next release.** Verify actual hosting operator/service-role policies and ceilings against `release_access.py`; its replacement policy deliberately retains selected-database `rds:DescribeDBInstances` for release observation. Verify any separately owned runtime boundary and reviewed media/CORS/feature bindings before rollout. The boundary-owner review can retain the existing `operator_role_arn` path, or explicitly identify a direct IAM user using `operator_user_arn`, immutable `operator_user_id` and `service_role_arn`. Direct STS Account/Arn/UserId must match exactly; root, assumed sessions and wildcard user identities cannot enter that path. No IAM installation is implied by preparing a plan. Existing expired probe/upgrade workers require their original ownership-bound cleanup and cleanup verification before current-source recreation. Review expiry does not delete workers or reopen traffic.
+
+### Application CI reuse
+
+Application CI may be reused for **seven days from the original run creation time**, never extended by reruns. `backend/infrastructure/ci_scope.py` selects a successful full main run from the most recent30 runs. It requires ancestor provenance and identical Git tree entries (path, mode and blob) for all application inputs. Unknown files, frontend/backend code, migrations, dependencies, runtime Dockerfile, test/build configuration and CI policy owners require fresh application execution. Infrastructure operators, AWS workflow definitions, offline infrastructure verifier owners and docs may differ; they retain fresh infrastructure/quality/backend checks and current-source CodeQL. A newer failed main run with equivalent application inputs prevents fallback to an older success. Missing/expired/incomplete evidence falls back to full CI. Reuse never chains through scoped runs.
+
+The three required aggregate job names remain unchanged and succeed only after either complete execution or explicit scope evidence with expected skipped jobs and fresh checks. Image/rollout still receive the current-source successful main run ID; `release_verification.py` independently authenticates its reused full application baseline and current-source CodeQL before credentials. The current verification run also expires after seven days. Run the staff-demo verification workflow manually when evidence expires; no source change is needed. Image scans, release reviews, catalog freshness, protected approvals and snapshot ownership retain their separate lifetimes.
+
+This policy change itself requires full CI because policy owners and workflow wiring changed. Future eligible control-plane fixes avoid full application reruns. A green scope result is not deployed acceptance.
+
+### Upgrade stack handoff
+
+For inspect/invoke/cleanup, pass `prior_run` from the owned worker operation. After checking its identity, the execution owner resolves an omitted `stack_id` from that authenticated receipt. An explicit conflicting ARN fails; no discovery by guessed name or adoption of an unrelated worker is permitted. Cleanup-check without a prior receipt still requires an explicit retained ARN. An uncertain invocation must never be replayed.
+
+### Developer deployment configuration checkpoint — 26 November 2026
+
+| Requirement | Evidence / remaining action |
+| --- | --- |
+| Target profile and immutable GitHub OIDC identity | Configured; current workflows authenticated account418638389566 in ap-southeast-1. Client targets retain their own profiles. |
+| Image role / repository | Image45757042731 published current cbec3b3 under the existing developer scan exception. |
+| Probe role / private network / migration secret binding | Collection45759051113 succeeded; metadata only, schema20260924_0006. |
+| Maintenance role / owned snapshot | Recovery45762863015 verified encrypted snapshot fitfinity-test-release-00e78287cb0d472f99151582b9ded4f3 as snapshot_ready. Do not recreate. |
+| Upgrade role / worker | Creation45763378490 authenticated and submitted the owned stack. Invocation45764409003 omitted stack_id and failed before invocation. No migration occurred. |
+| Hosting role / CloudFormation service role / API boundary | Role existence is historical evidence only. Current policies, owning stacks and effective permissions require readback before rollout. Do not install guessed policies or replay CREATE. |
+| GitHub rollout flag and role variables | Current variable API returns403; user must confirm AWS_HOSTING_ROLE_ARN, AWS_SCHEMA_UPGRADE_ROLE_ARN and AWS_ROLLOUT_ENABLED. Do not infer values from source. |
+| Feature configuration | Last observation: auth enabled; invitations disabled; media and email corrections unset. Preserve these until reviewed target feature configuration and corresponding IAM are established. |
+| Runtime/frontend rollout and health | Not executed for this release; application remains paused. |
+
+Collect remaining IAM/configuration evidence with the standalone read-only script (AWS CLI authentication is supplied by CloudShell):
+
+```bash
+python3 deployment_config_audit.py --profile target-profile.json --output deployment-config-report.json
+```
+
+The repository owner is `backend/infrastructure/deployment_config_audit.py`. Use the existing reviewed target-profile JSON; do not paste credentials. The report contains role trust, inline/managed policies, boundary and stack ownership, hosting inventory, runtime environment **names** and boolean feature flags. It never requests secret values and performs no AWS changes. Failed reads stay unverified. Review actual owners with `release_access.py` before preparing IAM updates; source templates and offline tests do not establish installation. Temporary probe/upgrade workers remain owned by their original operation receipts; retain them for inspection or perform their explicit cleanup/cleanup-check steps, never assume expiry deletes them.
+
+For the developer rehearsal, repository activation variables are `AWS_IMAGE_RELEASE_ENABLED`, `AWS_SCHEMA_PROBE_ENABLED`, `AWS_SCHEMA_UPGRADE_ENABLED`, `AWS_MAINTENANCE_ENABLED` and `AWS_ROLLOUT_ENABLED`; enabled values are the exact string `true`. Keep rollout disabled until hosting permissions are verified. Store the corresponding role ARN variables in the protected `aws-test` environment, as listed in section10. These are non-secret settings; OIDC requires no long-lived AWS access keys. Setting variables alone dispatches no operation.

@@ -1,5 +1,6 @@
 """Prove release verification reuse rejects missing, stale and substituted CI evidence."""
 
+import time
 import unittest
 from copy import deepcopy
 
@@ -12,7 +13,10 @@ class VerificationTests(unittest.TestCase):
         self.source = "a" * 40
         self.profile = {**DEVELOPER, "github_repository": "client-example/portal"}
         repo = {"full_name": self.profile["github_repository"]}
+        from datetime import UTC, datetime
+
         self.run = {
+            "created_at": datetime.fromtimestamp(time.time(), UTC).isoformat(),
             "id": 123,
             "run_attempt": 2,
             "path": ".github/workflows/pages.yml",
@@ -169,7 +173,14 @@ class VerificationTests(unittest.TestCase):
                     verify("123", self.source, self.profile, self.read)
 
     def test_codeql_jobs_and_any_emitted_publisher_result_must_pass(self):
-        for defect in ("scan", "jobs", "result", "publisher", "incomplete", "newer_failed"):
+        for defect in (
+            "scan",
+            "jobs",
+            "result",
+            "publisher",
+            "incomplete",
+            "newer_failed",
+        ):
             with self.subTest(defect=defect):
                 self.setUp()
                 if defect == "scan":
@@ -224,7 +235,9 @@ class VerificationTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "^Verification metadata unavailable$"):
                 api("repos/client-example/portal/actions/runs/123")
 
-    def test_image_and_rollout_entrypoints_bind_workflow_and_keep_separate_receipts(self):
+    def test_image_and_rollout_entrypoints_bind_workflow_and_keep_separate_receipts(
+        self,
+    ):
         import os
         import tempfile
         from pathlib import Path
@@ -246,10 +259,15 @@ class VerificationTests(unittest.TestCase):
                 }
                 with (
                     patch.dict(os.environ, env, clear=True),
-                    patch("sys.argv", ["verify", "--profile", "fixture", "--purpose", purpose]),
+                    patch(
+                        "sys.argv",
+                        ["verify", "--profile", "fixture", "--purpose", purpose],
+                    ),
                     patch.object(verification, "load", return_value=self.profile),
                     patch.object(
-                        verification, "verify", return_value={"state": "source_verified"}
+                        verification,
+                        "verify",
+                        return_value={"state": "source_verified"},
                     ) as check,
                 ):
                     verification.main()
@@ -265,3 +283,168 @@ class VerificationTests(unittest.TestCase):
                             with self.assertRaises(RuntimeError):
                                 verification.main()
                             check.assert_not_called()
+
+
+class ScopeTests(unittest.TestCase):
+    def test_unknown_application_dependency_and_policy_files_require_full_ci(self):
+        from ci_scope import application_input
+
+        for path in (
+            "src/app.jsx",
+            "backend/app/main.py",
+            "backend/migrations/a.py",
+            "backend/Dockerfile",
+            "package-lock.json",
+            "tests-api/a.js",
+            ".github/workflows/verify.yml",
+            "new-unknown-file",
+            "backend/infrastructure/ci_scope.py",
+            "backend/infrastructure/release_verification.py",
+            "backend/infrastructure/read-schema.sql",
+        ):
+            self.assertTrue(application_input(path), path)
+        for path in (
+            "backend/infrastructure/release_maintenance.py",
+            "docs/runbook.md",
+        ):
+            self.assertFalse(application_input(path), path)
+
+    def test_git_fingerprint_covers_mode_path_deletion_and_blob(self):
+        from unittest.mock import patch
+
+        from ci_scope import tree_fingerprint
+
+        original = b"100644 blob aaa\tsrc/a.js\0"
+        with patch("ci_scope.subprocess.check_output", return_value=original):
+            expected = tree_fingerprint("a" * 40)
+        for changed in (
+            b"100755 blob aaa\tsrc/a.js\0",
+            b"100644 blob bbb\tsrc/a.js\0",
+            b"100644 blob aaa\tsrc/b.js\0",
+        ):
+            with patch("ci_scope.subprocess.check_output", return_value=changed):
+                self.assertNotEqual(tree_fingerprint("b" * 40), expected)
+        with patch(
+            "ci_scope.subprocess.check_output",
+            return_value=original + b"100644 blob ccc\tdocs/a.md\0",
+        ):
+            self.assertEqual(tree_fingerprint("b" * 40), expected)
+        with patch("ci_scope.subprocess.check_output", return_value=b""):
+            with self.assertRaises(RuntimeError):
+                tree_fingerprint("b" * 40)
+
+    def test_baseline_requires_recent_full_main_evidence_and_identical_inputs(self):
+        from ci_scope import MAX_AGE_SECONDS, baseline
+
+        fixture = VerificationTests()
+        fixture.setUp()
+        fixture.run["created_at"] = "1970-01-01T00:16:40+00:00"
+
+        def read(path):
+            if "pages.yml/runs?branch=main" in path:
+                return {"workflow_runs": [deepcopy(fixture.run)]}
+            return fixture.read(path)
+
+        def equivalent(old, new):
+            self.assertEqual((old, new), ("a" * 40, "b" * 40))
+            return True
+
+        result = baseline(
+            fixture.profile["github_repository"],
+            "b" * 40,
+            read,
+            now=1001,
+            equivalent=equivalent,
+        )
+        self.assertEqual(result["run_id"], 123)
+        for now in (999, 1001 + MAX_AGE_SECONDS):
+            self.assertIsNone(
+                baseline(
+                    fixture.profile["github_repository"],
+                    "b" * 40,
+                    read,
+                    now=now,
+                    equivalent=equivalent,
+                )
+            )
+        self.assertIsNone(
+            baseline(
+                fixture.profile["github_repository"],
+                "b" * 40,
+                read,
+                now=1001,
+                equivalent=lambda *_: False,
+            )
+        )
+        fixture.jobs["jobs"][1]["conclusion"] = "skipped"
+        self.assertIsNone(
+            baseline(
+                fixture.profile["github_repository"],
+                "b" * 40,
+                read,
+                now=1001,
+                equivalent=equivalent,
+            )
+        )
+
+    def test_scoped_release_checks_current_jobs_and_independent_baseline(self):
+        from unittest.mock import patch
+
+        from ci_scope import APP_JOBS
+
+        fixture = VerificationTests()
+        fixture.setUp()
+        fixture.jobs["jobs"].append(fixture.job("verify / scope", 123))
+        fixture.jobs["total_count"] += 1
+        for row in fixture.jobs["jobs"]:
+            if row["name"].removeprefix("verify / ") in APP_JOBS:
+                row["conclusion"] = "skipped"
+        with patch("ci_scope.baseline", return_value={"run_id": 111}) as resolve:
+            result = verify("123", fixture.source, fixture.profile, fixture.read)
+            self.assertEqual(result["application_baseline"], {"run_id": 111})
+            resolve.assert_called_once()
+            fixture.jobs["jobs"][0]["conclusion"] = "failure"
+            with self.assertRaises(RuntimeError):
+                verify("123", fixture.source, fixture.profile, fixture.read)
+        fixture.jobs["jobs"][0]["conclusion"] = "success"
+        for group in ("browser-profile", "backend-group", "api-browser-shard"):
+            names = [
+                row
+                for row in fixture.jobs["jobs"]
+                if row["name"].startswith("verify / " + group + " (")
+            ]
+            fixture.jobs["jobs"] = [row for row in fixture.jobs["jobs"] if row not in names]
+            fixture.jobs["jobs"].append({**names[0], "name": "verify / " + group})
+        fixture.jobs["total_count"] = len(fixture.jobs["jobs"])
+        with patch("ci_scope.baseline", return_value={"run_id": 111}):
+            self.assertEqual(
+                verify("123", fixture.source, fixture.profile, fixture.read)["state"],
+                "source_verified",
+            )
+        with patch("ci_scope.baseline", return_value=None):
+            with self.assertRaises(RuntimeError):
+                verify("123", fixture.source, fixture.profile, fixture.read)
+
+    def test_reuse_aggregate_rejects_unexpected_skips_failures_and_missing_scope(self):
+        from ci_scope import aggregate
+
+        needs = {
+            "scope": {
+                "result": "success",
+                "outputs": {"run_application": "false", "baseline_run": "123"},
+            },
+            "quality": {"result": "success"},
+            "unit": {"result": "skipped"},
+        }
+        aggregate(needs)
+        for name, result in (
+            ("scope", "failure"),
+            ("quality", "skipped"),
+            ("unit", "success"),
+        ):
+            bad = deepcopy(needs)
+            bad[name]["result"] = result
+            with self.assertRaises(RuntimeError):
+                aggregate(bad)
+        with self.assertRaises(RuntimeError):
+            aggregate({})

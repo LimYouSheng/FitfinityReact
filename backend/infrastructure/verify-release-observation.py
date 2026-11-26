@@ -200,3 +200,40 @@ class ObservationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConfigurationAuditTests(unittest.TestCase):
+    def test_report_is_read_only_and_never_retains_runtime_secret_values(self):
+        from deployment_config_audit import READS, collect
+        from deployment_profile import DEVELOPER
+
+        calls = []
+
+        def read(service, operation, args):
+            self.assertIn((service, operation), READS)
+            calls.append(operation)
+            if operation == "get-caller-identity":
+                return {"Account": DEVELOPER["account"]}
+            if operation == "get-role":
+                return {"unverified": True, "code": "NoSuchEntity"}
+            if operation == "get-function-configuration":
+                return {
+                    "Environment": {
+                        "Variables": {
+                            "PASSWORD": "must-not-leak",
+                            "FITFINITY_MEDIA_ENABLED": "must-not-leak",
+                            "FITFINITY_AUTH_ENABLED": "true",
+                        }
+                    }
+                }
+            return {}
+
+        report = collect(DEVELOPER, read)
+        self.assertNotIn("must-not-leak", json.dumps(report))
+        self.assertEqual(report["runtime"]["feature_flags"]["FITFINITY_AUTH_ENABLED"], "true")
+        self.assertEqual(report["runtime"]["feature_flags"]["FITFINITY_MEDIA_ENABLED"], "invalid")
+        self.assertEqual(len(report["roles"]), 7)
+        self.assertFalse(report["aws_changes"])
+        self.assertNotIn("get-secret-value", calls)
+        with self.assertRaisesRegex(RuntimeError, "Wrong AWS account"):
+            collect(DEVELOPER, lambda *_: {"Account": "000000000000"})

@@ -40,6 +40,9 @@ concurrency:
 jobs:
   verify:
     if: github.repository == 'LimYouSheng/FitfinityReact' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/verify.yml
   release:
     needs: verify

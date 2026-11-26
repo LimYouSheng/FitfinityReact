@@ -40,7 +40,7 @@ on:
         type: string
         required: false
       stack_id:
-        description: Retained stack ARN; required for cleanup-check
+        description: Optional exact stack ARN; otherwise recovered from the authenticated prior receipt
         type: string
         required: false
 env:

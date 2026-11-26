@@ -3,7 +3,23 @@ on:
   workflow_call: null
 permissions:
   contents: read
+  actions: read
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_application: ${{ steps.scope.outputs.run_application }}
+      baseline_run: ${{ steps.scope.outputs.baseline_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 backend/infrastructure/ci_scope.py
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -63,6 +79,8 @@ jobs:
             ${{ runner.temp }}/fitfinity-npm-audit.json
           if-no-files-found: error
   unit:
+    needs: scope
+    if: needs.scope.outputs.run_application == 'true'
     runs-on: macos-15
     timeout-minutes: 20
     env:
@@ -90,6 +108,8 @@ jobs:
           path: ${{ runner.temp }}/fitfinity-unit.log
           if-no-files-found: error
   browser-build:
+    needs: scope
+    if: needs.scope.outputs.run_application == 'true'
     runs-on: macos-15
     timeout-minutes: 20
     env:
@@ -176,7 +196,8 @@ jobs:
             ${{ runner.temp }}/resources-*.txt
             test-results/
           if-no-files-found: error
-    needs: browser-build
+    needs: [scope, browser-build]
+    if: needs.scope.outputs.run_application == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -192,17 +213,25 @@ jobs:
       FORCE_COLOR: "1"
       PLAYWRIGHT_FORCE_TTY: "0"
     steps:
+      - name: Require successful scope selection
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+        run: test "$SCOPE_RESULT" = success
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+      - if: needs.scope.outputs.run_application == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - if: needs.scope.outputs.run_application == 'true'
+        run: npm ci
+      - if: needs.scope.outputs.run_application == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: fitfinity-browser-profile-${{ github.run_id }}-${{ github.run_attempt }}-*
           path: ${{ runner.temp }}/browser-profiles
-      - name: Verify all frontend groups
+      - if: needs.scope.outputs.run_application == 'true'
+        name: Verify all frontend groups
         shell: bash
         env:
           CI_NEEDS: ${{ toJSON(needs) }}
@@ -210,7 +239,14 @@ jobs:
           set -euo pipefail
           npx playwright test --list --reporter=json > "$RUNNER_TEMP/browser-inventory.json"
           node scripts/verify-ci-groups.mjs frontend "$RUNNER_TEMP/browser-profiles" "$RUNNER_TEMP/browser-inventory.json"
+      - name: Verify application CI reuse
+        if: needs.scope.outputs.run_application == 'false'
+        env:
+          CI_REUSE_AGGREGATE: 'true'
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: python3 backend/infrastructure/ci_scope.py
     needs:
+      - scope
       - quality
       - unit
       - browser-build
@@ -268,6 +304,8 @@ jobs:
           path: ${{ runner.temp }}/infrastructure.log
           if-no-files-found: error
   backend-group:
+    needs: scope
+    if: needs.scope.outputs.run_application == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -321,29 +359,46 @@ jobs:
       FORCE_COLOR: "1"
       PLAYWRIGHT_FORCE_TTY: "0"
     steps:
+      - name: Require successful scope selection
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+        run: test "$SCOPE_RESULT" = success
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+      - if: needs.scope.outputs.run_application == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - if: needs.scope.outputs.run_application == 'true'
+        run: npm ci
+      - if: needs.scope.outputs.run_application == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: fitfinity-backend-group-${{ github.run_id }}-${{ github.run_attempt }}-*
           path: ${{ runner.temp }}/backend-groups
-      - name: Verify all backend groups
+      - if: needs.scope.outputs.run_application == 'true'
+        name: Verify all backend groups
         shell: bash
         env:
           CI_NEEDS: ${{ toJSON(needs) }}
         run: |
           set -euo pipefail
           node scripts/verify-ci-groups.mjs backend "$RUNNER_TEMP/backend-groups"
+      - name: Verify application CI reuse
+        if: needs.scope.outputs.run_application == 'false'
+        env:
+          CI_REUSE_AGGREGATE: 'true'
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: python3 backend/infrastructure/ci_scope.py
     needs:
+      - scope
       - backend-checks
       - infrastructure
       - backend-group
     if: always()
   api-browser-shard:
+    needs: scope
+    if: needs.scope.outputs.run_application == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -391,22 +446,30 @@ jobs:
           path: test-results-api/
           if-no-files-found: warn
   api-browser:
-    needs: api-browser-shard
+    needs: [scope, api-browser-shard]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Require successful scope selection
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+        run: test "$SCOPE_RESULT" = success
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+      - if: needs.scope.outputs.run_application == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - if: needs.scope.outputs.run_application == 'true'
+        run: npm ci
+      - if: needs.scope.outputs.run_application == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: fitfinity-api-browser-${{ github.run_id }}-${{ github.run_attempt }}-*
           path: ${{ runner.temp }}/api-browser-shards
-      - name: Verify every discovered case passed exactly once
+      - if: needs.scope.outputs.run_application == 'true'
+        name: Verify every discovered case passed exactly once
         env:
           API_BROWSER_SHARD_RESULT: ${{ needs.api-browser-shard.result }}
         shell: bash
@@ -414,3 +477,9 @@ jobs:
           set -euo pipefail
           npx playwright test --config=playwright.api.config.js --list --reporter=json > "$RUNNER_TEMP/api-browser-inventory.json"
           node scripts/verify-api-shards.mjs "$RUNNER_TEMP/api-browser-inventory.json" "$RUNNER_TEMP"/api-browser-shards/*/api-browser-results.json
+      - name: Verify application CI reuse
+        if: needs.scope.outputs.run_application == 'false'
+        env:
+          CI_REUSE_AGGREGATE: 'true'
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: python3 backend/infrastructure/ci_scope.py

@@ -649,6 +649,33 @@ class UpgradeExecutionTests(unittest.TestCase):
             now=now,
         )
 
+    def test_missing_stack_input_uses_owned_prior_and_conflicts_still_fail(self):
+        created = self.run_mode("create")
+
+        def inspect(stack_id, prior=created):
+            return self.execute(
+                "inspect",
+                self.review,
+                self.review["template_sha256"],
+                "a" * 40,
+                self.image,
+                self.call,
+                lambda row: self.saved.append(copy.deepcopy(row)),
+                profile=CLIENT,
+                prior=prior,
+                stack_id=stack_id,
+                now=1000,
+            )
+
+        result = inspect(None)
+        self.assertEqual(result["stack_id"], self.stack)
+        self.assertEqual(result["state"], "worker_verified")
+        self.assertNotIn("invoke", [name for name, _ in self.calls])
+        with self.assertRaisesRegex(RuntimeError, "Prior stack receipt differs"):
+            inspect(self.stack + "-foreign")
+        with self.assertRaisesRegex(RuntimeError, "Prior operation identity differs"):
+            inspect(None, {**created, "identity": {}})
+
     def test_success_writes_intents_before_effects_and_keeps_cleanup_explicit(self):
         created = self.run_mode("create")
         checked = self.run_mode("inspect", created)

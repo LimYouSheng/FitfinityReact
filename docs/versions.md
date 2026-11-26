@@ -462,21 +462,21 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [backend/compose.browser.yaml](../backend/compose.browser.yaml) | `b0a7da6ed501b990f3536e3043b8a175fd53206d1e3d3fefcd744b9201f77a8a` |
 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
 | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) | `971764bfb3dba3e89d4261424f33c5a4cbdfc50c988d34a233d0fefd0b5f6c07` |
-| [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `a1787e0fdc7c47da195c409aab3492695e837c0e054000183f814f3d2f90b9cf` |
-| [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `364508dcbd8ef5f02a49d1d20e289b89de6a0f4a35b800e5ebdc20fcf0b251d7` |
+| [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `ec636ed3f598ca3dbbc7633fd7d01c66a5f5b35ed85b23a13f9745a88fef1783` |
+| [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `2ca965e8a3d9cf19ebdf7209e0874de09be8f0ab3ee6a6fbca6fae6582e68084` |
 | [.github/workflows/aws-maintenance.yml](../.github/workflows/aws-maintenance.yml) | `17d280e086f22654b50874ce75f6a4b776ac94a0520155b90a44093a72187d2a` |
-| [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `5e5577ab48444c9305ab984fd803f56eace8468172a56506908b6be00c7d218d` |
+| [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `9256e4ced4d30382de86b650d5e80b46a81f6ef19fed078fd193395819ac3f1d` |
 | [.github/workflows/aws-release-observe.yml](../.github/workflows/aws-release-observe.yml) | `17a7920cfde269cf3477d070dbae349010607562d8212b28428b208bf0fa4af0` |
 | [.github/workflows/aws-release-prepare.yml](../.github/workflows/aws-release-prepare.yml) | `0e0dd642dfbdd8a8d17a9c44fa5871968438abfde02edd5b43d1bb0adaa46b89` |
 | [.github/workflows/aws-rollout.yml](../.github/workflows/aws-rollout.yml) | `2027365106df64f469d4e80d5365d47358cd4dd133443c659c75fde02bfa066d` |
 | [.github/workflows/aws-schema-probe.yml](../.github/workflows/aws-schema-probe.yml) | `e046f8e640fb7764f6a1238d4d2304df500b752e757fbac95bb04801572ccebb` |
-| [.github/workflows/aws-schema-upgrade.yml](../.github/workflows/aws-schema-upgrade.yml) | `74917bc507a5776d20ccc11b21bb1b72c145612eb593d7c6e768f23f3ce46892` |
-| [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `0fa96a2b11d55b52f7f67345bc8039802d451a8b0feaad5d2bca3e5e06f2647d` |
+| [.github/workflows/aws-schema-upgrade.yml](../.github/workflows/aws-schema-upgrade.yml) | `5bf0ea9926f29c664800e6a0d1b2476e3f8d2e7e0fff8aa2b3f2cb20474e4b1e` |
+| [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `9e6106b70ddcacaa0e59720fe9d0a163c9b4f911e66c93a4897a6fbac00b21af` |
 | [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `08363aca3f30a04a7eddd512d942f90fe1ada2ca6a8c714e01832d3f708b8860` |
 | [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `e68107b42e02a406181347df884aee6dd218badf3507ed8d87dc9786b402e5a0` |
 | [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `dc776f3e0757e15ad7d6e7856004331f821d789beafd31e9735028cb1f05ef1b` |
-| [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `eb3a5bccc2ed2e07fece8b057940aeafb7d4db954c32ea57f72baa9e8ade491a` |
-| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `2172ca61e8ce847b1dc3f153a779e2730a57b8761b91148c65d092fb59c7c6ff` |
+| [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `17db9e33e0f87e8d794beb3466dc622ed021bf0a452767af435be0c517b9b79b` |
+| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `52d16fda0d7a257b5e9ea29ec2d99bcc60e2fd2b93ef76772d41b0a07d1d6212` |
 
 Browser-source helper fingerprint: `scripts/prepare-browser-apt.py` SHA-256 `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f`. PR117 replaces the unreachable US regional archive with the official main archive; package suites, signing keys, runner label and Playwright version are unchanged.
 
