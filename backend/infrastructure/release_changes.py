@@ -94,6 +94,31 @@ def expected_changes(original, candidate, *, mode, boundary_resource=None):
     return expected
 
 
+def unchanged_attribute_dependency(original, candidate, name, detail, expected):
+    """Recognize a retained attribute reference to another reviewed resource change."""
+    key = detail.get("Target", {}).get("Name")
+    before = original["Resources"][name].get("Properties", {})
+    after = candidate["Resources"][name].get("Properties", {})
+    value = before.get(key)
+    if key not in before or key not in after or value != after[key]:
+        return False
+    if not isinstance(value, dict) or set(value) != {"Fn::GetAtt"}:
+        return False
+    reference = value["Fn::GetAtt"]
+    if isinstance(reference, str):
+        reference = reference.split(".", 1)
+    return (
+        isinstance(reference, list)
+        and len(reference) == 2
+        and all(isinstance(part, str) and part for part in reference)
+        and reference[0] in expected
+        and expected[reference[0]][0] == "Modify"
+        and detail.get("Evaluation") == "Dynamic"
+        and detail.get("ChangeSource") == "ResourceAttribute"
+        and detail.get("CausingEntity") == ".".join(reference)
+    )
+
+
 def validate(
     original,
     candidate,
@@ -150,11 +175,20 @@ def validate(
                 target_property = detail.get("Target", {})
                 require(
                     target_property.get("Attribute") == "Properties"
-                    and target_property.get("Name") in properties
+                    and (
+                        target_property.get("Name") in properties
+                        or (
+                            mode == "rollout"
+                            and unchanged_attribute_dependency(
+                                original, candidate, name, detail, expected
+                            )
+                        )
+                    )
                     and target_property.get("RequiresRecreation") == "Never",
                     "Unreviewed property or possible recreation refused",
                 )
-                observed.add(target_property["Name"])
+                if target_property["Name"] in properties:
+                    observed.add(target_property["Name"])
             require(observed == properties, "Incomplete property-change evidence")
     require(seen == set(expected), "Incomplete resource-change evidence")
     return {"stack_arn": stack_arn, "template_sha256": reviewed_template_sha256, "mode": mode}

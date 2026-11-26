@@ -109,7 +109,11 @@ class ReleaseAccessTests(unittest.TestCase):
         ):
             grant = next(row for row in rows if action in row["Action"])
             self.assertEqual(grant["Resource"], "arn:aws:iam::418638389566:" + resource)
-        for action in ("CreateChangeSet", "DescribeChangeSet", "ExecuteChangeSet"):
+        read = next(row for row in rows if "cloudformation:DescribeChangeSet" in row["Action"])
+        self.assertEqual(read["Resource"], stack["StackId"])
+        self.assertNotIn("Condition", read)
+        self.assertNotIn("cloudformation:ExecuteChangeSet", read["Action"])
+        for action in ("CreateChangeSet", "ExecuteChangeSet"):
             grant = next(row for row in rows if "cloudformation:" + action in row["Action"])
             self.assertEqual(grant["Resource"], stack["StackId"])
             self.assertEqual(

@@ -384,6 +384,60 @@ class ChangeSetTests(unittest.TestCase):
         changed["Changes"].reverse()
         self.assertEqual(self.validate(change_set=changed), result)
 
+    def test_retained_role_attribute_dependency_matches_reviewed_policy_change(self):
+        candidate = deepcopy(self.candidate)
+        role = candidate["Resources"]["ApiRole"]["Properties"]
+        role["Policies"] = deepcopy(role["Policies"])
+        candidate["Resources"]["ApiRole"]["Properties"]["Policies"][0]["PolicyDocument"][
+            "Statement"
+        ].append(
+            {"Effect": "Allow", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::example/*"}
+        )
+        changes = deepcopy(self.change_set)
+        changes["Changes"].append(self.change("ApiRole", "AWS::IAM::Role", ["Policies"]))
+        detail = {
+            "Target": {"Attribute": "Properties", "Name": "Role", "RequiresRecreation": "Never"},
+            "Evaluation": "Dynamic",
+            "ChangeSource": "ResourceAttribute",
+            "CausingEntity": "ApiRole.Arn",
+        }
+        changes["Changes"][0]["ResourceChange"]["Details"].append(detail)
+        self.assertEqual(self.validate(candidate, changes)["mode"], "rollout")
+        for field, value in (
+            ("Evaluation", "Static"),
+            ("ChangeSource", "DirectModification"),
+            ("CausingEntity", "OtherRole.Arn"),
+            ("CausingEntity", "ApiRole.RoleId"),
+        ):
+            invalid = deepcopy(changes)
+            invalid["Changes"][0]["ResourceChange"]["Details"][-1][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(RuntimeError):
+                self.validate(candidate, invalid)
+        for failure in (
+            "replacement",
+            "recreation",
+            "missing-change",
+            "missing-code",
+            "changed-role",
+        ):
+            invalid, altered = deepcopy(changes), deepcopy(candidate)
+            row = invalid["Changes"][0]["ResourceChange"]
+            if failure == "replacement":
+                invalid["Changes"][-1]["ResourceChange"]["Replacement"] = "Conditional"
+            elif failure == "recreation":
+                row["Details"][-1]["Target"]["RequiresRecreation"] = "Conditionally"
+            elif failure == "missing-change":
+                altered["Resources"]["ApiRole"] = deepcopy(self.original["Resources"]["ApiRole"])
+                invalid["Changes"].pop()
+            elif failure == "missing-code":
+                row["Details"].pop(0)
+            else:
+                altered["Resources"]["ApiFunction"]["Properties"]["Role"] = {
+                    "Fn::GetAtt": ["OtherRole", "Arn"]
+                }
+            with self.subTest(failure=failure), self.assertRaises(RuntimeError):
+                self.validate(altered, invalid)
+
     def test_replacement_deletion_foreign_stack_incomplete_and_extra_changes_are_denied(self):
         for failure in (
             "replacement",
