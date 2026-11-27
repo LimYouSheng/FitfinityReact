@@ -25,6 +25,7 @@ ALLOWED = {
     ("cloudformation", "create-stack"),
     ("cloudformation", "describe-stacks"),
     ("cloudformation", "get-template"),
+    ("cloudformation", "get-template"),
     ("cloudformation", "describe-stack-resource"),
     ("cloudformation", "delete-stack"),
     ("lambda", "get-function"),

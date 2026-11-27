@@ -2,8 +2,9 @@
 
 import unittest
 from copy import deepcopy
+from unittest.mock import patch
 
-from release_milestones import Milestone, rollout_milestone
+from release_milestones import Milestone, maintenance_backup, rollout_milestone
 
 
 class MilestoneTests(unittest.TestCase):
@@ -93,11 +94,18 @@ class MilestoneTests(unittest.TestCase):
     def test_uncertain_writes_and_failed_health_stop_without_replay(self):
         for mode, failure in (
             ("deploy", "upload"),
+            ("deploy", "upload-inspect"),
             ("deploy", "create"),
+            ("deploy", "inspect"),
             ("deploy", "execute"),
+            ("deploy", "verify"),
+            ("resume", "resume-create"),
+            ("resume", "resume-inspect"),
             ("resume", "resume-execute"),
+            ("resume", "resume-verify"),
             ("resume", "resume-health"),
             ("resume", "resume-finalize"),
+            ("resume", "resume-finalize-inspect"),
         ):
             with self.subTest(failure=failure):
                 self.setUp()
@@ -107,6 +115,64 @@ class MilestoneTests(unittest.TestCase):
                 self.assertEqual(self.calls[-1], failure)
                 self.assertEqual(self.calls.count(failure), 1)
                 self.assertEqual(self.saved[-1]["milestone_phase"], failure)
+
+    def test_backup_stops_at_every_interrupted_phase_and_preserves_original_receipt(self):
+        phases = [
+            "pause",
+            "inspect",
+            "record-pause-create",
+            "record-pause-inspect",
+            "record-pause-execute",
+            "record-pause-inspect",
+            "record-pause-verify",
+            "snapshot",
+            "snapshot-check",
+        ]
+        for failure_index in range(len(phases)):
+            with self.subTest(failure_index=failure_index):
+                calls, saved = [], []
+
+                def execute(
+                    mode,
+                    review,
+                    call,
+                    persist,
+                    *,
+                    calls=calls,
+                    failure_index=failure_index,
+                    **kwargs,
+                ):
+                    calls.append(mode)
+                    receipt = {
+                        "state": "paused",
+                        "drained_after": 1000,
+                        "identity": {"operation_id": "original"},
+                    }
+                    if mode.startswith("record-pause"):
+                        receipt["pause_record"] = {
+                            "change_set_status": "CREATE_COMPLETE",
+                            "execution_status": "AVAILABLE",
+                        }
+                        if "record-pause-execute" in calls:
+                            receipt["pause_record"].update(
+                                execution_requested=True,
+                                stack_status="UPDATE_COMPLETE",
+                                execution_status="EXECUTE_COMPLETE",
+                            )
+                    if mode == "snapshot-check":
+                        receipt["state"] = "snapshot_ready"
+                    persist(receipt)
+                    if len(calls) - 1 == failure_index:
+                        raise RuntimeError("uncertain acknowledgement")
+
+                with patch("release_maintenance.execute", side_effect=execute):
+                    with self.assertRaisesRegex(RuntimeError, "uncertain acknowledgement"):
+                        maintenance_backup(
+                            {}, None, saved.append, profile={}, clock=lambda: 1000, pause=self.pause
+                        )
+                self.assertEqual(calls, phases[: failure_index + 1])
+                self.assertEqual(saved[-1]["milestone_phase"], phases[failure_index])
+                self.assertEqual(saved[-1]["identity"]["operation_id"], "original")
 
     def test_polling_is_bounded_and_never_retries_writes(self):
         def pending(mode, prior, save):

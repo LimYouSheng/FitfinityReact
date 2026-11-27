@@ -106,12 +106,21 @@ def validate(record, expected):
             and re.fullmatch(r"[a-f0-9]{32}", pending.get("operation_id", "")),
             "Invalid pending operation",
         )
+    if "retirement" in record:
+        from release_retirement import terminal
+
+        terminal(record)
     return record
 
 
 def next_stage(record, expected):
     """Select an unfinished stage without replaying a pending dispatch."""
     validate(record, expected)
+    if "retirement" in record:
+        return {
+            "action": "retired",
+            "successor_source": record["retirement"]["plan"]["successor_source"],
+        }
     if record["pending"] is not None:
         return {"action": "reconcile", **deepcopy(record["pending"])}
     stage = next((stage for stage in STAGES if stage not in record["stages"]), None)
@@ -143,8 +152,10 @@ def claim_target(profile, source, read, write, now):
         previous, _ = read(
             "releases/" + expected["profile_sha256"] + "/" + owner["source_sha"] + "/current.json"
         )
+        state = next_stage(previous, owner)
         require(
-            next_stage(previous, owner) == {"action": "complete"},
+            state == {"action": "complete"}
+            or state == {"action": "retired", "successor_source": source},
             "Prior release still owns this target; reconcile it before starting another source",
         )
     value = {"schema_version": 1, "identity": expected, "claimed_at": now}

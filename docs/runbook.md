@@ -831,4 +831,115 @@ Setup remains separate and must be reviewed before enabling:
 
 The coordinator has its own concurrency group, so it cannot deadlock the protected child workflow group. Existing environment reviewer requirements remain: one entry point does not bypass milestone approvals. It observes for at most45 minutes within a55-minute job; if approval or execution takes longer it checkpoints as waiting. Running Coordinate Release again on the same source reads the existing record, never repeats pending mutations. Expired reviews are held, not silently renewed. If main advances while a release is pending, reconcile the original source through the existing recovery procedures before starting another release. An existing paused/manual campaign is not silently adopted. A held migration is not automatically rolled back, and failed receipts/backups are not deleted.
 
-This is an offline-tested first draft, not live end-to-end acceptance. Journal installation, coordinator IAM/variables, real GitHub child dispatch/approvals, long-wait continuation, expired-review recovery and a complete live rehearsal remain outstanding. The compiled CloudShell setup catalog is parked separately at the user's request; its earlier fingerprints are historical, not proof that this updated coordinator policy is installed.
+Journal setup and child journal grants were user-verified on27 November; the coordinator reached catalog before the missing backup-dispatch input held it. A complete live rehearsal, expired-review recovery and automatic reconciliation of failed child outcomes remain unaccepted. The compiled CloudShell setup catalog remains parked separately; historical fingerprints are not current installed-state evidence.
+
+
+### Recovery audit across all release milestones
+
+The reusable `.github/workflows/infrastructure.yml` installs locked Node dependencies with `npm ci --ignore-scripts` before running the infrastructure wrapper. The YAML contract guard imports the locked parser; setting up Node alone is insufficient on a clean AWS workflow runner.
+
+The coordinator attaches a read-only `recovery` diagnosis to held/waiting results. It reads the target's owning journal even when main has advanced, checks complete bounded GitHub run inventory and correlates the original source/workflow/operation/attempt. The report explicitly sets `mutation_authorized=false`, `resource_state_checked=false` and `receipt_authenticated=false`: classification is not AWS inspection or recovery acceptance. An unavailable inspection preserves the original failure and holds.
+
+At every milestone: before a dispatch intent exists, prepare only against current verification and unexpired evidence; after intent exists, never infer rejection from an absent run. A running child is observed, not duplicated. A successful child must have its original receipt authenticated before journal advancement. A failed/cancelled child requires the stage-specific checks below. If a journal acknowledgement is lost, reread the conditional pointer; immutable history alone is not completion. A newer source cannot take ownership of an unfinished release.
+
+| Milestone | Evidence and safe inspection after interruption | Continuation boundary |
+| --- | --- | --- |
+| Image | Exact original run/artifact, ECR digest, scan and acceptance receipt | No automatic rebuild/push; publication success is not deployment success. |
+| Observation | Runtime/database observation, physical identities and freshness | A new read can be prepared; stale observations cannot authorize later writes. |
+| Prepare | Original preparation artifacts, source/profile and all review expiries | Regeneration must be explicitly bound; never extend a retained expiry. |
+| Probe creation | Original create intent, exact stack ARN, ownership tags and template hash | Inspect creation state; do not create a replacement because the runner timed out. |
+| Catalog | Original invocation and read-only catalog receipt, revisions and grant evidence | A missing response is not a valid catalog; require fresh authenticated evidence. |
+| Backup | Retained `milestone_phase`: pause → `inspect`; pause change set → `record-pause-inspect`/`record-pause-verify`; snapshot → `snapshot-check` | Inspect runtime revision/concurrency, maintenance marker, drain, installed paused template, physical DB and snapshot ownership. Never restart the whole backup batch. |
+| Upgrade preparation | Original review, compatible source/schema, verified backup, paused runtime and expiry | Fresh approval does not erase an uncertain migration. |
+| Upgrade worker creation | Exact original stack and creation receipt; existing `inspect` mode | Read readiness; do not recreate or replace an uncertain worker. |
+| Upgrade worker inspection | Exact stack/function/image/network/secret bindings | Ready worker does not establish migration success. |
+| Upgrade invocation | Original invocation receipt plus database revision/catalog and execution status | **Manual reconciliation gap:** `inspect` checks the worker, not a committed DB outcome. Never automatically invoke again or downgrade from a generic failure. |
+| Post-upgrade catalog | Fresh original catalog receipt and required grants | Do not proceed from worker readiness or stale pre-upgrade schema evidence. |
+| Rollout | `upload-inspect`, change-set `inspect`, or installed-template `verify`, selected from original phase | Keep original artifact, change-set and service-role binding. Rollback/failed stack needs explicit recovery; never rerun `deploy` as a repair. |
+| Resume | `resume-inspect`/`resume-verify`, `resume-health`, `resume-finalize-inspect` according to original phase | Template success is not health. Failed health does not permit blind pause/redeploy; uncertain finalization must be inspected before any new mutation. |
+| Upgrade cleanup | Original `cleanup_requested`, exact owned stack ARN, `cleanup-check` | Do not repeat DeleteStack after lost response; protect database/snapshots/journal. |
+| Upgrade deletion check | Read original stack deletion status | Only verified deletion satisfies cleanup; generic not-found/AccessDenied is not proof. |
+| Probe cleanup | Original ownership/template and `cleanup_requested`, `cleanup-check` | Delete only the ephemeral owned worker; no media, journal or image cleanup. |
+| Probe deletion check | Read original stack deletion status | Target completion waits for confirmed cleanup or authenticated schema-proven not-required stages. |
+
+**Automation limit:** the new diagnosis selects an investigation, not a repair dispatch. Existing manual operators can consume certain failed receipts under their own guards. The coordinator still requires a successful, authenticated original child for ordinary stage completion; it does not automatically adopt recovery runs, refresh expired reviews or resume a batch from a failed subphase. The narrow manual pre-backup retirement below is a separate terminal outcome, not fabricated completion. General recovery-run adoption remains planned.
+
+**Current pre-backup incident:** source6286191 retains generation11 and backup `dispatch_intent`; its maintenance review expired at2026-11-27T10:27:58Z. The supplied readback showed Active/Successful Lambda, matching revision and reserved concurrency10, with no pause. Before manual retirement, recheck live claim/record ETags, complete original-source child inventory, the invalid dispatch against its source workflow, runtime/hosting/DB identities, and exact probe ownership. Preserve all receipts. Use the reviewed conditional retirement operation below after exact probe deletion is verified; do not hand-edit the journal, fabricate backup completion, remove the target claim or reuse the expired review. Source implementation is not evidence that live recovery has executed.
+
+
+### Guarded pre-backup retirement
+
+Retirement means closing an abandoned deployment attempt while preserving its history; it does not retire the app. The coordinator recognizes a verified retirement, but does not initiate this decision automatically.
+
+`retirement_operator.py` is a manual CloudShell operator for the specific missing-required-backup-input failure. It does not delete resources, pause/resume the app, mutate the database, remove the target claim or start a deployment. Its only writes are the original release's immutable history event and conditional current-record update. Existing public GitHub metadata is read without introducing a token; private/unavailable/rate-limited API reads hold. Use the repository Node version and locked dependencies plus CloudShell's AWS CLI and boto3. No new IAM grants are introduced.
+
+Execution order after source acceptance:
+
+1. Merge the tested source. The reusable infrastructure workflow now installs locked Node dependencies; the real probe CLI adapter permits the existing ownership `GetTemplate` read. These fixes must be on main before retrying the previously skipped cleanup.
+2. Run existing `aws-schema-probe.yml` mode `cleanup` with the original preparation run, operation ID, exact template hash and stack ARN. Then run `cleanup-check` against that same ARN. Both preserve their original operational receipts. Do not rerun `cleanup` after an uncertain submission. A generic missing-stack or access-denied response is not deletion proof.
+3. From a clean checkout of the merged main, run `npm ci --ignore-scripts`, then prepare a retirement review. `--profile` uses the existing deployment profile, never copied account/resource constants. The operator requires this checkout to be current GitHub main and a descendant of the original source.
+
+```bash
+review_dir=$(mktemp -d "$HOME/fitfinity-retirement-XXXXXX")
+python3 backend/infrastructure/retirement_operator.py \
+  --profile backend/infrastructure/targets/developer.json \
+  --mode prepare --review "$review_dir/retirement.json"
+```
+
+Preparation validates the target claim, release identity, original first-five-stage evidence and pending backup intent. The archived workflow must declare the missing `review_sha256` input mandatory without a default; the locked YAML parser verifies this. Complete bounded inventories must show no original-source maintenance run, no maintenance run on any source since the intent, and no still-active original-source run. The original review must have expired. Fresh AWS reads must prove the original runtime revision/capacity, no maintenance/snapshot markers, unchanged completed hosting template, original available private encrypted PostgreSQL identity, and `DELETE_COMPLETE` for the exact owned probe with its original tags and template. Missing/deleted metadata that AWS no longer retains holds retirement rather than assuming cleanup.
+
+4. Review the saved JSON and printed SHA256. Within ten minutes, apply that exact plan:
+
+```bash
+python3 backend/infrastructure/retirement_operator.py \
+  --profile backend/infrastructure/targets/developer.json \
+  --mode apply --review "$review_dir/retirement.json" \
+  --sha256 '<SHA256 printed by prepare>'
+```
+
+Apply repeats the provider observations, rechecks both pointer versions and expiry after inspection, then writes immutable history before a compare-and-swap update. A concurrent writer or changed live state stops it. The old pending intent and all completed evidence remain unchanged; a sealed retirement binds their original digest and the exact successor SHA. A lost pointer acknowledgement is reconciled by reading the sealed record, returning `already_retired` without another write. If only a history event was stored and the pointer remains unchanged, inspect it and prepare a fresh reviewed plan; never force a pointer update.
+
+5. Start Coordinate Release for the exact successor on main. Normal source verification still applies. The coordinator transfers the target claim conditionally only to that successor and starts with fresh reviews; the retired source cannot dispatch or mark its old backup successful. Avoid merging another source between review and successor start. A different source requires explicit reconciliation, not automatic reauthorization. Ordinary completed releases retain the existing next-release behavior.
+
+### Deployment and recovery paths
+
+These diagrams use basic left-to-right Mermaid syntax. If a client displays raw code, view this section on GitHub. The text procedures above remain authoritative.
+
+```mermaid
+graph LR
+    A[Verified main CI] --> B[Publish accepted image]
+    B --> C[Observe and prepare]
+    C --> D[Create probe and inspect DB]
+    D --> E[Pause and verify backup]
+    E --> F{Migration needed}
+    F -->|Yes| G[Create worker and upgrade]
+    F -->|No| H[Verify schema and grants]
+    G --> H
+    H --> I[Deploy while paused]
+    I --> J[Resume and verify health]
+    J --> K[Delete workers and verify cleanup]
+    K --> L[Record release complete]
+```
+
+```mermaid
+graph LR
+    A[Stopped milestone] --> B[Diagnose journal and original run]
+    B --> C{Observed outcome}
+    C -->|Running| D[Wait without redispatch]
+    C -->|Succeeded| E[Authenticate original receipt]
+    E --> F[Continue next stage]
+    C -->|Uncertain| G[Operator inspects receipt and AWS]
+    C -->|Invalid pre-backup dispatch| H[Verify unchanged app and original ownership]
+    H --> I[Cleanup original probe]
+    I --> J[Verify exact deletion]
+    J --> K[Prepare and review retirement]
+    K --> L[Recheck and seal old release]
+    L --> M[Exact successor claims target]
+    M --> N[Fresh coordinated release]
+    G --> O[Manual guarded subphase recovery]
+    O --> P[Automatic recovery receipt adoption remains planned]
+```
+
+Single-approval orchestration is an agreed follow-up: PR160 retains existing child environment approvals. The future design must carry an exact source/target/plan authorization through normal stages and hold changed scope, expired authority or unresolved mutation outcomes; it is not permission to auto-approve protected environments.
+
+The normal coordinator still takes a backup even when migration is unnecessary. Skipping pause/backup for application-only releases was discussed but is not implemented in this change. The retirement path is implemented for the narrow pre-backup case and requires live acceptance after merge; general automated recovery after migration/rollout is not claimed.
