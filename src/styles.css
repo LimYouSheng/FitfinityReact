@@ -2600,12 +2600,12 @@ fieldset.session-request-fields legend{margin-bottom:8px;font-weight:600}
   .session-status-groups.has-pending{flex-direction:column;align-items:flex-start}
   .session-pending-statuses{flex-direction:row;flex-wrap:wrap}
   .message-title-head{display:none}
-  .message-title-grid:not(.message-title-preview),.has-renewal-status .message-title-grid:not(.message-title-preview){grid-template-columns:24px minmax(0,1fr) auto;gap:3px 8px}
+  .message-title-grid:not(.message-title-preview),.has-renewal-status .message-title-grid:not(.message-title-preview){grid-template-columns:24px minmax(0,1fr) auto auto;gap:3px 8px}
   .message-title-row:not(.message-title-preview)>input[type=checkbox]{grid-column:1;grid-row:1}
   .message-title-row:not(.message-title-preview) .message-title-button{grid-column:2 / -1;grid-row:1;padding-bottom:4px}
-  .message-title-time,.has-renewal-status .message-title-time{grid-column:2;grid-row:2;padding:0 0 9px}
-  .message-approval-status{grid-column:2 / -1;grid-row:3;justify-content:flex-start}
-  .message-title-row:not(.message-title-preview) .message-state-button{grid-column:3;grid-row:2;margin-bottom:8px}
+  .message-title-time,.has-renewal-status .message-title-time{grid-column:1 / 3;grid-row:2;padding:0 0 9px}
+  .message-approval-status{grid-column:3;grid-row:2;justify-content:flex-start;margin-bottom:8px}
+  .message-title-row:not(.message-title-preview) .message-state-button{grid-column:4;grid-row:2;margin-bottom:8px}
   .profile-info-grid{grid-template-columns:1fr}
   .profile-info-grid .info-row:nth-child(2){border-top:1px solid #292d36}
   .strength-progress .strength-progress-head{

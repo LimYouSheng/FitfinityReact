@@ -51,7 +51,7 @@ for (const kind of ['progress', 'session']) test(`${kind} sharing waits for exac
     expect(requests).toHaveLength(1)
     expect(requests[0].operation).toBe(`report.${kind}`)
     expect((await page.request.get(`/api/report-sharing/requests/${requests[0].id}`)).status()).toBe(404)
-    await page.goto('/#/messages')
+    await page.goto('/#/messages/approvals')
     await page.locator('.info-row').filter({ hasText: `${purpose} admin` }).getByRole('button', { name: 'Review', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Download Reviewed PDF', exact: true })).toBeEnabled()
     await page.getByRole('button', { name: 'Approve', exact: true }).click()

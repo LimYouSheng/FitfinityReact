@@ -148,7 +148,7 @@ test('supervised email change recovers lost submission and requires Trainer veri
     expect((await read(manager, '/api/directory')).trainers.find(item => item.id === trainer.id).email).toBe(trainer.email)
     const requests = (await read(manager, '/api/admin-requests')).filter(item => item.operation === 'trainer.email')
     expect(requests).toHaveLength(1)
-    await page.goto('/#/messages')
+    await page.goto('/#/messages/approvals')
     const row = page.locator('.info-row').filter({ hasText: 'emailapproval admin' }).filter({ hasText: 'pending' })
     await row.getByRole('button', { name: 'Review', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Request verified Trainer email change', exact: true })).toBeVisible()
