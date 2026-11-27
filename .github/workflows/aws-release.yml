@@ -9,7 +9,7 @@ on:
         type: string
         default: developer
   workflow_run:
-    workflows: [CI - Verify And Publish Staff Demo, CI - CodeQL Security Analysis]
+    workflows: [CI - Verify And Publish Staff Demo]
     types: [completed]
     branches: [main]
 
