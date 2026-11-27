@@ -39,10 +39,20 @@ def bindings(record):
     probe = record["stages"]["probe_create"]["evidence"]["documents"]["schema-probe-receipt.json"]
     review = docs["schema-probe-review/review.json"]
     owner = record["identity"]
+    # The attempt ID is allocated at dispatch, after the probe review is prepared.
+    creation = record["stages"]["probe_create"]["evidence"].get("dispatch_inputs")
+    require(
+        isinstance(creation, dict)
+        and creation.get("mode") == "create"
+        and isinstance(creation.get("operation_id"), str)
+        and re.fullmatch(r"[a-f0-9]{32}", creation["operation_id"])
+        and creation.get("template_sha256") == review["template_sha256"],
+        "Original probe creation dispatch required",
+    )
     require(
         maintenance["source_sha"] == probe["source_sha"] == owner["source_sha"]
         and maintenance["profile_sha256"] == probe["profile_sha256"] == owner["profile_sha256"]
-        and probe["operation_id"] == review["bindings"]["operation_id"]
+        and probe["operation_id"] == creation["operation_id"]
         and review["bindings"]["source_sha"] == owner["source_sha"]
         and probe["state"] == "create_submitted",
         "Original review identities differ",
