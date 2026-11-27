@@ -67,6 +67,26 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   assert.equal(codeql.jobs.analyze.steps.find(step => step.name === 'Initialize CodeQL').with['build-mode'], 'none')
   assert.ok(codeql.jobs.analyze.steps.some(step => step.uses?.startsWith('github/codeql-action/analyze@')))
 })
+test('child dispatch workflows retain correlation and provider input limits', () => {
+  const source = fs.readFileSync('backend/infrastructure/release_dispatch.py', 'utf8')
+  const mapping = source.match(/WORKFLOWS = \{([\s\S]*?)\n\}/)?.[1]
+  assert.ok(mapping, 'dispatch workflow mapping must be present')
+  const filenames = [...new Set([...mapping.matchAll(/"(aws-[^"]+\.yml)"/g)].map(match => match[1]))]
+  assert.ok(filenames.length > 0, 'must check actual child workflows')
+  for (const filename of filenames) {
+    const workflow = parse(fs.readFileSync(`.github/workflows/${filename}`, 'utf8'), { uniqueKeys: true })
+    const inputs = workflow.on.workflow_dispatch.inputs
+    assert.ok(Object.hasOwn(inputs, 'orchestration_id'), filename)
+    assert.ok(Object.keys(inputs).length <= 25, filename)
+    assert.ok(workflow['run-name'].includes("format('Release operation {0}', inputs.orchestration_id)"), filename)
+  }
+})
+test('infrastructure output is visible and preserves pipeline failures', () => {
+  const workflow = readQualitySetup().verify
+  const step = workflow.jobs.infrastructure.steps.find(step => step.name === 'Offline infrastructure')
+  assert.ok(step.run.includes('set -euo pipefail'))
+  assert.ok(step.run.includes('node scripts/verify-infrastructure.mjs 2>&1 | tee "$RUNNER_TEMP/infrastructure.log"'))
+})
 const mutations = [
   ['missing scope metadata gate', setup => { delete setup.verify.jobs.scope }],
   ['shallow scope ancestry', setup => { setup.verify.jobs.scope.steps[0].with['fetch-depth'] = 1 }],

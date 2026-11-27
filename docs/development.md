@@ -341,3 +341,5 @@ The protected rollout accepts a successful exact-current-main verification run I
 ### Infrastructure-only verification
 
 The shared verification workflow runs fresh quality/backend-check/infrastructure gates for every head. Heavy application jobs may reuse full main evidence under [the seven-day identical-input policy](runbook.md#application-ci-reuse); current-source CodeQL and required aggregate checks remain mandatory. The scope job summary identifies the baseline run or why full execution was selected. Never treat an arbitrary skipped job as acceptance.
+
+Workflow-file contract checks run in the host quality suite, where `.github/workflows` exists. Offline Python infrastructure tests must also pass in the backend-only `/app` container layout; a full-repository mount alone does not establish this. The PR infrastructure step streams and retains its log using `tee` with `pipefail`.

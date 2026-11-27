@@ -22,7 +22,7 @@ SUITES = {
     "verify-release-stage-results.py": 5,
     "verify-release-coordinator.py": 9,
     "verify-journal-setup.py": 3,
-    "verify-release-dispatch.py": 7,
+    "verify-release-dispatch.py": 6,
     "verify-deployment-journal.py": 9,
     "verify-release-record.py": 10,
     "verify-release-lifecycle.py": 3,

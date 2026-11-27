@@ -1,12 +1,10 @@
 """Prove workflow dispatch preserves uncertain intent and exact child identity."""
 
-import re
 import unittest
 from copy import deepcopy
-from pathlib import Path
 from unittest.mock import Mock
 
-from release_dispatch import WORKFLOWS, dispatch, reconcile
+from release_dispatch import dispatch, reconcile
 
 
 class DispatchTests(unittest.TestCase):
@@ -65,18 +63,6 @@ class DispatchTests(unittest.TestCase):
             now=100,
             send=send or self.send,
         )
-
-    def test_child_workflows_keep_correlated_dispatch_inputs_within_provider_limit(self):
-        root = Path(__file__).resolve().parents[2] / ".github/workflows"
-        for filename in set(WORKFLOWS.values()):
-            with self.subTest(workflow=filename):
-                text = (root / filename).read_text()
-                header = text.split("\nenv:", 1)[0]
-                inputs = re.findall(r"^      ([a-zA-Z0-9_]+):$", header, re.MULTILINE)
-                self.assertIn("orchestration_id", inputs)
-                self.assertEqual(len(inputs), len(set(inputs)))
-                self.assertLessEqual(len(inputs), 25)
-                self.assertIn("format('Release operation {0}', inputs.orchestration_id)", header)
 
     def test_dispatch_persists_intent_first_and_does_not_advance_stage(self):
         result = self.start()

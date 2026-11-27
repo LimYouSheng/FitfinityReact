@@ -296,7 +296,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/verify-infrastructure.mjs > "$RUNNER_TEMP/infrastructure.log" 2>&1
+          node scripts/verify-infrastructure.mjs 2>&1 | tee "$RUNNER_TEMP/infrastructure.log"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:

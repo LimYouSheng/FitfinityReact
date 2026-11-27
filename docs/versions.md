@@ -477,7 +477,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `e68107b42e02a406181347df884aee6dd218badf3507ed8d87dc9786b402e5a0` |
 | [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `dc776f3e0757e15ad7d6e7856004331f821d789beafd31e9735028cb1f05ef1b` |
 | [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `17db9e33e0f87e8d794beb3466dc622ed021bf0a452767af435be0c517b9b79b` |
-| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `52d16fda0d7a257b5e9ea29ec2d99bcc60e2fd2b93ef76772d41b0a07d1d6212` |
+| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `f050500caabe5ade4e06dc7b04e0b6b8e677ccf8592b05524f81e94b1b454caa` |
 
 Browser-source helper fingerprint: `scripts/prepare-browser-apt.py` SHA-256 `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f`. PR117 replaces the unreachable US regional archive with the official main archive; package suites, signing keys, runner label and Playwright version are unchanged.
 

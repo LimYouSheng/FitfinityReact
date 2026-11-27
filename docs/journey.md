@@ -9470,3 +9470,10 @@ The following records the prior deployment troubleshooting checkpoint; it is not
 
 
 **Completion rule:** source portability is complete at D5; this campaign's developer-deployment objective is complete at D7. A blocked external action pauses only its dependent gate. Record the exact missing input/action and continue independent work; never silently redefine completion as a collection of green unit tests.
+
+
+## 27 November 2026 — PR154 infrastructure container-layout regression
+
+PR154 at bb4146a failed infrastructure run45928416900/job140275156588. The user supplied the retained infrastructure.log after GitHub log/artifact downloads returned403. All1,023 cases were collected, with seven subtest errors in the new workflow-input check: `/app/infrastructure/verify-release-dispatch.py` resolved repository workflow paths to `/.github/workflows`, absent from the backend-only image. The earlier local full-repository mount masked the problem. An initial canonical local wrapper attempt was separately blocked by the environment's package-download certificate trust; this was not evidence of the CI cause.
+
+The original seven-case dispatch suite was reproduced in the backend-only layout and failed with the same seven missing-file errors. Workflow-input/correlation/unique-key/provider-limit checks moved to the existing host quality suite, deriving filenames from the dispatch mapping; the six Python dispatch behavior cases remain. The infrastructure inventory now counts1,022 cases, all passing in the backend-only layout. Two host quality cases cover the moved contract and visible failure-preserving log output. The PR step uses tee plus pipefail, retaining its artifact. The generated Versions fingerprint changed only for verify.yml; no dependency pins changed. No full CI rerun or AWS action was requested to diagnose this failure. New-head GitHub acceptance remains required; no merge authorized.
