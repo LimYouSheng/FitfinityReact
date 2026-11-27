@@ -836,6 +836,8 @@ Journal setup and child journal grants were user-verified on27 November; the coo
 
 ### Recovery audit across all release milestones
 
+The reusable `.github/workflows/infrastructure.yml` installs locked Node dependencies with `npm ci --ignore-scripts` before running the infrastructure wrapper. The YAML contract guard imports the locked parser; setting up Node alone is insufficient on a clean AWS workflow runner.
+
 The coordinator attaches a read-only `recovery` diagnosis to held/waiting results. It reads the target's owning journal even when main has advanced, checks complete bounded GitHub run inventory and correlates the original source/workflow/operation/attempt. The report explicitly sets `mutation_authorized=false`, `resource_state_checked=false` and `receipt_authenticated=false`: classification is not AWS inspection or recovery acceptance. An unavailable inspection preserves the original failure and holds.
 
 At every milestone: before a dispatch intent exists, prepare only against current verification and unexpired evidence; after intent exists, never infer rejection from an absent run. A running child is observed, not duplicated. A successful child must have its original receipt authenticated before journal advancement. A failed/cancelled child requires the stage-specific checks below. If a journal acknowledgement is lost, reread the conditional pointer; immutable history alone is not completion. A newer source cannot take ownership of an unfinished release.

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import fs from 'node:fs'
+import { parse } from 'yaml'
 import { validateInputs } from './workflow_inputs.mjs'
 
 test('maintenance rejects the original missing hash and accepts the complete input contract', () => {
@@ -24,4 +26,16 @@ test('all coordinator child workflow contracts are enforced', () => {
     validateInputs(workflow, inputs)
     assert.throws(() => validateInputs(workflow, { ...inputs, unexpected: 'value' }))
   }
+})
+
+
+test('standalone infrastructure installs locked parser dependencies before invoking its guard', () => {
+  const workflow = parse(fs.readFileSync(new URL('../../.github/workflows/infrastructure.yml', import.meta.url), 'utf8'))
+  const steps = workflow.jobs.verify.steps
+  const setup = steps.findIndex(step => step.uses?.startsWith('actions/setup-node@'))
+  const install = steps.findIndex(step => step.run?.trim() === 'npm ci --ignore-scripts')
+  const verify = steps.findIndex(step => step.run?.includes('npm run verify:infrastructure'))
+  assert.ok(setup >= 0 && install > setup && verify > install, 'A clean AWS workflow must install dependencies before infrastructure verification')
+  assert.equal(steps[install].if, undefined, 'Installation cannot be conditional')
+  assert.equal(steps[install]['continue-on-error'], undefined, 'Installation failure must stop verification')
 })

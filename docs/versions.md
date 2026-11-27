@@ -475,7 +475,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `9e6106b70ddcacaa0e59720fe9d0a163c9b4f911e66c93a4897a6fbac00b21af` |
 | [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `08363aca3f30a04a7eddd512d942f90fe1ada2ca6a8c714e01832d3f708b8860` |
 | [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `e68107b42e02a406181347df884aee6dd218badf3507ed8d87dc9786b402e5a0` |
-| [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `dc776f3e0757e15ad7d6e7856004331f821d789beafd31e9735028cb1f05ef1b` |
+| [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `94536abbd6000d62d9917e98841f1042acdf03c1d39125d42071e7fbd81fa0e3` |
 | [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `17db9e33e0f87e8d794beb3466dc622ed021bf0a452767af435be0c517b9b79b` |
 | [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `f050500caabe5ade4e06dc7b04e0b6b8e677ccf8592b05524f81e94b1b454caa` |
 
