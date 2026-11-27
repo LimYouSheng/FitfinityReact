@@ -56,6 +56,23 @@ class InputTests(unittest.TestCase):
         self.assertEqual(self.check("observation"), {"target": "developer"})
 
     def test_prepare_binds_image_live_revision_and_original_capacity(self):
+        review = {"operation_id": "reviewed"}
+        self.stage("prepare", 103, {"maintenance-review/review.json": review})
+        backup = self.check("backup")
+        from maintenance_operator import digest as maintenance_digest
+
+        self.assertEqual(
+            backup,
+            {
+                "target": "developer",
+                "mode": "backup",
+                "review_run": "103",
+                "review_sha256": maintenance_digest(review),
+            },
+        )
+        self.record["stages"]["prepare"]["evidence"]["documents"].clear()
+        with self.assertRaises(KeyError):
+            self.check("backup")
         result = self.check("prepare")
         probe = json.loads(result["probe_bindings"])
         maintenance = json.loads(result["maintenance_bindings"])
