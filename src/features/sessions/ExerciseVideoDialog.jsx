@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useLayoutEffect, useEffectEvent, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { formatTimestamp } from '../../utils/date.js'
@@ -243,7 +244,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
           ) : previewUrl ? (
             <video className="exercise-video-preview" src={previewUrl} controls playsInline preload="none" />
           ) : exercise.videoAttached ? (
-            <div className="exercise-video-preview exercise-video-placeholder" role="status">{previewUnavailable ? 'A saved video is attached. Its local preview is unavailable in this browser session.' : 'Loading saved video…'}</div>
+            <div role={previewUnavailable ? 'status' : undefined} className="exercise-video-preview exercise-video-placeholder">{previewUnavailable ? 'A saved video is attached. Its local preview is unavailable in this browser session.' : <LoadingIndicator label="Loading saved video…" />}</div>
           ) : null}
 
           {editable && !uncertain && (

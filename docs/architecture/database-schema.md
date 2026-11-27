@@ -1,6 +1,6 @@
 # Database schema
 
-Source map reviewed **3 November 2026 (Singapore)** against `68b2eb2`. **104 application PostgreSQL tables** result from the 52 Alembic revisions through `20261101_0052`. Migration bookkeeping (`alembic_version`), PostgreSQL system tables and test-only fixtures are excluded.
+Source map extended **27 November 2026 (Singapore)** for the local Owner profile candidate; the original inventory was reviewed against `68b2eb2`. **106 application PostgreSQL tables** result from the 53 Alembic revisions through `20261127_0053`. Migration bookkeeping (`alembic_version`), PostgreSQL system tables and test-only fixtures are excluded.
 
 **Deployment distinction:** this is a source-derived schema map verified in disposable local PostgreSQL 17.11. It is not an inspection of deployed RDS or customer records; the deployed migration head remains separately verified during release. Table presence does not certify provider, device or production acceptance.
 
@@ -297,3 +297,7 @@ Database constraints protect structural invariants even if a writer bypasses the
 - Validation for this document applied all 52 revisions to an empty isolated PostgreSQL 17.11 container, reached `20261101_0052`, and inspected 104 application tables. The table-name set matched registered SQLAlchemy metadata. Diagram edges and cardinalities were derived from inspected foreign keys, nullability and uniqueness; inventory primary/unique keys came from that same schema. No production connection or customer rows were used. This does not replace full application CI, populated restore or deployed migration acceptance.
 
 `backend/app/runtime-grants.json` is the explicit runtime privilege inventory for the104 application tables plus `alembic_version`; it does not grant access to future tables. The private populated-upgrade service applies missing reviewed grants in the same transaction as migrations and refuses excessive grants, unexpected tables/owners, column grants, runtime memberships or future-table defaults. An already-current schema is verified without silently repairing its permissions. Historical bootstrap contracts remain unchanged. Source/test preparation is separate from observed deployed grants.
+
+## Owner contact extension — local UI/profile candidate
+
+`owner_profiles` has a one-to-one primary key `user_id` and composite `(user_id,user_role)` foreign key to `staff_users(id,role)`, constrained to Owner. It holds phone country code/number, birthday and gender; name/email/version remain in `staff_users`. `owner_profile_receipts` retains actor identity/name, unique actor/request key, request SHA-256 and committed profile JSON. Its immutable trigger rejects update/delete. Runtime grants allow profile SELECT/INSERT/UPDATE and receipt SELECT/INSERT only. Migration0053 permits downgrade only when both new tables are empty. The local metadata-parity and populated-downgrade tests passed; live deployment remains at the previously observed0052.

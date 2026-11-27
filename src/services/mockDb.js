@@ -49,6 +49,8 @@ function load() {
   const normalized = { ...loaded, settings: { ...clone(seed.settings), ...loaded.settings }, exerciseLibrary: loaded.exerciseLibrary ?? clone(seed.exerciseLibrary), contentEntries: loaded.contentEntries ?? [], packages: loaded.packages ?? clone(seed.packages), sessions: (loaded.sessions ?? []).map(normalizeSession) }
   // A legacy-data migration must persist successfully before it is published to the UI.
   const before = JSON.stringify(loaded)
+  normalized.users = loaded.users.map(user => user.role === 'owner' && !user.email
+    ? { ...user, email: seed.users.find(person => person.id === user.id)?.email ?? '' } : user)
   for (const client of normalized.clients) normalizeClientRecords(normalized, client)
   const renewalChanged = migrateRenewalMessages(normalized)
   normalizeDemoSessionMessages(normalized)

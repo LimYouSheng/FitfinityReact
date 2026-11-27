@@ -254,6 +254,7 @@ test('API package setup reconciles interruption and retains a committed save thr
   await page.getByRole('button', { name: 'Add Package', exact: true }).click()
   await page.getByLabel('Package name', { exact: true }).fill('API Eighteen')
   await page.getByLabel('Package session count', { exact: true }).fill('18')
+  await page.getByLabel('Package validity in days', { exact: true }).fill('135')
   const confirm = async name => {
     await page.getByRole('button', { name, exact: true }).click()
     await page.getByRole('dialog').getByRole('button', { name, exact: true }).click()

@@ -23,7 +23,7 @@ from schema_upgrade_plan import prepare as prepare_upgrade
 
 BACKEND = Path(__file__).resolve().parents[1]
 START = "20260924_0006"
-HEAD = "20261101_0052"
+HEAD = "20261127_0053"
 
 
 def stamped(seconds):
@@ -525,7 +525,7 @@ class LifecycleTests(unittest.TestCase):
         grants_file = "backend/app/runtime-grants.json"
         path = rollback.root / grants_file
         previous_grants = json.loads(path.read_text())
-        previous_grants["schema_revision"] = "20261031_0051"
+        previous_grants["schema_revision"] = "20261101_0052"
         path.write_text(json.dumps(previous_grants))
         rollback.image["source_files"][grants_file] = file_hash(path)
         with self.assertRaisesRegex(RuntimeError, "Fresh target schema observation required"):

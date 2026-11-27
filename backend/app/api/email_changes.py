@@ -96,16 +96,35 @@ def email_receipt(session, principal, key):
 )
 def reserve(session, principal, trainer_id, key, body):
     """Reserve the reviewed address; only the account holder can send and verify its code."""
+    return reserve_account(session, principal, trainer_id, key, body)
+
+
+def reserve_account(session, principal, trainer_id, key, body, *, own_owner=False):
+    """Bind the verified identity and reviewed target revision before reserving email."""
     context = session.info["email_change_context"]
     principal.operations()
     if body.supersedes is not None and not context["corrections_enabled"]:
         raise AuthError(
             "EMAIL_CORRECTION_UNAVAILABLE", "Pending email correction is not enabled.", 409
         )
-    target_id = session.scalar(select(Trainer.user_id).where(Trainer.id == trainer_id))
+    if own_owner:
+        principal.owner()
+    target_id = (
+        principal.user_id
+        if own_owner
+        else session.scalar(select(Trainer.user_id).where(Trainer.id == trainer_id))
+    )
     user = session.scalar(select(StaffUser).where(StaffUser.id == target_id).with_for_update())
-    trainer = session.scalar(select(Trainer).where(Trainer.id == trainer_id).with_for_update())
-    if not user or not trainer or user.status != "active" or trainer.status != "active":
+    trainer = (
+        None
+        if own_owner
+        else session.scalar(select(Trainer).where(Trainer.id == trainer_id).with_for_update())
+    )
+    if (
+        not user
+        or user.status != "active"
+        or (not own_owner and (not trainer or trainer.status != "active"))
+    ):
         raise unavailable()
     session.execute(text("SELECT pg_advisory_xact_lock(714602036)"))
     prior = session.scalar(
@@ -122,7 +141,9 @@ def reserve(session, principal, trainer_id, key, body):
         ):
             raise conflict()
         return result(prior)
-    if trainer.version != body.expectedVersion or trainer.email != user.email:
+    if (user.version if own_owner else trainer.version) != body.expectedVersion or (
+        trainer and trainer.email != user.email
+    ):
         raise conflict()
     identity = session.scalar(
         select(StaffIdentity).where(
@@ -153,7 +174,7 @@ def reserve(session, principal, trainer_id, key, body):
         if pending.state not in {"requested", "pending"} or pending.lease_id is not None:
             raise AuthError(
                 "EMAIL_CHANGE_UNCERTAIN",
-                "The trainer must reconcile the current provider action before correction.",
+                "The account holder must reconcile the current provider action before correction.",
                 409,
             )
         if pending.new_email == body.email:
@@ -179,6 +200,33 @@ def reserve(session, principal, trainer_id, key, body):
     session.add(change)
     session.flush()
     return result(change)
+
+
+@router.post(
+    "/api/owner-profile/email-change",
+    response_model=EmailState,
+    operation_id="requestOwnerEmailChange",
+)
+def request_owner_change(body: EmailRequest, request: Request, key: RequestKey):
+    """Reserve only the signed-in Owner's address; sending remains an explicit step."""
+    with authorized_transaction(request, exclusive_user=True) as (session, principal):
+        principal.owner()
+        bind_request_context(session, request)
+        return reserve_account(session, principal, None, key, body, own_owner=True)
+
+
+@router.get(
+    "/api/owner-email-requests/{key}",
+    response_model=EmailState,
+    operation_id="ownerEmailRequestReceipt",
+)
+def owner_request_receipt(key: UUID, request: Request):
+    with authorized_transaction(request) as (session, principal):
+        principal.owner()
+        change = email_receipt(session, principal, key)
+        if change is None or change.user_id != principal.user_id:
+            raise unavailable()
+        return result(change)
 
 
 @router.get(
@@ -293,12 +341,16 @@ def finish(request, auth, record, change_id, address, lease=None):
             raise busy()
         user = session.get(StaffUser, principal.user_id)
         trainer = session.scalar(select(Trainer).where(Trainer.user_id == user.id))
-        if user.email != change.old_email or not trainer or trainer.email != change.old_email:
+        if user.email != change.old_email or (
+            user.role != "owner" and (not trainer or trainer.email != change.old_email)
+        ):
             raise conflict()
         if address == change.new_email and change.state in {"sending", "pending", "verifying"}:
             # Existing staff-email trigger revokes every session atomically with the
             # local address switch. Completed evidence survives a lost HTTP response.
-            user.email = trainer.email = address
+            user.email = address
+            if trainer is not None:
+                trainer.email = address
             change.state, change.completed_at = "completed", auth.clock()
             change.reservation_released_at = change.completed_at
             change.lease_id = change.lease_until = None

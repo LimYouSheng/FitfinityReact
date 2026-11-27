@@ -19,7 +19,7 @@ export const packageService = {
       if (definitions.some(item => item.id !== id && item.name.toLowerCase() === name.toLowerCase())) throw new Error('A package already uses this name.')
       if (draft.status && !['active', 'inactive'].includes(draft.status)) throw new Error('Choose a valid package status.')
       savedId = id ?? `package-${Math.max(0, ...definitions.map(item => Number(item.id.match(/^package-(\d+)$/)?.[1] ?? 0))) + 1}`
-      const record = { id: savedId, name, total: Number(draft.total), validityDays: packageValidityDays(draft.total, db.settings),
+      const record = { id: savedId, name, total: Number(draft.total), validityDays: draft.validityDays == null ? packageValidityDays(draft.total, db.settings) : Number(draft.validityDays),
         status: draft.status ?? previous?.status ?? 'active', version: (previous?.version ?? 0) + 1 }
       if (previous) definitions[definitions.findIndex(item => item.id === id)] = record
       else definitions.push(record)

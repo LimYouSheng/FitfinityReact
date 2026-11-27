@@ -32,7 +32,7 @@ Trainer A requires approval for schedule changes; Trainer B has the permitted ap
 | UAT-006 | Open Create Admin and cancel. Repeat using a designated test inbox, save once, then open the actual invitation and complete sign-in. Ask Admin/Trainer to check that they cannot create Admins. | Cancel creates nothing. One Admin account and intended invitation are created. Recipient can complete real sign-in. Other roles cannot create Admins. | | |
 | UAT-007 | Request a new login email for the test Trainer. Ask the Trainer to check the old address, then verify the new address themselves. Use the actual verification email in the Trainer’s designated inbox. | Old address remains in use until verification finishes. New address then works; earlier sign-ins end. A manager cannot verify for the Trainer. | | |
 | UAT-008 | Review and replace a pending Trainer email request. Ask the Trainer to try the older request/code. Ask the organiser to prepare an unresolved send/verification. Use only the prepared test inboxes; do not repeatedly send codes to force a fault. | Old requests cannot complete. Unresolved work blocks replacement. Changing the requested address does not itself send email or bypass resend limits. | | |
-| UAT-009 | Open Owner Profile, then a test Trainer profile. Check which fields can be edited. | Owner Profile remains read-only. Permitted Trainer details can be edited without changing identity or old signatures. | | |
+| UAT-009 | Open Owner Profile, then a test Trainer profile. Check which fields can be edited. | Owner contact details use the shared Edit/Save/Cancel form and persist after reload. Login email stays read-only in that form; its separate verification flow keeps the existing identity and old email until a valid code is confirmed. Permitted Trainer details preserve identity and old signatures. | | |
 
 ## Clients, Trainers and package setup
 
@@ -168,3 +168,14 @@ Use the designated developer accounts and receiving inboxes. Lost-authenticator 
 | LIVE-01 | Check actual sign-in, authenticator setup, password-recovery email and email-change verification on the developer website. Check a fresh sign-in after each change. | Emails reach the intended test inbox, valid codes work, invalid/expired codes fail and the correct new credentials are required. | | |
 | LIVE-02 | Send an approved developer test invitation and ask the recipient to complete setup. Use a prepared expired invitation for the rejection check. | The intended recipient can complete setup once. An expired invitation grants no access. | | |
 | LIVE-03 | With authorised support, perform the arranged lost-authenticator recovery for your developer test account, then enrol a replacement authenticator and sign in. | Support verifies the correct person; old access ends and a replacement authenticator is required. Other staff gain no reset power. Mark Blocked if not arranged. | | |
+
+## New profile and inbox acceptance — pending developer deployment
+
+| Scenario | Expected result | Result | Remarks |
+| --- | --- | --- | --- |
+| Change Owner name/mobile/birthday/gender, cancel once, then confirm Save and reload. | Cancel changes nothing; confirmed values persist with standardized controls. | | |
+| Request a new Owner login email; try an invalid code before the valid code. | Old email remains active until verification; successful verification signs out existing sessions and keeps the same account. | | |
+| Create/edit a package with validity47 days, then inspect an existing purchased package. | New catalogue terms show47 days; existing purchased terms/credits remain unchanged. | | |
+| Select two messages, mark read, then inspect newly surfaced unread rows; repeat with unread. | Only checked rows change; selections clear and new rows stay unchecked. | | |
+| Open a message and inspect footer; resize Client form and Owner profile. | Related records left, unread action right, readable body spacing, aligned mobile/name fields and no horizontal overflow. | | |
+| Observe a slow load with normal and reduced-motion preferences. | Transparent mark ripples rightwards; reduced motion is static and assistive status remains meaningful. | | |

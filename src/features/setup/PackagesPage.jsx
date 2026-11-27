@@ -5,14 +5,14 @@ import PaginationControls from '../../components/PaginationControls.jsx'
 import usePagination from '../../hooks/usePagination.js'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
-import { packageErrors, packageValidityDays } from '../../app/packages.js'
+import { packageErrors } from '../../app/packages.js'
 
 export default function PackagesPage({ readOnly = false, packages, policy, selectedId, onNavigate, onBack, onSave, onSaved }) {
   const current = packages.find(item => item.id === selectedId)
   const confirm = useActionConfirmation()
   const { activeEdit, setActiveEdit } = useEditGuard()
   const [editing, setEditing] = useState(!readOnly && selectedId === 'new')
-  const [draft, setDraft] = useState(() => ({ name: current?.name ?? '', total: current?.total ?? '' }))
+  const [draft, setDraft] = useState(() => ({ name: current?.name ?? '', total: current?.total ?? '', validityDays: current?.validityDays ?? '' }))
   const [reviewedVersion, setReviewedVersion] = useState(current?.version)
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
@@ -34,9 +34,10 @@ export default function PackagesPage({ readOnly = false, packages, policy, selec
 
   const save = async (status = current?.status ?? 'active') => {
     if (pending.current) return
-    const values = editing ? draft : { name: current.name, total: current.total }
+    const values = editing ? draft : { name: current.name, total: current.total, validityDays: current.validityDays }
     const expectedVersion = editing ? reviewedVersion : current?.version
     const nextErrors = packageErrors(values, policy)
+    if (values.validityDays === '') nextErrors.validityDays = 'Validity in days is required.'
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
     pending.current = true
@@ -44,10 +45,10 @@ export default function PackagesPage({ readOnly = false, packages, policy, selec
     try {
       const action = current && status !== current.status ? (status === 'active' ? 'Reactivate Package' : 'Deactivate Package') : current ? 'Save Package' : 'Create Package'
       const accepted = await confirm({ title: `${action}?`,
-        message: `${values.name.trim()} · ${values.total} sessions · ${packageValidityDays(values.total, policy)} days. Existing client packages keep their purchased terms.`,
+        message: `${values.name.trim()} · ${values.total} sessions · ${values.validityDays} days. Existing client packages keep their purchased terms.`,
         confirmLabel: action })
       if (!accepted) return
-      const result = await onSave({ id: current?.id, expectedVersion, draft: { ...values, total: Number(values.total), status } })
+      const result = await onSave({ id: current?.id, expectedVersion, draft: { ...values, total: Number(values.total), validityDays: Number(values.validityDays), status } })
       setEditing(false)
       setSaved(result)
     } catch (error) {
@@ -68,14 +69,15 @@ export default function PackagesPage({ readOnly = false, packages, policy, selec
           <fieldset disabled={busy} className="package-fields">
             <label className="package-required">Package name <span>Required</span><input aria-label="Package name" required maxLength={80} value={draft.name} aria-invalid={Boolean(errors.name)} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))} />{errors.name && <small>{errors.name}</small>}</label>
             <label className="package-required">Session count <span>Required</span><input aria-label="Package session count" type="text" inputMode="numeric" pattern="[0-9]*" required value={draft.total} aria-invalid={Boolean(errors.total)} aria-describedby={errors.total ? 'package-count-error' : undefined} onChange={event => setDraft(value => ({ ...value, total: event.target.value }))} />{errors.total && <small id="package-count-error">{errors.total}</small>}</label>
+            <label className="package-required">Validity (days) <span>Required</span><input aria-label="Package validity in days" type="text" inputMode="numeric" pattern="[0-9]*" required value={draft.validityDays} aria-invalid={Boolean(errors.validityDays)} onChange={event => setDraft(value => ({ ...value, validityDays: event.target.value }))} />{errors.validityDays && <small>{errors.validityDays}</small>}</label>
           </fieldset>
-          <div className="inline-actions"><button type="button" className="onboarding-button" disabled={busy} onClick={() => { if (current) { setEditing(false); setDraft({ name: current.name, total: current.total }) } else onBack() }}>Cancel</button><button className="onboarding-button primary" type="submit" disabled={busy}>{current ? 'Save Package' : 'Create Package'}</button></div>
+          <div className="inline-actions"><button type="button" className="onboarding-button" disabled={busy} onClick={() => { if (current) { setEditing(false); setDraft({ name: current.name, total: current.total, validityDays: current.validityDays }) } else onBack() }}>Cancel</button><button className="onboarding-button primary" type="submit" disabled={busy}>{current ? 'Save Package' : 'Create Package'}</button></div>
           {errors.form && <p className="validation-copy" role="alert">{errors.form}</p>}
         </form>
       </Panel> : current ? <Panel>
         <div className="section-head"><h2>Package details</h2><StatusBadge tone={current.status === 'active' ? 'green' : 'amber'}>{current.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge></div>
         <dl className="package-details"><div><dt>Sessions</dt><dd>{current.total}</dd></div><div><dt>Validity</dt><dd>{current.validityDays} days</dd></div></dl>
-        {!readOnly && <div className="inline-actions"><button className="onboarding-button" onClick={() => { setSaved(null); setReviewedVersion(current.version); setDraft({ name: current.name, total: current.total }); setEditing(true) }}>Edit Package</button><button className="onboarding-button" disabled={busy} onClick={() => void save(current.status === 'active' ? 'inactive' : 'active')}>{current.status === 'active' ? 'Deactivate Package' : 'Reactivate Package'}</button></div>}
+        {!readOnly && <div className="inline-actions"><button className="onboarding-button" onClick={() => { setSaved(null); setReviewedVersion(current.version); setDraft({ name: current.name, total: current.total, validityDays: current.validityDays }); setEditing(true) }}>Edit Package</button><button className="onboarding-button" disabled={busy} onClick={() => void save(current.status === 'active' ? 'inactive' : 'active')}>{current.status === 'active' ? 'Deactivate Package' : 'Reactivate Package'}</button></div>}
         {errors.form && <p className="validation-copy" role="alert">{errors.form}</p>}
       </Panel> : <Panel><div className="package-list" aria-label="Package list">{pagination.items.map(item => <div className="package-row" key={item.id}>
         <div><strong>{item.name}</strong><span>{item.total} sessions · {item.validityDays} days</span></div><StatusBadge tone={item.status === 'active' ? 'green' : 'amber'}>{item.status === 'active' ? 'Active' : 'Inactive'}</StatusBadge><button className="secondary-button small" aria-label={`View package ${item.name}`} onClick={() => onNavigate(`packages/${item.id}`)}>View</button>

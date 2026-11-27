@@ -171,7 +171,7 @@ test('personal read/unread and renewal removal persist without changing client c
   await page.reload()
   await page.getByRole('textbox', { name: 'Search messages', exact: true }).fill(title)
   await expect(page.getByRole('button', { name: `Unread ${title}`, exact: true })).toBeVisible()
-  await profileAction(page, 'Renewals')
+  await page.goto('/#/messages/renewals')
   const remove = page.getByRole('button', { name: `Remove ${title} from renewals`, exact: true })
   await remove.click()
   await page.getByRole('dialog', { name: 'Remove renewal follow-up?', exact: true }).getByRole('button', { name: 'Remove', exact: true }).click()

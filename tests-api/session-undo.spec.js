@@ -234,7 +234,7 @@ test('Admin Undo waits for Owner approval and recovers a lost proposal without r
     expect(writes).toBe(1)
     expect((await read(admin, `/api/sessions/${session.id}/details`)).clientSummary).toBe('Summary to reverse after review.')
     expect((await read(admin, '/api/admin-requests')).filter(row => row.operation === 'undo.sessionContent')).toHaveLength(1)
-    await owner.goto('/#/messages')
+    await owner.goto('/#/messages/approvals')
     const row = owner.locator('.info-row').filter({ hasText: 'summaryundoapproval admin' }).filter({ hasText: 'pending' })
     await row.getByRole('button', { name: 'Review', exact: true }).click()
     await expect(owner.getByRole('heading', { name: 'Undo session content change', exact: true })).toBeVisible()

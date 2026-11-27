@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useState } from 'react'
 import { renewalMatchBody } from '../../services/apiClientRenewal.js'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
@@ -32,7 +33,7 @@ export default function RenewPackageDialog({ client, clients = [], trainers, ses
   const [saving, setSaving] = useState(false)
   const cancel = () => { if (!saving) guardNavigation(onClose) }
   return <ConfirmDialog open title="Add Package" hideConfirm onCancel={cancel}>
-    {!initial && (error ? <div role="alert"><p>{error}</p><button type="button" onClick={() => { setError(''); setAttempt(value => value + 1) }}>Retry package review</button></div> : <p role="status">Loading package details…</p>)}
+    {!initial && (error ? <div role="alert"><p>{error}</p><button type="button" onClick={() => { setError(''); setAttempt(value => value + 1) }}>Retry package review</button></div> : <LoadingIndicator label="Loading package details…" />)}
     {initial && <ClientOnboardingForm packageDraft={initial} previewMatches={renewalWorkflow?.preview} matchBody={renewalWorkflow ? renewalMatchBody : undefined} packages={packages} policy={policy} trainers={trainers} sessions={sessions} clients={clients}
       onCancel={cancel} onCreated={() => { onClose(); void renewalWorkflow?.saved() }} onCreate={async draft => {
         setSaving(true)

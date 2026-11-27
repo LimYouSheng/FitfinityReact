@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import ApiClientAssignmentButton from './ApiClientAssignmentButton.jsx'
 import ReassignTrainerDialog from './ReassignTrainerDialog.jsx'
 import ApiPackageActionButton from './ApiPackageActionButton.jsx'
@@ -199,7 +200,7 @@ export default function ClientProfileTabs({ assignmentWorkflow, onReassignTraine
   if (tab === 'history') return <SessionsTab title="Session History" history client={client} sessions={history} trainers={trainers} emptyCopy="No session history." onOpenSession={onOpenSession} />
   if (tab === 'upcoming') return <SessionsTab title="Upcoming Sessions" client={client} sessions={upcoming} trainers={trainers} emptyCopy="No upcoming sessions." onOpenSession={onOpenSession} />
   if (tab === 'progress' && progressState?.error) return <section role="alert"><p>{progressState.error.message}</p><button type="button" onClick={progressState.retry}>Retry client progress</button></section>
-  if (tab === 'progress' && progressState?.loading) return <p role="status">Loading client progress…</p>
+  if (tab === 'progress' && progressState?.loading) return <LoadingIndicator label="Loading client progress…" />
   if (tab === 'progress') return <PackageProgress progressData={progressData} reportsAvailable={progressReportsAvailable} packageId={progressPackageId} onOpenPackage={onOpenProgressPackage} client={client} sessions={sessions} user={user} timeZone={timeZone} onRecordAction={onRecordProgressReport} onLoadHistory={onLoadProgressReportHistory} />
   return null
 }

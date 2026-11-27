@@ -19,6 +19,7 @@ export function packageErrors(draft, policy) {
   else if (draft.name.trim().length > 80) errors.name = 'Use 80 characters or fewer.'
   const { minimum, maximum } = policy.packageSessionCount
   if (!/^\d+$/.test(String(draft.total)) || !Number.isSafeInteger(Number(draft.total)) || Number(draft.total) < minimum || Number(draft.total) > maximum) errors.total = `Enter a whole number from ${minimum} to ${maximum}.`
+  if (draft.validityDays != null && (!/^\d+$/.test(String(draft.validityDays)) || !Number.isSafeInteger(Number(draft.validityDays)) || Number(draft.validityDays) < 1 || Number(draft.validityDays) > 3650)) errors.validityDays = 'Enter a whole number of days from 1 to 3650.'
   return errors
 }
 

@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import usePortalData from '../../hooks/usePortalData.js'
 import SessionDetailsPage from './SessionDetailsPage.jsx'
@@ -65,7 +66,7 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
     }).catch(error => { if (current) setState(previous => ({ id, generation: sessionGeneration, selectionScope, error, value: !scopeDenied(error) && previous?.id === id && previous.generation === sessionGeneration && previous.selectionScope === selectionScope ? previous.value : null })) })
     return () => { current = false }
   }, [id, version, sessionGeneration, serverAt, services, attempt, saved, selectionScope])
-  if (!state || state.id !== id || state.generation !== sessionGeneration || state.selectionScope !== selectionScope) return refreshError ? <section role="alert"><p>{refreshError}</p><button type="button" onClick={() => setRefreshError('')}>Retry refreshing</button></section> : <p role="status">{saved ? 'Saved. Updating details…' : 'Loading session…'}</p>
+  if (!state || state.id !== id || state.generation !== sessionGeneration || state.selectionScope !== selectionScope) return refreshError ? <section role="alert"><p>{refreshError}</p><button type="button" onClick={() => setRefreshError('')}>Retry refreshing</button></section> : <LoadingIndicator label={saved ? 'Saved. Updating details…' : 'Loading session…'} />
   if (state.error && !state.value) return <section role="alert"><p>{state.error.message}</p><button type="button" onClick={() => setAttempt(n => n + 1)}>Retry session</button></section>
   const { session, client, trainer } = state.value
   const fullClient = data.clients.some(c => c.id === client.id)

@@ -1,5 +1,5 @@
 {
-  "schema_revision": "20261101_0052",
+  "schema_revision": "20261127_0053",
   "tables": {
     "acknowledgements": [
       "SELECT",
@@ -244,6 +244,15 @@
     "mutation_training_sessions": [
       "SELECT",
       "INSERT"
+    ],
+    "owner_profile_receipts": [
+      "SELECT",
+      "INSERT"
+    ],
+    "owner_profiles": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
     ],
     "package_action_receipts": [
       "SELECT",

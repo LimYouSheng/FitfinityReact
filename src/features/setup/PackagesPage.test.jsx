@@ -11,7 +11,7 @@ import PackagesPage from './PackagesPage.jsx'
 afterEach(cleanup)
 const show = props => render(<ActionConfirmationProvider><EditGuardProvider><PackagesPage policy={mockPolicy} packages={DEFAULT_PACKAGES} selectedId="new" onNavigate={() => {}} {...props} /></EditGuardProvider></ActionConfirmationProvider>)
 
-it('keeps invalid count text visible and accepts a custom integer with policy-derived validity', async () => {
+it('keeps invalid count text visible and accepts a custom integer with explicitly entered validity', async () => {
   const user = userEvent.setup(), onSave = vi.fn().mockResolvedValue({ id: 'custom' })
   show({ onSave })
   await user.type(screen.getByLabelText('Package name'), 'Custom count')
@@ -26,6 +26,7 @@ it('keeps invalid count text visible and accepts a custom integer with policy-de
     expect(onSave).not.toHaveBeenCalled()
   }
   await user.clear(count); await user.type(count, '18')
+  await user.type(screen.getByLabelText('Package validity in days'), '135')
   await user.click(screen.getByRole('button', { name: 'Create Package', exact: true }))
   const dialog = screen.getByRole('dialog', { name: 'Create Package?' })
   expect(dialog).toHaveTextContent('18 sessions · 135 days')
@@ -41,6 +42,7 @@ it('requires a name, reviews the correct validity and saves only after confirmat
   expect(onSave).not.toHaveBeenCalled()
   await user.type(screen.getByRole('textbox', { name: 'Package name' }), 'New package')
   await user.type(screen.getByRole('textbox', { name: 'Package session count' }), '36')
+  await user.type(screen.getByLabelText('Package validity in days'), '270')
   expect(screen.queryByText(/Clients choose their weekly frequency/)).not.toBeInTheDocument()
   expect(screen.queryByText(/270-day validity/)).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Create Package', exact: true }))
@@ -52,7 +54,7 @@ it('requires a name, reviews the correct validity and saves only after confirmat
   await user.click(screen.getByRole('button', { name: 'Create Package', exact: true }))
   dialog = screen.getByRole('dialog', { name: 'Create Package?' })
   await user.click(within(dialog).getByRole('button', { name: 'Create Package', exact: true }))
-  expect(onSave).toHaveBeenCalledExactlyOnceWith({ id: undefined, expectedVersion: undefined, draft: { name: 'New package', total: 36, status: 'active' } })
+  expect(onSave).toHaveBeenCalledExactlyOnceWith({ id: undefined, expectedVersion: undefined, draft: { name: 'New package', total: 36, validityDays: 270, status: 'active' } })
   await waitFor(() => expect(onNavigate).toHaveBeenCalledExactlyOnceWith('packages/new-package', { replace: true }))
 })
 
@@ -100,6 +102,7 @@ it('does not navigate to a fabricated saved package after an approval submission
   show({ onSave, onNavigate })
   await user.type(screen.getByLabelText('Package name'), 'Reviewed package')
   await user.type(screen.getByLabelText('Package session count'), '18')
+  await user.type(screen.getByLabelText('Package validity in days'), '135')
   await user.click(screen.getByRole('button', { name: 'Create Package', exact: true }))
   await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Create Package', exact: true }))
   expect(await screen.findByRole('status')).toHaveTextContent('No changes have been applied.')

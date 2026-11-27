@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useState } from 'react'
 
 export default function StaffEmailVerification({ auth, onCompleted }) {
@@ -33,7 +34,7 @@ export default function StaffEmailVerification({ auth, onCompleted }) {
       if (['SESSION_CHANGED', 'SESSION_EXPIRED'].includes(reason.code)) await onCompleted()
     } finally { setBusy(false) }
   }
-  if (loading) return <p role="status">Checking email verification…</p>
+  if (loading) return <LoadingIndicator label="Checking email verification…" />
   if (!change) return error ? <div role="alert">{error}<button type="button" className="text-action" onClick={() => setAttempt(value => value + 1)}>Retry Email Status</button></div> : null
   return <section aria-label="Email verification">
     <h2>Verify your new email</h2>

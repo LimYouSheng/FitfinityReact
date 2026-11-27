@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useState } from 'react'
 import usePortalActions from '../../hooks/usePortalActions.js'
 import ContentManagementPage from './ContentManagementPage.jsx'
@@ -15,7 +16,7 @@ export default function ApiContentWorkspace({ services, generation, detailId, on
   }, [services, generation, detailId, attempt])
   const retry = () => { setResult(null); setAttempt(value => value + 1) }
   const ready = result?.generation === generation && result.detailId === detailId ? result : null
-  if (!ready) return <p role="status">Loading content…</p>
+  if (!ready) return <LoadingIndicator label="Loading content…" />
   if (ready.error) return <div role="alert"><p>{ready.error.message}</p><button onClick={retry}>Retry Content</button></div>
   if (ready.value.pending) return <div role="alert"><p>A previous content save needs checking before another change can be saved.</p>
     <button disabled={checking} onClick={async () => {

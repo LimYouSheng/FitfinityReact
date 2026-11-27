@@ -378,6 +378,16 @@ def image_fixture(source, pinned_contract):
         contract["tables"][table] = ["SELECT", "INSERT", "UPDATE"]
     for table in ("admin_management_receipts", "admin_operation_decisions"):
         contract["tables"][table] = ["SELECT", "INSERT"]
+    # Extend only the candidate image; historical deployment fixtures stay unchanged.
+    contract["revisions"].append("20261127_0053")
+    for relative in (
+        "migrations/versions/20261127_0053_owner_profile.py",
+        "app/models/owner_profile.py",
+        "app/api/owner_profile.py",
+    ):
+        contract["files"][relative] = hashlib.sha256((source / relative).read_bytes()).hexdigest()
+    contract["tables"]["owner_profiles"] = ["SELECT", "INSERT", "UPDATE"]
+    contract["tables"]["owner_profile_receipts"] = ["SELECT", "INSERT"]
     with TemporaryDirectory(prefix="fitfinity-offline-image-") as directory:
         root = Path(directory)
         files = set(contract["files"]) | {"app/certificates/ap-southeast-1-bundle.pem"}

@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useEffectEvent, useState } from 'react'
 import AdminDirectory from './AdminDirectory.jsx'
 import ProfileAvatar from '../../components/ProfileAvatar.jsx'
@@ -25,7 +26,7 @@ export default function AdminManagementPage({ services, selectedId, today, onNav
     load().then(value => { if (current) setLoaded({ selection, value }) }).catch(failure => { if (current) setError(failure.message) })
     return () => { current = false }
   }, [selectedId, revision, selection])
-  if (!records) return <section aria-busy={!error}>{error ? <><p role="alert">{error}</p><button type="button" onClick={() => setRevision(value => value + 1)}>Retry</button></> : <p>Loading Admin details…</p>}</section>
+  if (!records) return <section aria-busy={!error}>{error ? <><p role="alert">{error}</p><button type="button" onClick={() => setRevision(value => value + 1)}>Retry</button></> : <LoadingIndicator label="Loading Admin details…" />}</section>
   if (selectedId) return <AdminProfile key={selectedId} record={records} today={today} onBack={onBack} onSave={body => services.staffService.update({ id: selectedId, body })} onSaved={value => setLoaded({ selection, value })} />
   return <AdminDirectory records={records} onNavigate={onNavigate} onCreate={onCreate} />
 }

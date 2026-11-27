@@ -16,7 +16,7 @@ import useSwipeBack from '../../hooks/useSwipeBack.js'
 import ModalPortal from '../../components/ModalPortal.jsx'
 import PaginationControls from '../../components/PaginationControls.jsx'
 import DateFilterField from '../../components/DateFilterField.jsx'
-import ProfileNavigation from '../../components/ProfileNavigation.jsx'
+import SelectField from '../../components/SelectField.jsx'
 import usePagination from '../../hooks/usePagination.js'
 import { filterMessages, messageCategory, MESSAGE_CATEGORIES } from './messageFilters.js'
 import { orderMessages } from './messageOrdering.js'
@@ -31,7 +31,7 @@ export default function MessagesPage({ category, onCategoryChange, ...props }) {
       <div><span className="eyebrow">Updates</span><div className="heading-with-status"><h1>Messages</h1><StatusBadge tone="blue">{unread} new</StatusBadge></div></div>
     </div>
     <MessageInbox {...props} category={category ?? localCategory} onCategoryChange={onCategoryChange ?? setLocalCategory} />
-    {props.adminApprovalServices && managesOperations(props.user) && <AdminApprovalInbox services={props.adminApprovalServices} user={props.user} />}
+    {(category ?? localCategory) === 'approvals' && props.adminApprovalServices && managesOperations(props.user) && <AdminApprovalInbox services={props.adminApprovalServices} user={props.user} />}
   </>
 }
 
@@ -88,6 +88,37 @@ export function MessageInbox({
     [clients, contentEntries, exercises, packages, selected, sessions, trainers, user],
   )
   const pagination = usePagination(visible, `${user.id}|${category}|${query}|${fromDate}|${toDate}`)
+  const [selection, setSelection] = useState({ scope: '', ids: [] })
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const bulkPending = useRef(false)
+  const selectionScope = `${user.id}|${category}|${query}|${fromDate}|${toDate}|${pagination.currentPage}`
+  const checkedIds = selection.scope === selectionScope ? selection.ids : []
+  const pageIds = pagination.items.map(message => message.id)
+  const toggleSelection = (id, checked) => setSelection({ scope: selectionScope,
+    ids: checked ? [...new Set([...checkedIds, id])] : checkedIds.filter(value => value !== id) })
+  const markSelected = async read => {
+    if (bulkPending.current) return
+    const targets = pagination.items.filter(message => checkedIds.includes(message.id) && message.read !== read)
+    bulkPending.current = true
+    setBulkBusy(true)
+    setMessageError('')
+    let completed = 0
+    try {
+      for (const message of targets) {
+        await (read ? onMarkRead : onMarkUnread)(message.id)
+        completed += 1
+        if (!mounted.current) return
+        setSelection(value => ({ ...value, ids: value.ids.filter(id => id !== message.id) }))
+      }
+      setSelection({ scope: selectionScope, ids: [] })
+    } catch (error) {
+      if (mounted.current) setMessageError(`${completed} of ${targets.length} messages updated. ${error.message}`)
+    } finally {
+      bulkPending.current = false
+      if (mounted.current) setBulkBusy(false)
+    }
+  }
+
 
   useEffect(() => {
     mounted.current = true
@@ -105,7 +136,7 @@ export function MessageInbox({
   }, [])
 
   const openMessage = async message => {
-    if (openingMessage.current) return
+    if (openingMessage.current || bulkPending.current) return
     openingMessage.current = true
     const origin = `${location.href}|${history.state?.fitfinityDepth ?? 0}`
     setMessageError('')
@@ -202,8 +233,15 @@ export function MessageInbox({
           </div>
           <button type="button" className="secondary-button small" onClick={onViewAll}>View All Renewals</button>
         </div> : <div role="group" aria-label="Message categories">
-          <ProfileNavigation items={MESSAGE_CATEGORIES.filter(item => item.key !== 'remuneration' || canViewRemuneration(user)).map(item => [item.key, item.label])}
-            activeKey={category} onSelect={onCategoryChange} />
+          <SelectField aria-label="Message category" value={category} onChange={event => onCategoryChange(event.target.value)}>
+            {MESSAGE_CATEGORIES.filter(item => item.key !== 'remuneration' || canViewRemuneration(user)).map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
+          </SelectField>
+        </div>}
+        {!embedded && <div className="inline-actions message-bulk-actions" aria-label="Selected message actions">
+          <label className="message-page-selection"><input type="checkbox" aria-label="Select all messages on this page" disabled={bulkBusy || !pageIds.length} checked={pageIds.length > 0 && pageIds.every(id => checkedIds.includes(id))} onChange={event => setSelection({ scope: selectionScope, ids: event.target.checked ? pageIds : [] })} /> Select page</label>
+          <button type="button" className="secondary-button small" disabled={bulkBusy || !checkedIds.length} onClick={() => markSelected(true)}>Mark selected as read</button>
+          <button type="button" className="secondary-button small" disabled={bulkBusy || !checkedIds.length} onClick={() => markSelected(false)}>Mark selected as unread</button>
+          <span aria-live="polite">{checkedIds.length} selected</span>
         </div>}
         {!selected && messageError && <p role="alert">{messageError}</p>}
         {!embedded && <div className="message-search-controls" aria-label="Message filters">
@@ -237,7 +275,8 @@ export function MessageInbox({
         </div>}
 
         <div className={`message-title-list${!embedded && visible.some(message => message.renewalStatus && message.renewalStatus !== 'active') ? ' has-renewal-status' : ''}`} aria-label={embedded ? 'Renewal messages' : 'Message list'}>
-          {!embedded && <div className="message-title-head message-title-grid" aria-hidden="true">
+          {!embedded && <div className="message-title-head message-title-grid">
+            <span aria-hidden="true" />
             <span>Message</span>
             <span>Date &amp; time</span>
             <span>Status</span>
@@ -253,6 +292,7 @@ export function MessageInbox({
                 openMessage(message)
               }}
             >
+              {!embedded && <input type="checkbox" aria-label={`Select ${message.title}`} disabled={bulkBusy} checked={checkedIds.includes(message.id)} onClick={event => event.stopPropagation()} onChange={event => toggleSelection(message.id, event.target.checked)} />}
               <button
                 type="button"
                 className="message-title-button"
@@ -344,6 +384,9 @@ export function MessageInbox({
                 )}
 
 
+
+              </div>
+              <div className="modal-actions message-popup-actions">
                 {relatedLinks.length > 0 && (
                   <nav className="message-related" aria-label="Related records">
                     <span>Related records</span>
@@ -361,8 +404,6 @@ export function MessageInbox({
                     </div>
                   </nav>
                 )}
-              </div>
-              <div className="modal-actions message-popup-actions">
                 {messageError && <p role="alert">{messageError}</p>}
                 {removeAction(selected)}
                 {selected.renewalStatus && selected.renewalStatus !== 'active' && <StatusBadge className="renewal-closed-status">{selected.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</StatusBadge>}

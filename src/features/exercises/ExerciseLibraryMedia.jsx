@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useEffectEvent, useState } from 'react'
 
 export default function ExerciseLibraryMedia({ media, file, onLoad }) {
@@ -23,7 +24,7 @@ export default function ExerciseLibraryMedia({ media, file, onLoad }) {
   }, [file, mediaId])
   if (!media && !file) return null
   if (error) return <p className="validation-copy" role="alert">{error}</p>
-  if (!url) return <p className="muted">Loading attachment…</p>
+  if (!url) return <LoadingIndicator label="Loading attachment…" />
   const type = file?.type || media.type
   const unavailable = () => setError('This browser cannot preview this video format.')
   const checkVideoMetadata = event => {

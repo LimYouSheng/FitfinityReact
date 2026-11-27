@@ -25,6 +25,7 @@ for (const workflow of workflows) for (const committed of [true, false]) test(`$
     await page.reload()
     await page.getByRole('button', { name: 'Edit Package', exact: true }).click()
     await page.getByLabel('Package session count', { exact: true }).fill('18')
+    await page.getByLabel('Package validity in days', { exact: true }).fill('135')
     panel = page.locator('.package-form')
     path = '/api/packages'
   } else {
@@ -84,6 +85,7 @@ test('an active package creation editor retains its original receipt for Save ag
   await page.goto('/#/packages/new')
   await page.getByLabel('Package name', { exact: true }).fill(name)
   await page.getByLabel('Package session count', { exact: true }).fill('12')
+  await page.getByLabel('Package validity in days', { exact: true }).fill('90')
   let writes = 0
   await page.route('**/api/packages', async route => {
     if (route.request().method() !== 'POST') return route.continue()

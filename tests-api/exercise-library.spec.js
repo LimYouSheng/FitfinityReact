@@ -170,7 +170,7 @@ test('Admin library upload waits for reviewed publication and recovers a lost Ow
     const proposals = (await read(staff, '/api/admin-requests')).filter(item => item.operation === 'library.publish' && item.body.review.proposed.name === name)
     expect(proposals).toHaveLength(1)
     const proposal = proposals[0]
-    await page.goto('/#/messages')
+    await page.goto('/#/messages/approvals')
     const row = page.locator('.info-row').filter({ hasText: proposal.actorName }).filter({ hasText: 'Manage the Exercise Library' }).filter({ hasText: 'pending' })
     await row.getByRole('button', { name: 'Review', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Save Exercise Library entry', exact: true })).toBeVisible()

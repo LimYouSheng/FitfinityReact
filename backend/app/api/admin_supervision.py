@@ -74,7 +74,7 @@ def notify_proposal(session, principal, proposal):
         actor_name=principal.name,
         kind="admin_operation_request" if pending else "admin_operation_decision",
         title="Admin change awaiting review" if pending else f"Admin change {proposal.status}",
-        body=f"Request {proposal.id}. Open Admin Requests in Messages to review the exact change.",
+        body=f"Request {proposal.id}. Choose Approvals in Messages to review the exact change.",
     )
     session.add(notice)
     session.flush()

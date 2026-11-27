@@ -455,6 +455,7 @@ def seed(db, settings):
             "onboarding",
             "interrupted",
             "catalogue",
+            "ownerprofile",
         )
         allowed_users = {"owner", "admin", "trainer"}
         cohort_owners = {}

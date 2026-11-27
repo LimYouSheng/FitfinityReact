@@ -51,6 +51,7 @@ test('M3 Setup upgrades old data, preloads packages and confirms create, edit an
   await page.getByRole('button', { name: 'Add Package', exact: true }).click()
   await page.getByLabel('Package name', { exact: true }).fill('Strength programme')
   await page.getByLabel('Package session count', { exact: true }).fill('36')
+  await page.getByLabel('Package validity in days', { exact: true }).fill('270')
   await expect(page.locator('.package-setup form p')).toHaveCount(0)
   await expectPackageActionSpacing(page)
   await page.getByRole('button', { name: 'Create Package', exact: true }).click()
