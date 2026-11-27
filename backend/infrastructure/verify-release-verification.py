@@ -5,7 +5,7 @@ import unittest
 from copy import deepcopy
 
 from deployment_profile import DEVELOPER
-from release_verification import verify
+from release_verification import discover, verify
 
 
 class VerificationTests(unittest.TestCase):
@@ -72,6 +72,40 @@ class VerificationTests(unittest.TestCase):
             ],
         }
         self.paths = []
+
+    def discovery_read(self, path):
+        if path.endswith("/git/ref/heads/main"):
+            return {"object": {"sha": self.source}}
+        if "/workflows/pages.yml/runs?" in path:
+            return {"total_count": len(self.candidates), "workflow_runs": self.candidates}
+        return self.read(path)
+
+    def test_discovery_authenticates_latest_main_run(self):
+        self.candidates = [self.run]
+        result = discover(self.source, self.profile, self.discovery_read)
+        self.assertEqual(result["verification_run"], 123)
+        self.assertEqual(result["codeql_run"], 124)
+        self.assertEqual(len(self.paths), 5)
+
+    def test_discovery_does_not_fall_back_from_newer_failed_run(self):
+        self.candidates = [self.run, {**self.run, "id": 125, "conclusion": "failure"}]
+        with self.assertRaises(RuntimeError):
+            discover(self.source, self.profile, self.discovery_read)
+        self.assertEqual(self.paths, [])
+
+    def test_discovery_rejects_main_moving_during_verification(self):
+        self.candidates = [self.run]
+        calls = []
+
+        def read(path):
+            if path.endswith("/git/ref/heads/main"):
+                calls.append(path)
+                return {"object": {"sha": self.source if len(calls) == 1 else "b" * 40}}
+            return self.discovery_read(path)
+
+        with self.assertRaisesRegex(RuntimeError, "Main changed"):
+            discover(self.source, self.profile, read)
+        self.assertEqual(len(self.paths), 5)
 
     def job(self, name, run_id):
         return {

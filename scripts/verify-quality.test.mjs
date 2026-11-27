@@ -46,6 +46,17 @@ test('React component references, complete dependencies and Playwright fixture c
 })
 test('the actual workflows and direct tooling dependencies satisfy the complete gate contract', () => {
   verifyQualitySetup(readQualitySetup())
+  const release = parse(fs.readFileSync('.github/workflows/aws-release.yml', 'utf8'))
+  assert.match(release.jobs.eligibility.if, /AWS_ORCHESTRATION_ENABLED/)
+  assert.equal(release.jobs.coordinate.needs, 'eligibility')
+  assert.equal(release.jobs.coordinate.if, "needs.eligibility.outputs.state == 'source_verified'")
+  assert.equal(release.jobs.coordinate.environment, '${{ needs.eligibility.outputs.environment }}')
+  assert.equal(release.permissions.contents, 'read')
+  assert.equal(release.jobs.coordinate.permissions.actions, 'write')
+  assert.notEqual(release.concurrency.group, 'fitfinity-${{ needs.eligibility.outputs.environment }}')
+  const coordinateSteps = release.jobs.coordinate.steps
+  assert.ok(coordinateSteps.findIndex(step => step.name === 'Check Coordinator Configuration') < coordinateSteps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@')))
+  assert.ok(coordinateSteps.some(step => step.name === 'Retain Coordination Result' && step.if === 'always()'))
   const codeql = parse(fs.readFileSync('.github/workflows/codeql.yml', 'utf8'))
   assert.deepEqual(codeql.on.push.branches, ['main'])
   assert.deepEqual(codeql.on.pull_request.branches, ['main'])
@@ -55,6 +66,26 @@ test('the actual workflows and direct tooling dependencies satisfy the complete 
   assert.deepEqual(codeql.jobs.analyze.permissions, { contents: 'read', 'security-events': 'write' })
   assert.equal(codeql.jobs.analyze.steps.find(step => step.name === 'Initialize CodeQL').with['build-mode'], 'none')
   assert.ok(codeql.jobs.analyze.steps.some(step => step.uses?.startsWith('github/codeql-action/analyze@')))
+})
+test('child dispatch workflows retain correlation and provider input limits', () => {
+  const source = fs.readFileSync('backend/infrastructure/release_dispatch.py', 'utf8')
+  const mapping = source.match(/WORKFLOWS = \{([\s\S]*?)\n\}/)?.[1]
+  assert.ok(mapping, 'dispatch workflow mapping must be present')
+  const filenames = [...new Set([...mapping.matchAll(/"(aws-[^"]+\.yml)"/g)].map(match => match[1]))]
+  assert.ok(filenames.length > 0, 'must check actual child workflows')
+  for (const filename of filenames) {
+    const workflow = parse(fs.readFileSync(`.github/workflows/${filename}`, 'utf8'), { uniqueKeys: true })
+    const inputs = workflow.on.workflow_dispatch.inputs
+    assert.ok(Object.hasOwn(inputs, 'orchestration_id'), filename)
+    assert.ok(Object.keys(inputs).length <= 25, filename)
+    assert.ok(workflow['run-name'].includes("format('Release operation {0}', inputs.orchestration_id)"), filename)
+  }
+})
+test('infrastructure output is visible and preserves pipeline failures', () => {
+  const workflow = readQualitySetup().verify
+  const step = workflow.jobs.infrastructure.steps.find(step => step.name === 'Offline infrastructure')
+  assert.ok(step.run.includes('set -euo pipefail'))
+  assert.ok(step.run.includes('node scripts/verify-infrastructure.mjs 2>&1 | tee "$RUNNER_TEMP/infrastructure.log"'))
 })
 const mutations = [
   ['missing scope metadata gate', setup => { delete setup.verify.jobs.scope }],

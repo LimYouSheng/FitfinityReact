@@ -203,6 +203,36 @@ def verify(run_id, source, profile, read=api):
     }
 
 
+def discover(source, profile, read=api):
+    """Select the latest canonical main run and authenticate its complete evidence."""
+    require(re.fullmatch(r"[a-f0-9]{40}", source or ""), "Exact source required")
+    root = "repos/" + profile["github_repository"]
+    current = read(root + "/git/ref/heads/main")
+    require(current.get("object", {}).get("sha") == source, "Selected source is no longer main")
+    payload = read(
+        f"{root}/actions/workflows/pages.yml/runs?head_sha={source}&branch=main&per_page=100"
+    )
+    rows = payload.get("workflow_runs", [])
+    require(payload.get("total_count") == len(rows), "Incomplete verification run inventory")
+    candidates = [
+        row
+        for row in rows
+        if row.get("event") in {"push", "workflow_dispatch"}
+        and type(row.get("id")) is int
+        and row["id"] > 0
+    ]
+    require(candidates, "No canonical main verification run found")
+    selected = max(candidates, key=lambda row: row["id"])
+    # A newer pending or failed verification must not be hidden by an older success.
+    check_run(selected, "pages", source, profile["github_repository"])
+    result = verify(str(selected["id"]), source, profile, read)
+    require(
+        read(root + "/git/ref/heads/main").get("object", {}).get("sha") == source,
+        "Main changed while selecting release evidence",
+    )
+    return result
+
+
 def main():
     """Validate protected workflow context and retain a metadata-only verification receipt."""
     parser = argparse.ArgumentParser(description=__doc__)

@@ -227,6 +227,7 @@ def execute(
     now=None,
     stack_id=None,
     profile=DEVELOPER,
+    persist=lambda value: None,
 ):
     """Perform one lifecycle step without automatic mutation retries or implicit cleanup."""
     target = identities(profile)
@@ -258,6 +259,7 @@ def execute(
     if mode == "create":
         preflight(binding, call, profile=profile)
         validate_image(image_receipt, binding, call, now, profile=profile)
+        persist({"state": "create_requested", "identity": tags})
         result = call(
             "cloudformation",
             "create-stack",
@@ -293,6 +295,7 @@ def execute(
             },
             "Stack is not ready for cleanup",
         )
+        persist({"state": "cleanup_requested", "identity": tags, "stack_id": stack["StackId"]})
         call(
             "cloudformation",
             "delete-stack",
@@ -302,6 +305,7 @@ def execute(
     require(status == "CREATE_COMPLETE", "Probe not ready; inspect stack before collecting")
     validate_image(image_receipt, binding, call, now, profile=profile)
     inspect_function(review, binding, stack, call, profile=profile)
+    persist({"state": "invoke_requested", "identity": tags, "stack_id": stack["StackId"]})
     result = call(
         "lambda",
         "invoke",

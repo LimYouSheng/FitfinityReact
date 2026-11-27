@@ -10,6 +10,8 @@ from pathlib import Path
 
 from deployment_profile import DEVELOPER, identities, load
 from operator_checks import require
+from operator_errors import OperatorFailure, decode_response, safe_reason
+from operator_errors import failure_code as failure_code
 from schema_probe_execution import execute
 
 ALLOWED = {
@@ -33,61 +35,6 @@ ALLOWED = {
     ("lambda", "list-event-source-mappings"),
     ("lambda", "invoke"),
 }
-
-
-PROVIDER_ERRORS = frozenset(
-    {
-        "AccessDenied",
-        "AccessDeniedException",
-        "ExpiredTokenException",
-        "InvalidClientTokenId",
-        "UnrecognizedClientException",
-        "ResourceNotFoundException",
-        "ResourceConflictException",
-        "ResourceNotReadyException",
-        "TooManyRequestsException",
-        "InvalidRequestContentException",
-        "InvalidParameterValueException",
-        "InvalidRuntimeException",
-        "InvalidZipFileException",
-        "InvalidSecurityGroupIDException",
-        "InvalidSubnetIDException",
-        "EC2AccessDeniedException",
-        "EC2ThrottledException",
-        "EC2UnexpectedException",
-        "ENILimitReachedException",
-        "SubnetIPAddressLimitReachedException",
-        "EFSIOException",
-        "EFSMountConnectivityException",
-        "EFSMountFailureException",
-        "EFSMountTimeoutException",
-        "KMSAccessDeniedException",
-        "KMSDisabledException",
-        "KMSInvalidStateException",
-        "KMSNotFoundException",
-        "SnapStartException",
-        "SnapStartNotReadyException",
-        "SnapStartTimeoutException",
-        "ServiceException",
-        "RequestTooLargeException",
-        "UnsupportedMediaTypeException",
-    }
-)
-
-
-def failure_code(stderr):
-    """Return only static diagnostic labels; never copy provider messages or unknown tokens."""
-    match = re.search(
-        r"An error occurred \(([A-Za-z0-9]+)\) when calling the [A-Za-z0-9]+ operation",
-        stderr,
-    )
-    if match:
-        return next((code for code in PROVIDER_ERRORS if code == match[1]), "UnknownProviderError")
-    if "Parameter validation failed:" in stderr or "An error occurred (ParamValidation):" in stderr:
-        return "CliParameterValidation"
-    if "Error parsing parameter" in stderr or "Unknown options:" in stderr:
-        return "CliArgumentError"
-    return "UnclassifiedCliFailure"
 
 
 def aws(service, operation, parameters, *, profile=DEVELOPER, purpose="probe"):
@@ -148,7 +95,7 @@ def aws(service, operation, parameters, *, profile=DEVELOPER, purpose="probe"):
                 },
             )
         except subprocess.TimeoutExpired:
-            raise RuntimeError(
+            raise OperatorFailure(
                 f"AWS {service}/{operation} failed; code=LocalProcessTimeout; "
                 "exit_status=unavailable; outcome uncertain; "
                 "inspect owned resource state before retry"
@@ -158,11 +105,11 @@ def aws(service, operation, parameters, *, profile=DEVELOPER, purpose="probe"):
                 r"\(ResourceNotFoundException\) when calling the GetPolicy operation", result.stderr
             ):
                 return {"absent": True}
-            raise RuntimeError(
+            raise OperatorFailure(
                 f"AWS {service}/{operation} failed; code={failure_code(result.stderr)}; "
                 f"exit_status={result.returncode}; inspect owned resource state before retry"
             )
-        value = json.loads(result.stdout) if result.stdout.strip() else {}
+        value = decode_response(result.stdout, service, operation)
         if operation == "invoke":
             require(response.stat().st_size <= 2 * 1024 * 1024, "Probe response too large")
             value["Payload"] = json.loads(response.read_text())
@@ -217,37 +164,37 @@ def main():
         "state": "not_started",
         "deployment_decision": "HOLD",
     }
-    with args.receipt.open("x") as output:
-        try:
-            receipt.update(
-                execute(
-                    args.mode,
-                    review,
-                    args.template_sha256,
-                    source,
-                    sql,
-                    args.operation_id,
-                    json.loads(args.image_receipt.read_text()) if args.image_receipt else {},
-                    lambda service, operation, params: aws(
-                        service, operation, params, profile=profile
-                    ),
-                    stack_id=args.stack_id,
-                    profile=profile,
-                )
+    from operation_journal import Journal
+
+    journal = Journal(args.receipt)
+
+    def save(value):
+        receipt.update(value)
+        journal.save(receipt)
+
+    try:
+        receipt.update(
+            execute(
+                args.mode,
+                review,
+                args.template_sha256,
+                source,
+                sql,
+                args.operation_id,
+                json.loads(args.image_receipt.read_text()) if args.image_receipt else {},
+                lambda service, operation, params: aws(service, operation, params, profile=profile),
+                stack_id=args.stack_id,
+                profile=profile,
+                persist=save,
             )
-        except Exception as error:
-            receipt["reason"] = (
-                str(error)
-                if isinstance(error, RuntimeError)
-                else "Unexpected local or provider response; inspect safely"
-            )
-            receipt["state"] = "failed_or_uncertain"
-            receipt["next"] = "Inspect owned stack; do not infer rollback or replay mutations"
-            raise RuntimeError(
-                "Probe step failed; review sanitized receipt and owned resource state"
-            ) from None
-        finally:
-            output.write(json.dumps(receipt, indent=2))
+        )
+    except Exception as error:
+        receipt["reason"] = safe_reason(error)
+        receipt["state"] = "failed_or_uncertain"
+        receipt["next"] = "Inspect owned stack; do not infer rollback or replay mutations"
+        raise RuntimeError("Probe step failed: " + receipt["reason"]) from None
+    finally:
+        journal.save(receipt)
     print("Probe step receipt retained; staff deployment remains HOLD")
 
 

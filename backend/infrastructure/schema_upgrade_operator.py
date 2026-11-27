@@ -11,6 +11,7 @@ from pathlib import Path
 from deployment_profile import load
 from operation_journal import Journal
 from operator_checks import require
+from operator_errors import retain_failure
 from schema_probe_operator import aws
 from schema_upgrade_execution import execute
 
@@ -87,15 +88,8 @@ def main():
                 prior=json.loads(args.prior.read_text()) if args.prior else None,
                 migrations=migrations,
             )
-        except Exception:
-            journal.save(
-                {
-                    **journal.value,
-                    "error": "Step failed; inspect retained intent and owned resources "
-                    "before recovery",
-                }
-            )
-            raise RuntimeError("Upgrade step failed; inspect its retained receipt") from None
+        except Exception as error:
+            raise retain_failure(journal, error, "Schema upgrade") from None
     print("Upgrade step receipt retained; staff rollout and live acceptance remain separate")
 
 

@@ -1,7 +1,12 @@
 name: AWS - Observe Current Release
+run-name: ${{ inputs.orchestration_id && format('Release operation {0}', inputs.orchestration_id) || github.event.head_commit.message || github.workflow }}
 on:
   workflow_dispatch:
     inputs:
+      orchestration_id:
+        description: Optional correlation ID supplied by the release orchestrator
+        required: false
+        type: string
       target:
         description: Deployment target name in repository configuration
         type: string
