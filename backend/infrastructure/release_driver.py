@@ -2,6 +2,8 @@
 
 import json
 import os
+import re
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -11,11 +13,29 @@ from deployment_profile import fingerprint, identities, load
 from operator_checks import require
 from operator_errors import safe_reason
 from release_coordinator import load_or_start, tick
-from release_dispatch import request
+from release_dispatch import WORKFLOWS, request
 from release_record import ReleaseRecord
 from release_stage_inputs import plan, worker_readiness
 from release_stage_results import authenticate
 from release_verification import api, discover
+
+
+def validate_child_inputs(workflow, inputs):
+    """Validate against the checked-out workflow before persisting dispatch intent."""
+    result = subprocess.run(
+        ["node", str(Path(__file__).with_name("workflow_inputs.mjs")), workflow],
+        input=json.dumps(inputs),
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    reason = result.stderr.strip() if isinstance(result.stderr, str) else ""
+    detail = (
+        reason
+        if re.fullmatch(r"(?:Required input missing|Invalid choice): [a-z][a-z0-9_]*", reason)
+        else "Child workflow input contract rejected"
+    )
+    require(result.returncode == 0, detail + "; validation failed before dispatch intent")
 
 
 def drive(record, profile, configuration, *, now=time.time, pause=time.sleep, budget=2700):
@@ -29,9 +49,11 @@ def drive(record, profile, configuration, *, now=time.time, pause=time.sleep, bu
 
     def prepare(stage, value):
         pending = worker_readiness(stage, value, profile)
-        return (
-            {"wait": pending} if pending else plan(stage, value, configuration, profile, now=now())
-        )
+        if pending:
+            return {"wait": pending}
+        result = plan(stage, value, configuration, profile, now=now())
+        validate_child_inputs(WORKFLOWS[stage], result["inputs"])
+        return result
 
     deadline = now() + budget
     while now() < deadline:

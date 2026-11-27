@@ -43,6 +43,25 @@ class DriverTests(unittest.TestCase):
             self.assertEqual(self.clock, 100)
 
     def test_uncertain_write_exception_is_not_retried(self):
+        def advance(record, **kwargs):
+            kwargs["plan"]("backup", {})
+            self.fail("Invalid child inputs advanced past validation")
+
+        with (
+            patch("release_driver.load_or_start"),
+            patch("release_driver.tick", side_effect=advance),
+            patch("release_driver.worker_readiness", return_value=None),
+            patch("release_driver.plan", return_value={"inputs": {"mode": "backup"}}),
+            patch("release_driver.subprocess.run") as validate,
+        ):
+            validate.return_value.returncode = 1
+            validate.return_value.stderr = "Required input missing: review_sha256"
+            with self.assertRaisesRegex(
+                RuntimeError, "review_sha256; validation failed before dispatch intent"
+            ):
+                drive(self.record, DEVELOPER, {}, now=lambda: self.clock, pause=self.pause)
+            self.assertEqual(validate.call_count, 1)
+            self.assertEqual(validate.call_args.args[0][-1], "aws-maintenance.yml")
         with patch("release_driver.load_or_start"), patch("release_driver.tick") as tick:
             tick.side_effect = RuntimeError("uncertain")
             with self.assertRaisesRegex(RuntimeError, "uncertain"):

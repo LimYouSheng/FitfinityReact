@@ -63,6 +63,26 @@ class StageTests(unittest.TestCase):
             value[key] = original
 
     def test_preparation_must_contain_exact_dispatched_review(self):
+        from maintenance_operator import digest as maintenance_digest
+
+        review = {**self.record["identity"], "operation_id": "b" * 32}
+        self.record["stages"]["prepare"] = {
+            "evidence": {
+                "documents": {
+                    "maintenance-review/review.json": review,
+                }
+            }
+        }
+        self.documents = {
+            "maintenance-receipt.json": {
+                "state": "snapshot_ready",
+                "identity": {**review, "review_sha256": maintenance_digest(review)},
+            }
+        }
+        self.assertEqual(self.check("backup")["outcome"], "complete")
+        self.documents["maintenance-receipt.json"]["identity"]["review_sha256"] = digest(review)
+        with self.assertRaisesRegex(RuntimeError, "Original backup operation differs"):
+            self.check("backup")
         bindings = {"source_sha": self.source, "db_name": "synthetic"}
         self.record["pending"]["inputs"]["inputs"] = {"probe_bindings": json.dumps(bindings)}
         self.documents = {
