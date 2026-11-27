@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import fs from 'node:fs'
 import { parse } from 'yaml'
+import { missingReviewContract } from './retirement_contract.mjs'
 import { validateInputs } from './workflow_inputs.mjs'
 
 test('maintenance rejects the original missing hash and accepts the complete input contract', () => {
@@ -38,4 +39,13 @@ test('standalone infrastructure installs locked parser dependencies before invok
   assert.ok(setup >= 0 && install > setup && verify > install, 'A clean AWS workflow must install dependencies before infrastructure verification')
   assert.equal(steps[install].if, undefined, 'Installation cannot be conditional')
   assert.equal(steps[install]['continue-on-error'], undefined, 'Installation failure must stop verification')
+})
+
+
+test('retirement requires a genuinely mandatory archived input without a default', () => {
+  const source = 'on:\n  workflow_dispatch:\n    inputs:\n      review_sha256:\n        required: true\n'
+  assert.match(missingReviewContract(source), /^[a-f0-9]{64}$/)
+  assert.throws(() => missingReviewContract(source.replace('true', 'false')))
+  assert.throws(() => missingReviewContract(source + '        default: old-value\n'))
+  assert.throws(() => missingReviewContract('on: push'))
 })

@@ -91,6 +91,13 @@ def inspect_record(record, profile, current_source, read):
         "resource_state_checked": False,
         "receipt_authenticated": False,
     }
+    if "retirement" in record:
+        return {
+            **result,
+            "action": "retired",
+            "successor_source": record["retirement"]["plan"]["successor_source"],
+            "next": "Start only the reviewed successor; do not replay the old release",
+        }
     if pending is None:
         stage = next((name for name in STAGES if name not in record["stages"]), None)
         return {

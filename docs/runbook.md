@@ -862,6 +862,82 @@ At every milestone: before a dispatch intent exists, prepare only against curren
 | Probe cleanup | Original ownership/template and `cleanup_requested`, `cleanup-check` | Delete only the ephemeral owned worker; no media, journal or image cleanup. |
 | Probe deletion check | Read original stack deletion status | Target completion waits for confirmed cleanup or authenticated schema-proven not-required stages. |
 
-**Automation limit:** the new diagnosis selects an investigation, not a repair dispatch. Existing manual operators can consume certain failed receipts under their own guards. The coordinator still requires a successful, authenticated original child for stage completion; it does not yet adopt recovery runs, refresh expired reviews, retire abandoned claims or resume a batch from a failed subphase. These are remaining implementation gaps, not passed recovery scenarios.
+**Automation limit:** the new diagnosis selects an investigation, not a repair dispatch. Existing manual operators can consume certain failed receipts under their own guards. The coordinator still requires a successful, authenticated original child for ordinary stage completion; it does not automatically adopt recovery runs, refresh expired reviews or resume a batch from a failed subphase. The narrow manual pre-backup retirement below is a separate terminal outcome, not fabricated completion. General recovery-run adoption remains planned.
 
-**Current pre-backup incident:** source6286191 retains generation11 and backup `dispatch_intent`; its maintenance review expired at2026-11-27T10:27:58Z. The supplied readback showed Active/Successful Lambda, matching revision and reserved concurrency10, with no pause. Before manual retirement, recheck live claim/record ETags, complete original-source child inventory, the invalid dispatch against its source workflow, runtime/hosting/DB identities, and exact probe ownership. Preserve all receipts. Cleanup and successor transfer need a reviewed conditional recovery operation; do not hand-edit the journal, fabricate backup completion, remove the target claim or reuse the expired review. This audit does not execute that recovery.
+**Current pre-backup incident:** source6286191 retains generation11 and backup `dispatch_intent`; its maintenance review expired at2026-11-27T10:27:58Z. The supplied readback showed Active/Successful Lambda, matching revision and reserved concurrency10, with no pause. Before manual retirement, recheck live claim/record ETags, complete original-source child inventory, the invalid dispatch against its source workflow, runtime/hosting/DB identities, and exact probe ownership. Preserve all receipts. Use the reviewed conditional retirement operation below after exact probe deletion is verified; do not hand-edit the journal, fabricate backup completion, remove the target claim or reuse the expired review. Source implementation is not evidence that live recovery has executed.
+
+
+### Guarded pre-backup retirement
+
+Retirement means closing an abandoned deployment attempt while preserving its history; it does not retire the app. The coordinator recognizes a verified retirement, but does not initiate this decision automatically.
+
+`retirement_operator.py` is a manual CloudShell operator for the specific missing-required-backup-input failure. It does not delete resources, pause/resume the app, mutate the database, remove the target claim or start a deployment. Its only writes are the original release's immutable history event and conditional current-record update. Existing public GitHub metadata is read without introducing a token; private/unavailable/rate-limited API reads hold. Use the repository Node version and locked dependencies plus CloudShell's AWS CLI and boto3. No new IAM grants are introduced.
+
+Execution order after source acceptance:
+
+1. Merge the tested source. The reusable infrastructure workflow now installs locked Node dependencies; the real probe CLI adapter permits the existing ownership `GetTemplate` read. These fixes must be on main before retrying the previously skipped cleanup.
+2. Run existing `aws-schema-probe.yml` mode `cleanup` with the original preparation run, operation ID, exact template hash and stack ARN. Then run `cleanup-check` against that same ARN. Both preserve their original operational receipts. Do not rerun `cleanup` after an uncertain submission. A generic missing-stack or access-denied response is not deletion proof.
+3. From a clean checkout of the merged main, run `npm ci --ignore-scripts`, then prepare a retirement review. `--profile` uses the existing deployment profile, never copied account/resource constants. The operator requires this checkout to be current GitHub main and a descendant of the original source.
+
+```bash
+review_dir=$(mktemp -d "$HOME/fitfinity-retirement-XXXXXX")
+python3 backend/infrastructure/retirement_operator.py \
+  --profile backend/infrastructure/targets/developer.json \
+  --mode prepare --review "$review_dir/retirement.json"
+```
+
+Preparation validates the target claim, release identity, original first-five-stage evidence and pending backup intent. The archived workflow must declare the missing `review_sha256` input mandatory without a default; the locked YAML parser verifies this. Complete bounded inventories must show no original-source maintenance run, no maintenance run on any source since the intent, and no still-active original-source run. The original review must have expired. Fresh AWS reads must prove the original runtime revision/capacity, no maintenance/snapshot markers, unchanged completed hosting template, original available private encrypted PostgreSQL identity, and `DELETE_COMPLETE` for the exact owned probe with its original tags and template. Missing/deleted metadata that AWS no longer retains holds retirement rather than assuming cleanup.
+
+4. Review the saved JSON and printed SHA256. Within ten minutes, apply that exact plan:
+
+```bash
+python3 backend/infrastructure/retirement_operator.py \
+  --profile backend/infrastructure/targets/developer.json \
+  --mode apply --review "$review_dir/retirement.json" \
+  --sha256 '<SHA256 printed by prepare>'
+```
+
+Apply repeats the provider observations, rechecks both pointer versions and expiry after inspection, then writes immutable history before a compare-and-swap update. A concurrent writer or changed live state stops it. The old pending intent and all completed evidence remain unchanged; a sealed retirement binds their original digest and the exact successor SHA. A lost pointer acknowledgement is reconciled by reading the sealed record, returning `already_retired` without another write. If only a history event was stored and the pointer remains unchanged, inspect it and prepare a fresh reviewed plan; never force a pointer update.
+
+5. Start Coordinate Release for the exact successor on main. Normal source verification still applies. The coordinator transfers the target claim conditionally only to that successor and starts with fresh reviews; the retired source cannot dispatch or mark its old backup successful. Avoid merging another source between review and successor start. A different source requires explicit reconciliation, not automatic reauthorization. Ordinary completed releases retain the existing next-release behavior.
+
+### Deployment and recovery paths
+
+These diagrams use basic left-to-right Mermaid syntax. If a client displays raw code, view this section on GitHub. The text procedures above remain authoritative.
+
+```mermaid
+graph LR
+    A[Verified main CI] --> B[Publish accepted image]
+    B --> C[Observe and prepare]
+    C --> D[Create probe and inspect DB]
+    D --> E[Pause and verify backup]
+    E --> F{Migration needed}
+    F -->|Yes| G[Create worker and upgrade]
+    F -->|No| H[Verify schema and grants]
+    G --> H
+    H --> I[Deploy while paused]
+    I --> J[Resume and verify health]
+    J --> K[Delete workers and verify cleanup]
+    K --> L[Record release complete]
+```
+
+```mermaid
+graph LR
+    A[Stopped milestone] --> B[Diagnose journal and original run]
+    B --> C{Observed outcome}
+    C -->|Running| D[Wait without redispatch]
+    C -->|Succeeded| E[Authenticate original receipt]
+    E --> F[Continue next stage]
+    C -->|Uncertain| G[Operator inspects receipt and AWS]
+    C -->|Invalid pre-backup dispatch| H[Verify unchanged app and original ownership]
+    H --> I[Cleanup original probe]
+    I --> J[Verify exact deletion]
+    J --> K[Prepare and review retirement]
+    K --> L[Recheck and seal old release]
+    L --> M[Exact successor claims target]
+    M --> N[Fresh coordinated release]
+    G --> O[Manual guarded subphase recovery]
+    O --> P[Automatic recovery receipt adoption remains planned]
+```
+
+The normal coordinator still takes a backup even when migration is unnecessary. Skipping pause/backup for application-only releases was discussed but is not implemented in this change. The retirement path is implemented for the narrow pre-backup case and requires live acceptance after merge; general automated recovery after migration/rollout is not claimed.
