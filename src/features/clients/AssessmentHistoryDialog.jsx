@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { formatDate, formatTimestamp } from '../../utils/date.js'
@@ -23,7 +24,7 @@ export default function AssessmentHistoryDialog({ definition, person, services, 
   return <ConfirmDialog open title={`${definition.title} history`} hideConfirm cancelLabel="Back to Form" onCancel={onClose}>
     <p>{person.name} — {assessmentId ? 'Saved revisions of this occasion' : 'Assessment occasions'}</p>
     {assessmentId && <button type="button" className="secondary-button" onClick={() => { setAssessmentId(null); setOffset(0) }}>Back to Occasions</button>}
-    {!ready && <p role="status">Loading assessment history…</p>}
+    {!ready && <LoadingIndicator label="Loading assessment history…" />}
     {ready?.error && <div role="alert"><p>{ready.error.message}</p><button type="button" onClick={() => setAttempt(value => value + 1)}>Retry History</button></div>}
     {ready?.value && <>
       {!ready.value.items.length && <p>No saved records on this page.</p>}

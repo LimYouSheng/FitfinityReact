@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import useClientProgress from './useClientProgress.js'
 import useClientNotes from './useClientNotes.js'
 import usePortalData from '../../hooks/usePortalData.js'
@@ -26,7 +27,7 @@ export default function ClientProfileRoute({ selectedClient, parts, navigate, op
   const loadProgressReportHistory = useCallback(packageId =>
     clientService.progressReportHistory({ id: progressClientId, packageId }), [clientService, progressClientId])
   if (notes.error && !notes.client) return <div role="alert"><p>{notes.error.message}</p><button type="button" onClick={async () => { await reload(); notes.retry() }}>Retry client notes</button></div>
-  if (!notes.client) return <div role="status">Loading client notes…</div>
+  if (!notes.client) return <LoadingIndicator label="Loading client notes…" />
   return (<>
     {notes.error && <section role="alert"><p>{notes.error.message}</p><button type="button" onClick={async () => { await reload(); notes.retry() }}>Retry client notes</button></section>}
     <ClientProfilePage

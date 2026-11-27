@@ -431,7 +431,7 @@ it('dashboard renewals share persisted read state with the routed renewal filter
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   click('View All Renewals')
   expect(window.location.hash).toBe('#/messages/renewals')
-  expect(within(screen.getByRole('group', { name: 'Message categories' })).getByRole('button', { name: 'Renewals', exact: true })).toHaveAttribute('aria-current', 'true')
+  expect(screen.getByLabelText('Message category')).toHaveValue('renewals')
   expect(screen.getByRole('button', { name: 'Read Renewal follow-up: Nadia Koh' })).toBeVisible()
 })
 

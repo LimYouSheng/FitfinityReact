@@ -17,6 +17,14 @@ export function emailCommands(http, actionSession) {
       return state
     },
   })
+  const requestOwnerEmailChange = reconciledCommand(http, actionSession, {
+    label: 'Owner email', roles: ['owner'], path: () => '/api/owner-profile/email-change', receiptPath: '/api/owner-email-requests',
+    validate(value, input) {
+      const state = emailChangeState(value)
+      if (state.email !== input.email.trim().toLowerCase()) throw new ApiError('API_RESPONSE', 'The pending email does not match this request.')
+      return state
+    },
+  })
   const checkedId = id => {
     if (!uuid(id)) throw new ApiError('INVALID_REQUEST', 'Reload the email verification request.')
     return id
@@ -42,6 +50,7 @@ export function emailCommands(http, actionSession) {
     })
   }
   return {
+    requestOwnerEmailChange,
     request({ id, patch, expectedVersion }, generation) {
       if (!patch || !Object.keys(patch).every(key => ['email', 'supersedes'].includes(key)) || typeof patch.email !== 'string' || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw new ApiError('INVALID_REQUEST', 'Review the new email and reload the trainer before saving.')
       const email = patch.email.trim().toLowerCase()

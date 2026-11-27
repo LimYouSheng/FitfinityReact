@@ -58,7 +58,7 @@ Implementation and acceptance status belongs to the [operation inventory](api-co
 
 <a id="br-012"></a>
 
-**BR-012** — Purchased package terms are immutable snapshots. Standard validity is 12 sessions/90 days, 24/180 and 36/270; inclusive end is start plus validity minus one. Catalogue edits do not rewrite purchased/custom terms, used credits or prior evidence.
+**BR-012** — Purchased package terms are immutable snapshots. Catalogue creation/editing requires an explicit validity in whole days (1–3650), independent of session count. Seeded standard terms remain 12 sessions/90 days, 24/180 and 36/270; inclusive end is start plus validity minus one. Catalogue edits do not rewrite purchased/custom terms, used credits or prior evidence.
 <a id="br-013"></a>
 
 **BR-013** — Add Client/Add Package share the reviewed matching wizard: Continue/Back/Edit do not persist. Revalidate active/versioned package, preference, availability, full cadence, validity and client/Trainer conflicts at final save. New purchases must start after today in Singapore business time. Purchase validity may overlap, including purchases assigned to different Trainers; each retains its own terms, schedule, credits and expiry. Actual client/Trainer booking conflicts remain prohibited. Started additional purchases appear in progress reports. The current purchase is the profile default, not exclusive ownership of usable credits; an overlapping purchase must not overwrite that default while it is active and unexpired.
@@ -162,7 +162,7 @@ Implementation and acceptance status belongs to the [operation inventory](api-co
 
 <a id="br-036"></a>
 
-**BR-036** — **Undecided scope.** Owner Profile remains read-only; additional System pages, payment collection and purchase eligibility beyond the agreed overlapping-purchase policy are not inferred from existing services. Copy Previous Plan requires preview, then confirmation of replacement. Session filming and production media processing still need separate acceptance.
+**BR-036** — **Undecided scope.** Owner Profile supports self-service contact editing and separately verified login-email changes; additional System pages, payment collection and purchase eligibility beyond the agreed overlapping-purchase policy are not inferred from existing services. Copy Previous Plan requires preview, then confirmation of replacement. Session filming and production media processing still need separate acceptance.
 
 <a id="br-037"></a>
 
@@ -289,3 +289,11 @@ Implementation and acceptance status belongs to the [operation inventory](api-co
 <a id="br-064"></a>
 
 **BR-064** — All final-head frontend/backend/API-browser CI must pass. Real enrollment/login/refresh/expiry/sign-out, account lifecycle and secure lost-authenticator recovery, physical desktop/Samsung/iPad checks, populated recovery and release acceptance remain separately evidenced. Preserve historic milestone IDs and criteria in [Journey](journey.md); no blanket M4/M5/M6 closure follows from a source increment. Public-site design/content/routes, Glofox handoff, member authorization and authorized publication have their own acceptance after portal completion.
+
+### Owner contact profile and message controls — 27 November 2026
+
+The Owner may edit their own name, mobile number, birthday and gender through the shared profile form. The role and identity cannot change. Login email uses a separate code-verification flow on the existing Cognito account: retain the old email until provider verification and local reconciliation succeed, then revoke existing sessions. Contact saves bind the reviewed staff-user version and actor-scoped immutable receipt; uncertain saves retain their original input/key.
+
+Messages use the shared category dropdown. Bulk read/unread changes only checked rows, with page-local select-all; clear successful selections and never select newly surfaced rows automatically. Stop on partial failure and show the completed count. Related records belong left-aligned in the detail footer alongside the unread action. Approval decision functionality remains available under Approvals rather than a separate default Admin Requests section.
+
+Loading indicators use the supplied transparent pink/purple mark with a repeating rightward ripple, accessible status text and a reduced-motion alternative.

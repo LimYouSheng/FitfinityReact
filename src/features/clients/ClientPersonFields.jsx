@@ -56,14 +56,7 @@ export default function ClientPersonFields({ person, labelPrefix, errors = {}, r
             value={person.emergencyContact.name}
             onChange={event => patch({ emergencyContact: { ...person.emergencyContact, name: event.target.value } })}
           />
-          <SelectField
-            aria-label={`${labelPrefix} emergency contact relationship`}
-            required={requireComplete} aria-required={requireComplete || undefined} aria-invalid={Boolean(errors.emergencyRelationship)}
-            value={person.emergencyContact.relationship}
-            onChange={event => patch({ emergencyContact: { ...person.emergencyContact, relationship: event.target.value } })}
-          >
-            {RELATIONSHIPS.map(relationship => <option key={relationship}>{relationship}</option>)}
-          </SelectField>
+          <div className="onboarding-phone-grid">
           <SelectField
             aria-label={`${labelPrefix} emergency contact country code`}
             required={requireComplete} aria-required={requireComplete || undefined} aria-invalid={Boolean(errors.emergencyCountryCode)}
@@ -80,6 +73,15 @@ export default function ClientPersonFields({ person, labelPrefix, errors = {}, r
             value={person.emergencyContact.number}
             onChange={event => patch({ emergencyContact: { ...person.emergencyContact, number: event.target.value } })}
           />
+          </div>
+          <SelectField
+            aria-label={`${labelPrefix} emergency contact relationship`}
+            required={requireComplete} aria-required={requireComplete || undefined} aria-invalid={Boolean(errors.emergencyRelationship)}
+            value={person.emergencyContact.relationship}
+            onChange={event => patch({ emergencyContact: { ...person.emergencyContact, relationship: event.target.value } })}
+          >
+            {RELATIONSHIPS.map(relationship => <option key={relationship}>{relationship}</option>)}
+          </SelectField>
         </div>
       </Field>
 

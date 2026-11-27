@@ -1,3 +1,4 @@
+import { ownerService } from './ownerService.js'
 import { staffService } from './staffService.js'
 import { contentService } from './contentService.js'
 import { clientService } from './clientService.js'
@@ -12,6 +13,10 @@ import { remunerationService } from './remunerationService.js'
 // Handlers are the sole translation from named boundary requests to domain calls.
 // Context is adapter-owned and never merged with caller input.
 export const mockPortalOperations = {
+  ownerService: {
+    getProfile: (_input, { actor }) => ownerService.getProfile(actor),
+    saveProfile: (input, { actor }) => ownerService.saveProfile(input, actor),
+  },
   staffService: {
     getAll: (_input, { actor }) => staffService.getAll(actor),
     getById: ({ id }, { actor }) => staffService.getById(id, actor),

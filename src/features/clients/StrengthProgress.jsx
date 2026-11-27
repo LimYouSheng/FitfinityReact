@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { managesOperations } from '../../app/permissions.js'
 import usePageState from '../../hooks/usePageState.js'
 import { useEffect, useId, useRef, useState } from 'react'
@@ -112,7 +113,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
           {historyOpen ? 'Hide Export/WhatsApp History' : 'View Export/WhatsApp History'}
         </button>
         {historyOpen && <div id="progress-report-history" className="report-history" aria-label="Export/WhatsApp history">
-          {historyState.loading && !historyState.items.length && <p role="status">Loading history…</p>}
+          {historyState.loading && !historyState.items.length && <LoadingIndicator label="Loading history…" />}
           {historyState.error && <div role="alert">
             <p>{historyState.error}</p><button type="button" className="secondary-button" onClick={() => setHistoryRevision(current => current + 1)}>Retry History</button>
           </div>}

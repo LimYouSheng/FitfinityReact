@@ -49,7 +49,7 @@ def binding(profile):
         "image_digest": "sha256:" + "b" * 64,
         "operation_id": "c" * 32,
         "from_revision": "20260924_0006",
-        "to_revision": "20261101_0052",
+        "to_revision": "20261127_0053",
         "db_host": f"{profile['resource_prefix']}-db.abcdefghijk.{region}.rds.amazonaws.com",
         "db_name": "fitfinity",
         "migration_secret_arn": f"arn:aws:secretsmanager:{region}:{account}:secret:"
@@ -101,7 +101,7 @@ class UpgradePlanTests(unittest.TestCase):
                     + profile["resource_prefix"]
                     + "-schema-upgrade",
                 )
-                self.assertEqual(result["migration_chain"][-1]["revision"], "20261101_0052")
+                self.assertEqual(result["migration_chain"][-1]["revision"], "20261127_0053")
                 self.assertTrue(all(len(row["sha256"]) == 64 for row in result["migration_chain"]))
                 self.assertEqual(
                     result["invoke_payload"],
@@ -114,7 +114,7 @@ class UpgradePlanTests(unittest.TestCase):
     def test_unknown_bootstrap_downgrade_and_stale_source_are_refused(self):
         for changes in (
             {"from_revision": "base"},
-            {"from_revision": "20261101_0052"},
+            {"from_revision": "20261127_0053"},
             {"to_revision": "20261024_0045"},
             {"to_revision": "head"},
             {"from_revision": "20000101_0000"},
@@ -623,7 +623,7 @@ class UpgradeExecutionTests(unittest.TestCase):
                 "operation_id": "c" * 32,
                 "source_sha": "a" * 40,
                 "from_revision": "20260924_0006",
-                "schema": "20261101_0052",
+                "schema": "20261127_0053",
                 "outcome": "upgraded",
             }
             return {"StatusCode": 200, "Payload": payload}
@@ -683,7 +683,7 @@ class UpgradeExecutionTests(unittest.TestCase):
                     if defect == "transition":
                         evidence["backup_transition"]["maintenance_sha256"] = "0" * 64
                     elif defect == "catalog":
-                        evidence["catalog"]["alembic_revisions"] = ["20261101_0052"]
+                        evidence["catalog"]["alembic_revisions"] = ["20261127_0053"]
                     elif defect == "runtime":
                         live = self.call(
                             "lambda", "get-function", {"FunctionName": "client-prod-staff-api"}
@@ -851,7 +851,7 @@ class UpgradeExecutionTests(unittest.TestCase):
             "operation_id": "c" * 32,
             "source_sha": "a" * 40,
             "from_revision": "20260924_0006",
-            "schema": "20261101_0052",
+            "schema": "20261127_0053",
             "outcome": "already_at_target",
         }
         provider = self.call
@@ -903,7 +903,7 @@ class UpgradeExecutionTests(unittest.TestCase):
             "operation_id": "c" * 32,
             "source_sha": "a" * 40,
             "from_revision": "20260924_0006",
-            "schema": "20261101_0052",
+            "schema": "20261127_0053",
             "outcome": "upgraded",
         }
         for response in (

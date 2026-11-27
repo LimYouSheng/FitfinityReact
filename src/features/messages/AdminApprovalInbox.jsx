@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import AdminProposalReview, { reviewableOperation } from './AdminProposalReview.jsx'
 import { useEffect, useEffectEvent, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -60,9 +61,9 @@ export default function AdminApprovalInbox({ services, user }) {
   const domainReview = reviewableOperation(selected)
   const reviewable = contentReview || packageReview || domainReview
   return <Panel>
-    <div className="section-heading"><h2>Admin Requests</h2><button type="button" className="text-action" disabled={busy || Boolean(attempt)} onClick={() => { setItems(null); setRevision(value => value + 1) }}>Refresh Requests</button></div>
+    <div className="section-heading"><h2>Approval decisions</h2><button type="button" className="text-action" disabled={busy || Boolean(attempt)} onClick={() => { setItems(null); setRevision(value => value + 1) }}>Refresh Requests</button></div>
     {error && <p role="alert">{error}</p>}
-    {!items && !error && <p role="status">Loading Admin requests…</p>}
+    {!items && !error && <LoadingIndicator label="Loading Admin requests…" />}
     {items?.length === 0 && <p className="empty">No Admin requests.</p>}
     {!selected && <>
       <div className="info-list">{pagination.items.map(item => <div className="info-row" key={item.id}>
@@ -74,7 +75,7 @@ export default function AdminApprovalInbox({ services, user }) {
       <p>{selected.actorName} · {selected.status}</p>
       {(contentReview || packageReview) && <p>{selected.body.body.id ? `Update record ${selected.body.body.id} · reviewed version ${selected.body.body.expectedVersion}` : 'Create a new record'}</p>}
       {contentReview ? <article className="content-preview"><h3>{draft.title}</h3><p>{draft.key} · {draft.status}</p><p>{draft.body}</p></article>
-        : packageReview ? <article><h3>{draft.name}</h3><p>{draft.total} sessions · {draft.status}</p><p>Existing purchased terms remain unchanged.</p></article>
+        : packageReview ? <article><h3>{draft.name}</h3><p>{draft.total} sessions{draft.validityDays !== undefined ? ` · ${draft.validityDays} days` : ''} · {draft.status}</p><p>Existing purchased terms remain unchanged.</p></article>
         : domainReview ? <AdminProposalReview proposal={selected} services={services} />
         : <p>This request cannot be fully reviewed in this version. Approval is unavailable.</p>}
       {selected.status === 'pending' && (attempt ? <div className="section-actions">

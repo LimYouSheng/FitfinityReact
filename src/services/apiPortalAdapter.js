@@ -1,3 +1,4 @@
+import { ownerProfileCommands } from './apiOwnerProfile.js'
 import { reportSharingCommands } from './apiReportSharing.js'
 import { adminManagementCommands } from './apiAdminManagement.js'
 import { adminRequestCommands } from './apiAdminRequests.js'
@@ -93,6 +94,7 @@ export function createApiPortalAdapter(options = {}) {
   const trainerReactivation = trainerReactivationCommands(http, actionSession)
   const saveTrainerDetails = trainerDetailCommands(http, actionSession)
   const { request: requestEmailChange, ...emailMethods } = emailCommands(http, actionSession)
+  const ownerProfile = ownerProfileCommands(http, actionSession)
   const saveTrainerApprovals = trainerApprovalCommands(http, actionSession)
   const saveClientNotes = clientNoteCommands(http, actionSession)
   const saveClientDetails = clientDetailCommands(http, actionSession)
@@ -315,6 +317,8 @@ export function createApiPortalAdapter(options = {}) {
       if (service === 'messageService' && ['markRead', 'markUnread'].includes(operation)) return personalMessages.save(input, operation === 'markRead', expectedGeneration)
       if (service === 'contentService') return content.save(input, expectedGeneration)
       if (service === 'packageService') return savePackage(input, expectedGeneration)
+      if (service === 'ownerService' && operation === 'getProfile') return ownerProfile.read(expectedGeneration)
+      if (service === 'ownerService' && operation === 'saveProfile') return ownerProfile.save(input, expectedGeneration)
       if (service === 'staffService' && operation === 'getAll') return adminManagement.read(null, expectedGeneration)
       if (service === 'staffService' && operation === 'getById') return adminManagement.read(input.id, expectedGeneration)
       if (service === 'staffService' && operation === 'update') return adminManagement.update(input, expectedGeneration)

@@ -152,3 +152,7 @@ Start with approved rules and bounded jobs. Additional queues, archival services
 Current status: **source-based draft; policy mapping, external-account verification and general disposal implementation pending**. Review when clauses arrive or schema, identity, media or provider settings change. This document owns lifecycle policy mapping; the [runbook restore procedure](runbook.md#7-data-protection-and-restore) owns execution.
 
 Admin report-sharing proposals retain the frozen report-visible projection and original request/decision evidence in the existing Admin approval records. They do not store another PDF binary or transmit it to a recipient. Progress is purchase-scoped; session snapshots contain selected captions and the client-facing summary, without private Trainer comments or signature strokes. These immutable copies follow the existing unresolved general-record retention policy; this change does not authorize disposal.
+
+### Owner profile extension
+
+Owner contact fields live in `owner_profiles`; the stable account/name/email remain in `staff_users`. `owner_profile_receipts` retain immutable actor/request/digest/result evidence, including contact details, for uncertain-save recovery. No automatic receipt expiry or profile deletion is introduced. Runtime permissions exclude receipt update/delete. A populated0053 downgrade is refused; retention and controlled correction remain governed by the existing lifecycle policy.

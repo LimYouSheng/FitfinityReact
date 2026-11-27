@@ -1,3 +1,4 @@
+import LoadingIndicator from './components/LoadingIndicator.jsx'
 import AdminManagementPage from './features/staff/AdminManagementPage.jsx'
 import SessionsRoute from './features/sessions/SessionsRoute.jsx'
 import ProfileSaveRecovery from './components/ProfileSaveRecovery.jsx'
@@ -57,7 +58,7 @@ export default function App({ services }) {
 
 function PortalRoot() {
   const { snapshot, loading, refresh, services, adminCreation, clientCreation, trainerCreation } = usePortalData()
-  if (loading) return <main className="account-entry"><p role="status">Loading staff portal…</p></main>
+  if (loading) return <main className="account-entry"><LoadingIndicator label="Loading staff portal…" /></main>
   const workspaceUserId = snapshot?.user?.id ?? adminCreation?.ownerId ?? clientCreation?.ownerId ?? trainerCreation?.ownerId
   if (workspaceUserId) return <PortalWorkspace key={workspaceUserId} userId={workspaceUserId} />
   if (!snapshot) return <PortalUnavailable />
@@ -396,7 +397,7 @@ function StaffPortal({ navigation }) {
   } else if (route === 'change-password') {
     page = <ChangePasswordPage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} policy={policy.password} onBack={() => goBack('dashboard')} onSave={async draft => { await runAction(() => services.auth.changePassword(draft), { message: 'Password changed.' }) }} />
   } else if (route === 'owner-profile' && user.role === 'owner') {
-    page = <OwnerProfilePage user={user} />
+    page = <OwnerProfilePage key={`${user.id}/${snapshot.sessionGeneration ?? 'demo'}`} user={user} services={services} today={today} emailAuth={apiMode && snapshot.capabilities?.trainerEmailWrites ? services.auth : undefined} onSaved={reload} />
   } else if (route === 'owner-profile') {
     page = <UnavailablePage message="This profile is available to the owner." />
   } else if (route === 'content' && managesOperations(user)) {

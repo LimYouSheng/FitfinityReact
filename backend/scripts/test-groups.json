@@ -28,6 +28,7 @@
     "tests/test_email_corrections.py",
     "tests/test_mfa_recovery_drill.py",
     "tests/test_optional_contacts.py",
+    "tests/test_owner_profile.py",
     "tests/test_staff_api.py",
     "tests/test_trainer_approvals.py",
     "tests/test_trainer_availability.py",

@@ -31,9 +31,9 @@ it('preloads 12/90, 24/180 and 36/270 packages and upgrades old mock data withou
   expect(JSON.parse(localStorage.getItem(KEY))).toEqual(reloaded)
 })
 
-it('saves rules derived from session count and emits an unread owner-only package link', async () => {
+it('saves explicitly selected validity and emits an unread owner-only package link', async () => {
   const result = await save({ name: '  Strength package  ', total: 36, validityDays: 1, freeGym: false })
-  expect(result).toMatchObject({ name: 'Strength package', total: 36, validityDays: 270, status: 'active', version: 1 })
+  expect(result).toMatchObject({ name: 'Strength package', total: 36, validityDays: 1, status: 'active', version: 1 })
   expect(result).not.toHaveProperty('sessionsPerWeek')
   const db = mockDb.read(), message = db.messages.at(-1)
   expect(message).toMatchObject({ packageId: result.id, readBy: {}, recipientRole: 'owner' })

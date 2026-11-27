@@ -2,6 +2,10 @@
 const contract = (fields, access, result, api = false) => Object.freeze({ fields: Object.freeze(fields), access, result, api })
 
 export const PORTAL_CONTRACTS = Object.freeze({
+  ownerService: Object.freeze({
+    getProfile: contract({}, 'owner', 'OwnerProfile', true),
+    saveProfile: contract({ id: 'string', expectedVersion: 'number', details: 'object' }, 'owner', 'OwnerProfile', true),
+  }),
   staffService: Object.freeze({
     getAll: contract({}, 'owner', 'Admin[]', true),
     getById: contract({ 'id': 'string' }, 'owner', 'Admin', true),
@@ -83,6 +87,7 @@ export const PORTAL_CONTRACTS = Object.freeze({
 })
 
 export const AUTH_CONTRACTS = Object.freeze({
+  requestOwnerEmailChange: Object.freeze({ fields: Object.freeze({ email: 'string', expectedVersion: 'number', 'supersedes?': 'string' }), result: 'EmailChange', adapter: 'api' }),
   pendingEmailChange: Object.freeze({ fields: Object.freeze({}), result: 'EmailChange | null', adapter: 'api' }),
   pendingTrainerEmailChange: Object.freeze({ fields: Object.freeze({ id: 'string' }), result: 'EmailChange | null', adapter: 'api' }),
   sendEmailCode: Object.freeze({ fields: Object.freeze({ id: 'string' }), result: 'EmailChange', adapter: 'api' }),

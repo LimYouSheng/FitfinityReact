@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useMemo, useState } from 'react'
 import { managesOperations } from '../../app/permissions.js'
 import usePortalActions from '../../hooks/usePortalActions.js'
@@ -22,7 +23,7 @@ export default function ClientAssessmentWorkspace({ client, viewer, services, ge
   }, [reviewedClient, source, services, generation, attempt])
   const retry = () => { setResult(null); setAttempt(value => value + 1) }
   const ready = result?.source === source && result.generation === generation ? result : null
-  if (!ready) return <p role="status">Loading assessment records…</p>
+  if (!ready) return <LoadingIndicator label="Loading assessment records…" />
   if (ready.error) return <div role="alert"><p>{ready.error.message}</p><button type="button" onClick={retry}>Retry Assessments</button></div>
   const data = ready.value
   return <>

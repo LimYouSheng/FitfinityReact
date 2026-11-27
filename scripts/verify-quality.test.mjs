@@ -243,9 +243,9 @@ function receipt(kind, contents, valid) {
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 }
 test('complete unit and browser receipts pass exact inventory validation', () => {
-  receipt('unit', 'Test Files 155 passed (155)\nTests 1525 passed (1525)', true)
+  receipt('unit', 'Test Files 157 passed (157)\nTests 1532 passed (1532)', true)
   receipt('browser', '1155 passed (1m)', true)
-  receipt('api-browser', '402 passed (1m)', true)
+  receipt('api-browser', '405 passed (1m)', true)
 })
 test('unit receipt rejects old totals, missing files, truncation and skipped tests', () => {
   for (const text of ['Test Files 155 passed (155)\nTests 1519 passed (1519)', 'Test Files 155 passed (155)\nTests 1518 passed (1518)', 'Test Files 155 passed (155)\nTests 1517 passed (1517)', 'Test Files 155 passed (155)\nTests 1515 passed (1515)', 'Test Files 155 passed (155)\nTests 1513 passed (1513)', 'Test Files 155 passed (155)\nTests 1511 passed (1511)', 'Test Files 155 passed (155)\nTests 1504 passed (1504)', 'Test Files 155 passed (155)\nTests 1503 passed (1503)', 'Test Files 155 passed (155)\nTests 1504 passed (1504)\n1 skipped', 'Test Files 154 passed (154)\nTests 1499 passed (1499)', 'Test Files 155 passed (155)\nTests 1503 passed (1503)\n1 skipped', 'Test Files 153 passed (153)\nTests 1495 passed (1495)', 'Test Files 154 passed (154)\nTests 1499 passed (1499)\n1 skipped', 'Test Files 153 passed (153)\nTests 1494 passed (1494)', 'Test Files 153 passed (153)\nTests 1492 passed (1492)', 'Test Files 153 passed (153)\nTests 1490 passed (1490)', 'Test Files 153 passed (153)\nTests 1488 passed (1488)', 'Test Files 153 passed (153)\nTests 1486 passed (1486)', 'Test Files 151 passed (151)\nTests 1478 passed (1478)', 'Test Files 151 passed (151)\nTests 1476 passed (1476)', 'Test Files 150 passed (150)\nTests 1472 passed (1472)', 'Test Files 149 passed (149)\nTests 1436 passed (1436)', 'Test Files 149 passed (149)\nTests 1423 passed (1423)', 'Test Files 146 passed (146)\nTests 1392 passed (1392)', 'Test Files 145 passed (145)\nTests 1387 passed (1387)', 'Test Files 141 passed (141)\nTests 1247 passed (1247)', 'Test Files 86 passed (86)\nTests 940 passed (940)', 'Test Files 86 passed (86)\nTests 913 passed (913)', 'Test Files 86 passed (86)\nTests 899 passed (899)', 'Test Files 86 passed (86)\nTests 895 passed (895)', 'Test Files 86 passed (86)\nTests 887 passed (872)', 'Test Files 86 passed (86)\nTests 855 passed (855)', 'Test Files 84 passed (84)\nTests 781 passed (781)', 'Test Files 86 passed (86)\nTests 854 passed (854)', 'Test Files 86 passed (86)\nTests 780 passed (780)', 'Test Files 86 passed (86)\nTests 769 passed (769)', 'Test Files 86 passed (86)\nTests 767 passed (767)', 'Test Files 86 passed (86)\nTests 758 passed (758)', 'Test Files 86 passed (86)\nTests 750 passed (750)', 'Test Files 86 passed (86)\nTests 734 passed (734)', 'Test Files 86 passed (86)\nTests 717 passed (717)', 'Test Files 86 passed (86)\nTests 691 passed (691)', 'Test Files 80 passed (80)\nTests 595 passed (595)', 'Test Files 80 passed (80)\nTests 948 passed (948)', 'Tests 948 passed (948)', 'Test Files 153 passed (153)\nTests 1495 passed (1495)\n1 skipped']) receipt('unit', text, false)
@@ -377,14 +377,14 @@ for (const [config, expected] of [['playwright.config.js', BROWSER_CASES], ['pla
 })
 
 function shardFixture() {
-  const specs = Array.from({ length: 402 }, (_, index) => ({ id: `case-${index}`, file: 'workflow.spec.js', line: index + 1, column: 1, title: `Case ${index}`, tests: [{ projectId: ['desktop-chromium', 'phone', 'tablet'][index % 3], expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed', retry: 0, errors: [] }] }] }))
+  const specs = Array.from({ length: 405 }, (_, index) => ({ id: `case-${index}`, file: 'workflow.spec.js', line: index + 1, column: 1, title: `Case ${index}`, tests: [{ projectId: ['desktop-chromium', 'phone', 'tablet'][index % 3], expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed', retry: 0, errors: [] }] }] }))
   const report = (items, current) => ({ errors: [], config: { shard: current ? { current, total: 2 } : null, workers: 2, projects: [{ retries: 0, repeatEach: 1 }] }, suites: [{ title: 'workflow.spec.js', specs: items }], stats: { expected: items.length, unexpected: 0, flaky: 0, skipped: 0 } })
   return { inventory: report(specs), reports: [report(structuredClone(specs.slice(0, 141)), 1), report(structuredClone(specs.slice(141)), 2)] }
 }
 
 test('complete complementary shard identities pass regardless of report order', () => {
   const { inventory, reports } = shardFixture()
-  assert.equal(verifyApiShards(inventory, reports.reverse(), 'success'), 402)
+  assert.equal(verifyApiShards(inventory, reports.reverse(), 'success'), 405)
 })
 for (const [name, mutate] of [
   ['missing shard', data => data.reports.pop()],

@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useState } from 'react'
 import usePortalData from '../../hooks/usePortalData.js'
 import usePortalActions from '../../hooks/usePortalActions.js'
@@ -23,7 +24,7 @@ export default function ApiRemunerationRoute({ cycleKey, trainerId, onNavigate, 
     load().then(views => { if (active) setState({ scope, views }) }).catch(error => { if (active) setState({ scope, error }) })
     return () => { active = false }
   }, [scope, cycleKey, selected, serverAt, services, attempt])
-  if (!state || state.scope !== scope) return <p role="status">Loading remuneration…</p>
+  if (!state || state.scope !== scope) return <LoadingIndicator label="Loading remuneration…" />
   if (state.error) return <section role="alert"><p>{state.error.message}</p><button onClick={() => setAttempt(value => value + 1)}>Retry remuneration</button></section>
   return <RemunerationPage user={user} views={state.views} policy={{ ...policy, currency: 'SGD', locale: 'en-SG' }} cycleKey={cycleKey} trainerId={trainerId} onNavigate={onNavigate} onOpenSession={onOpenSession} apiApprovalRecovery onApprove={async (cycle, trainer, revision) => {
     await runAction(() => services.remunerationService.approve({ cycle, trainerId: trainer, revision }), { message: 'Remuneration approved.' })

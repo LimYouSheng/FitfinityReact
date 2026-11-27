@@ -296,7 +296,7 @@ export function createDemoSeed(referenceDate) {
     contentEntries: [],
     packages: DEFAULT_PACKAGES.map(item => ({ ...item })),
     users: [
-      { id: 'u-owner', name: 'Chau', role: 'owner', status: 'active' },
+      { id: 'u-owner', name: 'Chau', email: 'owner@example.test', role: 'owner', status: 'active' },
       { id: 'u-marcus', name: 'Marcus Tan', role: 'trainer', trainerId: 't1', profile: 'Fully supervised', status: 'active' },
       { id: 'u-aisha', name: 'Aisha Rahman', role: 'trainer', trainerId: 't6', profile: 'Partially autonomous', status: 'active' },
       { id: 'u-daniel', name: 'Daniel Lee', role: 'trainer', trainerId: 't3', profile: 'Fully autonomous', status: 'active' },

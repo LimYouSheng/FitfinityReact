@@ -16,17 +16,11 @@ async function start(page, route = 'messages', firstRenewalTitle = 'Renewal 0') 
 }
 
 async function selectCategory(page, label) {
-  const categories = page.getByRole('group', { name: 'Message categories' })
-  const menu = categories.locator('.profile-menu'), summary = menu.locator('summary')
-  await expect(menu).toBeVisible()
-  const dropdown = await summary.isVisible()
-  if (dropdown && await menu.getAttribute('open') === null) await summary.click()
-  await menu.getByRole('button', { name: label, exact: true }).click()
-  await expect(menu.locator('button[aria-current="true"]')).toHaveText(label)
-  if (dropdown) {
-    await expect(summary).toHaveText(label)
-    await expect(menu).not.toHaveAttribute('open')
-  }
+  const filter = page.getByLabel('Message category', { exact: true })
+  await filter.click()
+  await page.getByRole('listbox', { name: 'Message category' }).getByRole('option', { name: label, exact: true }).click()
+  await expect(filter.locator('option:checked')).toHaveText(label)
+  await expect(page.getByRole('listbox', { name: 'Message category' })).toHaveCount(0)
 }
 
 test('M4 shared profile navigation filters Messages by category with dates, search and pagination reset', async ({ page }) => {
@@ -39,13 +33,7 @@ test('M4 shared profile navigation filters Messages by category with dates, sear
   expect(Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)).toBeGreaterThan(0)
   const categories = page.getByRole('group', { name: 'Message categories' })
   await selectCategory(page, 'Renewals')
-  await expect(categories.locator('.profile-tabs button')).toHaveCount(7)
-  if (page.viewportSize().width >= 700) {
-    await expect(categories.locator('summary')).toBeHidden()
-    const rows = await categories.locator('.profile-tabs button').evaluateAll(buttons => buttons.map(button => ({ top: button.getBoundingClientRect().top, radius: getComputedStyle(button).borderRadius })))
-    expect(new Set(rows.map(row => Math.round(row.top))).size).toBe(1)
-    expect(rows.every(row => row.radius === '7px')).toBe(true)
-  }
+  await expect(categories.getByLabel('Message category').locator('option')).toHaveCount(7)
   await expect(page.getByLabel('Message list').locator('article')).toHaveCount(10)
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(page.getByLabel('Message list').locator('article')).toHaveCount(2)
@@ -126,7 +114,7 @@ test('M4 dashboard renewal preview opens shared details and keeps read state in 
   await page.getByRole('button', { name: 'View All Renewals' }).click()
   await expect(page).toHaveURL(/#\/messages\/renewals$/)
   await page.reload()
-  await expect(page.getByRole('group', { name: 'Message categories' }).locator('button[aria-current="true"]')).toHaveText('Renewals')
+  await expect(page.getByLabel('Message category').locator('option:checked')).toHaveText('Renewals')
   await page.getByLabel('Search messages').fill('Renewal 0')
   await expect(page.getByRole('button', { name: `Read ${title}`, exact: true })).toBeVisible()
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).messages.find(message => message.id === 'renewal-0').title, database)).toBe(title)
@@ -147,47 +135,21 @@ test('M4 trainer dashboard renewals respect recipients and show a real empty sta
   await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible()
 })
 
-test('M4 Message category navigation matches client and trainer navigation through the same responsive boundary', async ({ page }) => {
-  const styles = []
-  for (const route of ['messages', 'clients/c3', 'trainers/t1']) {
-    await page.goto(`/#/${route}`)
-    const menu = page.locator('.profile-menu'), summary = menu.locator('summary')
-    await expect(menu).toBeVisible()
-    if (page.viewportSize().width < 700) await summary.click()
-    styles.push(await menu.locator('.profile-tabs button').first().evaluate(button => {
-      const style = getComputedStyle(button)
-      return [style.minHeight, style.borderRadius, style.padding, style.fontSize, style.fontWeight]
-    }))
-  }
-  expect(styles[1]).toEqual(styles[0]); expect(styles[2]).toEqual(styles[0])
-  await page.setViewportSize({ width: 699, height: 1024 })
-  await page.goto('/#/messages')
+test('M4 Message category uses the shared dropdown across responsive widths', async ({ page }) => {
+  await start(page)
   await selectCategory(page, 'Renewals')
-  const menu = page.getByRole('group', { name: 'Message categories' }).locator('.profile-menu')
-  await page.setViewportSize({ width: 700, height: 1024 })
-  await expect(menu.locator('summary')).toBeHidden()
-  await expect(menu.getByRole('button', { name: 'Renewals', exact: true })).toHaveAttribute('aria-current', 'true')
-  await page.setViewportSize({ width: 699, height: 1024 })
-  await expect(menu.locator('summary')).toHaveText('Renewals')
-  await expect(menu).not.toHaveAttribute('open')
-  await menu.locator('summary').click()
-  await expect(menu).toHaveAttribute('open', '')
-  // Use the page's content area, excluding a desktop scrollbar gutter. Verify
-  // the hit target so this checks the scrim rather than a no-op browser click.
-  const outside = await menu.evaluate(element => {
-    const x = Math.floor(document.documentElement.clientWidth / 2)
-    const y = Math.min(document.documentElement.clientHeight, innerHeight) - 24
-    return { x, y, hitsScrim: document.elementFromPoint(x, y) === element }
-  })
-  expect(outside.hitsScrim).toBe(true)
-  await page.mouse.click(outside.x, outside.y)
-  await expect(menu).not.toHaveAttribute('open')
-  await menu.locator('summary').focus()
-  await page.keyboard.press('Enter')
-  await expect(menu).toHaveAttribute('open', '')
-  await page.keyboard.press('Space')
-  await expect(menu).not.toHaveAttribute('open')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
+  const filter = page.getByLabel('Message category')
+  for (const width of [699, 700, 390]) {
+    await page.setViewportSize({ width, height: 1024 })
+    await expect(filter).toBeVisible()
+    await expect(filter.locator('option:checked')).toHaveText('Renewals')
+    await filter.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('listbox', { name: 'Message category' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('listbox', { name: 'Message category' })).toHaveCount(0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
+  }
 })
 
 

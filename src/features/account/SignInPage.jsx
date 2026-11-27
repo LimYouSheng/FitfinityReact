@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import SelectField from '../../components/SelectField.jsx'
 import { useEffect, useRef, useState } from 'react'
 import Panel from '../../components/Panel.jsx'
@@ -68,7 +69,7 @@ export default function SignInPage({ accounts = [], demoPassword, policy, authNo
   const title = stage === 'authenticated' ? 'Loading your account' : stage === 'forgot' ? 'Reset password' : stage === 'reset' ? 'Enter recovery code' : needsNewPassword ? 'Choose a new password' : challenge?.challenge === 'MFA_SETUP' ? 'Set up your authenticator' : stage === 'challenge' ? 'Authenticator verification' : 'Sign in'
   const button = stage === 'authenticated' ? 'Retry loading account' : stage === 'forgot' ? 'Send recovery code' : stage === 'reset' ? 'Reset Password' : stage === 'challenge' ? 'Continue' : 'Sign In'
   return <main className="account-entry"><Panel>
-    <span className="eyebrow">Staff portal</span><h1 ref={heading} tabIndex={-1}>{title}</h1>
+    <span className="eyebrow">Staff portal</span><h1 ref={heading} tabIndex={-1}>{stage === 'authenticated' ? <LoadingIndicator label={title} /> : title}</h1>
     {demoPassword && <p className="helper">Demo password: <strong>{demoPassword}</strong></p>}
     {notice && <p role="status" className="helper">{notice}</p>}
     {challenge?.challenge === 'MFA_SETUP' && <div className="auth-setup"><p>Add an account in your authenticator app. Choose a time-based code and enter this setup key:</p><code aria-label="Authenticator setup key">{challenge.secretCode}</code><p className="helper">Keep this key private. Enter the six-digit code from your authenticator below.</p></div>}

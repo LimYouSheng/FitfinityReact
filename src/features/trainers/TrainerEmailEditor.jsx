@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { useActionConfirmation } from '../../components/ActionConfirmationProvider.jsx'
 
@@ -39,7 +40,7 @@ export default function TrainerEmailEditor({ trainer, auth, onRequest, canCorrec
     }
     finally { setBusy(false) }
   }
-  if (loading) return <p role="status">Checking email verification…</p>
+  if (loading) return <LoadingIndicator label="Checking email verification…" />
   if (submitted) return <p role="status">Submitted for Owner approval. The current email is still active. Review the request in Messages.</p>
   if (error && !editing) return <div role="alert">{error}<button type="button" className="text-action" onClick={() => setAttempt(value => value + 1)}>Retry Email Status</button></div>
   const activePending = pending && !['completed', 'superseded'].includes(pending.state)

@@ -165,3 +165,15 @@ Use the designated developer accounts and receiving inboxes. Lost-authenticator 
 | --- | --- | --- | --- | --- |
 | LIVE-01 | Check actual sign-in, authenticator setup, password-recovery email and email-change verification on the developer website. Check a fresh sign-in after each change. | Emails reach the intended test inbox, valid codes work, invalid/expired codes fail and the correct new credentials are required. | | |
 | LIVE-03 | With authorised support, perform the arranged lost-authenticator recovery for your developer test account, then enrol a replacement authenticator and sign in. | Support verifies the correct person; old access ends and a replacement authenticator is required. Other staff gain no reset power. Mark Blocked if not arranged. | | |
+
+## Message selection and loading refinement checks
+
+These cases require the UI refinement release; results remain blank until tested.
+
+| Case | What to do | What should happen | Result | Remarks |
+| --- | --- | --- | --- | --- |
+| UI-MSG-01 | Choose a message category with the dropdown. Select two rows, mark them read, then mark a selected read row unread. Change page and category. | Only selected messages change. Successful selections clear; newly displayed unread messages are unchecked. Related records appear in the detail footer, leaving the message body clear. | | |
+| UI-LOAD-01 | Open a page that loads remotely, then enable the device’s reduced-motion setting and repeat. | A transparent brand ripple indicates loading. Reduced motion uses a static mark; assistive technology still announces the loading status. | | |
+
+| UI-PKG-01 | Create or propose a package with 47 validity days, then edit the catalogue validity after a test purchase. | Confirmation includes 47 days; approval requirements remain enforced. The existing purchase retains its purchased terms. | | |
+| UI-CLIENT-01 | Open New Client on desktop and phone. Compare client and emergency-contact name/phone fields. | Names and phone controls use matching widths; relationship follows the emergency mobile number, to its right where space permits. | | |

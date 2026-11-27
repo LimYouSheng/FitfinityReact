@@ -17,6 +17,7 @@ from app.api.admin_requests import router as admin_requests_router
 from app.api.email_changes import router as email_router
 from app.api.library_routes import router as library_router
 from app.api.openapi import configure_openapi
+from app.api.owner_profile import router as owner_profile_router
 from app.api.package_action_routes import router as package_action_router
 from app.api.report_sharing import router as report_sharing_router
 from app.api.routes import router as staff_router
@@ -81,6 +82,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(staff_router)
         app.include_router(access_router)
         app.include_router(admin_router)
+        app.include_router(owner_profile_router)
         app.include_router(admin_requests_router)
         app.include_router(report_sharing_router)
         app.include_router(email_router)

@@ -12,7 +12,7 @@ from app.main import create_app
 from app.release_upgrade import UpgradeRefused
 
 START = "20260924_0006"
-END = "20261101_0052"
+END = "20261127_0053"
 IDENTITY = dict(operation_id="a" * 32, source_sha="b" * 40, from_revision=START, to_revision=END)
 INTENT = json.dumps(
     {"operation": "upgrade-existing", "operation_id": "a" * 32}, separators=(",", ":")

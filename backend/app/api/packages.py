@@ -21,6 +21,7 @@ from app.models.training import PackageTemplate, PackageTemplateRevision
 class PackageDraft(Contract):
     name: StrictStr = Field(min_length=1, max_length=80)
     total: StrictInt = Field(ge=1, le=365)
+    validityDays: StrictInt | None = Field(default=None, ge=1, le=3650)
     status: Literal["active", "inactive"]
 
     @field_validator("name")
@@ -74,8 +75,11 @@ def reconcile(session, principal, key):
 @supervised("packageCatalogue", "package.save", SavePackage, receipt=receipt)
 def save(session, principal, key, body):
     previous = receipt(session, principal, key)
+    payload = body.model_dump(mode="json")
+    if body.draft.validityDays is None:
+        payload["draft"].pop("validityDays")
     digest = hashlib.sha256(
-        json.dumps(body.model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode()
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
     if previous:
         if previous.request_sha256 != digest:
@@ -125,7 +129,9 @@ def save(session, principal, key, body):
         revision=old_revision.revision + 1 if old_revision else 1,
         name=body.draft.name,
         total_sessions=body.draft.total,
-        validity_days=(body.draft.total * 90 + 11) // 12,
+        validity_days=body.draft.validityDays
+        if body.draft.validityDays is not None
+        else (body.draft.total * 90 + 11) // 12,
         actor_id=principal.user_id,
         actor_name=principal.name,
     )

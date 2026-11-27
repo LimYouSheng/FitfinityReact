@@ -210,3 +210,26 @@ def test_failed_commit_rolls_back_terms_notice_and_receipt(domain_db, graph):
         assert session.scalar(select(func.count()).select_from(PackageSaveReceipt)) == 0
         assert session.scalar(select(func.count()).select_from(PackageTemplate)) == 1
         assert session.scalar(select(func.count()).select_from(PackageTemplateRevision)) == 1
+
+
+def test_explicit_validity_preserves_purchased_terms(api, graph):
+    before = api.get("/api/directory").json()["clients"]
+    response = save(
+        api,
+        payload(
+            id=str(graph["template_id"]),
+            expectedVersion=1,
+            draft={"name": "Explicit Terms", "total": 12, "validityDays": 47, "status": "active"},
+        ),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["validity_days"] == 47
+    assert api.get("/api/directory").json()["clients"] == before
+    for invalid in (0, 3651, 1.5, True, "47"):
+        response = save(
+            api,
+            payload(
+                draft={"name": "Invalid", "total": 12, "validityDays": invalid, "status": "active"}
+            ),
+        )
+        assert response.status_code == 422, response.text

@@ -145,6 +145,7 @@ test('M4 package setup accepts a custom integer and blocks fractional and out-of
     await expect(page.getByText('Enter a whole number from 1 to 365.')).toBeVisible()
   }
   await count.fill('18')
+  await page.getByLabel('Package validity in days').fill('135')
   await page.getByRole('button', { name: 'Create Package', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Create Package?' })
   await expect(dialog).toContainText('18 sessions · 135 days')
