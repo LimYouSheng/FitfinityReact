@@ -1648,7 +1648,7 @@ class RolloutProviderTests(unittest.TestCase):
                 stdout="",
                 stderr=f"An error occurred ({code}) when calling the HeadObject operation: private",
             )
-            with patch("rollout_provider.subprocess.run", return_value=result):
+            with patch("operator_errors.subprocess.run", return_value=result):
                 if code == "404":
                     self.assertIsNone(aws("s3api", "head-object", {}, profile=DEVELOPER))
                 else:
@@ -1672,7 +1672,7 @@ class RolloutProviderTests(unittest.TestCase):
             self.assertEqual(kwargs["env"]["AWS_IGNORE_CONFIGURED_ENDPOINT_URLS"], "true")
             return SimpleNamespace(returncode=0, stdout="{}", stderr="")
 
-        with patch("rollout_provider.subprocess.run", side_effect=execute):
+        with patch("operator_errors.subprocess.run", side_effect=execute):
             aws(
                 "s3api",
                 "put-object",
@@ -1683,7 +1683,7 @@ class RolloutProviderTests(unittest.TestCase):
     def test_endpoint_override_or_unlisted_operation_never_reaches_provider(self):
         from rollout_provider import aws
 
-        with patch("rollout_provider.subprocess.run") as run:
+        with patch("operator_errors.subprocess.run") as run:
             with self.assertRaises(RuntimeError):
                 aws("cloudformation", "delete-stack", {}, profile=DEVELOPER)
             with patch.dict("os.environ", {"AWS_ENDPOINT_URL": "https://foreign.invalid"}):
@@ -1807,7 +1807,7 @@ class RolloutAncestorRecoveryTests(unittest.TestCase):
     def test_recovery_provider_refuses_every_mutating_operation(self):
         from rollout_provider import aws
 
-        with patch("rollout_provider.subprocess.run") as run:
+        with patch("operator_errors.subprocess.run") as run:
             for service, operation in (
                 ("s3api", "put-object"),
                 ("cloudformation", "create-change-set"),

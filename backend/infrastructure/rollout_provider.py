@@ -3,12 +3,12 @@
 import json
 import os
 import re
-import subprocess
 import tempfile
 from pathlib import Path
 
 from deployment_profile import identities
 from operator_checks import require
+from operator_errors import decode_response, provider_failure, run_process
 
 OPERATIONS = {
     ("sts", "get-caller-identity"),
@@ -62,7 +62,7 @@ def aws(service, operation, values, *, profile, read_only=False):
             path = Path(temporary) / "object"
             path.write_bytes(body)
             extra = ["--body", str(path)]
-        result = subprocess.run(
+        result = run_process(
             [
                 "aws",
                 service,
@@ -93,5 +93,5 @@ def aws(service, operation, values, *, profile, read_only=False):
         )
         if (service, operation) == ("s3api", "head-object") and missing:
             return None
-        raise RuntimeError("Rollout call failed; inspect original intent before recovery")
-    return json.loads(result.stdout) if result.stdout.strip() else {}
+        raise provider_failure(service, operation, result.stderr)
+    return decode_response(result.stdout, service, operation)

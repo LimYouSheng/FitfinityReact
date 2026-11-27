@@ -46,6 +46,17 @@ test('React component references, complete dependencies and Playwright fixture c
 })
 test('the actual workflows and direct tooling dependencies satisfy the complete gate contract', () => {
   verifyQualitySetup(readQualitySetup())
+  const release = parse(fs.readFileSync('.github/workflows/aws-release.yml', 'utf8'))
+  assert.match(release.jobs.eligibility.if, /AWS_ORCHESTRATION_ENABLED/)
+  assert.equal(release.jobs.coordinate.needs, 'eligibility')
+  assert.equal(release.jobs.coordinate.if, "needs.eligibility.outputs.state == 'source_verified'")
+  assert.equal(release.jobs.coordinate.environment, '${{ needs.eligibility.outputs.environment }}')
+  assert.equal(release.permissions.contents, 'read')
+  assert.equal(release.jobs.coordinate.permissions.actions, 'write')
+  assert.notEqual(release.concurrency.group, 'fitfinity-${{ needs.eligibility.outputs.environment }}')
+  const coordinateSteps = release.jobs.coordinate.steps
+  assert.ok(coordinateSteps.findIndex(step => step.name === 'Check Coordinator Configuration') < coordinateSteps.findIndex(step => step.uses?.startsWith('aws-actions/configure-aws-credentials@')))
+  assert.ok(coordinateSteps.some(step => step.name === 'Retain Coordination Result' && step.if === 'always()'))
   const codeql = parse(fs.readFileSync('.github/workflows/codeql.yml', 'utf8'))
   assert.deepEqual(codeql.on.push.branches, ['main'])
   assert.deepEqual(codeql.on.pull_request.branches, ['main'])

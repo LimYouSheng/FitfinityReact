@@ -274,3 +274,11 @@ The release service policy and its matching boundary include only three EC2 VPC 
 
 
 UpdateAlias is granted on the exact unqualified application function ARN and configured alias ARN in both service policy and boundary. AWS checked the function ARN during the observed CloudFormation update. This is function-scoped authority, not an IAM guarantee limiting updates to one alias; reviewed template validation and protected workflow select the permitted alias. No wildcard function grant is added.
+
+The routine release service policy and boundary grant `wafv2:GetWebACL` and `wafv2:ListTagsForResource` only on the regional firewall ARN observed from the owned hosting stack output. Account, region, stack-derived name and UUID format are validated. No WAF create/update/delete authority is added.
+
+
+Deployment diagnostics use typed source-authored checks and static AWS error-code allowlists. Raw stderr, command arguments, HTTP bodies/headers and arbitrary exception messages are not promoted into diagnostic receipts. Unknown failure payloads remain suppressed. These changes retain source/target/approval and uncertain-write replay guards; they do not grant new AWS permissions.
+
+
+The opt-in coordinator uses a separate protected OIDC role with private journal access and read-only template/worker-state permissions. GitHub Actions write permission dispatches existing protected workflows; it does not grant AWS IAM mutation. Target/profile/source, artifact digest, original run attempt, journal ETag and operation correlation are verified. Failed or uncertain mutations are held for original-operation recovery. Customer secrets are not accepted in release configuration. Existing approvals and per-child resource boundaries remain in force. Live installation/rehearsal is pending.

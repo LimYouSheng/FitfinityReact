@@ -1,0 +1,127 @@
+name: AWS - Coordinate Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target name in repository configuration
+        required: true
+        type: string
+        default: developer
+  workflow_run:
+    workflows: [CI - Verify And Publish Staff Demo, CI - CodeQL Security Analysis]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fitfinity-orchestrator-${{ inputs.target || vars.FITFINITY_AUTO_DEPLOY_TARGET }}
+  cancel-in-progress: false
+
+env:
+  FITFINITY_DEPLOYMENT_TARGETS_JSON: ${{ vars.FITFINITY_DEPLOYMENT_TARGETS_JSON }}
+
+jobs:
+  eligibility:
+    outputs:
+      state: ${{ steps.eligibility.outputs.state }}
+      profile: ${{ steps.target.outputs.profile }}
+      environment: ${{ steps.target.outputs.environment }}
+      region: ${{ steps.target.outputs.region }}
+      account: ${{ steps.target.outputs.account }}
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      vars.AWS_ORCHESTRATION_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.head_sha == github.sha &&
+        github.event.workflow_run.event != 'pull_request'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    steps:
+      - name: Explain Release Coordination Status
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'GUIDE'
+          ## AWS - Coordinate Release
+
+          **What It Does:** Checks current-main application and CodeQL evidence after verification completes, or on manual request.
+
+          **What To Expect:** Verified main CI is reused. The coordinator journals and dispatches existing stages, waits for their outcomes, and stops on failure or uncertain dispatch. The protected child approvals remain required. Journal installation and release configuration are prerequisites.
+
+          Existing AWS workflows and approvals remain available. See `docs/runbook.md` for the implementation boundary.
+          GUIDE
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: target
+        env:
+          DEPLOYMENT_TARGET: ${{ inputs.target || vars.FITFINITY_AUTO_DEPLOY_TARGET }}
+        run: python3 backend/infrastructure/deployment_profile.py
+      - id: eligibility
+        name: Authenticate Current Main Verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_PROFILE: ${{ steps.target.outputs.profile }}
+        run: python3 backend/infrastructure/orchestration_gate.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fitfinity-orchestration-eligibility-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/orchestration-eligibility.json
+          if-no-files-found: error
+          retention-days: 14
+
+  coordinate:
+    needs: eligibility
+    if: needs.eligibility.outputs.state == 'source_verified'
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    environment: ${{ needs.eligibility.outputs.environment }}
+    permissions:
+      contents: read
+      actions: write
+      checks: read
+      id-token: write
+    env:
+      DEPLOYMENT_PROFILE: ${{ needs.eligibility.outputs.profile }}
+      FITFINITY_JOURNAL_BUCKET: ${{ vars.FITFINITY_JOURNAL_BUCKET }}
+      FITFINITY_RELEASE_CONFIG_JSON: ${{ vars.FITFINITY_RELEASE_CONFIG_JSON }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check Coordinator Configuration
+        env:
+          JOURNAL_ROLE: ${{ vars.AWS_JOURNAL_ROLE_ARN }}
+          AWS_IMAGE_RELEASE_ENABLED: ${{ vars.AWS_IMAGE_RELEASE_ENABLED }}
+          AWS_SCHEMA_PROBE_ENABLED: ${{ vars.AWS_SCHEMA_PROBE_ENABLED }}
+          AWS_MAINTENANCE_ENABLED: ${{ vars.AWS_MAINTENANCE_ENABLED }}
+          AWS_SCHEMA_UPGRADE_ENABLED: ${{ vars.AWS_SCHEMA_UPGRADE_ENABLED }}
+          AWS_ROLLOUT_ENABLED: ${{ vars.AWS_ROLLOUT_ENABLED }}
+        run: python3 backend/infrastructure/release_driver.py --preflight
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: ${{ vars.AWS_JOURNAL_ROLE_ARN }}
+          aws-region: ${{ needs.eligibility.outputs.region }}
+          allowed-account-ids: ${{ needs.eligibility.outputs.account }}
+          role-session-name: fitfinity-coordinate-${{ github.run_id }}-${{ github.run_attempt }}
+          role-duration-seconds: 3600
+      - name: Advance Journaled Release
+        run: python3 backend/infrastructure/release_driver.py
+      - name: Retain Coordination Result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fitfinity-release-coordination-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-coordination.json
+          if-no-files-found: warn
+          retention-days: 14

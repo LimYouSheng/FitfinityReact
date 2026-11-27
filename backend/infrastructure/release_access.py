@@ -52,6 +52,26 @@ def prepare(profile, stack, resource_inventory, *, boundary_stack=None, boundary
         )
     bucket = resources["FrontendBucket"].get("PhysicalResourceId", "")
     distribution = resources["Distribution"].get("PhysicalResourceId", "")
+    # Resolve the retained firewall from CloudFormation's observed output, never a guessed ID.
+    waf_outputs = [
+        row.get("OutputValue")
+        for row in stack.get("Outputs", [])
+        if row.get("OutputKey") == "RegionalWebAclArn"
+    ]
+    require(
+        len(waf_outputs) == 1
+        and isinstance(waf_outputs[0], str)
+        and re.fullmatch(
+            re.escape(
+                f"arn:aws:wafv2:{region}:{account}:regional/webacl/"
+                + target["hosting_stack"]
+                + "-regional/"
+            )
+            + r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}",
+            waf_outputs[0],
+        ),
+        "Exact observed regional firewall ARN required",
+    )
     boundary_policy = boundary_arn(profile)
     role_arn = f"arn:aws:iam::{account}:role/{target['resource_prefix']}-hosting-api"
     require(
@@ -210,6 +230,7 @@ def prepare(profile, stack, resource_inventory, *, boundary_stack=None, boundary
         )
     service = policy(
         [
+            allow(["wafv2:GetWebACL", "wafv2:ListTagsForResource"], waf_outputs[0]),
             allow(
                 ["ec2:DescribeSecurityGroups", "ec2:DescribeSubnets", "ec2:DescribeVpcs"],
                 "*",

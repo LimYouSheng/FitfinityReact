@@ -14,6 +14,7 @@ from deployment_profile import identities, load
 from hosting_frontend import source_check
 from operation_journal import Journal
 from operator_checks import require
+from operator_errors import retain_failure
 from portable_hosting import bindings
 from release_artifacts import collect
 from release_execution import template
@@ -465,11 +466,8 @@ def main():
             rollout_milestone(mode, run, journal.save)
         else:
             run(mode, json.loads(prior.read_text()) if prior.exists() else None, journal.save)
-    except Exception:
-        journal.save(
-            {**journal.value, "error": "Rollout failed; inspect retained intent before recovery"}
-        )
-        raise RuntimeError("Rollout failed; inspect retained intent") from None
+    except Exception as error:
+        raise retain_failure(journal, error, "Rollout") from None
 
 
 if __name__ == "__main__":

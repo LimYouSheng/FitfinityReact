@@ -19,6 +19,16 @@ class ReleaseAccessTests(unittest.TestCase):
             "StackName": target["hosting_stack"],
             "StackStatus": "UPDATE_COMPLETE",
             "RoleARN": service_role_arn(profile),
+            "Outputs": [
+                {
+                    "OutputKey": "RegionalWebAclArn",
+                    "OutputValue": (
+                        f"arn:aws:wafv2:{target['region']}:{target['account']}:"
+                        "regional/webacl/"
+                        f"{target['hosting_stack']}-regional/11111111-2222-3333-4444-555555555555"
+                    ),
+                }
+            ],
         }
         rows = [
             ("ApiFunction", "AWS::Lambda::Function", target["runtime_function"]),
@@ -73,6 +83,33 @@ class ReleaseAccessTests(unittest.TestCase):
                     }
                 ],
             )
+
+            waf_arn = stack["Outputs"][0]["OutputValue"]
+            for policy_name in ("service_policy", "service_boundary"):
+                self.assertEqual(
+                    [
+                        row
+                        for row in result[policy_name]["Statement"]
+                        if any(action.startswith("wafv2:") for action in row["Action"])
+                    ],
+                    [
+                        {
+                            "Effect": "Allow",
+                            "Action": ["wafv2:GetWebACL", "wafv2:ListTagsForResource"],
+                            "Resource": waf_arn,
+                        }
+                    ],
+                )
+            for value in (
+                "",
+                waf_arn.replace(":regional/", ":global/"),
+                waf_arn.replace("-regional/", "-foreign/"),
+                waf_arn + "*",
+            ):
+                bad = deepcopy(stack)
+                bad["Outputs"][0]["OutputValue"] = value
+                with self.assertRaises(RuntimeError):
+                    prepare(profile, bad, inventory)
 
             vpc_reads = [
                 row

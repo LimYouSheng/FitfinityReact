@@ -14,6 +14,7 @@ from pathlib import Path
 from deployment_profile import DEVELOPER, identities
 from image_build_identity import build_identity, valid_digest
 from operator_checks import require
+from operator_errors import PROVIDER_ERRORS, OperatorFailure, safe_reason
 from scan_waiver import developer_exception
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -37,10 +38,11 @@ AWS_OPERATIONS = {
 }
 
 
-class AWSFailure(RuntimeError):
-    def __init__(self, code):
+class AWSFailure(OperatorFailure):
+    def __init__(self, code, operation="image operation"):
         self.code = code
-        super().__init__("AWS image operation failed; private response suppressed")
+        safe_code = code if code in PROVIDER_ERRORS else "UnknownProviderError"
+        super().__init__(f"AWS {operation} failed; code={safe_code}; private response suppressed")
 
 
 def sha(data):
@@ -153,7 +155,7 @@ class ImageCandidate:
         )
         if result.returncode and args[0] == "aws":
             match = re.search(r"An error occurred \(([A-Za-z0-9]+)\)", result.stderr or "")
-            raise AWSFailure(match[1] if match else "Unknown")
+            raise AWSFailure(match[1] if match else "Unknown", "/".join(args[1:3]))
         require(result.returncode == 0, f"{args[0]} command failed; private response suppressed")
         return result.stdout or ""
 
@@ -561,6 +563,7 @@ def create_candidate(receipt, *, profile=DEVELOPER):
             ImageCandidate(report, profile=profile).run()
         except Exception as error:
             report["failure_type"] = type(error).__name__
+            report["error"] = safe_reason(error)
             raise
         finally:
             json.dump(report, handle, indent=2)

@@ -862,7 +862,9 @@ class MaintenanceOperatorTests(unittest.TestCase):
             run.assert_not_called()
             run.return_value = SimpleNamespace(returncode=1, stdout="sensitive", stderr="sensitive")
             with patch("builtins.print") as output:
-                with self.assertRaisesRegex(RuntimeError, "inspect retained") as caught:
+                with self.assertRaisesRegex(
+                    RuntimeError, "rds/describe-db-instances failed; code=UnclassifiedCliFailure"
+                ) as caught:
                     operator.aws("rds", "describe-db-instances", {}, profile=self.profile)
                 self.assertIn("code=UnclassifiedCliFailure", output.call_args.args[0])
                 self.assertNotIn("sensitive", output.call_args.args[0])

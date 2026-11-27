@@ -4,11 +4,12 @@ import hashlib
 import json
 import os
 import re
-import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
 from deployment_profile import DEVELOPER, identities, load
+from operator_checks import require as require
+from operator_errors import decode_response, provider_failure, run_process
 
 ROOT = Path(__file__).resolve().parent
 READS = {
@@ -28,11 +29,6 @@ FLAGS = (
 )
 
 
-def require(value, message):
-    if not value:
-        raise RuntimeError(message)
-
-
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
 
@@ -41,15 +37,16 @@ def aws(service, operation, *args, profile=DEVELOPER):
     region = identities(profile)["region"]
     require((service, operation) in READS, "Read operation is not allowed")
     require(not any(str(arg).startswith("--endpoint") for arg in args), "Endpoint override refused")
-    result = subprocess.run(
+    result = run_process(
         ["aws", service, operation, *args, "--region", region, "--output", "json"],
         capture_output=True,
         text=True,
         timeout=60,
         env={**os.environ, "AWS_PAGER": "", "AWS_EC2_METADATA_DISABLED": "true"},
     )
-    require(result.returncode == 0, f"Read failed: {service}/{operation}")
-    return json.loads(result.stdout)
+    if result.returncode:
+        raise provider_failure(service, operation, result.stderr)
+    return decode_response(result.stdout, service, operation)
 
 
 def configuration_summary(config):

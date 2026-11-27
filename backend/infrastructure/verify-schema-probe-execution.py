@@ -212,6 +212,45 @@ class ExecutionTests(unittest.TestCase):
             any(op in {"create-stack", "delete-stack", "invoke"} for _, op, _ in self.calls)
         )
 
+    def test_durable_intent_precedes_each_probe_effect(self):
+        for mode, operation in (
+            ("create", "create-stack"),
+            ("collect", "invoke"),
+            ("cleanup", "delete-stack"),
+        ):
+            with self.subTest(mode=mode):
+                self.calls.clear()
+                receipts = []
+
+                def persist(value, operation=operation, receipts=receipts):
+                    self.assertNotIn(operation, [row[1] for row in self.calls])
+                    receipts.append(value)
+
+                result = self.run_mode(mode, persist=persist)
+                self.assertEqual(len(receipts), 1)
+                self.assertEqual(receipts[0]["identity"], self.tags)
+                self.assertIn(operation, [row[1] for row in self.calls])
+                self.assertIn(
+                    result["state"], {"create_submitted", "observed", "cleanup_submitted"}
+                )
+
+    def test_failed_probe_intent_storage_blocks_provider_effect(self):
+        def fail(value):
+            raise RuntimeError("journal unavailable")
+
+        for mode, operation in (
+            ("create", "create-stack"),
+            ("collect", "invoke"),
+            ("cleanup", "delete-stack"),
+        ):
+            self.calls.clear()
+            with (
+                self.subTest(mode=mode),
+                self.assertRaisesRegex(RuntimeError, "journal unavailable"),
+            ):
+                self.run_mode(mode, persist=fail)
+            self.assertNotIn(operation, [row[1] for row in self.calls])
+
     def test_create_only_submits_owned_private_template(self):
         result = self.run_mode("create")
         self.assertEqual(result["state"], "create_submitted")
@@ -589,7 +628,7 @@ class ExecutionTests(unittest.TestCase):
                     "schema_probe_operator.subprocess.run",
                     return_value=SimpleNamespace(returncode=0, stdout="not-json", stderr=""),
                 ):
-                    with self.assertRaises(json.JSONDecodeError):
+                    with self.assertRaisesRegex(RuntimeError, "InvalidProviderResponse"):
                         aws(service, operation, {}, purpose=purpose)
 
     def test_only_exact_policy_not_found_is_absence(self):

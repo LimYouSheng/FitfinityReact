@@ -5,6 +5,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import operator_errors
 import release_observation as observation
 
 
@@ -139,7 +140,7 @@ class ObservationTests(unittest.TestCase):
             observation.observe(self.call)
 
     def test_mutations_and_endpoint_override_never_start_process(self):
-        with patch.object(observation.subprocess, "run") as run:
+        with patch.object(operator_errors.subprocess, "run") as run:
             with self.assertRaisesRegex(RuntimeError, "not allowed"):
                 observation.aws("lambda", "update-function-code")
             with self.assertRaisesRegex(RuntimeError, "override"):
@@ -148,13 +149,15 @@ class ObservationTests(unittest.TestCase):
 
     def test_cli_failure_does_not_echo_raw_sensitive_output(self):
         with patch.object(
-            observation.subprocess,
+            operator_errors.subprocess,
             "run",
             return_value=SimpleNamespace(
                 returncode=1, stdout="sensitive-marker", stderr="sensitive-marker"
             ),
         ):
-            with self.assertRaisesRegex(RuntimeError, "Read failed") as caught:
+            with self.assertRaisesRegex(
+                RuntimeError, "sts/get-caller-identity failed; code=UnclassifiedCliFailure"
+            ) as caught:
                 observation.aws("sts", "get-caller-identity")
             self.assertNotIn("sensitive-marker", str(caught.exception))
 

@@ -10,6 +10,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from deployment_profile import identities
 from hosting_frontend import inventory, manifest_hash
 from operator_checks import require
+from operator_errors import OperatorFailure
 from release_execution import template
 from release_observation import digest
 
@@ -29,17 +30,28 @@ def read_url(url):
         ),
         "Exact CloudFront health URL required",
     )
+    endpoint = url.split(".cloudfront.net/", 1)[1]
     request = Request(url, headers={"Cache-Control": "no-cache"})
     try:
         with build_opener(NoRedirect).open(request, timeout=15) as response:
             body = response.read(2 * 1024 * 1024 + 1)
             require(
                 response.status == 200 and len(body) <= 2 * 1024 * 1024,
-                "Bounded successful health response required",
+                f"Health {endpoint}: expected HTTP 200 and at most 2 MiB response bytes",
             )
             return body
-    except (HTTPError, OSError):
-        raise RuntimeError("Public release readiness request failed") from None
+    except HTTPError as error:
+        raise OperatorFailure(
+            f"Health {endpoint}: HTTP {error.code}; inspect CloudFront/API readiness. "
+            "Release identity has not been accepted; no deployment replay is authorized."
+        ) from None
+    except TimeoutError:
+        raise OperatorFailure(f"Health {endpoint}: request timed out after 15 seconds.") from None
+    except OSError:
+        raise OperatorFailure(
+            f"Health {endpoint}: connection, DNS or TLS request failed; "
+            "response details suppressed."
+        ) from None
 
 
 def verify(review, evidence, call, read, frontend_folder, *, profile, now=None):
@@ -126,9 +138,13 @@ def verify(review, evidence, call, read, frontend_folder, *, profile, now=None):
     base = "https://" + domain
     require(read(base + "/index.html") == expected_index, "Public frontend bytes differ")
     for path, status in (("live", "alive"), ("ready", "ready")):
+        try:
+            payload = json.loads(read(base + "/health/" + path))
+        except (ValueError, UnicodeError):
+            raise OperatorFailure(f"Health health/{path}: response is not valid JSON.") from None
         require(
-            json.loads(read(base + "/health/" + path)) == {"status": status},
-            "Public API health response differs",
+            payload == {"status": status},
+            f"Health health/{path}: expected status '{status}'; readiness is not verified",
         )
     return {
         "state": "health_verified",

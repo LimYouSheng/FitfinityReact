@@ -78,7 +78,7 @@ def expected_changes(original, candidate, *, mode, boundary_resource=None):
                 "Pause/resumption must change only explicit reviewed concurrency",
             )
         else:
-            raise RuntimeError("Unrelated resource change refused")
+            require(False, "Unrelated resource change refused")
         require(resource.get("Type") == kind and changed <= allowed, "Unrelated property changed")
         expected[name] = ("Modify", kind, changed)
     if mode == "rollout":

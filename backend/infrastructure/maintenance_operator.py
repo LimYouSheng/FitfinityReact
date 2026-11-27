@@ -12,6 +12,7 @@ from pathlib import Path
 from deployment_profile import identities, load
 from operation_journal import Journal
 from operator_checks import require
+from operator_errors import decode_response, provider_failure, retain_failure, run_process
 from portable_services import maintenance_access
 from release_maintenance import MODES, RECOVERY_MODES, execute, validate_review
 from schema_probe_artifacts import fetch, run_binding
@@ -50,7 +51,7 @@ def aws(service, operation, values, *, profile):
         not any(key.startswith("AWS_ENDPOINT_URL") for key in os.environ),
         "AWS endpoint override refused",
     )
-    result = subprocess.run(
+    result = run_process(
         [
             "aws",
             service,
@@ -88,8 +89,9 @@ def aws(service, operation, values, *, profile):
             f"code={failure_code(result.stderr)}",
             flush=True,
         )
-    require(result.returncode == 0, "Maintenance call failed; inspect retained intent")
-    return json.loads(result.stdout) if result.stdout.strip() else {}
+    if result.returncode:
+        raise provider_failure(service, operation, result.stderr)
+    return decode_response(result.stdout, service, operation)
 
 
 def fetch_prior(run_id, destination, profile):
@@ -227,14 +229,8 @@ def main():
             profile=profile,
             prior=prior,
         )
-    except Exception:
-        journal.save(
-            {
-                **journal.value,
-                "error": "Maintenance failed; inspect original operation before recovery",
-            }
-        )
-        raise RuntimeError("Maintenance failed; inspect its retained receipt") from None
+    except Exception as error:
+        raise retain_failure(journal, error, "Maintenance") from None
     print("Maintenance receipt retained; migration, rollout and traffic resumption are separate")
 
 
