@@ -15,6 +15,7 @@ from operator_errors import safe_reason
 from release_coordinator import load_or_start, tick
 from release_dispatch import WORKFLOWS, request
 from release_record import ReleaseRecord
+from release_recovery import inspect_target
 from release_stage_inputs import plan, worker_readiness
 from release_stage_results import authenticate
 from release_verification import api, discover
@@ -85,6 +86,23 @@ def drive(record, profile, configuration, *, now=time.time, pause=time.sleep, bu
     }
 
 
+def recovery_report(result, profile, source, read, read_api):
+    """Attach read-only diagnosis without masking the original failure or granting recovery."""
+    if result["state"] not in {"held", "hold", "waiting"}:
+        return result
+    try:
+        recovery = inspect_target(profile, source, read, read_api)
+    except Exception as error:
+        recovery = {
+            "action": "hold",
+            "reason": safe_reason(error),
+            "mutation_authorized": False,
+            "resource_state_checked": False,
+            "next": "Recovery inspection incomplete; preserve original journal and receipts",
+        }
+    return {**result, "recovery": recovery}
+
+
 def main():
     repository = os.environ["GITHUB_REPOSITORY"]
     require(
@@ -144,6 +162,7 @@ def main():
             "reason": safe_reason(error),
             "next": "Inspect original journal and child receipt; do not rerun child mutations",
         }
+    result = recovery_report(result, profile, source, read, api)
     destination = Path(os.environ["RUNNER_TEMP"]) / "release-coordination.json"
     destination.write_text(json.dumps(result) + "\n")
     with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as stream:

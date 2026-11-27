@@ -340,3 +340,6 @@ Deployment diagnostic ownership: `operator_checks.OperatorCheckError` identifies
 
 
 `release_driver.drive` bounds polling and returns waiting/held/complete distinctly; `release_coordinator.tick` records no-upgrade decisions from the authenticated catalog and dispatches only the next unstarted stage. `release_stage_inputs.worker_readiness` polls worker stack state before new collection or deletion verification. Rollout planning reads the installed paused hosting template, preserves its features and hashes the exact candidate. Resume restores the capacity observed for this release and consumes its verified rollout. Existing stage operators still enforce all cloud-write and health guards.
+
+
+`release_driver.recovery_report` attaches `release_recovery.inspect_target` to held/waiting outcomes without masking the primary failure. The latter follows the original target claim, validates record identity/evidence and uses a bounded complete run inventory plus the existing `release_dispatch.reconcile` contract. Every stage distinguishes missing, running, unsuccessful and successful-but-unauthenticated children. No AWS state or child receipt is declared verified by this diagnostic. The Runbook recovery matrix owns the remaining manual steps and automatic-recovery gaps.
