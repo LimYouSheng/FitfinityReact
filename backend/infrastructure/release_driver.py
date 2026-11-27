@@ -2,6 +2,8 @@
 
 import json
 import os
+import re
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -11,11 +13,30 @@ from deployment_profile import fingerprint, identities, load
 from operator_checks import require
 from operator_errors import safe_reason
 from release_coordinator import load_or_start, tick
-from release_dispatch import request
+from release_dispatch import WORKFLOWS, request
 from release_record import ReleaseRecord
+from release_recovery import inspect_target
 from release_stage_inputs import plan, worker_readiness
 from release_stage_results import authenticate
 from release_verification import api, discover
+
+
+def validate_child_inputs(workflow, inputs):
+    """Validate against the checked-out workflow before persisting dispatch intent."""
+    result = subprocess.run(
+        ["node", str(Path(__file__).with_name("workflow_inputs.mjs")), workflow],
+        input=json.dumps(inputs),
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    reason = result.stderr.strip() if isinstance(result.stderr, str) else ""
+    detail = (
+        reason
+        if re.fullmatch(r"(?:Required input missing|Invalid choice): [a-z][a-z0-9_]*", reason)
+        else "Child workflow input contract rejected"
+    )
+    require(result.returncode == 0, detail + "; validation failed before dispatch intent")
 
 
 def drive(record, profile, configuration, *, now=time.time, pause=time.sleep, budget=2700):
@@ -29,9 +50,11 @@ def drive(record, profile, configuration, *, now=time.time, pause=time.sleep, bu
 
     def prepare(stage, value):
         pending = worker_readiness(stage, value, profile)
-        return (
-            {"wait": pending} if pending else plan(stage, value, configuration, profile, now=now())
-        )
+        if pending:
+            return {"wait": pending}
+        result = plan(stage, value, configuration, profile, now=now())
+        validate_child_inputs(WORKFLOWS[stage], result["inputs"])
+        return result
 
     deadline = now() + budget
     while now() < deadline:
@@ -61,6 +84,23 @@ def drive(record, profile, configuration, *, now=time.time, pause=time.sleep, bu
         "reason": "observation_window_ended",
         "next": "Continue this source with Coordinate Release; pending writes are not replayed",
     }
+
+
+def recovery_report(result, profile, source, read, read_api):
+    """Attach read-only diagnosis without masking the original failure or granting recovery."""
+    if result["state"] not in {"held", "hold", "waiting"}:
+        return result
+    try:
+        recovery = inspect_target(profile, source, read, read_api)
+    except Exception as error:
+        recovery = {
+            "action": "hold",
+            "reason": safe_reason(error),
+            "mutation_authorized": False,
+            "resource_state_checked": False,
+            "next": "Recovery inspection incomplete; preserve original journal and receipts",
+        }
+    return {**result, "recovery": recovery}
 
 
 def main():
@@ -122,6 +162,7 @@ def main():
             "reason": safe_reason(error),
             "next": "Inspect original journal and child receipt; do not rerun child mutations",
         }
+    result = recovery_report(result, profile, source, read, api)
     destination = Path(os.environ["RUNNER_TEMP"]) / "release-coordination.json"
     destination.write_text(json.dumps(result) + "\n")
     with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as stream:

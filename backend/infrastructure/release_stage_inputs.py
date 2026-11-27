@@ -8,6 +8,7 @@ from pathlib import Path
 
 from deployment_profile import fingerprint, identities
 from hosting_frontend import manifest_hash
+from maintenance_operator import digest as maintenance_digest
 from operator_checks import require
 from release_execution import template
 from release_observation import digest
@@ -116,7 +117,15 @@ def plan(stage, record, configuration, profile, *, now, new_id=lambda: uuid.uuid
         if not mode.startswith("cleanup"):
             result["image_run"] = producer(record, "image")
     elif stage == "backup":
-        result.update(mode="backup", review_run=producer(record, "prepare"))
+        review = document(record, "prepare", "maintenance-review/review.json")
+        require(
+            isinstance(review, dict) and bool(review), "Authenticated maintenance review required"
+        )
+        result.update(
+            mode="backup",
+            review_run=producer(record, "prepare"),
+            review_sha256=maintenance_digest(review),
+        )
     elif stage == "upgrade_prepare":
         catalog = document(record, "catalog", "schema-probe-receipt.json")["receipt"]["catalog"]
         revisions = catalog["alembic_revisions"]

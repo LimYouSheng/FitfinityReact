@@ -17,6 +17,7 @@ from deployment_journal import (
     template,
 )
 from deployment_profile import DEVELOPER
+from operator_errors import safe_reason
 
 
 class JournalTests(unittest.TestCase):
@@ -145,12 +146,17 @@ class JournalTests(unittest.TestCase):
         self.assertNotIn("418638389566", json.dumps(resources))
 
     def test_only_explicit_missing_key_allows_initialization(self):
-        for code in ("NoSuchKey", "AccessDenied", "NoSuchBucket", "404", "RequestTimeout"):
+        for code, suffix in (
+            (code, suffix)
+            for code in ("NoSuchKey", "AccessDenied", "NoSuchBucket", "404", "RequestTimeout")
+            for suffix in ("", " (reached max retries: 0)")
+        ):
             with self.subTest(code=code):
                 response = Mock(
                     returncode=1,
                     stderr=(
-                        f"An error occurred ({code}) when calling the GetObject operation: detail"
+                        f"An error occurred ({code}) when calling the GetObject "
+                        f"operation{suffix}: detail"
                     ).encode(),
                 )
                 with patch("deployment_journal.subprocess.run", return_value=response):
@@ -160,8 +166,58 @@ class JournalTests(unittest.TestCase):
                     if code != "NoSuchKey":
                         self.assertNotIsInstance(raised.exception, MissingJournalObject)
                     self.assertNotIn("detail", str(raised.exception))
+                    if code != "NoSuchKey":
+                        expected_code = "UnknownProviderError" if code == "404" else code
+                        self.assertIn(
+                            f"s3/get-object failed; code={expected_code}",
+                            safe_reason(raised.exception),
+                        )
+        for code in ("AccessDenied", "PreconditionFailed", "ConditionalRequestConflict"):
+            response = Mock(
+                returncode=1,
+                stderr=(
+                    f"An error occurred ({code}) when calling the PutObject operation: "
+                    "private-detail"
+                ).encode(),
+            )
+            with (
+                self.subTest(write_code=code),
+                patch("deployment_journal.subprocess.run", return_value=response) as call,
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    aws(self.profile, "put-object", {"Key": "releases/example/current.json"}, b"{}")
+                self.assertIn(f"s3/put-object failed; code={code}", safe_reason(raised.exception))
+                self.assertNotIn("private-detail", safe_reason(raised.exception))
+                self.assertEqual(call.call_count, 1)
 
     def test_release_store_requires_exact_conditional_write(self):
+        def streaming_cli(args, **kwargs):
+            self.assertNotIn("--cli-input-json", args)
+            self.assertEqual(args[args.index("--bucket") + 1], "synthetic-journal")
+            self.assertEqual(args[args.index("--key") + 1], "releases/key/current.json")
+            self.assertEqual(args[args.index("--expected-bucket-owner") + 1], "123456789012")
+            self.assertEqual(kwargs["env"]["AWS_MAX_ATTEMPTS"], "1")
+            if args[2] == "get-object":
+                Path(args[-1]).write_bytes(b'{"state":"ready"}')
+            else:
+                self.assertEqual(Path(args[args.index("--body") + 1]).read_bytes(), b"{}")
+                self.assertEqual(args[args.index("--if-none-match") + 1], "*")
+            return Mock(returncode=0, stdout=b'{"ETag":"version"}')
+
+        values = {
+            "Bucket": "synthetic-journal",
+            "Key": "releases/key/current.json",
+            "ExpectedBucketOwner": "123456789012",
+        }
+        with patch("deployment_journal.subprocess.run", side_effect=streaming_cli) as transport:
+            body, meta = aws(self.profile, "get-object", values, metadata=True)
+            self.assertEqual(json.loads(body), {"state": "ready"})
+            self.assertEqual(meta["ETag"], "version")
+            self.assertEqual(
+                aws(self.profile, "put-object", {**values, "IfNoneMatch": "*"}, b"{}"),
+                {"ETag": "version"},
+            )
+            self.assertEqual(transport.call_count, 2)
         with patch("deployment_journal.aws", return_value={"ETag": '"version"'}) as call:
             _, write = release_store(self.profile)
             self.assertEqual(

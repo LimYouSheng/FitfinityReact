@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from deployment_profile import fingerprint, identities
+from maintenance_operator import digest as maintenance_digest
 from operator_checks import require
 from release_evidence import catalog_matches, observed_catalog
 from release_observation import digest
@@ -138,7 +139,7 @@ def validate(stage, bundle, record, profile, *, now):
         value = values["maintenance-receipt.json"]
         review = prepared(record, "prepare", "maintenance-review/review.json")
         expected = {key: review[key] for key in ("source_sha", "profile_sha256", "operation_id")}
-        expected["review_sha256"] = digest(review)
+        expected["review_sha256"] = maintenance_digest(review)
         require(value.get("identity") == expected, "Original backup operation differs")
     elif stage in {
         "upgrade_create",

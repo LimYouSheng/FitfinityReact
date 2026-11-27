@@ -603,6 +603,23 @@ class ExecutionTests(unittest.TestCase):
             self.assertNotIn("secret", str(error.exception))
             self.assertEqual(run.call_count, 1)
 
+    def test_ownership_template_read_is_allowed_by_real_probe_cli_adapter(self):
+        body = {"TemplateBody": {"Resources": {}}}
+        with patch(
+            "schema_probe_operator.subprocess.run",
+            return_value=SimpleNamespace(returncode=0, stdout=json.dumps(body), stderr=""),
+        ) as run:
+            self.assertEqual(
+                aws(
+                    "cloudformation",
+                    "get-template",
+                    {"StackName": "owned-stack", "TemplateStage": "Original"},
+                ),
+                body,
+            )
+            self.assertEqual(run.call_count, 1)
+            self.assertIn("get-template", run.call_args.args[0])
+
     def test_successful_empty_cli_writes_do_not_interrupt_upgrade_or_cleanup(self):
         for service, operation, purpose in (
             ("lambda", "tag-resource", "upgrade"),

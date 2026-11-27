@@ -48,6 +48,12 @@ def tick(record, *, verify, plan, read_runs, authenticate, read, send, now, oper
     record.refresh()
     source_evidence(record, verify)
     selected = next_stage(record.value, record.identity)
+    if selected["action"] == "retired":
+        return {
+            "state": "hold",
+            "reason": "release_retired",
+            "successor_source": selected["successor_source"],
+        }
     if selected["action"] == "complete":
         return {"state": "release_complete"}
     if selected["action"] == "prepare":

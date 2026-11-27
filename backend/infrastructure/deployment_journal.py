@@ -10,6 +10,7 @@ from pathlib import Path
 
 from deployment_profile import load
 from operator_checks import require
+from operator_errors import provider_failure
 
 MAX_BYTES = 4 * 1024 * 1024
 
@@ -126,12 +127,24 @@ def aws(profile, operation, values, body=None, *, metadata=False):
             operation,
             "--region",
             profile["region"],
-            "--cli-input-json",
-            json.dumps(values),
             "--output",
             "json",
             "--no-cli-pager",
         ]
+        # S3 streaming commands do not support the generic --cli-input-json option.
+        flags = {
+            "Bucket": "--bucket",
+            "Key": "--key",
+            "ExpectedBucketOwner": "--expected-bucket-owner",
+            "IfMatch": "--if-match",
+            "IfNoneMatch": "--if-none-match",
+            "ServerSideEncryption": "--server-side-encryption",
+            "ContentType": "--content-type",
+        }
+        require(set(values) <= flags.keys(), "Unsupported journal parameter")
+        for key, value in values.items():
+            require(isinstance(value, str), "Journal parameter must be text")
+            args += [flags[key], value]
         if body is not None:
             require(len(body) <= MAX_BYTES, "Journal receipt too large")
             path.write_bytes(body)
@@ -144,13 +157,13 @@ def aws(profile, operation, values, body=None, *, metadata=False):
         if result.returncode and operation == "get-object":
             error = result.stderr.decode("utf-8", errors="replace")
             if re.search(
-                r"An error occurred \(NoSuchKey\) when calling the GetObject operation:", error
+                r"An error occurred \(NoSuchKey\) when calling the GetObject operation"
+                r"(?: \(reached max retries: [0-9]+\))?:",
+                error,
             ):
                 raise MissingJournalObject("Journal object does not exist")
-        require(
-            result.returncode == 0,
-            "Journal request failed; inspect retained local intent, do not replay",
-        )
+        if result.returncode:
+            raise provider_failure("s3", operation, result.stderr.decode("utf-8", errors="replace"))
         if body is None:
             require(path.stat().st_size <= MAX_BYTES, "Journal receipt too large")
             payload = path.read_bytes()

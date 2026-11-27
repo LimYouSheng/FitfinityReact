@@ -9,7 +9,7 @@ on:
         type: string
         default: developer
   workflow_run:
-    workflows: [CI - Verify And Publish Staff Demo, CI - CodeQL Security Analysis]
+    workflows: [CI - Verify And Publish Staff Demo]
     types: [completed]
     branches: [main]
 
@@ -99,6 +99,11 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .nvmrc
+      - name: Install locked workflow parser
+        run: npm ci --ignore-scripts
       - name: Check Coordinator Configuration
         env:
           JOURNAL_ROLE: ${{ vars.AWS_JOURNAL_ROLE_ARN }}

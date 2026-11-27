@@ -47,6 +47,8 @@ test('React component references, complete dependencies and Playwright fixture c
 test('the actual workflows and direct tooling dependencies satisfy the complete gate contract', () => {
   verifyQualitySetup(readQualitySetup())
   const release = parse(fs.readFileSync('.github/workflows/aws-release.yml', 'utf8'))
+  assert.deepEqual(release.on.workflow_run.workflows, ['CI - Verify And Publish Staff Demo'])
+  assert.deepEqual(release.on.workflow_run.branches, ['main'])
   assert.match(release.jobs.eligibility.if, /AWS_ORCHESTRATION_ENABLED/)
   assert.equal(release.jobs.coordinate.needs, 'eligibility')
   assert.equal(release.jobs.coordinate.if, "needs.eligibility.outputs.state == 'source_verified'")

@@ -32,6 +32,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
+      - name: Install locked verification dependencies
+        run: npm ci --ignore-scripts
       - name: Run canonical offline operators and regression fixtures
         shell: bash
         run: |
