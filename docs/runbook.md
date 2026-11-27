@@ -940,4 +940,6 @@ graph LR
     O --> P[Automatic recovery receipt adoption remains planned]
 ```
 
+Single-approval orchestration is an agreed follow-up: PR160 retains existing child environment approvals. The future design must carry an exact source/target/plan authorization through normal stages and hold changed scope, expired authority or unresolved mutation outcomes; it is not permission to auto-approve protected environments.
+
 The normal coordinator still takes a backup even when migration is unnecessary. Skipping pause/backup for application-only releases was discussed but is not implemented in this change. The retirement path is implemented for the narrow pre-backup case and requires live acceptance after merge; general automated recovery after migration/rollout is not claimed.
