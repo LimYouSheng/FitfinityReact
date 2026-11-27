@@ -16,8 +16,9 @@ from deployment_journal import MissingJournalObject
 from deployment_profile import DEVELOPER, identities
 from release_record import ReleaseRecord, claim_target, initial, next_stage
 from release_recovery import claim_key, inspect_record
-from release_retirement import apply, digest, prepare
+from release_retirement import apply, bindings, digest, prepare
 from retirement_observation import observe
+from schema_probe_plan import prepare_review
 
 
 class RetirementTests(unittest.TestCase):
@@ -47,10 +48,29 @@ class RetirementTests(unittest.TestCase):
             "stack_id": self.probe_id,
             "state": "create_submitted",
         }
-        self.probe_review = {
-            "bindings": {"operation_id": "d" * 32, "source_sha": self.source},
-            "template_sha256": digest({}),
-        }
+        sql = b"synthetic catalog"
+        self.probe_review = prepare_review(
+            {
+                "account": self.target["account"],
+                "region": self.target["region"],
+                "source_sha": self.source,
+                "image_digest": "sha256:" + "b" * 64,
+                "sql_sha256": hashlib.sha256(sql).hexdigest(),
+                "db_host": f"database.example.{self.target['region']}.rds.amazonaws.com",
+                "db_name": "synthetic",
+                "migration_secret_arn": (
+                    f"arn:aws:secretsmanager:{self.target['region']}:{self.target['account']}:"
+                    f"secret:{self.target['secret_prefix']}/database/migration-abcdef"
+                ),
+                "subnet_ids": ["subnet-00000001", "subnet-00000002"],
+                "security_group_id": "sg-00000001",
+                "expires_at": 99,
+            },
+            self.source,
+            sql,
+            now=50,
+            profile=self.profile,
+        )
         seed = initial(
             self.profile,
             self.source,
@@ -73,6 +93,12 @@ class RetirementTests(unittest.TestCase):
                 if name == "probe_create"
                 else {}
             }
+            if name == "probe_create":
+                evidence["dispatch_inputs"] = {
+                    "mode": "create",
+                    "operation_id": "d" * 32,
+                    "template_sha256": self.probe_review["template_sha256"],
+                }
             seed["stages"][name] = {
                 "outcome": "complete",
                 "evidence": evidence,
@@ -107,12 +133,12 @@ class RetirementTests(unittest.TestCase):
             "database_status": "available",
             "probe_stack_id": self.probe_id,
             "probe_status": "DELETE_COMPLETE",
-            "probe_template_sha256": digest({}),
+            "probe_template_sha256": self.probe_review["template_sha256"],
             "probe_tags": {
                 "FitfinityOperation": "d" * 32,
                 "FitfinitySource": self.source,
                 "FitfinityProfile": owner["profile_sha256"],
-                "FitfinityTemplate": digest({}),
+                "FitfinityTemplate": self.probe_review["template_sha256"],
             },
         }
         self.plan = self.prepare()
@@ -151,6 +177,31 @@ class RetirementTests(unittest.TestCase):
         args = {"read_claim": self.claim, "observe": lambda *_: self.evidence, "now": 101}
         args.update(overrides)
         return apply(self.record, self.profile, self.plan, digest(self.plan), **args)
+
+    def test_probe_attempt_uses_creation_dispatch_not_prepared_review(self):
+        self.assertNotIn("operation_id", self.probe_review["bindings"])
+        original = deepcopy(self.record.value)
+        self.assertEqual(bindings(original)[1]["operation_id"], "d" * 32)
+        count = len(self.writes)
+        for changed in (
+            None,
+            {},
+            {"mode": "collect"},
+            {"operation_id": "e" * 32},
+            {"operation_id": ""},
+            {"template_sha256": "0" * 64},
+        ):
+            record = deepcopy(original)
+            evidence = record["stages"]["probe_create"]["evidence"]
+            if changed is None:
+                del evidence["dispatch_inputs"]
+            elif not changed:
+                evidence["dispatch_inputs"] = changed
+            else:
+                evidence["dispatch_inputs"].update(changed)
+            with self.subTest(changed=changed), self.assertRaises(RuntimeError):
+                bindings(record)
+        self.assertEqual(len(self.writes), count)
 
     def test_retirement_preserves_pending_history_and_does_not_transfer_claim(self):
         original = deepcopy(self.record.value)
@@ -380,7 +431,11 @@ class RetirementTests(unittest.TestCase):
             if operation == "get_function_concurrency":
                 return {"ReservedConcurrentExecutions": 10}
             if operation == "get_template":
-                return {"TemplateBody": "{}"}
+                return {
+                    "TemplateBody": "{}"
+                    if values["StackName"] == self.host
+                    else json.dumps(self.probe_review["template"])
+                }
             if operation == "describe_stacks":
                 arn = values["StackName"]
                 return {
