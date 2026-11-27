@@ -186,6 +186,33 @@ class JournalTests(unittest.TestCase):
                 self.assertEqual(call.call_count, 1)
 
     def test_release_store_requires_exact_conditional_write(self):
+        def streaming_cli(args, **kwargs):
+            self.assertNotIn("--cli-input-json", args)
+            self.assertEqual(args[args.index("--bucket") + 1], "synthetic-journal")
+            self.assertEqual(args[args.index("--key") + 1], "releases/key/current.json")
+            self.assertEqual(args[args.index("--expected-bucket-owner") + 1], "123456789012")
+            self.assertEqual(kwargs["env"]["AWS_MAX_ATTEMPTS"], "1")
+            if args[2] == "get-object":
+                Path(args[-1]).write_bytes(b'{"state":"ready"}')
+            else:
+                self.assertEqual(Path(args[args.index("--body") + 1]).read_bytes(), b"{}")
+                self.assertEqual(args[args.index("--if-none-match") + 1], "*")
+            return Mock(returncode=0, stdout=b'{"ETag":"version"}')
+
+        values = {
+            "Bucket": "synthetic-journal",
+            "Key": "releases/key/current.json",
+            "ExpectedBucketOwner": "123456789012",
+        }
+        with patch("deployment_journal.subprocess.run", side_effect=streaming_cli) as transport:
+            body, meta = aws(self.profile, "get-object", values, metadata=True)
+            self.assertEqual(json.loads(body), {"state": "ready"})
+            self.assertEqual(meta["ETag"], "version")
+            self.assertEqual(
+                aws(self.profile, "put-object", {**values, "IfNoneMatch": "*"}, b"{}"),
+                {"ETag": "version"},
+            )
+            self.assertEqual(transport.call_count, 2)
         with patch("deployment_journal.aws", return_value={"ETag": '"version"'}) as call:
             _, write = release_store(self.profile)
             self.assertEqual(

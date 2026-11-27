@@ -468,7 +468,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `9256e4ced4d30382de86b650d5e80b46a81f6ef19fed078fd193395819ac3f1d` |
 | [.github/workflows/aws-release-observe.yml](../.github/workflows/aws-release-observe.yml) | `808a1f8253eb74dc59c02f018e98c47afe3ca4001fb677af99f8fde3aa08d1ff` |
 | [.github/workflows/aws-release-prepare.yml](../.github/workflows/aws-release-prepare.yml) | `d88bb11bf8b463f32b4938b905844c238a2189688fbb97dd323c34ed83e07922` |
-| [.github/workflows/aws-release.yml](../.github/workflows/aws-release.yml) | `4230fcc4c75d2b76ee0673c5d7766d831b778b7fdc40fc292a58ca3a596bce6a` |
+| [.github/workflows/aws-release.yml](../.github/workflows/aws-release.yml) | `8d23e202bb629416133cb2d5d8053d82ed60de04308e2c2666cbaeb94116abf7` |
 | [.github/workflows/aws-rollout.yml](../.github/workflows/aws-rollout.yml) | `50cf23d739e129a930647ba2e8f534b5931d9c7fc2dd218ab4c99f30f46a9f67` |
 | [.github/workflows/aws-schema-probe.yml](../.github/workflows/aws-schema-probe.yml) | `7f692d204cc286ae77e688cc3a506b3e620d1edda9e01a90a4a47889516da90e` |
 | [.github/workflows/aws-schema-upgrade.yml](../.github/workflows/aws-schema-upgrade.yml) | `a57549e2ad9d7d94c581aebe8e714a9502d1f515bdda70c03248bb87def9f59c` |
