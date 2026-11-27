@@ -146,12 +146,17 @@ class JournalTests(unittest.TestCase):
         self.assertNotIn("418638389566", json.dumps(resources))
 
     def test_only_explicit_missing_key_allows_initialization(self):
-        for code in ("NoSuchKey", "AccessDenied", "NoSuchBucket", "404", "RequestTimeout"):
+        for code, suffix in (
+            (code, suffix)
+            for code in ("NoSuchKey", "AccessDenied", "NoSuchBucket", "404", "RequestTimeout")
+            for suffix in ("", " (reached max retries: 0)")
+        ):
             with self.subTest(code=code):
                 response = Mock(
                     returncode=1,
                     stderr=(
-                        f"An error occurred ({code}) when calling the GetObject operation: detail"
+                        f"An error occurred ({code}) when calling the GetObject "
+                        f"operation{suffix}: detail"
                     ).encode(),
                 )
                 with patch("deployment_journal.subprocess.run", return_value=response):

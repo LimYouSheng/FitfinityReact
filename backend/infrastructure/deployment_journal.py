@@ -157,7 +157,9 @@ def aws(profile, operation, values, body=None, *, metadata=False):
         if result.returncode and operation == "get-object":
             error = result.stderr.decode("utf-8", errors="replace")
             if re.search(
-                r"An error occurred \(NoSuchKey\) when calling the GetObject operation:", error
+                r"An error occurred \(NoSuchKey\) when calling the GetObject operation"
+                r"(?: \(reached max retries: [0-9]+\))?:",
+                error,
             ):
                 raise MissingJournalObject("Journal object does not exist")
         if result.returncode:
