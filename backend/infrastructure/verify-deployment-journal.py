@@ -17,6 +17,7 @@ from deployment_journal import (
     template,
 )
 from deployment_profile import DEVELOPER
+from operator_errors import safe_reason
 
 
 class JournalTests(unittest.TestCase):
@@ -160,6 +161,29 @@ class JournalTests(unittest.TestCase):
                     if code != "NoSuchKey":
                         self.assertNotIsInstance(raised.exception, MissingJournalObject)
                     self.assertNotIn("detail", str(raised.exception))
+                    if code != "NoSuchKey":
+                        expected_code = "UnknownProviderError" if code == "404" else code
+                        self.assertIn(
+                            f"s3/get-object failed; code={expected_code}",
+                            safe_reason(raised.exception),
+                        )
+        for code in ("AccessDenied", "PreconditionFailed", "ConditionalRequestConflict"):
+            response = Mock(
+                returncode=1,
+                stderr=(
+                    f"An error occurred ({code}) when calling the PutObject operation: "
+                    "private-detail"
+                ).encode(),
+            )
+            with (
+                self.subTest(write_code=code),
+                patch("deployment_journal.subprocess.run", return_value=response) as call,
+            ):
+                with self.assertRaises(RuntimeError) as raised:
+                    aws(self.profile, "put-object", {"Key": "releases/example/current.json"}, b"{}")
+                self.assertIn(f"s3/put-object failed; code={code}", safe_reason(raised.exception))
+                self.assertNotIn("private-detail", safe_reason(raised.exception))
+                self.assertEqual(call.call_count, 1)
 
     def test_release_store_requires_exact_conditional_write(self):
         with patch("deployment_journal.aws", return_value={"ETag": '"version"'}) as call:

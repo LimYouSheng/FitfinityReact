@@ -10,6 +10,7 @@ from pathlib import Path
 
 from deployment_profile import load
 from operator_checks import require
+from operator_errors import provider_failure
 
 MAX_BYTES = 4 * 1024 * 1024
 
@@ -147,10 +148,8 @@ def aws(profile, operation, values, body=None, *, metadata=False):
                 r"An error occurred \(NoSuchKey\) when calling the GetObject operation:", error
             ):
                 raise MissingJournalObject("Journal object does not exist")
-        require(
-            result.returncode == 0,
-            "Journal request failed; inspect retained local intent, do not replay",
-        )
+        if result.returncode:
+            raise provider_failure("s3", operation, result.stderr.decode("utf-8", errors="replace"))
         if body is None:
             require(path.stat().st_size <= MAX_BYTES, "Journal receipt too large")
             payload = path.read_bytes()

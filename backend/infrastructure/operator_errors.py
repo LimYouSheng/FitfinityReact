@@ -9,6 +9,10 @@ from operator_checks import OperatorCheckError
 PROVIDER_ERRORS = frozenset(
     {
         "AccessDenied",
+        "NoSuchBucket",
+        "PreconditionFailed",
+        "ConditionalRequestConflict",
+        "RequestTimeout",
         "ValidationError",
         "ChangeSetNotFound",
         "Throttling",
