@@ -1,4 +1,4 @@
-"""Bind an unchanged release to its original owned pre-upgrade backup."""
+"""Bind a compatible or explicitly reviewed release to its original backup."""
 
 import hashlib
 import re
@@ -36,12 +36,19 @@ def source_fingerprint(source):
     return hashlib.sha256(b"\0".join(sorted(retained))).hexdigest()
 
 
-def prepare_transition(maintenance, baseline, source):
-    """Retain original backup identity and prove ancestor release inputs are unchanged."""
+def prepare_transition(maintenance, baseline, source, *, handover=None):
+    """Retain backup ownership and require compatibility or explicit forward review."""
     previous = maintenance.get("identity", {}).get("source_sha")
     require(previous != source, "A transition requires distinct release sources")
     original = source_fingerprint(previous)
     current = source_fingerprint(source)
+    if handover is not None:
+        from backup_handover import proposal
+
+        require(
+            handover == proposal(maintenance, baseline, source),
+            "Explicit backup handover differs from original evidence",
+        )
     require(
         subprocess.run(
             ["git", "merge-base", "--is-ancestor", previous, source],
@@ -49,7 +56,7 @@ def prepare_transition(maintenance, baseline, source):
             check=False,
         ).returncode
         == 0
-        and original == current,
+        and (original == current or handover is not None),
         "Backup transition requires ancestor source and unchanged application/migration inputs",
     )
     require(
@@ -62,4 +69,5 @@ def prepare_transition(maintenance, baseline, source):
         "inputs_sha256": current,
         "maintenance_sha256": digest(maintenance),
         "baseline_catalog_sha256": digest(baseline),
+        **({"handover": handover} if handover is not None else {}),
     }

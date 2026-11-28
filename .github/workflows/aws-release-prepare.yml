@@ -1,5 +1,5 @@
 name: AWS - Prepare Release Evidence
-run-name: ${{ inputs.orchestration_id && format('Release operation {0}', inputs.orchestration_id) || github.event.head_commit.message || github.workflow }}
+run-name: ${{ inputs.orchestration_id && format('Release operation {0}', inputs.orchestration_id) || format('{0} | {1}', github.workflow, 'PREPARE-EVIDENCE') }}
 on:
   pull_request:
     branches: [main]
@@ -40,8 +40,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Explain Workflow Purpose And Expected Results
+        env:
+          REQUESTED_OPERATION: ${{ 'PREPARE-EVIDENCE' }}
         shell: bash
         run: |
+          printf "**Requested operation:** **%s** (request only; see execution results below).\n\n" "${REQUESTED_OPERATION^^}" >> "$GITHUB_STEP_SUMMARY"
           cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
           ## AWS - Prepare Release Evidence
 

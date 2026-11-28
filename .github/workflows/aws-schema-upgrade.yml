@@ -1,5 +1,5 @@
 name: AWS - Upgrade Private Database Schema
-run-name: ${{ inputs.orchestration_id && format('Release operation {0}', inputs.orchestration_id) || github.event.head_commit.message || github.workflow }}
+run-name: ${{ inputs.orchestration_id && format('Release operation {0}', inputs.orchestration_id) || format('{0} | {1}', github.workflow, (inputs.mode == 'invoke' && 'UPGRADE (invoke)' || inputs.mode)) }}
 on:
   workflow_dispatch:
     inputs:
@@ -71,8 +71,11 @@ jobs:
       role: ${{ steps.target.outputs.upgrade_role }}
     steps:
       - name: Explain Workflow Purpose And Expected Results
+        env:
+          REQUESTED_OPERATION: ${{ inputs.mode == 'invoke' && 'UPGRADE (invoke)' || inputs.mode }}
         shell: bash
         run: |
+          printf "**Requested operation:** **%s** (request only; see execution results below).\n\n" "${REQUESTED_OPERATION^^}" >> "$GITHUB_STEP_SUMMARY"
           cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
           ## AWS - Upgrade Private Database Schema
 

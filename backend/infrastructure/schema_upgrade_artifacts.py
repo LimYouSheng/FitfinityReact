@@ -77,7 +77,8 @@ def maintenance_run(value, source):
     selection = json.loads(value)
     require(
         isinstance(selection, dict)
-        and set(selection) == {"run", "source_sha"}
+        and set(selection) in ({"run", "source_sha"}, {"run", "source_sha", "handover"})
+        and ("handover" not in selection or isinstance(selection["handover"], dict))
         and isinstance(selection["run"], str)
         and re.fullmatch(r"[1-9][0-9]*", selection["run"])
         and isinstance(selection["source_sha"], str)
@@ -163,7 +164,10 @@ def main():
         if backup_source != source:
             require(baseline_run is not None, "Original pre-backup catalog producer required")
             evidence["backup_transition"] = prepare_transition(
-                maintenance, evidence["baseline_catalog"], source
+                maintenance,
+                evidence["baseline_catalog"],
+                source,
+                handover=(json.loads(os.environ["MAINTENANCE_RUN"]).get("handover")),
             )
         (root / "upgrade-evidence.json").write_text(json.dumps(evidence) + "\n")
 
