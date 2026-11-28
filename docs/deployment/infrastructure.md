@@ -56,3 +56,7 @@ The user reports an existingUS$100 budget; do not create a duplicate. Billing al
 ### Email candidate resources (not installed)
 
 The local email candidate adds an SES sender identity/configuration, dedicated Secrets Manager dispatch secret, Lambda dispatcher, CloudWatch log group, dispatcher IAM role/boundary, disabled EventBridge schedule and Lambda invocation permission. The existing application role/boundary gains exact sender/secret grants; the existing Cognito pool gains a sender-only configuration change. It adds two PostgreSQL tables through migration0054. These are proposed resources, not a current AWS stock count. [Email setup](email.md) owns sequencing and live acceptance; no new S3 bucket is required by plain-text mail.
+
+### SES sender setup evidence — 28 November 2026
+
+The operator requested creation/verification of SES address identity `sheng@app404.ai` in account418638389566, ap-southeast-1, then reported verification completion. The supplied pre-verification readback shows sending enabled, production access false,200 messages/day and1/second. Post-click verified status remains to be read back; no domain identity, dispatch secret/worker, runtime SES grant or activated schedule is established by this evidence. SES sandbox is a real regional service restriction. [Email setup](email.md#real-aws-resources-and-ses-sandbox) owns configuration and actual-resource binding requirements.

@@ -2,6 +2,14 @@
 
 Local candidate, 28 November 2026: SES delivery is disabled by default. Source and synthetic tests are not proof that a sender is verified, the account has production access, a schedule is enabled, or a message reached an inbox. Initial developer sender: `sheng@app404.ai`, region `ap-southeast-1`. Client deployments supply their own sender and target bindings.
 
+## Real AWS resources and SES sandbox
+
+The setup scripts and deployment workflows must discover and validate the actual target account, region, SES identity, CloudFormation owners, runtime role/boundary, Cognito pool and signing-secret ARN. Reuse those resource bindings and prepare only missing configuration or reviewed changes. Do not substitute synthetic test identities, infer existence from a generated name, recreate installed resources, or treat an old operator receipt as current state. Offline fixtures remain test evidence only.
+
+SES sandbox is a restriction on the real AWS account in a region, not a simulated deployment. Verified-recipient testing exercises the actual service. SES production access is required before sending to ordinary unverified trainer/client addresses; it does not create a separate application or replace existing SES identities.
+
+Developer operator evidence, 28 November 2026: account `418638389566`, region `ap-southeast-1`, sending enabled, production access false, quota200 emails per24hours and1 per second. Both address/domain identities were initially absent; the operator successfully requested verification for `sheng@app404.ai`, then reported completion. A post-click `VerifiedForSendingStatus=true` response has not been pasted, so the next resource readback should include it. No application email, IAM change, database migration or scheduler activation is established by this sender-verification step.
+
 ## Events
 
 | Trigger | Recipient | Message |
