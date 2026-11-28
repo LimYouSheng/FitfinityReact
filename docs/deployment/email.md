@@ -8,7 +8,18 @@ The setup scripts and deployment workflows must discover and validate the actual
 
 SES sandbox is a restriction on the real AWS account in a region, not a simulated deployment. Verified-recipient testing exercises the actual service. SES production access is required before sending to ordinary unverified trainer/client addresses; it does not create a separate application or replace existing SES identities.
 
-Developer operator evidence, 28 November 2026: account `418638389566`, region `ap-southeast-1`, sending enabled, production access false, quota200 emails per24hours and1 per second. Both address/domain identities were initially absent; the operator successfully requested verification for `sheng@app404.ai`, then reported completion. A post-click `VerifiedForSendingStatus=true` response has not been pasted, so the next resource readback should include it. No application email, IAM change, database migration or scheduler activation is established by this sender-verification step.
+Developer operator evidence, 28 November 2026: account `418638389566`, region `ap-southeast-1`, sending enabled, production access false, quota200 emails per24hours and1 per second. Both address/domain identities were initially absent; the operator successfully requested verification for `sheng@app404.ai`, then reported completion. The subsequent operator readback confirms `sender_verified=true`, production access false and runtime email disabled. No application email, IAM change, database migration or scheduler activation is established by this sender-verification step.
+
+Actual bindings from that readback:
+
+| Resource | Observed binding / owner |
+| --- | --- |
+| Runtime and role | `fitfinity-test-staff-api` and `fitfinity-test-hosting-api`; `fitfinity-test-login` owns `ApiFunction` and `ApiRole`. Runtime Active/Successful. |
+| Runtime boundary | `arn:aws:iam::418638389566:policy/fitfinity-test-hosting-api-boundary`; `fitfinity-test-github-hosting` owns `ApiBoundary`. |
+| Cognito pool | `ap-southeast-1_La0Y3MXCj`; `fitfinity-test-cognito` owns `StaffPool`, currently `COGNITO_DEFAULT`. |
+| Dispatch secret | Operator supplied `arn:aws:secretsmanager:ap-southeast-1:418638389566:secret:fitfinity/test/email-dispatch-Vh1QVX` after the create-secret step. Value was not shared. |
+
+Keep Cognito on its existing sender while SES is sandboxed unless all intended Cognito recipients are verified and the switch is explicitly reviewed. Production access must precede unrestricted invitations/recovery; enabling a sandboxed SES sender could disrupt those flows. The secret ARN alone does not establish runtime grants, valid key contents, an installed worker or delivery acceptance.
 
 ## Events
 

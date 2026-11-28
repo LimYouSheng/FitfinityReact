@@ -465,7 +465,8 @@ test('message becomes read and loses blue border after opening', async ({ page }
   const footerButtons = reopenedDialog.locator('.message-popup-actions button')
   const sizes = await footerButtons.evaluateAll(buttons => buttons.map(button => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })))
   expect(sizes).toHaveLength(4)
-  expect(sizes.every(size => size.height === 44)).toBe(true)
+  expect(sizes.map(size => size.height)).toEqual([36, 36, 36, 36])
+  expect(sizes.slice(2).map(size => size.width)).toEqual([136, 136])
   expect(sizes[0].width).toBe(sizes[1].width)
   expect(sizes[2].width).toBe(sizes[3].width)
   await reopenedDialog.getByRole('button', { name: 'Client · Nadia Koh' }).click()
@@ -528,7 +529,9 @@ test('topbar chevron navigates back without previous-page text', async ({ page }
   await page.getByRole('button', { name: 'View Amanda Lim' }).click()
 
   const back = page.getByRole('button', { name: 'Back' })
-  await expect(back).toHaveText('‹')
+  await expect(back).toHaveText('')
+  await expect(back.locator('svg.control-icon')).toBeVisible()
+  await expect(back.locator('svg path')).toHaveAttribute('d', 'm15 6-6 6 6 6')
   await back.click()
 
   await expect(page).toHaveURL(/#\/clients$/)
@@ -560,7 +563,9 @@ test('detail screen exposes topbar Back without profile-local back control', asy
 
   const back = page.getByRole('button', { name: 'Back' })
   await expect(back).toBeVisible()
-  await expect(back).toHaveText('‹')
+  await expect(back).toHaveText('')
+  await expect(back.locator('svg.control-icon')).toBeVisible()
+  await expect(back.locator('svg path')).toHaveAttribute('d', 'm15 6-6 6 6 6')
 
   await expect(page.locator('.profile-identity-card .back-link')).toHaveCount(0)
   await expect(page.locator('.profile-back-row')).toHaveCount(0)
@@ -611,7 +616,9 @@ test('detail screen exposes Back without profile-local back controls', async ({ 
   await page.getByRole('button', { name: 'View Amanda Lim' }).click()
 
   await expect(page.getByRole('button', { name: 'Back' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Back' })).toHaveText('‹')
+  await expect(page.getByRole('button', { name: 'Back' })).toHaveText('')
+  await expect(page.getByRole('button', { name: 'Back' }).locator('svg.control-icon')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Back' }).locator('svg path')).toHaveAttribute('d', 'm15 6-6 6 6 6')
   await expect(page.locator('.profile-identity-card .back-link')).toHaveCount(0)
   await expect(page.locator('.profile-back-row')).toHaveCount(0)
 })
