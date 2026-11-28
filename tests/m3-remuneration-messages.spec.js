@@ -41,6 +41,20 @@ test('M3 a newly created Test client never attaches itself to unrelated messages
   await dialog.getByRole('button',{name:'Close message'}).click()
   dialog = await openMessage(page,'Linked session update')
   await expect(dialog.getByRole('button',{name:'Client · Amanda Lim',exact:true})).toBeVisible()
+  const recordBoxes = await dialog.locator('.message-related button').evaluateAll(buttons => buttons.map(button => {
+    const { x, y, width, height } = button.getBoundingClientRect()
+    return { x, y, width, height }
+  }))
+  expect(recordBoxes).toHaveLength(3)
+  for (const box of recordBoxes) {
+    expect(box.y).toBe(recordBoxes[0].y)
+    expect(box.height).toBe(36)
+    expect(Math.abs(box.width - recordBoxes[0].width)).toBeLessThan(1)
+  }
+  const actionsBox = await dialog.locator('.message-popup-buttons').boundingBox()
+  expect(actionsBox.y).toBeGreaterThanOrEqual(recordBoxes[0].y + recordBoxes[0].height)
+  expect(Math.abs(actionsBox.x + actionsBox.width - recordBoxes[2].x - recordBoxes[2].width)).toBeLessThan(1)
+
   await expect(dialog.getByRole('button',{name:'Client · Test',exact:true})).toHaveCount(0)
   await dialog.getByRole('button', { name: 'Close message' }).click()
   dialog = await openMessage(page, 'Session ready for review')

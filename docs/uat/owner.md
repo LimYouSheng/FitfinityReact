@@ -177,7 +177,7 @@ Use the designated developer accounts and receiving inboxes. Lost-authenticator 
 | Request a new Owner login email; try an invalid code before the valid code. | Old email remains active until verification; successful verification signs out existing sessions and keeps the same account. | | |
 | Create/edit a package with validity47 days, then inspect an existing purchased package. | New catalogue terms show47 days; existing purchased terms/credits remain unchanged. | | |
 | Select two messages, mark read, then inspect newly surfaced unread rows; repeat with unread. | Only checked rows change; selections clear and new rows stay unchecked. | | |
-| Open a message and inspect footer; resize Client form and Owner profile. | Related records left, unread action right, readable body spacing, aligned mobile/name fields and no horizontal overflow. | | |
+| Open a message and inspect footer; resize Client form and Owner profile. | Related records share one row; compact Delete/unread actions align right below. Package fields stack with Required to the right of labels. Undo/deadline and timestamp align within each message row; narrow message lists scroll without widening the page. Profile fields stay aligned. | | |
 | Observe a slow load with normal and reduced-motion preferences. | Transparent mark ripples rightwards; reduced motion is static and assistive status remains meaningful. | | |
 
 

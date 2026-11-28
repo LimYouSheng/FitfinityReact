@@ -149,11 +149,11 @@ it('restores a loaded history page and retains its rows during refresh without a
   const entries = Array.from({ length: 12 }, (_, index) => ({ id: String(index), kind: 'pdf_export', at: '2026-09-02T04:00:00Z', by: { name: `Staff ${index}` } }))
   let finish
   const load = vi.fn().mockImplementation(() => new Promise(resolve => { finish = resolve }))
-  function View() {
+  function View({ purchase = 'purchase' }) {
     const [values, setValues] = useState({ 'client.c1.reportHistoryOpen': true,
       'client.c1.purchase.reportHistoryPage': { resetKey: 'c1.purchase', page: 2 } })
     return <PageState.Provider value={{ values, setValue: (key, value) => setValues(previous => ({ ...previous, [key]: value })) }}>
-      <StrengthProgress client={{ ...client, reportPackageId: 'purchase' }} user={owner} onLoadHistory={load} />
+      <StrengthProgress client={{ ...client, reportPackageId: purchase }} user={owner} onLoadHistory={load} />
     </PageState.Provider>
   }
   const view = render(<View />)
@@ -170,6 +170,21 @@ it('restores a loaded history page and retains its rows during refresh without a
   await act(async () => finish(entries))
   expect(screen.getByLabelText('List pages')).toHaveTextContent('Page 2')
   expect(load).toHaveBeenCalledTimes(2)
+  await act(async () => window.dispatchEvent(new Event('focus')))
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(3))
+  await act(async () => finish([]))
+  expect(screen.getByText('No export or WhatsApp history yet.')).toBeVisible()
+  await act(async () => window.dispatchEvent(new Event('focus')))
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(4))
+  expect(screen.queryByText('Loading history…')).not.toBeInTheDocument()
+  expect(screen.getByText('No export or WhatsApp history yet.')).toBeVisible()
+  await act(async () => finish([]))
+  view.rerender(<View purchase="another-purchase" />)
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(5))
+  expect(screen.getByText('Loading history…')).toBeInTheDocument()
+  expect(screen.queryByText('No export or WhatsApp history yet.')).not.toBeInTheDocument()
+  await act(async () => finish(entries.slice(0, 1)))
+  expect(screen.getByText('Staff 0')).toBeVisible()
 })
 
 it('retries a failed native share separately from its history without sharing or rendering twice', async () => {
