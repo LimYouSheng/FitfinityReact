@@ -35,7 +35,7 @@ SUITES = {
     "verify-release-access.py": 10,
     "verify-release-execution.py": 45,
     "verify-release-health.py": 3,
-    "verify-release-features.py": 19,
+    "verify-release-features.py": 21,
     "verify-schema-upgrade-plan.py": 25,
     "verify-portable-foundation.py": 16,
     "verify-deployment-profile.py": 18,

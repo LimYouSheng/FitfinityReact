@@ -711,6 +711,8 @@ A legacy pause receipt without this fingerprint still fails ordinary inspection 
 
 ### Protected deployment milestones
 
+Rollout change-set validation accepts a reported Dynamic ResourceAttribute dependency only when the entire property is unchanged and its nested GetAtt or Sub expression actually references the reported attribute of a reviewed modified resource. Sub escapes and variable-map overrides are respected. Replacement and recreation remain forbidden. A rejected inspection leaves the prepared change set unexecuted; retain its receipt and inspect before recovery, rather than rerunning the deployment batch.
+
 Use existing canonical workflows and protected environments. Their artifact identities, enablement flags and user approvals remain unchanged. Each batch writes `milestone_phase` alongside the original canonical receipt. A failure stops immediately; use the corresponding existing individual recovery mode and retained receipt, never rerun the whole batch or silently retry a mutation. Each batch has a25-minute bounded execution budget inside its30-minute job; provider pending states are polled read-only, rollback/failed states stop. Expired review metadata is never extended automatically.
 
 | Workflow / mode | Reviewed actions under one approval | Completion / boundary |

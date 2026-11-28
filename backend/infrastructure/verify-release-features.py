@@ -384,6 +384,104 @@ class ChangeSetTests(unittest.TestCase):
         changed["Changes"].reverse()
         self.assertEqual(self.validate(change_set=changed), result)
 
+    def test_nested_sub_attribute_dependency_is_retained(self):
+        detail = {
+            "Target": {
+                "Attribute": "Properties",
+                "Name": "Environment",
+                "RequiresRecreation": "Never",
+            },
+            "Evaluation": "Dynamic",
+            "ChangeSource": "ResourceAttribute",
+            "CausingEntity": "Distribution.DomainName",
+        }
+        for expression in (
+            {"Fn::Sub": "https://${Distribution.DomainName}/"},
+            {
+                "Fn::Sub": [
+                    "https://${Host}/",
+                    {"Host": {"Fn::GetAtt": ["Distribution", "DomainName"]}},
+                ]
+            },
+            {"Fn::GetAtt": "Distribution.DomainName"},
+        ):
+            with self.subTest(expression=expression):
+                env = {"Variables": {"PORTAL": expression}}
+                self.original["Resources"]["ApiFunction"]["Properties"]["Environment"] = deepcopy(
+                    env
+                )
+                self.candidate["Resources"]["ApiFunction"]["Properties"]["Environment"] = deepcopy(
+                    env
+                )
+                changes = deepcopy(self.change_set)
+                changes["Changes"][0]["ResourceChange"]["Details"].append(detail)
+                self.assertEqual(self.validate(change_set=changes)["mode"], "rollout")
+
+    def test_nested_dependency_rejects_unproven_or_recreated_references(self):
+        from release_changes import expected_changes, unchanged_attribute_dependency
+
+        detail = {
+            "Target": {
+                "Attribute": "Properties",
+                "Name": "Environment",
+                "RequiresRecreation": "Never",
+            },
+            "Evaluation": "Dynamic",
+            "ChangeSource": "ResourceAttribute",
+            "CausingEntity": "Distribution.DomainName",
+        }
+        for expression in (
+            "https://${Distribution.DomainName}/",
+            {"Fn::Sub": "https://${!Distribution.DomainName}/"},
+            {
+                "Fn::Sub": [
+                    "https://${Distribution.DomainName}/",
+                    {"Distribution.DomainName": "fixed"},
+                ]
+            },
+            {"Fn::Sub": "https://${Other.DomainName}/"},
+            {"Fn::GetAtt": ["Distribution", "Id"]},
+        ):
+            env = {"Variables": {"PORTAL": expression}}
+            self.original["Resources"]["ApiFunction"]["Properties"]["Environment"] = deepcopy(env)
+            self.candidate["Resources"]["ApiFunction"]["Properties"]["Environment"] = deepcopy(env)
+            changes = deepcopy(self.change_set)
+            changes["Changes"][0]["ResourceChange"]["Details"].append(deepcopy(detail))
+            with self.subTest(expression=expression), self.assertRaises(RuntimeError):
+                self.validate(change_set=changes)
+        env = {"Variables": {"PORTAL": {"Fn::Sub": "https://${Distribution.DomainName}/"}}}
+        self.original["Resources"]["ApiFunction"]["Properties"]["Environment"] = deepcopy(env)
+        self.candidate["Resources"]["ApiFunction"]["Properties"]["Environment"] = deepcopy(env)
+        for field, value in (
+            ("Evaluation", "Static"),
+            ("ChangeSource", "DirectModification"),
+            ("CausingEntity", "Other.DomainName"),
+        ):
+            bad = deepcopy(detail)
+            bad[field] = value
+            changes = deepcopy(self.change_set)
+            changes["Changes"][0]["ResourceChange"]["Details"].append(bad)
+            with self.subTest(field=field), self.assertRaises(RuntimeError):
+                self.validate(change_set=changes)
+        changes = deepcopy(self.change_set)
+        bad = deepcopy(detail)
+        bad["Target"]["RequiresRecreation"] = "Conditionally"
+        changes["Changes"][0]["ResourceChange"]["Details"].append(bad)
+        with self.assertRaises(RuntimeError):
+            self.validate(change_set=changes)
+        self.candidate["Resources"]["ApiFunction"]["Properties"]["Environment"]["Variables"][
+            "EXTRA"
+        ] = "changed"
+        self.assertFalse(
+            unchanged_attribute_dependency(
+                self.original,
+                self.candidate,
+                "ApiFunction",
+                detail,
+                expected_changes(self.original, self.candidate, mode="rollout"),
+            )
+        )
+
     def test_retained_role_attribute_dependency_matches_reviewed_policy_change(self):
         candidate = deepcopy(self.candidate)
         role = candidate["Resources"]["ApiRole"]["Properties"]

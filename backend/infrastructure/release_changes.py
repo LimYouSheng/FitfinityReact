@@ -102,21 +102,47 @@ def unchanged_attribute_dependency(original, candidate, name, detail, expected):
     value = before.get(key)
     if key not in before or key not in after or value != after[key]:
         return False
-    if not isinstance(value, dict) or set(value) != {"Fn::GetAtt"}:
+    cause = detail.get("CausingEntity", "")
+    if not isinstance(cause, str) or "." not in cause:
         return False
-    reference = value["Fn::GetAtt"]
-    if isinstance(reference, str):
-        reference = reference.split(".", 1)
+    resource, _ = cause.split(".", 1)
     return (
-        isinstance(reference, list)
-        and len(reference) == 2
-        and all(isinstance(part, str) and part for part in reference)
-        and reference[0] in expected
-        and expected[reference[0]][0] == "Modify"
+        resource in expected
+        and expected[resource][0] == "Modify"
         and detail.get("Evaluation") == "Dynamic"
         and detail.get("ChangeSource") == "ResourceAttribute"
-        and detail.get("CausingEntity") == ".".join(reference)
+        and contains_attribute_reference(value, cause)
     )
+
+
+def contains_attribute_reference(value, cause):
+    """Find an actual attribute reference, respecting Sub escapes and variable overrides."""
+    if isinstance(value, list):
+        return any(contains_attribute_reference(item, cause) for item in value)
+    if not isinstance(value, dict):
+        return False
+    if set(value) == {"Fn::GetAtt"}:
+        reference = value["Fn::GetAtt"]
+        return reference == cause or reference == cause.split(".", 1)
+    if set(value) == {"Fn::Sub"}:
+        expression = value["Fn::Sub"]
+        variables = {}
+        if isinstance(expression, list):
+            if len(expression) != 2 or not isinstance(expression[1], dict):
+                return False
+            expression, variables = expression
+        if not isinstance(expression, str):
+            return False
+        for token in re.findall(r"\$\{([^}]+)\}", expression):
+            if token.startswith("!"):
+                continue
+            if token in variables:
+                if contains_attribute_reference(variables[token], cause):
+                    return True
+            elif token == cause:
+                return True
+        return False
+    return any(contains_attribute_reference(item, cause) for item in value.values())
 
 
 def validate(
@@ -185,7 +211,8 @@ def validate(
                         )
                     )
                     and target_property.get("RequiresRecreation") == "Never",
-                    "Unreviewed property or possible recreation refused",
+                    f"Unreviewed property or possible recreation refused: {name}."
+                    f"{target_property.get('Name', 'unknown')}",
                 )
                 if target_property["Name"] in properties:
                     observed.add(target_property["Name"])
