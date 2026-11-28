@@ -86,7 +86,7 @@ Trainer A requires approval for schedule changes; Trainer B has the permitted ap
 | UAT-045 | Save comments on a session without recorded results but with exercise-plan targets. Refresh and inspect progress. Compare a signed attended session with a no-show. | Empty results stay empty. Progress uses signed attended results from the selected purchase; no-shows and plan targets are not shown as actual results. | | |
 | UAT-046 | Save a client summary. Try blank/overlong text, then replace with valid text. | Valid summary saves separately and previous text remains in history. Results, credits and delivery status do not change. | | |
 | UAT-047 | Complete an eligible session with signer name and real signature strokes. Try missing name/ink and future/Open/cancelled sessions. | Only valid completion succeeds. Saved signature is read-only and one credit is used. Invalid attempts use no credit. | | |
-| UAT-048 | Mark a session no-show, then correct it to a signature. Try changing the signature back to no-show. | One credit is used overall. Both records remain in history. The reverse correction is not allowed. | | |
+| UAT-048 | Mark a session no-show, edit and save its outcome comments, reload, then correct it to a signature. Try changing the signature back to no-show. | One credit is used overall. Saved comments and existing results survive correction and fresh sign-in. Both acknowledgement records remain in history. The reverse correction is not allowed. | | |
 | UAT-049 | Complete a session that leaves two credits. Refresh and check again. Repeat with a client who already has a later active purchase. | One applicable reminder appears, without duplicates. A later active purchase suppresses the renewal reminder as required. | | |
 | UAT-050 | Open a completed/cancelled cover session and inactive client/package. Try changing results, summary, completion, schedule and recording. | Permitted history is visible, but restricted changes are blocked. Cover-session access does not expose the whole client profile or progress. | | |
 | UAT-051 | Export a session PDF with captions and the optional summary. Unselect every available item and try to continue. | Download needs no approval. When session-PDF sharing requires approval, request it, wait for the Owner, then check and explicitly tap Share PDF; approval alone sends nothing. PDF includes only selected content. With no content selected, Continue is disabled. Captions do not include video files or claim a WhatsApp message was sent. | | |
@@ -197,6 +197,7 @@ These cases require the UI refinement release; results remain blank until tested
 
 | Check | Expected result | Result | Remarks |
 | --- | --- | --- | --- |
+| Create a first-time client with a package; repeat for a couple | One combined welcome/trainer/package/validity email per person, with no extra initial-package email and no client app login. A later purchase gets its own package email. | | |
 | Review and cancel a progress email | Current recipients are shown; cancel sends nothing. | | |
 | Confirm and reload the same progress email | Queued banner, durable original receipt, no duplicate message for unchanged content. | | |
 | Receive a session/package update in a designated test inbox | Correct credits and validity; no private notes, videos or other client's email address. | | |

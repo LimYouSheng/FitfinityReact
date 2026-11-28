@@ -27,14 +27,14 @@ Keep Cognito on `COGNITO_DEFAULT`, as explicitly selected by the user. This emai
 | --- | --- | --- |
 | Trainer invitation | Trainer | Existing Cognito account setup invitation; provider owns temporary credentials. |
 | Trainer deactivation | Trainer contact email | Account deactivation notice. |
-| Client creation | Each client person | Welcome and assigned trainer, explicitly no app login. |
-| Package purchase, including initial onboarding | Each client person | Purchased package, credits and inclusive validity dates. |
+| Client creation with first package | Each client person | One combined welcome, assigned trainer, initial credits and inclusive validity dates; explicitly no app login. |
+| Later package purchase | Each client person | Purchased package, credits and inclusive validity dates. |
 | Session acknowledgement | Each client person | Session/package update with current used and remaining credits and validity. |
 | Explicit Email Report confirmation | Each client person | Bare text progress report from persisted measurements; no private trainer comments or video files. |
 
 Existing Cognito password-recovery and login-email verification messages also inherit the configured pool sender. Authenticator-app MFA continues to use authenticator codes, not emailed codes.
 
-Each person receives a separate message, including couples. Report preparation and Owner approval never send mail. The recipient/content preview is rechecked at submission. Repeated identical report content for the same actor returns the original receipt, including after a fresh login. Approval and report-email recovery remain separate operations.
+Each person receives a separate message, including couples. Initial onboarding queues one combined message per person. Later package purchases remain separate events. No-show confirmation and its later signature correction each queue an acknowledgement update, both showing the same single used credit; retrying either original request does not queue another message. Report preparation and Owner approval never send mail. The recipient/content preview is rechecked at submission. Repeated identical report content for the same actor returns the original receipt, including after a fresh login. Approval and report-email recovery remain separate operations.
 
 ## Configuration order
 

@@ -41,6 +41,18 @@ def test_no_show_correction_preserves_both_signatures_and_one_credit(api, domain
     assert api.get(f"/api/session-acknowledgements/{key}").json() == first.json()
     assert save(api, identity, viewed, key, note="Other").status_code == 409
     assert save(api, identity, viewed).status_code == 409
+    outcome = api.get(f"/api/sessions/{identity}/outcome-review").json()
+    edited = api.post(
+        f"/api/sessions/{identity}/outcome",
+        json={
+            "expected": outcome["expected"],
+            "trainerComments": "Edited after no-show, before signature",
+            "measurements": [],
+        },
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["rows"] == outcome["rows"]
     corrected = save(
         api,
         identity,
@@ -58,7 +70,9 @@ def test_no_show_correction_preserves_both_signatures_and_one_credit(api, domain
         assert all("Sessions used: 1 of 2" in mail.body for mail in mails)
         assert session.scalar(select(func.count()).select_from(CreditDebit)) == 1
         assert session.scalar(select(func.count()).select_from(Acknowledgement)) == 2
-        assert session.get(TrainingSession, identity).status == "completed"
+        booking = session.get(TrainingSession, identity)
+        assert booking.status == "completed"
+        assert booking.trainer_comments == "Edited after no-show, before signature"
 
 
 def test_receipt_failure_rolls_back_completion_credit_and_signature(

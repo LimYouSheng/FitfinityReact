@@ -9,6 +9,16 @@ class EmailContent:
     text: str
 
 
+def package_summary(values):
+    """Render the purchased terms and current credit balance."""
+    return (
+        f"Package: {values['package']}\n"
+        f"Sessions used: {values['used']} of {values['total']}\n"
+        f"Sessions remaining: {max(0, values['total'] - values['used'])}\n"
+        f"Valid from {values['start']} through {values['end']}."
+    )
+
+
 def render(kind, values):
     """Render only explicitly selected event fields, never an entire domain record."""
     name = values["name"].strip()
@@ -16,7 +26,8 @@ def render(kind, values):
         subject = "Welcome to OneFitfinity"
         body = (
             f"Welcome to OneFitfinity. Your trainer is {values['trainer']}.\n"
-            "Your trainer will help you arrange your sessions. No app login is needed."
+            "Your trainer will help you arrange your sessions. No app login is needed.\n\n"
+            + package_summary(values)
         )
     elif kind == "trainer_termination":
         subject = "Your OneFitfinity trainer account"
@@ -31,12 +42,7 @@ def render(kind, values):
             "session_complete": "Your OneFitfinity session and package update",
         }[kind]
         intro = "Your session has been acknowledged.\n" if kind == "session_complete" else ""
-        body = (
-            f"{intro}Package: {values['package']}\n"
-            f"Sessions used: {values['used']} of {values['total']}\n"
-            f"Sessions remaining: {max(0, values['total'] - values['used'])}\n"
-            f"Valid from {values['start']} through {values['end']}."
-        )
+        body = intro + package_summary(values)
     elif kind == "progress_report":
         subject = "Your OneFitfinity progress report"
         body = values["report"].strip()

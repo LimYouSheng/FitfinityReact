@@ -7,7 +7,18 @@ from app.models.people import ClientPerson
 from app.models.training import PackagePurchase
 
 
-def client_welcome(session, client, trainer):
+def package_values(purchase, used=0):
+    """Project the purchased terms shared by welcome and later package notices."""
+    return {
+        "package": purchase.name,
+        "used": used,
+        "total": purchase.total_sessions,
+        "start": purchase.start_date.isoformat(),
+        "end": purchase.end_date.isoformat(),
+    }
+
+
+def client_welcome(session, client, trainer, purchase):
     if not session.info.get("transactional_email_enabled", False):
         return
     for person in session.scalars(select(ClientPerson).where(ClientPerson.client_id == client.id)):
@@ -16,7 +27,7 @@ def client_welcome(session, client, trainer):
             f"client.welcome:{person.id}",
             "client_welcome",
             person.email,
-            {"name": person.name, "trainer": trainer.name},
+            {"name": person.name, "trainer": trainer.name, **package_values(purchase)},
         )
 
 
@@ -35,11 +46,7 @@ def package_notice(session, purchase, event_key, *, kind="package_added", used=N
             person.email,
             {
                 "name": person.name,
-                "package": purchase.name,
-                "used": 0 if used is None else used,
-                "total": purchase.total_sessions,
-                "start": purchase.start_date.isoformat(),
-                "end": purchase.end_date.isoformat(),
+                **package_values(purchase, 0 if used is None else used),
             },
         )
 

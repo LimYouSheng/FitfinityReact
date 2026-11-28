@@ -19,6 +19,14 @@ from app.email_provider import DeliveryFailure, SesEmail
 from app.email_templates import render
 from app.models.email_delivery import EmailDelivery
 
+WELCOME_TERMS = {
+    "package": "Starter",
+    "used": 0,
+    "total": 12,
+    "start": "2026-11-28",
+    "end": "2027-02-25",
+}
+
 
 def queued(db):
     with db.transaction() as session:
@@ -28,7 +36,7 @@ def queued(db):
             "welcome:one",
             "client_welcome",
             "one@example.test",
-            {"name": "One", "trainer": "Trainer"},
+            {"name": "One", "trainer": "Trainer", **WELCOME_TERMS},
         )
 
 
@@ -45,7 +53,7 @@ def test_intent_is_atomic_deduplicated_and_immutable(domain_db):
             "welcome:rollback",
             "client_welcome",
             "two@example.test",
-            {"name": "Two", "trainer": "Trainer"},
+            {"name": "Two", "trainer": "Trainer", **WELCOME_TERMS},
         )
         raise ValueError("business write failed")
     with domain_db.transaction() as session:
@@ -134,9 +142,17 @@ def test_explicit_throttling_retries_boundedly(domain_db):
 def test_plain_templates_exclude_private_fields_and_credentials():
     value = render(
         "client_welcome",
-        {"name": "One", "trainer": "T", "health_notes": "PRIVATE", "password": "SECRET"},
+        {
+            "name": "One",
+            "trainer": "T",
+            "health_notes": "PRIVATE",
+            "password": "SECRET",
+            **WELCOME_TERMS,
+        },
     )
     assert "No app login is needed" in value.text
+    assert "Package: Starter" in value.text and "Sessions remaining: 12" in value.text
+    assert "Valid from 2026-11-28 through 2027-02-25" in value.text
     assert "PRIVATE" not in value.text and "SECRET" not in value.text
     credit = render(
         "session_complete",
