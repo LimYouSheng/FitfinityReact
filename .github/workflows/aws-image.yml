@@ -1,5 +1,5 @@
 name: AWS - Build Scan And Publish Image
-run-name: ${{ inputs.orchestration_id && format('Release operation {0}', inputs.orchestration_id) || github.event.head_commit.message || github.workflow }}
+run-name: ${{ inputs.orchestration_id && format('Release operation {0}', inputs.orchestration_id) || format('{0} | {1}', github.workflow, 'BUILD-SCAN-PUBLISH') }}
 
 on:
   workflow_dispatch:
@@ -98,8 +98,11 @@ jobs:
       id-token: write
     steps:
       - name: Explain Workflow Purpose And Expected Results
+        env:
+          REQUESTED_OPERATION: ${{ 'BUILD-SCAN-PUBLISH' }}
         shell: bash
         run: |
+          printf "**Requested operation:** **%s** (request only; see execution results below).\n\n" "${REQUESTED_OPERATION^^}" >> "$GITHUB_STEP_SUMMARY"
           cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
           ## AWS - Build Scan And Publish Image
 

@@ -1,4 +1,5 @@
 name: Legacy AWS - Evaluate Existing Test Image
+run-name: ${{ format('{0} | {1}', github.workflow, 'EVALUATE-IMAGE') }}
 
 on:
   workflow_dispatch:
@@ -51,8 +52,11 @@ jobs:
       id-token: write
     steps:
       - name: Explain Workflow Purpose And Expected Results
+        env:
+          REQUESTED_OPERATION: ${{ 'EVALUATE-IMAGE' }}
         shell: bash
         run: |
+          printf "**Requested operation:** **%s** (request only; see execution results below).\n\n" "${REQUESTED_OPERATION^^}" >> "$GITHUB_STEP_SUMMARY"
           cat >> "$GITHUB_STEP_SUMMARY" <<'FITFINITY_WORKFLOW_GUIDE'
           ## Legacy AWS - Evaluate Existing Test Image
 
