@@ -176,6 +176,10 @@ test.describe('delayed network logo', () => {
       await expect(page.locator('.portal-shell')).toHaveAttribute('aria-busy', 'false')
       const drawer = page.getByRole('button', { name: 'Open navigation' })
       if (await drawer.isVisible()) await drawer.click()
+      // Measure the settled drawer, not its intentional opening transition.
+      await page.locator('#portal-sidebar').evaluate(async sidebar => {
+        await Promise.all(sidebar.getAnimations().map(animation => animation.finished))
+      })
       const logo = page.locator('.brand .brand-logo')
       await expect(logo).toBeVisible()
       const logoBox = await logo.boundingBox()
