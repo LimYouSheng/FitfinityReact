@@ -39,7 +39,7 @@ jobs:
 
           This is a workflow guide, not a success receipt. Check job results and retained artifacts.
 
-          Full procedure: `docs/runbook.md`, section 6.
+          Full procedure: `docs/deployment/workflows/index.md`, section 6.
           FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Initialize CodeQL
