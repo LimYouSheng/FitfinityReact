@@ -99,3 +99,25 @@ for (const recovery of ['inline', 'refresh']) test(`lost audit response uses ${r
   expect(await read(staff, `/api/clients/${client.id}/report-history`)).toHaveLength(1)
   await context.close()
 })
+
+test('explicit report email survives reload with one original durable receipt', async ({ page }, info) => {
+  const { client, session } = await open(page, info, 'report')
+  const send = async () => {
+    await page.getByRole('button', { name: 'Email Report', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Email progress report?' })
+    await expect(dialog).toContainText('client@example.test')
+    const response = page.waitForResponse(r => r.url().endsWith('/api/report-email') && r.request().method() === 'POST')
+    await dialog.getByRole('button', { name: 'Send Email', exact: true }).click()
+    const saved = await response
+    expect(saved.status()).toBe(200)
+    await expect(page.getByRole('status').filter({ hasText: 'Progress report email queued. Delivery is not yet confirmed.' })).toBeVisible()
+    return saved.json()
+  }
+  const first = await send()
+  expect(first.queued).toBe(1)
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Email Report', exact: true })).toBeEnabled()
+  expect(await read(page, `/api/report-email/${first.requestId}`)).toEqual(first)
+  expect(await send()).toEqual(first)
+  expect(page.url()).toContain(`/clients/${client.id}/progress/${session.purchaseId}`)
+})

@@ -1,6 +1,6 @@
 # Database schema
 
-Source map extended **27 November 2026 (Singapore)** for the local Owner profile candidate; the original inventory was reviewed against `68b2eb2`. **106 application PostgreSQL tables** result from the 53 Alembic revisions through `20261127_0053`. Migration bookkeeping (`alembic_version`), PostgreSQL system tables and test-only fixtures are excluded.
+Source map extended **28 November 2026 (Singapore)** for the local transactional email candidate; the original inventory was reviewed against `68b2eb2`. **108 application PostgreSQL tables** result from the 54 Alembic revisions through `20261128_0054`. Migration bookkeeping (`alembic_version`), PostgreSQL system tables and test-only fixtures are excluded.
 
 **Deployment distinction:** this is a source-derived schema map verified in disposable local PostgreSQL 17.11. It is not an inspection of deployed RDS or customer records; the deployed migration head remains separately verified during release. Table presence does not certify provider, device or production acceptance.
 
@@ -12,7 +12,7 @@ FastAPI persists staff identity, client/package/session state and immutable comm
 
 ```mermaid
 flowchart LR
-  API["FastAPI + SQLAlchemy"] --> DB["PostgreSQL · 104 application tables"]
+  API["FastAPI + SQLAlchemy"] --> DB["PostgreSQL · 108 application tables"]
   DB --> G0["Staff identity and authentication · 11"]
   DB --> G1["Clients and package purchases · 10"]
   DB --> G2["Sessions, plans and completion · 12"]
@@ -21,6 +21,8 @@ flowchart LR
   DB --> G5["Content and protected media · 5"]
   DB --> G6["Archival and permitted Undo · 19"]
   DB --> G7["Command receipts and access evidence · 34"]
+  DB --> G8["Owner contact profile and receipt · 2"]
+  DB --> G9["Transactional email and receipt · 2"]
 ```
 
 ## Reading the diagrams
@@ -301,3 +303,7 @@ Database constraints protect structural invariants even if a writer bypasses the
 ## Owner contact extension — local UI/profile candidate
 
 `owner_profiles` has a one-to-one primary key `user_id` and composite `(user_id,user_role)` foreign key to `staff_users(id,role)`, constrained to Owner. It holds phone country code/number, birthday and gender; name/email/version remain in `staff_users`. `owner_profile_receipts` retains actor identity/name, unique actor/request key, request SHA-256 and committed profile JSON. Its immutable trigger rejects update/delete. Runtime grants allow profile SELECT/INSERT/UPDATE and receipt SELECT/INSERT only. Migration0053 permits downgrade only when both new tables are empty. The local metadata-parity and populated-downgrade tests passed; live deployment remains at the previously observed0052.
+
+## Transactional email candidate
+
+[`email_delivery.py`](../../backend/app/models/email_delivery.py) and migration0054 add `email_deliveries` (PK id, unique event_key/recipient, immutable content, mutable bounded attempt/lease/provider state) and `email_report_receipts` (PK id, FK actor_id→staff_users, unique actor/request_key and actor/request_sha256, immutable receipt). Runtime grants allow SELECT/INSERT/UPDATE on deliveries and SELECT/INSERT on receipts, without DELETE. These tables contain recipient addresses and message content; no automatic retention/deletion is implemented. Populated downgrade is rejected. SES acceptance does not establish inbox delivery.

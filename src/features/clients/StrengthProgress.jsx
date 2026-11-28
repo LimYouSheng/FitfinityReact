@@ -1,3 +1,4 @@
+import ReportEmailButton from './ReportEmailButton.jsx'
 import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { managesOperations } from '../../app/permissions.js'
 import usePageState from '../../hooks/usePageState.js'
@@ -134,6 +135,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
             <p>Completed exercise loads over time</p>
           </div>
           {reportsAvailable && <div className="strength-progress-actions">
+            <ReportEmailButton key={`${client.id}:${client.reportPackageId}`} clientId={client.id} purchaseId={client.reportPackageId} disabled={busy || sharing.busy || Boolean(unsavedAction) || !file} />
             <button
               type="button"
               className="secondary-button strength-progress-export"

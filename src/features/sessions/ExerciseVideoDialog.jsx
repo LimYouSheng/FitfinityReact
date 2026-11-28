@@ -248,7 +248,7 @@ export default function ExerciseVideoDialog({ open, sessionId, timeZone, exercis
           ) : null}
 
           {editable && !uncertain && (
-            <label>
+            <label className="exercise-video-audio">
               <input type="checkbox" checked={includeAudio}
                 disabled={mode === 'compressing' || Boolean(candidate) || saving}
                 onChange={event => setIncludeAudio(event.target.checked)} />

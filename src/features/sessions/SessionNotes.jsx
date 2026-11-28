@@ -25,7 +25,7 @@ export default function SessionNotes({ session, outcome, displayedSummary, activ
   const saveOutcome = async () => {
     const confirmed = outcomeUncertain || await confirmAction({
       title: 'Save session outcome?',
-      message: 'This will save measured exercise results and trainer comments. Duration follows the session booking.',
+      message: 'This will save trainer comments and keep recorded exercise results unchanged. Duration follows the session booking.',
       confirmLabel: 'Save Outcome',
     })
     if (!confirmed) return
@@ -99,9 +99,7 @@ export default function SessionNotes({ session, outcome, displayedSummary, activ
                   Trainer comments
                   <textarea rows="3" disabled={saving || outcomeUncertain} value={outcomeDraft.trainerComments} onChange={event => setOutcomeDraft(current => ({ ...current, trainerComments: event.target.value }))} />
                 </label>
-                <div className="recorded-results"><h3>Recorded exercise results</h3>
-                  {(outcomeDraft.exerciseResults ?? []).map((result, index) => <div className="recorded-result" key={result.id}><strong>{result.name}</strong>{[['loadKg', 'Load (kg)'], ['reps', 'Reps'], ['sets', 'Sets']].map(([field, label]) => <label key={field}>{label}<input aria-label={`${label} for ${result.name}`} type="number" disabled={saving || outcomeUncertain} min={field === 'loadKg' ? '0' : '1'} step={field === 'loadKg' ? '0.1' : '1'} value={result[field]} onChange={event => setOutcomeDraft(current => ({ ...current, exerciseResults: current.exerciseResults.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: event.target.value } : row) }))} /></label>)}</div>)}
-                </div>
+
               </div>
             ) : (
               <dl className="session-outcome-list">

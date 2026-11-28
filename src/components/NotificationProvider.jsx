@@ -1,3 +1,4 @@
+import ControlIcon from './ControlIcon.jsx'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -31,7 +32,7 @@ function NotificationBanner({ notification, onDismiss }) {
     }}>
     <span className="notification-icon" aria-hidden="true">{presentation.icon}</span>
     <p role={tone === 'error' ? 'alert' : 'status'} aria-atomic="true">{message}</p>
-    <button type="button" aria-label="Dismiss notification" onClick={onDismiss}>×</button>
+    <button type="button" aria-label="Dismiss notification" onClick={onDismiss}><ControlIcon name="close" /></button>
   </div>
 }
 

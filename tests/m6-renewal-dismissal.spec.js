@@ -17,10 +17,10 @@ async function openRenewals(page, staffApi, role = 'owner') {
   await page.goto(`${staffApi.origin}/#/messages/renewals`)
   await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible()
 }
-const remove = page => page.getByRole('button', { name: 'Remove Renewal follow-up from renewals', exact: true })
+const remove = page => page.getByRole('button', { name: 'Delete Renewal follow-up from renewals', exact: true })
 async function confirmRemoval(page) {
   await remove(page).click()
-  await page.getByRole('dialog', { name: 'Remove renewal follow-up?', exact: true }).getByRole('button', { name: 'Remove', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Delete renewal follow-up?', exact: true }).getByRole('button', { name: 'Delete', exact: true }).click()
 }
 async function retainedNotice(page, origin) {
   await page.goto(`${origin}/#/messages`)
@@ -70,7 +70,7 @@ test('API Trainer renewal removal rechecks current assignment after confirmation
   await openRenewals(page, staffApi, 'trainer')
   await remove(page).click()
   staffApi.state.directory.clients[0].trainer_id = directoryId(888)
-  await page.getByRole('dialog', { name: 'Remove renewal follow-up?', exact: true }).getByRole('button', { name: 'Remove', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Delete renewal follow-up?', exact: true }).getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(page.getByRole('alert').first()).toBeVisible()
   expect(staffApi.state.renewalDismissalReceipts.size).toBe(0)
   staffApi.state.directory.clients[0].trainer_id = directoryId(1)

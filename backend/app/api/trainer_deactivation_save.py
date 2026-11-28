@@ -13,6 +13,7 @@ from app.api.session_mutation_journal import journal
 from app.api.trainer_deactivation import TrainerDeactivationSelection, inspect
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
+from app.email_delivery import enqueue
 from app.models.api import TrainerDeactivationReceipt
 from app.models.communications import Message, MessageReceipt, SessionEvent
 from app.models.people import LifecycleEvent, StaffUser
@@ -124,6 +125,13 @@ def save(session, principal, identity, key, body):
         )
     )
     session.flush()
+    enqueue(
+        session,
+        f"trainer.deactivated:{key}",
+        "trainer_termination",
+        trainer.email,
+        {"name": trainer.name},
+    )
     result = TrainerDeactivationState(id=trainer.id, version=trainer.version)
     session.add(
         TrainerDeactivationReceipt(

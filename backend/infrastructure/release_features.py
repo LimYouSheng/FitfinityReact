@@ -5,6 +5,7 @@ import re
 from copy import deepcopy
 from urllib.parse import unquote
 
+import email_runtime
 from deployment_profile import identities
 from hosting_design import sub
 from operator_checks import require
@@ -58,6 +59,8 @@ def prepare(template, values, *, profile, boundary_template=None, boundary_templ
         "FITFINITY_AWS_ACCOUNT_ID": target["account"],
     }.items():
         require(env.get(key) == value, "Existing runtime configuration differs")
+    previous_email = email_runtime.from_environment(target, env)
+    values = {**values, "email": values.get("email", previous_email)}
     previous_flags = {}
     for key, flag in FEATURE_FLAGS.items():
         value = env.get(flag, "false")
@@ -68,7 +71,9 @@ def prepare(template, values, *, profile, boundary_template=None, boundary_templ
             env.get("FITFINITY_MEDIA_BUCKET") == media_bucket(target),
             "Existing media storage must not be silently redirected",
         )
-    previous_access = runtime_access(target, {**values, "features": previous_flags})
+    previous_access = runtime_access(
+        target, {**values, "features": previous_flags, "email": previous_email}
+    )
     policies = role["Properties"].get("Policies", [])
     require(
         len(policies) == 1
@@ -132,6 +137,9 @@ def prepare(template, values, *, profile, boundary_template=None, boundary_templ
             "FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED": str(enabled["email_changes"]).lower(),
         }
     )
+    for name in email_runtime.KEYS:
+        desired.pop(name, None)
+    desired.update(email_runtime.environment(target, values.get("email")))
     if enabled["media"]:
         desired["FITFINITY_MEDIA_BUCKET"] = media_bucket(target)
     else:
@@ -167,11 +175,15 @@ FEATURE_FLAGS = {
     "invitations": "FITFINITY_STAFF_INVITATIONS_ENABLED",
     "email_changes": "FITFINITY_STAFF_EMAIL_CORRECTIONS_ENABLED",
 }
-FEATURE_KEYS = set(FEATURE_FLAGS.values()) | {
-    "FITFINITY_AWS_REGION",
-    "FITFINITY_MEDIA_BUCKET",
-    "FITFINITY_STAFF_PORTAL_URL",
-}
+FEATURE_KEYS = (
+    set(FEATURE_FLAGS.values())
+    | email_runtime.KEYS
+    | {
+        "FITFINITY_AWS_REGION",
+        "FITFINITY_MEDIA_BUCKET",
+        "FITFINITY_STAFF_PORTAL_URL",
+    }
+)
 
 
 def boundary_arn(profile):
@@ -326,8 +338,12 @@ def check_rollout_access(review, hosting, call, profile, external=None):
         if external is None:
             external = installed_owner(call, owner, profile)
         policy_resource = external["Resources"][owner["logical_id"]]
+        values = review["feature_values"]
+        target = bindings(profile, values)
+        env = hosting["Resources"]["ApiFunction"]["Properties"]["Environment"]["Variables"]
         expected = runtime_access(
-            bindings(profile, review["feature_values"]), review["feature_values"]
+            target,
+            {**values, "email": values.get("email", email_runtime.from_environment(target, env))},
         )
         require(
             role["PermissionsBoundary"] == boundary_arn(profile),
@@ -361,7 +377,10 @@ def checked_state(state, profile):
         isinstance(state, dict) and set(state) <= FEATURE_KEYS,
         "Exact public feature recovery settings required",
     )
+    email_runtime.from_environment(target, state)
     for key, value in state.items():
+        if key in email_runtime.KEYS:
+            continue
         if key in FEATURE_FLAGS.values():
             require(value in {"true", "false"}, "Boolean feature state required")
         elif key == "FITFINITY_AWS_REGION":
@@ -402,7 +421,10 @@ def restore_state(template, state, values, profile):
         env.pop(key, None)
     env.update(previous)
     flags = {name: previous.get(key, "false") == "true" for name, key in FEATURE_FLAGS.items()}
-    access = runtime_access(target, {**values, "features": flags})
+    access = runtime_access(
+        target,
+        {**values, "features": flags, "email": email_runtime.from_environment(target, previous)},
+    )
     role = resources["ApiRole"]["Properties"]
     role["Policies"][0]["PolicyDocument"] = access
     boundary = role["PermissionsBoundary"]

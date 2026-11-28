@@ -19,6 +19,7 @@ from app.api.schemas import Contract
 from app.assessment_persistence import create_assessment, save_assessment
 from app.auth.errors import AuthError
 from app.authorization import unavailable
+from app.email_events import client_welcome, package_notice
 from app.models.api import ClientCreateReceipt
 from app.models.communications import Message, MessageReceipt
 from app.models.people import Client, ClientPerson, StaffUser
@@ -175,6 +176,8 @@ def create(session, principal, key, body):
                 event="completed",
             )
             audit(session, principal, person.id, "create", revision.assessment_id)
+    client_welcome(session, client, trainer)
+    package_notice(session, purchase, f"package.added:{purchase.id}")
     notify_created(session, principal, client, trainer, purchase)
     result = CreatedClient(id=client.id, version=client.version, purchaseId=purchase.id)
     session.add(

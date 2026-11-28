@@ -73,8 +73,8 @@ Trainer A requires approval for schedule changes; Trainer B has the permitted ap
 | UAT-041 | Create a plan with several exercises. Reorder, edit and remove an item, then save. | Saved order/details are correct. Prior results and recording history are retained. Editing a plan does not complete the session. | | |
 | UAT-042 | Open Copy Previous Plan. Inspect preview; cancel, then repeat and confirm. Compare source and target recordings. | Cancel changes nothing. Confirm copies the latest eligible nonempty earlier-date plan. Open/same-day sessions are excluded; recordings are not copied to the new session. | | |
 | UAT-043 | Try Copy Previous Plan with no earlier eligible plan, then with only a same-day plan. | No unsuitable plan is offered and the current plan is not replaced. | | |
-| UAT-044 | Save actual exercise results and comments. Correct or remove a result and inspect history. | Results and prior versions remain traceable. Duration follows the booking. Signatures, used credits, completion and approved pay do not change. | | |
-| UAT-045 | Save an explicitly empty outcome. Refresh and inspect progress. Compare a signed attended session with a no-show. | Empty results stay empty. Progress uses signed attended results from the selected purchase; no-shows and plan targets are not shown as actual results. | | |
+| UAT-044 | Edit Session Outcome and save trainer comments. Confirm only read-only duration and comments are shown; reload a session with existing measurements. | Existing measurements stay unchanged and prior versions remain traceable. Duration follows the booking. Signatures, used credits, completion and approved pay do not change. | | |
+| UAT-045 | Save comments on a session without recorded results but with exercise-plan targets. Refresh and inspect progress. Compare a signed attended session with a no-show. | Empty results stay empty. Progress uses signed attended results from the selected purchase; no-shows and plan targets are not shown as actual results. | | |
 | UAT-046 | Save a client summary. Try blank/overlong text, then replace with valid text. | Valid summary saves separately and previous text remains in history. Results, credits and delivery status do not change. | | |
 | UAT-047 | Complete an eligible session with signer name and real signature strokes. Try missing name/ink and future/Open/cancelled sessions. | Only valid completion succeeds. Saved signature is read-only and one credit is used. Invalid attempts use no credit. | | |
 | UAT-048 | Mark a session no-show, then correct it to a signature. Try changing the signature back to no-show. | One credit is used overall. Both records remain in history. The reverse correction is not allowed. | | |
@@ -170,3 +170,13 @@ These cases require the UI refinement release; results remain blank until tested
 | --- | --- | --- | --- | --- |
 | UI-AUTH-01 | Open login, then the authenticator step. Submit an invalid code and retry with the designated test account. | Logo has no background; headings/labels are centered with muted hints and consistent spacing. Pending verification replaces the card with a full-screen centered ripple. Rejection restores the code field and useful error. | | |
 | UI-BODY-01 | Open a remotely loaded page and prepare a report; repeat in an export dialog and with reduced motion. | One small “Lifting the weights...” loader occupies the main body below the unchanged header, or the dialog body. Drafts survive; retries remain available after errors. Reduced motion uses a static mark. Preparation alone never claims the email was sent. | | |
+
+### Transactional email — pending deployed setup
+
+| Check | Expected result | Result | Remarks |
+| --- | --- | --- | --- |
+| Review and cancel a progress email | Current recipients are shown; cancel sends nothing. | | |
+| Confirm and reload the same progress email | Queued banner, durable original receipt, no duplicate message for unchanged content. | | |
+| Receive a session/package update in a designated test inbox | Correct credits and validity; no private notes, videos or other client's email address. | | |
+
+Live SES and physical-device acceptance remain unexecuted. Admin policy must require Owner approval where configured; approval alone sends nothing.

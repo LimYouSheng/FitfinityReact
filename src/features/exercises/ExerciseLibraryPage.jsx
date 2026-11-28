@@ -78,8 +78,8 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
   if (approvalSubmitted) return <Panel><h2>Exercise submitted for approval</h2><p role="status">The Owner will review the entry and attachment. The published library has not changed.</p><button type="button" onClick={onBack}>Back to Library</button></Panel>
   if (creating && created) return <Panel><LoadingIndicator label="Opening exercise…" /></Panel>
   if (!editing) return <Panel>
-    <div className="section-head"><div><h2>{exercise?.name ?? created?.name}</h2><StatusBadge tone={exercise?.status === 'inactive' ? 'neutral' : 'green'}>{exercise?.status === 'inactive' ? 'Inactive' : 'Active'}</StatusBadge></div>
-      <button type="button" className="text-action" disabled={busy || uncertain} onClick={() => { setEditing(true); setDraft(draftFor(exercise, categories)) }}>Edit Exercise</button>
+    <div className="section-head exercise-summary-head"><div className="heading-with-status"><h2>{exercise?.name ?? created?.name}</h2><StatusBadge tone={exercise?.status === 'inactive' ? 'neutral' : 'green'}>{exercise?.status === 'inactive' ? 'Inactive' : 'Active'}</StatusBadge></div>
+      <button type="button" className="text-action" aria-label="Edit Exercise" disabled={busy || uncertain} onClick={() => { setEditing(true); setDraft(draftFor(exercise, categories)) }}>Edit</button>
     </div>
     <dl className="library-summary"><div><dt>Category</dt><dd>{exercise?.category}</dd></div><div><dt>Description</dt><dd>{exercise?.description || '—'}</dd></div><div><dt>Photo / video</dt><dd>{exercise?.media?.name || 'No attachment'}</dd></div></dl>
     <ExerciseLibraryMedia onLoad={onLoadMedia} media={exercise?.media} />

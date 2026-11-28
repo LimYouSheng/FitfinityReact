@@ -36,6 +36,6 @@ export default function StaffAccountPage({ user, profile = false, emailVerificat
     {emailVerification && <StaffEmailVerification {...emailVerification} />}
     <div className="inline-actions"><button className="secondary-button" onClick={() => onNavigate('clients')}>View Clients</button>
       {managesOperations(user) && <><button className="secondary-button" onClick={() => onNavigate('trainers')}>View Trainers</button><button className="secondary-button" onClick={() => onNavigate('packages')}>View Packages</button></>}
-      <button className="secondary-button" onClick={() => onNavigate('change-password')}>Change Password</button><button className="primary-button" disabled={busy} onClick={onSignOut}>Sign Out</button></div>
+      <button className="secondary-button" onClick={() => onNavigate('change-password')}>Change Password</button><button className="danger-button" disabled={busy} onClick={onSignOut}>Sign Out</button></div>
   </Panel>
 }

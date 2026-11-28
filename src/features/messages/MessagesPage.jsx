@@ -1,3 +1,4 @@
+import ControlIcon from '../../components/ControlIcon.jsx'
 import { messageVisibleTo } from '../../app/messageInbox.js'
 import AdminApprovalInbox from './AdminApprovalInbox.jsx'
 import { canViewRemuneration } from '../../app/permissions.js'
@@ -362,7 +363,7 @@ export function MessageInbox({
                   aria-label="Close message"
                   onClick={closeMessage}
                 >
-                  ×
+                  <ControlIcon name="close" />
                 </button>
               </div>
 

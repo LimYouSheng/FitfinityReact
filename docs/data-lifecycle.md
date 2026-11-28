@@ -164,3 +164,7 @@ Owner contact fields live in `owner_profiles`; the stable account/name/email rem
 ### Browser appearance preference
 
 `fitfinity-theme` stores only `light` or `dark` in localStorage, owned by `src/app/theme.js`. It is device/browser-local, shared across accounts on that browser, and contains no identity, record or credential data. It remains until changed or site storage is cleared; sign-out does not erase appearance. No server synchronization or database migration is involved.
+
+### Transactional email candidate
+
+`email_deliveries` freezes recipient addresses, plain message content and immutable event identity; attempt/lease/provider acceptance state is mutable. `email_report_receipts` retains actor-scoped request/content-digest/result evidence. Neither table has automatic deletion; runtime grants exclude DELETE and populated downgrade is refused. Unknown attempts remain held for operator investigation. SES suppression/provider feedback and eventual retention require separate configured acceptance. See [email setup](deployment/email.md).

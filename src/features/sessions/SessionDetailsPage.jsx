@@ -15,7 +15,6 @@ import { useActionConfirmation } from '../../components/ActionConfirmationProvid
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { isOpenSession, sessionStatus, pendingSessionChanges, sessionActionError, sessionDurationMinutes } from '../../app/sessionRules.js'
 import { businessClock } from '../../app/clock.js'
-import { exerciseResultsFor } from '../../app/progress.js'
 import { formatDate, formatTimestamp } from '../../utils/date.js'
 import PreviousPlanDialog from './PreviousPlanDialog.jsx'
 import ExercisePlanEditor from './ExercisePlanEditor.jsx'
@@ -80,8 +79,8 @@ export default function SessionDetailsPage({
   const { setActiveEdit } = useEditGuard()
   const outcome = useMemo(() => ({
     trainerComments: '', ...session.outcome,
-    durationMinutes: sessionDurationMinutes(session), exerciseResults: readOnly ? session.exerciseResults ?? [] : exerciseResultsFor(session),
-  }), [session, readOnly])
+    durationMinutes: sessionDurationMinutes(session), exerciseResults: session.exerciseResults ?? [],
+  }), [session])
   const displayedSummary = session.clientSummary || automaticClientSummary(session, outcome)
 
   const [activeEditor, setActiveEditor] = useState(null)

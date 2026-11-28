@@ -1,3 +1,4 @@
+import ControlIcon from '../../components/ControlIcon.jsx'
 import { managesOperations } from '../../app/permissions.js'
 import SelectField from '../../components/SelectField.jsx'
 import Panel from '../../components/Panel.jsx'
@@ -68,12 +69,12 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
           </div>
 
           <div className="calendar-toolbar">
-            <button type="button" className="secondary-button" aria-label="Previous calendar period" disabled={!allowed(shifted(-1))} onClick={() => move(-1)}>‹</button>
+            <button type="button" className="secondary-button" aria-label="Previous calendar period" disabled={!allowed(shifted(-1))} onClick={() => move(-1)}><ControlIcon name="back" /></button>
             <SelectField className="calendar-range" aria-label={mode === 'month' ? 'Calendar month' : 'Calendar week'} value={periodValue} onChange={event => change({ date: event.target.value })}>
               {!periods.some(period => period.value === periodValue) && <option hidden value={periodValue}>{rangeLabel}</option>}
               {periods.map(period => <option key={period.value} value={period.value}>{period.label}</option>)}
             </SelectField>
-            <button type="button" className="secondary-button" aria-label="Next calendar period" disabled={!allowed(shifted(1))} onClick={() => move(1)}>›</button>
+            <button type="button" className="secondary-button" aria-label="Next calendar period" disabled={!allowed(shifted(1))} onClick={() => move(1)}><ControlIcon name="next" /></button>
           </div>
           <div className={`calendar-grid calendar-${mode}${trainerWeek ? ' calendar-agenda' : ''}`} aria-label={`${mode === 'week' ? 'Weekly' : 'Monthly'} calendar`}>
             {dates.map((day, index) => {
@@ -104,7 +105,7 @@ export default function DashboardPage({ user, sessions, clients, trainers, today
             onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onCloseDay() } }}>
             <div className="modal-head">
               <h2>{weekday(selectedDay)}, {formatDate(selectedDay)}</h2>
-              <button type="button" className="icon-button" aria-label="Close calendar sessions" onClick={onCloseDay}>×</button>
+              <button type="button" className="icon-button" aria-label="Close calendar sessions" onClick={onCloseDay}><ControlIcon name="close" /></button>
             </div>
             <div className="modal-body calendar-day-list">
               {managesOperations(user) ? dayGroups.map(group => <section className="calendar-trainer-group" key={group.id} aria-label={`${group.name} sessions`}>

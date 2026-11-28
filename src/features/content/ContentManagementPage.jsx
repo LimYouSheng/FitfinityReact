@@ -53,7 +53,7 @@ function ContentEditor({ entry: loadedEntry, onSave, onNavigate, onBack, guardUn
     finally { pending.current = false; setBusy(false) }
   }
   if (approvalSubmitted) return <Panel><p role="status">Submitted for Owner approval. No changes have been applied.</p><button type="button" className="secondary-button" onClick={() => onNavigate('messages')}>View Requests</button><button type="button" className="secondary-button" onClick={onBack}>Back to Content</button></Panel>
-  if (saved) return <Panel><h2>{saved.title}</h2><p>{saved.key} · {statuses[saved.status]}</p><article className="content-preview"><p>{saved.body}</p></article><button type="button" className="secondary-button" onClick={() => { setEntry(saved); setSaved(null); setDraft(draftFor(saved)) }}>Edit Content</button><button type="button" className="secondary-button" onClick={onBack}>Back to Content</button></Panel>
+  if (saved) return <Panel><h2>{saved.title}</h2><p>{saved.key} · {statuses[saved.status]}</p><article className="content-preview"><p>{saved.body}</p></article><button type="button" className="text-action" aria-label="Edit Content" onClick={() => { setEntry(saved); setSaved(null); setDraft(draftFor(saved)) }}>Edit</button><button type="button" className="secondary-button" onClick={onBack}>Back to Content</button></Panel>
   return <Panel className={dirty ? 'editing-section' : ''}>
     <form className="content-form" onSubmit={submit} noValidate>
       <fieldset disabled={busy || Boolean(uncertain)}>

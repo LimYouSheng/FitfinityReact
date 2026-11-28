@@ -235,6 +235,8 @@ Completion["Session completion responsibilities"]
   Completion --> Export["SessionSummaryExport.jsx + sessionExport.jsx<br/>Browser presentation and export"]
 ```
 
+The comment-only editor lives in `SessionNotes.jsx`; `ApiSessionDetailsRoute.jsx` projects actual reviewed rows while preserving uncertain original commands, and `SessionDetailsPage.jsx` preserves demo recorded rows. Shared square-control glyphs are owned by `src/components/ControlIcon.jsx`.
+
 Source owners: [outcomes](../../backend/app/api/session_outcomes.py), [progress](../../backend/app/api/session_progress.py), [summaries](../../backend/app/api/session_summaries.py), [handoff](../../backend/app/api/session_handoffs.py), [acknowledgement](../../backend/app/api/session_acknowledgements.py).
 
 Source owners: [summary export](../../src/features/sessions/SessionSummaryExport.jsx), [export formatting](../../src/features/sessions/sessionExport.jsx).
@@ -483,3 +485,7 @@ One-click release draft: [orchestration_gate.py](../../backend/infrastructure/or
 ### Owner profile refinement ownership
 
 `src/features/owner/OwnerProfilePage.jsx` uses shared staff fields and retains the reviewed version/original uncertain save. `OwnerEmailEditor.jsx` uses the shared `StaffEmailVerification` flow. `src/services/apiOwnerProfile.js` binds responses and save receipts to the current Owner. `backend/app/api/owner_profile.py` owns current-Owner authorization, transaction/version checks and durable receipts; `backend/app/api/email_changes.py` owns same-identity provider verification. `backend/app/models/owner_profile.py` and migration0053 own role-constrained contact storage and immutable receipts. `src/components/LoadingIndicator.jsx` owns the transparent animated status mark, accessible label and PageLoadingBoundary that coalesces pending readers without unmounting drafts. AppShell owns the page boundary below the retained header; ConfirmDialog owns a separate dialog-body boundary. BrandLogo renders the original artwork with transparent background and theme-readable lettering. SignInPage owns centered authentication and the full-screen MFA-pending state. Shared CSS owns geometry, motion and reduced-motion behavior.
+
+### Transactional email (BR-065; local candidate)
+
+`backend/app/email_events.py` projects business events; `email_templates.py` renders bare client-facing copy; `email_delivery.py` owns durable queue/leases and `email_provider.py` owns SES outcome classification. `api/report_email.py` owns current authority, recipients and immutable intent receipts. `email_dispatch.py` accepts only signed scheduler requests. `ReportEmailButton.jsx` and `apiReportEmail.js` own explicit confirmation and original-request recovery, exposed through both portal service registries. `email_runtime.py` owns portable IAM/configuration/recovery and Cognito sender-only preparation; `email_scheduler.py` renders the disabled worker stack. See [setup](../deployment/email.md) for activation boundaries.

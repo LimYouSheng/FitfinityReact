@@ -54,7 +54,7 @@ def test_migration_matches_canonical_models(domain_db):
         )
         assert (
             connection.scalar(text("SELECT count(*) FROM pg_trigger WHERE tgname LIKE 'ff_%'"))
-            == 249
+            == 251
         )
 
 
@@ -64,7 +64,7 @@ def test_populated_downgrade_refuses_before_losing_any_data(domain_db, graph, mi
     with domain_db.transaction() as session:
         assert count(session, Client) == 1
         assert count(session, TrainingSession) == 2
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261127_0053"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261128_0054"
 
 
 def test_couple_has_two_people_in_one_atomic_transaction(domain_db, graph):
@@ -159,7 +159,7 @@ def test_overlapping_validity_retains_independent_purchases_and_blocks_lossy_dow
         migrate("downgrade", "20261031_0049")
     with domain_db.transaction() as session:
         assert count(session, PackagePurchase) == 2
-        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261127_0053"
+        assert session.scalar(text("SELECT version_num FROM alembic_version")) == "20261128_0054"
 
 
 def test_new_template_revision_cannot_rewrite_purchase_snapshot(domain_db, graph):

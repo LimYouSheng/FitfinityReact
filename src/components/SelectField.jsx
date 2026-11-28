@@ -1,3 +1,4 @@
+import ControlIcon from './ControlIcon.jsx'
 import { useEffect, useId, useRef, useState } from 'react'
 import FieldPopover from './FieldPopover.jsx'
 import useFieldActivation from '../hooks/useFieldActivation.js'
@@ -56,7 +57,7 @@ export default function SelectField({ children, onChange, ...props }) {
       {...activation} onKeyDown={keyboard}>
       {children}
     </select>
-    <span className="select-field-chevron" aria-hidden="true">⌄</span>
+    <span className="select-field-chevron" aria-hidden="true"><ControlIcon name="chevron" /></span>
     {open && <FieldPopover anchorRef={ref} onClose={() => setOpen(false)} role="listbox" id={id} aria-label={props['aria-label'] ?? 'Choose an option'}>
       {options.map((option, index) => !option.hidden && <button key={`${index}-${option.value}`} id={`${id}-${index}`} type="button" role="option"
         aria-selected={String(props.value ?? '') === option.value} disabled={option.disabled} tabIndex={-1}

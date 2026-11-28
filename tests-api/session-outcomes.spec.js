@@ -14,21 +14,19 @@ async function open(page, info, purpose, role = 'trainer') {
   await page.goto(`/#/sessions/${session.id}`)
   const panel = page.locator('.session-outcome-panel')
   await panel.getByRole('button', { name: 'Edit', exact: true }).click()
-  await expect(panel.getByLabel('Load (kg) for Measured squat', { exact: true })).toHaveValue('12')
+  await expect(panel.getByRole('textbox', { name: 'Trainer comments', exact: true })).toBeVisible()
+  await expect(panel.getByLabel('Load (kg) for Measured squat', { exact: true })).toHaveCount(0)
   return { client, session, before, panel }
 }
-async function draft(panel, weight = '25') {
-  await panel.getByLabel('Trainer comments', { exact: true }).fill('Measured safely and reviewed')
-  await panel.getByLabel('Load (kg) for Measured squat', { exact: true }).fill(weight)
-  await panel.getByLabel('Reps for Measured squat', { exact: true }).fill('10')
-  await panel.getByLabel('Sets for Measured squat', { exact: true }).fill('4')
+async function draft(panel) {
+  await panel.getByRole('textbox', { name: 'Trainer comments', exact: true }).fill('Measured safely and reviewed')
 }
 async function submit(page, panel) {
   await panel.getByRole('button', { name: 'Save', exact: true }).click()
   await page.getByRole('dialog', { name: 'Save session outcome?', exact: true }).getByRole('button', { name: 'Save Outcome', exact: true }).click()
 }
 for (const [purpose, role] of [['outcome', 'trainer'], ['outcomeadmin', 'admin']]) {
-  test(`${role} outcome UI saves real measurements and fresh-login client progress without changing signed credit evidence`, async ({ page, browser }, info) => {
+  test(`${role} outcome UI saves comments and preserves real measurements and fresh-login client progress without changing signed credit evidence`, async ({ page, browser }, info) => {
     const { client, session, before, panel } = await open(page, info, purpose, role)
     await draft(panel)
     await submit(page, panel)
@@ -38,15 +36,21 @@ for (const [purpose, role] of [['outcome', 'trainer'], ['outcomeadmin', 'admin']
     const context = await freshContext(browser, page), next = await context.newPage()
     await signIn(next, role, role === 'trainer' ? `${info.project.name}-${purpose}@example.test` : account(purpose, role))
     const after = await read(next, `/api/sessions/${session.id}/details`)
-    expect(after.exerciseResults).toHaveLength(1)
-    expect(after.exerciseResults[0]).toMatchObject({ loadKg: 25, reps: 10, sets: 4 })
+    expect(before.exerciseResults).toHaveLength(role === 'admin' ? 1 : 0)
+    expect(after.exerciseResults).toHaveLength(role === 'admin' ? 1 : 0)
+    expect(after.exerciseResults).toEqual(before.exerciseResults)
     expect(after.acknowledgementHistory).toEqual(before.acknowledgementHistory)
     expect(after.purchase.used).toBe(before.purchase.used)
     await next.goto(`/#/clients/${client.id}/progress/${session.purchaseId}`)
     const chart = next.getByRole('button', { name: 'Show Measured squat progress chart', exact: true })
-    await expect(chart).toBeVisible()
-    await expect(chart).toHaveText(/25 kg/)
-    await expect(next.getByRole('button', { name: 'Download Progress Report PDF', exact: true })).toBeVisible()
+    if (role === 'admin') {
+      await expect(chart).toBeVisible()
+      await expect(chart).toHaveText(/12 kg/)
+      await expect(next.getByRole('button', { name: 'Download Progress Report PDF', exact: true })).toBeVisible()
+    } else {
+      await expect(chart).toHaveCount(0)
+      await expect(next.getByText('No completed exercise loads yet.', { exact: true })).toBeVisible()
+    }
     await expect(next.getByRole('button', { name: 'View Export/WhatsApp History', exact: true })).toHaveCount(role === 'admin' ? 1 : 0)
     await context.close()
   })
@@ -88,7 +92,7 @@ test('lost committed outcome freezes measured fields and focus refresh recovers 
   const { session, before, panel } = await open(page, info, 'outcomeloss')
   await draft(panel)
   await submit(page, panel)
-  await expect(panel.getByLabel('Load (kg) for Measured squat', { exact: true })).toBeDisabled()
+  await expect(panel.getByRole('textbox', { name: 'Trainer comments', exact: true })).toBeDisabled()
   await expect(panel.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled()
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await expect(page.getByRole('heading', { name: 'Session outcome', exact: true, level: 1 })).toBeVisible()
@@ -101,7 +105,7 @@ test('lost committed outcome freezes measured fields and focus refresh recovers 
   await signIn(staff, 'owner', account('outcomeloss'))
   expect((await staff.request.get(`/api/session-outcomes/${key}`)).status()).toBe(404)
   const after = await read(staff, `/api/sessions/${session.id}/details`)
-  expect(after.exerciseResults[0].loadKg).toBe(25)
+  expect(after.exerciseResults).toEqual(before.exerciseResults)
   expect(after.purchase.used).toBe(before.purchase.used)
   expect(after.acknowledgementHistory).toEqual(before.acknowledgementHistory)
   await context.close()

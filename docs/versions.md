@@ -453,7 +453,7 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [package-lock.json](../package-lock.json) | `78417ea14d7c88dd02ea725cc77d884fbe38dace357c96390b97c393650421ca` |
 | [.nvmrc](../.nvmrc) | `68ca3fba3b7e864770cb61aeb306d4bd4354b68ab4dd38450860c5d823e42a53` |
 | [.github/dependabot.yml](../.github/dependabot.yml) | `9d19275b4b5adc5b7c27af967b5c90299d983cd82799a04a638f1bf0e4024377` |
-| [backend/app/main.py](../backend/app/main.py) | `60fcc97006f26a4b32e35586123b43d8f833847a9940140a5a3569f23fa23bd5` |
+| [backend/app/main.py](../backend/app/main.py) | `4232bbf0c223b2b042b24bd33d084d31430d22509e873b89c2abe35db001034c` |
 | [backend/pyproject.toml](../backend/pyproject.toml) | `85aaa5e760bb7acf12fbd2a18e46bdb927d6d77368ef66780cf6b69cbdefaee9` |
 | [backend/requirements.lock](../backend/requirements.lock) | `98d634b5342229a80ae1d17b330f95969076c5bd7eac0780eb59d5ce50d7e1a3` |
 | [backend/requirements-test.lock](../backend/requirements-test.lock) | `3f233cce42b451c422ecc94b58546da782c6f92f2cb04ba1e335b3fc322e0e4a` |

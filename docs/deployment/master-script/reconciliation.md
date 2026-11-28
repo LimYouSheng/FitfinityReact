@@ -16,3 +16,7 @@ The reviewed [prepare-review.sh](prepare-review.sh) is now retained beside the [
 Next: extend the entry point with the missing current generators and recovery-aware readback, then rehearse a synthetic client profile offline and a separately authorized fresh account. Preserve success/failure/uncertain state at every stage. No AWS operation was executed by this documentation consolidation.
 
 The [source comparison](source-reconciliation.json) compares20 repository files with the inspected PR163 checkout and49 preserved workspace-local scripts/receipts with the archive. Changed owners need semantic reconciliation; an identical hash is not proof of current AWS state.
+
+## Transactional email follow-up — 28 November 2026
+
+The local SES candidate adds validated optional hosting bindings and sender-only Cognito preparation (`email_runtime.py`), plus a disabled worker template (`email_scheduler.py`). The setup sequence is owned by [email configuration](../email.md). These helpers are not yet a fully integrated CloudShell installer and have not run against AWS. Preserve the existing stashed catalog and successful account-specific receipts; do not replay historical setup. Remaining master integration: inspect existing sender/secret/pool/role owners, prepare only exact changed templates, preserve original bindings, then record authorized install/canary results.

@@ -115,7 +115,10 @@ export default function ApiSessionDetailsRoute({ selectedSession, navigate, open
   const beginOutcome = async () => {
     const viewed = await services.reviewSessionOutcome({ id, expectedVersion: session.version })
     setOutcome(viewed)
-    return viewed.draft
+    // Preserve original uncertain commands; fresh comment edits retain only actual measurements.
+    return viewed.uncertain ? viewed.draft : { ...viewed.draft, exerciseResults: viewed.reviewed.rows
+      .filter(row => row.loadKg !== null)
+      .map(({ id, name, loadKg, reps, sets }) => ({ id, name, loadKg, reps, sets })) }
   }
   const saveOutcome = async draft => {
     try {
