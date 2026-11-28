@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import ExerciseLibraryMedia from '../exercises/ExerciseLibraryMedia.jsx'
 import useReportService from '../../hooks/useReportService.js'
 import usePreparedReport from '../../hooks/usePreparedReport.js'
@@ -39,7 +40,7 @@ function ReportPreview({ report }) {
   const service = useReportService()
   const prepared = usePreparedReport(report.kind === 'progress' ? service.progressFile : service.sessionFile, report.inputs)
   return <div>
-    {prepared.preparing && <p role="status">Preparing reviewed PDF…</p>}
+    {prepared.preparing && <LoadingIndicator label="Preparing reviewed PDF…" />}
     {prepared.error && <p role="alert">{prepared.error}</p>}
     <button type="button" className="secondary-button" disabled={!prepared.file} onClick={() => service.download(prepared.file)}>Download Reviewed PDF</button>
     <p>Approval permits the requesting Admin to share this report. It does not send the report.</p>

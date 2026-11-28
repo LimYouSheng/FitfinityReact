@@ -1,3 +1,4 @@
+import BrandLogo from '../../components/BrandLogo.jsx'
 import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import SelectField from '../../components/SelectField.jsx'
 import { useEffect, useRef, useState } from 'react'
@@ -19,7 +20,7 @@ export default function SignInPage({ accounts = [], demoPassword, policy, authNo
   const heading = useRef(null)
   const real = Boolean(onChallenge)
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
-  useEffect(() => { if (stage !== 'password') heading.current?.focus() }, [stage, challenge?.challenge])
+  useEffect(() => { if (!busy && stage !== 'password') heading.current?.focus() }, [stage, challenge?.challenge, busy])
   const reset = () => { setStage('password'); setChallenge(null); setPassword(''); setNewPassword(''); setConfirmation(''); setCode(''); setError(''); setNotice('') }
   useEffect(() => {
     if (!challenge?.expiresAt) return
@@ -66,23 +67,24 @@ export default function SignInPage({ accounts = [], demoPassword, policy, authNo
       }
     } finally { pending.current = false; if (active.current) setBusy(false) }
   }
-  const title = stage === 'authenticated' ? 'Loading your account' : stage === 'forgot' ? 'Reset password' : stage === 'reset' ? 'Enter recovery code' : needsNewPassword ? 'Choose a new password' : challenge?.challenge === 'MFA_SETUP' ? 'Set up your authenticator' : stage === 'challenge' ? 'Authenticator verification' : 'Sign in'
-  const button = stage === 'authenticated' ? 'Retry loading account' : stage === 'forgot' ? 'Send recovery code' : stage === 'reset' ? 'Reset Password' : stage === 'challenge' ? 'Continue' : 'Sign In'
-  return <main className="account-entry"><Panel>
-    <span className="eyebrow">Staff portal</span><h1 ref={heading} tabIndex={-1}>{stage === 'authenticated' ? <LoadingIndicator label={title} /> : title}</h1>
+  const title = stage === 'authenticated' ? 'Loading your account' : stage === 'forgot' ? 'Reset password' : stage === 'reset' ? 'Enter recovery code' : needsNewPassword ? 'Choose a new password' : challenge?.challenge === 'MFA_SETUP' ? 'Set up your authenticator' : stage === 'challenge' ? 'Verify your identity' : 'Sign in'
+  const button = stage === 'authenticated' ? 'Retry loading account' : stage === 'forgot' ? 'Send recovery code' : stage === 'reset' ? 'Reset Password' : stage === 'challenge' ? needsNewPassword ? 'Continue' : 'Verify' : 'Sign In'
+  if (busy && (stage === 'authenticated' || stage === 'challenge' && !needsNewPassword)) return <main className="account-loading"><LoadingIndicator label="Verifying your account…" /></main>
+  return <main className="account-entry"><Panel className="auth-card">
+    <BrandLogo className="auth-logo" /><h1 ref={heading} tabIndex={-1}>{title}</h1>
     {demoPassword && <p className="helper">Demo password: <strong>{demoPassword}</strong></p>}
     {notice && <p role="status" className="helper">{notice}</p>}
     {challenge?.challenge === 'MFA_SETUP' && <div className="auth-setup"><p>Add an account in your authenticator app. Choose a time-based code and enter this setup key:</p><code aria-label="Authenticator setup key">{challenge.secretCode}</code><p className="helper">Keep this key private. Enter the six-digit code from your authenticator below.</p></div>}
     <form onSubmit={submit} className="account-form">
       <fieldset disabled={busy}>
-        {['password', 'forgot'].includes(stage) && <label>{real ? 'Email' : 'Account'}{accounts.length ? <SelectField aria-label="Account" required value={identifier} onChange={event => setIdentifier(event.target.value)}><option value="">Choose account</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</SelectField> : <input aria-label={real ? 'Email' : 'Account'} type={real ? 'email' : 'text'} autoComplete="username" autoCapitalize="none" spellCheck={false} required value={identifier} onChange={event => setIdentifier(event.target.value)} />}</label>}
-        {stage === 'password' && <label>Password<input aria-label="Password" type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} /></label>}
+        {['password', 'forgot'].includes(stage) && <label>{real ? 'Email' : 'Account'}{accounts.length ? <SelectField aria-label="Account" required value={identifier} onChange={event => setIdentifier(event.target.value)}><option value="">Choose account</option>{accounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</SelectField> : <input aria-label={real ? 'Email' : 'Account'} type={real ? 'email' : 'text'} placeholder={real ? 'Enter your email' : 'Enter your account'} autoComplete="username" autoCapitalize="none" spellCheck={false} required value={identifier} onChange={event => setIdentifier(event.target.value)} />}</label>}
+        {stage === 'password' && <label>Password<input aria-label="Password" placeholder="Enter your password" type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} /></label>}
         {needsNewPassword && <><p className="helper">{passwordHelp}</p><label>New password<input type="password" autoComplete="new-password" required value={newPassword} onChange={event => setNewPassword(event.target.value)} /></label><label>Confirm new password<input type="password" autoComplete="new-password" required value={confirmation} onChange={event => setConfirmation(event.target.value)} /></label></>}
-        {(stage === 'reset' || (stage === 'challenge' && !needsNewPassword)) && <label>{stage === 'reset' ? 'Recovery code' : 'Authenticator code'}<input inputMode="numeric" autoComplete="one-time-code" required pattern={stage === 'reset' ? undefined : '[0-9]{6}'} maxLength={stage === 'reset' ? 64 : 6} value={code} onChange={event => setCode(event.target.value)} /></label>}
+        {(stage === 'reset' || (stage === 'challenge' && !needsNewPassword)) && <label>{stage === 'reset' ? 'Recovery code' : 'Authentication code'}<input aria-label={stage === 'reset' ? 'Recovery code' : 'Authenticator code'} placeholder={stage === 'reset' ? 'Recovery code from email' : '6-digit code from authenticator app'} inputMode="numeric" autoComplete="one-time-code" required pattern={stage === 'reset' ? undefined : '[0-9]{6}'} maxLength={stage === 'reset' ? 64 : 6} value={code} onChange={event => setCode(event.target.value)} /></label>}
       </fieldset>
       {error && <p className="validation-copy" role="alert">{error}</p>}
-      <button type="submit" className="primary-button" disabled={busy}>{busy ? 'Please wait…' : button}</button>
-      {real && (stage === 'password' ? <button type="button" className="text-action" disabled={busy} onClick={() => { reset(); setStage('forgot') }}>Forgot password?</button> : <button type="button" className="text-action" disabled={busy} onClick={reset}>Back to sign in</button>)}
+      <button type="submit" className="primary-button auth-submit" disabled={busy}>{busy ? 'Please wait…' : button}</button>
+      {real && (stage === 'password' ? <button type="button" className="text-action auth-forgot" disabled={busy} onClick={() => { reset(); setStage('forgot') }}>Forgot password?</button> : <button type="button" className="text-action auth-back" disabled={busy} onClick={reset}>Back to sign in</button>)}
     </form>
   </Panel></main>
 }

@@ -155,3 +155,18 @@ These cases require the UI refinement release; results remain blank until tested
 | --- | --- | --- | --- | --- |
 | UI-MSG-01 | Choose a message category with the dropdown. Select two rows, mark them read, then mark a selected read row unread. Change page and category. | Only selected messages change. Successful selections clear; newly displayed unread messages are unchecked. Related records appear in the detail footer, leaving the message body clear. | | |
 | UI-LOAD-01 | Open a page that loads remotely, then enable the device’s reduced-motion setting and repeat. | A transparent brand ripple indicates loading. Reduced motion uses a static mark; assistive technology still announces the loading status. | | |
+
+
+### Appearance and message controls — new checks, not yet accepted
+
+- [ ] Dashboard is directly available above collapsed navigation groups.
+- [ ] In the profile-initial popup, switch Light/Dark Mode; refresh and confirm the choice remains. Check forms, menus, tables and dialogs for readable text and focus.
+- [ ] Message selection appears below filters: checkbox and selected count left, read/unread actions right; completed actions clear selection.
+- [ ] Message footer buttons have matching heights and equal widths within each group; Client/Trainer labels omit View, and related links still open the correct record.
+
+## Authentication and loading presentation
+
+| Case | What to do | What should happen | Result | Remarks |
+| --- | --- | --- | --- | --- |
+| UI-AUTH-01 | Open login, then the authenticator step. Submit an invalid code and retry with the designated test account. | Logo has no background; headings/labels are centered with muted hints and consistent spacing. Pending verification replaces the card with a full-screen centered ripple. Rejection restores the code field and useful error. | | |
+| UI-BODY-01 | Open a remotely loaded page and prepare a report; repeat in an export dialog and with reduced motion. | One small “Lifting the weights...” loader occupies the main body below the unchanged header, or the dialog body. Drafts survive; retries remain available after errors. Reduced motion uses a static mark. Preparation alone never claims the email was sent. | | |

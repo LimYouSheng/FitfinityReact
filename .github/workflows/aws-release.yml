@@ -59,7 +59,7 @@ jobs:
 
           **What To Expect:** Verified main CI is reused. The coordinator journals and dispatches existing stages, waits for their outcomes, and stops on failure or uncertain dispatch. The protected child approvals remain required. Journal installation and release configuration are prerequisites.
 
-          Existing AWS workflows and approvals remain available. See `docs/runbook.md` for the implementation boundary.
+          Existing AWS workflows and approvals remain available. See `docs/deployment/workflows/index.md` for the implementation boundary.
           GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

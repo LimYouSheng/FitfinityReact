@@ -161,7 +161,7 @@ test('M3 library message opens the correct exercise summary and Back returns to 
   await button(page, 'Open Exercise created: M3 Band Row').click()
   const dialog = page.getByRole('dialog', { name: 'Exercise created: M3 Band Row', exact: true })
   await expect(dialog.getByRole('button', { name: /^View Client/ })).toHaveCount(0)
-  await dialog.getByRole('button', { name: 'View Exercise · M3 Band Row', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Exercise · M3 Band Row', exact: true }).click()
   await expect(page).toHaveURL(new RegExp(`#/exercises/${saved.id}$`))
   await expect(page.getByRole('heading', { name: 'M3 Band Row', exact: true })).toBeVisible()
   await page.goBack(); await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible()

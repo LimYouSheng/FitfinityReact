@@ -1,5 +1,5 @@
 export const OWNER_NAV = [
-  { key: 'dashboard', label: 'Dashboard', group: 'Operations' },
+  { key: 'dashboard', label: 'Dashboard' },
   { key: 'clients', label: 'Clients', group: 'Operations' },
   { key: 'trainers', label: 'Trainers', group: 'Operations' },
   { key: 'sessions', label: 'Sessions', group: 'Operations' },
@@ -19,7 +19,7 @@ export const OWNER_NAV = [
 export const ADMIN_NAV = OWNER_NAV.filter(item => !['remuneration', 'admins'].includes(item.key)).map(item => item.key === 'owner-profile' ? { ...item, key: 'account' } : item)
 
 export const TRAINER_NAV = [
-  { key: 'dashboard', label: 'Dashboard', group: 'Trainer' },
+  { key: 'dashboard', label: 'Dashboard' },
   { key: 'clients', label: 'Clients', group: 'Trainer' },
   { key: 'sessions', label: 'Sessions', group: 'Trainer' },
 

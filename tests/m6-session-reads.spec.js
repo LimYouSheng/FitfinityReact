@@ -21,7 +21,7 @@ async function open(page, staffApi, role = 'owner', cover = false, completed = f
   state.sessionCalendar = calendar; state.sessionDetails = { [detail.session.id]: detail, [undated.id]: { ...detail, session: undated, acknowledgementHistory: [] } }
   await page.goto(staffApi.origin); await passwordSignIn(page)
   await page.getByLabel('Authenticator code').fill('123456')
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Verify', exact: true }).click()
   await expect(page.getByRole('heading', { name: `${role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : 'Trainer'} Dashboard`, exact: true })).toBeVisible()
 }
 for (const role of ['owner', 'admin']) test(`API ${role} dashboard opens real calendar evidence with read-only details`, async ({ page, staffApi }) => {

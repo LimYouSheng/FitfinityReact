@@ -103,9 +103,9 @@ for (const mountBase of ['/', '/FitfinityReact/']) {
       expect(manifest).toMatchObject({ start_url: './#/dashboard', scope: './', display: 'standalone' })
       expect(new URL(manifest.start_url, `${release.url}manifest.webmanifest`).href).toBe(`${release.url}#/dashboard`)
       expect(await page.evaluate(async () => (await navigator.serviceWorker.ready).scope)).toBe(release.url)
-      const logo = page.getByRole('img', { name: 'Fitfinity', exact: true })
-      await expect(logo).toHaveAttribute('src', `${release.base}assets/images/fitfinity-logo.jpg`)
-      await expect.poll(() => logo.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true)
+      const logo = page.getByRole('img', { name: 'OneFitfinity', exact: true })
+      await expect(logo.locator('image').first()).toHaveAttribute('href', `${release.base}assets/images/fitfinity-logo.jpg`)
+      expect(await logo.locator('image').first().evaluate(async element => { const image = new Image(); image.src = element.getAttribute('href'); await image.decode(); return image.naturalWidth > 0 })).toBe(true)
       expect(keys.every(path => path.startsWith(release.base))).toBe(true)
       await page.evaluate(async base => {
         await fetch(`${base}api/pwa-probe`)

@@ -1,0 +1,491 @@
+{
+  "as_of": "2026-11-28 Asia/Singapore",
+  "inspected_source": "766634711fca0af95b216cf94078cbacfb623919",
+  "archive_source": "85739549a806ee6a5b84e6258f921a60debf18bd",
+  "note": "20 repository files and 49 preserved workspace-local scripts/receipts compared with the archive. Unchanged bytes are not installation acceptance; newer owners outside the archive need separate reconciliation.",
+  "files": [
+    {
+      "source": "backend/infrastructure/test-preflight.py",
+      "archived_sha256": "ffba0764bab1600b89c05ac1067a510326533e6d4aaf7c6ced0ce43db9c36353",
+      "current_sha256": "ffba0764bab1600b89c05ac1067a510326533e6d4aaf7c6ced0ce43db9c36353",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/test-foundation-plan.py",
+      "archived_sha256": "5e696eb256695699d6832485bc22f50bab9fc5e374f1ab8ffe97185ef351f2cb",
+      "current_sha256": "5e696eb256695699d6832485bc22f50bab9fc5e374f1ab8ffe97185ef351f2cb",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/test-foundation-execute.py",
+      "archived_sha256": "649a727272e3f2b07895d19b1df523fd399431bfb573c6dfe767d23957fec398",
+      "current_sha256": "649a727272e3f2b07895d19b1df523fd399431bfb573c6dfe767d23957fec398",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/test-cognito-execute.py",
+      "archived_sha256": "eee0928bb6bfd960b38f59131bd787f0d6af4ff31ab54061820c7dc3d4898ed6",
+      "current_sha256": "eee0928bb6bfd960b38f59131bd787f0d6af4ff31ab54061820c7dc3d4898ed6",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/test-egress-preflight.py",
+      "archived_sha256": "7a415a38ef31c7ddd377c939b1759dda09124eb5caddf8ffe465e97e3c589770",
+      "current_sha256": "7a415a38ef31c7ddd377c939b1759dda09124eb5caddf8ffe465e97e3c589770",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/test-egress-execute.py",
+      "archived_sha256": "444eaee90aea75ad35c85614c37cc1c844e4263287468543f844fb40ccd423a7",
+      "current_sha256": "444eaee90aea75ad35c85614c37cc1c844e4263287468543f844fb40ccd423a7",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/test-private-egress.py",
+      "archived_sha256": "06fc3fa61368326974c0c59b1bfbce9bc4b8c8c3c83c2d721297f654777b823f",
+      "current_sha256": "06fc3fa61368326974c0c59b1bfbce9bc4b8c8c3c83c2d721297f654777b823f",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/test-db-access.py",
+      "archived_sha256": "67c36782e203cc20104b43830b541bccf1f48aac5637136f6ab559fe441c9934",
+      "current_sha256": "67c36782e203cc20104b43830b541bccf1f48aac5637136f6ab559fe441c9934",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/test-db-migrations.py",
+      "archived_sha256": "640c372c5800471f411a09d0a5746e30c771d72df0b3c34985f8fb2b443ea3d6",
+      "current_sha256": "640c372c5800471f411a09d0a5746e30c771d72df0b3c34985f8fb2b443ea3d6",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/test-auth-secrets.py",
+      "archived_sha256": "8fa222b553fd8d3baf51eab7077cb38973f863596271123ae2eb11407b2cf043",
+      "current_sha256": "8fa222b553fd8d3baf51eab7077cb38973f863596271123ae2eb11407b2cf043",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/portable_foundation.py",
+      "archived_sha256": "70fefb3756fa65d45bbf843783a15abb67036a06918226d1ceaf3fc639052b05",
+      "current_sha256": "70fefb3756fa65d45bbf843783a15abb67036a06918226d1ceaf3fc639052b05",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/portable_services.py",
+      "archived_sha256": "fdbd47b96de821666eb640c7d26fe05e6d9d5fc611f4a4b239fabd98f08862ee",
+      "current_sha256": "fdbd47b96de821666eb640c7d26fe05e6d9d5fc611f4a4b239fabd98f08862ee",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/app/auth/admin.py",
+      "archived_sha256": "071005455a7fbf8c3a7654382f4bd68b80fea515a745586ab5fa0db1da67154d",
+      "current_sha256": "071005455a7fbf8c3a7654382f4bd68b80fea515a745586ab5fa0db1da67154d",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "fitfinity-image-auth-correct.py",
+      "archived_sha256": "546a2f373555807f69311e7cfe3797a4762597fca869ece14e40670d16683d53",
+      "current_sha256": "546a2f373555807f69311e7cfe3797a4762597fca869ece14e40670d16683d53",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/developer-immutable-oidc-20261124/identity-review.json",
+      "archived_sha256": "ae16a1c8cbc0d764a615519aa3af7ed3da0c6d903d4dc26ae28f439ba17e5c27",
+      "current_sha256": "ae16a1c8cbc0d764a615519aa3af7ed3da0c6d903d4dc26ae28f439ba17e5c27",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/target-profile.json",
+      "archived_sha256": "dc78ff78a9303ae8e28ff5c395727517f975fce52fb86b0a719b1d5ec5d7507c",
+      "current_sha256": "dc78ff78a9303ae8e28ff5c395727517f975fce52fb86b0a719b1d5ec5d7507c",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/fitfinity-image-candidate.json",
+      "archived_sha256": "a7462f6202bf65537ae54c1a3abe9e22a004b03742e0e91dde0e1545706919a9",
+      "current_sha256": "a7462f6202bf65537ae54c1a3abe9e22a004b03742e0e91dde0e1545706919a9",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "backend/infrastructure/deployment_profile.py",
+      "archived_sha256": "ec3f60d7949a78a187c3509659c6e70b7ed681c578bebbf9e45101e39347a062",
+      "current_sha256": "ec3f60d7949a78a187c3509659c6e70b7ed681c578bebbf9e45101e39347a062",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "deployment-review/probe-iam-20261115-startup-fix/fitfinity-install-probe-iam.py",
+      "archived_sha256": "709baad66593480a81502c59518cc083ec6929833b93eca22e5f932807280dfe",
+      "current_sha256": "709baad66593480a81502c59518cc083ec6929833b93eca22e5f932807280dfe",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/probe-iam-20261115-startup-fix/review.json",
+      "archived_sha256": "30b151882bd172d79c2a77feedd97ed7418855cfc5c38c8b2fc3e379047f924c",
+      "current_sha256": "30b151882bd172d79c2a77feedd97ed7418855cfc5c38c8b2fc3e379047f924c",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/developer-immutable-oidc-20261124/prepare-in-cloudshell.sh",
+      "archived_sha256": "ae76e1a12595c721ddad5728d5b88340491fffbf926b7b2e5880789a3e3c7926",
+      "current_sha256": "ae76e1a12595c721ddad5728d5b88340491fffbf926b7b2e5880789a3e3c7926",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/developer-immutable-oidc-20261124/probe-access-update/fitfinity-update-probe-iam.py",
+      "archived_sha256": "0f67e6007c84966ad338f348136e242e9c0b010675e2ec129d5d08e6a2b45383",
+      "current_sha256": "0f67e6007c84966ad338f348136e242e9c0b010675e2ec129d5d08e6a2b45383",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/developer-immutable-oidc-20261124/probe-access-update/review.json",
+      "archived_sha256": "11ef9a0c6b8132504eb54712b414374855c31ef62db5dcd925f8ede3c19fca96",
+      "current_sha256": "11ef9a0c6b8132504eb54712b414374855c31ef62db5dcd925f8ede3c19fca96",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/post-waf-tags-probe-collect-receipt.json",
+      "archived_sha256": "54bd69051e990f79c8cc8c07c459fe767f78719763adc9d6951c8797304c613c",
+      "current_sha256": "54bd69051e990f79c8cc8c07c459fe767f78719763adc9d6951c8797304c613c",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "backend/infrastructure/schema_probe_setup.py",
+      "archived_sha256": "487f3bbbb7a71942b3392994ab96d40671e35ed16f9c048bc02f63a0f554dedf",
+      "current_sha256": "487f3bbbb7a71942b3392994ab96d40671e35ed16f9c048bc02f63a0f554dedf",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "deployment-review/maintenance-febc361-20261125/maintenance-access.json",
+      "archived_sha256": "d595ce78139cff3f87b4efde4ca6365faa177bd5bfbf1c0e023bde028fc94182",
+      "current_sha256": "d595ce78139cff3f87b4efde4ca6365faa177bd5bfbf1c0e023bde028fc94182",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/upgrade-iam-febc361-20261125/fitfinity-install-upgrade-iam.py",
+      "archived_sha256": "f4c71b3d56c7b53ee2fae88f7e8cc130cad6a1dbfcadc14932eca040ec334970",
+      "current_sha256": "f4c71b3d56c7b53ee2fae88f7e8cc130cad6a1dbfcadc14932eca040ec334970",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/upgrade-iam-febc361-20261125/template.json",
+      "archived_sha256": "715eb00b43ccb3dfe4ccff796b8e18c9d8a6607ca0854805d19a8f63fb0867a9",
+      "current_sha256": "715eb00b43ccb3dfe4ccff796b8e18c9d8a6607ca0854805d19a8f63fb0867a9",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/upgrade-iam-febc361-20261125/review.json",
+      "archived_sha256": "a08388b68e5d7a887c3a21cd25aa697a35f6fc0f9f378a6e3207348097cbe72d",
+      "current_sha256": "a08388b68e5d7a887c3a21cd25aa697a35f6fc0f9f378a6e3207348097cbe72d",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-cbec3b3-20261126/snapshot-ready-receipt.json",
+      "archived_sha256": "385014017895d96b63a0a623bc7e843234ae60a5e61dbfa6942c704c76993898",
+      "current_sha256": "385014017895d96b63a0a623bc7e843234ae60a5e61dbfa6942c704c76993898",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-23af0ca-20261126/upgrade-invoke-receipt.json",
+      "archived_sha256": "e3e2a07f2a95a298f3901f6e25766c65dbb83dd1075114311094c277d2420087",
+      "current_sha256": "e3e2a07f2a95a298f3901f6e25766c65dbb83dd1075114311094c277d2420087",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-23af0ca-20261126/post-upgrade-catalog-receipt.json",
+      "archived_sha256": "9ccf082956d4bc24eec321b9007399d23d03c57ce70d2f3efd4ffdde2b228c0e",
+      "current_sha256": "9ccf082956d4bc24eec321b9007399d23d03c57ce70d2f3efd4ffdde2b228c0e",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/hosting_prepare.py",
+      "archived_sha256": "7d3443a5584da5097568a31310316313ba37d5bd6732f71c8d5c2b2c07c4d923",
+      "current_sha256": "7d3443a5584da5097568a31310316313ba37d5bd6732f71c8d5c2b2c07c4d923",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/hosting-iam-review.json",
+      "archived_sha256": "d41a91a3642cdbdc2fc7ad5e0b8e34789a2bf458946a3874f4d0fe12425583c8",
+      "current_sha256": "d41a91a3642cdbdc2fc7ad5e0b8e34789a2bf458946a3874f4d0fe12425583c8",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/hosting-iam-candidate.json",
+      "archived_sha256": "c998a41cc7d811395d220c9d01cdf76438266286aae480d8bbb628166fb7dcd1",
+      "current_sha256": "c998a41cc7d811395d220c9d01cdf76438266286aae480d8bbb628166fb7dcd1",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/installed-config-report.json",
+      "archived_sha256": "129a2e0cd2ac3b771e8a206afe696d7b3b9a0406cd4b6b262f8f34995d4cbff7",
+      "current_sha256": "129a2e0cd2ac3b771e8a206afe696d7b3b9a0406cd4b6b262f8f34995d4cbff7",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "backend/infrastructure/deployment_config_audit.py",
+      "archived_sha256": "9807faea33012cd1be7d54f551d7a851d8839d528ee6888a316c3d56d89e079e",
+      "current_sha256": "9807faea33012cd1be7d54f551d7a851d8839d528ee6888a316c3d56d89e079e",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/release_access.py",
+      "archived_sha256": "1022c1d4c7a462d082aaceec2c590b27e8dd1be8dd54d218b26214eb33440c8a",
+      "current_sha256": "1022c1d4c7a462d082aaceec2c590b27e8dd1be8dd54d218b26214eb33440c8a",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/media-only-template.json",
+      "archived_sha256": "bf105181bb9a47af1fd77893635fa717eb906651541b285fc02ef70b280e6a4d",
+      "current_sha256": "bf105181bb9a47af1fd77893635fa717eb906651541b285fc02ef70b280e6a4d",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "attachments/5efa10cf-290e-4507-bb91-a2222b7efa8f/Pasted text.txt",
+      "archived_sha256": "e3970338248c544d7c3255a59e198a5153f5f1dd2f72e1f4699ed30d2567bcbe",
+      "current_sha256": "e3970338248c544d7c3255a59e198a5153f5f1dd2f72e1f4699ed30d2567bcbe",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "attachments/cb26bbef-b2bf-4571-901f-7baf89096734/Pasted text.txt",
+      "archived_sha256": "32f59d76b62aa8ec33392d704a3e9250df5b5f5453e199bc64e82d2dfdc2b87a",
+      "current_sha256": "32f59d76b62aa8ec33392d704a3e9250df5b5f5453e199bc64e82d2dfdc2b87a",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "attachments/c32844f7-43a9-44b0-bf55-c290fc55109f/Pasted text.txt",
+      "archived_sha256": "4f65619e34e3218ad6429b8631ddc207819111e96bccb437355b6ccb6130237e",
+      "current_sha256": "4f65619e34e3218ad6429b8631ddc207819111e96bccb437355b6ccb6130237e",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/feature-plan.json",
+      "archived_sha256": "dc6043619ceff36d470df2a0be9488c41c0277bea99c7f60f0bec93dd862c4ed",
+      "current_sha256": "dc6043619ceff36d470df2a0be9488c41c0277bea99c7f60f0bec93dd862c4ed",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/feature-boundary-execution-transcript.txt",
+      "archived_sha256": "f84a8b620ef109caf03ebad7911b8f1194cbcf7bd11d10da3cc3505949e4bb29",
+      "current_sha256": "f84a8b620ef109caf03ebad7911b8f1194cbcf7bd11d10da3cc3505949e4bb29",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "backend/infrastructure/release_features.py",
+      "archived_sha256": "98730c92fe9e9a12f18f9571b63e58919b02ce36445e3a97430fe457ed19feaf",
+      "current_sha256": "98730c92fe9e9a12f18f9571b63e58919b02ce36445e3a97430fe457ed19feaf",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "backend/infrastructure/release_boundary_owner.py",
+      "archived_sha256": "6c9d17ecd2fa273a293e526df0f08a1b41bdb1a2d0e64855970871df763c81a4",
+      "current_sha256": "6c9d17ecd2fa273a293e526df0f08a1b41bdb1a2d0e64855970871df763c81a4",
+      "state": "unchanged",
+      "location": "repository"
+    },
+    {
+      "source": "deployment-review/prepare-hosting-read-access.py",
+      "archived_sha256": "a4319d2b5a293a4fda6f06f484372f678a7b078fe678ef2adf3f1bd7b362a1b0",
+      "current_sha256": "a4319d2b5a293a4fda6f06f484372f678a7b078fe678ef2adf3f1bd7b362a1b0",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/change-set-read-access-candidate.json",
+      "archived_sha256": "2f964ec8af2c7e36240c8bced839126a19974ac73aa7b0efba0cdb482ccb56b9",
+      "current_sha256": "2f964ec8af2c7e36240c8bced839126a19974ac73aa7b0efba0cdb482ccb56b9",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-50c03cd-20261126/rollout-inspect-success-receipt.json",
+      "archived_sha256": "2751dfdb393b67fb3350979cde23d0b1aa22ca9acb7f3ddddc51f5bd2aa2eb46",
+      "current_sha256": "2751dfdb393b67fb3350979cde23d0b1aa22ca9acb7f3ddddc51f5bd2aa2eb46",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/prepare-hosting-vpc-read.py",
+      "archived_sha256": "6a2f0a905d9dcdaf7d088159677fe042b057b9d36ad97d8017858d3af4514be5",
+      "current_sha256": "6a2f0a905d9dcdaf7d088159677fe042b057b9d36ad97d8017858d3af4514be5",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/vpc-reads-candidate.json",
+      "archived_sha256": "78b9c006b516c5fd0a58fd03b836bec8c736cb5f9b5df07708e6d73c7e9a6652",
+      "current_sha256": "78b9c006b516c5fd0a58fd03b836bec8c736cb5f9b5df07708e6d73c7e9a6652",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-ca41b23-20261126/rollout-deploy-receipt.json",
+      "archived_sha256": "5805f3a9af2d768ace7e8abfa86584f9014cb6aa38447d64a404f727ea511bb0",
+      "current_sha256": "5805f3a9af2d768ace7e8abfa86584f9014cb6aa38447d64a404f727ea511bb0",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/alias-access-candidate.json",
+      "archived_sha256": "7d688d69f0ff521e672ee3ffccdfee765f6357a8a0ce1f27b8c9556a5c060a32",
+      "current_sha256": "7d688d69f0ff521e672ee3ffccdfee765f6357a8a0ce1f27b8c9556a5c060a32",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/waf-live-owner.json",
+      "archived_sha256": "5225cfd465fbadc72fb742aed0f2ea979102f4f66853c57b0d969ac9f66ca504",
+      "current_sha256": "5225cfd465fbadc72fb742aed0f2ea979102f4f66853c57b0d969ac9f66ca504",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-ae7904c-20261127/rollout-deploy-receipt.json",
+      "archived_sha256": "857b31b70e29cf16662eb9a5d8082b5b75857b377b29fe72953df94e71be0fed",
+      "current_sha256": "857b31b70e29cf16662eb9a5d8082b5b75857b377b29fe72953df94e71be0fed",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/failed-rollout-receipt.json",
+      "archived_sha256": "524b7a0b4ba15be769755c6714b9ca86b3d8b221fa3ee1dfc005a8a14a2853f2",
+      "current_sha256": "524b7a0b4ba15be769755c6714b9ca86b3d8b221fa3ee1dfc005a8a14a2853f2",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/waf-read-prepare.py",
+      "archived_sha256": "6105d9294b9abf924523250711d49ceae10a13503ba4fa54f64e1a74d9e38259",
+      "current_sha256": "6105d9294b9abf924523250711d49ceae10a13503ba4fa54f64e1a74d9e38259",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/waf-tags-prepare.py",
+      "archived_sha256": "778a4d16fd6f1b487f448189d5a3233337f6f9f9a341077688aee39231632c96",
+      "current_sha256": "778a4d16fd6f1b487f448189d5a3233337f6f9f9a341077688aee39231632c96",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "attachments/1ad18ef9-741f-47d5-98b2-b53172d4c07d/Pasted text.txt",
+      "archived_sha256": "8d9bec8990c36bc994ce17e0fd121297cae8746f37eb63f8bad98c75dc49c56a",
+      "current_sha256": "8d9bec8990c36bc994ce17e0fd121297cae8746f37eb63f8bad98c75dc49c56a",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/waf-iam-update-reported.json",
+      "archived_sha256": "7f343189851c47547468b4691f8b474a66ec1ff6f6077c59fb9a9ad17d1eaabd",
+      "current_sha256": "7f343189851c47547468b4691f8b474a66ec1ff6f6077c59fb9a9ad17d1eaabd",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/waf-read-candidate.json",
+      "archived_sha256": "bbed2cd2c34cfdf148aa74046c26ad8edd8f3c0ba62400f00ed8ccc19dd064bc",
+      "current_sha256": "bbed2cd2c34cfdf148aa74046c26ad8edd8f3c0ba62400f00ed8ccc19dd064bc",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/config-audit-20261126/waf-tags-candidate.json",
+      "archived_sha256": "dd80b14a4b67a4acf969d1811df99fd998bb424da80c2a3851c348bc435de0e4",
+      "current_sha256": "dd80b14a4b67a4acf969d1811df99fd998bb424da80c2a3851c348bc435de0e4",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/post-waf-tags-rollout-review.json",
+      "archived_sha256": "98f4b931c000fc72eb7df31bcbd0febe94601827ab5bdc034a4b6fc9d78e9431",
+      "current_sha256": "98f4b931c000fc72eb7df31bcbd0febe94601827ab5bdc034a4b6fc9d78e9431",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/post-waf-tags-rollout-plan.json",
+      "archived_sha256": "c01bc3156f3d55663f098c80a1d1192bc3a3fa2c890dcfac3d04b09dd64ecc6a",
+      "current_sha256": "c01bc3156f3d55663f098c80a1d1192bc3a3fa2c890dcfac3d04b09dd64ecc6a",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/post-waf-tags-failed-rollout-receipt.json",
+      "archived_sha256": "5defd358a06ee4fe5b9255117b9ec734d9d4b20b3cb762bc1f5a9cb84417926c",
+      "current_sha256": "5defd358a06ee4fe5b9255117b9ec734d9d4b20b3cb762bc1f5a9cb84417926c",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/verified-rollout-receipt.json",
+      "archived_sha256": "1a209e9ef41b0a580c539b5052357f9533be38a4249888958469a024005009d4",
+      "current_sha256": "1a209e9ef41b0a580c539b5052357f9533be38a4249888958469a024005009d4",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/resume-health-receipt.json",
+      "archived_sha256": "129027e8edcb5e5a5b43a25d11ea0d341c1a0104b774165b690f6a858bcdecb2",
+      "current_sha256": "129027e8edcb5e5a5b43a25d11ea0d341c1a0104b774165b690f6a858bcdecb2",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "deployment-review/release-8573954-20261127/resume-finalize-receipt.json",
+      "archived_sha256": "97b9518ad19c38722923cfb3bf26ed64f2883514a8246886e79a6fb36071c8f4",
+      "current_sha256": "97b9518ad19c38722923cfb3bf26ed64f2883514a8246886e79a6fb36071c8f4",
+      "state": "unchanged",
+      "location": "workspace-local"
+    },
+    {
+      "source": "backend/infrastructure/portable_onboarding.py",
+      "archived_sha256": "75a4629fb32a3936f812168097a0f662c78bdd3a6edbb16d3c5ef05b330e3936",
+      "current_sha256": "75a4629fb32a3936f812168097a0f662c78bdd3a6edbb16d3c5ef05b330e3936",
+      "state": "unchanged",
+      "location": "repository"
+    }
+  ]
+}

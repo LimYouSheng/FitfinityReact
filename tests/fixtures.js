@@ -64,12 +64,15 @@ export async function expandSidebarSection(page, label, { keepOpen = false } = {
     await expect(page.locator('.sidebar')).toHaveClass(/mobile-open/)
   }
   const group = page.locator('.sidebar .nav-group').filter({ has: page.getByRole('button', { name: label, exact: true, includeHidden: true }) })
-  const toggle = group.locator('.nav-group-toggle')
-  await expect(toggle).toHaveCount(1)
-  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  await group.getByRole('button', { name: label, exact: true }).scrollIntoViewIfNeeded()
-  await expect(group.getByRole('button', { name: label, exact: true })).toBeInViewport()
+  if (await group.count()) {
+    const toggle = group.locator('.nav-group-toggle')
+    await expect(toggle).toHaveCount(1)
+    if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  }
+  const destination = page.locator('.sidebar nav').getByRole('button', { name: label, exact: true })
+  await destination.scrollIntoViewIfNeeded()
+  await expect(destination).toBeInViewport()
   if (openedHere && !keepOpen) {
     const sidebar = await page.locator('.sidebar').boundingBox()
     const viewport = page.viewportSize()

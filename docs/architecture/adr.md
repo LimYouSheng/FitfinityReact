@@ -140,7 +140,7 @@ Keep those owners separate when extracting routes. Regression evidence spans the
 
 **Alternative / contingency.** ECS/Fargate or another managed container host could retain FastAPI while trading cold-start behavior for continuously running capacity and more operational configuration. Another cloud requires identity, storage, network and release adaptation. No alternate region/host is a configured hot standby; DNS switching without state and writer coordination is unsafe.
 
-**Owners/evidence.** [Runtime container](../../backend/Dockerfile), [infrastructure owners](../../backend/infrastructure), [release runbook](../runbook.md#6-deployments-and-rollback), [BR-060–061](../business-rules.md#br-060).
+**Owners/evidence.** [Runtime container](../../backend/Dockerfile), [infrastructure owners](../../backend/infrastructure), [release runbook](../deployment/workflows/index.md#6-deployments-and-rollback), [BR-060–061](../business-rules.md#br-060).
 
 <a id="adr-006"></a>
 
@@ -160,7 +160,7 @@ Keep those owners separate when extracting routes. Regression evidence spans the
 
 **Alternative / contingency.** Another private S3-compatible provider may fit after signature, checksum, conditional-write, CORS and permission acceptance. Migration must preserve object identity, bytes, expiry and pending intents. Application disk is not durable fallback. Object backups and database restore points must be reconciled before reopening media access.
 
-**Owners/evidence.** [Storage adapter](../../backend/app/media_storage.py), [library cleanup](../../backend/app/library_cleanup.py), [recording cleanup](../../backend/app/session_media_cleanup.py), [media configuration](../runbook.md#10-configuration), [operation matrix](../api-contracts.md#domain-operation-inventory).
+**Owners/evidence.** [Storage adapter](../../backend/app/media_storage.py), [library cleanup](../../backend/app/library_cleanup.py), [recording cleanup](../../backend/app/session_media_cleanup.py), [media configuration](../deployment/workflows/index.md#10-configuration), [operation matrix](../api-contracts.md#domain-operation-inventory).
 
 <a id="adr-007"></a>
 
@@ -246,7 +246,7 @@ Dependabot source configuration covers bounded weekly npm, GitHub Actions and Do
 
 **Alternative / contingency.** Restore to a separately verified PostgreSQL instance and private object store is a candidate recovery route; a regional standby is a larger separately designed option. Fence old writers, reconcile effects and verify permissions before resuming. There is no authorized automatic promotion, destructive downgrade or resource recreation.
 
-**Owners/evidence.** [Migrations](../../backend/migrations), [restore runbook](../runbook.md#7-data-protection-and-restore), [roadmap](../journey.md#full-milestone-roadmap), [BR-060–064](../business-rules.md#br-060).
+**Owners/evidence.** [Migrations](../../backend/migrations), [restore runbook](../deployment/workflows/index.md#7-data-protection-and-restore), [roadmap](../journey.md#full-milestone-roadmap), [BR-060–064](../business-rules.md#br-060).
 
 ## Scaling review and fallback readiness
 

@@ -73,7 +73,7 @@ jobs:
 
           AWS execution remains subject to the existing main/source checks, enablement flags where configured and environment approval. A skipped or approval-waiting job has not completed the operation.
 
-          Full procedure: `docs/runbook.md`, section 6.
+          Full procedure: `docs/deployment/workflows/index.md`, section 6.
           FITFINITY_WORKFLOW_GUIDE
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

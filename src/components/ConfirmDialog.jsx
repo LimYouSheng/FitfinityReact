@@ -1,3 +1,4 @@
+import { PageLoadingBoundary } from './LoadingIndicator.jsx'
 import ModalPortal from './ModalPortal.jsx'
 
 export default function ConfirmDialog({
@@ -28,7 +29,7 @@ export default function ConfirmDialog({
             <h2>{title}</h2>
             <button type="button" className="icon-button" aria-label="Close dialog" disabled={cancelDisabled} onClick={onCancel}>×</button>
           </div>
-          <div className="modal-body">{children}</div>
+          <div className="modal-body"><PageLoadingBoundary section>{children}</PageLoadingBoundary></div>
           <div className="modal-actions">
             <button type="button" className="secondary-button" disabled={cancelDisabled} onClick={onCancel}>{cancelLabel}</button>
             {!hideConfirm && (

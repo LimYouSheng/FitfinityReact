@@ -12,6 +12,14 @@ test('completed MFA loads independently of a pending anonymous account read', as
     await expect.poll(() => held.request).toEqual({ path: '/me', signedIn: false })
     await passwordSignIn(page)
     await expect(page.getByLabel('Authenticator code')).toBeVisible()
+    const spacing = await page.locator('.auth-card').evaluate(card => {
+      const title = card.querySelector('h1').getBoundingClientRect()
+      const label = card.querySelector('label').getBoundingClientRect()
+      const field = card.querySelector('input').getBoundingClientRect()
+      const button = card.querySelector('.auth-submit').getBoundingClientRect()
+      return { before: label.top - title.bottom, after: button.top - field.bottom }
+    })
+    expect(spacing).toEqual({ before: 32, after: 32 })
     await verifyAuthenticator(page)
     expect(held.sent).toBe(false)
     const stale = page.waitForResponse(response => response.url().endsWith('/me') && response.status() === 401)
@@ -35,7 +43,7 @@ test('real-mode temporary password, MFA enrollment, account reload and cookie lo
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page.getByLabel('Authenticator setup key')).toHaveText('ABCDEFGHIJKLMNOP234567')
   await page.getByLabel('Authenticator code').fill('000000')
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Verify', exact: true }).click()
   await expect(page.getByRole('alert')).toHaveText('The code is incorrect.')
   await verifyAuthenticator(page)
   await expect(page.getByText('owner@example.test', { exact: true })).toBeVisible()

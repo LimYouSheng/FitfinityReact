@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import useCreationForm from '../../hooks/useCreationForm.js'
 import useClientMatches from './useClientMatches.js'
 import SelectField from '../../components/SelectField.jsx'
@@ -287,7 +288,7 @@ export default function ClientOnboardingForm({ user, packages, policy, trainers,
                     {visibleMatches.map(result => <option key={result.trainer.id} value={result.trainer.id}>{result.trainer.name}</option>)}
                   </SelectField>
                 </Field>
-                {previewMatches && remoteMatches.loading && <p role="status">Checking trainer availability…</p>}
+                {previewMatches && remoteMatches.loading && <LoadingIndicator label="Checking trainer availability…" />}
                 {previewMatches && remoteMatches.error && <><p role="alert">{remoteMatches.error}</p><button type="button" className="onboarding-button" onClick={remoteMatches.retry}>Retry Matching</button></>}
                 {!visibleMatches.length && !remoteMatches.loading && !remoteMatches.error && <p className="onboarding-hint" role="status">No active trainer is free for every session on these days and times. Go back to adjust the start date, availability or preference.</p>}
                 {visibleMatches.length > 0 && (

@@ -67,9 +67,12 @@ Each category needs a disposal rule, including linked JSON, prior revisions, exp
 
 | ID | Store and purpose | Current behavior | Gap / verification required |
 | --- | --- | --- | --- |
-| DL-18 | Private S3 library attachments and session recordings | [Storage adapter](../backend/app/media_storage.py) binds immutable object keys/checksums; [session cleanup](../backend/app/session_media_cleanup.py) and [library cleanup](../backend/app/library_cleanup.py) delete eligible objects and retain outcomes. | Worker invocation/schedule, backlog and actual bucket lifecycle/versioning/replication require verification. `delete_object` by key does not demonstrate erasure of noncurrent versions, replicas or backups. |
+| DL-18 | Private S3 library attachments and session recordings | [Storage adapter](../backend/app/media_storage.py) binds immutable object keys/checksums; [session cleanup](../backend/app/session_media_cleanup.py) and [library cleanup](../backend/app/library_cleanup.py) delete eligible objects and retain outcomes. | Developer media bucket installation and seven-day incomplete-multipart cleanup were operator-verified on26 November; no completed-object expiration was configured. Worker invocation/schedule, backlog and current versioning/replication require verification. `delete_object` by key does not demonstrate erasure of noncurrent versions, replicas or backups. |
 | DL-19 | PostgreSQL/RDS backups, snapshots and operator exports | The [TEST foundation](../backend/infrastructure/test-foundation.json) declares one-day retention, also observed after the5 November Free Tier rejection. BR-058 defers14 days until account-plan upgrade and migration to client AWS. | Confirm actual backup/snapshot retention and restore targets. No tested deletion-aware restore receipt is recorded; manual snapshots/exports need independent disposal rules. |
 | DL-20 | Request logs, CI artifacts/traces and downloaded UAT/incident evidence | [Observability](../backend/app/observability.py) allowlists request IDs, route, status, duration and error type; [verification](../.github/workflows/verify.yml) retains test artifacts. | Source upload steps do not set an explicit `retention-days` here; actual GitHub settings apply. The hosting design declares a seven-day Lambda log group, not proof of every current log group. Traces/screenshots may contain fixture data; keep real health data out. Grafana remains planned. |
+| DL-21 | Versioned S3 deployment journal | [Journal setup](../backend/infrastructure/deployment_journal.py) retains private encrypted claims, intents and receipts; TLS and conditional writes protect concurrent state transitions. Operator verified bucket/IAM installation and four child grants. | Retirement preserves history; it is not deletion. No blanket object/noncurrent-version expiry is accepted. Preserve unresolved operations and read current claim/receipts before recovery. See [inventory](deployment/infrastructure.md). |
+| DL-22 | Frontend release storage, ECR images and Lambda versions | Hosting retains immutable release artifacts and published versions. | Protect current and schema-compatible rollback references; source-retention policy is not deployed cleanup evidence. |
+| DL-23 | Operation-owned probe/upgrade workers and temporary storage | Explicit cleanup/verification paths bind resources to their original operation. | Latest manual-release teardown remains unverified. Preserve possible running migrations, uncertain results and retained evidence; age alone does not authorize deletion. |
 
 ## 3. Implemented validity periods are not disposal periods
 
@@ -149,10 +152,15 @@ Start with approved rules and bounded jobs. Additional queues, archival services
 - [ ] Operational owner and review cadence assigned; alert recipients remain a separate unassigned decision.
 - [ ] CI, deployed revision and actual acceptance recorded only after execution.
 
-Current status: **source-based draft; policy mapping, external-account verification and general disposal implementation pending**. Review when clauses arrive or schema, identity, media or provider settings change. This document owns lifecycle policy mapping; the [runbook restore procedure](runbook.md#7-data-protection-and-restore) owns execution.
+Current status: **source-based draft; policy mapping, external-account verification and general disposal implementation pending**. Review when clauses arrive or schema, identity, media or provider settings change. This document owns lifecycle policy mapping; the [runbook restore procedure](deployment/workflows/index.md#7-data-protection-and-restore) owns execution.
 
 Admin report-sharing proposals retain the frozen report-visible projection and original request/decision evidence in the existing Admin approval records. They do not store another PDF binary or transmit it to a recipient. Progress is purchase-scoped; session snapshots contain selected captions and the client-facing summary, without private Trainer comments or signature strokes. These immutable copies follow the existing unresolved general-record retention policy; this change does not authorize disposal.
 
 ### Owner profile extension
 
 Owner contact fields live in `owner_profiles`; the stable account/name/email remain in `staff_users`. `owner_profile_receipts` retain immutable actor/request/digest/result evidence, including contact details, for uncertain-save recovery. No automatic receipt expiry or profile deletion is introduced. Runtime permissions exclude receipt update/delete. A populated0053 downgrade is refused; retention and controlled correction remain governed by the existing lifecycle policy.
+
+
+### Browser appearance preference
+
+`fitfinity-theme` stores only `light` or `dark` in localStorage, owned by `src/app/theme.js`. It is device/browser-local, shared across accounts on that browser, and contains no identity, record or credential data. It remains until changed or site storage is cleared; sign-out does not erase appearance. No server synchronization or database migration is involved.

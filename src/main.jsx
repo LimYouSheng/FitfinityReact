@@ -5,6 +5,9 @@ import { ActionConfirmationProvider } from './components/ActionConfirmationProvi
 import { EditGuardProvider } from './components/EditGuardProvider.jsx'
 import { NotificationProvider } from './components/NotificationProvider.jsx'
 import './styles.css'
+import { applyTheme, readTheme } from './app/theme.js'
+
+applyTheme(readTheme())
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

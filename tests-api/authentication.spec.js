@@ -7,9 +7,9 @@ async function password(page, email, value = 'browser-test-password-only') {
   await page.getByRole('button', { name: 'Sign In', exact: true }).click()
 }
 async function mfa(page) {
-  await expect(page.getByRole('heading', { name: 'Authenticator verification', exact: true })).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'Verify your identity', exact: true })).toBeFocused()
   await page.getByLabel('Authenticator code').fill('123456')
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Verify', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Owner Dashboard', exact: true })).toBeVisible()
 }
 
@@ -21,11 +21,11 @@ test('temporary password and MFA enrollment persist a real session; logout preve
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page.getByLabel('Authenticator setup key')).toHaveText('ABCDEFGHIJKLMNOP234567')
   await page.getByLabel('Authenticator code').fill('000000')
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Verify', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('invalid or expired')
   expect((await page.request.get('/me')).status()).toBe(401)
   await page.getByLabel('Authenticator code').fill('123456')
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Verify', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Owner Dashboard', exact: true })).toBeVisible()
   const identity = (await read(page, '/me')).user.id
   await page.reload()

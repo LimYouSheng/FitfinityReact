@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { useEffect, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { exerciseVideoCaption } from './exerciseVideo.js'
@@ -98,7 +99,7 @@ export default function SessionSummaryExport({ client, session, displayedSummary
               </label>
               {includeClientSummary && <div className="client-summary-copy">{displayedSummary}</div>}
             </fieldset>
-            {report.preparing && <p role="status">Preparing PDF…</p>}
+            {report.preparing && <LoadingIndicator label="Preparing PDF…" />}
             {report.error && <div role="alert"><p>{report.error}</p><button type="button" className="secondary-button" onClick={report.retry}>Retry PDF</button></div>}
             {sharing.message && <p role="status">{sharing.message}</p>}
             {sharing.retry && <button type="button" className="secondary-button" disabled={sharing.busy} onClick={() => sharing.authorize(true)}>Retry Original Request</button>}

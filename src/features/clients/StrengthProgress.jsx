@@ -124,7 +124,7 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
       {actionFeedback}
       {sharing.message && <p role="status">{sharing.message}</p>}
       {sharing.retry && <button type="button" className="secondary-button" disabled={sharing.busy} onClick={() => sharing.authorize(true)}>Retry Original Request</button>}
-      <p className="progress-report-status" role="status">{report.preparing ? 'Preparing PDF…' : ''}</p>
+      {report.preparing && <LoadingIndicator label="Preparing PDF…" />}
       {report.error && <div role="alert"><p>{report.error}</p><button type="button" className="secondary-button" onClick={report.retry}>Retry PDF</button></div>}
       {shareFallback && file && <div className="report-file-actions"><button type="button" className="secondary-button" disabled={busy || Boolean(unsavedAction)} onClick={openReport}>Open PDF</button></div>}
       {!exercises.length ? <Panel><div className="empty">No completed exercise loads yet.</div></Panel> : <Panel>

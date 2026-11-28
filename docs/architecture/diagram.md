@@ -1,5 +1,7 @@
 # System, test environment and verification diagrams
 
+[Deployment resource inventory](../deployment/infrastructure.md) distinguishes operator-verified bucket setup from pending live drift/resource counts.
+
 [Database schema](database-schema.md) maps PostgreSQL tables, keys and domain relationships.
 
 [Architecture decisions](adr.md) · [Current rules](../business-rules.md#current-business-rules) · [Implementation status and backlog](../../PROGRESS.md)
@@ -12,19 +14,21 @@ Solid connections describe existing source responsibilities or the selected host
 flowchart TB
   Staff["Staff browser: React portal"]
   Pages["GitHub Pages: demo adapter and browser storage"]
-  subgraph AWS["Selected AWS topology: deployment acceptance separate"]
+  subgraph AWS["AWS infrastructure"]
     Assets["CloudFront: static frontend"]
     Gateway["API Gateway"]
     App["Lambda Web Adapter and FastAPI"]
     Identity["Cognito: staff identity"]
     DB[("Private PostgreSQL / RDS")]
-    Media[("S3: library and recordings source accepted; live acceptance pending")]
+    Media[("Private media S3: installed; feature acceptance separate")]
+    Frontend[("Frontend S3: immutable release files")]
+    Journal[("Versioned private S3: deployment journal")]
   end
   subgraph Delivery["Source delivery"]
     Repo["GitHub: reviewed source and lockfiles"]
     Target["GitHub variables: validated account, region, repository and environment"]
     Templates["Portable templates: private foundation, identity, storage and hosting; offline tested"]
-    CodeQL["CodeQL: JS/TS + Python parallel scans; baseline acceptance pending"]
+    CodeQL["CodeQL: JS/TS + Python parallel scans; exact-head gates"]
     Repo --> CodeQL
     CI["Frontend, backend and API-browser CI"]
     Merge["Exact tested head and protected source merge"]
@@ -40,6 +44,8 @@ flowchart TB
     Ops["Health and synthetic monitoring; incidents, rollback and restore drills"]
     Capacity["Capacity, resource use and cost monitoring"]
   end
+  Frontend --> Assets
+  Release -->|"Bound intents and receipts"| Journal
   Assets --> Staff
   Pages -->|"Explicit demo mode"| Staff
   Staff -->|"Explicit API mode"| Gateway
@@ -66,9 +72,9 @@ flowchart TB
 
 API errors never switch to demo. Dependency updates pass the same final-head gates; Dependabot does not authorize automatic merging. Telemetry export must avoid sensitive data and isolate exporter failures from application behavior. New instrumentation, dashboards and operations automation remain planned; existing infrastructure alone does not establish operational acceptance.
 
-The prepared private schema observer is a separate temporary Lambda entry point using the selected private RDS boundary; it is not connected to API Gateway or the staff app. Its offline HOLD template and tests do not establish deployment. Current network/image/secret bindings and separately authorized creation, invocation and cleanup remain prerequisites; see [Runbook6.2](../runbook.md#62-deployment-preparation-and-acceptance).
+The prepared private schema observer is a separate temporary Lambda entry point using the selected private RDS boundary; it is not connected to API Gateway or the staff app. Its offline HOLD template and tests do not establish deployment. Current network/image/secret bindings and separately authorized creation, invocation and cleanup remain prerequisites; see [Runbook6.2](../deployment/workflows/index.md#62-deployment-preparation-and-acceptance).
 
-The separate private upgrade worker follows the same private RDS boundary, with its own operator/runtime roles and a manual protected Actions workflow. It requires current image/catalog/backup evidence and disabled staff invocation, and retains uncertain outcomes before cleanup. This source implementation is not deployed; runtime grants and a separate pause/drain/snapshot workflow are prepared; installation/activation, staff rollout and traffic resumption remain in the active campaign.
+The separate private upgrade worker follows the same private RDS boundary, with its own operator/runtime roles and a protected Actions workflow. It requires current image/catalog/backup evidence and disabled staff invocation, and retains uncertain outcomes before cleanup. Developer operator receipts include installed probe/upgrade workers; the later manual release reached schema0053 and successful resume46109484195. Final receipt inspection and worker cleanup remain unverified. See the [infrastructure inventory](../deployment/infrastructure.md) for evidence scope; these outcomes do not establish fresh-account or complete coordinator acceptance.
 
 ## Isolated real-API testing and planned measurement
 
@@ -131,7 +137,7 @@ flowchart TB
   Gates["Required final-head frontend, backend and API-browser CI"]
   Evidence["Evidence review: scope, source, environment, results and limits"]
   Live["Separate acceptance: real Cognito, deployed restart, devices and live environment"]
-  CodeQLTests["CodeQL: configured JS/TS + Python scans; initial baseline pending"]
+  CodeQLTests["CodeQL: JS/TS + Python scans; exact-head gates"]
   Change --> CodeQLTests --> Evidence
   Change --> Existing
   Build -->|"Same source artifact"| Simulator

@@ -224,6 +224,6 @@ export async function passwordSignIn(page) {
 
 export async function verifyAuthenticator(page) {
   await page.getByLabel('Authenticator code').fill('123456')
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Verify', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Your account', exact: true })).toBeVisible()
 }
