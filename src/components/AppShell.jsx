@@ -1,3 +1,4 @@
+import { applyTheme, readTheme, saveTheme } from '../app/theme.js'
 import { messageVisibleTo } from '../app/messageInbox.js'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { OWNER_NAV, ADMIN_NAV, TRAINER_NAV } from '../app/constants.js'
@@ -44,6 +45,8 @@ export default function AppShell({
   onSignOut,
   children,
 }) {
+  const [theme, setTheme] = useState(readTheme)
+  useEffect(() => { applyTheme(theme) }, [theme])
   const confirmAction = useActionConfirmation()
   const { activeEdit } = useEditGuard()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -97,7 +100,7 @@ export default function AppShell({
   const groups = useMemo(() => {
     const result = []
 
-    for (const item of nav) {
+    for (const item of nav.filter(entry => entry.group)) {
       let group = result.find(entry => entry.name === item.group)
 
       if (!group) {
@@ -114,6 +117,28 @@ export default function AppShell({
   const visibleMessages = messages.filter(message => messageVisibleTo(user, message))
 
   const unread = visibleMessages.filter(message => !message.read).length
+
+  const renderNavItem = item => (
+    <button
+      key={item.key}
+      aria-label={item.label}
+      className={`nav-link ${route === item.key ? 'active' : ''} ${item.disabled ? 'nav-disabled' : ''}`.trim()}
+      type="button"
+      disabled={item.disabled}
+      title={item.disabled ? 'Not available yet' : undefined}
+      onClick={() => {
+        setDrawerOpen(false)
+        onRoute(item.key)
+      }}
+    >
+      <span className="nav-dot" aria-hidden="true" />
+      <span className="nav-text">{item.label}</span>
+      {item.key === 'messages' && unread > 0 && (
+        <span className="nav-count" aria-label={`${unread} unread messages`}>{unread}</span>
+      )}
+      {item.disabled && <span className="nav-soon">Soon</span>}
+    </button>
+  )
 
   return (
     <div className="portal-shell" data-user-id={userId} aria-busy={accountBusy}>
@@ -140,6 +165,7 @@ export default function AppShell({
         </div>
 
         <nav aria-label="Portal navigation">
+          {nav.filter(item => !item.group).map(renderNavItem)}
           {groups.map(group => {
             const collapsed = expandedGroup !== group.name
             const id = `portal-nav-${group.name.toLowerCase().replaceAll(' ', '-')}`
@@ -157,27 +183,7 @@ export default function AppShell({
               </button>
 
               <div className="nav-group-items" id={id} hidden={collapsed}>
-              {group.items.map(item => (
-                <button
-                  key={item.key}
-                  aria-label={item.label}
-                  className={`nav-link ${route === item.key ? 'active' : ''} ${item.disabled ? 'nav-disabled' : ''}`.trim()}
-                  type="button"
-                  disabled={item.disabled}
-                  title={item.disabled ? 'Not available yet' : undefined}
-                  onClick={() => {
-                    setDrawerOpen(false)
-                    onRoute(item.key)
-                  }}
-                >
-                  <span className="nav-dot" aria-hidden="true" />
-                  <span className="nav-text">{item.label}</span>
-                  {item.key === 'messages' && unread > 0 && (
-                    <span className="nav-count" aria-label={`${unread} unread messages`}>{unread}</span>
-                  )}
-                  {item.disabled && <span className="nav-soon">Soon</span>}
-                </button>
-              ))}
+              {group.items.map(renderNavItem)}
               </div>
             </div>
           })}
@@ -312,6 +318,17 @@ export default function AppShell({
 
                   <button type="button" role="menuitem" onClick={() => onRoute('change-password')}>
                     Change Password
+                  </button>
+
+                  <button type="button" role="menuitem" className="theme-menu-action" onClick={() => {
+                    const next = theme === 'dark' ? 'light' : 'dark'
+                    saveTheme(next)
+                    setTheme(next)
+                  }}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      {theme === 'dark' ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" /></> : <path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z" />}
+                    </svg>
+                    Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
                   </button>
 
                   <button type="button" role="menuitem" onClick={onSignOut}>

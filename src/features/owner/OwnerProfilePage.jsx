@@ -58,7 +58,6 @@ export default function OwnerProfilePage({ user, services, today, emailAuth, onS
       {error && <p role="alert">{error}</p>}
       {!record ? error ? <button className="text-action" onClick={() => { setError(''); setRevision(value => value + 1) }}>Retry Profile</button> : <LoadingIndicator label="Loading Owner profile…" />
         : draft ? <form onSubmit={save} noValidate><fieldset disabled={busy || Boolean(attempt)} className="onboarding-step-body"><div className="onboarding-grid"><StaffPersonalFields label="Owner" draft={draft} errors={errors} emailReadOnly onChange={patch => setDraft(value => ({ ...value, ...patch }))} /></div></fieldset>
-          <p className="helper">{emailAuth ? 'Use Change Login Email below to verify a different login address.' : 'Login email is managed separately from contact details.'}</p>
           <div className="inline-actions"><button className="onboarding-button" type="button" disabled={busy || Boolean(attempt)} onClick={() => setDraft(null)}>Cancel</button><button className="onboarding-button primary" disabled={busy}>{attempt ? 'Check Original Save' : 'Save Changes'}</button></div>
         </form> : <div className="info-list profile-info-grid">{[
           ['Name', record.name], ['Mobile Number', record.phone_number ? `${record.phone_country_code} ${record.phone_number}` : '—'],

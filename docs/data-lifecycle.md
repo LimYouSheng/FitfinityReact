@@ -156,3 +156,8 @@ Admin report-sharing proposals retain the frozen report-visible projection and o
 ### Owner profile extension
 
 Owner contact fields live in `owner_profiles`; the stable account/name/email remain in `staff_users`. `owner_profile_receipts` retain immutable actor/request/digest/result evidence, including contact details, for uncertain-save recovery. No automatic receipt expiry or profile deletion is introduced. Runtime permissions exclude receipt update/delete. A populated0053 downgrade is refused; retention and controlled correction remain governed by the existing lifecycle policy.
+
+
+### Browser appearance preference
+
+`fitfinity-theme` stores only `light` or `dark` in localStorage, owned by `src/app/theme.js`. It is device/browser-local, shared across accounts on that browser, and contains no identity, record or credential data. It remains until changed or site storage is cleared; sign-out does not erase appearance. No server synchronization or database migration is involved.

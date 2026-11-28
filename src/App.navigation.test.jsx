@@ -33,8 +33,10 @@ async function show(path = 'dashboard', id = 'u-owner') {
 function nav(item) {
   // Scope accessible-name work to the control's owner, not every calendar button.
   const navigation = within(screen.getByRole('navigation', { name: 'Portal navigation' }))
-  const group = navigation.getByRole('button', { name: `${item.group} section`, exact: true })
-  if (group.getAttribute('aria-expanded') === 'false') fireEvent.click(group)
+  if (item.group) {
+    const group = navigation.getByRole('button', { name: `${item.group} section`, exact: true })
+    if (group.getAttribute('aria-expanded') === 'false') fireEvent.click(group)
+  }
   fireEvent.click(navigation.getByRole('button', { name: item.label, exact: true }))
 }
 beforeEach(() => {

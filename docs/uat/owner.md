@@ -179,3 +179,11 @@ Use the designated developer accounts and receiving inboxes. Lost-authenticator 
 | Select two messages, mark read, then inspect newly surfaced unread rows; repeat with unread. | Only checked rows change; selections clear and new rows stay unchecked. | | |
 | Open a message and inspect footer; resize Client form and Owner profile. | Related records left, unread action right, readable body spacing, aligned mobile/name fields and no horizontal overflow. | | |
 | Observe a slow load with normal and reduced-motion preferences. | Transparent mark ripples rightwards; reduced motion is static and assistive status remains meaningful. | | |
+
+
+### Appearance and message controls — new checks, not yet accepted
+
+- [ ] Dashboard is directly available above collapsed navigation groups.
+- [ ] In the profile-initial popup, switch Light/Dark Mode; refresh and confirm the choice remains. Check forms, menus, tables and dialogs for readable text and focus.
+- [ ] Message selection appears below filters: checkbox and selected count left, read/unread actions right; completed actions clear selection.
+- [ ] Message footer buttons have matching heights and equal widths within each group; Client/Trainer labels omit View, and related links still open the correct record.

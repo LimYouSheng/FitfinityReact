@@ -237,12 +237,6 @@ export function MessageInbox({
             {MESSAGE_CATEGORIES.filter(item => item.key !== 'remuneration' || canViewRemuneration(user)).map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
           </SelectField>
         </div>}
-        {!embedded && <div className="inline-actions message-bulk-actions" aria-label="Selected message actions">
-          <label className="message-page-selection"><input type="checkbox" aria-label="Select all messages on this page" disabled={bulkBusy || !pageIds.length} checked={pageIds.length > 0 && pageIds.every(id => checkedIds.includes(id))} onChange={event => setSelection({ scope: selectionScope, ids: event.target.checked ? pageIds : [] })} /> Select page</label>
-          <button type="button" className="secondary-button small" disabled={bulkBusy || !checkedIds.length} onClick={() => markSelected(true)}>Mark selected as read</button>
-          <button type="button" className="secondary-button small" disabled={bulkBusy || !checkedIds.length} onClick={() => markSelected(false)}>Mark selected as unread</button>
-          <span aria-live="polite">{checkedIds.length} selected</span>
-        </div>}
         {!selected && messageError && <p role="alert">{messageError}</p>}
         {!embedded && <div className="message-search-controls" aria-label="Message filters">
           <label>
@@ -272,6 +266,17 @@ export function MessageInbox({
             min={fromDate}
             onChange={setToDate}
           />
+        </div>}
+
+        {!embedded && <div className="message-bulk-actions" aria-label="Selected message actions">
+          <div className="message-page-selection">
+            <input type="checkbox" aria-label="Select all messages on this page" disabled={bulkBusy || !pageIds.length} checked={pageIds.length > 0 && pageIds.every(id => checkedIds.includes(id))} onChange={event => setSelection({ scope: selectionScope, ids: event.target.checked ? pageIds : [] })} />
+            <span aria-live="polite">{checkedIds.length} selected</span>
+          </div>
+          <div className="message-selection-buttons">
+            <button type="button" className="secondary-button small" disabled={bulkBusy || !checkedIds.length} onClick={() => markSelected(true)}>Mark selected as read</button>
+            <button type="button" className="secondary-button small" disabled={bulkBusy || !checkedIds.length} onClick={() => markSelected(false)}>Mark selected as unread</button>
+          </div>
         </div>}
 
         <div className={`message-title-list${!embedded && visible.some(message => message.renewalStatus && message.renewalStatus !== 'active') ? ' has-renewal-status' : ''}`} aria-label={embedded ? 'Renewal messages' : 'Message list'}>
@@ -395,21 +400,24 @@ export function MessageInbox({
                         <button
                           type="button"
                           key={`${link.type}-${link.id}`}
+                          title={link.label}
                           className="secondary-button small"
                           onClick={() => openRelated(link)}
                         >
-                          View {link.label}
+                          {link.label}
                         </button>
                       ))}
                     </div>
                   </nav>
                 )}
                 {messageError && <p role="alert">{messageError}</p>}
-                {removeAction(selected)}
-                {selected.renewalStatus && selected.renewalStatus !== 'active' && <StatusBadge className="renewal-closed-status">{selected.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</StatusBadge>}
-                <button type="button" className="secondary-button" disabled={unreadBusy} onClick={markSelectedUnread}>
-                  {unreadBusy ? 'Marking…' : 'Mark as Unread'}
-                </button>
+                <div className="message-popup-buttons">
+                  {removeAction(selected)}
+                  {selected.renewalStatus && selected.renewalStatus !== 'active' && <StatusBadge className="renewal-closed-status">{selected.renewalStatus === 'renewed' ? 'Renewed' : 'Removed from renewals'}</StatusBadge>}
+                  <button type="button" className="secondary-button" disabled={unreadBusy} onClick={markSelectedUnread}>
+                    {unreadBusy ? 'Marking…' : 'Mark as Unread'}
+                  </button>
+                </div>
               </div>
             </section>
           </div>

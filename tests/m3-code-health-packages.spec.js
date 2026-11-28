@@ -77,7 +77,7 @@ test('M3 Setup upgrades old data, preloads packages and confirms create, edit an
   await routeTo(page, 'messages')
   await page.getByRole('button', { name: 'Open Package updated: Strength programme revised', exact: true }).first().click()
   const dialog = page.getByRole('dialog', { name: 'Package updated: Strength programme revised', exact: true })
-  await dialog.getByRole('button', { name: 'View Package · Strength programme revised', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Package · Strength programme revised', exact: true }).click()
   await expect(page).toHaveURL(new RegExp(`#/packages/${created.id}$`))
   await expect(page.getByRole('button', { name: 'Reactivate Package' })).toBeVisible()
 })

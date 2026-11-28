@@ -105,7 +105,7 @@ test('M4 dashboard renewal preview opens shared details and keeps read state in 
   await expect(dialog.getByText('Package follow-up.', { exact: true })).toBeVisible()
   await expect(dialog.getByRole('button', { name: `Remove ${title} from renewals`, exact: true })).toBeVisible()
   await expect(dialog.locator('.message-detail-meta')).toContainText('2026')
-  await dialog.getByRole('button', { name: 'View Client · Nadia Koh', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Client · Nadia Koh', exact: true }).click()
   await expect(page).toHaveURL(/#\/clients\/c3$/)
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible()

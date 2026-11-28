@@ -177,3 +177,11 @@ These cases require the UI refinement release; results remain blank until tested
 
 | UI-PKG-01 | Create or propose a package with 47 validity days, then edit the catalogue validity after a test purchase. | Confirmation includes 47 days; approval requirements remain enforced. The existing purchase retains its purchased terms. | | |
 | UI-CLIENT-01 | Open New Client on desktop and phone. Compare client and emergency-contact name/phone fields. | Names and phone controls use matching widths; relationship follows the emergency mobile number, to its right where space permits. | | |
+
+
+### Appearance and message controls — new checks, not yet accepted
+
+- [ ] Dashboard is directly available above collapsed navigation groups.
+- [ ] In the profile-initial popup, switch Light/Dark Mode; refresh and confirm the choice remains. Check forms, menus, tables and dialogs for readable text and focus.
+- [ ] Message selection appears below filters: checkbox and selected count left, read/unread actions right; completed actions clear selection.
+- [ ] Message footer buttons have matching heights and equal widths within each group; Client/Trainer labels omit View, and related links still open the correct record.

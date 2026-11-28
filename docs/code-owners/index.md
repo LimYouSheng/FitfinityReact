@@ -40,7 +40,7 @@ Entry["src/main.jsx · React mount"]
 
 Source owners: [mount](../../src/main.jsx), [composition](../../src/App.jsx), [shell](../../src/components/AppShell.jsx), [navigation](../../src/hooks/useAppNavigation.js), [portal state](../../src/components/PortalDataProvider.jsx), [confirmation](../../src/components/ActionConfirmationProvider.jsx), [edit guard](../../src/components/EditGuardProvider.jsx).
 
-The provider owns shared snapshots and session lifetime. Feature editors own their drafts. Confirmation ownership is distinct from navigation/discard ownership; closing a dialog cannot undo a command already sent. Notifications and shared form/modal primitives live in `src/components`; visual styles live in [styles.css](../../src/styles.css).
+The provider owns shared snapshots and session lifetime. Feature editors own their drafts. Confirmation ownership is distinct from navigation/discard ownership; closing a dialog cannot undo a command already sent. Notifications and shared form/modal primitives live in `src/components`; visual styles live in [styles.css](../../src/styles.css). [Theme preference](../../src/app/theme.js) owns browser-local appearance, applied before mount by main.jsx and switched inside AppShell’s profile popup. Navigation constants leave Dashboard outside collapsible groups.
 
 ### 2.1 Feature route expansion
 
