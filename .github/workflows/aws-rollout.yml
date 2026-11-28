@@ -105,6 +105,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Bind Reviewed Email Configuration
+        env:
+          DEPLOYMENT_PROFILE: ${{ needs.target.outputs.profile }}
+          FITFINITY_RELEASE_CONFIG_JSON: ${{ vars.FITFINITY_RELEASE_CONFIG_JSON }}
+          ROLLOUT_MODE: ${{ inputs.mode }}
+          ROLLOUT_REVIEW: ${{ inputs.review_json }}
+        run: python3 backend/infrastructure/email_deployment.py
       - name: Verify exact-source complete CI before AWS authentication
         env:
           GH_TOKEN: ${{ github.token }}

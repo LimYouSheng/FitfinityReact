@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 
 from deployment_profile import fingerprint, identities
+from email_deployment import rollout_arguments
 from hosting_frontend import manifest_hash
 from maintenance_operator import digest as maintenance_digest
 from operator_checks import require
@@ -199,6 +200,14 @@ def plan(stage, record, configuration, profile, *, now, new_id=lambda: uuid.uuid
         )
         image = document(record, "image", "fitfinity-image-candidate.json")
         ready = document(record, "prepare", "release-readiness.json")
+        email_args, email_review = rollout_arguments(
+            configuration,
+            installed,
+            profile,
+            lambda service, operation, values: aws(
+                service, operation, values, profile=profile, read_only=True
+            ),
+        )
         proposed = prepare_rollout(
             installed,
             observed_template_sha256=digest(installed),
@@ -206,7 +215,13 @@ def plan(stage, record, configuration, profile, *, now, new_id=lambda: uuid.uuid
             image_digest=image["image_digest"],
             frontend_sha256=manifest_hash(ready["frontend_manifest"]),
             profile=profile,
+            **email_args,
         )
+        if email_review.get("external_boundary"):
+            require(
+                not proposed["feature_review"]["boundary_update_required"],
+                "Install the prepared email boundary before rollout",
+            )
         backup = document(record, "backup", "maintenance-receipt.json")["identity"]
         review = {
             "source_sha": source,
@@ -220,6 +235,7 @@ def plan(stage, record, configuration, profile, *, now, new_id=lambda: uuid.uuid
                 backup[key] for key in ("operation_id", "source_sha", "profile_sha256")
             ),
         }
+        review.update(email_review)
         runs = {
             "frontend": producer(record, "prepare"),
             "image": producer(record, "image"),

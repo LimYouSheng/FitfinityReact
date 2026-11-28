@@ -8,7 +8,6 @@ import os
 import unittest
 from copy import deepcopy
 from importlib import import_module
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import email_runtime
@@ -88,17 +87,118 @@ class EmailInfrastructureTests(unittest.TestCase):
             check_rollout_access(reviewed, external_host, None, fixtures.CLIENT, external)
             self.assertEqual(effective.call_args.args[-1], resource["Properties"]["PolicyDocument"])
 
-    def test_cognito_sender_change_preserves_pool_security_and_invitation_placeholders(self):
-        original = json.loads(Path(__file__).with_name("cognito.json").read_text())
-        candidate = email_runtime.cognito_template(
-            original, identities(fixtures.CLIENT), binding(fixtures.CLIENT)
+    def test_email_setup_preserves_cognito_and_keeps_worker_disabled(self):
+        from email_setup import documents
+
+        original, values = fixtures.fixture(fixtures.CLIENT)
+        before = deepcopy(original)
+        alias = (
+            f"arn:aws:lambda:{fixtures.CLIENT['region']}:{fixtures.CLIENT['account']}:"
+            "function:client-prod-staff-api:live"
         )
-        configuration = candidate["Resources"]["StaffPool"]["Properties"].pop("EmailConfiguration")
-        self.assertEqual(candidate, original)
-        self.assertEqual(configuration["EmailSendingAccount"], "DEVELOPER")
-        self.assertEqual(configuration["From"], "sender@example.test")
-        self.assertIn("{username}", json.dumps(candidate))
-        self.assertIn("{####}", json.dumps(candidate))
+        result = documents(fixtures.CLIENT, binding(fixtures.CLIENT), original, None, None, alias)
+        self.assertEqual(original, before)
+        self.assertEqual(
+            result["worker"]["Resources"]["Schedule"]["Properties"]["State"], "DISABLED"
+        )
+        self.assertFalse(
+            any(
+                r["Type"].startswith("AWS::Cognito::")
+                for r in result["worker"]["Resources"].values()
+            )
+        )
+        changed = {
+            key
+            for key in original["Resources"]
+            if original["Resources"][key] != result["hosting-preview"]["Resources"][key]
+        }
+        self.assertEqual(changed, {"ApiRole", "ApiFunction", "RuntimeBoundary"})
+        self.assertIsNone(result["boundary"])
+
+    def test_workflow_omission_preserves_existing_email_without_new_activation(self):
+        from email_deployment import rollout_arguments
+
+        original, values = fixtures.fixture(fixtures.CLIENT)
+        args, review = rollout_arguments({}, original, fixtures.CLIENT, Mock())
+        self.assertEqual((args, review), ({}, {}))
+
+    def test_workflow_freezes_external_owner_and_requires_installed_boundary(self):
+        from email_deployment import rollout_arguments
+        from release_observation import digest
+
+        original, values = fixtures.fixture(fixtures.CLIENT)
+        resource = original["Resources"].pop("RuntimeBoundary")
+        original["Resources"]["ApiRole"]["Properties"]["PermissionsBoundary"] = (
+            f"arn:aws:iam::{fixtures.CLIENT['account']}:policy/client-prod-hosting-api-boundary"
+        )
+        boundary = {"Resources": {"ApiBoundary": resource}}
+        desired = prepare(
+            original,
+            {
+                **values,
+                "features": dict.fromkeys(values["features"], False),
+                "email": binding(fixtures.CLIENT),
+            },
+            profile=fixtures.CLIENT,
+            boundary_template=boundary,
+            boundary_template_sha256=digest(boundary),
+        )["boundary_candidate_template"]
+        owner = {
+            "stack_arn": (
+                f"arn:aws:cloudformation:{fixtures.CLIENT['region']}:{fixtures.CLIENT['account']}:"
+                "stack/client-prod-github-hosting/abc123"
+            ),
+            "logical_id": "ApiBoundary",
+            "template_sha256": digest(desired),
+        }
+        config = {"email": binding(fixtures.CLIENT), "email_boundary": owner}
+        call = Mock(return_value={"TemplateBody": desired})
+        args, review = rollout_arguments(config, original, fixtures.CLIENT, call)
+        self.assertEqual(review["external_boundary"], owner)
+        self.assertEqual(review["feature_values"]["email"], binding(fixtures.CLIENT))
+        planned = prepare(
+            original,
+            args["feature_values"],
+            profile=fixtures.CLIENT,
+            boundary_template=args["boundary_template"],
+            boundary_template_sha256=args["boundary_template_sha256"],
+        )
+        self.assertFalse(planned["boundary_update_required"])
+        with self.assertRaisesRegex(RuntimeError, "boundary template changed"):
+            rollout_arguments(
+                config, original, fixtures.CLIENT, Mock(return_value={"TemplateBody": boundary})
+            )
+
+    def test_manual_email_review_cannot_drift_from_configuration(self):
+        from email_deployment import verify_review
+
+        email = binding(fixtures.CLIENT)
+        verify_review({"email": email}, {"feature_values": {"email": email}}, fixtures.CLIENT)
+        for config, review in (({}, {"feature_values": {"email": email}}), ({"email": email}, {})):
+            with self.subTest(config=config), self.assertRaises(RuntimeError):
+                verify_review(config, review, fixtures.CLIENT)
+
+    def test_coordinator_setup_only_adds_exact_boundary_read(self):
+        from email_setup import coordinator_read
+        from journal_setup import coordinator_template
+
+        original = coordinator_template(fixtures.CLIENT)
+        root = (
+            f"arn:aws:cloudformation:{fixtures.CLIENT['region']}:{fixtures.CLIENT['account']}:"
+            "stack/"
+        )
+        documents = [
+            original["Resources"]["CoordinatorBoundary"]["Properties"]["PolicyDocument"],
+            original["Resources"]["CoordinatorRole"]["Properties"]["Policies"][0]["PolicyDocument"],
+        ]
+        for document in documents:
+            for statement in document["Statement"]:
+                if statement["Action"] == "cloudformation:GetTemplate":
+                    statement["Resource"] = root + "client-prod-login/*"
+        candidate = coordinator_read(original, identities(fixtures.CLIENT))
+        self.assertEqual(candidate, coordinator_template(fixtures.CLIENT))
+        self.assertNotEqual(candidate, original)
+        self.assertEqual(coordinator_read(candidate, identities(fixtures.CLIENT)), candidate)
 
     def test_partial_recovery_binding_is_rejected(self):
         env = email_runtime.environment(identities(fixtures.CLIENT), binding(fixtures.CLIENT))

@@ -109,23 +109,3 @@ def from_environment(target, env):
             "configuration_set": env["FITFINITY_EMAIL_CONFIGURATION_SET"],
         },
     )
-
-
-def cognito_template(original, target, value):
-    """Change only the existing pool's sender; preserve identity/MFA/invitation settings."""
-    from copy import deepcopy
-
-    value = checked(target, value)
-    require(value is not None, "Reviewed Cognito SES sender required")
-    candidate = deepcopy(original)
-    pool = candidate.get("Resources", {}).get("StaffPool", {})
-    require(pool.get("Type") == "AWS::Cognito::UserPool", "Existing StaffPool owner required")
-    config = {
-        "EmailSendingAccount": "DEVELOPER",
-        "SourceArn": value["identity_arn"],
-        "From": value["sender"],
-    }
-    if value["configuration_set"]:
-        config["ConfigurationSet"] = value["configuration_set"]
-    pool["Properties"]["EmailConfiguration"] = config
-    return candidate

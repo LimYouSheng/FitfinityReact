@@ -2,7 +2,7 @@
 
 [Deployment index](../index.md) · [Saved entry point](prepare-review.sh) · [Reconciliation and remaining work](reconciliation.md)
 
-Run the saved entry point from the repository root, or set `FITFINITY_REPO` to that checkout. It renders private review artifacts and makes no AWS calls. The complete fresh-account installer remains a draft; journal/media setup and recovery-aware orchestration must still be joined and rehearsed. Historical successful account-specific scripts remain preserved in the local catalog; they are evidence, not client defaults.
+Run the saved entry point from the repository root, or set `FITFINITY_REPO` to that checkout. It renders private review artifacts. The `email` phase performs read-only AWS discovery and prepares change-set request files; other phases are offline. See [email preparation](../email.md#prepare-the-existing-account-in-cloudshell). No phase executes a change set. The complete fresh-account installer remains a draft; journal/media setup and recovery-aware orchestration must still be joined and rehearsed. Historical successful account-specific scripts remain preserved in the local catalog; they are evidence, not client defaults.
 
 ### First setup in a fresh AWS account
 

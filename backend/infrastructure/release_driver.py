@@ -10,6 +10,7 @@ from pathlib import Path
 
 from deployment_journal import bucket_name, release_store
 from deployment_profile import fingerprint, identities, load
+from email_deployment import configured
 from operator_checks import require
 from operator_errors import safe_reason
 from release_coordinator import load_or_start, tick
@@ -128,6 +129,7 @@ def main():
         load("env:" + configuration["target"]) == profile,
         "Configured child target must resolve to the same reviewed deployment profile",
     )
+    configured(configuration, profile)
     if sys.argv[1:] == ["--preflight"]:
         for flag in (
             "AWS_IMAGE_RELEASE_ENABLED",

@@ -13,7 +13,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "infrastructure")]
 SUITES = {
-    "verify-email.py": 6,
+    "verify-email.py": 10,
     "verify-backup-handover.py": 5,
     "verify-release-retirement.py": 14,
     "verify-release-recovery.py": 7,
