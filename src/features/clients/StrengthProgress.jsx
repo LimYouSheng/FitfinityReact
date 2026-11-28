@@ -24,7 +24,10 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
 
   const owner = reportsAvailable && managesOperations(user)
   const [historyOpen, setHistoryOpen] = usePageState(`client.${client.id}.reportHistoryOpen`, false)
-  const [historyState, setHistoryState] = useState({ items: [], loading: true, error: '' })
+  // Empty results are loaded too; a different actor or purchase must load its own history.
+  const historyScope = `${user.id}.${client.id}.${client.reportPackageId ?? 'legacy'}`
+  const [historyResult, setHistoryResult] = useState(null)
+  const historyState = historyResult?.scope === historyScope ? historyResult : { items: [], loading: true, loaded: false, error: '' }
   const [historyRevision, setHistoryRevision] = useState(0)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
@@ -39,14 +42,14 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
   useEffect(() => {
     if (!owner || !historyOpen) return
     let current = true
-    setHistoryState(previous => ({ ...previous, loading: true, error: '' }))
+    setHistoryResult(previous => ({ ...(previous?.scope === historyScope ? previous : { items: [], loaded: false }), scope: historyScope, loading: true, error: '' }))
     Promise.resolve().then(() => onLoadHistory(client.reportPackageId)).then(items => {
-      if (current) setHistoryState({ items, loading: false, error: '' })
+      if (current) setHistoryResult({ scope: historyScope, items, loading: false, loaded: true, error: '' })
     }).catch(error => {
-      if (current) setHistoryState(previous => ({ ...previous, loading: false, error: error.message || 'Could not load report history.' }))
+      if (current) setHistoryResult(previous => ({ ...previous, loading: false, error: error.message || 'Could not load report history.' }))
     })
     return () => { current = false }
-  }, [owner, historyOpen, client.id, client.reportPackageId, onLoadHistory, historyRevision])
+  }, [owner, historyOpen, historyScope, client.reportPackageId, onLoadHistory, historyRevision])
 
   useEffect(() => {
     if (!owner || !historyOpen) return
@@ -114,11 +117,11 @@ export default function StrengthProgress({ client, user, timeZone, onRecordActio
           {historyOpen ? 'Hide Export/WhatsApp History' : 'View Export/WhatsApp History'}
         </button>
         {historyOpen && <div id="progress-report-history" className="report-history" aria-label="Export/WhatsApp history">
-          {historyState.loading && !historyState.items.length && <LoadingIndicator label="Loading history…" />}
+          {historyState.loading && !historyState.loaded && <LoadingIndicator label="Loading history…" />}
           {historyState.error && <div role="alert">
             <p>{historyState.error}</p><button type="button" className="secondary-button" onClick={() => setHistoryRevision(current => current + 1)}>Retry History</button>
           </div>}
-          {(!historyState.loading && !historyState.error || historyState.items.length > 0) &&
+          {historyState.loaded &&
             <ReportHistoryRows clientId={client.id} packageId={client.reportPackageId} items={historyState.items} timeZone={timeZone} />}
         </div>}
       </Panel>}

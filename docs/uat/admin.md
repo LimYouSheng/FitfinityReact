@@ -184,7 +184,7 @@ These cases require the UI refinement release; results remain blank until tested
 - [ ] Dashboard is directly available above collapsed navigation groups.
 - [ ] In the profile-initial popup, switch Light/Dark Mode; refresh and confirm the choice remains. Check forms, menus, tables and dialogs for readable text and focus.
 - [ ] Message selection appears below filters: checkbox and selected count left, read/unread actions right; completed actions clear selection.
-- [ ] Message footer buttons have matching heights and equal widths within each group; Client/Trainer labels omit View, and related links still open the correct record.
+- [ ] Message footer links share one row above compact right-aligned Delete/unread actions, with matching heights and equal widths within each group. Client/Trainer labels omit View, and links still open the correct record. Undo/deadline and timestamps share each message row; narrow lists scroll locally.
 
 ## Authentication and loading presentation
 

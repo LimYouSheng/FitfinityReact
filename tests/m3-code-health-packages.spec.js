@@ -104,10 +104,9 @@ for (const [total, validity, frequency] of [[12, 90, 2], [24, 180, 1], [36, 270,
     await expect(page.locator('.onboarding-package-fields > .onboarding-field')).toHaveCount(4)
     await expect(page.locator('.onboarding-step-body .onboarding-hint')).toHaveCount(0)
     const gymBox = await membership.boundingBox(), frequencyBox = await page.getByLabel('Weekly frequency', { exact: true }).boundingBox()
-    if (page.viewportSize().width > 430) {
-      expect(gymBox.x).toBeGreaterThanOrEqual(frequencyBox.x + frequencyBox.width)
-      expect(Math.abs(gymBox.y - frequencyBox.y)).toBeLessThanOrEqual(1)
-    } else expect(gymBox.y).toBeGreaterThanOrEqual(frequencyBox.y + frequencyBox.height)
+    expect(gymBox.y).toBeGreaterThanOrEqual(frequencyBox.y + frequencyBox.height)
+    expect(gymBox.x).toBe(frequencyBox.x)
+    expect(gymBox.width).toBe(frequencyBox.width)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
     await page.getByRole('button', { name: 'Continue to Client Availability', exact: true }).click()
     for (const day of ['Monday', 'Wednesday', 'Friday'].slice(0, frequency)) await page.getByRole('button', { name: day, exact: true }).click()

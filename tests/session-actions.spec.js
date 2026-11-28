@@ -217,6 +217,14 @@ test('session actions: summary edit Undo preserves message overlay Back navigati
 test('message rows: Undo whitespace and state text open details while the Undo button stays separate', async ({ page, isMobile }) => {
   await start(page); await postpone(page, isMobile); await messages(page)
   const row = postponedRow(page), title = 'Session postponed: Postpone Client'
+  const rowBoxes = await row.locator('.message-title-button, .message-undo-action button, .message-title-time, .message-state-button').evaluateAll(elements => elements.map(element => {
+    const { y, height } = element.getBoundingClientRect()
+    return { center: y + height / 2, height }
+  }))
+  expect(rowBoxes).toHaveLength(4)
+  for (const box of rowBoxes) expect(Math.abs(box.center - rowBoxes[0].center)).toBeLessThan(1)
+  expect(rowBoxes[1].height).toBe(36)
+  expect(rowBoxes[3].height).toBe(36)
   const saved = await read(page)
   const dialog = page.getByRole('dialog', { name: title, exact: true })
   for (const target of ['time', 'space', 'deadline']) {

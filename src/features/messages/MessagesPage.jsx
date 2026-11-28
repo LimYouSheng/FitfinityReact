@@ -299,6 +299,7 @@ export function MessageInbox({
               }}
             >
               {!embedded && <input type="checkbox" aria-label={`Select ${message.title}`} disabled={bulkBusy} checked={checkedIds.includes(message.id)} onClick={event => event.stopPropagation()} onChange={event => toggleSelection(message.id, event.target.checked)} />}
+              <div className="message-title-content">
               <button
                 type="button"
                 className="message-title-button"
@@ -307,6 +308,8 @@ export function MessageInbox({
               >
                 <strong>{message.title}</strong>
               </button>
+              {!embedded && message.undo && <MessageUndo key={`${user.id}:${message.undo.id}`} message={message} timeZone={timeZone} onUndo={onUndo} />}
+              </div>
 
               {!embedded && <time className="message-title-time" dateTime={message.createdAt}>
                 {formatTimestamp(message.createdAt, timeZone)}
@@ -326,7 +329,6 @@ export function MessageInbox({
                 {message.read ? 'Read' : 'Unread'}
               </button>
               {!embedded && category === 'renewals' && removeAction(message)}
-              {!embedded && message.undo && <MessageUndo key={`${user.id}:${message.undo.id}`} message={message} timeZone={timeZone} onUndo={onUndo} />}
             </article>
           ))}
 
