@@ -42,7 +42,12 @@ def readiness(binding, evidence, call, *, profile, now):
         require("baseline_catalog" in evidence, "Original pre-backup catalog required")
         require(
             evidence["backup_transition"]
-            == prepare_transition(maintenance, baseline, backup_source),
+            == prepare_transition(
+                maintenance,
+                baseline,
+                backup_source,
+                handover=evidence["backup_transition"].get("handover"),
+            ),
             "Backup transition evidence differs",
         )
         backup_source = evidence["backup_transition"]["from_source"]
