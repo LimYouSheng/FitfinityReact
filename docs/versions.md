@@ -462,22 +462,22 @@ These SHA256 values identify the source inputs used above. The dependency guard 
 | [backend/compose.browser.yaml](../backend/compose.browser.yaml) | `b0a7da6ed501b990f3536e3043b8a175fd53206d1e3d3fefcd744b9201f77a8a` |
 | [backend/infrastructure/test-foundation.json](../backend/infrastructure/test-foundation.json) | `fc3671d622fce133ea5a2cec81d400e48de906269b2d61747aa61200b65bb5c1` |
 | [scripts/prepare-browser-apt.py](../scripts/prepare-browser-apt.py) | `971764bfb3dba3e89d4261424f33c5a4cbdfc50c988d34a233d0fefd0b5f6c07` |
-| [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `0a603e8f45eb779f24fe22c85d44354253ec0a7bdb53f3190aa067c666d1f164` |
-| [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `88512c790f57dd64c434d8eaa5b91b1d2645d81ecc15aa152f8c1461cf5d4030` |
-| [.github/workflows/aws-maintenance.yml](../.github/workflows/aws-maintenance.yml) | `36d0d2448ea2370b9fda7f1bc30cbff99cb230f0430083ce373ce2ec11ec7bd9` |
-| [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `c273b43ca5379c83e48c470a55a8f4195914affc03add8cbc52e6da06e68fb4a` |
-| [.github/workflows/aws-release-observe.yml](../.github/workflows/aws-release-observe.yml) | `0f6f8cbdcbaea91a2f2ccd8af141123c4d7e7ee4d177ce01f21dc6e67c7c9aea` |
-| [.github/workflows/aws-release-prepare.yml](../.github/workflows/aws-release-prepare.yml) | `889daff4d80eb2e2dfbdf6e45ebac2566c35a98ae44a08a0d7130055b5c9e4c7` |
-| [.github/workflows/aws-release.yml](../.github/workflows/aws-release.yml) | `93f1ab7e966633c140ca34811f732172c1ad66a0ba775512d96e1042ad700562` |
-| [.github/workflows/aws-rollout.yml](../.github/workflows/aws-rollout.yml) | `e59b1edcd1ce8c3d2453c59fb0444c0e2ffa7afa1e6caefd07dd3689abdadd6c` |
-| [.github/workflows/aws-schema-probe.yml](../.github/workflows/aws-schema-probe.yml) | `35ffd2142159cb8b2f958051011b452c0c15c35da502747d7caee250e90255a9` |
-| [.github/workflows/aws-schema-upgrade.yml](../.github/workflows/aws-schema-upgrade.yml) | `b91f5c20b5f9eefbb376107953b52a17e4dc1fdaa1b7bd112216cf6b5b20de66` |
-| [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `c300f0a8f628dde74426087098b2af69e525fa242ff5ba77b1e41434ed194fdc` |
-| [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `627fbd55c3081709d1f71ee357eecf8c5fd19b4df99cb284e506b9d55dd37f5b` |
-| [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `e68107b42e02a406181347df884aee6dd218badf3507ed8d87dc9786b402e5a0` |
-| [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `94536abbd6000d62d9917e98841f1042acdf03c1d39125d42071e7fbd81fa0e3` |
-| [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `17db9e33e0f87e8d794beb3466dc622ed021bf0a452767af435be0c517b9b79b` |
-| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `f050500caabe5ade4e06dc7b04e0b6b8e677ccf8592b05524f81e94b1b454caa` |
+| [.github/workflows/aws-image-accept.yml](../.github/workflows/aws-image-accept.yml) | `ab1459cb32e4c045399da467a994541db386401095dfde72b1fc0e52ed8687f2` |
+| [.github/workflows/aws-image.yml](../.github/workflows/aws-image.yml) | `33fc9cb60f10922f2da4816611be2fcfb5dcc8aa547c03eb23e0b3620d6d327b` |
+| [.github/workflows/aws-maintenance.yml](../.github/workflows/aws-maintenance.yml) | `53cc80110cb358add91cb944586538e5b8fa692c913b54d33ef00337c356a562` |
+| [.github/workflows/aws-private-runtime.yml](../.github/workflows/aws-private-runtime.yml) | `9e62d05b3a9378301311fd0b7559281bb148209487d53a281e795a9ac1b657ae` |
+| [.github/workflows/aws-release-observe.yml](../.github/workflows/aws-release-observe.yml) | `9ad48f592989a8648dafa73c514055fe1b8a836d5e35b3db70247b70905d3702` |
+| [.github/workflows/aws-release-prepare.yml](../.github/workflows/aws-release-prepare.yml) | `6c5bd3982584f1ba2b7ac8da52e675ce88017a7b8892dd55070a85ee92986dfe` |
+| [.github/workflows/aws-release.yml](../.github/workflows/aws-release.yml) | `79767fceba3b32a0fb772038e023a679d2ecf303250cfaa94a928af0ea31ab3b` |
+| [.github/workflows/aws-rollout.yml](../.github/workflows/aws-rollout.yml) | `c2c8f3522502c0a9841b5835e8c5df2580999516f71a1aa106cd647ca80f5735` |
+| [.github/workflows/aws-schema-probe.yml](../.github/workflows/aws-schema-probe.yml) | `187399a8fe0d6b63fc56abfdd9861cdd2bc666f4b300cee2e690fa59ebd9db3f` |
+| [.github/workflows/aws-schema-upgrade.yml](../.github/workflows/aws-schema-upgrade.yml) | `edec0c593fc9902dc275b8a2ad2b8dda9720ff8a95a56e81490a173794d6703d` |
+| [.github/workflows/aws-test-hosting.yml](../.github/workflows/aws-test-hosting.yml) | `32ed25a8dfc2009b37736113104ada54255727f988c0ea54f16f98ea55402dff` |
+| [.github/workflows/aws-verify.yml](../.github/workflows/aws-verify.yml) | `11fc66136ac01aa1c2ed93c56111e53be83509cdc867e4a1e978c4086f198697` |
+| [.github/workflows/codeql.yml](../.github/workflows/codeql.yml) | `f273e0ef326ecef0a50a86e1c3542244dbd94bd13611df6eac50253f6c70f0bc` |
+| [.github/workflows/infrastructure.yml](../.github/workflows/infrastructure.yml) | `dd2e7c7ed6840b7ba4369aa5ca1ddce347a152243a059e3efefc603babeaa644` |
+| [.github/workflows/pages.yml](../.github/workflows/pages.yml) | `832d4ff5214458cf2b1223ca2a36033b7c6eabc850611a4b1e87f43d040d56c1` |
+| [.github/workflows/verify.yml](../.github/workflows/verify.yml) | `ae6c24e4a96f2513c3a54ff98110c7bd072b1ec0294fbcbcddee6498da39675d` |
 
 Browser-source helper fingerprint: `scripts/prepare-browser-apt.py` SHA-256 `baed4e39f99a47bb2d247a2d7f3a855fd3873abeb45d7b86ca9c24551417b76f`. PR117 replaces the unreachable US regional archive with the official main archive; package suites, signing keys, runner label and Playwright version are unchanged.
 
