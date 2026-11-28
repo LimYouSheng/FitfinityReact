@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/LoadingIndicator.jsx'
 import { managesOperations } from '../../app/permissions.js'
 import SelectField from '../../components/SelectField.jsx'
 import usePageState from '../../hooks/usePageState.js'
@@ -75,7 +76,7 @@ function ExerciseDetail({ exercise, exercises, categories, creating, onLoadMedia
   }
 
   if (approvalSubmitted) return <Panel><h2>Exercise submitted for approval</h2><p role="status">The Owner will review the entry and attachment. The published library has not changed.</p><button type="button" onClick={onBack}>Back to Library</button></Panel>
-  if (creating && created) return <Panel><p role="status">Opening exercise…</p></Panel>
+  if (creating && created) return <Panel><LoadingIndicator label="Opening exercise…" /></Panel>
   if (!editing) return <Panel>
     <div className="section-head"><div><h2>{exercise?.name ?? created?.name}</h2><StatusBadge tone={exercise?.status === 'inactive' ? 'neutral' : 'green'}>{exercise?.status === 'inactive' ? 'Inactive' : 'Active'}</StatusBadge></div>
       <button type="button" className="text-action" disabled={busy || uncertain} onClick={() => { setEditing(true); setDraft(draftFor(exercise, categories)) }}>Edit Exercise</button>

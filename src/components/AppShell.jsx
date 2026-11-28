@@ -1,3 +1,5 @@
+import BrandLogo from './BrandLogo.jsx'
+import LoadingIndicator, { PageLoadingBoundary } from './LoadingIndicator.jsx'
 import { applyTheme, readTheme, saveTheme } from '../app/theme.js'
 import { messageVisibleTo } from '../app/messageInbox.js'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -131,7 +133,7 @@ export default function AppShell({
         onRoute(item.key)
       }}
     >
-      <span className="nav-dot" aria-hidden="true" />
+      {item.group && <span className="nav-dot" aria-hidden="true" />}
       <span className="nav-text">{item.label}</span>
       {item.key === 'messages' && unread > 0 && (
         <span className="nav-count" aria-label={`${unread} unread messages`}>{unread}</span>
@@ -142,7 +144,7 @@ export default function AppShell({
 
   return (
     <div className="portal-shell" data-user-id={userId} aria-busy={accountBusy}>
-      {accountBusy && <div className="portal-account-progress" role="status">Switching account…</div>}
+      {accountBusy && <div className="portal-account-progress"><LoadingIndicator label="Switching account…" /></div>}
       <button
         type="button"
         className={`drawer-scrim ${drawerOpen ? 'show' : ''}`}
@@ -157,7 +159,7 @@ export default function AppShell({
           onClick={() => { setDrawerOpen(false); onRoute('dashboard') }}
           aria-label="Fitfinity dashboard"
         >
-          <img src={`${import.meta.env.BASE_URL}assets/images/fitfinity-logo.jpg`} width="1364" height="720" alt="Fitfinity" />
+          <BrandLogo />
         </button>
 
         <div className="role-chip">
@@ -350,7 +352,7 @@ export default function AppShell({
             }
           }}
         >
-          {children}
+          <PageLoadingBoundary>{children}</PageLoadingBoundary>
         </main>
       </div>
     </div>

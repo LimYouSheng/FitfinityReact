@@ -12,6 +12,7 @@
   --grey:light-dark(#536074,#a9b2c2);
   --line:light-dark(#c8cfda,#2b2e37);
   --sidebar:245px;
+  --header-height:68px;
   --filter-control-height:40px;
 }
 
@@ -101,13 +102,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   overflow-x:hidden;
   overscroll-behavior:contain;
 }
+.brand-logo{display:block;height:auto}
+.brand-logo-light{display:none}
+:root[data-theme="light"] .brand-logo-light{display:block}
+:root[data-theme="light"] .brand-logo-dark{display:none}
 .brand{
   border:0;
   background:transparent;
   padding:2px 7px 0;
   text-align:left;
 }
-.brand img{
+.brand .brand-logo{
   display:block;
   width:205px;
   height:auto;
@@ -259,7 +264,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   transform-origin:left center;
 }
 .topbar{
-  min-height:68px;
+  min-height:var(--header-height);
   position:sticky;
   top:0;
   z-index:30;
@@ -706,8 +711,20 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:li
 
 /* Account access */
 .portal-account-progress{position:fixed;inset:0;z-index:120;display:grid;place-items:center;background:#05050999;color:var(--white);font-size:16px}
-.account-entry{max-width:480px;margin:10vh auto;padding:20px}
-.account-entry h1{margin:10px 0 16px}
+.account-entry{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;max-width:480px;margin:0 auto;padding:24px}
+.account-loading{min-height:100dvh;display:grid;place-items:center;padding:24px}
+.auth-card{padding:32px 32px 16px}
+.auth-logo{display:block;width:108px;height:auto;margin:0 auto 24px}
+.auth-card h1{text-align:center;font-size:24px;line-height:1.3;margin:0 0 32px}
+.auth-card .account-form{gap:0}
+.auth-card .account-form label{text-align:center;font-size:14px;font-weight:600}
+.auth-card input{height:44px;font-size:16px;text-align:center}
+.auth-card input::placeholder{color:light-dark(#626977,#90949e);opacity:1;font-weight:400}
+.auth-card .helper{color:var(--grey);text-align:center}
+.auth-submit{margin-top:32px;height:44px;font-size:16px}
+.auth-back{justify-self:center;margin-top:12px;color:var(--pink)}
+.auth-forgot{justify-self:end;margin-top:12px;color:var(--pink)}
+.account-entry>h1{margin:10px 0 16px}
 .auth-setup{display:grid;gap:8px;margin-bottom:16px}
 .auth-setup code{overflow-wrap:anywhere;user-select:text}
 .account-form{display:grid;gap:16px;max-width:520px}
@@ -2647,6 +2664,7 @@ fieldset.session-request-fields legend{margin-bottom:8px;font-weight:600}
 }
 
 @media(max-width:780px){
+  :root{--header-height:calc(62px + env(safe-area-inset-top))}
   .exercise-video-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
   .calendar-day{min-height:98px}
   .calendar-day-head{justify-content:center;flex-wrap:wrap;column-gap:2px;row-gap:0;font-size:11px;margin-bottom:4px}
@@ -2806,9 +2824,16 @@ fieldset.session-request-fields legend{margin-bottom:8px;font-weight:600}
   input,select,textarea{user-select:text;-webkit-user-select:text}
 }
 
+.page-load-content{display:contents}
+.page-load-content[data-loading="true"]{display:block;visibility:hidden;height:0;overflow:hidden}
+.content:has(>.page-loading-overlay){max-width:none;min-height:calc(100dvh - var(--header-height));padding:0}
+.section-loading-overlay{min-height:240px;display:grid;place-items:center}
+.page-loading-overlay{min-height:calc(100dvh - var(--header-height));display:grid;place-items:center}
+
 /* Transparent brand loading mark, with a left-to-right repeating pulse. */
-.loading-indicator{display:inline-flex;align-items:center;justify-content:center;min-height:64px;padding:8px;vertical-align:middle}
-.loading-indicator svg{display:block;width:84px;height:64px;overflow:visible}
+.loading-indicator{display:inline-flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;min-height:64px;padding:8px;vertical-align:middle}
+.loading-caption{color:var(--grey);font-size:14px;font-weight:400;text-align:center}
+.loading-indicator svg{display:block;width:56px;height:42px;overflow:visible}
 .loading-wave{fill:none;stroke:#ff368a;stroke-width:5;transform-box:fill-box;transform-origin:center;animation:loading-ripple 1.5s ease-in-out infinite}
 .loading-wave:nth-child(2){animation-delay:.15s}
 .loading-wave:nth-child(3){animation-delay:.3s}

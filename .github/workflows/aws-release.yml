@@ -1,4 +1,5 @@
 name: AWS - Coordinate Release
+run-name: ${{ format('{0} | {1}', github.workflow, 'COORDINATE') }}
 
 on:
   workflow_dispatch:
@@ -47,7 +48,10 @@ jobs:
       checks: read
     steps:
       - name: Explain Release Coordination Status
+        env:
+          REQUESTED_OPERATION: ${{ 'COORDINATE' }}
         run: |
+          printf "**Requested operation:** **%s** (request only; see execution results below).\n\n" "${REQUESTED_OPERATION^^}" >> "$GITHUB_STEP_SUMMARY"
           cat >> "$GITHUB_STEP_SUMMARY" <<'GUIDE'
           ## AWS - Coordinate Release
 

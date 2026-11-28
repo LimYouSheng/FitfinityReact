@@ -58,7 +58,7 @@ export default function App({ services }) {
 
 function PortalRoot() {
   const { snapshot, loading, refresh, services, adminCreation, clientCreation, trainerCreation } = usePortalData()
-  if (loading) return <main className="account-entry"><LoadingIndicator label="Loading staff portal…" /></main>
+  if (loading) return <main className="account-loading"><LoadingIndicator label="Loading staff portal…" /></main>
   const workspaceUserId = snapshot?.user?.id ?? adminCreation?.ownerId ?? clientCreation?.ownerId ?? trainerCreation?.ownerId
   if (workspaceUserId) return <PortalWorkspace key={workspaceUserId} userId={workspaceUserId} />
   if (!snapshot) return <PortalUnavailable />

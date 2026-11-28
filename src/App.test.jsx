@@ -666,7 +666,7 @@ for (const flow of ['sign-in', 'recovery']) for (const outcome of ['SESSION_CHAN
   }
   services.auth.challenge.mockResolvedValue({})
   services.load.mockResolvedValue({ ...snapshot, user: mockDb.read().users[0], data: mockDb.read() })
-  click('Continue')
+  click('Verify')
   await screen.findByRole('heading', { name: 'Owner Dashboard', exact: true })
   expect(services.load).toHaveBeenCalledTimes(3)
   await act(async () => { window.dispatchEvent(new Event('focus')) })

@@ -1,3 +1,4 @@
+import LoadingIndicator, { PageLoadingBoundary } from './LoadingIndicator.jsx'
 import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -189,6 +190,7 @@ it('keeps Dashboard outside sections and persists the profile-menu theme prefere
   const first = render(shell({ onRoute }))
   const dashboard = within(screen.getByRole('navigation', { name: 'Portal navigation' })).getByRole('button', { name: 'Dashboard', exact: true })
   expect(dashboard.closest('.nav-group')).toBeNull()
+  expect(dashboard.querySelector('.nav-dot')).toBeNull()
   await user.click(dashboard)
   expect(onRoute).toHaveBeenCalledWith('dashboard')
   await user.click(screen.getByRole('button', { name: 'Open profile menu' }))
@@ -205,4 +207,33 @@ it('keeps Dashboard outside sections and persists the profile-menu theme prefere
   second.unmount()
   localStorage.removeItem('fitfinity-theme')
   document.documentElement.removeAttribute('data-theme')
+})
+
+
+it('coalesces concurrent page readers and retains mounted content until all readers finish', async () => {
+  const user = userEvent.setup()
+  const view = (first, second) => <><button>Home</button><PageLoadingBoundary>
+    <input aria-label="Retained draft" defaultValue="Original" />
+    {first && <LoadingIndicator label="Loading profile…" />}
+    {second && <LoadingIndicator label="Loading email…" />}
+  </PageLoadingBoundary></>
+  const { rerender } = render(view(false, false))
+  await user.type(screen.getByLabelText('Retained draft'), ' change')
+  rerender(view(true, true))
+  expect(screen.getAllByRole('status')).toHaveLength(1)
+  expect(screen.getByRole('status')).toHaveTextContent('Loading profile… Loading email…')
+  expect(document.querySelector('.page-load-content')).toHaveAttribute('inert')
+  expect(screen.getByRole('button', { name: 'Home' })).toBeEnabled()
+  rerender(view(false, true))
+  expect(screen.getAllByRole('status')).toHaveLength(1)
+  rerender(view(false, false))
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Retained draft')).toHaveValue('Original change')
+  expect(document.querySelector('.page-load-content')).not.toHaveAttribute('inert')
+  rerender(<PageLoadingBoundary><ConfirmDialog open title="Preparing report"><input aria-label="Report draft" defaultValue="Keep me" /><LoadingIndicator label="Preparing PDF…" /></ConfirmDialog></PageLoadingBoundary>)
+  expect(screen.getAllByRole('status')).toHaveLength(1)
+  expect(screen.getByRole('dialog')).toContainElement(screen.getByRole('status'))
+  expect(document.querySelector('.page-loading-overlay')).not.toBeInTheDocument()
+  expect(document.querySelector('.section-loading-overlay')).toBeInTheDocument()
+  expect(document.querySelector('[aria-label="Report draft"]')).toHaveValue('Keep me')
 })

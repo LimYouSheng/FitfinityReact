@@ -661,44 +661,74 @@ class UpgradeExecutionTests(unittest.TestCase):
         )
         self.evidence["baseline_catalog"] = copy.deepcopy(self.evidence["catalog"])
         binding = {**self.binding, "source_sha": "b" * 40}
-        with (
-            patch("backup_transition.source_fingerprint", return_value="c" * 64),
-            patch("backup_transition.subprocess.run") as ancestor,
-        ):
-            ancestor.return_value.returncode = 0
-            self.evidence["backup_transition"] = prepare_transition(
-                self.evidence["maintenance"],
-                self.evidence["baseline_catalog"],
-                binding["source_sha"],
-            )
-            original = copy.deepcopy(self.evidence["maintenance"])
-            readiness(binding, self.evidence, self.call, profile=CLIENT, now=1000)
-            self.assertEqual(self.evidence["maintenance"], original)
-            self.assertFalse(
-                {"invoke", "tag-resource", "create-db-snapshot"} & {n for n, _ in self.calls}
-            )
-            for defect in ("transition", "catalog", "runtime", "snapshot", "concurrency"):
-                evidence = copy.deepcopy(self.evidence)
-                with self.subTest(defect=defect):
-                    if defect == "transition":
-                        evidence["backup_transition"]["maintenance_sha256"] = "0" * 64
-                    elif defect == "catalog":
-                        evidence["catalog"]["alembic_revisions"] = ["20261127_0053"]
-                    elif defect == "runtime":
-                        live = self.call(
-                            "lambda", "get-function", {"FunctionName": "client-prod-staff-api"}
+        for reviewed in (False, True):
+            with (
+                patch(
+                    "backup_transition.source_fingerprint",
+                    side_effect=lambda sha, reviewed=reviewed: (
+                        ("c" if sha == "a" * 40 or not reviewed else "d") * 64
+                    ),
+                ),
+                patch(
+                    "backup_handover.chain_at",
+                    side_effect=lambda sha: (
+                        [{"revision": "20260924_0006", "sha256": "1" * 64}]
+                        + (
+                            [{"revision": "20261127_0053", "sha256": "2" * 64}]
+                            if sha == "b" * 40
+                            else []
                         )
-                        live["Configuration"]["MemorySize"] = 1024
-                        self.overrides["get-function"] = live
-                    elif defect == "snapshot":
-                        self.overrides["describe-db-snapshots"] = {"DBSnapshots": []}
-                    else:
-                        self.overrides["get-function-concurrency"] = {
-                            "ReservedConcurrentExecutions": 2
-                        }
-                    with self.assertRaises(RuntimeError):
-                        readiness(binding, evidence, self.call, profile=CLIENT, now=1000)
-                    self.overrides.clear()
+                    ),
+                ),
+                patch("backup_handover.subprocess.check_output", return_value="same-catalog"),
+                patch("backup_transition.subprocess.run") as ancestor,
+            ):
+                ancestor.return_value.returncode = 0
+                from backup_handover import proposal
+
+                handover = (
+                    proposal(
+                        self.evidence["maintenance"],
+                        self.evidence["baseline_catalog"],
+                        binding["source_sha"],
+                    )
+                    if reviewed
+                    else None
+                )
+                self.evidence["backup_transition"] = prepare_transition(
+                    self.evidence["maintenance"],
+                    self.evidence["baseline_catalog"],
+                    binding["source_sha"],
+                    handover=handover,
+                )
+                original = copy.deepcopy(self.evidence["maintenance"])
+                readiness(binding, self.evidence, self.call, profile=CLIENT, now=1000)
+                self.assertEqual(self.evidence["maintenance"], original)
+                self.assertFalse(
+                    {"invoke", "tag-resource", "create-db-snapshot"} & {n for n, _ in self.calls}
+                )
+                for defect in ("transition", "catalog", "runtime", "snapshot", "concurrency"):
+                    evidence = copy.deepcopy(self.evidence)
+                    with self.subTest(defect=defect):
+                        if defect == "transition":
+                            evidence["backup_transition"]["maintenance_sha256"] = "0" * 64
+                        elif defect == "catalog":
+                            evidence["catalog"]["alembic_revisions"] = ["20261127_0053"]
+                        elif defect == "runtime":
+                            live = self.call(
+                                "lambda", "get-function", {"FunctionName": "client-prod-staff-api"}
+                            )
+                            live["Configuration"]["MemorySize"] = 1024
+                            self.overrides["get-function"] = live
+                        elif defect == "snapshot":
+                            self.overrides["describe-db-snapshots"] = {"DBSnapshots": []}
+                        else:
+                            self.overrides["get-function-concurrency"] = {
+                                "ReservedConcurrentExecutions": 2
+                            }
+                        with self.assertRaises(RuntimeError):
+                            readiness(binding, evidence, self.call, profile=CLIENT, now=1000)
+                        self.overrides.clear()
 
     def test_backup_transition_source_inventory_and_explicit_selection_fail_closed(self):
         from unittest.mock import patch
@@ -771,7 +801,14 @@ class UpgradeExecutionTests(unittest.TestCase):
                 "SNAPSHOT_ARN": self.evidence["snapshot_arn"],
             }
             transition = {"from_source": "a" * 40, "to_source": "b" * 40}
-            for baseline in (True, False):
+            for baseline, handover in ((True, None), (True, {"schema_version": 1}), (False, None)):
+                env["MAINTENANCE_RUN"] = json.dumps(
+                    {
+                        "run": "104",
+                        "source_sha": "a" * 40,
+                        **({"handover": handover} if handover else {}),
+                    }
+                )
                 with (
                     self.subTest(baseline=baseline),
                     patch.dict(os.environ, env),
@@ -801,7 +838,10 @@ class UpgradeExecutionTests(unittest.TestCase):
                         ["b" * 40, "a" * 40, "a" * 40],
                     )
                     prepare.assert_called_once_with(
-                        self.evidence["maintenance"], self.evidence["catalog"], "b" * 40
+                        self.evidence["maintenance"],
+                        self.evidence["catalog"],
+                        "b" * 40,
+                        handover=handover,
                     )
 
     def test_missing_stack_input_uses_owned_prior_and_conflicts_still_fail(self):

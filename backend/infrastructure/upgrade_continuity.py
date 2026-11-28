@@ -44,7 +44,19 @@ def evidence(upgrade, source, profile):
     )
     if maintenance["source_sha"] != previous:
         transition = upgrade.get("backup_transition", {})
-        retained = compatible(maintenance["source_sha"], previous)
+        if "handover" in transition:
+            from backup_handover import validate
+
+            retained = validate(transition["handover"], maintenance["source_sha"], previous)
+            require(
+                all(
+                    transition.get(key) == transition["handover"].get(key)
+                    for key in ("maintenance_sha256", "baseline_catalog_sha256")
+                ),
+                "Completed handover receipt digests differ",
+            )
+        else:
+            retained = compatible(maintenance["source_sha"], previous)
         require(
             transition.get("from_source") == maintenance["source_sha"]
             and transition.get("to_source") == previous
