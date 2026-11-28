@@ -166,6 +166,29 @@ class InputTests(unittest.TestCase):
         )
         self.assertEqual(resumed["review_sha256"], digest(resume_review))
 
+        # Exercise the real coordinator caller, not only the configuration helper.
+        from importlib import import_module
+
+        fixtures = import_module("verify-release-features")
+        email = import_module("verify-email").binding(DEVELOPER)
+        installed, _ = fixtures.fixture(DEVELOPER)
+        installed["Resources"]["ApiFunction"]["Properties"]["ReservedConcurrentExecutions"] = 0
+        self.config["email"] = email
+        with patch("release_stage_inputs.template", return_value=installed):
+            configured = self.check("rollout")
+        configured_review = json.loads(configured["review_json"])
+        self.assertEqual(configured_review["feature_values"]["email"], email)
+        self.assertEqual(
+            configured_review["feature_values"]["features"],
+            {"media": False, "invitations": False, "email_changes": False},
+        )
+        self.assertEqual(configured["review_sha256"], digest(configured_review))
+        self.stage("rollout", 107, {}, configured)
+        # A later variable edit must never change the original resumption intent.
+        self.config.pop("email")
+        recovered = json.loads(self.check("resume")["review_json"])
+        self.assertEqual(recovered["feature_values"], configured_review["feature_values"])
+
 
 if __name__ == "__main__":
     unittest.main()

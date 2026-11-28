@@ -327,17 +327,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   margin:0;
 }
 .topbar-back-button:hover{border-color:light-dark(#bac3d1,#525b6d);background:light-dark(#f0f3f8,#191d25)}
-.topbar-back-button span{
-  width:100%;
-  height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:27px;
-  line-height:1;
-  font-weight:400;
-  transform:translateY(-1px);
-}
+
 .message-button{
   position:relative;
   width:42px;
@@ -486,6 +476,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 }
 .notification-banner p{flex:1;min-width:0;margin:0;font-size:15px;line-height:1.35;font-weight:600;overflow-wrap:anywhere}
 .notification-banner button{
+  display:flex;align-items:center;justify-content:center;
   flex:0 0 28px;
   height:28px;
   padding:0;
@@ -640,7 +631,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .calendar-modes button{min-height:44px;border:1px solid light-dark(#bac3d1,#30333c);border-radius:6px;background:light-dark(#f0f3f8,#181b25);color:var(--white);padding:8px 12px;font-size:14px;line-height:1.4}
 .calendar-modes button[aria-pressed="true"]{border-color:var(--blue);color:#fff;background:var(--blue)}
 .calendar-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0}
-.calendar-toolbar>button{min-width:44px;min-height:44px;font-size:14px;line-height:1.4}
+.calendar-toolbar>button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;font-size:14px;line-height:1.4}
 .calendar-toolbar>.select-field{flex:1;min-width:0}
 .calendar-toolbar .select-field>select.calendar-range{min-width:0;min-height:44px;text-align:center;font-size:14px;line-height:1.4;font-weight:700;color:var(--white);background:light-dark(#f0f3f8,#181b25);border:1px solid light-dark(#bac3d1,#30333c);border-radius:6px;padding:8px 28px 8px 8px}
 .calendar-toolbar .select-field-chevron{font-size:14px}
@@ -689,12 +680,6 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:li
 .signature-pad{touch-action:none;user-select:none;cursor:crosshair}
 .signature-pad path,.signature-preview path{fill:none;stroke:#172031;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 .signature-field .inline-actions{flex-wrap:wrap}
-.recorded-results{grid-column:1/-1;display:grid;gap:10px}
-.recorded-results h3{font-size:15px;margin:0}
-.recorded-result{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-top:1px solid light-dark(#bac3d1,#303644);padding-top:10px}
-.recorded-result>strong{grid-column:1/-1}
-.recorded-result label{min-width:0}
-.recorded-result input{width:100%;min-width:0}
 
 /* Content management */
 .content-form,.content-form fieldset{display:grid;gap:15px;min-width:0}
@@ -970,6 +955,8 @@ button.calendar-agenda-date:hover,.calendar-today .calendar-agenda-date{color:li
   object-fit:contain;
 }
 .exercise-video-placeholder{display:grid;place-items:center;padding:16px;text-align:center}
+.exercise-video-dialog .exercise-video-audio{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.exercise-video-audio input[type="checkbox"]{width:auto;margin:0;flex:none}
 .exercise-video-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 .exercise-video-file-action{
   position:relative;
@@ -1494,9 +1481,20 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
   .package-section-head{grid-template-columns:minmax(0,1fr) minmax(0,130px)}
   .package-actions{flex-direction:column}
 }
-.package-progress-title{justify-content:flex-start;align-items:baseline;flex-wrap:wrap}
-.package-progress-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 70px 58px;gap:12px;align-items:center;min-width:0}
+.heading-with-status{display:flex;align-items:center;gap:10px;min-width:0}
+.heading-with-status h2{margin:0}
+.heading-with-status .status-badge{flex-shrink:0}
+@media(max-width:620px){
+  .exercise-summary-head{flex-wrap:wrap}
+  .exercise-summary-head .heading-with-status{flex:1 0 100%;justify-content:space-between}
+  .exercise-summary-head>.text-action{margin-left:auto}
+}
+.package-progress-title{justify-content:flex-start;align-items:baseline;flex-wrap:wrap;margin-bottom:0}
+.package-progress-title p{margin:0}
+.package-progress-title+.strength-progress{margin-top:0}
+.package-progress-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 80px 58px;gap:12px;align-items:center;min-width:0}
 .package-progress-grid>div{display:flex;align-items:center;gap:6px;min-width:0}
+.package-progress-grid>:nth-child(3){white-space:nowrap}
 .package-progress-grid strong{font-size:14px}
 .package-progress-grid>span,.package-progress-grid>div>span{font-size:13px;color:var(--grey)}
 .package-progress-grid>:not(button){min-width:0;overflow-wrap:anywhere}
@@ -1504,13 +1502,14 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
 .strength-progress-list{min-width:0}
 .strength-progress-columns,.strength-progress-row{
   display:grid;
-  grid-template-columns:minmax(0,1.7fr) minmax(0,.9fr) minmax(0,.9fr) minmax(0,.75fr) 14px;
+  grid-template-columns:minmax(0,1.7fr) minmax(0,.9fr) minmax(0,.9fr) minmax(72px,.75fr) 14px;
   gap:8px;
   align-items:center;
   padding:10px 6px;
   text-align:right;
 }
 .strength-progress-columns{font-size:11px;line-height:1.3;color:light-dark(#202838,#9ba5b9);font-weight:750}
+.strength-progress-columns>span{white-space:nowrap}
 .strength-progress-columns>span:first-child{text-align:left}
 .strength-progress-item{border-top:1px solid light-dark(#bac3d1,#303640)}
 .strength-progress-row{
@@ -1707,7 +1706,9 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
   background:light-dark(#ffffff,#12141a);
 }
 .modal-head h2{margin:0;font-size:20px}
+.control-icon{display:block;width:18px;height:18px;flex:none}
 .icon-button{
+  display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1;flex-shrink:0;
   width:36px;
   height:36px;
   border:1px solid light-dark(#bac3d1,#404551);
@@ -2009,7 +2010,7 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
 /* Shared field menus follow the Messages category menu's compact dark surface. */
 .select-field{position:relative;display:inline-grid;min-width:0;max-width:100%;vertical-align:middle}
 .select-field>select{appearance:none;-webkit-appearance:none;width:100%;min-width:0;max-width:100%;min-height:40px;padding:9px 30px 9px 11px;border:1px solid light-dark(#bac3d1,#343a47);border-radius:8px;background:light-dark(#ffffff,#101319);color:light-dark(#202838,#fff);font-size:15px;line-height:1.4;cursor:pointer}
-.select-field-chevron{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:light-dark(#202838,#8d96a7);font-size:17px;line-height:1}
+.select-field-chevron{display:flex;align-items:center;justify-content:center;position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:light-dark(#202838,#8d96a7);font-size:17px;line-height:1}
 .field-popover{position:fixed;z-index:1200;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;border:1px solid light-dark(#bac3d1,#343a47);border-radius:8px;background:light-dark(#ffffff,#11141a);color:light-dark(#202838,#c6ccd7);box-shadow:0 18px 44px rgba(0,0,0,.48)}
 .field-popover>[role="option"]{display:block;width:100%;min-height:40px;border:0;border-top:1px solid light-dark(#bac3d1,#292e39);border-radius:0;background:transparent;color:light-dark(#202838,#c6ccd7);padding:9px 11px;font-size:15px;line-height:1.4;text-align:left;white-space:normal;overflow-wrap:anywhere;cursor:pointer}
 .field-popover>[role="option"]:first-child{border-top:0}
@@ -2022,6 +2023,7 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
 .date-field>input{width:100%;min-width:0;cursor:pointer}
 .date-calendar{padding:12px}
 .date-calendar-heading{display:grid;grid-template-columns:28px minmax(0,1fr) 85px 28px;align-items:center;gap:4px;margin-bottom:10px}
+.date-calendar-heading>button{display:flex;align-items:center;justify-content:center;padding:0}
 .date-calendar-heading>button,.date-calendar-actions>button{border:1px solid light-dark(#bac3d1,#343a47);border-radius:6px;background:light-dark(#ffffff,#101319);color:light-dark(#202838,#c6ccd7);min-height:34px;font-size:14px;line-height:1.4;cursor:pointer}
 .date-calendar-heading .select-field>select{font-size:14px;min-height:34px;padding:6px 20px 6px 7px}
 .date-calendar-heading .select-field-chevron{right:6px;font-size:14px}
@@ -2118,6 +2120,7 @@ button.onboarding-review-form:focus-visible{outline:2px solid #a4b0ff;outline-of
 .profile-menu .profile-tabs button:hover{background:light-dark(#f0f3f8,#181d27);color:light-dark(#202838,#fff)}
 .profile-menu .profile-tabs button.active{background:light-dark(#e9eafb,#1a2453);color:light-dark(#202838,#fff)}
 
+.profile-popover>button.profile-menu-danger{color:light-dark(#8e1018,#ff8f96)}
 .profile-menu .profile-tabs .profile-menu-danger{
   margin-top:4px;
   border-top:1px solid light-dark(#bac3d1,#553236);
@@ -2387,8 +2390,9 @@ fieldset.session-request-fields legend{margin-bottom:8px;font-weight:600}
 
 
 .message-popup-actions{flex-wrap:wrap;align-items:flex-end;gap:12px}
-.message-popup-buttons{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px;flex:0 1 280px;margin-left:auto}
-.message-popup-actions button{height:44px;min-height:44px;min-width:0;width:100%;margin:0;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.message-popup-buttons{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;flex:0 1 auto;min-width:0;max-width:100%;margin-left:auto}
+.message-popup-actions button{height:36px;min-height:36px;min-width:0;width:100%;margin:0;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.message-popup-buttons button{width:136px;flex:0 0 136px}
 .message-popup-actions .message-related{margin-right:auto;text-align:left;border:0;padding:0;flex:1 1 280px;min-width:0}
 .message-popup-actions p{flex-basis:100%;margin:0;color:light-dark(#8e1024,#ff9aaa)}
 
@@ -2790,7 +2794,7 @@ fieldset.session-request-fields legend{margin-bottom:8px;font-weight:600}
   .info-row strong{text-align:left}
   .client-trainer-assignment{justify-items:stretch}
 
-  .package-progress-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 38px 48px;gap:5px}
+  .package-progress-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 72px 48px;gap:5px}
   .package-progress-grid>div{gap:4px}
   .package-progress-grid strong{font-size:13px}
   .package-progress-grid>span,.package-progress-grid>div>span{font-size:11px}

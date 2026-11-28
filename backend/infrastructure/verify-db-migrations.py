@@ -206,6 +206,8 @@ class RuntimeChecks(unittest.TestCase):
             "migrations/versions/20261101_0052_share_approval_policy.py",
             "migrations/versions/20261127_0053_owner_profile.py",
             "app/models/owner_profile.py",
+            "migrations/versions/20261128_0054_email_delivery.py",
+            "app/models/email_delivery.py",
             "app/api/owner_profile.py",
             "app/api/admin_management.py",
             "app/api/admin_requests.py",

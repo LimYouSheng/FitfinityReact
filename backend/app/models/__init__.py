@@ -11,6 +11,7 @@ from app.models import (
     authentication,
     communications,
     email_changes,
+    email_delivery,
     evidence,
     media,
     owner_profile,
@@ -51,6 +52,7 @@ for table in Base.metadata.tables.values():
 
 
 __all__ = [
+    "email_delivery",
     "admin_management",
     "admin_requests",
     "api",

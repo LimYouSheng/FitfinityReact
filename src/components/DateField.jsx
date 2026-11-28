@@ -1,3 +1,4 @@
+import ControlIcon from './ControlIcon.jsx'
 import { useEffect, useId, useRef, useState } from 'react'
 import { formatDate } from '../utils/date.js'
 import FieldPopover from './FieldPopover.jsx'
@@ -52,14 +53,14 @@ export default function DateField({ value = '', onChange, min, max, ...props }) 
       onKeyDown={event => { if (event.key === 'Enter' || event.key === 'ArrowDown') show(event) }} />
     {open && <FieldPopover anchorRef={ref} onClose={() => setOpen(false)} width={310} role="dialog" id={id} aria-label={`${props['aria-label'] ?? 'Date'} calendar`} className="date-calendar">
       <div className="date-calendar-heading">
-        <button type="button" aria-label="Previous month" onClick={() => changeMonth(-1)} disabled={Boolean(min && month <= min.slice(0, 7))}>‹</button>
+        <button type="button" aria-label="Previous month" onClick={() => changeMonth(-1)} disabled={Boolean(min && month <= min.slice(0, 7))}><ControlIcon name="back" /></button>
         <SelectField aria-label="Calendar picker month" value={monthNumber} onChange={event => setMonth(`${year}-${String(event.target.value).padStart(2, '0')}`)}>
           {months.map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
         </SelectField>
         <SelectField aria-label="Calendar picker year" value={year} onChange={event => setMonth(`${event.target.value}-${String(monthNumber).padStart(2, '0')}`)}>
           {Array.from({ length: Math.max(1, maximumYear - minimumYear + 1) }, (_, index) => <option key={minimumYear + index}>{minimumYear + index}</option>)}
         </SelectField>
-        <button type="button" aria-label="Next month" onClick={() => changeMonth(1)} disabled={Boolean(max && month >= max.slice(0, 7))}>›</button>
+        <button type="button" aria-label="Next month" onClick={() => changeMonth(1)} disabled={Boolean(max && month >= max.slice(0, 7))}><ControlIcon name="next" /></button>
       </div>
       <div className="date-calendar-grid">
         {weekdays.map(day => <span key={day} aria-hidden="true">{day}</span>)}

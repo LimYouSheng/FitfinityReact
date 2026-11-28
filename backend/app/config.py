@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     db_connect_timeout_seconds: int = Field(default=5, ge=1, le=30)
     db_statement_timeout_ms: int = Field(default=5000, ge=100, le=30000)
 
+    transactional_email_enabled: bool = False
+    email_sender: str = ""
+    email_configuration_set: str = ""
+    email_dispatch_secret_arn: str = Field(default="", repr=False)
+
     auth_enabled: bool = False
     cognito_pool_id: str = ""
     cognito_client_id: str = ""
@@ -60,6 +65,18 @@ class Settings(BaseSettings):
     def validate_deployment(self):
         if not re.fullmatch(r"(?:af|ap|ca|eu|il|me|mx|sa|us)-[a-z]+-[1-9]", self.aws_region):
             raise ValueError("Configure a commercial AWS region")
+        if self.transactional_email_enabled:
+            if not re.fullmatch(r"[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+", self.email_sender):
+                raise ValueError("Transactional email requires a verified sender address")
+            if not re.fullmatch(
+                rf"arn:aws:secretsmanager:{re.escape(self.aws_region)}:[0-9]{{12}}:secret:[A-Za-z0-9/_+=.@-]+",
+                self.email_dispatch_secret_arn,
+            ):
+                raise ValueError("Transactional email requires a dedicated dispatch secret")
+            if self.email_configuration_set and not re.fullmatch(
+                r"[A-Za-z0-9_-]{1,64}", self.email_configuration_set
+            ):
+                raise ValueError("Invalid SES configuration set")
         if self.media_enabled and not re.fullmatch(
             r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]", self.media_bucket
         ):

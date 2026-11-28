@@ -1,3 +1,4 @@
+import { reportEmailCommands } from './apiReportEmail.js'
 import { ownerProfileCommands } from './apiOwnerProfile.js'
 import { reportSharingCommands } from './apiReportSharing.js'
 import { adminManagementCommands } from './apiAdminManagement.js'
@@ -104,6 +105,7 @@ export function createApiPortalAdapter(options = {}) {
   const personalMessages = messageCommands(http, actionSession)
   const content = contentCommands(http, actionSession)
   const reportSharing = reportSharingCommands(http, actionSession)
+  const reportEmail = reportEmailCommands(http, actionSession)
   const adminRequests = adminRequestCommands(http, actionSession, options.fetchImpl)
   const savePackage = packageCommands(http, actionSession)
   const clientAssessments = assessmentCommands(http, actionSession)
@@ -160,6 +162,10 @@ export function createApiPortalAdapter(options = {}) {
     async resumeProfileSave({ kind }, { expectedGeneration = http.generation() } = {}) { return profileRecovery.resume(kind, expectedGeneration) },
     async readContent(_input, { expectedGeneration = http.generation() } = {}) { return content.read(expectedGeneration) },
     async readAdminAttachment(input, { expectedGeneration = http.generation() } = {}) { return adminRequests.attachment(input, expectedGeneration) },
+    async reviewReportEmail(input, { expectedGeneration = http.generation() } = {}) { return reportEmail.review(input, expectedGeneration) },
+    async sendReportEmail(input, { expectedGeneration = http.generation() } = {}) { return reportEmail.send(input, expectedGeneration) },
+    async recoverReportEmail(input, { expectedGeneration = http.generation() } = {}) { return reportEmail.recover(input, expectedGeneration) },
+    async retryReportEmail(input, { expectedGeneration = http.generation() } = {}) { return reportEmail.retry(input, expectedGeneration) },
     async prepareReportSharing(input, { expectedGeneration = http.generation() } = {}) { return reportSharing.prepare(input, expectedGeneration) },
     async retryReportSharing(input, { expectedGeneration = http.generation() } = {}) { return reportSharing.retry(input, expectedGeneration) },
     async readAdminRequests(_input, { expectedGeneration = http.generation() } = {}) { return adminRequests.read(expectedGeneration) },

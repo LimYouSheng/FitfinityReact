@@ -16,6 +16,7 @@ from app.api.request_cancellation import DECISION_LOCK
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
+from app.email_events import session_completed
 from app.models.api import SessionAcknowledgementReceipt
 from app.models.communications import Message, MessageReceipt, SessionEvent
 from app.models.people import Client, StaffUser, Trainer
@@ -228,6 +229,7 @@ def save(session, principal, identity, key, body):
         note=body.note,
     )
     used = viewed.used + (0 if viewed.previousMethod else 1)
+    session_completed(session, booking, key, used)
     notify_renewal(session, principal, booking, used)
     session.add(
         SessionEvent(

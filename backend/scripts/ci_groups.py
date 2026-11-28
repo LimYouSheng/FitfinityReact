@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-EXPECTED = 1473
+EXPECTED = 1488
 GROUPS = json.loads(Path(__file__).with_name("test-groups.json").read_text())
 
 

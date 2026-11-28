@@ -286,3 +286,7 @@ The opt-in coordinator uses a separate protected OIDC role with private journal 
 ## Deployment journal and storage separation
 
 The [deployment inventory](../deployment/infrastructure.md) tracks frontend, private media, operation-owned worker storage and the versioned journal separately. Journal storage retains claims/receipts and uses TLS-only access plus conditional writes; the coordinator and child operators have different object scopes in both role policy and permission boundaries. Operator setup verification is recorded, while fresh drift inspection and temporary-worker cleanup remain unverified. Media lifecycle only aborts incomplete multipart uploads after seven days; it does not expire completed business attachments or establish erasure of versioned copies. SES remains planned, not an active delivery control.
+
+### Transactional email candidate
+
+The runtime uses an exact SES identity with a FromAddress condition and a dedicated dispatch secret. Role and boundary permissions are identical in their respective existing owners. Scheduler requests contain no recipient/content and require a short-lived purpose-bound HMAC. Business writes and immutable mail content commit atomically; expired or uncertain provider attempts do not automatically resend. Plain-text reports omit private health/comments/media. This is local source, not live provider acceptance; see [setup](../deployment/email.md).

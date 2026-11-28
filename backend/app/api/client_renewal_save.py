@@ -14,6 +14,7 @@ from app.api.purchase_creation import persist_purchase, prepare_purchase
 from app.api.schemas import Contract
 from app.auth.errors import AuthError
 from app.authorization import conflict, unavailable
+from app.email_events import package_notice
 from app.models.api import ClientRenewalReceipt
 from app.models.communications import Message, MessageReceipt
 from app.models.people import Client, StaffUser, Trainer
@@ -87,6 +88,7 @@ def save(session, principal, identity, key, body):
         purchase = persist_purchase(session, client, body, prepared, stage="queued")
     except PersistenceConflict:
         raise conflict() from None
+    package_notice(session, purchase, f"package.added:{purchase.id}")
     notify(session, principal, client, purchase)
     result = ClientRenewalState(id=client.id, version=client.version, purchaseId=purchase.id)
     session.add(

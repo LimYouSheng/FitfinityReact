@@ -13,7 +13,7 @@ from app.release_upgrade import LOCK_KEY, UpgradeRefused, upgrade_existing
 
 pytestmark = pytest.mark.database
 BASE = "20260924_0006"
-HEAD = "20261127_0053"
+HEAD = "20261128_0054"
 
 
 @pytest.fixture

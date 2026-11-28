@@ -1,3 +1,4 @@
+import ControlIcon from '../../components/ControlIcon.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CUSTOM_EXERCISE } from '../../app/exerciseLibrary.js'
 import { groupedActiveExercises } from '../../app/exerciseCatalog.js'
@@ -51,7 +52,7 @@ export default function ExerciseNamePicker({ catalog = [], index, choice, name, 
         onClick={() => setOpen(current => !current)}
       >
         <span>{displayName}</span>
-        <span aria-hidden="true">⌄</span>
+        <span aria-hidden="true"><ControlIcon name="chevron" /></span>
       </button>
 
       {open && (

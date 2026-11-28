@@ -758,7 +758,7 @@ def seed(db, settings):
                     )
                     session.add(plan)
                     session.flush()
-                    if purpose.startswith(("summary", "report")):
+                    if purpose.startswith(("summary", "report")) or purpose == "outcomeadmin":
                         session.add(
                             ExerciseResult(
                                 session_id=bookings[0].id,
@@ -885,6 +885,9 @@ def browser_app(control):
             database_url=control.set(database=name).render_as_string(hide_password=False),
             auth_enabled=True,
             staff_invitations_enabled=True,
+            transactional_email_enabled=True,
+            email_sender="sender@example.test",
+            email_dispatch_secret_arn="arn:aws:secretsmanager:ap-southeast-1:123456789012:secret:synthetic/test/email-dispatch-aBc123",
             staff_email_corrections_enabled=True,
             staff_portal_url="https://staff.example.test/",
             cognito_pool_id="ap-southeast-1_BrowserTest",

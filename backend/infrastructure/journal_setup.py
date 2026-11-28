@@ -42,8 +42,13 @@ def coordinator_template(profile):
             {
                 "Effect": "Allow",
                 "Action": "cloudformation:GetTemplate",
-                "Resource": f"arn:aws:cloudformation:{target['region']}:{target['account']}:"
-                f"stack/{target['hosting_stack']}/*",
+                "Resource": [
+                    f"arn:aws:cloudformation:{target['region']}:{target['account']}:stack/{name}/*"
+                    for name in (
+                        target["hosting_stack"],
+                        target["resource_prefix"] + "-github-hosting",
+                    )
+                ],
                 "Condition": {"StringEquals": {"aws:RequestedRegion": target["region"]}},
             },
             {

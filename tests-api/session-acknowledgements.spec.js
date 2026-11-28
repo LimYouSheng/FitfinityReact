@@ -30,11 +30,22 @@ async function draw(page) {
   await page.mouse.up()
 }
 for (const [purpose, role] of [['ack', 'trainer'], ['ackadmin', 'admin']]) {
-  test(`${role} completes through UI and corrects no-show to permanent signature with one credit`, async ({ page, browser }, info) => {
+  test(`${role} completes no-show, edits outcome, then confirms a permanent signature with one credit`, async ({ page, browser }, info) => {
     const { session } = await open(page, info, purpose, role)
     await submit(page)
     await expect(page.getByText('Session acknowledgement saved.', { exact: true })).toBeVisible()
     await page.reload()
+    const panel = page.locator('.session-outcome-panel')
+    await panel.getByRole('button', { name: 'Edit', exact: true }).click()
+    await panel.getByRole('textbox', { name: 'Trainer comments', exact: true }).fill('Outcome corrected after no-show, before client signature.')
+    await panel.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Save session outcome?', exact: true }).getByRole('button', { name: 'Save Outcome', exact: true }).click()
+    await expect(page.getByText('Session outcome saved.', { exact: true })).toBeVisible()
+    const edited = await read(page, `/api/sessions/${session.id}/details`)
+    expect(edited.purchase.used).toBe(1)
+    expect(edited.acknowledgementHistory.map(a => a.method)).toEqual(['late_no_show'])
+    await page.reload()
+    await expect(page.getByText('Outcome corrected after no-show, before client signature.', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Correct to Client Signature' }).click()
     await draw(page)
     await submit(page)
@@ -44,6 +55,8 @@ for (const [purpose, role] of [['ack', 'trainer'], ['ackadmin', 'admin']]) {
     const after = await read(next, `/api/sessions/${session.id}/details`)
     expect(after.session.status).toBe('completed')
     expect(after.purchase.used).toBe(1)
+    expect(after.trainerComments).toBe('Outcome corrected after no-show, before client signature.')
+    expect(after.exerciseResults).toEqual(edited.exerciseResults)
     expect(after.acknowledgementHistory.map(a => a.method)).toEqual(['late_no_show', 'signature'])
     expect(after.acknowledgementHistory[1].signature[0].length).toBeGreaterThan(2)
     expect(after.whatsappOpenCount).toBe(0)

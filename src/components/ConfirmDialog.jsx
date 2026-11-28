@@ -1,3 +1,4 @@
+import ControlIcon from './ControlIcon.jsx'
 import { PageLoadingBoundary } from './LoadingIndicator.jsx'
 import ModalPortal from './ModalPortal.jsx'
 
@@ -27,7 +28,7 @@ export default function ConfirmDialog({
         <section className={`modal-card${className ? ` ${className}` : ''}`} role="dialog" aria-modal="true" aria-label={title} onKeyDown={onKeyDown}>
           <div className="modal-head">
             <h2>{title}</h2>
-            <button type="button" className="icon-button" aria-label="Close dialog" disabled={cancelDisabled} onClick={onCancel}>×</button>
+            <button type="button" className="icon-button" aria-label="Close dialog" disabled={cancelDisabled} onClick={onCancel}><ControlIcon name="close" /></button>
           </div>
           <div className="modal-body"><PageLoadingBoundary section>{children}</PageLoadingBoundary></div>
           <div className="modal-actions">

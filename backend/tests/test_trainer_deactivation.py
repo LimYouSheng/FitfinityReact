@@ -15,6 +15,7 @@ from app.authorization import Principal
 from app.models.api import TrainerDeactivationReceipt
 from app.models.authentication import AuthSession
 from app.models.communications import Message, SessionEvent
+from app.models.email_delivery import EmailDelivery
 from app.models.people import Client, StaffIdentity, StaffUser, Trainer
 from app.models.training import PackagePurchase, TrainingSession
 from tests.test_admin_api import create_admin, login_admin
@@ -85,6 +86,7 @@ def test_review_includes_past_uncompleted_and_open_without_writes(
 def test_atomic_batch_preserves_permanent_assignment_and_purchased_terms(
     api, domain_db, graph, replacement
 ):
+    domain_db.sessions.configure(info={"transactional_email_enabled": True})
     before = snapshot(domain_db)
     body, key = payload(api, graph, replacement), uuid4()
     response = save(api, graph, body, key)
@@ -98,6 +100,9 @@ def test_atomic_batch_preserves_permanent_assignment_and_purchased_terms(
         and before["package_purchases"] == after["package_purchases"]
     )
     with domain_db.transaction() as session:
+        mails = list(session.scalars(select(EmailDelivery)))
+        assert len(mails) == 1 and mails[0].kind == "trainer_termination"
+        assert mails[0].recipient == "trainer@example.test"
         assert session.get(Trainer, graph["trainer_id"]).status == "inactive"
         assert session.get(StaffUser, graph["user_id"]).status == "inactive"
         bookings = session.scalars(select(TrainingSession)).all()

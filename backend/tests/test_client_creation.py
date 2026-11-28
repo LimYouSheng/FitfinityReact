@@ -16,6 +16,7 @@ from app.authorization import Principal
 from app.models.api import ClientCreateReceipt
 from app.models.assessments import ClientAssessmentRevision
 from app.models.communications import Message
+from app.models.email_delivery import EmailDelivery
 from app.models.people import Client, ClientPerson
 from app.models.training import PackagePurchase, TrainingSession
 from tests.test_admin_api import create_admin, login_admin
@@ -75,6 +76,7 @@ def post(api, graph, payload=None, key=None):
 
 
 def test_create_is_atomic_replayable_and_private(api, domain_db, graph, migrate):
+    domain_db.sessions.configure(info={"transactional_email_enabled": True})
     declared_hours(domain_db, graph)
     key = uuid4()
     response = post(api, graph, key=key)
@@ -103,6 +105,16 @@ def test_create_is_atomic_replayable_and_private(api, domain_db, graph, migrate)
         person = session.scalar(
             select(ClientPerson).where(ClientPerson.client_id == UUID(result["id"]))
         )
+        emails = list(session.scalars(select(EmailDelivery)))
+        assert {mail.kind for mail in emails} == {"client_welcome"}
+        assert len(emails) == 1 and emails[0].recipient == "new@example.test"
+        assert f"Package: {purchase.name}" in emails[0].body
+        assert f"Sessions remaining: {purchase.total_sessions}" in emails[0].body
+        assert f"Valid from {purchase.start_date} through {purchase.end_date}" in emails[0].body
+        assert "No app login is needed" in emails[0].body
+        assert all(
+            "General note" not in mail.body and "eyes_open" not in mail.body for mail in emails
+        )
         assert person.health_notes == "General note"
         revision = session.scalar(
             select(ClientAssessmentRevision).where(
@@ -124,16 +136,18 @@ def test_create_is_atomic_replayable_and_private(api, domain_db, graph, migrate)
     with pytest.raises(DBAPIError, match="immutable"):
         with domain_db.transaction() as session:
             session.execute(text("UPDATE client_create_receipts SET result = '{}'::jsonb"))
-    with pytest.raises(DBAPIError, match="populated attribution downgrade refused"):
+    with pytest.raises(DBAPIError, match="populated email delivery downgrade refused"):
         migrate("downgrade", "20261013_0014")
 
 
 def test_couple_keeps_each_identity_and_assessment_actor(api, domain_db, graph):
+    domain_db.sessions.configure(info={"transactional_email_enabled": True})
     declared_hours(domain_db, graph)
     payload = body(graph)
     payload["type"] = "Couple"
     second = deepcopy(payload["people"][0])
     second["name"] = "Partner"
+    second["email"] = "partner@example.test"
     second["assessments"] = []
     payload["people"].append(second)
     response = post(api, graph, payload)
@@ -141,6 +155,11 @@ def test_couple_keeps_each_identity_and_assessment_actor(api, domain_db, graph):
     client = api.get(f"/api/clients/{response.json()['id']}").json()
     assert client["name"] == "New Client & Partner" and len(client["people"]) == 2
     assert len({p["id"] for p in client["people"]}) == 2
+    with domain_db.transaction() as session:
+        mails = list(session.scalars(select(EmailDelivery)))
+        assert len(mails) == 2
+        assert {mail.recipient for mail in mails} == {"new@example.test", "partner@example.test"}
+        assert all(mail.kind == "client_welcome" and "Package:" in mail.body for mail in mails)
 
 
 @pytest.mark.parametrize(

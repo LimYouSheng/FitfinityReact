@@ -19,6 +19,7 @@ from app.api.library_routes import router as library_router
 from app.api.openapi import configure_openapi
 from app.api.owner_profile import router as owner_profile_router
 from app.api.package_action_routes import router as package_action_router
+from app.api.report_email import router as report_email_router
 from app.api.report_sharing import router as report_sharing_router
 from app.api.routes import router as staff_router
 from app.api.schemas import ERROR_RESPONSES, Live, Ready
@@ -34,6 +35,7 @@ from app.auth.routes import router as auth_router
 from app.auth.service import AuthService
 from app.config import Settings, load_settings
 from app.database import Database
+from app.email_dispatch import router as email_dispatch_router
 from app.media_storage import configured_storage
 from app.migrations import expected_revisions
 from app.observability import RequestContextMiddleware, configure_logging, error_response
@@ -78,6 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.auth_settings = settings
     if settings.auth_enabled:
+        app.include_router(email_dispatch_router)
         app.include_router(auth_router)
         app.include_router(staff_router)
         app.include_router(access_router)
@@ -85,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(owner_profile_router)
         app.include_router(admin_requests_router)
         app.include_router(report_sharing_router)
+        app.include_router(report_email_router)
         app.include_router(email_router)
         app.include_router(library_router)
         app.include_router(package_action_router)

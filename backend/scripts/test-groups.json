@@ -100,7 +100,9 @@
     "tests/test_release_upgrade.py",
     "tests/test_release_upgrade_service.py",
     "tests/test_remuneration_api.py",
+    "tests/test_report_email_api.py",
     "tests/test_report_sharing_approvals.py",
-    "tests/test_schema_probe.py"
+    "tests/test_schema_probe.py",
+    "tests/test_transactional_email.py"
   ]
 }

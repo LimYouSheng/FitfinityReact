@@ -1,3 +1,4 @@
+import ControlIcon from '../../components/ControlIcon.jsx'
 import { useEffect, useState } from 'react'
 import { CUSTOM_EXERCISE, exerciseChoiceFor } from '../../app/exerciseLibrary.js'
 import { validateExercisePlan } from '../../app/sessionRules.js'
@@ -303,7 +304,7 @@ export default function ExercisePlanEditor({
                       <label className="exercise-custom-detail-field" key={detail.id}>
                         <span>
                           Details {detailIndex + 1}
-                          <button type="button" aria-label={`Remove detail ${detailIndex + 1} from exercise ${index + 1}`} onClick={() => removeDetail(item.id, detail.id)}>×</button>
+                          <button type="button" aria-label={`Remove detail ${detailIndex + 1} from exercise ${index + 1}`} onClick={() => removeDetail(item.id, detail.id)}><ControlIcon name="close" /></button>
                         </span>
                         <input
                           aria-label={`Exercise ${index + 1} details ${detailIndex + 1}`}

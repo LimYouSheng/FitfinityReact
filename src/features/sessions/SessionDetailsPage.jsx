@@ -15,7 +15,6 @@ import { useActionConfirmation } from '../../components/ActionConfirmationProvid
 import { useEditGuard } from '../../components/EditGuardProvider.jsx'
 import { isOpenSession, sessionStatus, pendingSessionChanges, sessionActionError, sessionDurationMinutes } from '../../app/sessionRules.js'
 import { businessClock } from '../../app/clock.js'
-import { exerciseResultsFor } from '../../app/progress.js'
 import { formatDate, formatTimestamp } from '../../utils/date.js'
 import PreviousPlanDialog from './PreviousPlanDialog.jsx'
 import ExercisePlanEditor from './ExercisePlanEditor.jsx'
@@ -80,8 +79,8 @@ export default function SessionDetailsPage({
   const { setActiveEdit } = useEditGuard()
   const outcome = useMemo(() => ({
     trainerComments: '', ...session.outcome,
-    durationMinutes: sessionDurationMinutes(session), exerciseResults: readOnly ? session.exerciseResults ?? [] : exerciseResultsFor(session),
-  }), [session, readOnly])
+    durationMinutes: sessionDurationMinutes(session), exerciseResults: session.exerciseResults ?? [],
+  }), [session])
   const displayedSummary = session.clientSummary || automaticClientSummary(session, outcome)
 
   const [activeEditor, setActiveEditor] = useState(null)
@@ -167,7 +166,7 @@ export default function SessionDetailsPage({
         ? 'This records a late/no-show, completes the session and debits one package credit. It cannot be undone. You can later correct it to a client signature without another credit deduction.'
         : session.acknowledgement?.method === 'late_no_show'
           ? 'This will permanently save the client signature and record the correction with a timestamp. The original trainer acknowledgement remains in the log. No additional credit will be used.'
-          : 'This permanently saves the client signature, completes the session and debits one package credit. It cannot be undone. WhatsApp is optional.',
+          : 'This permanently saves the client signature, completes the session and debits one package credit. It cannot be undone.',
       confirmLabel: 'Complete Session',
       detail: method === 'signature' ? <SignaturePreview strokes={signature} label="Review client signature" /> : null,
     })

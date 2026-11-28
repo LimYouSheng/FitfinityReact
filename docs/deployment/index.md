@@ -6,6 +6,7 @@ This folder owns AWS installation, deployment configuration, workflow procedures
 | --- | --- |
 | [CloudShell master setup](master-script/index.md) | First-account setup, adoption, saved review-preparation script and reconciliation of successful operator scripts. |
 | [GitHub workflows](workflows/index.md) | CI/source selection, image and schema stages, manual/coordinated release, receipts, recovery and rollback. |
+| [Transactional email](email.md) | SES sender, runtime grants, Cognito sender, dispatcher and acceptance sequence. |
 | [Infrastructure inventory](infrastructure.md) | Resource purposes, observed setup evidence, remaining live checks, DNS and retention policy. |
 
 Source generation is not installation. A historic successful receipt is not a fresh inspection or permission to execute against a different account. Keep account-specific inputs and secrets private. User approval/merge and AWS execution boundaries remain unchanged.

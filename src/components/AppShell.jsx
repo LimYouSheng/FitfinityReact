@@ -1,3 +1,4 @@
+import ControlIcon from './ControlIcon.jsx'
 import BrandLogo from './BrandLogo.jsx'
 import LoadingIndicator, { PageLoadingBoundary } from './LoadingIndicator.jsx'
 import { applyTheme, readTheme, saveTheme } from '../app/theme.js'
@@ -217,7 +218,7 @@ export default function AppShell({
                 aria-label="Back"
                 onClick={onBack}
               >
-                <span aria-hidden="true">‹</span>
+                <ControlIcon name="back" />
               </button>
             )}
 
@@ -333,7 +334,7 @@ export default function AppShell({
                     Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
                   </button>
 
-                  <button type="button" role="menuitem" onClick={onSignOut}>
+                  <button type="button" className="profile-menu-danger" role="menuitem" onClick={onSignOut}>
                     Sign Out
                   </button>
                 </div>

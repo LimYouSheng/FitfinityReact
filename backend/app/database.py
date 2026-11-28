@@ -40,7 +40,11 @@ class Database:
                 ),
             },
         )
-        self.sessions = sessionmaker(bind=self.engine, expire_on_commit=False)
+        self.sessions = sessionmaker(
+            bind=self.engine,
+            expire_on_commit=False,
+            info={"transactional_email_enabled": settings.transactional_email_enabled},
+        )
 
     @contextmanager
     def transaction(self) -> Iterator[Session]:

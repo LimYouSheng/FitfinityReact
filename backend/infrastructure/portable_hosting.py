@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 
+import email_runtime
 from deployment_profile import identities, template_rules
 from hosting_design import app_template, attr, resource, sub, waf
 from operator_checks import require
@@ -27,10 +28,11 @@ def bindings(profile, values):
     """Reject mixed target identities and secret values before rendering hosting."""
     target = identities(profile)
     require(
-        isinstance(values, dict) and set(values) in (FIELDS, FIELDS | {"features"}),
+        isinstance(values, dict) and FIELDS <= set(values) <= FIELDS | {"features", "email"},
         "Exact hosting bindings required",
     )
     features(values)
+    email_runtime.checked(target, values.get("email"))
     account, region = target["account"], target["region"]
     secret_root = (
         rf"arn:aws:secretsmanager:{re.escape(region)}:{account}:secret:"
@@ -96,7 +98,7 @@ def runtime_access(target, values):
         "ec2:AssignPrivateIpAddresses",
         "ec2:UnassignPrivateIpAddresses",
     ]
-    statements = []
+    statements = email_runtime.access(target, values.get("email"))
     enabled = features(values)
     if enabled["invitations"]:
         statements.append(
@@ -181,6 +183,7 @@ def prepare(profile, values, *, frontend_prefix, edge_arn):
             "FITFINITY_MEDIA_ENABLED": str(enabled["media"]).lower(),
         }
     )
+    env.update(email_runtime.environment(target, values.get("email")))
     if enabled["invitations"]:
         env["FITFINITY_STAFF_PORTAL_URL"] = sub("https://${Distribution.DomainName}/")
     if enabled["media"]:

@@ -150,3 +150,18 @@ flowchart TB
 Existing suites already cover selected permission, conflict and response-loss cases; the planned resilience suite expands those boundaries rather than implying they are absent. Functional test timing is not a latency benchmark. Mutation scores, performance budgets, SLOs and new security gates require measured baselines and review. **Planned suites are not current CI checks or completed acceptance.** Physical-device/provider evidence is not replaced by simulated browsers or local signed tokens.
 
 Independent verification jobs start together; only shared-build consumers and final evidence aggregates wait. Offline infrastructure and backend source checks run separately from database groups. Resource snapshots support future measured recycling decisions; no two-case restart policy is enabled. See [Development](../development.md#verification-commands) for group boundaries and budgets.
+
+## Transactional email candidate (disabled pending setup)
+
+```mermaid
+flowchart LR
+  Staff["Staff business action"] --> API["FastAPI transaction"]
+  API --> DB["PostgreSQL business data + mail intent"]
+  Schedule["Disabled EventBridge schedule"] --> Worker["Signed dispatcher Lambda"]
+  Worker --> API
+  API --> SES["SES · configured sender"]
+  SES --> Recipient["Individual recipient"]
+  Cognito["Cognito invitation"] --> SES
+```
+
+Intent commit, SES acceptance and inbox delivery are distinct states. Provider uncertainty holds the original attempt. [Email configuration](../deployment/email.md) owns activation and recovery.

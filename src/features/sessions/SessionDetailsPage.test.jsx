@@ -204,7 +204,7 @@ describe('session detail confirmations', () => {
     expect(screen.queryByRole('dialog', { name: 'Client signature' })).not.toBeInTheDocument()
     const confirmation = screen.getByRole('dialog', { name: 'Complete this session?' })
     expect(confirmation).toBeVisible()
-    expect(confirmation).toHaveTextContent('WhatsApp is optional')
+    expect(confirmation).not.toHaveTextContent('WhatsApp')
     expect(confirmation).toHaveTextContent('It cannot be undone')
     expect(confirmation).not.toHaveTextContent('Undo is available')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Complete Session' }))

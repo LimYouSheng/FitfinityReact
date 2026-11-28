@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 
 from app.models.api import SessionAcknowledgementReceipt
 from app.models.communications import SessionEvent
+from app.models.email_delivery import EmailDelivery
 from app.models.training import Acknowledgement, CreditDebit, TrainingSession
 from tests.competing_writers import contend_at_commit
 from tests.test_session_outcomes_api import STROKES
@@ -30,6 +31,7 @@ def save(api, identity, viewed, key=None, **body):
 
 
 def test_no_show_correction_preserves_both_signatures_and_one_credit(api, domain_db, graph):
+    domain_db.sessions.configure(info={"transactional_email_enabled": True})
     identity, key = graph["session_id"], uuid4()
     viewed = review(api, identity)
     first = save(api, identity, viewed, key)
@@ -39,6 +41,18 @@ def test_no_show_correction_preserves_both_signatures_and_one_credit(api, domain
     assert api.get(f"/api/session-acknowledgements/{key}").json() == first.json()
     assert save(api, identity, viewed, key, note="Other").status_code == 409
     assert save(api, identity, viewed).status_code == 409
+    outcome = api.get(f"/api/sessions/{identity}/outcome-review").json()
+    edited = api.post(
+        f"/api/sessions/{identity}/outcome",
+        json={
+            "expected": outcome["expected"],
+            "trainerComments": "Edited after no-show, before signature",
+            "measurements": [],
+        },
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["rows"] == outcome["rows"]
     corrected = save(
         api,
         identity,
@@ -51,9 +65,14 @@ def test_no_show_correction_preserves_both_signatures_and_one_credit(api, domain
     assert corrected.json()["sequence"] == 2 and corrected.json()["used"] == 1
     assert api.get(f"/api/sessions/{identity}/acknowledgement-review").status_code == 409
     with domain_db.transaction() as session:
+        mails = list(session.scalars(select(EmailDelivery)))
+        assert len(mails) == 2 and all(mail.kind == "session_complete" for mail in mails)
+        assert all("Sessions used: 1 of 2" in mail.body for mail in mails)
         assert session.scalar(select(func.count()).select_from(CreditDebit)) == 1
         assert session.scalar(select(func.count()).select_from(Acknowledgement)) == 2
-        assert session.get(TrainingSession, identity).status == "completed"
+        booking = session.get(TrainingSession, identity)
+        assert booking.status == "completed"
+        assert booking.trainer_comments == "Edited after no-show, before signature"
 
 
 def test_receipt_failure_rolls_back_completion_credit_and_signature(

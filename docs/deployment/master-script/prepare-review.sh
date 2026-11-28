@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render private review artifacts with the selected Fitfinity checkout. No provider calls.
+# Render private review artifacts with the selected Fitfinity checkout. Email uses read-only AWS discovery; other phases are offline.
 set -euo pipefail
 umask 077
 export PYTHONDONTWRITEBYTECODE=1
@@ -7,6 +7,7 @@ export PYTHONDONTWRITEBYTECODE=1
 usage() {
   cat >&2 <<'HELP'
 Run from the Fitfinity checkout or set FITFINITY_REPO to its path.
+  prepare-review.sh email PROFILE EMAIL_JSON RELEASE_CONFIG_JSON NEW_DIRECTORY
   prepare-review.sh foundation|hosting PROFILE INPUTS_JSON NEW_ZIP
   prepare-review.sh probe|upgrade PROFILE MIGRATION_SECRET_ARN VPC_ID NEW_DIRECTORY [INSTALLED_STACK_ARN ORIGINAL_TEMPLATE_JSON]
   prepare-review.sh hosting-access PROFILE STACK_JSON RESOURCES_JSON OWNER_TEMPLATE_JSON OWNER_TEMPLATE_HASH NEW_JSON [BOUNDARY_STACK_JSON BOUNDARY_RESOURCES_JSON]
@@ -19,6 +20,10 @@ phase=$1
 shift
 infra="${FITFINITY_REPO:-$PWD}/backend/infrastructure"
 case "$phase" in
+  email)
+    [[ $# -eq 4 ]] || usage
+    exec python3 "$infra/email_setup.py" --profile "$1" --email "$2" --release-config "$3" --output "$4"
+    ;;
   foundation|hosting)
     [[ $# -eq 3 ]] || usage
     exec python3 "$infra/portable_onboarding.py" "$phase" --profile "$1" --inputs "$2" --output "$3"

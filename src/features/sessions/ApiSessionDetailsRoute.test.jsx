@@ -144,8 +144,8 @@ it('plan-only capability freezes an uncertain save and keeps media/outcome/ackno
 
 it('recovers an uncertain outcome with its original review and an explicit recovery confirmation', async () => {
   const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
-  const draft = { trainerComments: 'Measured', exerciseResults: [] }
-  const reviewed = { expected: 'original-outcome' }
+  const draft = { trainerComments: 'Measured', exerciseResults: [{ id: 'unmeasured', name: 'Unmeasured squat', loadKg: 20, reps: 8, sets: 3 }] }
+  const reviewed = { expected: 'original-outcome', rows: [{ id: 'unmeasured', name: 'Unmeasured squat', loadKg: null, reps: null, sets: null }] }
   const save = vi.fn().mockRejectedValueOnce(new Error('Lost outcome response')).mockResolvedValue({})
   const notice = vi.fn()
   const services = { readSessionDetails: vi.fn().mockResolvedValue(value), reviewSessionOutcome: vi.fn().mockResolvedValue({ reviewed, draft, uncertain: false }), sessionService: { saveOutcome: save } }
@@ -162,6 +162,7 @@ it('recovers an uncertain outcome with its original review and an explicit recov
   fireEvent.click(within(panel).getByRole('button', { name: 'Check original outcome', exact: true }))
   await vi.waitFor(() => expect(notice).toHaveBeenCalledWith('Original session outcome confirmed.'))
   expect(save.mock.calls[0]).toEqual(save.mock.calls[1])
+  expect(save.mock.calls[0][0].outcome.exerciseResults).toEqual([])
   expect(services.reviewSessionOutcome).toHaveBeenCalledTimes(1)
 })
 
@@ -309,7 +310,7 @@ it.each(['plan', 'outcome', 'summary'])('retains an unsaved %s through a transie
   const value = sessionDetail(sessionDetailData(), directoryId(30), staff)
   const services = { readSessionDetails: vi.fn().mockResolvedValue(value),
     reviewSessionPlan: vi.fn().mockResolvedValue({ reviewed: {}, draft: value.session.exercisePlan }),
-    reviewSessionOutcome: vi.fn().mockResolvedValue({ reviewed: {}, draft: { trainerComments: '', exerciseResults: [] } }),
+    reviewSessionOutcome: vi.fn().mockResolvedValue({ reviewed: { rows: [] }, draft: { trainerComments: '', exerciseResults: [] } }),
     reviewSessionSummary: vi.fn().mockResolvedValue({ reviewed: {}, draft: 'Original summary' }) }
   const view = show(services, { capabilities: { sessionPlanWrites: true, sessionOutcomeWrites: true, sessionSummaryWrites: true } })
   await screen.findByText('Stored instruction')

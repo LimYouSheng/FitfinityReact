@@ -14,6 +14,7 @@ from app.auth.errors import AuthError
 from app.authorization import Principal
 from app.models.api import ClientRenewalReceipt
 from app.models.communications import Message, MessageReceipt
+from app.models.email_delivery import EmailDelivery
 from app.models.people import Client, ClientPerson, Trainer, TrainerAvailability
 from app.models.training import (
     PackagePurchase,
@@ -82,6 +83,7 @@ def counts(domain_db):
 def test_atomic_future_purchase_preserves_current_people_sessions_and_settings(
     api, domain_db, graph, ready
 ):
+    domain_db.sessions.configure(info={"transactional_email_enabled": True})
     with domain_db.transaction() as session:
         client_before = row_values(session.get(Client, graph["client_id"]))
         current_before = row_values(session.get(PackagePurchase, graph["purchase_id"]))
@@ -110,6 +112,9 @@ def test_atomic_future_purchase_preserves_current_people_sessions_and_settings(
         and result["version"] == client_before["version"] + 1
     )
     with domain_db.transaction() as session:
+        mails = list(session.scalars(select(EmailDelivery)))
+        assert len(mails) == 1 and mails[0].kind == "package_added"
+        assert "Sessions used: 0" in mails[0].body
         client = session.get(Client, graph["client_id"])
         assert {
             k: v for k, v in row_values(client).items() if k not in {"version", "updated_at"}

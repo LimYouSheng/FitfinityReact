@@ -1,5 +1,5 @@
 {
-  "schema_revision": "20261127_0053",
+  "schema_revision": "20261128_0054",
   "tables": {
     "acknowledgements": [
       "SELECT",
@@ -137,6 +137,15 @@
       "INSERT"
     ],
     "credit_debits": [
+      "SELECT",
+      "INSERT"
+    ],
+    "email_deliveries": [
+      "SELECT",
+      "INSERT",
+      "UPDATE"
+    ],
+    "email_report_receipts": [
       "SELECT",
       "INSERT"
     ],
